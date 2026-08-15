@@ -24,6 +24,13 @@ This repository contains the public product, including local and self-hosted fou
 
 Polterware Cloud is a managed service built on a separate private control plane. Its identity, organization, billing, metering, tenant provisioning, internal administration, production infrastructure, and operational runbooks are not part of this repository. Frontend flags never grant authorization.
 
+Polterware ships one Desktop product rather than separate Tiny and Pro
+editions. The local Community experience works without an account; optional
+sign-in connects the same Desktop to server-authorized Cloud capabilities.
+Polterware Web is an authenticated hosted surface, while pricing and free-tier
+policy remain independent commercial decisions. See
+[ADR 0002](docs/adr/0002-single-desktop-and-cloud-connection.md).
+
 ## Repository
 
 - `apps/desktop` — Electron Main, preload bridge, and Solid renderer

@@ -9,7 +9,7 @@ Deliver a maintainable first version focused on understanding and rehearsing mai
 
 ## Deployment boundary
 
-Only the `local` deployment mode is active in this first version, and its behavior is fixture-backed. Self-hosted and Cloud functionality is not implemented today. The public deployment contract and capability boundary are defined in [deployment-model.md](architecture/deployment-model.md); repository ownership is defined in [repository-map.md](architecture/repository-map.md) and [ADR 0001](adr/0001-open-source-cloud-boundary.md).
+Only the `local` deployment mode is active in this first version, and its behavior is fixture-backed. Self-hosted and Cloud functionality is not implemented today. The public deployment contract and capability boundary are defined in [deployment-model.md](architecture/deployment-model.md); repository ownership is defined in [repository-map.md](architecture/repository-map.md) and [ADR 0001](adr/0001-open-source-cloud-boundary.md); the single-Desktop distribution and optional Cloud connection are defined in [ADR 0002](adr/0002-single-desktop-and-cloud-connection.md).
 
 ## Information architecture
 

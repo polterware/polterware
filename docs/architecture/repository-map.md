@@ -22,6 +22,11 @@ Only `polterware/polterware` and `polterware/cloud` are active repositories. The
 
 Hosted-only UI source may be public, but local and self-hosted distributions hide routes for capabilities that their backend does not provide.
 
+The public monorepo owns one Desktop application rather than separate Tiny,
+Community, and Pro editions. It also owns the public Web frontend and Cloud
+client integration. The private Cloud repository owns the hosted authority
+that makes those surfaces operational.
+
 Historical hosted UI is ported selectively under [hosted-ui-porting.md](hosted-ui-porting.md); the archive branch is never merged wholesale.
 
 The legacy studio website remains separate until the product-only migration gate in [website-migration.md](website-migration.md) is satisfied.
@@ -36,3 +41,7 @@ The legacy studio website remains separate until the product-only migration gate
 | Production operations | Production infrastructure, deployment operations, private runbooks, and operational documentation |
 
 Private operational documentation lives with the Cloud repository. Cloud subscriptions, invoices, metering, tenant provisioning, internal administration, and production infrastructure are not part of the self-hosted product.
+
+The product and distribution decision is recorded in
+[ADR 0002](../adr/0002-single-desktop-and-cloud-connection.md). Pricing tiers
+do not create additional repositories or Desktop forks.
