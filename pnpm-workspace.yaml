@@ -1,0 +1,15 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "packages/frontend/*"
+  - "packages/features/*"
+  - "packages/configuration"
+  - "packages/configuration/*"
+
+allowBuilds:
+  better-sqlite3: true
+  cpu-features: true
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  msw: false

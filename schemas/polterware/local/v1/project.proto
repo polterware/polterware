@@ -1,0 +1,32 @@
+syntax = "proto3";
+package polterware.local.v1;
+option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
+
+message Project {
+  string id = 1;
+  string name = 2;
+  string root_path = 3;
+}
+
+message Environment {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;
+  string kind = 4;
+}
+
+message ListProjectsRequest {}
+message ListProjectsResponse { repeated Project projects = 1; }
+message SaveProjectRequest { Project project = 1; }
+message SaveProjectResponse { Project project = 1; }
+message ListEnvironmentsRequest { string project_id = 1; }
+message ListEnvironmentsResponse { repeated Environment environments = 1; }
+message SaveEnvironmentRequest { Environment environment = 1; }
+message SaveEnvironmentResponse { Environment environment = 1; }
+
+service ProjectService {
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+  rpc SaveProject(SaveProjectRequest) returns (SaveProjectResponse);
+  rpc ListEnvironments(ListEnvironmentsRequest) returns (ListEnvironmentsResponse);
+  rpc SaveEnvironment(SaveEnvironmentRequest) returns (SaveEnvironmentResponse);
+}

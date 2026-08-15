@@ -1,0 +1,313 @@
+/* Tailwind v4 — Polter quiet dark operator tokens (DESIGN.md SSOT) */
+@import "tailwindcss";
+
+/* Scan monorepo UI sources (base.css lives under packages/configuration/tailwind) */
+@source "../../../apps/desktop/src/**/*.{html,ts,tsx}";
+@source "../../../packages/features/**/*.{ts,tsx}";
+@source "../../../packages/frontend/**/*.{ts,tsx}";
+
+@theme {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Surfaces — neutral gray ladder (no cool/blue cast), no pure black as sole depth */
+  --color-app-background: #070707;
+  --color-shell-background: #090909;
+  --color-sidebar-background: #090909;
+  --color-surface: #0f0f0f;
+  --color-surface-subtle: #121212;
+  --color-surface-raised: #151515;
+  --color-surface-hover: #191919;
+  --color-surface-active: #1e1e1e;
+  --color-surface-selected: #232323;
+
+  /* Border hierarchy may use alpha; structural fills stay opaque. */
+  --color-border-subtle: rgb(255 255 255 / 0.045);
+  --color-border-default: rgb(255 255 255 / 0.07);
+  --color-border-strong: rgb(255 255 255 / 0.12);
+
+  /* Text and icons always use solid neutral paint. */
+  --color-text-primary: #ececec;
+  --color-text-secondary: #a4a4a4;
+  --color-text-muted: #6f6f6f;
+  --color-text-disabled: #4b4b4b;
+
+  /* Primary CTA — pastel cyan; rare special buttons only (not brand green) */
+  --color-primary: #8eccc9;
+  --color-primary-foreground: var(--color-surface-selected);
+
+  --color-brand: #01dd96;
+
+  --color-danger: #e46666;
+  --color-warning: #d8a85d;
+  --color-info: #7e9fd8;
+  --color-success: #01dd96;
+
+  /* Operational chart series — opaque categorical paints. */
+  --color-chart-cyan: #8eccc9;
+  --color-chart-blue: #7e9fd8;
+  --color-chart-green: #5bbf93;
+  --color-chart-amber: #d8a85d;
+  --color-chart-red: #e46666;
+  --color-chart-violet: #9c8fce;
+  --color-chart-gray: #6f6f6f;
+  --color-chart-axis: var(--color-text-muted);
+  --color-chart-grid: var(--color-border-default);
+
+  /* Dither identity tiles — two light colors + dark marks (never black gaps / text-primary). */
+  --color-dither-accent-neutral: #a8a8a8;
+  --color-dither-icon-base: #f4f4f4;
+  --color-dither-icon-edge: #d0d0d0;
+  --color-dither-icon-mark: #121212;
+  --color-dither-icon-mark-dimmed: #3a3a3a;
+
+  /* Compact semantic status badges — opaque tone pairs. */
+  --color-status-success-background: #3d8f74;
+  --color-status-success-foreground: #071c16;
+  --color-status-warning-background: var(--color-warning);
+  --color-status-warning-foreground: #4a310f;
+  --color-status-danger-background: var(--color-danger);
+  --color-status-danger-foreground: #47171a;
+  --color-status-info-background: var(--color-info);
+  --color-status-info-foreground: #26364f;
+  --color-status-muted-background: var(--color-surface-selected);
+  --color-status-muted-foreground: var(--color-text-secondary);
+  --radius-window: 18px;
+  --color-chart-cyan: #8eccc9;
+  --color-chart-blue: #7e9fd8;
+  --color-chart-green: #5bbf93;
+  --color-chart-amber: #d8a85d;
+  --color-chart-red: #e46666;
+  --color-chart-violet: #9c8fce;
+  --color-chart-gray: #6f6f6f;
+  --color-chart-axis: var(--color-text-muted);
+  --color-chart-grid: var(--color-border-default);
+  --chart-bloom-blur: 6;
+  --chart-bloom-strength-rest: 0.12;
+  --chart-bloom-strength-active: 0.28;
+  /* Functional alpha: modal context separation and elevation only. */
+  --color-overlay: rgb(0 0 0 / 0.6);
+  --color-shadow-subtle: rgb(0 0 0 / 0.22);
+  --color-shadow: rgb(0 0 0 / 0.32);
+  --color-shadow-float: rgb(0 0 0 / 0.42);
+  --color-shadow-outline: rgb(0 0 0 / 0.18);
+
+  /* Legacy aliases (transition) */
+  --color-bg: var(--color-app-background);
+  --color-fg: var(--color-text-primary);
+  --color-muted: var(--color-text-muted);
+  --color-border: var(--color-border-default);
+  --color-accent: var(--color-info);
+  --color-success-legacy: var(--color-success);
+
+  --radius-control: 7px;
+  --radius-item: 8px;
+  --radius-card: 10px;
+  --radius-surface: 14px;
+  --radius-window: 18px;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --duration-fast: 120ms;
+  --duration-control: 160ms;
+  --duration-enter: 200ms;
+
+  --sidebar-width: 232px;
+  --titlebar-height: 44px;
+  /* macOS traffic lights clearance when titleBarStyle is hidden */
+  --titlebar-traffic-inset: 78px;
+  --page-header-height: 52px;
+  --control-height-sm: 28px;
+  --control-height-md: 32px;
+
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dropdown: 40;
+  --z-toast: 50;
+  --z-dialog: 60;
+}
+
+:root {
+  color-scheme: dark;
+  --foreground: var(--color-text-primary);
+  --primary: var(--color-text-primary);
+  --primary-foreground: var(--color-primary-foreground);
+  --secondary: var(--color-surface-raised);
+  --secondary-foreground: var(--color-text-primary);
+  --card: var(--color-surface);
+  --destructive: var(--color-danger);
+  --signal-info: var(--color-info);
+  --signal-success: var(--color-brand);
+  --signal-warning: var(--color-warning);
+  --signal-danger: var(--color-danger);
+  --ease-out-cubic: var(--ease-standard);
+  --ring: var(--color-border-strong);
+
+  /*
+   * Always emit tokens consumed by authored CSS here (not only @theme).
+   * Tailwind v4 may tree-shake theme variables without utility consumers.
+   */
+  --color-primary: #8eccc9;
+  --color-surface-active: #1e1e1e;
+  --color-status-success-background: #3d8f74;
+  --color-status-success-foreground: #071c16;
+  --color-status-warning-background: var(--color-warning);
+  --color-status-warning-foreground: #4a310f;
+  --color-status-danger-background: var(--color-danger);
+  --color-status-danger-foreground: #47171a;
+  --color-status-info-background: var(--color-info);
+  --color-status-info-foreground: #26364f;
+  --color-status-muted-background: var(--color-surface-selected);
+  --color-status-muted-foreground: var(--color-text-secondary);
+  /* Tokenized edge light — real border + top highlight (see DESIGN.md Materials).
+   * Structural fills remain opaque; these low-alpha highlights describe edges.
+   * field   = inputs/selects
+   * surface = MainSurface / panels
+   */
+  --edge-light-field-highlight: rgb(255 255 255 / 0.04);
+  --edge-light-field-rim: rgb(255 255 255 / 0.032);
+  --edge-light-surface-highlight: rgb(255 255 255 / 0.055);
+  --edge-light-surface-rim: rgb(255 255 255 / 0.04);
+}
+
+/* Edge light utilities (also in design-system materials.css; mirrored so shell tokens always exist) */
+.edge-light-surface {
+  border: 1px solid var(--edge-light-surface-rim);
+  border-top-color: var(--edge-light-surface-highlight);
+}
+
+.edge-light-surface-top {
+  border-top-color: var(--edge-light-surface-highlight);
+}
+
+/**
+ * Canonical quiet product surface (MainSurface / dialogs / popovers / elevated panels).
+ * Prefer this over ad-hoc border + bg. The border is the edge-light rim.
+ */
+.surface-panel {
+  border: 1px solid var(--edge-light-surface-rim);
+  border-top-color: var(--edge-light-surface-highlight);
+  border-radius: var(--radius-surface);
+  background: var(--color-surface);
+}
+
+/** Floating overlay on shell — same edge-light + soft outer lift. */
+.surface-panel-float {
+  border: 1px solid var(--edge-light-surface-rim);
+  border-top-color: var(--edge-light-surface-highlight);
+  border-radius: var(--radius-surface);
+  background: var(--color-surface);
+  box-shadow:
+    0 20px 56px var(--color-shadow-float),
+    0 0 0 1px var(--color-shadow-subtle);
+}
+
+/**
+ * Canonical form control chrome (Input / Select / Textarea).
+ * Field-weight edge-light border (quieter than buttons).
+ * Prefer design-system Input/Select/Textarea over ad-hoc field classes.
+ */
+.control-field {
+  border: 1px solid var(--edge-light-field-rim);
+  border-top-color: var(--edge-light-field-highlight);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+  transition:
+    background var(--duration-control) var(--ease-standard),
+    border-color var(--duration-control) var(--ease-standard);
+}
+
+.control-field::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.control-field:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-surface-raised);
+}
+
+.control-field:disabled,
+.control-field[aria-disabled="true"] {
+  background: var(--color-surface);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.control-field-sm {
+  height: var(--control-height-sm);
+  padding-inline: 0.5rem;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.control-field-md {
+  height: var(--control-height-md);
+  padding-inline: 0.625rem;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+/** Textarea: same chrome, auto height */
+.control-field-area {
+  min-height: 4rem;
+  padding: 0.5rem 0.625rem;
+  font-size: 13px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+/**
+ * Nested product card — hairline + whisper outer lift (design-system Card).
+ */
+.card-panel {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-subtle);
+  /* Whisper lift only — keep barely visible on dark UI */
+  box-shadow: 0 1px 2px var(--color-shadow-subtle);
+}
+
+/**
+ * Canonical product overlay frame — dialogs AND command palette (same box).
+ * Also applied as .pw-dialog-content in design-system dialog.css.
+ */
+.pw-product-frame {
+  width: min(72rem, calc(100vw - 2.5rem));
+  max-width: min(72rem, calc(100vw - 2.5rem));
+  height: min(78vh, 760px);
+  max-height: min(92vh, 900px);
+  min-height: min(78vh, 760px);
+}
+
+/**
+ * Compact dropdown / context menu panel (canvas tools, small menus).
+ * Large menus (org/project) use surface-panel-float via Popover.
+ */
+.menu-panel {
+  border: 1px solid var(--edge-light-surface-rim);
+  border-top-color: var(--edge-light-surface-highlight);
+  border-radius: var(--radius-item);
+  background: var(--color-surface);
+  overflow: hidden;
+  box-shadow:
+    0 8px 28px var(--color-shadow),
+    0 0 0 1px var(--color-shadow-outline);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus ring — quiet, never brand glow */
+:where(button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: 2px;
+}

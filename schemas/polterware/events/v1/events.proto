@@ -1,0 +1,14 @@
+syntax = "proto3";
+package polterware.events.v1;
+option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/events/v1;eventsv1";
+
+message EventEnvelope {
+  string event_id = 1;
+  string type = 2;
+  string at = 3;
+  string correlation_id = 4;
+  string operation_id = 5;
+  int64 sequence = 6;
+  string payload = 7;
+  bool truncated = 8;
+}

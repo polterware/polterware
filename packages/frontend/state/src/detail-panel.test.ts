@@ -1,0 +1,257 @@
+import { beforeEach, describe, expect, it } from "vitest";
+
+import {
+  detailPanelDefaultState,
+  detailPanelStore,
+  type DetailTarget,
+} from "./index";
+
+const scopeId = "project-alpha";
+const firstTarget: DetailTarget = { scopeId, entityId: "service-api", entityKind: "service" };
+const secondTarget: DetailTarget = { scopeId, entityId: "worker-sync", entityKind: "process" };
+
+function resetStore() {
+  detailPanelStore.setState(detailPanelDefaultState);
+}
+
+describe("detailPanelStore", () => {
+  beforeEach(resetStore);
+
+  it("starts with the documented layout and session defaults", () => {
+    expect(detailPanelStore.getState()).toMatchObject(detailPanelDefaultState);
+  });
+
+  it("opens the panel when a new scope registers with ready targets", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget, secondTarget] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeScope: scopeId,
+      activeTarget: firstTarget,
+      collectionStatus: "ready",
+      mode: "open",
+      restoreMode: "open",
+    });
+  });
+
+  it("reopens a closed panel when the tab scope changes", () => {
+    const nextScopeId = "project-beta";
+    const nextTarget: DetailTarget = { scopeId: nextScopeId, entityId: "database-primary", entityKind: "resource" };
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    detailPanelStore.getState().collapse();
+
+    detailPanelStore.getState().unregisterCollection(scopeId);
+    detailPanelStore.getState().registerCollection({ scopeId: nextScopeId, status: "ready", targets: [nextTarget] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeScope: nextScopeId,
+      activeTarget: nextTarget,
+      mode: "open",
+      restoreMode: "open",
+    });
+  });
+
+  it("consumes a matching pending target when its collection is ready", () => {
+    detailPanelStore.getState().requestTarget(secondTarget);
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget, secondTarget] });
+
+    expect(detailPanelStore.getState()).toMatchObject({ activeTarget: secondTarget, pendingTarget: null, mode: "open" });
+  });
+
+  it("drops a missing pending target and activates the first available row", () => {
+    detailPanelStore.getState().requestTarget({
+      scopeId,
+      entityId: "missing-service",
+      entityKind: "service",
+    });
+    detailPanelStore.getState().registerCollection({
+      scopeId,
+      status: "ready",
+      targets: [firstTarget, secondTarget],
+    });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: firstTarget,
+      pendingTarget: null,
+      mode: "open",
+    });
+  });
+
+  it("keeps a cross-scope pending target while the previous collection unregisters", () => {
+    const nextTarget: DetailTarget = {
+      scopeId: "project-beta",
+      entityId: "database-primary",
+      entityKind: "resource",
+    };
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    detailPanelStore.getState().requestTarget(nextTarget);
+
+    detailPanelStore.getState().unregisterCollection(scopeId);
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeScope: null,
+      activeTarget: null,
+      pendingTarget: nextTarget,
+      collectionStatus: "idle",
+      mode: "open",
+    });
+  });
+
+  it("preserves a valid active target when a collection refreshes", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget, secondTarget] });
+    detailPanelStore.getState().activateTarget(secondTarget);
+    detailPanelStore.getState().collapse();
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget, secondTarget] });
+
+    expect(detailPanelStore.getState()).toMatchObject({ activeTarget: secondTarget, mode: "collapsed" });
+  });
+
+  it("keeps the panel collapsed when activating another target", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget, secondTarget] });
+    detailPanelStore.getState().collapse();
+    detailPanelStore.getState().activateTarget(secondTarget);
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: secondTarget,
+      mode: "collapsed",
+    });
+  });
+
+  it("clears and collapses an empty ready collection", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [] });
+
+    expect(detailPanelStore.getState()).toMatchObject({ activeTarget: null, collectionStatus: "ready", mode: "collapsed" });
+  });
+
+  it("dismissTarget dismisses the active entity and keeps the empty selection on refresh", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget, secondTarget] });
+    detailPanelStore.getState().dismissTarget(scopeId);
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: null,
+      outgoingTarget: firstTarget,
+      presence: "dismissing",
+      mode: "collapsed",
+    });
+
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget, secondTarget] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: null,
+      outgoingTarget: firstTarget,
+      presence: "dismissing",
+      mode: "collapsed",
+    });
+  });
+
+  it("keeps an in-flight or completed dismissal through same-scope loading refreshes", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    detailPanelStore.getState().dismissTarget(scopeId);
+    detailPanelStore.getState().registerCollection({ scopeId, status: "loading", targets: [] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: null,
+      outgoingTarget: firstTarget,
+      collectionStatus: "loading",
+      presence: "dismissing",
+      mode: "collapsed",
+    });
+
+    detailPanelStore.getState().completeDismissal(scopeId);
+    detailPanelStore.getState().registerCollection({ scopeId, status: "loading", targets: [] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: null,
+      outgoingTarget: null,
+      collectionStatus: "loading",
+      presence: "hidden",
+      mode: "collapsed",
+    });
+  });
+
+  it("dismissTarget ignores a different scope", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    detailPanelStore.getState().dismissTarget("other-scope");
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: firstTarget,
+      mode: "open",
+    });
+  });
+
+  it("completeDismissal transitions from dismissing to hidden", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    detailPanelStore.getState().dismissTarget(scopeId);
+
+    expect(detailPanelStore.getState().presence).toBe("dismissing");
+    expect(detailPanelStore.getState().outgoingTarget).toBe(firstTarget);
+
+    detailPanelStore.getState().completeDismissal(scopeId);
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: null,
+      outgoingTarget: null,
+      presence: "hidden",
+      mode: "collapsed",
+    });
+  });
+
+  it("cancels dismissal when another target becomes active", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget, secondTarget] });
+    detailPanelStore.getState().dismissTarget(scopeId);
+    detailPanelStore.getState().activateTarget(secondTarget);
+
+    detailPanelStore.getState().completeDismissal(scopeId);
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: secondTarget,
+      outgoingTarget: null,
+      presence: "visible",
+      mode: "collapsed",
+    });
+  });
+
+  it("selects the first target when loading in the current scope becomes ready", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "loading", targets: [] });
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: firstTarget,
+      outgoingTarget: null,
+      presence: "visible",
+      mode: "open",
+    });
+  });
+
+  it("clears the current collection session state when it unregisters", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    detailPanelStore.getState().unregisterCollection(scopeId);
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeScope: null,
+      activeTarget: null,
+      pendingTarget: null,
+      collectionStatus: "idle",
+      mode: "collapsed",
+    });
+  });
+
+  it("maximizes only an active collection and restores it open", () => {
+    detailPanelStore.getState().maximize();
+    expect(detailPanelStore.getState().mode).toBe("collapsed");
+
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    detailPanelStore.getState().collapse();
+    detailPanelStore.getState().maximize();
+
+    expect(detailPanelStore.getState()).toMatchObject({ mode: "maximized", restoreMode: "collapsed" });
+
+    detailPanelStore.getState().restore();
+    expect(detailPanelStore.getState()).toMatchObject({ mode: "open", restoreMode: "open" });
+  });
+
+  it("keeps snap geometry out of global and persisted state", () => {
+    expect(detailPanelStore.getState()).not.toHaveProperty("bottomSize");
+    expect(detailPanelStore.getState()).not.toHaveProperty("setSize");
+  });
+});

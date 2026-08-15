@@ -1,0 +1,299 @@
+import { createSignal, getOwner, onCleanup, type Accessor } from "solid-js";
+import { createStore } from "zustand/vanilla";
+
+export function createSelectionStore() {
+  const [systemId, setSystemId] = createSignal<string | null>("sys-local");
+  const [panel, setPanel] = createSignal<"architecture" | "ops" | "logs" | "settings" | "knowledge">("architecture");
+  return { systemId, setSystemId, panel, setPanel };
+}
+
+export type DetailPanelMode = "open" | "collapsed" | "maximized";
+
+export type DetailPanelPresence = "hidden" | "visible" | "dismissing";
+
+export type FixtureMode = "force" | "fallback" | "off";
+
+export type DetailTarget = {
+  scopeId: string;
+  entityId: string;
+  entityKind: string;
+};
+
+export type DetailCollectionStatus = "idle" | "loading" | "ready" | "error";
+
+export type DetailCollectionRegistration = {
+  scopeId: string;
+  status: DetailCollectionStatus;
+  targets: readonly DetailTarget[];
+};
+
+type DetailPanelSessionState = {
+  mode: DetailPanelMode;
+  activeScope: string | null;
+  activeTarget: DetailTarget | null;
+  outgoingTarget: DetailTarget | null;
+  pendingTarget: DetailTarget | null;
+  collectionStatus: DetailCollectionStatus;
+  restoreMode: "open" | "collapsed";
+  presence: DetailPanelPresence;
+};
+
+export type DetailPanelState = DetailPanelSessionState & {
+  registerCollection: (collection: DetailCollectionRegistration) => void;
+  unregisterCollection: (scopeId: string) => void;
+  requestTarget: (target: DetailTarget) => void;
+  activateTarget: (target: DetailTarget) => void;
+  dismissTarget: (scopeId: string) => void;
+  completeDismissal: (scopeId: string) => void;
+  collapse: () => void;
+  maximize: () => void;
+  restore: () => void;
+};
+
+export const detailPanelDefaultState: DetailPanelSessionState = {
+  mode: "collapsed",
+  activeScope: null,
+  activeTarget: null,
+  outgoingTarget: null,
+  pendingTarget: null,
+  collectionStatus: "idle",
+  restoreMode: "open",
+  presence: "hidden",
+};
+
+function targetsMatch(left: DetailTarget | null, right: DetailTarget | null): boolean {
+  return left !== null
+    && right !== null
+    && left.scopeId === right.scopeId
+    && left.entityId === right.entityId
+    && left.entityKind === right.entityKind;
+}
+
+function containsTarget(targets: readonly DetailTarget[], target: DetailTarget | null, scopeId: string): target is DetailTarget {
+  return target !== null
+    && target.scopeId === scopeId
+    && targets.some((candidate) => targetsMatch(candidate, target));
+}
+
+export const detailPanelStore = createStore<DetailPanelState>()(
+  (set, get) => ({
+      ...detailPanelDefaultState,
+
+      registerCollection: ({ scopeId, status, targets }) => {
+        const state = get();
+
+        if (status === "loading") {
+          const preservesExplicitEmptySelection = state.activeScope === scopeId
+            && state.activeTarget === null
+            && (state.presence === "hidden" || state.presence === "dismissing");
+          if (preservesExplicitEmptySelection) {
+            set({
+              activeScope: scopeId,
+              activeTarget: null,
+              collectionStatus: "loading",
+              mode: "collapsed",
+            });
+            return;
+          }
+          set({
+            activeScope: scopeId,
+            activeTarget: null,
+            collectionStatus: "loading",
+            mode: "open",
+            outgoingTarget: null,
+            presence: "visible",
+          });
+          return;
+        }
+
+        if (status === "ready") {
+          if (targets.length === 0) {
+            const outgoingTarget = state.activeTarget?.scopeId === scopeId
+              ? state.activeTarget
+              : state.outgoingTarget?.scopeId === scopeId
+                ? state.outgoingTarget
+                : null;
+            set({
+              activeScope: scopeId,
+              activeTarget: null,
+              outgoingTarget,
+              pendingTarget: state.pendingTarget?.scopeId === scopeId ? null : state.pendingTarget,
+              collectionStatus: "ready",
+              mode: "collapsed",
+              presence: outgoingTarget ? "dismissing" : "hidden",
+            });
+            return;
+          }
+
+          const pendingTarget = containsTarget(targets, state.pendingTarget, scopeId) ? state.pendingTarget : null;
+          const activeTarget = containsTarget(targets, state.activeTarget, scopeId) ? state.activeTarget : null;
+          const remainingPendingTarget = state.pendingTarget?.scopeId === scopeId
+            ? null
+            : state.pendingTarget;
+          const isScopeChange = state.activeScope !== scopeId;
+          const keepsExplicitEmptySelection = !isScopeChange
+            && state.activeTarget === null
+            && (state.presence === "hidden" || state.presence === "dismissing");
+          const nextTarget = pendingTarget
+            ?? activeTarget
+            ?? (keepsExplicitEmptySelection ? null : targets[0]!);
+
+          if (!nextTarget) {
+            set({
+              activeScope: scopeId,
+              activeTarget: null,
+              pendingTarget: remainingPendingTarget,
+              collectionStatus: "ready",
+              mode: "collapsed",
+              restoreMode: isScopeChange ? "open" : state.restoreMode,
+              presence: isScopeChange ? "hidden" : state.presence,
+            });
+            return;
+          }
+
+          set({
+            activeScope: scopeId,
+            activeTarget: nextTarget,
+            pendingTarget: pendingTarget ? null : remainingPendingTarget,
+            collectionStatus: "ready",
+            mode: isScopeChange ? "open" : state.mode,
+            restoreMode: isScopeChange ? "open" : state.restoreMode,
+            outgoingTarget: null,
+            presence: "visible",
+          });
+          return;
+        }
+
+        if (status === "error") {
+          set({
+            activeScope: scopeId,
+            activeTarget: state.activeTarget?.scopeId === scopeId ? state.activeTarget : null,
+            collectionStatus: "error",
+            mode: "open",
+            outgoingTarget: null,
+            presence: "visible",
+          });
+          return;
+        }
+
+        set({
+          activeScope: scopeId,
+          collectionStatus: "idle",
+        });
+      },
+
+      unregisterCollection: (scopeId) => {
+        const state = get();
+        if (state.activeScope !== scopeId) {
+          return;
+        }
+
+        const pendingTarget = state.pendingTarget?.scopeId === scopeId ? null : state.pendingTarget;
+        set({
+          activeScope: null,
+          activeTarget: null,
+          outgoingTarget: null,
+          pendingTarget,
+          collectionStatus: "idle",
+          mode: pendingTarget ? "open" : "collapsed",
+          restoreMode: "open",
+          presence: pendingTarget ? "visible" : "hidden",
+        });
+      },
+
+      requestTarget: (target) => {
+        set({
+          pendingTarget: target,
+          mode: "open",
+          outgoingTarget: null,
+          presence: "visible",
+        });
+      },
+
+      activateTarget: (target) => {
+        set({
+          activeScope: target.scopeId,
+          activeTarget: target,
+          pendingTarget: null,
+          outgoingTarget: null,
+          presence: "visible",
+        });
+      },
+
+      dismissTarget: (scopeId) => {
+        const state = get();
+        const outgoingTarget = state.activeTarget?.scopeId === scopeId
+          ? state.activeTarget
+          : state.presence === "dismissing" && state.outgoingTarget?.scopeId === scopeId
+            ? state.outgoingTarget
+            : null;
+        if (!outgoingTarget) {
+          return;
+        }
+        set({
+          outgoingTarget,
+          activeTarget: null,
+          pendingTarget: state.pendingTarget?.scopeId === scopeId ? null : state.pendingTarget,
+          mode: "collapsed",
+          presence: "dismissing",
+        });
+      },
+
+      completeDismissal: (scopeId) => {
+        const state = get();
+        if (
+          state.presence === "dismissing"
+          && state.activeTarget === null
+          && state.outgoingTarget?.scopeId === scopeId
+        ) {
+          set({
+            outgoingTarget: null,
+            presence: "hidden",
+          });
+        }
+      },
+
+      collapse: () => {
+        set({ mode: "collapsed" });
+      },
+
+      maximize: () => {
+        const state = get();
+        if (state.activeScope === null) {
+          return;
+        }
+
+        set({
+          mode: "maximized",
+          restoreMode: state.mode === "collapsed" ? "collapsed" : "open",
+        });
+      },
+
+      restore: () => {
+        set({ mode: "open", restoreMode: "open" });
+      },
+    }),
+);
+
+export function createDetailPanelSelector<T>(
+  selector: (state: DetailPanelState) => T,
+  equals: (left: T, right: T) => boolean = Object.is,
+): Accessor<T> {
+  let current = selector(detailPanelStore.getState());
+  const [selected, setSelected] = createSignal(current, { equals: false });
+  const unsubscribe = detailPanelStore.subscribe((state) => {
+    const next = selector(state);
+    if (equals(current, next)) {
+      return;
+    }
+
+    current = next;
+    setSelected(() => next);
+  });
+
+  if (getOwner()) {
+    onCleanup(unsubscribe);
+  }
+
+  return selected;
+}

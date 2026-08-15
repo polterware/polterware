@@ -1,0 +1,129 @@
+import type { JSX } from "solid-js";
+/* PageToolbar shares layout rules with tabs (pw-page-toolbar in tabs.css). */
+import "./tabs.css";
+
+/**
+ * Detail / entity header only. Section indexes use compound PageToolbar slots —
+ * do not put section titles here; they live in the window title bar.
+ */
+export function PageHeader(props: {
+  title: string;
+  subtitle?: JSX.Element;
+  actions?: JSX.Element;
+  breadcrumb?: JSX.Element;
+  /** Optional leading mark (e.g. service brand icon) before the title. */
+  leading?: JSX.Element;
+}) {
+  return (
+    <header
+      class="flex min-h-[var(--page-header-height)] shrink-0 items-center gap-3 border-b border-[var(--color-border-subtle)] px-4 py-2"
+      style={{
+        display: "flex",
+        "align-items": "center",
+        gap: "12px",
+        "min-height": "52px",
+        "flex-shrink": "0",
+        padding: "8px 16px",
+        "border-bottom": "1px solid var(--color-border-subtle)",
+      }}
+    >
+      <div class="min-w-0 flex-1" style={{ "min-width": 0, flex: "1 1 auto" }}>
+        {props.breadcrumb}
+        <div
+          class="flex flex-wrap items-center gap-2"
+          style={{ display: "flex", "flex-wrap": "wrap", "align-items": "center", gap: "8px" }}
+        >
+          {props.leading ? (
+            <span class="inline-flex shrink-0 items-center justify-center">{props.leading}</span>
+          ) : null}
+          <h1
+            class="truncate text-[15px] font-semibold tracking-tight text-[var(--color-text-primary)]"
+            style={{
+              margin: 0,
+              "font-size": "15px",
+              "font-weight": 600,
+              color: "var(--color-text-primary)",
+              "white-space": "nowrap",
+              overflow: "hidden",
+              "text-overflow": "ellipsis",
+            }}
+          >
+            {props.title}
+          </h1>
+          {props.subtitle}
+        </div>
+      </div>
+      {props.actions ? (
+        <div
+          class="flex shrink-0 items-center gap-2"
+          style={{ display: "flex", "align-items": "center", gap: "8px", "flex-shrink": 0 }}
+        >
+          {props.actions}
+        </div>
+      ) : null}
+    </header>
+  );
+}
+
+export type PageToolbarRootProps = {
+  children: JSX.Element;
+  class?: string;
+};
+
+export type PageToolbarSlotProps = {
+  children: JSX.Element;
+  class?: string;
+};
+
+/** First row inside MainSurface. Fade is part of the toolbar contract. */
+function PageToolbarRoot(props: PageToolbarRootProps) {
+  return (
+    <div
+      class={`pw-page-toolbar pw-page-toolbar--fade-edge ${props.class ?? ""}`}
+    >
+      {props.children}
+    </div>
+  );
+}
+
+function PageToolbarTabs(props: PageToolbarSlotProps) {
+  return (
+    <div class={`pw-page-toolbar-tabs min-w-0 flex-1 ${props.class ?? ""}`}>
+      {props.children}
+    </div>
+  );
+}
+
+function PageToolbarLeading(props: PageToolbarSlotProps) {
+  return (
+    <div class={`pw-page-toolbar-leading min-w-0 flex-1 ${props.class ?? ""}`}>
+      {props.children}
+    </div>
+  );
+}
+
+function PageToolbarActions(props: PageToolbarSlotProps) {
+  return (
+    <div class={`pw-page-toolbar-actions flex shrink-0 items-center gap-2 ${props.class ?? ""}`}>
+      {props.children}
+    </div>
+  );
+}
+
+export const PageToolbar = {
+  Root: PageToolbarRoot,
+  Tabs: PageToolbarTabs,
+  Leading: PageToolbarLeading,
+  Actions: PageToolbarActions,
+};
+
+export function PageContent(props: { children: JSX.Element; class?: string }) {
+  return (
+    <div
+      class={`min-h-0 flex-1 overflow-auto ${props.class ?? ""}`}
+      style={{ "min-height": 0, flex: "1 1 auto", overflow: "auto" }}
+    >
+      {props.children}
+    </div>
+  );
+}

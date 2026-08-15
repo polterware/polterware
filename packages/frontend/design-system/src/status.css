@@ -1,0 +1,53 @@
+/*
+ * StatusChip — filled only.
+ * Opaque semantic fill + dark shade of the same tone for text + edge-light border.
+ * No leading status dot (StatusDot is the compact indicator primitive).
+ */
+
+.pw-status-chip {
+  --pw-status-background: var(--color-status-muted-background);
+  --pw-status-foreground: var(--color-status-muted-foreground);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--edge-light-surface-rim);
+  border-top-color: var(--edge-light-surface-highlight);
+  border-radius: 9999px;
+  background: var(--pw-status-background);
+  padding: 3px 9px;
+  color: var(--pw-status-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.pw-status-chip[data-tone="healthy"],
+.pw-status-chip[data-tone="ok"] {
+  --pw-status-background: var(--color-status-success-background);
+  --pw-status-foreground: var(--color-status-success-foreground);
+}
+
+.pw-status-chip[data-tone="degraded"],
+.pw-status-chip[data-tone="warn"] {
+  --pw-status-background: var(--color-status-warning-background);
+  --pw-status-foreground: var(--color-status-warning-foreground);
+}
+
+.pw-status-chip[data-tone="down"],
+.pw-status-chip[data-tone="danger"] {
+  --pw-status-background: var(--color-status-danger-background);
+  --pw-status-foreground: var(--color-status-danger-foreground);
+}
+
+.pw-status-chip[data-tone="syncing"] {
+  --pw-status-background: var(--color-status-info-background);
+  --pw-status-foreground: var(--color-status-info-foreground);
+}
+
+.pw-status-chip[data-tone="unknown"],
+.pw-status-chip[data-tone="muted"] {
+  --pw-status-background: var(--color-status-muted-background);
+  --pw-status-foreground: var(--color-status-muted-foreground);
+}

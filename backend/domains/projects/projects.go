@@ -1,0 +1,41 @@
+package projects
+
+import (
+	"errors"
+	"time"
+)
+
+type Project struct {
+	ID        string
+	Name      string
+	RootPath  string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type Environment struct {
+	ID        string
+	ProjectID string
+	Name      string
+	Kind      string
+}
+
+var ErrInvalid = errors.New("invalid project entity")
+
+func NewProject(id, name, rootPath string) (Project, error) {
+	if id == "" || name == "" || rootPath == "" {
+		return Project{}, ErrInvalid
+	}
+	now := time.Now().UTC()
+	return Project{ID: id, Name: name, RootPath: rootPath, CreatedAt: now, UpdatedAt: now}, nil
+}
+
+func NewEnvironment(id, projectID, name, kind string) (Environment, error) {
+	if id == "" || projectID == "" || name == "" {
+		return Environment{}, ErrInvalid
+	}
+	if kind == "" {
+		kind = "local"
+	}
+	return Environment{ID: id, ProjectID: projectID, Name: name, Kind: kind}, nil
+}

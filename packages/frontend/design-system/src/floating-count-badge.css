@@ -1,0 +1,49 @@
+.pw-floating-count-host {
+  position: relative;
+  overflow: visible;
+}
+
+.pw-floating-count-badge {
+  --pw-floating-count-foreground: var(--color-status-muted-foreground);
+
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  color: var(--pw-floating-count-foreground);
+  font-size: 9px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: none;
+  transform: translate(38%, -38%);
+  white-space: nowrap;
+}
+
+.pw-floating-count-badge--info {
+  --pw-floating-count-foreground: var(--color-status-info-foreground);
+  background: var(--color-status-info-background);
+}
+
+.pw-floating-count-badge--warning {
+  --pw-floating-count-foreground: var(--color-status-warning-foreground);
+  background: var(--color-status-warning-background);
+}
+
+.pw-floating-count-badge--success {
+  --pw-floating-count-foreground: var(--color-status-success-foreground);
+  background: var(--color-status-success-background);
+}
+
+.pw-floating-count-badge--danger {
+  --pw-floating-count-foreground: var(--color-status-danger-foreground);
+  background: var(--color-status-danger-background);
+}

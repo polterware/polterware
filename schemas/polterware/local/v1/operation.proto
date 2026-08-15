@@ -1,0 +1,40 @@
+syntax = "proto3";
+package polterware.local.v1;
+option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
+
+message Operation {
+  string id = 1;
+  string correlation_id = 2;
+  string project_id = 3;
+  string environment_id = 4;
+  string type = 5;
+  string status = 6;
+  string result_summary = 7;
+  string error_message = 8;
+  string requested_at = 9;
+  string started_at = 10;
+  string finished_at = 11;
+  map<string, string> params = 12;
+}
+message RequestOperationRequest {
+  string type = 1;
+  string project_id = 2;
+  string environment_id = 3;
+  string cwd = 4;
+  map<string, string> params = 5;
+  string idempotency_key = 6;
+}
+message RequestOperationResponse { Operation operation = 1; }
+message GetOperationRequest { string id = 1; }
+message GetOperationResponse { Operation operation = 1; }
+message ListOperationsRequest { string project_id = 1; int32 page_size = 2; }
+message ListOperationsResponse { repeated Operation operations = 1; }
+message CancelOperationRequest { string id = 1; }
+message CancelOperationResponse { Operation operation = 1; }
+
+service OperationService {
+  rpc RequestOperation(RequestOperationRequest) returns (RequestOperationResponse);
+  rpc GetOperation(GetOperationRequest) returns (GetOperationResponse);
+  rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse);
+  rpc CancelOperation(CancelOperationRequest) returns (CancelOperationResponse);
+}

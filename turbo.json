@@ -1,0 +1,58 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "generate": {
+      "cache": false,
+      "outputs": ["backend/platform/gen/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "out/**"]
+    },
+    "preview": {
+      "cache": false,
+      "persistent": true
+    },
+    "dist": {
+      "dependsOn": ["build"],
+      "outputs": ["release/**"]
+    },
+    "dist:mac": {
+      "dependsOn": ["build"],
+      "outputs": ["release/**"]
+    },
+    "dist:win": {
+      "dependsOn": ["build"],
+      "outputs": ["release/**"]
+    },
+    "dist:linux": {
+      "dependsOn": ["build"],
+      "outputs": ["release/**"]
+    },
+    "dist:all": {
+      "dependsOn": ["build"],
+      "outputs": ["release/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^test"],
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
+    },
+    "design:lint": {
+      "outputs": []
+    },
+    "deps:electron": {
+      "outputs": []
+    }
+  }
+}

@@ -1,0 +1,889 @@
+import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
+import type { ArchitectureDocument, CaptureMode, NodeType } from "@polterware/frontend-canvas";
+import {
+  createEmptyDocument,
+  docAddNode,
+  serializeDocument,
+  updateNode as docUpdateNode,
+} from "@polterware/frontend-canvas";
+import { Eye, Plus, Zap } from "@polterware/frontend-design-system";
+import {
+  Button,
+  FilterPopover,
+  PageLoading,
+  PageToolbar,
+  Tabs,
+} from "@polterware/frontend-design-system";
+import { ArchitectureCanvas } from "./architecture-canvas";
+import type { SaveStatus } from "./architecture-canvas";
+import { ArchitectureNodeDetail } from "./node-detail";
+import { ArchitectureViewDetail } from "./view-detail";
+import { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
+import { VIEW_FIXTURES } from "./extra-fixtures";
+import { ViewsTable } from "./views-table";
+import { ComponentsTable } from "./components-table";
+import {
+  componentsDetailTarget,
+  filterComponentRows,
+  projectComponentRows,
+  typeLabelFor,
+} from "./components-list";
+import { CreateNodeDialog, type ArchNodeDraft } from "./create-node-dialog";
+import { ViewEditor } from "./deep-flows";
+import { roleLabel } from "./domain/place-config";
+import { createFixtureResourceLinkPort } from "./domain/fixture-resource-link-port";
+import { DEFAULT_PROJECT_ENVIRONMENTS, environmentLabel } from "./domain/project-environments";
+import { nodeStatusLabel } from "./domain/node-lifecycle";
+import type { ArchitectureNodeView } from "./types";
+import { loadDocumentFromLayoutBody, documentToLayoutBody } from "./document/load";
+import { createAutosaveController } from "./persistence/autosave";
+import { getSessionSnapshot, setSessionSnapshot } from "./canvas/session-viewport";
+import { assignLayer } from "./layers";
+import { filterNodes, groupNodesByLayer } from "./map-view";
+import {
+  createDetailPanelSelector,
+  detailPanelStore,
+  type FixtureMode,
+} from "@polterware/frontend-state";
+import {
+  canPersistArchitecture,
+  orderArchitectureDetailNodes,
+  resolveArchitectureDocument,
+} from "./fixture-mode";
+import { ARCHITECTURE_TABS, normalizeArchitectureTab } from "./tab";
+
+const ARCH_TABS = ARCHITECTURE_TABS.map((tab) => ({ id: tab.id, label: tab.label }));
+
+const SYSTEM_ID_DEFAULT = "sys-local";
+
+const EDGE_FLOW_PREF_KEY = "architecture-edge-flow";
+
+function readEdgeFlowPref(): boolean {
+  try {
+    return localStorage.getItem(EDGE_FLOW_PREF_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+const FIXTURE_NODE_TYPES: Record<string, NodeType> = {
+  "n-gha": "ci_pipeline",
+  "n-vercel": "web_application",
+  "n-gw": "api_gateway",
+  "n-auth": "service",
+  "n-pay": "service",
+  "n-worker": "worker",
+  "n-pg": "database",
+  "n-redis": "cache",
+  "n-queue": "queue",
+};
+
+const FIXTURE_PROVIDERS: Record<string, string> = {
+  github: "GitHub",
+  vercel: "Vercel",
+  aws: "AWS",
+};
+
+export type ArchResource = {
+  id: string;
+  name: string;
+  type?: string;
+  source?: string;
+  externalKey?: string;
+  systemId?: string;
+};
+
+export type ArchSystem = { id: string; name: string };
+
+export type DiscoveryCandidate = {
+  externalKey: string;
+  name: string;
+  type?: string;
+  source?: string;
+};
+
+/** Detail data projected into the global contextual panel. */
+export type InspectorSnapshot = {
+  knowledge: Array<{ id?: string; title: string; body?: string }>;
+  ops: Array<{ id: string; type?: string; status: string }>;
+  logs: string[];
+};
+
+export type { ArchitectureNodeView } from "./types";
+export { ArchitectureCanvas } from "./architecture-canvas";
+export { ArchitectureNodeDetail } from "./node-detail";
+export { ArchitectureViewDetail } from "./view-detail";
+export { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
+export { VIEW_FIXTURES } from "./extra-fixtures";
+export { assignLayer } from "./layers";
+export { filterNodes, groupNodesByLayer } from "./map-view";
+export {
+  canPersistArchitecture,
+  orderArchitectureDetailNodes,
+  resolveArchitectureDocument,
+} from "./fixture-mode";
+export { ARCHITECTURE_TABS, normalizeArchitectureTab } from "./tab";
+export {
+  componentsDetailTarget,
+  filterComponentRows,
+  projectComponentRows,
+} from "./components-list";
+
+function mapDraftType(t: string, typeId?: string): NodeType {
+  if (typeId) return typeId as NodeType;
+  const k = t.toLowerCase().replace(/\s+/g, "_");
+  if (k.includes("database")) return "database";
+  if (k.includes("cache")) return "cache";
+  if (k.includes("queue")) return "queue";
+  if (k.includes("worker")) return "worker";
+  if (k.includes("web")) return "web_application";
+  if (k.includes("api")) return "api";
+  if (k.includes("service")) return "service";
+  return "custom_resource";
+}
+
+function fixtureToDocument(): ArchitectureDocument {
+  // Prefer migrate path from legacy fixture if available
+  try {
+    const body = JSON.stringify({
+      nodes: ARCH_CANVAS_FIXTURE.nodes,
+      edges: ARCH_CANVAS_FIXTURE.edges,
+    });
+    const fixtureNodes = new Map(ARCH_CANVAS_FIXTURE.nodes.map((node) => [node.id, node]));
+    const fixtureDocument = loadDocumentFromLayoutBody(body, SYSTEM_ID_DEFAULT).doc;
+
+    return {
+      ...fixtureDocument,
+      nodes: fixtureDocument.nodes.map((node) => {
+        const fixtureNode = fixtureNodes.get(node.id);
+        return {
+          ...node,
+          type: FIXTURE_NODE_TYPES[node.id] ?? node.type,
+          provider: fixtureNode?.source ? FIXTURE_PROVIDERS[fixtureNode.source] : undefined,
+          environmentIds: ["Production"],
+          state: "observed",
+        };
+      }),
+      relationships: fixtureDocument.relationships.map((relationship) => ({
+        ...relationship,
+        origin: relationship.evidence ? "discovered" : "inferred",
+      })),
+    };
+  } catch {
+    return createEmptyDocument({ systemId: SYSTEM_ID_DEFAULT });
+  }
+}
+
+export function ArchitectureView(props: {
+  systems?: ArchSystem[];
+  resources?: ArchResource[];
+  layoutBody?: string;
+  layoutRevision?: number;
+  candidates?: DiscoveryCandidate[];
+  inspector?: InspectorSnapshot;
+  error?: string;
+  search?: string;
+  tab?: string;
+  selectedNodeId?: string | null;
+  loading?: boolean;
+  dataSource?: "fixture" | "empty";
+  fixtureMode?: FixtureMode;
+  createDialogOpen?: boolean;
+  onSelect?: (nodeId: string | null) => void;
+  onOpenNode?: (nodeId: string) => void;
+  onSaveLayout?: (bodyJson: string, expectedRevision: number) => void;
+  onAssociate?: (c: DiscoveryCandidate) => void;
+  onRefresh?: () => void;
+  onTabChange?: (tab: string) => void;
+  onCreateNode?: () => void;
+  onCloseCreateNode?: () => void;
+  onSubmitCreateNode?: (draft: ArchNodeDraft) => void;
+}) {
+  const tab = () => normalizeArchitectureTab(props.tab);
+  const systemId = () => props.systems?.[0]?.id ?? SYSTEM_ID_DEFAULT;
+  const fixtureMode = () => props.fixtureMode ?? "fallback";
+  const [deepMode, setDeepMode] = createSignal<"none" | "view-edit">("none");
+  const [editViewName, setEditViewName] = createSignal("Payment flow");
+  const [activeViewId, setActiveViewId] = createSignal<string | null>(null);
+  const [edgeFlow, setEdgeFlow] = createSignal(readEdgeFlowPref());
+  const [componentLifecycleFilters, setComponentLifecycleFilters] = createSignal<string[]>([]);
+  const [componentTypeFilters, setComponentTypeFilters] = createSignal<string[]>([]);
+  const [componentEnvFilters, setComponentEnvFilters] = createSignal<string[]>([]);
+
+  function toggleEdgeFlow() {
+    const next = !edgeFlow();
+    setEdgeFlow(next);
+    try {
+      localStorage.setItem(EDGE_FLOW_PREF_KEY, next ? "1" : "0");
+    } catch {
+      // preference persistence is best-effort
+    }
+  }
+
+  const [doc, setDoc] = createSignal<ArchitectureDocument>(
+    createEmptyDocument({ systemId: systemId() }),
+  );
+  const [source, setSource] = createSignal<"fixture" | "empty">("empty");
+  const [revision, setRevision] = createSignal(0);
+  const [saveStatus, setSaveStatus] = createSignal<SaveStatus>("clean");
+  const [envId, setEnvId] = createSignal<string | "all">("all");
+  const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
+  const outgoingTarget = createDetailPanelSelector((state) => state.outgoingTarget);
+
+  const autosave = createMemo(() => {
+    if (!props.onSaveLayout || !canPersistArchitecture(fixtureMode())) return null;
+    return createAutosaveController({
+      systemId: systemId(),
+      port: {
+        save: async (_sid, expectedRevision, bodyJson) => {
+          props.onSaveLayout?.(bodyJson, expectedRevision);
+          // App refetches; optimistically bump
+          return { revision: expectedRevision + 1 };
+        },
+      },
+      onRevision: (rev) => setRevision(rev),
+      onConflict: () => setSaveStatus("error"),
+    });
+  });
+
+  createEffect(() => {
+    const ctrl = autosave();
+    ctrl?.setStatusListener((s) => setSaveStatus(s));
+  });
+
+  const [loadKey, setLoadKey] = createSignal("");
+
+  createEffect(() => {
+    const key = `${systemId()}::${props.layoutRevision ?? 0}::${props.layoutBody?.length ?? 0}::${fixtureMode()}`;
+    // Reload only when the source layout changes — avoid wiping local edits mid-session.
+    if (key === loadKey() && loadKey() !== "") return;
+    setLoadKey(key);
+
+    const systems = props.systems ?? [];
+    const resources = props.resources ?? [];
+    const { doc: loaded } = loadDocumentFromLayoutBody(
+      props.layoutBody,
+      systemId(),
+      systems,
+      resources,
+    );
+
+    const resolved = resolveArchitectureDocument({
+      loaded,
+      fixture: fixtureToDocument(),
+      fixtureMode: fixtureMode(),
+      dataSource: props.dataSource,
+    });
+    let nextDoc = resolved.document;
+    const nextSource = resolved.dataSource;
+
+    const session = getSessionSnapshot(systemId());
+    if (session?.viewport) {
+      nextDoc = { ...nextDoc, viewport: session.viewport };
+    }
+    if (session?.environmentId) setEnvId(session.environmentId);
+
+    setDoc(nextDoc);
+    setSource(nextSource);
+    setRevision(fixtureMode() === "force" ? 0 : (props.layoutRevision ?? 0));
+
+    if (session?.selection?.nodeIds?.length) {
+      const existing = session.selection.nodeIds.filter((id) =>
+        nextDoc.nodes.some((n) => n.id === id),
+      );
+      if (existing[0]) props.onSelect?.(existing[0]);
+    }
+  });
+
+  onCleanup(() => {
+    const ctrl = autosave();
+    void ctrl?.flush(
+      () => documentToLayoutBody(doc()),
+      () => revision(),
+    );
+  });
+
+  function onDocumentChange(next: ArchitectureDocument, mode?: CaptureMode) {
+    setDoc(next);
+    if (mode === "never") return;
+    const ctrl = autosave();
+    if (ctrl) {
+      ctrl.schedule(
+        () => serializeDocument(next),
+        () => revision(),
+      );
+    }
+  }
+
+  function nodeScopeId() {
+    return tab() === "components" ? "architecture:components" : "architecture:canvas";
+  }
+
+  function select(id: string | null) {
+    if (tab() === "canvas" || tab() === "components") {
+      if (id) {
+        detailPanelStore.getState().activateTarget({
+          scopeId: nodeScopeId(),
+          entityId: id,
+          entityKind: "arch-node",
+        });
+      } else {
+        // Clear detail before route selection so the target→route sync
+        // effect cannot revive the previous node on the same tick.
+        detailPanelStore.getState().dismissTarget(nodeScopeId());
+      }
+    }
+    props.onSelect?.(id);
+  }
+
+  function openNode(id: string) {
+    setSessionSnapshot(systemId(), {
+      viewport: doc().viewport,
+      selection: {
+        nodeIds: id ? [id] : [],
+        relationshipIds: [],
+        boundaryIds: [],
+      },
+      environmentId: envId(),
+    });
+    detailPanelStore.getState().activateTarget({
+      scopeId: nodeScopeId(),
+      entityId: id,
+      entityKind: "arch-node",
+    });
+    props.onOpenNode?.(id);
+  }
+
+  function openNodeOnCanvas(id: string) {
+    props.onTabChange?.("canvas");
+    setSessionSnapshot(systemId(), {
+      viewport: doc().viewport,
+      selection: {
+        nodeIds: id ? [id] : [],
+        relationshipIds: [],
+        boundaryIds: [],
+      },
+      environmentId: envId(),
+    });
+    detailPanelStore.getState().activateTarget({
+      scopeId: "architecture:canvas",
+      entityId: id,
+      entityKind: "arch-node",
+    });
+    props.onSelect?.(id);
+    props.onOpenNode?.(id);
+  }
+
+  function saveManual() {
+    if (canPersistArchitecture(fixtureMode())) {
+      props.onSaveLayout?.(documentToLayoutBody(doc()), revision());
+    }
+    setSaveStatus("saved");
+  }
+
+  function submitCreate(draft: ArchNodeDraft) {
+    const type = mapDraftType(draft.type, draft.typeId);
+    const envId = draft.environment
+      ? draft.environment.toLowerCase().replace(/\s+/g, "-")
+      : "production";
+    const linked = Boolean(draft.linkedResourceId);
+    const next = docAddNode(doc(), {
+      name: draft.name.trim() || draft.type || "Untitled",
+      type,
+      subtype: draft.subtype,
+      provider: draft.provider,
+      x: 80 + doc().nodes.length * 24,
+      y: 80 + doc().nodes.length * 16,
+      description: draft.description || undefined,
+      owner: draft.owner || undefined,
+      environmentIds: [envId === "production" || envId === "staging" || envId === "development" || envId === "local" ? envId : "production"],
+      resourceId: draft.linkedResourceId || null,
+      origin: "manual",
+      state: linked ? "linked" : "planned",
+      linkStatus: linked ? "linked" : "unlinked",
+    });
+    onDocumentChange(next, "immediately");
+    props.onSubmitCreateNode?.(draft);
+    props.onCloseCreateNode?.();
+  }
+
+  const isArchNodeTarget = createMemo(() => {
+    const target = activeTarget() ?? outgoingTarget();
+    return (
+      (target?.scopeId === "architecture:canvas" ||
+        target?.scopeId === "architecture:components") &&
+      target.entityKind === "arch-node"
+    );
+  });
+
+  const detailNode = createMemo((): ArchitectureNodeView | undefined => {
+    const target = activeTarget() ?? outgoingTarget();
+    const id =
+      (target?.scopeId === "architecture:canvas" ||
+        target?.scopeId === "architecture:components") &&
+      target.entityKind === "arch-node"
+        ? target.entityId
+        : undefined;
+    if (!id) return undefined;
+    const n = doc().nodes.find((x) => x.id === id);
+    if (!n && source() === "fixture") return fixtureNodeDetail(id);
+    if (!n) return undefined;
+    if (source() === "fixture") return fixtureNodeDetail(id, n.name);
+    const resourcePort = createFixtureResourceLinkPort();
+    const linkedResource = n.resourceId ? resourcePort.getById(n.resourceId) : undefined;
+    return {
+      id: n.id,
+      label: n.name,
+      kind: n.type,
+      layer: "applications",
+      lifecycle: nodeStatusLabel(n.state),
+      linkStatus: n.linkStatus ?? (n.resourceId ? "linked" : "unlinked"),
+      status:
+        n.state === "observed"
+          ? "healthy"
+          : n.state === "unreachable"
+            ? "down"
+            : n.state === "stale" || n.state === "drifted"
+              ? "degraded"
+              : "unknown",
+      environment: environmentLabel(
+        DEFAULT_PROJECT_ENVIRONMENTS,
+        n.environmentIds?.[0],
+      ),
+      resourceId: n.resourceId ?? undefined,
+      resourceName: linkedResource?.name,
+      canLinkResource: !n.resourceId && (n.linkStatus ?? "unlinked") !== "linked",
+      owner: n.owner,
+      role: roleLabel(
+        typeof n.metadata?.role === "string" ? n.metadata.role : undefined,
+      ),
+      connected: doc()
+        .relationships.filter((e) => e.sourceNodeId === n.id || e.targetNodeId === n.id)
+        .map((e) => {
+          const otherId = e.sourceNodeId === n.id ? e.targetNodeId : e.sourceNodeId;
+          const other = doc().nodes.find((x) => x.id === otherId);
+          return {
+            nodeId: otherId,
+            label: other?.name ?? otherId,
+            relation: e.type,
+            evidence: Boolean(e.evidence),
+          };
+        }),
+      activity: (props.inspector?.ops ?? []).slice(0, 5).map((o, i) => ({
+        id: o.id ?? String(i),
+        at: o.status,
+        title: o.type ?? "Operation",
+        detail: o.id,
+      })),
+      docs: (props.inspector?.knowledge ?? []).map((k) => ({
+        id: k.id ?? k.title,
+        title: k.title,
+      })),
+      notes: props.inspector?.knowledge?.[0]?.body ?? n.description,
+      x: n.x,
+      y: n.y,
+      dataSource: "fixture",
+    };
+  });
+
+  const isArchViewTarget = createMemo(() => {
+    const target = activeTarget() ?? outgoingTarget();
+    return target?.scopeId === "architecture:views" && target.entityKind === "arch-view";
+  });
+
+  const detailView = createMemo(() => {
+    const target = activeTarget() ?? outgoingTarget();
+    if (target?.scopeId !== "architecture:views" || target.entityKind !== "arch-view") {
+      return undefined;
+    }
+    return VIEW_FIXTURES.find((view) => view.id === target.entityId);
+  });
+
+  const componentRows = createMemo(() =>
+    filterComponentRows(projectComponentRows(doc().nodes), {
+      search: props.search,
+      lifecycle: componentLifecycleFilters(),
+      type: componentTypeFilters(),
+      environment: componentEnvFilters(),
+    }),
+  );
+
+  const componentFilterActive = createMemo(
+    () =>
+      componentLifecycleFilters().length > 0 ||
+      componentTypeFilters().length > 0 ||
+      componentEnvFilters().length > 0,
+  );
+
+  const detailTargets = createMemo(() => {
+    const current = tab();
+    const scope =
+      current === "components" ? "architecture:components" : "architecture:canvas";
+    const query = (props.search ?? "").trim().toLowerCase();
+    const baseNodes =
+      current === "components"
+        ? componentRows().map((row) => doc().nodes.find((node) => node.id === row.id)).filter(Boolean)
+        : query
+          ? doc().nodes.filter(
+              (node) =>
+                node.name.toLowerCase().includes(query) ||
+                node.type.includes(query) ||
+                node.id.toLowerCase().includes(query) ||
+                (node.tags ?? []).some((tag) => tag.toLowerCase().includes(query)),
+            )
+          : doc().nodes;
+    const nodes = baseNodes.filter((node): node is NonNullable<typeof node> => Boolean(node));
+    const orderedNodes = orderArchitectureDetailNodes(
+      nodes,
+      source() === "fixture",
+    );
+    return orderedNodes.map((node) => ({
+      scopeId: scope,
+      entityId: node.id,
+      entityKind: "arch-node" as const,
+    }));
+  });
+
+  let currentScope: string | undefined;
+
+  createEffect(() => {
+    const scope = `architecture:${tab()}`;
+
+    if (currentScope && currentScope !== scope) {
+      detailPanelStore.getState().unregisterCollection(currentScope);
+    }
+    currentScope = scope;
+
+    const targets =
+      tab() === "views"
+        ? VIEW_FIXTURES.map((view) => ({
+            scopeId: scope,
+            entityId: view.id,
+            entityKind: "arch-view" as const,
+          }))
+        : detailTargets();
+
+    detailPanelStore.getState().registerCollection({
+      scopeId: scope,
+      status: props.loading ? "loading" : "ready",
+      targets,
+    });
+  });
+
+  onCleanup(() => {
+    if (currentScope) {
+      detailPanelStore.getState().unregisterCollection(currentScope);
+    }
+  });
+
+  // Push detail-target changes into the route selection. Depend only on
+  // activeTarget so clearing selectedNodeId cannot re-select from a stale target.
+  createEffect(() => {
+    const target = activeTarget();
+    if (
+      (target?.scopeId !== "architecture:canvas" &&
+        target?.scopeId !== "architecture:components") ||
+      target.entityKind !== "arch-node"
+    ) {
+      return;
+    }
+    const entityId = target.entityId;
+    if (untrack(() => props.selectedNodeId) === entityId) return;
+    props.onSelect?.(entityId);
+  });
+
+  const canvasPanel = () => (
+    <div class="relative flex h-full min-h-0 min-w-0 flex-1 flex-col">
+      <Show when={props.loading}>
+        <PageLoading label="Loading architecture…" />
+      </Show>
+      {/* Keep the fixture canvas usable when a local preview reports a soft error. */}
+      <Show when={!props.loading}>
+        <Show when={props.error}>
+          <div class="px-4 pt-2">
+            <p class="mb-2 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] px-2.5 py-1 text-[11px] text-[var(--color-text-muted)]">
+              Preview note: {props.error} — the canvas still works locally.
+            </p>
+          </div>
+        </Show>
+        <div class="min-h-0 flex-1">
+          <ArchitectureCanvas
+            document={doc()}
+            systemId={systemId()}
+            revision={revision()}
+            selectedNodeId={props.selectedNodeId}
+            search={props.search}
+            environmentId={envId()}
+            projectEnvironments={DEFAULT_PROJECT_ENVIRONMENTS}
+            resourceLinkPort={createFixtureResourceLinkPort()}
+            saveStatus={saveStatus()}
+            onDocumentChange={onDocumentChange}
+            onSelect={select}
+            onOpenNode={openNode}
+            onViewportChange={(vp) => setDoc((d) => ({ ...d, viewport: vp }))}
+            onRequestSave={() => saveManual()}
+            edgeFlow={edgeFlow()}
+          />
+        </div>
+      </Show>
+    </div>
+  );
+
+  return (
+    <>
+      <>
+        <div class="flex h-full min-h-0 flex-col">
+          <PageToolbar.Root>
+            <PageToolbar.Tabs>
+              <Tabs
+                items={ARCH_TABS}
+                value={tab()}
+                onChange={(id) => props.onTabChange?.(id)}
+                aria-label="Architecture"
+              />
+            </PageToolbar.Tabs>
+            <PageToolbar.Actions>
+              <Show when={tab() === "canvas" && props.onSaveLayout && saveStatus() === "error"}>
+                <Button variant="secondary" size="sm" onClick={() => saveManual()}>
+                  Retry save
+                </Button>
+              </Show>
+              <Show when={tab() === "canvas"}>
+                <FilterPopover
+                  ariaLabel="Saved view filters"
+                  title="Saved views"
+                  triggerIcon={<Eye size={14} aria-hidden />}
+                  triggerLabel="View"
+                  active={activeViewId() !== null}
+                  onClear={() => setActiveViewId(null)}
+                  groups={[
+                    {
+                      id: "view",
+                      label: "View",
+                      selectionMode: "single",
+                      options: VIEW_FIXTURES.map((view) => ({
+                          id: view.id,
+                          label: view.name,
+                          checked: activeViewId() === view.id,
+                          onCheckedChange: (checked: boolean) =>
+                            setActiveViewId(checked ? view.id : null),
+                        })),
+                      action: {
+                        label: "Manage views…",
+                        onSelect: () => {
+                          setDeepMode("view-edit");
+                          setActiveViewId(null);
+                        },
+                      },
+                    },
+                  ]}
+                />
+                <Button
+                  variant="icon"
+                  size="sm"
+                  class={[
+                    "control-field control-field-sm !rounded-full !px-3.5",
+                    edgeFlow()
+                      ? "!border-[var(--color-border-subtle)] !bg-[var(--color-surface-selected)] !text-[var(--color-text-primary)]"
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={toggleEdgeFlow}
+                  aria-label="Edge flow animation"
+                  aria-pressed={edgeFlow()}
+                  title={edgeFlow() ? "Disable edge flow animation" : "Enable edge flow animation"}
+                >
+                  <Zap size={14} aria-hidden />
+                  <span>Flow</span>
+                </Button>
+              </Show>
+              <Show when={tab() === "components"}>
+                <FilterPopover
+                  ariaLabel="Component filters"
+                  title="Filter components"
+                  active={componentFilterActive()}
+                  onClear={() => {
+                    setComponentLifecycleFilters([]);
+                    setComponentTypeFilters([]);
+                    setComponentEnvFilters([]);
+                  }}
+                  groups={[
+                    {
+                      id: "lifecycle",
+                      label: "Lifecycle",
+                      options: Array.from(
+                        new Set(doc().nodes.map((node) => node.state)),
+                      ).map((state) => ({
+                        id: state,
+                        label: nodeStatusLabel(state),
+                        checked: componentLifecycleFilters().includes(state),
+                        onCheckedChange: (checked: boolean) =>
+                          setComponentLifecycleFilters((prev) =>
+                            checked
+                              ? [...prev, state]
+                              : prev.filter((value) => value !== state),
+                          ),
+                      })),
+                    },
+                    {
+                      id: "type",
+                      label: "Type",
+                      options: Array.from(
+                        new Set(doc().nodes.map((node) => node.type)),
+                      ).map((type) => ({
+                        id: type,
+                        label: typeLabelFor(type),
+                        checked: componentTypeFilters().includes(type),
+                        onCheckedChange: (checked: boolean) =>
+                          setComponentTypeFilters((prev) =>
+                            checked
+                              ? [...prev, type]
+                              : prev.filter((value) => value !== type),
+                          ),
+                      })),
+                    },
+                    {
+                      id: "environment",
+                      label: "Environment",
+                      options: DEFAULT_PROJECT_ENVIRONMENTS.map((env) => ({
+                        id: env.id,
+                        label: env.label,
+                        checked: componentEnvFilters().includes(env.id),
+                        onCheckedChange: (checked: boolean) =>
+                          setComponentEnvFilters((prev) =>
+                            checked
+                              ? [...prev, env.id]
+                              : prev.filter((value) => value !== env.id),
+                          ),
+                      })),
+                    },
+                  ]}
+                />
+              </Show>
+              <Show when={tab() === "views"}>
+                <Button
+                  size="icon"
+                  variant="primary"
+                  class="!rounded-full"
+                  aria-label="Create view"
+                  title="Create view"
+                  onClick={() => setDeepMode("view-edit")}
+                >
+                  <Plus size={14} />
+                </Button>
+              </Show>
+              <Show when={tab() !== "views"}>
+                <Button
+                  size="icon"
+                  variant="primary"
+                  class="!rounded-full"
+                  onClick={() => props.onCreateNode?.()}
+                  aria-label="Add component"
+                  title="Add component"
+                >
+                  <Plus size={14} />
+                </Button>
+              </Show>
+            </PageToolbar.Actions>
+          </PageToolbar.Root>
+          <div class="relative flex min-h-0 flex-1 flex-col">
+            <Show when={tab() === "canvas"}>
+              {canvasPanel()}
+            </Show>
+            <Show when={tab() === "components"}>
+              <ComponentsTable
+                rows={componentRows()}
+                loading={props.loading}
+                activeRowId={
+                  activeTarget()?.scopeId === "architecture:components"
+                    ? activeTarget()?.entityId
+                    : null
+                }
+                onActivate={(id) =>
+                  detailPanelStore.getState().activateTarget(componentsDetailTarget(id))
+                }
+              />
+            </Show>
+            <Show when={tab() === "views"}>
+              <ViewsTable
+                views={VIEW_FIXTURES}
+                dataSource="fixture"
+                activeRowId={
+                  activeTarget()?.scopeId === "architecture:views"
+                    ? activeTarget()?.entityId
+                    : null
+                }
+                onActivate={(id) =>
+                  detailPanelStore.getState().activateTarget({
+                    scopeId: "architecture:views",
+                    entityId: id,
+                    entityKind: "arch-view",
+                  })
+                }
+              />
+            </Show>
+            <Show when={deepMode() === "view-edit"}>
+              <ViewEditor name={editViewName()} onClose={() => setDeepMode("none")} />
+            </Show>
+          </div>
+        </div>
+      </>
+      <Show when={isArchNodeTarget()}>
+        <ArchitectureNodeDetail
+          node={detailNode()}
+          loading={props.loading}
+          error={props.error}
+          notFound={!props.loading && !detailNode()}
+          onOpenRelated={openNode}
+          onOpenOnCanvas={openNodeOnCanvas}
+          onLinkResource={(nodeId) => {
+            const n = doc().nodes.find((x) => x.id === nodeId);
+            if (!n) return;
+            const envId = n.environmentIds?.[0] ?? "production";
+            const port = createFixtureResourceLinkPort();
+            const candidates = port.listCandidates({
+              environmentId: envId,
+              componentType: n.type,
+              typeFilterStrict: true,
+            });
+            const pick = candidates[0];
+            if (!pick) {
+              // Honest empty — no toast system here; leave unlinked
+              return;
+            }
+            const next = docUpdateNode(doc(), nodeId, {
+              resourceId: pick.id,
+              linkStatus: "linked",
+              state: "linked",
+            });
+            onDocumentChange(next, "immediately");
+          }}
+        />
+      </Show>
+      <Show when={isArchViewTarget()}>
+        <ArchitectureViewDetail
+          view={detailView()}
+          notFound={!detailView()}
+          onOpen={(viewId) => {
+            setActiveViewId(viewId);
+            props.onTabChange?.("canvas");
+          }}
+          onEdit={(view) => {
+            setEditViewName(view.name);
+            setDeepMode("view-edit");
+          }}
+          onOpenMember={(memberId) => {
+            props.onTabChange?.("canvas");
+            props.onSelect?.(memberId);
+          }}
+        />
+      </Show>
+      <CreateNodeDialog
+        open={Boolean(props.createDialogOpen)}
+        onClose={() => props.onCloseCreateNode?.()}
+        onSubmit={(d) => submitCreate(d)}
+      />
+    </>
+  );
+}

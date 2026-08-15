@@ -1,0 +1,18 @@
+syntax = "proto3";
+package polterware.local.v1;
+option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
+
+message WorkflowStep { string id = 1; string name = 2; string operation_type = 3; map<string, string> params = 4; }
+message Workflow { string id = 1; string project_id = 2; string name = 3; string status = 4; repeated WorkflowStep steps = 5; }
+message SaveWorkflowRequest { Workflow workflow = 1; }
+message SaveWorkflowResponse { Workflow workflow = 1; }
+message ListWorkflowsRequest { string project_id = 1; }
+message ListWorkflowsResponse { repeated Workflow workflows = 1; }
+message RunWorkflowRequest { string id = 1; string environment_id = 2; }
+message RunWorkflowResponse { string run_id = 1; string status = 2; repeated string operation_ids = 3; }
+
+service WorkflowService {
+  rpc SaveWorkflow(SaveWorkflowRequest) returns (SaveWorkflowResponse);
+  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse);
+  rpc RunWorkflow(RunWorkflowRequest) returns (RunWorkflowResponse);
+}

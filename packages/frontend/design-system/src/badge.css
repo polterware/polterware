@@ -1,0 +1,75 @@
+/* Solid metadata badge — raised fill + border (not ghost FilterChip, not StatusChip) */
+
+.pw-badge {
+  display: inline-flex;
+  max-width: 220px;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 3px 9px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 9999px;
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pw-badge[data-tone="ok"] {
+  border-color: var(--color-border-default, var(--color-border-subtle));
+  color: var(--color-brand);
+}
+
+.pw-badge[data-tone="warn"] {
+  border-color: var(--color-border-default, var(--color-border-subtle));
+  color: var(--color-warning);
+}
+
+.pw-badge[data-tone="danger"] {
+  border-color: var(--color-border-default, var(--color-border-subtle));
+  color: var(--color-danger);
+}
+
+.pw-badge[data-tone="info"] {
+  border-color: var(--color-border-default, var(--color-border-subtle));
+  color: var(--color-info);
+}
+
+.pw-badge[data-tone="muted"] {
+  border-color: var(--color-border-subtle);
+  color: var(--color-text-muted);
+}
+
+.pw-badge[data-interactive="true"] {
+  cursor: pointer;
+  color: var(--color-text-primary);
+  transition:
+    background var(--duration-control, 120ms) var(--ease-standard, ease),
+    border-color var(--duration-control, 120ms) var(--ease-standard, ease),
+    color var(--duration-control, 120ms) var(--ease-standard, ease);
+}
+
+.pw-badge[data-interactive="true"]:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-default, var(--color-border-subtle));
+  color: var(--color-text-primary);
+}
+
+.pw-badge[data-interactive="true"]:active {
+  background: var(--color-surface-active);
+}
+
+.pw-badge[data-interactive="true"]:focus {
+  outline: none;
+}
+
+.pw-badge[data-interactive="true"]:focus-visible {
+  outline: 2px solid var(--color-border-focus, var(--color-border-strong, var(--color-border-subtle)));
+  outline-offset: 1px;
+}

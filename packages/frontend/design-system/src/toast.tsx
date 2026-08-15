@@ -1,0 +1,81 @@
+import { For, createSignal, type Accessor, type Setter } from "solid-js";
+import "./toast.css";
+
+export type ToastItem = { id: string; message: string; tone?: "default" | "danger" | "success" };
+
+type ToastPhase = "visible" | "exiting";
+type ToastEntry = ToastItem & {
+  phase: Accessor<ToastPhase>;
+  setPhase: Setter<ToastPhase>;
+};
+
+const [toasts, setToasts] = createSignal<ToastEntry[]>([]);
+const dismissTimers = new Map<string, number>();
+const removalTimers = new Map<string, number>();
+
+function clearTimer(timers: Map<string, number>, id: string) {
+  const timer = timers.get(id);
+  if (timer === undefined) return;
+  window.clearTimeout(timer);
+  timers.delete(id);
+}
+
+function removeToast(id: string) {
+  clearTimer(dismissTimers, id);
+  clearTimer(removalTimers, id);
+  setToasts((items) => items.filter((item) => item.id !== id));
+}
+
+function beginToastExit(id: string) {
+  dismissTimers.delete(id);
+  const toast = toasts().find((item) => item.id === id);
+  if (!toast || toast.phase() === "exiting") return;
+
+  toast.setPhase("exiting");
+  const fallbackDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? 120
+    : 400;
+  removalTimers.set(id, window.setTimeout(() => removeToast(id), fallbackDelay));
+}
+
+export function pushToast(message: string, tone: ToastItem["tone"] = "default") {
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const [phase, setPhase] = createSignal<ToastPhase>("visible");
+  setToasts((items) => [...items, { id, message, tone, phase, setPhase }]);
+  dismissTimers.set(id, window.setTimeout(() => beginToastExit(id), 3200));
+}
+
+export function ToastRegion() {
+  return (
+    <div
+      class="pointer-events-none fixed bottom-4 right-4 z-[var(--z-toast)] flex w-80 flex-col gap-2"
+      aria-live="polite"
+    >
+      <For each={toasts()}>
+        {(t) => (
+          <div
+            class={`pw-toast-item pointer-events-auto rounded-[var(--radius-item)] border px-3 py-2 text-[13px] shadow-[0_8px_28px_var(--color-shadow)] ${
+              t.tone === "danger"
+                ? "border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-danger)]"
+                : t.tone === "success"
+                  ? "border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text-primary)]"
+                  : "border-[var(--color-border-default)] bg-[var(--color-surface-raised)] text-[var(--color-text-primary)]"
+            }`}
+            data-exiting={t.phase() === "exiting" ? "" : undefined}
+            onTransitionEnd={(event) => {
+              if (
+                event.target === event.currentTarget &&
+                event.propertyName === "transform" &&
+                t.phase() === "exiting"
+              ) {
+                removeToast(t.id);
+              }
+            }}
+          >
+            {t.message}
+          </div>
+        )}
+      </For>
+    </div>
+  );
+}

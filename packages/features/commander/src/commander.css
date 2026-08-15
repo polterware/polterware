@@ -1,0 +1,17 @@
+/* Palette search is borderless inside the float (DESIGN.md). No focus ring. */
+.commander-search-input,
+.commander-search-input:focus,
+.commander-search-input:focus-visible {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+
+/* Keep the results inset while the scrollbar sits on the dialog edge. */
+.commander-results-scroll {
+  box-sizing: border-box;
+  width: calc(100% + 2.5rem);
+  margin-inline: -1.25rem;
+  padding-inline: 1.25rem;
+  overscroll-behavior: contain;
+}

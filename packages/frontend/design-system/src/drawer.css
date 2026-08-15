@@ -1,0 +1,88 @@
+/** Drawer motion on Ark presence. The tokenized scrim fades while the opaque sheet slides. */
+
+@keyframes pw-drawer-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pw-drawer-backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes pw-drawer-content-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(100% + var(--pw-drawer-inset, 8px)));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pw-drawer-content-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(100% + var(--pw-drawer-inset, 8px)));
+  }
+}
+
+.pw-drawer-backdrop {
+  animation: pw-drawer-backdrop-out var(--duration-control, 160ms)
+    var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+.pw-drawer-backdrop[data-state="open"] {
+  animation: pw-drawer-backdrop-in var(--duration-enter, 200ms)
+    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+}
+
+.pw-drawer-content {
+  --pw-drawer-inset: 8px;
+
+  height: calc(100% - var(--pw-drawer-inset) - var(--pw-drawer-inset));
+  max-width: calc(100vw - var(--pw-drawer-inset) - var(--pw-drawer-inset));
+  margin-block: var(--pw-drawer-inset);
+  margin-right: var(--pw-drawer-inset);
+  transform-origin: right center;
+  will-change: transform, opacity;
+  animation: pw-drawer-content-out var(--duration-control, 160ms)
+    var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+.pw-drawer-content[data-state="open"] {
+  animation: pw-drawer-content-in var(--duration-enter, 200ms)
+    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-drawer-content,
+  .pw-drawer-content[data-state="open"] {
+    animation-name: pw-drawer-backdrop-out;
+    animation-duration: var(--duration-fast, 120ms) !important;
+    animation-timing-function: var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+  }
+
+  .pw-drawer-content[data-state="open"] {
+    animation-name: pw-drawer-backdrop-in;
+  }
+
+  .pw-drawer-backdrop,
+  .pw-drawer-backdrop[data-state="open"] {
+    animation-duration: var(--duration-fast, 120ms) !important;
+    animation-timing-function: var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+  }
+}

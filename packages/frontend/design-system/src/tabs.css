@@ -1,0 +1,210 @@
+/* Segmented pill tabs — quiet dark operator (DESIGN.md) */
+
+/**
+ * Page toolbar: first row of MainSurface section indexes.
+ * One explicit left slot · actions right. No page title row above.
+ */
+.pw-page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-shrink: 0;
+  /* Spacing only under tabs — no hairline divider to content */
+  padding: 8px 8px 4px;
+  border-bottom: none;
+}
+
+.pw-page-toolbar--fade-edge {
+  position: relative;
+  z-index: 1;
+  padding-bottom: 12px;
+  background: var(--color-surface);
+}
+
+.pw-page-toolbar--fade-edge::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 24px;
+  pointer-events: none;
+  background: var(--material-fade-edge-bottom);
+}
+
+.pw-page-toolbar-tabs,
+.pw-page-toolbar-leading {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.pw-page-toolbar-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Standalone tablist (inside PageToolbar or alone) */
+.pw-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  /* When nested in PageToolbar, parent owns padding/border */
+  padding: 0;
+  border-bottom: none;
+}
+
+/* Tabs used without PageToolbar (legacy / rare) — still no divider rule */
+.pw-tabs:not(.pw-page-toolbar-tabs .pw-tabs):not(.pw-tabs--flush) {
+  padding: 8px 16px 4px;
+  border-bottom: none;
+}
+
+/** Soft handoff into full-bleed content (e.g. Architecture canvas) — no hard rule. */
+.pw-tabs.pw-tabs--fade-edge {
+  border-bottom: none;
+  padding-bottom: 8px;
+}
+
+/** Inside flush dialogs / toolbars that own their own spacing — no rule, no padding. */
+.pw-tabs.pw-tabs--flush {
+  padding: 0;
+  border-bottom: none;
+}
+
+.pw-tab {
+  appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 5px 14px;
+  margin: 0;
+  border-radius: 999px;
+  border: 1px solid var(--edge-light-field-rim);
+  border-top-color: var(--edge-light-field-highlight);
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast, 120ms) var(--ease-standard, ease),
+    background-color var(--duration-fast, 120ms) var(--ease-standard, ease),
+    border-color var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+
+.pw-tab-item {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.pw-tab--closable {
+  padding-right: 30px;
+}
+
+.pw-tab-close {
+  appearance: none;
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.pw-tab-close:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.pw-tab-close:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: 1px;
+}
+
+/* Inactive — muted control surface with a quiet edge-light rim. */
+.pw-tab:not(.pw-tab--active):not(.pw-tab--disabled) {
+  color: var(--color-text-muted);
+  background: var(--color-surface-subtle);
+}
+
+.pw-tab:not(.pw-tab--active):not(.pw-tab--disabled):hover {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+}
+
+/* Active — stronger neutral fill and the same shared edge-light family. */
+.pw-tab--active {
+  color: var(--color-text-primary);
+  font-weight: 550;
+  background: var(--color-surface-active);
+  border-color: var(--edge-light-surface-rim);
+  border-top-color: var(--edge-light-surface-highlight);
+}
+
+.pw-tab--active:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-selected);
+}
+
+/* Icon-only tabs (e.g. Grid / Table view switch) */
+.pw-tab--icon {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 5px;
+  gap: 0;
+}
+
+.pw-tab--icon svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.pw-tab:focus {
+  outline: none;
+}
+
+.pw-tab:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: 2px;
+}
+
+.pw-tab--disabled {
+  color: var(--color-text-disabled);
+  background: var(--color-surface);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-tab {
+    transition: none;
+  }
+}

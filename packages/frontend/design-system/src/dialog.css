@@ -1,0 +1,86 @@
+/**
+ * Dialog open/close motion (Ark presence).
+ * Exit keyframes run as default; open state uses [data-expanded] / [data-state=open].
+ *
+ * Tokens: --duration-enter / --duration-control, --ease-enter / --ease-standard.
+ * No bounce (DESIGN.md). prefers-reduced-motion handled in base.css.
+ *
+ * Product dialogs: ONE size only (Add to Architecture catalog surface).
+ * Size is locked here so it cannot drift via Tailwind tree-shaking / size props.
+ */
+
+/* Canonical product dialog frame — same box as .pw-product-frame / command palette */
+.pw-dialog-content {
+  width: min(72rem, calc(100vw - 2.5rem));
+  max-width: min(72rem, calc(100vw - 2.5rem));
+  height: min(78vh, 760px);
+  max-height: min(92vh, 900px);
+  min-height: min(78vh, 760px);
+}
+
+@keyframes pw-dialog-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pw-dialog-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes pw-dialog-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pw-dialog-content-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+.pw-dialog-overlay {
+  /* Exit (closing / unmount hold) */
+  animation: pw-dialog-overlay-out var(--duration-control, 160ms)
+    var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+.pw-dialog-overlay[data-expanded],
+.pw-dialog-overlay[data-state="open"] {
+  animation: pw-dialog-overlay-in var(--duration-enter, 200ms)
+    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+}
+
+.pw-dialog-content {
+  transform-origin: center center;
+  animation: pw-dialog-content-out var(--duration-control, 160ms)
+    var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+.pw-dialog-content[data-expanded],
+.pw-dialog-content[data-state="open"] {
+  animation: pw-dialog-content-in 220ms
+    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+}
+
+/* base.css already shortens animation-duration under prefers-reduced-motion;
+   keep named keyframes so solid-presence still receives animationend. */

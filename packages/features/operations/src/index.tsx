@@ -1,0 +1,188 @@
+import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
+import {
+  A11yDialog,
+  Button,
+  DataTable,
+  DetailPanel,
+  Field,
+  FilterPopover,
+  Input,
+  PageContent,
+  PageEmpty,
+  PageToolbar,
+  Play,
+  Select,
+  StatusChip,
+  Tabs,
+  Workflow,
+  CalendarClock,
+  SquareTerminal,
+} from "@polterware/frontend-design-system";
+import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
+import { RUN_FIXTURES, SCHEDULE_FIXTURES, WORKFLOW_FIXTURES } from "./fixtures";
+import type { OperationRun, OperationSchedule, OperationWorkflow, RunStatus } from "./types";
+
+export type * from "./types";
+export { RUN_FIXTURES, SCHEDULE_FIXTURES, WORKFLOW_FIXTURES } from "./fixtures";
+
+const TABS = [
+  { id: "runs", label: "Runs" },
+  { id: "workflows", label: "Workflows" },
+  { id: "schedules", label: "Schedules" },
+] as const;
+
+function normalizeTab(value?: string): "runs" | "workflows" | "schedules" {
+  if (value === "workflows" || value === "schedules") return value;
+  return "runs";
+}
+
+function runTone(status: RunStatus): "muted" | "syncing" | "healthy" | "danger" {
+  if (status === "success") return "healthy";
+  if (status === "failed") return "danger";
+  if (status === "running") return "syncing";
+  return "muted";
+}
+
+function workflowTone(status: OperationWorkflow["status"]): "healthy" | "warn" | "muted" {
+  if (status === "ready") return "healthy";
+  if (status === "draft") return "warn";
+  return "muted";
+}
+
+function scheduleTone(status: OperationSchedule["status"]): "healthy" | "warn" | "muted" {
+  if (status === "active") return "healthy";
+  if (status === "paused") return "warn";
+  return "muted";
+}
+
+export function OperationsView(props: {
+  tab?: string;
+  search?: string;
+  filters?: string[];
+  runCommandOpen?: boolean;
+  onTabChange?: (tab: string) => void;
+  onSearch?: (search: string) => void;
+  onFiltersChange?: (filters: string[]) => void;
+  onOpenRun?: (id: string) => void;
+  onOpenWorkflow?: (id: string) => void;
+  onOpenSchedule?: (id: string) => void;
+  onRunCommand?: () => void;
+  onCloseRunCommand?: () => void;
+  onSubmitRunCommand?: (input: { target: string; command: string; cwd: string; environment: string }) => void;
+}) {
+  const tab = () => normalizeTab(props.tab);
+  const [query, setQuery] = createSignal(props.search ?? "");
+  const [statusFilters, setStatusFilters] = createSignal<string[]>(props.filters ?? []);
+  const [target, setTarget] = createSignal("local");
+  const [command, setCommand] = createSignal("");
+  const [cwd, setCwd] = createSignal("~/project");
+  const [environment, setEnvironment] = createSignal("Development");
+  const scopeId = createMemo(() => `operations:${tab()}`);
+  const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
+
+  const runs = createMemo(() => RUN_FIXTURES.filter((run) => {
+    const needle = query().trim().toLowerCase();
+    if (statusFilters().length > 0 && !statusFilters().includes(run.status)) return false;
+    return !needle || [run.title, run.target, run.environment].some((value) => value.toLowerCase().includes(needle));
+  }));
+  const workflows = createMemo(() => WORKFLOW_FIXTURES.filter((workflow) => {
+    const needle = query().trim().toLowerCase();
+    return !needle || [workflow.name, workflow.description].some((value) => value.toLowerCase().includes(needle));
+  }));
+  const schedules = createMemo(() => SCHEDULE_FIXTURES.filter((schedule) => {
+    const needle = query().trim().toLowerCase();
+    return !needle || [schedule.name, schedule.workflowName, schedule.environment].some((value) => value.toLowerCase().includes(needle));
+  }));
+
+  createEffect(() => {
+    const scope = scopeId();
+    const targets = tab() === "workflows"
+      ? workflows().map((item) => ({ scopeId: scope, entityId: item.id, entityKind: "workflow" }))
+      : tab() === "schedules"
+        ? schedules().map((item) => ({ scopeId: scope, entityId: item.id, entityKind: "schedule" }))
+        : runs().map((item) => ({ scopeId: scope, entityId: item.id, entityKind: "run" }));
+    detailPanelStore.getState().registerCollection({ scopeId: scope, status: "ready", targets });
+    onCleanup(() => detailPanelStore.getState().unregisterCollection(scope));
+  });
+
+  const activeRun = createMemo(() => activeTarget()?.scopeId === "operations:runs" ? RUN_FIXTURES.find((item) => item.id === activeTarget()?.entityId) : undefined);
+  const activeWorkflow = createMemo(() => activeTarget()?.scopeId === "operations:workflows" ? WORKFLOW_FIXTURES.find((item) => item.id === activeTarget()?.entityId) : undefined);
+  const activeSchedule = createMemo(() => activeTarget()?.scopeId === "operations:schedules" ? SCHEDULE_FIXTURES.find((item) => item.id === activeTarget()?.entityId) : undefined);
+
+  function activate(id: string, kind: "run" | "workflow" | "schedule") {
+    detailPanelStore.getState().activateTarget({ scopeId: scopeId(), entityId: id, entityKind: kind });
+    if (kind === "run") props.onOpenRun?.(id);
+    else if (kind === "workflow") props.onOpenWorkflow?.(id);
+    else props.onOpenSchedule?.(id);
+  }
+
+  return (
+    <>
+      <div class="flex h-full min-h-0 flex-col">
+        <PageToolbar.Root>
+          <PageToolbar.Tabs>
+            <Tabs items={[...TABS]} value={tab()} onChange={(value) => {
+              setQuery(""); setStatusFilters([]); props.onTabChange?.(value);
+            }} aria-label="Operations" />
+          </PageToolbar.Tabs>
+          <PageToolbar.Actions>
+            <FilterPopover
+              ariaLabel="Operations filters"
+              title="Filter operations"
+              search={{ placeholder: `Search ${tab()}…`, value: query(), onInput: (value) => { setQuery(value); props.onSearch?.(value); } }}
+              active={statusFilters().length > 0}
+              onClear={() => { setStatusFilters([]); props.onFiltersChange?.([]); }}
+              groups={tab() === "runs" ? [{
+                id: "status", label: "Status", options: ["queued", "running", "success", "failed", "cancelled"].map((status) => ({
+                  id: status, label: status, checked: statusFilters().includes(status), onCheckedChange: (checked: boolean) => {
+                    const next = checked ? [...statusFilters(), status] : statusFilters().filter((value) => value !== status);
+                    setStatusFilters(next); props.onFiltersChange?.(next);
+                  },
+                })),
+              }] : []}
+            />
+            <Button
+              size="icon"
+              variant="primary"
+              class="!rounded-full"
+              aria-label="Preview command"
+              title="Preview command"
+              onClick={() => props.onRunCommand?.()}
+            >
+              <Play size={14} />
+            </Button>
+          </PageToolbar.Actions>
+        </PageToolbar.Root>
+        <PageContent class="p-0">
+          <Show when={tab() === "runs"}>
+            <Show when={runs().length > 0} fallback={<PageEmpty title="No runs match" description="Try another search or status filter." />}>
+              <DataTable.Root rows={runs()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "operations:runs" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "run")}>
+                <DataTable.Table aria-label="Runs"><DataTable.Header>
+                  <DataTable.ColumnHeader<OperationRun> id="title">Run</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationRun> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationRun> id="target">Target</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationRun> id="startedAt">Started</DataTable.ColumnHeader>
+                </DataTable.Header><DataTable.Body<OperationRun>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "run")}><DataTable.PrimaryCell icon={<SquareTerminal size={16} />} iconTone="execution" title={item.title} /><DataTable.Cell><StatusChip tone={runTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell>{item.target}</DataTable.Cell><DataTable.Cell>{item.startedAt}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
+              </DataTable.Root>
+            </Show>
+          </Show>
+          <Show when={tab() === "workflows"}>
+            <DataTable.Root rows={workflows()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "operations:workflows" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "workflow")}>
+              <DataTable.Table aria-label="Workflows"><DataTable.Header><DataTable.ColumnHeader<OperationWorkflow> id="name">Workflow</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationWorkflow> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationWorkflow> id="trigger">Trigger</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationWorkflow> id="lastRun">Last run</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<OperationWorkflow>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "workflow")}><DataTable.PrimaryCell icon={<Workflow size={16} />} iconTone="execution" title={item.name} /><DataTable.Cell><StatusChip tone={workflowTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell>{item.trigger}</DataTable.Cell><DataTable.Cell>{item.lastRun}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
+            </DataTable.Root>
+          </Show>
+          <Show when={tab() === "schedules"}>
+            <DataTable.Root rows={schedules()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "operations:schedules" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "schedule")}>
+              <DataTable.Table aria-label="Schedules"><DataTable.Header><DataTable.ColumnHeader<OperationSchedule> id="name">Schedule</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationSchedule> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationSchedule> id="expression">Expression</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationSchedule> id="nextRun">Next run</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<OperationSchedule>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "schedule")}><DataTable.PrimaryCell icon={<CalendarClock size={16} />} iconTone="execution" title={item.name} /><DataTable.Cell><StatusChip tone={scheduleTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell><code>{item.expression}</code></DataTable.Cell><DataTable.Cell>{item.nextRun}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
+            </DataTable.Root>
+          </Show>
+        </PageContent>
+      </div>
+
+      <Show when={activeRun()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<SquareTerminal size={16} />} title={item().title} /><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Run"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={runTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Target" value={item().target} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /><DetailPanel.MetadataItem label="Command" value={item().command} /></DetailPanel.Metadata></DetailPanel.Section><DetailPanel.Section title="Steps"><div class="space-y-2">{item().steps.map((step) => <div class="flex justify-between gap-3"><span>{step.name}</span><StatusChip tone={runTone(step.status === "skipped" ? "cancelled" : step.status)} label={step.status} /></div>)}</div></DetailPanel.Section><DetailPanel.Section title="Output"><pre class="m-0 whitespace-pre-wrap font-mono text-[12px]">{item().outputLines.join("\n")}</pre><p class="mb-0 mt-3 text-[12px] text-[var(--color-text-muted)]">{item().result}</p></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
+      <Show when={activeWorkflow()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<Workflow size={16} />} title={item().name} /><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Workflow"><p class="m-0 text-[13px]">{item().description}</p><p class="mb-0 mt-2 text-[12px] text-[var(--color-text-muted)]">Fixture definition · changes stay in memory.</p></DetailPanel.Section><DetailPanel.Section title="Direct steps"><div class="space-y-2">{item().steps.map((step, index) => <div class="flex gap-3"><span class="text-[var(--color-text-muted)]">{index + 1}</span><div><p class="m-0 text-[13px]">{step.label}</p><p class="m-0 text-[11px] text-[var(--color-text-muted)]">{step.type}{step.command ? ` · ${step.command}` : ""}</p></div></div>)}</div></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
+      <Show when={activeSchedule()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<CalendarClock size={16} />} title={item().name} /><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Schedule"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={scheduleTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Workflow" value={item().workflowName} /><DetailPanel.MetadataItem label="Expression" value={item().expression} /><DetailPanel.MetadataItem label="Timezone" value={item().timezone} /><DetailPanel.MetadataItem label="Next run" value={item().nextRun} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /></DetailPanel.Metadata><p class="mb-0 mt-3 text-[12px] text-[var(--color-text-muted)]">Schedule is visual and does not start a runtime.</p></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
+
+      <A11yDialog open={Boolean(props.runCommandOpen)} title="Preview command" size="xl" onClose={() => props.onCloseRunCommand?.()} footer={<><Button variant="ghost" size="sm" onClick={() => props.onCloseRunCommand?.()}>Cancel</Button><Button variant="primary" size="sm" disabled={!command().trim()} onClick={() => props.onSubmitRunCommand?.({ target: target(), command: command(), cwd: cwd(), environment: environment() })}>Add preview run</Button></>}>
+        <div class="grid gap-3"><p class="m-0 text-[12px] text-[var(--color-text-muted)]">The command is recorded as a session fixture. It will not execute.</p><Field label="Target"><Input size="sm" value={target()} onInput={(event) => setTarget(event.currentTarget.value)} /></Field><Field label="Command"><Input size="sm" class="font-mono" value={command()} onInput={(event) => setCommand(event.currentTarget.value)} placeholder="systemctl status example-api" /></Field><Field label="Working directory"><Input size="sm" value={cwd()} onInput={(event) => setCwd(event.currentTarget.value)} /></Field><Field label="Environment"><Select size="sm" value={environment()} options={[{ value: "Development", label: "Development" }, { value: "Staging", label: "Staging" }, { value: "Production", label: "Production" }]} onChange={setEnvironment} /></Field></div>
+      </A11yDialog>
+    </>
+  );
+}

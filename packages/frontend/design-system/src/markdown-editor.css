@@ -1,0 +1,256 @@
+/* Markdown editor — floating format dock + prose surface */
+
+.pw-md-editor {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.pw-md-editor__surface {
+  min-width: 0;
+  min-height: 160px;
+  flex: 1 1 auto;
+}
+
+/* Room for sticky dock only while the toolbar is shown */
+.pw-md-editor[data-toolbar="true"] .pw-md-editor__surface {
+  padding-bottom: 64px;
+}
+
+/* Sticky bottom dock: stays visible while the document body scrolls */
+.pw-md-editor__dock {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: -48px;
+  pointer-events: none;
+}
+
+/*
+ * Compact floating chrome = design-system .menu-panel (edge-light + quiet lift).
+ * Override menu-panel's heavier dropdown shadow — this is a quiet tool strip, not a menu stack.
+ */
+.pw-md-editor__toolbar.menu-panel {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  align-items: center;
+  max-width: calc(100% - 24px);
+  padding: 3px 4px;
+  border-radius: 9999px;
+  overflow: visible;
+  pointer-events: auto;
+  /* Whisper lift — card-panel weight, not surface-panel-float */
+  box-shadow: 0 1px 2px var(--color-shadow-subtle);
+}
+
+.pw-md-editor__group {
+  display: inline-flex;
+  gap: 1px;
+  align-items: center;
+}
+
+.pw-md-editor__group + .pw-md-editor__group {
+  padding-left: 6px;
+  margin-left: 2px;
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+.pw-md-editor__tool {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background var(--duration-control, 120ms) var(--ease-standard, ease),
+    color var(--duration-control, 120ms) var(--ease-standard, ease);
+}
+
+.pw-md-editor__tool[data-kind="text"] {
+  width: auto;
+  min-width: 28px;
+  padding-inline: 6px;
+}
+
+.pw-md-editor__tool-text {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.pw-md-editor__tool:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.pw-md-editor__tool:focus-visible {
+  outline: 2px solid var(--color-border-focus, var(--color-border-strong, var(--color-border-subtle)));
+  outline-offset: 1px;
+}
+
+.pw-md-editor__tool[data-active="true"] {
+  background: var(--color-surface-active, var(--color-surface-hover));
+  color: var(--color-text-primary);
+}
+
+.pw-md-editor__tool:disabled {
+  cursor: default;
+  color: var(--color-text-muted);
+}
+
+.pw-md-editor__surface .ProseMirror {
+  min-height: 160px;
+  outline: none;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 1.65;
+  caret-color: var(--color-text-primary);
+}
+
+.pw-md-editor__surface .ProseMirror p.is-editor-empty:first-child::before {
+  float: left;
+  height: 0;
+  color: var(--color-text-muted);
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+
+.pw-md-editor__prose h1,
+.pw-md-editor__prose h2,
+.pw-md-editor__prose h3 {
+  margin: 1.25em 0 0.5em;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.pw-md-editor__prose h1 {
+  font-size: 22px;
+}
+
+.pw-md-editor__prose h2 {
+  font-size: 17px;
+}
+
+.pw-md-editor__prose h3 {
+  font-size: 15px;
+}
+
+.pw-md-editor__prose p {
+  margin: 0 0 0.75em;
+}
+
+/*
+ * Tailwind preflight sets `ul, ol { list-style: none }`.
+ * Restore markers inside the editor so bullet / ordered toggles are visible.
+ */
+.pw-md-editor__prose ul {
+  margin: 0 0 0.75em;
+  padding-left: 1.5em;
+  list-style-type: disc;
+  list-style-position: outside;
+}
+
+.pw-md-editor__prose ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.5em;
+  list-style-type: decimal;
+  list-style-position: outside;
+}
+
+.pw-md-editor__prose li {
+  display: list-item;
+  margin: 0.2em 0;
+}
+
+.pw-md-editor__prose li p {
+  margin: 0;
+}
+
+.pw-md-editor__prose ul ul {
+  list-style-type: circle;
+  margin-bottom: 0;
+}
+
+.pw-md-editor__prose ul ul ul {
+  list-style-type: square;
+}
+
+.pw-md-editor__prose ol ol {
+  list-style-type: lower-alpha;
+  margin-bottom: 0;
+}
+
+.pw-md-editor__prose blockquote {
+  margin: 0 0 0.75em;
+  padding-left: 12px;
+  border-left: 2px solid var(--color-border-strong, var(--color-border-subtle));
+  color: var(--color-text-secondary);
+}
+
+.pw-md-editor__prose code {
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+}
+
+.pw-md-editor__prose pre {
+  margin: 0 0 0.75em;
+  padding: 12px;
+  overflow-x: auto;
+  border-radius: var(--radius-card);
+  background: var(--color-surface-subtle);
+}
+
+.pw-md-editor__prose pre code {
+  padding: 0;
+  background: transparent;
+  font-size: 12px;
+}
+
+.pw-md-editor__prose hr {
+  margin: 1.25em 0;
+  border: 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.pw-md-editor__prose a,
+.pw-md-editor__link {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pw-md-editor__prose strong {
+  font-weight: 600;
+}
+
+.pw-md-editor__prose em {
+  font-style: italic;
+}
+
+.pw-md-editor[data-editable="false"] .pw-md-editor__surface .ProseMirror,
+.pw-md-editor[data-toolbar="false"] .pw-md-editor__surface .ProseMirror {
+  min-height: 0;
+}
+
+.pw-md-editor[data-editable="false"] .pw-md-editor__surface .ProseMirror {
+  min-height: 0;
+}

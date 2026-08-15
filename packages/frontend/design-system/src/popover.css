@@ -1,0 +1,101 @@
+/**
+ * Popover motion on Ark Content (`data-expanded` / `data-state=open`).
+ * Same token family as dialog — no custom presence in JS.
+ *
+ * Z-index: Zag sets Positioner `z-index: var(--z-index)` from Content’s
+ * computed z-index. Keep the token on `.pw-popover-panel` so floating panels
+ * stack above shell chrome (title bar → MainSurface).
+ */
+
+.pw-popover-positioner {
+  z-index: var(--z-dropdown, 40);
+}
+
+@keyframes pw-popover-presence {
+  from {
+    --pw-popover-presence-clock: 0;
+  }
+
+  to {
+    --pw-popover-presence-clock: 1;
+  }
+}
+
+.pw-popover-presence {
+  z-index: var(--z-dropdown, 40);
+  animation: pw-popover-presence var(--duration-control, 160ms) forwards;
+}
+
+.pw-popover-presence[data-state="open"],
+.pw-popover-presence[data-expanded] {
+  animation: pw-popover-presence var(--duration-enter, 200ms) forwards;
+}
+
+.pw-popover-surface {
+  z-index: var(--z-dropdown, 40);
+  transform-origin: var(--transform-origin, var(--pw-popover-origin, top left));
+
+  transition: transform var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
+              opacity var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.pw-popover-presence[data-placement^="bottom"] .pw-popover-surface { transform: translateY(-4px) scale(0.98); }
+.pw-popover-presence[data-placement^="top"] .pw-popover-surface { transform: translateY(4px) scale(0.98); }
+.pw-popover-presence[data-placement^="right"] .pw-popover-surface { transform: translateX(-4px) scale(0.98); }
+.pw-popover-presence[data-placement^="left"] .pw-popover-surface { transform: translateX(4px) scale(0.98); }
+
+.pw-popover-presence[data-state="open"] .pw-popover-surface,
+.pw-popover-presence[data-expanded] .pw-popover-surface {
+  opacity: 1;
+  transform: translateY(0) translateX(0) scale(1);
+  transition-duration: var(--duration-enter, 200ms);
+  transition-timing-function: var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+@starting-style {
+  .pw-popover-presence[data-state="open"] .pw-popover-surface,
+  .pw-popover-presence[data-expanded] .pw-popover-surface {
+    opacity: 0;
+  }
+  .pw-popover-presence[data-state="open"][data-placement^="bottom"] .pw-popover-surface,
+  .pw-popover-presence[data-expanded][data-placement^="bottom"] .pw-popover-surface {
+    transform: translateY(-4px) scale(0.98);
+  }
+  .pw-popover-presence[data-state="open"][data-placement^="top"] .pw-popover-surface,
+  .pw-popover-presence[data-expanded][data-placement^="top"] .pw-popover-surface {
+    transform: translateY(4px) scale(0.98);
+  }
+  .pw-popover-presence[data-state="open"][data-placement^="right"] .pw-popover-surface,
+  .pw-popover-presence[data-expanded][data-placement^="right"] .pw-popover-surface {
+    transform: translateX(-4px) scale(0.98);
+  }
+  .pw-popover-presence[data-state="open"][data-placement^="left"] .pw-popover-surface,
+  .pw-popover-presence[data-expanded][data-placement^="left"] .pw-popover-surface {
+    transform: translateX(4px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-popover-presence {
+    animation-duration: var(--duration-fast, 120ms) !important;
+  }
+
+  .pw-popover-surface {
+    transition: opacity var(--duration-fast, 120ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+    transform: none !important;
+  }
+
+  .pw-popover-presence[data-state="open"] .pw-popover-surface,
+  .pw-popover-presence[data-expanded] .pw-popover-surface {
+    transition: opacity var(--duration-fast, 120ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+  }
+
+  @starting-style {
+    .pw-popover-presence[data-state="open"] .pw-popover-surface,
+    .pw-popover-presence[data-expanded] .pw-popover-surface {
+      opacity: 0;
+    }
+  }
+}

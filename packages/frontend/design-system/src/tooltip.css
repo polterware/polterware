@@ -1,0 +1,50 @@
+@keyframes pw-tooltip-in {
+  from {
+    transform: scale(0.96);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes pw-tooltip-out {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.96);
+  }
+}
+
+.pw-tooltip-positioner {
+  z-index: var(--z-tooltip, 70);
+  pointer-events: none;
+}
+
+.pw-tooltip-content {
+  z-index: var(--z-tooltip, 70);
+  width: max-content;
+  max-width: min(240px, calc(100vw - 16px));
+  padding: 6px 8px;
+  color: var(--color-text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: center;
+  white-space: nowrap;
+  transform-origin: var(--transform-origin, center);
+  animation: pw-tooltip-out var(--duration-fast, 120ms)
+    var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+}
+
+.pw-tooltip-content[data-expanded],
+.pw-tooltip-content[data-state="open"] {
+  animation: pw-tooltip-in var(--duration-control, 160ms)
+    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-tooltip-content {
+    animation: none !important;
+  }
+}

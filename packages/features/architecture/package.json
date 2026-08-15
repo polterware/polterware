@@ -1,0 +1,27 @@
+{
+  "name": "@polterware/feature-architecture",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx",
+    "./icons": "./src/icons.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@polterware/frontend-canvas": "workspace:*",
+    "@polterware/frontend-design-system": "workspace:*",
+    "@polterware/frontend-state": "workspace:*"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "vitest": "^4.1.5"
+  }
+}

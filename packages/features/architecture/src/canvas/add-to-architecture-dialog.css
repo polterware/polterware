@@ -1,0 +1,24 @@
+.architecture-catalog-search,
+.architecture-catalog-search:focus,
+.architecture-catalog-search:focus-visible {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+
+.architecture-catalog-tabs-fade {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  padding: 0.5rem 1.25rem 1.5rem;
+  pointer-events: none;
+}
+
+.architecture-catalog-tabs {
+  width: 100%;
+  pointer-events: auto;
+}
+
+.architecture-catalog-list--under-tabs {
+  padding-top: 3.5rem;
+}

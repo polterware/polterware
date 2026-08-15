@@ -1,0 +1,61 @@
+/* Quiet secondary filters — never texture buttons (DESIGN.md) */
+
+.pw-filter-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.pw-filter-chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  transition:
+    color var(--duration-fast, 120ms) var(--ease-standard, ease),
+    background-color var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+
+.pw-filter-chip:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-hover);
+}
+
+.pw-filter-chip--selected {
+  color: var(--color-text-primary);
+  background: var(--color-surface-active);
+}
+
+.pw-filter-chip--selected:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-selected);
+}
+
+.pw-filter-chip:focus {
+  outline: none;
+}
+
+.pw-filter-chip:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-filter-chip {
+    transition: none;
+  }
+}

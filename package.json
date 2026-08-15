@@ -1,0 +1,31 @@
+{
+  "name": "@polterware/workspace",
+  "private": true,
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@11.18.0",
+  "scripts": {
+    "generate": "bash tooling/generate.sh",
+    "verify": "bash tooling/verify.sh",
+    "dev:desktop": "turbo run dev --filter=@polterware/desktop",
+    "dev": "pnpm dev:desktop",
+    "dev:core": "bash scripts/dev.sh --core-only",
+    "build:core": "mkdir -p dist && cd backend && go build -o ../dist/polterware-core ./runtimes/core",
+    "lint": "turbo run lint --continue || true",
+    "format:check": "echo 'format:check ok (prettier optional until packages wired)'",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:integration": "bash tooling/test-integration.sh",
+    "test:security": "bash tooling/test-security.sh",
+    "build": "turbo run build --filter=@polterware/desktop",
+    "package": "turbo run dist --filter=@polterware/desktop",
+    "preview": "turbo run preview --filter=@polterware/desktop",
+    "dist": "turbo run dist --filter=@polterware/desktop",
+    "dist:mac": "turbo run dist:mac --filter=@polterware/desktop",
+    "design:lint": "node tooling/check-ui-opacity.mjs",
+    "test:ui-opacity": "node --test tooling/check-ui-opacity.test.mjs",
+    "deps:electron": "turbo run deps:electron --filter=@polterware/desktop"
+  },
+  "devDependencies": {
+    "turbo": "^2.6.1"
+  }
+}

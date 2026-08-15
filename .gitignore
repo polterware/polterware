@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+dist/bin/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+apps/desktop/dist/
+apps/desktop/dist-electron/
+apps/desktop/out/
+apps/desktop/release/
+packages/*/dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+
+# Polter runtime state
+.polter/
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+backend/**/dist/
+dist/polter-*
+
+# Generated (committed stubs may exist; full gen is local)
+# packages/generated is generated — allow tracking of package.json only via force if needed
+
+# Buf / protoc
+*.pb.go.bak
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
