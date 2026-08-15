@@ -1,6 +1,7 @@
 import type { JSX } from "solid-js";
 import { Show, createMemo, createSignal } from "solid-js";
 import { ResizableSidebar, ToastRegion, pushToast } from "@polterware/frontend-design-system";
+import type { PlatformContext } from "@polterware/frontend-platform";
 import type { ClientRoute, NavItem, ShellStatus } from "./route";
 import { isNavSectionId, shellLayoutMode } from "./route";
 import { SidebarNav, SidebarSettingsItem } from "./sidebar";
@@ -38,6 +39,10 @@ export type {
   TerminalTargetItem,
   TerminalTargetStatus,
   DataSource,
+  DeploymentMode,
+  PlatformCapability,
+  PlatformCapabilities,
+  PlatformContext,
 } from "./types";
 export {
   isTerminalTargetUsable,
@@ -73,6 +78,9 @@ export {
   isSectionId,
   isNavSectionId,
   isChromeSectionId,
+  ensureRouteAvailable,
+  requiredCapabilityForSection,
+  sectionAvailable,
 } from "./route";
 export { MainSurface, PageHeader, PageContent } from "./main-surface";
 export { SidebarNav, SidebarSettingsItem } from "./sidebar";
@@ -153,6 +161,7 @@ export function Shell(props: {
   terminalTargets?: TerminalTargetItem[];
   status?: ShellStatus;
   navItems?: NavItem[];
+  platform?: PlatformContext;
   canGoBack?: boolean;
   canGoForward?: boolean;
   onBack?: () => void;
@@ -235,7 +244,12 @@ export function Shell(props: {
             sidebar={
               <div class="flex h-full min-h-0 flex-col pt-2">
                 <div class="flex min-h-0 flex-1 flex-col">
-                  <SidebarNav items={items()} activeId={activeId()} onSelect={select} />
+                  <SidebarNav
+                    items={items()}
+                    activeId={activeId()}
+                    onSelect={select}
+                    platform={props.platform}
+                  />
                 </div>
                 <div class="mt-auto px-2 py-3">
                   <SidebarSettingsItem

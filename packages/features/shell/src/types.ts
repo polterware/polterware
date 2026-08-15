@@ -1,5 +1,12 @@
 export type DataSource = "fixture" | "empty" | "unavailable";
 
+export type {
+  DeploymentMode,
+  PlatformCapability,
+  PlatformCapabilities,
+  PlatformContext,
+} from "@polterware/frontend-platform";
+
 export type EnvironmentKind = "production" | "staging" | "development" | "local";
 
 export type EnvironmentItem = {

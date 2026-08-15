@@ -64,3 +64,5 @@ The Desktop remains fixture-only until a later version deliberately reconnects i
 ## Contributing and security
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [TRADEMARKS.md](TRADEMARKS.md), and [SECURITY.md](SECURITY.md).
+
+The selective migration policy for hosted-only interface is documented in [docs/architecture/hosted-ui-porting.md](docs/architecture/hosted-ui-porting.md).

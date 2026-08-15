@@ -22,6 +22,10 @@ Only `polterware/polterware` and `polterware/cloud` are active repositories. The
 
 Hosted-only UI source may be public, but local and self-hosted distributions hide routes for capabilities that their backend does not provide.
 
+Historical hosted UI is ported selectively under [hosted-ui-porting.md](hosted-ui-porting.md); the archive branch is never merged wholesale.
+
+The legacy studio website remains separate until the product-only migration gate in [website-migration.md](website-migration.md) is satisfied.
+
 ## Private Cloud monorepo ownership
 
 `polterware/cloud` owns the hosted control plane and its private operational material.

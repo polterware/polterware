@@ -1,6 +1,11 @@
 import { createSignal, For, Show } from "solid-js";
 import { Search } from "@polterware/frontend-design-system";
 import { A11yDialog, Button } from "@polterware/frontend-design-system";
+import {
+  capabilityEnabled,
+  type PlatformCapability,
+  type PlatformContext,
+} from "@polterware/frontend-platform";
 import "./commander.css";
 
 export type PaletteItem = {
@@ -8,6 +13,7 @@ export type PaletteItem = {
   label: string;
   group: "Navigation" | "Actions" | "Recent";
   shortcut?: string;
+  requiredCapability?: PlatformCapability;
 };
 
 const DEFAULT_ITEMS: PaletteItem[] = [
@@ -36,9 +42,13 @@ export function CommandPalette(props: {
   onClose: () => void;
   onCommand?: (id: string) => void;
   items?: PaletteItem[];
+  platform?: PlatformContext;
 }) {
   const [q, setQ] = createSignal("");
-  const items = () => props.items ?? DEFAULT_ITEMS;
+  const items = () =>
+    (props.items ?? DEFAULT_ITEMS).filter((item) =>
+      capabilityEnabled(props.platform, item.requiredCapability),
+    );
   const filtered = () => {
     const query = q().toLowerCase().trim();
     if (!query) return items();

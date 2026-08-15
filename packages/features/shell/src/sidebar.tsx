@@ -8,6 +8,10 @@ import {
   Settings,
   SquareTerminal,
 } from "@polterware/frontend-design-system";
+import {
+  capabilityEnabled,
+  type PlatformContext,
+} from "@polterware/frontend-platform";
 import type { NavItem } from "./route";
 import "./sidebar.css";
 
@@ -30,10 +34,13 @@ export function SidebarNav(props: {
   items: NavItem[];
   activeId: string;
   onSelect: (id: string) => void;
+  platform?: PlatformContext;
 }) {
   const groups = () => {
     const map = new Map<string, NavItem[]>();
-    for (const item of props.items) {
+    for (const item of props.items.filter((candidate) =>
+      capabilityEnabled(props.platform, candidate.requiredCapability),
+    )) {
       const g = item.group ?? "GENERAL";
       if (!map.has(g)) map.set(g, []);
       map.get(g)!.push(item);

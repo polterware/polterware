@@ -27,6 +27,7 @@
     "@polterware/feature-settings": "workspace:*",
     "@polterware/feature-shell": "workspace:*",
     "@polterware/frontend-design-system": "workspace:*",
+    "@polterware/frontend-platform": "workspace:*",
     "@polterware/frontend-state": "workspace:*",
     "@tanstack/solid-virtual": "3.13.12",
     "electron-updater": "^6.8.9",

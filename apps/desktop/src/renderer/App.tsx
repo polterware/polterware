@@ -18,6 +18,7 @@ import {
   setEnvironment,
   setSessionId,
   historySnapshot,
+  ensureRouteAvailable,
   routesEqual,
   type ClientRoute,
   type EnvironmentItem,
@@ -35,8 +36,10 @@ import { SettingsView } from "@polterware/feature-settings";
 import { CommandPalette } from "@polterware/feature-commander";
 import { pushToast } from "@polterware/frontend-design-system";
 import { detailPanelStore } from "@polterware/frontend-state";
+import { bootstrapPlatform } from "./platform-bootstrap";
 
 const SYSTEM_ID = "sys-local";
+const PLATFORM_CONTEXT = bootstrapPlatform();
 
 function integrationSetupProvider(route: ClientRoute) {
   return route.dialog?.type === "integration-connect"
@@ -45,7 +48,7 @@ function integrationSetupProvider(route: ClientRoute) {
 }
 
 export function App() {
-  const initialRoute = createDefaultRoute();
+  const initialRoute = createDefaultRoute("architecture", PLATFORM_CONTEXT);
   const [route, setRoute] = createSignal<ClientRoute>(initialRoute);
   const [history, setHistory] = createSignal<ClientRoute[]>([historySnapshot(initialRoute)]);
   const [historyIndex, setHistoryIndex] = createSignal(0);
@@ -67,9 +70,10 @@ export function App() {
   type NavigationMode = "push" | "replace" | "silent";
 
   function applyRoute(next: ClientRoute, mode: NavigationMode = "push") {
-    setRoute(next);
+    const availableRoute = ensureRouteAvailable(next, PLATFORM_CONTEXT);
+    setRoute(availableRoute);
     if (mode === "silent") return;
-    const snapshot = historySnapshot(next);
+    const snapshot = historySnapshot(availableRoute);
     if (mode === "replace") {
       setHistory((items) => {
         const copy = items.slice();
@@ -170,6 +174,7 @@ export function App() {
       onBack={goBack}
       onForward={goForward}
       status={{ dataMode: "fixture" }}
+      platform={PLATFORM_CONTEXT}
     >
       <Switch>
         <Match when={route().section === "create-project"}>
@@ -366,6 +371,7 @@ export function App() {
 
       <CommandPalette
         open={paletteOpen()}
+        platform={PLATFORM_CONTEXT}
         onClose={() => setPaletteOpen(false)}
         onCommand={(id) => {
           setPaletteOpen(false);

@@ -1,3 +1,9 @@
+import {
+  capabilityEnabled,
+  type PlatformCapability,
+  type PlatformContext,
+} from "@polterware/frontend-platform";
+
 export type NavSectionId =
   | "architecture"
   | "resources"
@@ -51,6 +57,7 @@ export type NavItem = {
   label: string;
   group?: string;
   icon?: string;
+  requiredCapability?: PlatformCapability;
 };
 
 export const DEFAULT_TABS: Record<SectionId, string> = {
@@ -107,6 +114,8 @@ const NAV_SECTIONS = new Set<NavSectionId>([
 
 const CHROME_SECTIONS = new Set<ChromeSectionId>(["create-project"]);
 
+const ROUTE_CAPABILITIES: Partial<Record<SectionId, PlatformCapability>> = {};
+
 export function isNavSectionId(value: string): value is NavSectionId {
   return NAV_SECTIONS.has(value as NavSectionId);
 }
@@ -129,37 +138,70 @@ export function isNeutralSection(section: string): boolean {
 
 export type ResolvedRoute = { section: SectionId; tab: string };
 
+export function requiredCapabilityForSection(
+  section: string,
+): PlatformCapability | undefined {
+  return isSectionId(section) ? ROUTE_CAPABILITIES[section] : undefined;
+}
+
+export function sectionAvailable(
+  section: string,
+  platform?: PlatformContext,
+): boolean {
+  return (
+    isSectionId(section) &&
+    capabilityEnabled(platform, requiredCapabilityForSection(section))
+  );
+}
+
 function normalizeTab(section: SectionId, tab?: string): string {
   const allowed = SECTION_TABS[section];
   if (!allowed) return DEFAULT_TABS[section];
   return allowed.some((item) => item.id === tab) ? tab! : DEFAULT_TABS[section];
 }
 
-export function resolveRoute(rawSection: string, rawTab?: string): ResolvedRoute {
-  const section = rawSection.toLowerCase();
-  if (section === "ops") return { section: "operations", tab: normalizeTab("operations", rawTab) };
-  if (section === "inventory") return { section: "resources", tab: "inventory" };
-  if (section === "nodes") return { section: "resources", tab: "nodes" };
-  if (section === "processes") return { section: "resources", tab: "processes" };
-  if (section === "search" || section === "logs") {
-    return { section: "architecture", tab: "canvas" };
+export function resolveRoute(
+  rawSection: string,
+  rawTab?: string,
+  platform?: PlatformContext,
+): ResolvedRoute {
+  let section = rawSection.toLowerCase();
+  let tab = rawTab;
+
+  if (section === "ops") section = "operations";
+  if (section === "inventory" || section === "nodes" || section === "processes") {
+    tab = section;
+    section = "resources";
   }
-  if (section === "sync") return { section: "settings", tab: "advanced" };
-  if (isSectionId(section)) return { section, tab: normalizeTab(section, rawTab) };
+  if (section === "search" || section === "logs") {
+    section = "architecture";
+    tab = "canvas";
+  }
+  if (section === "sync") {
+    section = "settings";
+    tab = "advanced";
+  }
+
+  if (isSectionId(section) && sectionAvailable(section, platform)) {
+    return { section, tab: normalizeTab(section, tab) };
+  }
   return { section: "architecture", tab: "canvas" };
 }
 
-export function resolveSection(raw: string): NavSectionId {
-  const route = resolveRoute(raw);
+export function resolveSection(raw: string, platform?: PlatformContext): NavSectionId {
+  const route = resolveRoute(raw, undefined, platform);
   return isNavSectionId(route.section) ? route.section : "architecture";
 }
 
-export function defaultTabFor(section: string): string {
-  return resolveRoute(section).tab;
+export function defaultTabFor(section: string, platform?: PlatformContext): string {
+  return resolveRoute(section, undefined, platform).tab;
 }
 
-export function createDefaultRoute(section = "architecture"): ClientRoute {
-  const resolved = resolveRoute(section);
+export function createDefaultRoute(
+  section = "architecture",
+  platform?: PlatformContext,
+): ClientRoute {
+  const resolved = resolveRoute(section, undefined, platform);
   return {
     ...resolved,
     projectId: "proj-polter",
@@ -196,8 +238,12 @@ export function enterProject(
   };
 }
 
-export function goSection(route: ClientRoute, section: string): ClientRoute {
-  const resolved = resolveRoute(section);
+export function goSection(
+  route: ClientRoute,
+  section: string,
+  platform?: PlatformContext,
+): ClientRoute {
+  const resolved = resolveRoute(section, undefined, platform);
   return {
     ...route,
     ...resolved,
@@ -208,8 +254,27 @@ export function goSection(route: ClientRoute, section: string): ClientRoute {
   };
 }
 
-export function setTab(route: ClientRoute, tab: string): ClientRoute {
-  return { ...route, ...resolveRoute(route.section, tab), dialog: null, selectedNodeId: null };
+export function setTab(
+  route: ClientRoute,
+  tab: string,
+  platform?: PlatformContext,
+): ClientRoute {
+  return {
+    ...route,
+    ...resolveRoute(route.section, tab, platform),
+    dialog: null,
+    selectedNodeId: null,
+  };
+}
+
+export function ensureRouteAvailable(
+  route: ClientRoute,
+  platform?: PlatformContext,
+): ClientRoute {
+  return {
+    ...route,
+    ...resolveRoute(route.section, route.tab, platform),
+  };
 }
 
 export function openDialog(route: ClientRoute, dialog: NonNullable<DialogState>): ClientRoute {
