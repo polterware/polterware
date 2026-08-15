@@ -18,6 +18,12 @@ Desktop data is demonstrative and held in the current session. It does not launc
 
 The only active deployment mode is local and fixture-backed. The public architecture defines possible `self-hosted` and `cloud` modes, but neither is implemented today. See [the deployment model](docs/architecture/deployment-model.md) and [repository map](docs/architecture/repository-map.md).
 
+## Open-source and Cloud
+
+This repository contains the public product, including local and self-hosted foundations, public contracts, and UI that may be used by the hosted product. Unavailable surfaces are hidden according to backend-provided capabilities.
+
+Polterware Cloud is a managed service built on a separate private control plane. Its identity, organization, billing, metering, tenant provisioning, internal administration, production infrastructure, and operational runbooks are not part of this repository. Frontend flags never grant authorization.
+
 ## Repository
 
 - `apps/desktop` — Electron Main, preload bridge, and Solid renderer
@@ -54,3 +60,7 @@ pnpm dev:core
 ```
 
 The Desktop remains fixture-only until a later version deliberately reconnects it to the core.
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [TRADEMARKS.md](TRADEMARKS.md), and [SECURITY.md](SECURITY.md).

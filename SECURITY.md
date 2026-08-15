@@ -1,5 +1,11 @@
 # Security
 
+## Reporting a vulnerability
+
+Use [GitHub private vulnerability reporting](https://github.com/polterware/polterware/security/advisories/new). Do not open a public issue or discussion for a suspected vulnerability.
+
+Include the affected version or commit, impact, reproduction steps, and any suggested mitigation. Do not include credentials, personal data, customer data, or production secrets.
+
 ## Current boundary
 
 The Desktop is a fixture-only Electron application. The renderer receives a narrow typed preload bridge for local application chrome and Commander window controls. It has no unrestricted Node.js, Electron, filesystem, shell, PTY, privileged network bridge, or core API access.
@@ -26,6 +32,6 @@ The core must bind to loopback by default, store only the reduced local domain b
 - no raw `ipcRenderer` exposure
 - all IPC channels declared in the shared catalog
 
-## Reporting
+## Supported versions
 
-Do not open a public issue for a suspected vulnerability. Send a minimal reproduction and impact assessment to the repository maintainer through a private channel.
+The project is pre-release. Security fixes are applied to the current default branch; no historical release line is currently supported.
