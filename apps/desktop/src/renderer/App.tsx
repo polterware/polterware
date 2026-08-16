@@ -47,6 +47,15 @@ function integrationSetupProvider(route: ClientRoute) {
     : undefined;
 }
 
+function isEnvironmentKind(kind: string): kind is EnvironmentItem["kind"] {
+  return kind === "production"
+    || kind === "staging"
+    || kind === "development"
+    || kind === "preview"
+    || kind === "test"
+    || kind === "local";
+}
+
 export function App() {
   const initialRoute = createDefaultRoute("architecture", PLATFORM_CONTEXT);
   const [route, setRoute] = createSignal<ClientRoute>(initialRoute);
@@ -84,7 +93,8 @@ export function App() {
     }
     setHistory((items) => {
       const base = items.slice(0, historyIndex() + 1);
-      if (base.at(-1) && routesEqual(base.at(-1)!, snapshot)) return base;
+      const lastBase = base[base.length - 1];
+      if (lastBase && routesEqual(lastBase, snapshot)) return base;
       const nextItems = [...base, snapshot];
       setHistoryIndex(nextItems.length - 1);
       return nextItems;
@@ -112,15 +122,19 @@ export function App() {
   function goBack() {
     if (historyIndex() <= 0) return;
     const nextIndex = historyIndex() - 1;
+    const targetRoute = history()[nextIndex];
+    if (!targetRoute) return;
     setHistoryIndex(nextIndex);
-    setRoute({ ...history()[nextIndex]!, dialog: null });
+    setRoute({ ...targetRoute, dialog: null });
   }
 
   function goForward() {
     if (historyIndex() >= history().length - 1) return;
     const nextIndex = historyIndex() + 1;
+    const targetRoute = history()[nextIndex];
+    if (!targetRoute) return;
     setHistoryIndex(nextIndex);
-    setRoute({ ...history()[nextIndex]!, dialog: null });
+    setRoute({ ...targetRoute, dialog: null });
   }
 
   function handlePaletteCommand(id: string) {
@@ -183,12 +197,16 @@ export function App() {
             onCreate={(input) => {
               const suffix = Date.now().toString(36);
               const projectId = `proj-${suffix}`;
-              const createdEnvironments = input.environments.map((kind, index) => ({
-                id: `env-${suffix}-${index}`,
-                name: kind === "production" ? "main" : kind,
-                kind: kind as EnvironmentItem["kind"],
-                projectId,
-              }));
+              const createdEnvironments = input.environments.map((kind, index) => {
+                const validKind = isEnvironmentKind(kind) ? kind : "development";
+
+                return {
+                  id: `env-${suffix}-${index}`,
+                  name: kind === "production" ? "main" : kind,
+                  kind: validKind,
+                  projectId,
+                };
+              });
               setProjects((items) => [
                 ...items.map((item) => ({ ...item, isCurrent: false })),
                 {

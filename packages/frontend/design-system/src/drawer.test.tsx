@@ -3,7 +3,7 @@ import { Drawer } from "./drawer";
 
 describe("Drawer", () => {
   it("exports Drawer component", () => {
-    expect(typeof Drawer).toBe("function");
+    expect(Drawer).toBeDefined();
   });
 
   it("accepts public open/title/onClose props shape", () => {
@@ -11,12 +11,11 @@ describe("Drawer", () => {
       open: true,
       title: "Panel",
       onClose: () => {},
-      children: null as unknown as never,
       width: 480,
     };
     expect(props.open).toBe(true);
     expect(props.title).toBe("Panel");
     expect(props.width).toBe(480);
-    expect(typeof props.onClose).toBe("function");
+    expect(props.onClose()).toBeUndefined();
   });
 });

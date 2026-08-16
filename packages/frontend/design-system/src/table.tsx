@@ -76,28 +76,28 @@ export type DataTableColumnHeaderProps<T = any> = {
   class?: string;
 };
 
-type IndexedRow = {
-  row: unknown;
+type IndexedRow<T> = {
+  row: T;
   sourceIndex: number;
   id: string;
 };
 
-type RegisteredColumn = {
+type RegisteredColumn<T> = {
   id: string;
   sortable: boolean;
-  sortBy: (row: unknown) => DataTableSortValue;
-  compare?: (left: unknown, right: unknown) => number;
+  sortBy: (row: T) => DataTableSortValue;
+  compare?: (left: T, right: T) => number;
 };
 
-type DataTableContextValue = {
-  rows: Accessor<readonly IndexedRow[]>;
-  registerColumn: (column: RegisteredColumn) => VoidFunction;
+type DataTableContextValue<T> = {
+  rows: Accessor<readonly IndexedRow<T>[]>;
+  registerColumn: (column: RegisteredColumn<T>) => VoidFunction;
   sort: Accessor<DataTableSortState>;
   cycleSort: (columnId: string) => void;
   selectionMode: Accessor<DataTableSelectionMode>;
   selectable: Accessor<boolean>;
   selectedRowIds: Accessor<DataTableSelectionState>;
-  selectedRows: Accessor<readonly IndexedRow[]>;
+  selectedRows: Accessor<readonly IndexedRow<T>[]>;
   activeRowId: Accessor<string | null>;
   activeEnabled: Accessor<boolean>;
   activateRow: (rowId: string) => void;
@@ -108,18 +108,26 @@ type DataTableContextValue = {
   someVisibleSelected: Accessor<boolean>;
   virtualized: Accessor<boolean>;
   estimateRowHeight: Accessor<number>;
-  scrollElement: Accessor<HTMLElement | null>;
-  setScrollElement: (element: HTMLElement) => void;
+  scrollElement: Accessor<HTMLDivElement | null>;
+  setScrollElement: (element: HTMLDivElement) => void;
   columnCount: Accessor<number>;
 };
 
-const DataTableContext = createContext<DataTableContextValue>();
+const DataTableContext = createContext<DataTableContextValue<never>>();
 const DataTableSelectionToolbarHostContext = createContext<Accessor<HTMLElement | undefined>>();
 
-function useDataTable(part: string): DataTableContextValue {
+function bridgeDataTableContext<From, To>(
+  context: DataTableContextValue<From>,
+): DataTableContextValue<To> {
+  // SAFETY: DataTable.Root and its compound children share one row type; the
+  // context erases that generic only while crossing Solid's non-generic Context API.
+  return context as never;
+}
+
+function useDataTable<T = never>(part: string): DataTableContextValue<T> {
   const context = useContext(DataTableContext);
   if (!context) throw new Error(`DataTable.${part} must be used inside DataTable.Root`);
-  return context;
+  return bridgeDataTableContext<never, T>(context);
 }
 
 export function getNextDataTableSort(
@@ -144,6 +152,18 @@ export function getDataTableAriaSort(
   return current?.columnId === columnId ? current.direction : "none";
 }
 
+function isNumberSortValue(value: DataTableSortValue): value is number {
+  return Object.prototype.toString.call(value) === "[object Number]";
+}
+
+function isBooleanSortValue(value: DataTableSortValue): value is boolean {
+  return value === true || value === false;
+}
+
+function isStringSortValue(value: DataTableSortValue): value is string {
+  return Object.prototype.toString.call(value) === "[object String]";
+}
+
 function compareSortValues(left: DataTableSortValue, right: DataTableSortValue): number {
   const leftMissing = left === null || left === undefined || left === "";
   const rightMissing = right === null || right === undefined || right === "";
@@ -153,10 +173,10 @@ function compareSortValues(left: DataTableSortValue, right: DataTableSortValue):
 
   const leftValue = left instanceof Date ? left.getTime() : left;
   const rightValue = right instanceof Date ? right.getTime() : right;
-  if (typeof leftValue === "number" && typeof rightValue === "number") {
+  if (isNumberSortValue(leftValue) && isNumberSortValue(rightValue)) {
     return leftValue - rightValue;
   }
-  if (typeof leftValue === "boolean" && typeof rightValue === "boolean") {
+  if (isBooleanSortValue(leftValue) && isBooleanSortValue(rightValue)) {
     return Number(leftValue) - Number(rightValue);
   }
   return String(leftValue).localeCompare(String(rightValue), undefined, {
@@ -272,10 +292,11 @@ function dataTableSelectionsEqual(
   return left.size === right.size && [...left].every((id) => right.has(id));
 }
 
-function defaultRowId(row: unknown, index: number): string {
-  if (typeof row === "object" && row !== null && "id" in row) {
-    const id = (row as { id?: unknown }).id;
-    if (typeof id === "string" || typeof id === "number") return String(id);
+function defaultRowId<T>(row: T, index: number): string {
+  if (row instanceof Object && "id" in row) {
+    // SAFETY: row is an object and has an id property, we can safely read it.
+    const id = (row as Record<string, DataTableSortValue>).id;
+    if (isStringSortValue(id) || isNumberSortValue(id)) return String(id);
   }
   return String(index);
 }
@@ -288,12 +309,12 @@ function DataTableRoot<T = any>(props: DataTableRootProps<T>) {
     new Set(props.defaultSelectedRowIds ?? []),
   );
   const [internalActiveRowId, setInternalActiveRowId] = createSignal<string | null>(null);
-  const [scrollElement, setScrollElement] = createSignal<HTMLElement | null>(null);
+  const [scrollElement, setScrollElement] = createSignal<HTMLDivElement | null>(null);
   const [columnCount, setColumnCount] = createSignal(0);
   const [columnVersion, setColumnVersion] = createSignal(0);
-  const columns = new Map<string, RegisteredColumn>();
+  const columns = new Map<string, RegisteredColumn<T>>();
 
-  const sourceRows = createMemo<readonly IndexedRow[]>(() =>
+  const sourceRows = createMemo<readonly IndexedRow<T>[]>(() =>
     props.rows.map((row, sourceIndex) => ({
       row,
       sourceIndex,
@@ -310,7 +331,7 @@ function DataTableRoot<T = any>(props: DataTableRootProps<T>) {
   const selectedRowIds = createMemo<DataTableSelectionState>(() =>
     pruneDataTableSelection(rawSelectedRowIds(), visibleIds(), selectionMode()),
   );
-  const selectedRows = createMemo<readonly IndexedRow[]>(() =>
+  const selectedRows = createMemo<readonly IndexedRow<T>[]>(() =>
     sourceRows().filter((entry) => selectedRowIds().has(entry.id)),
   );
   const activeEnabled = (): boolean =>
@@ -320,7 +341,7 @@ function DataTableRoot<T = any>(props: DataTableRootProps<T>) {
   const activeRowId = (): string | null =>
     props.activeRowId !== undefined ? props.activeRowId : internalActiveRowId();
 
-  const orderedRows = createMemo<readonly IndexedRow[]>(() => {
+  const orderedRows = createMemo<readonly IndexedRow<T>[]>(() => {
     columnVersion();
     const currentSort = sort();
     if (!currentSort) return sourceRows();
@@ -368,7 +389,7 @@ function DataTableRoot<T = any>(props: DataTableRootProps<T>) {
       [...visibleIds()].some((id) => selectedRowIds().has(id)),
   );
 
-  const context: DataTableContextValue = {
+  const context: DataTableContextValue<T> = {
     rows: orderedRows,
     registerColumn: (column) => {
       const isNew = !columns.has(column.id);
@@ -422,7 +443,7 @@ function DataTableRoot<T = any>(props: DataTableRootProps<T>) {
   };
 
   return (
-    <DataTableContext.Provider value={context}>
+    <DataTableContext.Provider value={bridgeDataTableContext<T, never>(context)}>
       <div
         class={`pw-data-table-root ${props.class ?? ""}`}
         data-selection-active={selectedRows().length > 0 ? "true" : undefined}
@@ -482,11 +503,12 @@ function DataTableHeader(props: { children: JSX.Element; class?: string }) {
 }
 
 function DataTableColumnHeader<T = any>(props: DataTableColumnHeaderProps<T>) {
-  const context = useDataTable("ColumnHeader");
+  const context = useDataTable<T>("ColumnHeader");
   const sortable = () => props.sortable !== false;
   const sortBy = (row: T): DataTableSortValue => {
     if (props.sortBy) return props.sortBy(row);
-    if (typeof row === "object" && row !== null && props.id in row) {
+    if (row instanceof Object && props.id in row) {
+      // SAFETY: We verified row is an object containing the id key.
       return (row as Record<string, DataTableSortValue>)[props.id];
     }
     return undefined;
@@ -494,10 +516,8 @@ function DataTableColumnHeader<T = any>(props: DataTableColumnHeaderProps<T>) {
   const dispose = context.registerColumn({
     id: props.id,
     sortable: sortable(),
-    sortBy: (row) => sortBy(row as T),
-    compare: props.compare
-      ? (left, right) => props.compare!(left as T, right as T)
-      : undefined,
+    sortBy,
+    compare: props.compare,
   });
   onCleanup(dispose);
 
@@ -544,12 +564,12 @@ function DataTableBody<T = any>(props: {
   children: (row: T, index: Accessor<number>) => JSX.Element;
   class?: string;
 }) {
-  const context = useDataTable("Body");
+  const context = useDataTable<T>("Body");
   const virtualizer = createVirtualizer<HTMLDivElement, HTMLTableRowElement>({
     get count() {
       return context.rows().length;
     },
-    getScrollElement: () => context.scrollElement() as HTMLDivElement | null,
+    getScrollElement: context.scrollElement,
     estimateSize: context.estimateRowHeight,
     overscan: 8,
   });
@@ -559,8 +579,8 @@ function DataTableBody<T = any>(props: {
     const last = virtualItems().at(-1);
     return last ? Math.max(0, virtualizer.getTotalSize() - last.end) : 0;
   };
-  const renderEntry = (entry: IndexedRow, index: number) =>
-    props.children(entry.row as T, () => index);
+  const renderEntry = (entry: IndexedRow<T>, index: number) =>
+    props.children(entry.row, () => index);
 
   return (
     <tbody class={props.class}>
@@ -756,7 +776,7 @@ function DataTableSelectionCell(props: {
         fallback={
           <td class={`pw-data-table-selection-cell ${props.class ?? ""}`}>
             <input
-              ref={input}
+              ref={(el) => { input = el; }}
               class="pw-data-table-selection-input"
               type="checkbox"
               checked={checked()}
@@ -774,7 +794,7 @@ function DataTableSelectionCell(props: {
         >
           <Show when={context.selectionMode() === "multiple"}>
             <input
-              ref={input}
+              ref={(el) => { input = el; }}
               class="pw-data-table-selection-input"
               type="checkbox"
               checked={checked()}
@@ -791,16 +811,17 @@ function DataTableSelectionCell(props: {
 function DataTableSelectionToolbar<T = any>(
   props: DataTableSelectionToolbarProps<T>,
 ) {
-  const context = useDataTable("SelectionToolbar");
+  const context = useDataTable<T>("SelectionToolbar");
   const host = useContext(DataTableSelectionToolbarHostContext);
   const state: DataTableSelectionToolbarState<T> = {
-    selectedRows: () => context.selectedRows().map((entry) => entry.row as T),
+    selectedRows: () => context.selectedRows().map((entry) => entry.row),
     selectedRowIds: context.selectedRowIds,
     selectedCount: () => context.selectedRows().length,
     clearSelection: context.clearSelection,
   };
+
   const hasActions = () =>
-    typeof props.hasActions === "function"
+    props.hasActions instanceof Function
       ? props.hasActions(state)
       : props.hasActions !== false;
 

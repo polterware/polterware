@@ -322,9 +322,9 @@ export function ArchitectureCanvasHost(props: {
   }
 
   const checkFlowLoop = () => {
-    const shouldRun = typeof document !== "undefined"
+    const shouldRun = globalThis.document != null
       && edgeFlowOn()
-      && document.visibilityState === "visible"
+      && globalThis.document.visibilityState === "visible"
       && flowDots.size > 0;
     if (shouldRun && !flowRaf) {
       flowLast = performance.now();
@@ -437,7 +437,7 @@ export function ArchitectureCanvasHost(props: {
     );
 
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
+      const target = e.target instanceof HTMLElement ? e.target : null;
       // Catalog / dialog Escape must work even when search input is focused.
       if (e.key === "Escape" && catalogOpen()) {
         e.preventDefault();
@@ -555,7 +555,8 @@ export function ArchitectureCanvasHost(props: {
       if (e.key === "Enter" && sel().nodeIds[0]) {
         e.preventDefault();
         snapshotSession();
-        props.onOpenNode(sel().nodeIds[0]!);
+        const id = sel().nodeIds[0];
+        if (id) props.onOpenNode(id);
         return;
       }
       if (!meta && !e.altKey) {
@@ -720,7 +721,8 @@ export function ArchitectureCanvasHost(props: {
   }
 
   function clientToLocal(e: { clientX: number; clientY: number }): Point {
-    const rect = rootEl!.getBoundingClientRect();
+    if (!rootEl) return { x: 0, y: 0 };
+    const rect = rootEl.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
@@ -743,7 +745,7 @@ export function ArchitectureCanvasHost(props: {
     const life = lifecycleFromPlaceConfig(config);
     const next = docAddNode(props.document, {
       name: config.name,
-      type: nodeType as never,
+      type: nodeType,
       subtype: def.subtype,
       provider: def.provider,
       environmentIds: environmentIdsFromConfig(config),
@@ -1164,15 +1166,16 @@ export function ArchitectureCanvasHost(props: {
     }
 
     if (dragMode === "edge" && edgeDrag) {
-      const r = props.document.relationships.find((x) => x.id === edgeDrag!.relId);
+      const drag = edgeDrag;
+      const r = props.document.relationships.find((x) => x.id === drag.relId);
       const a = r && props.document.nodes.find((n) => n.id === r.sourceNodeId);
       const b = r && props.document.nodes.find((n) => n.id === r.targetNodeId);
       if (r && a && b) {
-        const route = resolveRelationshipRoute(a, b, edgeDrag.origManual);
-        const idx = Math.min(edgeDrag.segmentIndex, route.length - 2);
+        const route = resolveRelationshipRoute(a, b, drag.origManual);
+        const idx = Math.min(drag.segmentIndex, route.length - 2);
         const delta = {
-          x: docPt.x - edgeDrag.startDoc.x,
-          y: docPt.y - edgeDrag.startDoc.y,
+          x: docPt.x - drag.startDoc.x,
+          y: docPt.y - drag.startDoc.y,
         };
         if (delta.x !== 0 || delta.y !== 0) {
           const moved = moveRouteSegment(route, idx, delta);
@@ -1200,15 +1203,16 @@ export function ArchitectureCanvasHost(props: {
     }
 
     if (dragMode === "boundary" && boundaryOrigin) {
+      const origin = boundaryOrigin;
       const dx = docPt.x - dragStartDoc.x;
       const dy = docPt.y - dragStartDoc.y;
       // reset from origin each move: rebuild from props.document with absolute
-      const b = props.document.boundaries.find((x) => x.id === boundaryOrigin!.id);
+      const b = props.document.boundaries.find((x) => x.id === origin.id);
       if (!b) return;
-      const odx = boundaryOrigin.x + dx - b.x;
-      const ody = boundaryOrigin.y + dy - b.y;
+      const odx = origin.x + dx - b.x;
+      const ody = origin.y + dy - b.y;
       applyDoc(
-        moveBoundaryWithMembers(props.document, boundaryOrigin.id, odx, ody, !e.altKey),
+        moveBoundaryWithMembers(props.document, origin.id, odx, ody, !e.altKey),
         "eventually",
       );
     }
@@ -1401,7 +1405,7 @@ export function ArchitectureCanvasHost(props: {
         y: screen.y,
         clientX: e.clientX,
         clientY: e.clientY,
-        kind: (sel().nodeIds.length > 1 ? "multi" : "empty") as "empty" | "multi",
+        kind: sel().nodeIds.length > 1 ? ("multi" as const) : ("empty" as const),
       };
       if (rightPanActive) {
         pendingEmptyContextMenu = nextContextMenu;
@@ -1575,9 +1579,11 @@ export function ArchitectureCanvasHost(props: {
             </For>
             <Show when={connectFrom() && connectPt()}>
               {(() => {
-                const n = props.document.nodes.find((x) => x.id === connectFrom()!.nodeId);
+                const cf = connectFrom();
+                if (!cf) return null;
+                const n = props.document.nodes.find((x) => x.id === cf.nodeId);
                 if (!n) return null;
-                const fromId = connectFrom()!.nodeId;
+                const fromId = cf.nodeId;
                 const hoverId = hoveredNodeId();
                 const targets = connectTargets();
                 const snapTarget =
@@ -1591,8 +1597,8 @@ export function ArchitectureCanvasHost(props: {
                 const pts = snapTarget
                   ? routeOrthogonalLine(n, snapTarget)
                   : routeOrthogonalLine(n, {
-                      x: connectPt()!.x,
-                      y: connectPt()!.y,
+                      x: connectPt()?.x ?? 0,
+                      y: connectPt()?.y ?? 0,
                       width: 0,
                       height: 0,
                     });
@@ -1638,7 +1644,9 @@ export function ArchitectureCanvasHost(props: {
                 const pts = resolveRelationshipRoute(A, B, r.manualPoints);
                 let length = 0;
                 for (let i = 1; i < pts.length; i++) {
-                  length += Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y);
+                  const curr = pts[i];
+                  const prev = pts[i - 1];
+                  if (curr && prev) length += Math.hypot(curr.x - prev.x, curr.y - prev.y);
                 }
                 return { d: pointsToRoundedSvgPath(pts), length };
               });
@@ -1664,7 +1672,7 @@ export function ArchitectureCanvasHost(props: {
                         class="architecture-canvas-edge-flow-dot"
                         aria-hidden
                         style={{
-                          "offset-path": `path("${route()!.d}")`,
+                          "offset-path": `path("${route()?.d ?? ""}")`,
                           "offset-distance": `${(
                             flowPhases.get(r.id) ?? (edgeFlowPhase(r.id) * (untrack(route)?.length ?? 0))
                           ).toFixed(1)}px`,
@@ -1714,7 +1722,7 @@ export function ArchitectureCanvasHost(props: {
                 );
               const isConnectTarget = () =>
                 connectFrom() !== null &&
-                connectFrom()!.nodeId !== n.id &&
+                connectFrom()?.nodeId !== n.id &&
                 hoveredNodeId() === n.id;
               const selectForAction = () => {
                 setSel({ nodeIds: [n.id], relationshipIds: [], boundaryIds: [] });
@@ -1789,7 +1797,7 @@ export function ArchitectureCanvasHost(props: {
                         width: `${n.width}px`,
                         height: `${n.height}px`,
                         transform: dragOffsetForNode(n.id)
-                          ? `translate3d(${dragOffsetForNode(n.id)!.dx}px, ${dragOffsetForNode(n.id)!.dy}px, 0)`
+                          ? `translate3d(${dragOffsetForNode(n.id)?.dx ?? 0}px, ${dragOffsetForNode(n.id)?.dy ?? 0}px, 0)`
                           : undefined,
                       }}
                       aria-hidden
@@ -2089,7 +2097,7 @@ export function ArchitectureCanvasHost(props: {
           }}
           anchorPoint={
             contextMenu()
-              ? { x: contextMenu()!.clientX, y: contextMenu()!.clientY }
+              ? { x: contextMenu()?.clientX ?? 0, y: contextMenu()?.clientY ?? 0 }
               : null
           }
         >
@@ -2115,18 +2123,19 @@ export function ArchitectureCanvasHost(props: {
                       value="details"
                       onSelect={() => {
                         snapshotSession();
-                        props.onOpenNode(cm().id!);
+                        const id = cm().id;
+                        if (id) props.onOpenNode(id);
                       }}
                     >
                       Open details
                     </ContextMenu.Item>
-                    <ContextMenu.Item value="rename" onSelect={() => setEditingId(cm().id!)}>
+                    <ContextMenu.Item value="rename" onSelect={() => { const id = cm().id; if (id) setEditingId(id); }}>
                       Rename
                     </ContextMenu.Item>
-                    <ContextMenu.Item value="connect" onSelect={() => startConnectFromCard(cm().id!)}>
+                    <ContextMenu.Item value="connect" onSelect={() => { const id = cm().id; if (id) startConnectFromCard(id); }}>
                       Connect
                     </ContextMenu.Item>
-                    <ContextMenu.Item value="highlight" onSelect={() => setHighlightFromNode(cm().id!)}>
+                    <ContextMenu.Item value="highlight" onSelect={() => { const id = cm().id; if (id) setHighlightFromNode(id); }}>
                       Highlight dependencies
                     </ContextMenu.Item>
                     <ContextMenu.Item value="duplicate" onSelect={() => { doCopy(); void doPaste(); }}>Duplicate</ContextMenu.Item>

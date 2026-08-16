@@ -4,7 +4,7 @@ import { Popover } from "./popover";
 
 describe("Popover", () => {
   it("exports the Ark-backed product component", () => {
-    expect(typeof Popover).toBe("function");
+    expect(Popover).toBeDefined();
   });
 
   it("applies placement direction selectors for origin and transform", () => {

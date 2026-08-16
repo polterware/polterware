@@ -58,7 +58,7 @@ export function commit(
     selectionBefore?: SelectionState;
     selectionAfter?: SelectionState;
   },
-): { history: HistoryState; doc: ArchitectureDocument } {
+) {
   if (mode === "never") {
     return { history, doc: afterDoc };
   }
@@ -100,11 +100,7 @@ export function commit(
 export function undo(
   history: HistoryState,
   current: ArchitectureDocument,
-): {
-  history: HistoryState;
-  doc: ArchitectureDocument;
-  selection?: SelectionState;
-} {
+) {
   if (history.undoStack.length === 0) {
     return { history, doc: current };
   }
@@ -134,11 +130,7 @@ export function undo(
 export function redo(
   history: HistoryState,
   current: ArchitectureDocument,
-): {
-  history: HistoryState;
-  doc: ArchitectureDocument;
-  selection?: SelectionState;
-} {
+) {
   if (history.redoStack.length === 0) {
     return { history, doc: current };
   }

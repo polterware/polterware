@@ -47,7 +47,7 @@ import { hasTypeIcon, type TypeIconKey } from "./type-icon-keys";
 export { hasTypeIcon, type TypeIconKey } from "./type-icon-keys";
 
 /** Registry icon key (kebab-case domain id) → Hugeicons component. */
-const ICON_MAP: Record<TypeIconKey, HugeiconComponent> = {
+const ICON_MAP = {
   globe: Globe,
   smartphone: Smartphone,
   monitor: Monitor,
@@ -88,7 +88,11 @@ const ICON_MAP: Record<TypeIconKey, HugeiconComponent> = {
   "link-2": Link2,
   download: Download,
   "file-up": FileUp,
-};
+} satisfies Record<TypeIconKey, HugeiconComponent>;
+
+function isTypeIconKey(val: string): val is TypeIconKey {
+  return Object.prototype.hasOwnProperty.call(ICON_MAP, val);
+}
 
 /** Hugeicons icon for a registry `icon` key. Fallback: Box. */
 export function TypeIcon(props: {
@@ -97,6 +101,6 @@ export function TypeIcon(props: {
   class?: string;
 }): JSX.Element {
   const Icon =
-    hasTypeIcon(props.name) ? ICON_MAP[props.name as TypeIconKey] : Box;
+    isTypeIconKey(props.name) ? ICON_MAP[props.name] : Box;
   return <Icon size={props.size ?? 16} class={props.class} />;
 }

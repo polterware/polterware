@@ -23,7 +23,7 @@ export function architectureLifecycleLabel(
   // Prefer domain SSOT for known state keys; keep title-case for already-human labels.
   const fromState = nodeStatusLabel(key);
   if (fromState !== "Unknown" || key === "unknown") return fromState;
-  return lifecycle!.trim();
+  return lifecycle ? lifecycle.trim() : "";
 }
 
 /** StatusChip tone for architecture lifecycle — never invents service health from Planned alone. */

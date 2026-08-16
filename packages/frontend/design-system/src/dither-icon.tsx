@@ -67,7 +67,7 @@ export const DITHER_BRAND_ACCENTS = {
   vercel: "#EDEDED",
 } as const;
 
-const DITHER_TONE_ACCENTS: Record<DitherIconTone, string> = {
+const DITHER_TONE_ACCENTS = {
   neutral: "var(--color-dither-accent-neutral)",
   architecture: "var(--color-chart-blue)",
   infrastructure: "var(--color-chart-cyan)",
@@ -78,20 +78,20 @@ const DITHER_TONE_ACCENTS: Record<DitherIconTone, string> = {
   security: "var(--color-chart-amber)",
   integration: "var(--color-chart-blue)",
   observability: "var(--color-chart-green)",
-};
+} satisfies Record<DitherIconTone, string>;
 
-const BRAND_ALIASES: Record<string, keyof typeof DITHER_BRAND_ACCENTS> = {
+const BRAND_ALIASES = {
   amazon_web_services: "aws",
   githubactions: "github_actions",
   google_cloud: "gcp",
   google_cloud_platform: "gcp",
   next_js: "nextjs",
   postgresql: "postgres",
-};
+} satisfies Record<string, keyof typeof DITHER_BRAND_ACCENTS>;
 
 const BRAND_KEYS = Object.keys(DITHER_BRAND_ACCENTS).sort(
   (left, right) => right.length - left.length,
-) as Array<keyof typeof DITHER_BRAND_ACCENTS>;
+);
 
 const BAYER_4X4 = [
   [0, 8, 2, 10],
@@ -123,26 +123,38 @@ function normalizeBrandCandidate(value: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
+function hasOwnKey<T extends {}>(value: T, key: PropertyKey): key is keyof T {
+  return Object.hasOwn(value, key);
+}
+
+function isBrandList(value: string | readonly string[]): value is readonly string[] {
+  return Array.isArray(value);
+}
+
 function resolveBrandAccent(candidate: string): string | undefined {
   const normalized = normalizeBrandCandidate(candidate);
   if (!normalized) return undefined;
 
-  const alias = BRAND_ALIASES[normalized];
-  if (alias) return DITHER_BRAND_ACCENTS[alias];
+  if (hasOwnKey(BRAND_ALIASES, normalized)) {
+    return DITHER_BRAND_ACCENTS[BRAND_ALIASES[normalized]];
+  }
 
-  const exact = DITHER_BRAND_ACCENTS[normalized as keyof typeof DITHER_BRAND_ACCENTS];
-  if (exact) return exact;
+  if (hasOwnKey(DITHER_BRAND_ACCENTS, normalized)) {
+    return DITHER_BRAND_ACCENTS[normalized];
+  }
 
   const bounded = `_${normalized}_`;
   const key = BRAND_KEYS.find((brandKey) => bounded.includes(`_${brandKey}_`));
-  return key ? DITHER_BRAND_ACCENTS[key] : undefined;
+  return key && hasOwnKey(DITHER_BRAND_ACCENTS, key)
+    ? DITHER_BRAND_ACCENTS[key]
+    : undefined;
 }
 
 export function resolveDitherIconAccent(
   brand: string | readonly string[] | undefined,
   tone: DitherIconTone = "neutral",
 ): string {
-  const candidates = typeof brand === "string" ? [brand] : (brand ?? []);
+  const candidates = brand === undefined ? [] : isBrandList(brand) ? brand : [brand];
   for (const candidate of candidates) {
     const accent = resolveBrandAccent(candidate);
     if (accent) return accent;
@@ -169,7 +181,7 @@ export function DitherIconTile(props: DitherIconTileProps) {
         class="pw-dither-icon-pattern"
         viewBox={`0 0 ${GRID_SIZE} ${GRID_SIZE}`}
         preserveAspectRatio="none"
-        shape-rendering="crispEdges"
+        {...{ "shape-rendering": "crispEdges" }}
       >
         <For each={DITHER_CELLS}>
           {(cell) => (

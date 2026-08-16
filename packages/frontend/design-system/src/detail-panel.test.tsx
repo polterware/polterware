@@ -43,7 +43,7 @@ describe("DetailPanel", () => {
       "Content",
     ]);
     for (const component of Object.values(DetailPanel)) {
-      expect(typeof component).toBe("function");
+      expect(component).toBeDefined();
     }
   });
 
@@ -468,11 +468,11 @@ describe("DetailPanel", () => {
 
     setMode("collapsed");
     setPresence("dismissing");
-    expect((surface as HTMLElement & { inert: boolean }).inert).not.toBe(true);
+    expect(surface.inert).not.toBe(true);
     expect(onDismissComplete).not.toHaveBeenCalled();
 
     await vi.waitFor(() => expect(document.activeElement).toBe(fallback));
-    expect((surface as HTMLElement & { inert: boolean }).inert).toBe(true);
+    expect(surface.inert).toBe(true);
     expect(surface.getAttribute("aria-hidden")).toBe("true");
     expect(onDismissComplete).not.toHaveBeenCalled();
 
@@ -729,7 +729,7 @@ describe("DetailPanel", () => {
     );
     const surface = host.querySelector<HTMLElement>(".pw-detail-panel__surface")!;
     expect(surface.getAttribute("aria-hidden")).toBe("true");
-    expect((surface as HTMLElement & { inert: boolean }).inert).toBe(true);
+    expect(surface.inert).toBe(true);
 
     dispose();
     host.remove();

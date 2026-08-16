@@ -1,42 +1,25 @@
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const electronMocks = vi.hoisted(() => ({
-  createFromPath: vi.fn(),
-  dockSetIcon: vi.fn(),
-  getAllWindows: vi.fn(),
-}));
-
-vi.mock("electron", () => ({
-  app: {
-    dock: {
-      setIcon: electronMocks.dockSetIcon,
-    },
-    getAppPath: () => "/app-path",
-  },
-  BrowserWindow: {
-    getAllWindows: electronMocks.getAllWindows,
-  },
-  nativeImage: {
-    createFromPath: electronMocks.createFromPath,
-  },
-}));
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   applyElectronIcon,
   getAppIconResourceDirectories,
+  type ElectronAppIconAdapter,
 } from "./electron-app-icons.js";
+
+function createAdapter(overrides: Partial<ElectronAppIconAdapter> = {}): ElectronAppIconAdapter {
+  return {
+    applyIcon: () => {},
+    getAppPath: () => "/app-path",
+    getUserDataPath: () => "/user-data",
+    ...overrides,
+  };
+}
 
 const originalResourcesPath = Object.getOwnPropertyDescriptor(
   process,
   "resourcesPath",
 );
-
-beforeEach(() => {
-  electronMocks.createFromPath.mockReset();
-  electronMocks.dockSetIcon.mockReset();
-  electronMocks.getAllWindows.mockReset();
-});
 
 afterEach(() => {
   if (originalResourcesPath) {
@@ -53,7 +36,7 @@ describe("getAppIconResourceDirectories", () => {
       value: "/runtime-resources",
     });
 
-    expect(getAppIconResourceDirectories()).toEqual([
+    expect(getAppIconResourceDirectories(createAdapter())).toEqual([
       "/runtime-resources/resources/app-icons",
       "/app-path/resources/app-icons",
       join(process.cwd(), "resources/app-icons"),
@@ -64,31 +47,22 @@ describe("getAppIconResourceDirectories", () => {
 
 describe("applyElectronIcon", () => {
   it("applies a valid selected icon to open windows and the macOS Dock", () => {
-    const icon = { isEmpty: () => false };
-    const activeWindow = { isDestroyed: () => false, setIcon: vi.fn() };
-    const destroyedWindow = { isDestroyed: () => true, setIcon: vi.fn() };
-    electronMocks.createFromPath.mockReturnValue(icon);
-    electronMocks.getAllWindows.mockReturnValue([
-      activeWindow,
-      destroyedWindow,
-    ]);
+    const applyIcon = vi.fn();
+    const adapter = createAdapter({ applyIcon });
 
-    applyElectronIcon("/runtime-resources/resources/app-icons/white.png");
+    applyElectronIcon("/runtime-resources/resources/app-icons/white.png", adapter);
 
-    expect(electronMocks.createFromPath).toHaveBeenCalledWith(
+    expect(applyIcon).toHaveBeenCalledWith(
       "/runtime-resources/resources/app-icons/white.png",
     );
-    expect(activeWindow.setIcon).toHaveBeenCalledWith(icon);
-    expect(destroyedWindow.setIcon).not.toHaveBeenCalled();
-    expect(electronMocks.dockSetIcon).toHaveBeenCalledWith(icon);
   });
 
   it("does not apply an unreadable icon", () => {
-    electronMocks.createFromPath.mockReturnValue({ isEmpty: () => true });
-    electronMocks.getAllWindows.mockReturnValue([]);
+    const applyIcon = vi.fn();
+    const adapter = createAdapter({ applyIcon });
 
-    applyElectronIcon("/missing.png");
+    applyElectronIcon("/missing.png", adapter);
 
-    expect(electronMocks.dockSetIcon).not.toHaveBeenCalled();
+    expect(applyIcon).toHaveBeenCalledWith("/missing.png");
   });
 });

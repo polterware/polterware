@@ -1,12 +1,12 @@
 import { ipcMain, type IpcMain, type IpcMainInvokeEvent } from "electron";
 import type { AppIconOption, AppIconSelection } from "../shared/app-icons.js";
-import { IPC_CHANNELS } from "../shared/ipc.js";
+import { IPC_CHANNELS, type AppInfo, type AppIpcRequests, type AppIpcResponses, type JsonObject, type JsonValue } from "../shared/ipc.js";
 
-type Handler = (event: IpcMainInvokeEvent, payload?: unknown) => unknown | Promise<unknown>;
+type Handler<K extends keyof AppIpcRequests> = (event?: IpcMainInvokeEvent, payload?: AppIpcRequests[K]) => AppIpcResponses[K] | Promise<AppIpcResponses[K]>;
 
 export interface PolterwareIpcControllers {
   appInfo?: {
-    getInfo(): { name: string; version: string };
+    getInfo(): AppInfo;
   };
   appIcons?: {
     getIcon(): AppIconSelection;
@@ -19,54 +19,58 @@ export interface PolterwareIpcControllers {
   };
 }
 
-function collectChannels(value: unknown): string[] {
-  if (typeof value === "string") {
-    return [value];
-  }
-
-  if (!value || typeof value !== "object") {
-    return [];
-  }
-
-  return Object.values(value).flatMap((entry) => collectChannels(entry));
-}
-
-function createUiOnlyHandler(channel: string): Handler {
+function createUiOnlyHandler<K extends keyof AppIpcRequests>(channel: K): Handler<K> {
   return async () => {
     throw new Error(`Polterware Desktop is running in UI-only mode. ${channel} is not connected.`);
   };
 }
 
-function parseAppIconSelectionPayload(payload: unknown): string {
-  if (!payload || typeof payload !== "object") {
+function isJsonObject(value: JsonValue): value is JsonObject {
+  return value !== null && !Array.isArray(value) && Object(value) === value;
+}
+
+function parseAppIconSelectionPayload(payload: JsonValue | undefined): string {
+  if (!payload || !isJsonObject(payload)) {
     throw new Error("App icon id is required.");
   }
 
-  const input = payload as { id?: unknown };
-  if (typeof input.id !== "string" || !input.id.trim()) {
+  const id = payload.id;
+  if (Object.prototype.toString.call(id) !== "[object String]") {
     throw new Error("App icon id is required.");
   }
 
-  return input.id;
+  const parsedId = String(id);
+  if (!parsedId.trim()) {
+    throw new Error("App icon id is required.");
+  }
+
+  return parsedId;
 }
 
 export function createPolterwareIpcHandlers(
   controllers: PolterwareIpcControllers = {},
-): Record<string, Handler> {
-  const handlers = Object.fromEntries(
-    collectChannels(IPC_CHANNELS).map((channel) => [channel, createUiOnlyHandler(channel)]),
-  );
+) {
+  const handlers = {
+    [IPC_CHANNELS.app.getInfo]: createUiOnlyHandler(IPC_CHANNELS.app.getInfo),
+    [IPC_CHANNELS.app.listIcons]: createUiOnlyHandler(IPC_CHANNELS.app.listIcons),
+    [IPC_CHANNELS.app.getIcon]: createUiOnlyHandler(IPC_CHANNELS.app.getIcon),
+    [IPC_CHANNELS.app.setIcon]: createUiOnlyHandler(IPC_CHANNELS.app.setIcon),
+    [IPC_CHANNELS.commander.hideOverlay]: createUiOnlyHandler(IPC_CHANNELS.commander.hideOverlay),
+    [IPC_CHANNELS.commander.showMainWindow]: createUiOnlyHandler(IPC_CHANNELS.commander.showMainWindow),
+  } satisfies { [K in keyof AppIpcRequests]: Handler<K> };
 
   if (controllers.appInfo) {
-    handlers[IPC_CHANNELS.app.getInfo] = async () => controllers.appInfo?.getInfo();
+    const { appInfo } = controllers;
+    handlers[IPC_CHANNELS.app.getInfo] = async () => appInfo.getInfo();
   }
 
   if (controllers.commander) {
+    const { commander } = controllers;
     handlers[IPC_CHANNELS.commander.hideOverlay] = async () => {
-      controllers.commander?.hideOverlay();
+      commander.hideOverlay();
     };
     handlers[IPC_CHANNELS.commander.showMainWindow] = async () => {
-      controllers.commander?.showMainWindow();
+      commander.showMainWindow();
     };
   }
 
@@ -86,8 +90,13 @@ export function registerPolterwareIpcHandlers(
   target: Pick<IpcMain, "handle"> = ipcMain,
 ) {
   const handlers = createPolterwareIpcHandlers(controllers);
-  for (const [channel, handler] of Object.entries(handlers)) {
-    target.handle(channel, handler);
-  }
+
+  target.handle(IPC_CHANNELS.app.getInfo, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.app.getInfo]) => handlers[IPC_CHANNELS.app.getInfo](event, payload));
+  target.handle(IPC_CHANNELS.app.listIcons, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.app.listIcons]) => handlers[IPC_CHANNELS.app.listIcons](event, payload));
+  target.handle(IPC_CHANNELS.app.getIcon, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.app.getIcon]) => handlers[IPC_CHANNELS.app.getIcon](event, payload));
+  target.handle(IPC_CHANNELS.app.setIcon, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.app.setIcon]) => handlers[IPC_CHANNELS.app.setIcon](event, payload));
+  target.handle(IPC_CHANNELS.commander.hideOverlay, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.commander.hideOverlay]) => handlers[IPC_CHANNELS.commander.hideOverlay](event, payload));
+  target.handle(IPC_CHANNELS.commander.showMainWindow, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.commander.showMainWindow]) => handlers[IPC_CHANNELS.commander.showMainWindow](event, payload));
+
   return handlers;
 }

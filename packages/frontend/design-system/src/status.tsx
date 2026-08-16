@@ -18,7 +18,7 @@ export type StatusTone =
  */
 export type StatusChipAppearance = "default" | "filled";
 
-const toneDot: Record<StatusTone, string> = {
+const toneDot = {
   healthy: "bg-[var(--color-brand)]",
   ok: "bg-[var(--color-brand)]",
   degraded: "bg-[var(--color-warning)]",
@@ -28,9 +28,9 @@ const toneDot: Record<StatusTone, string> = {
   unknown: "bg-[var(--color-text-disabled)]",
   muted: "bg-[var(--color-text-disabled)]",
   syncing: "bg-[var(--color-info)]",
-};
+} satisfies Record<StatusTone, string>;
 
-const toneLabel: Record<StatusTone, string> = {
+const toneLabel = {
   healthy: "Healthy",
   ok: "Healthy",
   degraded: "Degraded",
@@ -40,7 +40,7 @@ const toneLabel: Record<StatusTone, string> = {
   unknown: "Unknown",
   muted: "Unknown",
   syncing: "Syncing",
-};
+} satisfies Record<StatusTone, string>;
 
 /**
  * Compact status indicator (dot ± label).

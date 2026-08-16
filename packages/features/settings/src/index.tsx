@@ -115,8 +115,8 @@ export function SettingsView(props: {
   async function handleCopyProjectId() {
     const id = PROJECT_GENERAL_SETTINGS_MOCK.projectId;
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(id);
+      if ("navigator" in globalThis && globalThis.navigator.clipboard?.writeText) {
+        await globalThis.navigator.clipboard.writeText(id);
       }
     } catch {
       // Clipboard may be unavailable in some runtimes — toast still honest.

@@ -1,6 +1,6 @@
 import type { ComponentCategory, ComponentTypeDefinition } from "./registry";
 
-const KIND_LABELS: Record<string, string> = {
+const KIND_LABELS = {
   web: "Web app",
   mobile: "Mobile app",
   desktop: "Desktop app",
@@ -37,9 +37,9 @@ const KIND_LABELS: Record<string, string> = {
   system: "System",
   note: "Note",
   custom: "Custom",
-};
+} satisfies Record<string, string>;
 
-const PURPOSE_BY_CATEGORY: Record<ComponentCategory, string> = {
+const PURPOSE_BY_CATEGORY = {
   applications: "What this app or service does in our system…",
   data: "Primary store / cache / stream for…",
   infrastructure: "How this infrastructure piece is used…",
@@ -47,7 +47,7 @@ const PURPOSE_BY_CATEGORY: Record<ComponentCategory, string> = {
   external: "Vendor system we depend on for…",
   structure: "System boundary or annotation…",
   connected: "Linked capability used for…",
-};
+} satisfies Record<ComponentCategory, string>;
 
 function humanizeType(id: string): string {
   return id
@@ -61,14 +61,10 @@ function humanizeType(id: string): string {
  * Read-only copy for the configure header and purpose placeholder.
  * Catalog `description` is type-level; purpose is instance-level.
  */
-export function placeHints(def: ComponentTypeDefinition): {
-  kindLabel: string;
-  typeBlurb: string;
-  purposePlaceholder: string;
-  statusLine: string;
-} {
+export function placeHints(def: ComponentTypeDefinition) {
   const typeKey = String(def.nodeType ?? def.id);
-  const kindLabel = KIND_LABELS[typeKey] ?? humanizeType(typeKey);
+  const kindLabel = Object.entries(KIND_LABELS).find(([key]) => key === typeKey)?.[1]
+    ?? humanizeType(typeKey);
   return {
     kindLabel,
     typeBlurb: def.description,

@@ -109,7 +109,7 @@ export function ArchitectureNodeCard(props: ArchitectureNodeCardProps) {
                 autofocus
                 onBlur={(event) => props.onRenameEnd(event.currentTarget.value || props.name)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") (event.target as HTMLInputElement).blur();
+                  if (event.key === "Enter") if (event.target instanceof HTMLInputElement) event.target.blur();
                   if (event.key === "Escape") {
                     event.preventDefault();
                     props.onRenameCancel();

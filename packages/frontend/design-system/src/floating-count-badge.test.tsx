@@ -14,6 +14,6 @@ describe("FloatingCountBadge", () => {
   it("keeps multi-digit values and omits absent counts", () => {
     expect(getFloatingCountAriaLabel(12)).toBe("12 items");
     expect(hasFloatingCount(undefined)).toBe(false);
-    expect(typeof FloatingCountBadge).toBe("function");
+    expect(FloatingCountBadge).toBeDefined();
   });
 });

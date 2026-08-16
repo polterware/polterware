@@ -31,13 +31,19 @@ export const RELATIONSHIP_TYPE_ICON_KEYS = {
 export type RelationshipTypeIconKey =
   (typeof RELATIONSHIP_TYPE_ICON_KEYS)[keyof typeof RELATIONSHIP_TYPE_ICON_KEYS];
 
+function isRelationshipTypeIconKey(
+  type: string,
+): type is keyof typeof RELATIONSHIP_TYPE_ICON_KEYS {
+  return Object.prototype.hasOwnProperty.call(RELATIONSHIP_TYPE_ICON_KEYS, type);
+}
+
 export function relationshipTypeIconKey(type: string): string {
   return (
-    RELATIONSHIP_TYPE_ICON_KEYS[type as keyof typeof RELATIONSHIP_TYPE_ICON_KEYS] ??
+    isRelationshipTypeIconKey(type) ? RELATIONSHIP_TYPE_ICON_KEYS[type] :
     "link"
   );
 }
 
 export function hasRelationshipTypeIcon(type: string): boolean {
-  return Object.prototype.hasOwnProperty.call(RELATIONSHIP_TYPE_ICON_KEYS, type);
+  return isRelationshipTypeIconKey(type);
 }

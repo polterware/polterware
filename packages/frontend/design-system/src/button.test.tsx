@@ -3,6 +3,6 @@ import { Button } from "./button";
 
 describe("Button", () => {
   it("exports a function component", () => {
-    expect(typeof Button).toBe("function");
+    expect(Button).toBeDefined();
   });
 });

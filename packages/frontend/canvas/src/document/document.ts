@@ -36,7 +36,7 @@ export function createEmptyDocument(meta: {
   };
 }
 
-export function defaultNodeSize(): { width: number; height: number } {
+export function defaultNodeSize() {
   return { width: DEFAULT_NODE_W, height: DEFAULT_NODE_H };
 }
 

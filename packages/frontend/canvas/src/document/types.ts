@@ -1,5 +1,9 @@
 /** Architecture / generic canvas document types (formatVersion 1). */
 
+export type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
+export interface JsonObject { [key: string]: JsonValue; }
+export interface JsonArray extends Array<JsonValue> {}
+
 export type NodeType =
   | "system"
   | "web_application"

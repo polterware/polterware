@@ -19,7 +19,7 @@ import "./sidebar.css";
  * Sidebar glyphs — Hugeicons outline set tuned for operator IA.
  * Sidebar glyphs stay within the curated Hugeicons set.
  */
-const icons: Record<string, (p: { size?: number; class?: string }) => JSX.Element> = {
+const icons = {
   architecture: (p) => <SchemeIcon size={p.size ?? 14} class={p.class} />,
   resources: (p) => <Package size={p.size ?? 14} class={p.class} />,
   knowledge: (p) => <Bookshelf01Icon size={p.size ?? 14} class={p.class} />,
@@ -28,7 +28,7 @@ const icons: Record<string, (p: { size?: number; class?: string }) => JSX.Elemen
   terminal: (p) => <SquareTerminal size={p.size ?? 14} class={p.class} />,
   integrations: (p) => <ConnectIcon size={p.size ?? 14} class={p.class} />,
   settings: (p) => <Settings size={p.size ?? 14} class={p.class} />,
-};
+} satisfies Record<string, (p: { size?: number; class?: string }) => JSX.Element>;
 
 export function SidebarNav(props: {
   items: NavItem[];
@@ -43,7 +43,8 @@ export function SidebarNav(props: {
     )) {
       const g = item.group ?? "GENERAL";
       if (!map.has(g)) map.set(g, []);
-      map.get(g)!.push(item);
+      const arr = map.get(g);
+      if (arr) arr.push(item);
     }
     return [...map.entries()];
   };

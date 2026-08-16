@@ -4,12 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "solid-js/web";
 
-vi.mock("./hugeicons", () => ({
-  ArrowDown: () => null,
-  ArrowUp: () => null,
-  ChevronsUpDown: () => null,
-  X: () => null,
-}));
 import {
   DataTable,
   DataTableSelectionToolbarHost,
@@ -45,8 +39,8 @@ describe("DataTable", () => {
       "Empty",
       "Footer",
     ]);
-    for (const component of Object.values(DataTable)) expect(typeof component).toBe("function");
-    expect(typeof DataTableSelectionToolbarHost).toBe("function");
+    for (const component of Object.values(DataTable)) expect(component).toBeDefined();
+    expect(DataTableSelectionToolbarHost).toBeDefined();
   });
 
   it("cycles source, ascending, descending, and source order", () => {

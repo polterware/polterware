@@ -30,6 +30,17 @@ const DETAIL_SECTIONS = [
 
 export type IntegrationDetailSection = (typeof DETAIL_SECTIONS)[number]["id"];
 
+const DETAIL_SECTION_IDS = {
+  overview: true,
+  resources: true,
+  cli: true,
+  sync: true,
+} satisfies Record<IntegrationDetailSection, boolean>;
+
+function isIntegrationDetailSection(value: string): value is IntegrationDetailSection {
+  return Object.prototype.hasOwnProperty.call(DETAIL_SECTION_IDS, value);
+}
+
 function integrationTone(status: WorkspaceIntegration["status"]): "healthy" | "danger" | "warn" | "muted" {
   if (status === "connected") return "healthy";
   if (status === "error") return "danger";
@@ -88,7 +99,9 @@ export function IntegrationDetail(props: {
           <DetailPanel.Body layout="sections">
             <DetailPanel.Grid>
               <DetailPanel.Section>
-                <Tabs items={[...DETAIL_SECTIONS]} value={section()} onChange={(value) => setSection(value as IntegrationDetailSection)} aria-label="Integration detail" />
+                <Tabs items={[...DETAIL_SECTIONS]} value={section()} onChange={(value) => {
+                  if (isIntegrationDetailSection(value)) setSection(value);
+                }} aria-label="Integration detail" />
               </DetailPanel.Section>
 
               <Show when={section() === "overview"}>

@@ -1,6 +1,7 @@
 import Resizable, { type Size } from "@corvu/resizable";
 import type { JSX } from "solid-js";
 import { createSignal, onCleanup, onMount } from "solid-js";
+import { isServer } from "solid-js/web";
 import "./resizable.css";
 
 /** Simple resizable split (Corvu behavior with product-owned layout). */
@@ -58,6 +59,34 @@ function horizontalPointerCoordinate(event: PointerEvent | MouseEvent | TouchEve
   return event.changedTouches[0]?.clientX;
 }
 
+type StoredSidebarWireValue =
+  | null
+  | boolean
+  | number
+  | string
+  | StoredSidebarWireValue[]
+  | { [key: string]: StoredSidebarWireValue };
+
+function isStoredSidebarState(value: StoredSidebarWireValue): value is StoredSidebarState {
+  return (
+    value instanceof Object &&
+    !Array.isArray(value) &&
+    "width" in value &&
+    Object.prototype.toString.call(value.width) === "[object Number]" &&
+    Number.isFinite(value.width) &&
+    "collapsed" in value &&
+    (value.collapsed === true || value.collapsed === false)
+  );
+}
+
+function isLegacySidebarState(value: StoredSidebarWireValue): value is number[] {
+  return (
+    Array.isArray(value) &&
+    value.length === 2 &&
+    value.every((size) => Object.prototype.toString.call(size) === "[object Number]" && Number.isFinite(size))
+  );
+}
+
 function readStoredSidebarState(
   key: string | undefined,
   sidebarIndex: number,
@@ -70,17 +99,12 @@ function readStoredSidebarState(
     collapsed: false,
   };
 
-  if (!key || typeof window === "undefined") return fallback;
+  if (!key || isServer) return fallback;
   try {
-    const value = JSON.parse(window.localStorage.getItem(key) ?? "null");
-    if (
-      value &&
-      typeof value === "object" &&
-      !Array.isArray(value) &&
-      typeof value.width === "number" &&
-      Number.isFinite(value.width) &&
-      typeof value.collapsed === "boolean"
-    ) {
+    const value: StoredSidebarWireValue = JSON.parse(
+      window.localStorage.getItem(key) ?? "null",
+    );
+    if (isStoredSidebarState(value)) {
       return {
         width: clampWidth(value.width, minWidth, maxWidth),
         collapsed: value.collapsed,
@@ -88,11 +112,7 @@ function readStoredSidebarState(
     }
 
     // Migrate the old percentage-pair format without carrying its invalid width.
-    if (
-      Array.isArray(value) &&
-      value.length === 2 &&
-      value.every((size) => typeof size === "number" && Number.isFinite(size))
-    ) {
+    if (isLegacySidebarState(value)) {
       return { ...fallback, collapsed: value[sidebarIndex] === 0 };
     }
   } catch {
@@ -138,14 +158,14 @@ export function ResizableSidebar(props: ResizableSidebarProps) {
 
   onCleanup(() => {
     rootResizeObserver?.disconnect();
-    if (typeof window === "undefined") return;
+    if (isServer) return;
     if (rootSyncFrame !== undefined) window.cancelAnimationFrame(rootSyncFrame);
     if (settleFrame !== undefined) window.cancelAnimationFrame(settleFrame);
     if (resetDragClickTimer !== undefined) window.clearTimeout(resetDragClickTimer);
   });
 
   function persistState(isCollapsed = collapsed()) {
-    if (!props.storageKey || typeof window === "undefined") return;
+    if (!props.storageKey || isServer) return;
     window.localStorage.setItem(
       props.storageKey,
       JSON.stringify({ width: lastExpandedWidth, collapsed: isCollapsed }),
@@ -160,7 +180,7 @@ export function ResizableSidebar(props: ResizableSidebarProps) {
   }
 
   function markRootSync() {
-    if (!rootElement || typeof window === "undefined") return;
+    if (!rootElement || isServer) return;
     rootElement.setAttribute("data-resizing-root", "");
     if (rootSyncFrame !== undefined) window.cancelAnimationFrame(rootSyncFrame);
     rootSyncFrame = window.requestAnimationFrame(() => {
@@ -228,7 +248,7 @@ export function ResizableSidebar(props: ResizableSidebarProps) {
   }
 
   function scheduleSettle() {
-    if (typeof window === "undefined") {
+    if (isServer) {
       settleCurrentWidth();
       return;
     }
@@ -241,7 +261,7 @@ export function ResizableSidebar(props: ResizableSidebarProps) {
 
   function toggle() {
     if (!collapsible()) return;
-    if (settleFrame !== undefined && typeof window !== "undefined") {
+    if (settleFrame !== undefined && !isServer) {
       window.cancelAnimationFrame(settleFrame);
       settleFrame = undefined;
     }
@@ -254,7 +274,7 @@ export function ResizableSidebar(props: ResizableSidebarProps) {
 
   onMount(() => {
     syncPanelSizes();
-    if (!rootElement || typeof ResizeObserver === "undefined") return;
+    if (!rootElement || !("ResizeObserver" in globalThis)) return;
     rootResizeObserver = new ResizeObserver(syncPanelSizes);
     rootResizeObserver.observe(rootElement);
   });

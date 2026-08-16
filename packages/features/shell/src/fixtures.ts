@@ -76,7 +76,7 @@ export const TERMINAL_TARGET_FIXTURES: TerminalTargetItem[] = [
   { id: "node-revoked-01", name: "revoked-node-01", shell: "bash", status: "revoked", environmentId: "env-polter-prod" },
 ];
 
-export const TERMINAL_OUTPUT_FIXTURES: Record<string, string[]> = {
+export const TERMINAL_OUTPUT_FIXTURES = {
   "node-nitro": [
     "nitro $ docker ps",
     "CONTAINER ID   IMAGE            STATUS",
@@ -99,4 +99,4 @@ export const TERMINAL_OUTPUT_FIXTURES: Record<string, string[]> = {
     " 14:12:40 up 18 days, 2:04, load average: 0.08, 0.12, 0.10",
     "worker-node-01 $ _",
   ],
-};
+} satisfies Record<string, string[]>;

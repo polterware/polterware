@@ -46,10 +46,14 @@ const turndown = new TurndownService({
 
 marked.setOptions({ gfm: true, breaks: false });
 
+function isStringValue(value: string | Promise<string>): value is string {
+  return Object.prototype.toString.call(value) === "[object String]";
+}
+
 function markdownToHtml(markdown: string): string {
   const raw = markdown?.trim() ? markdown : "";
   const html = marked.parse(raw, { async: false });
-  return typeof html === "string" && html.length > 0 ? html : "<p></p>";
+  return isStringValue(html) && html.length > 0 ? html : "<p></p>";
 }
 
 function htmlToMarkdown(html: string): string {
@@ -262,7 +266,7 @@ export function MarkdownEditor(props: MarkdownEditorProps): JSX.Element {
       data-toolbar={showToolbar() ? "true" : "false"}
       data-floating="true"
     >
-      <div ref={host} class="pw-md-editor__surface" />
+      <div ref={(el) => { host = el; }} class="pw-md-editor__surface" />
       <Show when={showToolbar()}>
         <div class="pw-md-editor__dock">
           <div

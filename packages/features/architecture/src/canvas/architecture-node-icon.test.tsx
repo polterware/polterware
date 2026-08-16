@@ -5,10 +5,10 @@ import { render } from "solid-js/web";
 import { SERVICE_MARK_TINT } from "../domain/service-marks";
 import { ArchitectureNodeIcon, nodeIconAccent } from "./architecture-node-icon";
 
-function renderHtml(ui: () => unknown) {
+function renderHtml(ui: Parameters<typeof render>[0]) {
   const host = document.createElement("div");
   document.body.appendChild(host);
-  const dispose = render(ui as Parameters<typeof render>[0], host);
+  const dispose = render(ui, host);
   const html = host.innerHTML;
   dispose();
   host.remove();

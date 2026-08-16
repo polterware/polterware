@@ -11,7 +11,7 @@ import {
   type Accessor,
   type JSX,
 } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal, isServer } from "solid-js/web";
 import { Button, type ButtonProps } from "./button";
 import {
   ArrowUp,
@@ -78,11 +78,11 @@ export type DetailPanelActionProps = Omit<
 
 const DETAIL_PANEL_SETTLEMENT_SAFETY_MARGIN = 40;
 
-const detailPanelModeRank: Record<DetailPanelMode, number> = {
+const detailPanelModeRank = {
   collapsed: 0,
   open: 1,
   maximized: 2,
-};
+} satisfies Record<DetailPanelMode, number>;
 
 type DetailPanelContextValue = {
   mode: Accessor<DetailPanelMode>;
@@ -128,7 +128,7 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
     props.presence ?? (activeEntityId() === null ? "hidden" : "visible");
 
   function clearSettlementTimer() {
-    if (settlementTimer !== undefined && typeof window !== "undefined") {
+    if (settlementTimer !== undefined && !isServer) {
       window.clearTimeout(settlementTimer);
     }
     settlementTimer = undefined;
@@ -140,7 +140,7 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
   }
 
   function transitionDurationMs() {
-    if (!panelElement || typeof window === "undefined") return 0;
+    if (!panelElement || isServer) return 0;
     return window.getComputedStyle(panelElement).transitionDuration
       .split(",")
       .reduce((longest, value) => {
@@ -172,7 +172,7 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
     clearSettlementTimer();
     activeTransitionMode = transitionMode;
     setIsSettling(true);
-    if (typeof window === "undefined") return;
+    if (isServer) return;
     settlementTimer = window.setTimeout(
       () => commitTransition(transitionMode),
       transitionDurationMs() + DETAIL_PANEL_SETTLEMENT_SAFETY_MARGIN,
@@ -193,7 +193,7 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
 
   function restoreFocus(onRestored?: () => void) {
     const entityId = activeEntityId();
-    if (typeof document === "undefined") {
+    if (isServer) {
       onRestored?.();
       return;
     }
@@ -302,7 +302,7 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
   });
 
   onMount(() => {
-    if (typeof window.matchMedia === "function") {
+    if (window.matchMedia instanceof Function) {
       motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
       setReducedMotion(motionQuery.matches);
       motionQuery.addEventListener("change", onMotionPreferenceChange);
@@ -312,7 +312,7 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
 
   onCleanup(() => {
     clearSettlement();
-    if (typeof window === "undefined") return;
+    if (isServer) return;
     motionQuery?.removeEventListener("change", onMotionPreferenceChange);
     window.removeEventListener("keydown", onWindowKeyDown);
   });

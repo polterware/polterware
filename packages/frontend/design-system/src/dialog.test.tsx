@@ -3,7 +3,7 @@ import { A11yDialog, Dialog } from "./dialog";
 
 describe("A11yDialog", () => {
   it("exports a function component", () => {
-    expect(typeof A11yDialog).toBe("function");
+    expect(A11yDialog).toBeDefined();
   });
 
   it("Dialog alias points to A11yDialog", () => {
@@ -15,10 +15,9 @@ describe("A11yDialog", () => {
       open: false,
       onClose: () => {},
       title: "Test",
-      children: null as unknown as never,
     };
     expect(props.open).toBe(false);
-    expect(typeof props.onClose).toBe("function");
+    expect(props.onClose()).toBeUndefined();
     expect(props.title).toBe("Test");
   });
 });

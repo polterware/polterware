@@ -96,7 +96,7 @@ export function ConfigureComponentDialog(props: {
       const resource = props.resourceLinkPort.getById(result.resourceId);
       const link = validateLink(result.environmentId, resource);
       if ("error" in link) {
-        setError(link.error);
+        setError(link.error ?? null);
         return;
       }
     }

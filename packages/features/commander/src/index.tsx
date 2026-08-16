@@ -58,7 +58,8 @@ export function CommandPalette(props: {
     const map = new Map<string, PaletteItem[]>();
     for (const it of filtered()) {
       if (!map.has(it.group)) map.set(it.group, []);
-      map.get(it.group)!.push(it);
+      const arr = map.get(it.group);
+        if (arr) arr.push(it);
     }
     return [...map.entries()];
   };

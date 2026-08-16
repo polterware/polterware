@@ -71,7 +71,7 @@ describe("creatable relationship types", () => {
     }
     for (const def of RELATIONSHIP_TYPES) {
       // Known catalog ids resolve; unknown falls back to generic "link".
-      expect(typeof relationshipTypeIconKey(def.id)).toBe("string");
+      expect(relationshipTypeIconKey(def.id)).toEqual(expect.any(String));
       expect(relationshipTypeIconKey(def.id).length).toBeGreaterThan(0);
     }
     expect(relationshipTypeIconKey("not_a_real_type")).toBe("link");

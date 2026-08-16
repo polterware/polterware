@@ -2,13 +2,17 @@ import type { CanvasModel, CanvasNode } from "@polterware/frontend-canvas";
 import { assignLayer, layerBandY } from "./layers";
 import type { ArchitectureLayer } from "./types";
 
-export function groupNodesByLayer(nodes: CanvasNode[]): Record<ArchitectureLayer, CanvasNode[]> {
-  const groups: Record<ArchitectureLayer, CanvasNode[]> = {
-    cloud: [],
-    applications: [],
-    data: [],
-    other: [],
-  };
+export function groupNodesByLayer(nodes: CanvasNode[]) {
+  const cloud: CanvasNode[] = [];
+  const applications: CanvasNode[] = [];
+  const data: CanvasNode[] = [];
+  const other: CanvasNode[] = [];
+  const groups = {
+    cloud,
+    applications,
+    data,
+    other,
+  } satisfies Record<ArchitectureLayer, CanvasNode[]>;
   for (const n of nodes) {
     groups[assignLayer(n)].push(n);
   }

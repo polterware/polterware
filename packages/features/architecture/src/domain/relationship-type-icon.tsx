@@ -34,7 +34,7 @@ export {
   RELATIONSHIP_TYPE_ICON_KEYS,
 } from "./relationship-type-icon-keys";
 
-const ICON_BY_KEY: Record<string, HugeiconComponent> = {
+const ICON_BY_KEY = {
   "git-branch": GitBranch,
   webhook: Webhook,
   download: Download,
@@ -55,12 +55,13 @@ const ICON_BY_KEY: Record<string, HugeiconComponent> = {
   box: Box,
   link: Link,
   pencil: Pencil,
-};
+} satisfies Record<string, HugeiconComponent>;
 
 export function relationshipTypeIcon(
   type: RelationshipType | string,
 ): HugeiconComponent {
-  return ICON_BY_KEY[relationshipTypeIconKey(type)] ?? Link;
+  const key = relationshipTypeIconKey(type);
+  return Object.entries(ICON_BY_KEY).find(([iconKey]) => iconKey === key)?.[1] ?? Link;
 }
 
 export function RelationshipTypeIcon(props: {

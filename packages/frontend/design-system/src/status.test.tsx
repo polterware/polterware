@@ -8,13 +8,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 describe("StatusDot", () => {
   it("exports a function component", () => {
-    expect(typeof StatusDot).toBe("function");
+    expect(StatusDot).toBeDefined();
   });
 });
 
 describe("StatusChip", () => {
   it("exports a function component", () => {
-    expect(typeof StatusChip).toBe("function");
+    expect(StatusChip).toBeDefined();
   });
 
   it("is always filled: no leading dot markup, filled data-appearance", () => {

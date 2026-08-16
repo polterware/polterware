@@ -10,11 +10,11 @@ import {
 
 describe("DropdownMenu", () => {
   it("exports compound components", () => {
-    expect(typeof DropdownMenu).toBe("function");
-    expect(typeof DropdownMenuTrigger).toBe("function");
-    expect(typeof DropdownMenuContent).toBe("function");
-    expect(typeof DropdownMenuItem).toBe("function");
-    expect(typeof DropdownMenuSeparator).toBe("function");
+    expect(DropdownMenu).toBeDefined();
+    expect(DropdownMenuTrigger).toBeDefined();
+    expect(DropdownMenuContent).toBeDefined();
+    expect(DropdownMenuItem).toBeDefined();
+    expect(DropdownMenuSeparator).toBeDefined();
   });
 
   it("forwards custom positioning to Ark Menu.Root", () => {

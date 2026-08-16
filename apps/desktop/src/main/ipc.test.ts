@@ -19,7 +19,7 @@ describe("createPolterwareIpcHandlers", () => {
       appInfo: { getInfo: () => ({ name: "Polterware", version: "0.1.0" }) },
     });
 
-    await expect(handlers[IPC_CHANNELS.app.getInfo]?.({} as never)).resolves.toEqual({
+    await expect(handlers[IPC_CHANNELS.app.getInfo]()).resolves.toEqual({
       name: "Polterware",
       version: "0.1.0",
     });
@@ -32,8 +32,8 @@ describe("createPolterwareIpcHandlers", () => {
     };
     const handlers = createPolterwareIpcHandlers({ commander });
 
-    await handlers[IPC_CHANNELS.commander.hideOverlay]?.({} as never);
-    await handlers[IPC_CHANNELS.commander.showMainWindow]?.({} as never);
+    await handlers[IPC_CHANNELS.commander.hideOverlay]();
+    await handlers[IPC_CHANNELS.commander.showMainWindow]();
 
     expect(commander.hideOverlay).toHaveBeenCalledOnce();
     expect(commander.showMainWindow).toHaveBeenCalledOnce();
@@ -69,9 +69,9 @@ describe("createPolterwareIpcHandlers", () => {
     };
     const handlers = createPolterwareIpcHandlers({ appIcons });
 
-    await handlers[IPC_CHANNELS.app.listIcons]?.({} as never);
-    await handlers[IPC_CHANNELS.app.getIcon]?.({} as never);
-    await handlers[IPC_CHANNELS.app.setIcon]?.({} as never, { id: "white" });
+    await handlers[IPC_CHANNELS.app.listIcons]();
+    await handlers[IPC_CHANNELS.app.getIcon]();
+    await handlers[IPC_CHANNELS.app.setIcon](undefined, { id: "white" });
 
     expect(appIcons.listIcons).toHaveBeenCalledOnce();
     expect(appIcons.getIcon).toHaveBeenCalledOnce();

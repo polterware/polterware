@@ -28,7 +28,7 @@ export function createDefaultProjectEnvironmentPort(): ProjectEnvironmentPort {
 export function normalizeEnvironmentId(raw: string | undefined | null): string {
   if (!raw) return "";
   const t = raw.trim().toLowerCase().replace(/\s+/g, "-");
-  const aliases: Record<string, string> = {
+  const aliases = {
     prod: "production",
     production: "production",
     stage: "staging",
@@ -36,8 +36,8 @@ export function normalizeEnvironmentId(raw: string | undefined | null): string {
     dev: "development",
     development: "development",
     local: "local",
-  };
-  return aliases[t] ?? t;
+  } satisfies Record<string, string>;
+  return Object.entries(aliases).find(([key]) => key === t)?.[1] ?? t;
 }
 
 export function environmentLabel(
@@ -53,5 +53,5 @@ export function environmentLabel(
 export function defaultEnvironmentId(envs: readonly ProjectEnvironment[]): string | undefined {
   if (envs.length === 0) return undefined;
   const prod = envs.find((e) => e.id === "production" || e.kind === "production");
-  return prod?.id ?? envs[0]!.id;
+  return prod?.id ?? envs[0]?.id ?? "";
 }

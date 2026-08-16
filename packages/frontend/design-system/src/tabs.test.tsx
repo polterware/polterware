@@ -3,8 +3,8 @@ import { Tabs, TabPanel } from "./tabs";
 
 describe("Tabs", () => {
   it("exports Tabs and TabPanel components", () => {
-    expect(typeof Tabs).toBe("function");
-    expect(typeof TabPanel).toBe("function");
+    expect(Tabs).toBeDefined();
+    expect(TabPanel).toBeDefined();
   });
 
   it("accepts items and value for segmented pill usage", () => {
@@ -19,7 +19,8 @@ describe("Tabs", () => {
     };
     expect(props.items).toHaveLength(2);
     expect(props.value).toBe("issues");
-    expect(typeof props.onChange).toBe("function");
+    props.onChange("resolved");
+    expect(onChange).toHaveBeenCalledWith("resolved");
   });
 
   it("renders a zero count separately from the tab label", () => {

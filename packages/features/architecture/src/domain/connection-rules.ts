@@ -5,7 +5,7 @@ export function canConnect(
   source: ArchNode,
   target: ArchNode,
   relType: RelationshipType,
-): { ok: boolean; reason?: string } {
+) {
   if (source.id === target.id && relType !== "custom") {
     return { ok: false, reason: "Self-connections are not allowed" };
   }

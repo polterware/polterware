@@ -35,8 +35,11 @@ export function TerminalSidePanel(props: {
   const lines = createMemo(() => {
     const id = props.targetId;
     if (!id) return ["$ _"];
-    if (session()?.lines?.length) return session()!.lines;
-    return TERMINAL_OUTPUT_FIXTURES[id] ?? [`${target()?.name ?? "target"} $ _`];
+    const s = session();
+    if (s?.lines?.length) return s.lines;
+    const fixtureLines = Object.entries(TERMINAL_OUTPUT_FIXTURES)
+      .find(([targetId]) => targetId === id)?.[1];
+    return fixtureLines ?? [`${target()?.name ?? "target"} $ _`];
   });
 
   const visible = () => props.open && Boolean(props.targetId);

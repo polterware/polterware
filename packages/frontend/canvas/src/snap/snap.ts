@@ -32,7 +32,7 @@ export function objectSnapGuides(
   moving: { x: number; y: number; width: number; height: number },
   others: Array<{ x: number; y: number; width: number; height: number }>,
   threshold = 6,
-): { dx: number; dy: number; guides: GuideLine[] } {
+) {
   let dx = 0;
   let dy = 0;
   const guides: GuideLine[] = [];

@@ -2,7 +2,7 @@
  * Map integration provider display names / catalog ids to architecture
  * service-mark keys (same marks used on canvas cards).
  */
-const ALIASES: Record<string, string> = {
+const ALIASES = {
   github: "github",
   gitlab: "gitlab",
   aws: "aws",
@@ -16,7 +16,7 @@ const ALIASES: Record<string, string> = {
   supabase: "supabase",
   terraform: "terraform",
   docker: "docker",
-};
+} satisfies Record<string, string>;
 
 function normalizeToken(raw: string): string {
   return raw
@@ -42,16 +42,17 @@ export function providerIconKey(input: {
   id?: string;
 }): string {
   const candidates = [input.provider, input.name, input.id].filter(
-    (v): v is string => typeof v === "string" && v.trim().length > 0,
+    (v): v is string => v !== undefined && v !== null && v.trim().length > 0,
   );
 
   for (const c of candidates) {
     const token = normalizeToken(c);
-    const tokenAlias = ALIASES[token];
+    const tokenAlias = Object.entries(ALIASES).find(([alias]) => alias === token)?.[1];
     if (tokenAlias) return tokenAlias;
 
     const key = toKeyCandidate(c);
-    const keyAlias = ALIASES[key.replace(/_/g, " ")];
+    const normalizedKey = key.replace(/_/g, " ");
+    const keyAlias = Object.entries(ALIASES).find(([alias]) => alias === normalizedKey)?.[1];
     if (keyAlias) return keyAlias;
     if (key) return key;
   }

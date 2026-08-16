@@ -1,6 +1,11 @@
 import type { ArchitectureDocument } from "@polterware/frontend-canvas";
 import type { FixtureMode } from "@polterware/frontend-state";
 
+export interface ResolvedArchitectureDocument {
+  document: ArchitectureDocument;
+  dataSource: "fixture" | "empty";
+}
+
 export function canPersistArchitecture(fixtureMode: FixtureMode): boolean {
   return fixtureMode !== "force";
 }
@@ -10,10 +15,7 @@ export function resolveArchitectureDocument(input: {
   fixture: ArchitectureDocument;
   fixtureMode: FixtureMode;
   dataSource?: "fixture" | "empty";
-}): {
-  document: ArchitectureDocument;
-  dataSource: "fixture" | "empty";
-} {
+}): ResolvedArchitectureDocument {
   if (input.fixtureMode === "force") {
     return { document: input.fixture, dataSource: "fixture" };
   }

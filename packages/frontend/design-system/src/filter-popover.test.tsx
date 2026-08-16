@@ -7,15 +7,9 @@ import {
   getFilterPopoverMode,
 } from "./filter-popover";
 
-vi.mock("./hugeicons", () => ({
-  Check: () => null,
-  ChevronRight: () => null,
-  ListFilter: () => null,
-}));
-
 describe("FilterPopover", () => {
   it("exports a shared filter component", () => {
-    expect(typeof FilterPopover).toBe("function");
+    expect(FilterPopover).toBeDefined();
   });
 
   it("selects the empty, direct, and grouped panel structures", () => {

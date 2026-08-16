@@ -5,13 +5,21 @@ const RECENTS_KEY = "polterware.arch.typeRecents";
 const FAVORITES_KEY = "polterware.arch.typeFavorites";
 const MAX_RECENTS = 12;
 
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+type TypePreferencesWire = string[];
+
+function decodeTypePreferences(value: JsonValue): TypePreferencesWire | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const items = value.map((item) => String(item));
+  return items.every((item, index) => item === value[index]) ? items : undefined;
+}
+
 function readJsonArray(key: string): string[] {
   try {
-    if (typeof localStorage === "undefined") return [];
-    const raw = localStorage.getItem(key);
+    const raw = globalThis.localStorage?.getItem(key);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+    const parsed: JsonValue = JSON.parse(raw);
+    return decodeTypePreferences(parsed) ?? [];
   } catch {
     return [];
   }
@@ -19,8 +27,7 @@ function readJsonArray(key: string): string[] {
 
 function writeJsonArray(key: string, value: string[]): void {
   try {
-    if (typeof localStorage === "undefined") return;
-    localStorage.setItem(key, JSON.stringify(value));
+    globalThis.localStorage?.setItem(key, JSON.stringify(value));
   } catch {
     /* quota / private mode */
   }
@@ -28,7 +35,7 @@ function writeJsonArray(key: string, value: string[]): void {
 
 /** Browser localStorage adapter for type recents/favorites. */
 export function createLocalStorageTypePrefs(): TypePrefsPort {
-  if (typeof localStorage === "undefined") {
+  if (!globalThis.localStorage) {
     return createMemoryTypePrefs();
   }
 

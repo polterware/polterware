@@ -71,7 +71,7 @@ function nodeDef(
     defaultPorts: inOutPorts,
     placeable: true,
     placementKind: "node",
-    nodeType: partial.id as NodeType,
+    nodeType: partial.id,
     ...partial,
   };
 }
@@ -1067,7 +1067,7 @@ export type TypeMeta = { id: NodeType; label: string };
 /** Semantic node types only (excludes product presets with subtype). */
 export const NODE_TYPES: TypeMeta[] = COMPONENT_TYPES.filter(
   (t) => t.placementKind === "node" && t.nodeType && !t.subtype,
-).map((t) => ({ id: (t.nodeType ?? t.id) as NodeType, label: t.label }));
+).map((t) => ({ id: t.nodeType ?? t.id, label: t.label }));
 
 export const RELATIONSHIP_TYPES: RelationshipTypeDefinition[] = [
   { id: "calls", label: "Calls", order: 10, description: "Invokes or calls the target (RPC, HTTP, …)" },
@@ -1102,7 +1102,7 @@ export const NODE_STATES: NodeState[] = [
   "unknown",
 ];
 
-export const CATEGORY_LABELS: Record<ComponentCategory, string> = {
+export const CATEGORY_LABELS = {
   applications: "Applications",
   data: "Data",
   infrastructure: "Infrastructure",
@@ -1110,7 +1110,7 @@ export const CATEGORY_LABELS: Record<ComponentCategory, string> = {
   external: "External",
   structure: "Structure",
   connected: "Connected resources",
-};
+} satisfies Record<ComponentCategory, string>;
 
 export function listComponentTypes(): ComponentTypeDefinition[] {
   return [...COMPONENT_TYPES].sort((a, b) => a.order - b.order);

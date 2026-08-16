@@ -106,14 +106,14 @@ export function TitleBar(props: TitleBarProps) {
 const headerIconControlClass =
   "control-field control-field-md inline-flex w-[var(--control-height-md)] shrink-0 cursor-pointer items-center justify-center !rounded-full p-0 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none";
 
-function navButtonStyle(disabled: boolean): Record<string, string | number> {
+function navButtonStyle(disabled: boolean) {
   return {
     display: "inline-flex",
     "align-items": "center",
     "justify-content": "center",
     width: "24px",
     height: "24px",
-    padding: 0,
+    padding: "0",
     border: "none",
     "border-radius": "var(--radius-control)",
     background: "transparent",

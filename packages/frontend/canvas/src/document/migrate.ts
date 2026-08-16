@@ -5,7 +5,7 @@ import type {
   Relationship,
   RelationshipType,
 } from "./types";
-import { DEFAULT_NODE_H, DEFAULT_NODE_W } from "./types";
+import { DEFAULT_NODE_H, DEFAULT_NODE_W, type JsonValue } from "./types";
 import { createEmptyDocument, defaultViewport } from "./document";
 
 /** Legacy format 0 body (pre-engine). */
@@ -29,6 +29,10 @@ export type LegacyCanvasBody = {
   revision?: number;
   formatVersion?: number;
 };
+
+export function isLegacyCanvasBody(val: JsonValue): val is LegacyCanvasBody {
+  return Object.prototype.toString.call(val) === "[object Object]" && val !== null;
+}
 
 function mapLegacyNodeType(kind?: string): NodeType {
   if (kind === "system") return "system";
@@ -83,8 +87,9 @@ export function migrateLegacyToV1(
   };
 }
 
-export function isArchitectureDocumentV1(value: unknown): value is ArchitectureDocument {
-  if (!value || typeof value !== "object") return false;
-  const v = value as ArchitectureDocument;
-  return v.formatVersion === 1 && Array.isArray(v.nodes) && Array.isArray(v.relationships);
+export function isArchitectureDocumentV1(value: JsonValue): value is ArchitectureDocument {
+  if (!value || Object.prototype.toString.call(value) !== "[object Object]") return false;
+  // SAFETY: Object prototype check ensures this is a structural object.
+  const v = value as Record<string, JsonValue>;
+  return v["formatVersion"] === 1 && Array.isArray(v["nodes"]) && Array.isArray(v["relationships"]);
 }

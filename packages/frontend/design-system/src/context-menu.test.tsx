@@ -67,7 +67,9 @@ describe("ContextMenu", () => {
       expect(document.querySelector("[role='menuitem']")).not.toBeNull();
     });
 
-    const item = document.querySelector("[role='menuitem']") as HTMLElement;
+    const item = document.querySelector<HTMLElement>("[role='menuitem']");
+    expect(item).not.toBeNull();
+    if (!item) return;
     item.click();
     expect(onSelect).toHaveBeenCalled();
     await vi.waitFor(() => expect(open()).toBe(false));

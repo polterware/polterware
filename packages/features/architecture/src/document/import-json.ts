@@ -18,7 +18,7 @@ export function prepareImport(
   }
   const hard = check.result.warnings.filter((w) => w.level === "error");
   if (hard.some((h) => /Unknown format|Malformed/.test(h.message))) {
-    return { ok: false, error: hard[0]!.message };
+    return { ok: false, error: hard[0]?.message ?? "Unknown error" };
   }
   return {
     ok: true,

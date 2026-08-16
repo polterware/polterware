@@ -193,7 +193,7 @@ export function AddToArchitectureDialog(props: {
           </Show>
 
           <Show when={!searching() && activeTab() !== "all"}>
-            <Section title={CATEGORY_LABELS[activeTab() as ComponentCategory] ?? activeTab()}>
+            <Section title={Object.entries(CATEGORY_LABELS).find(([key]) => key === activeTab())?.[1] ?? activeTab()}>
               <For each={visibleList()}>
                 {(t, i) => (
                   <TypeRow

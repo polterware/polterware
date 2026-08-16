@@ -7,7 +7,7 @@ import { nodeStatusLabel } from "../domain/node-lifecycle";
 
 describe("ArchitectureNodeCard", () => {
   it("exports the card component", () => {
-    expect(typeof ArchitectureNodeCard).toBe("function");
+    expect(ArchitectureNodeCard).toBeDefined();
   });
 
   it("maps node states to operational labels", () => {

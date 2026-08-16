@@ -19,7 +19,7 @@ export type ListLinkCandidatesQuery = {
 };
 
 /** Map architecture semantic types / categories to inventory type strings. */
-const TYPE_FAMILY: Record<string, string[]> = {
+const TYPE_FAMILY = {
   database: ["database", "db", "rds", "postgres", "postgresql", "mysql", "mongo", "mongodb"],
   cache: ["cache", "redis", "memcached"],
   queue: ["queue", "sqs", "rabbitmq", "broker"],
@@ -31,7 +31,7 @@ const TYPE_FAMILY: Record<string, string[]> = {
   web: ["service", "web", "app"],
   host: ["host", "vps", "node", "server", "ec2"],
   function: ["function", "lambda", "serverless"],
-};
+} satisfies Record<string, string[]>;
 
 function resourceTypeTokens(type: string): string[] {
   return type
@@ -43,7 +43,7 @@ function resourceTypeTokens(type: string): string[] {
 export function typesCompatible(componentType: string | undefined, resourceType: string): boolean {
   if (!componentType) return true;
   const key = componentType.toLowerCase();
-  const family = TYPE_FAMILY[key] ?? [key];
+  const family = Object.entries(TYPE_FAMILY).find(([type]) => type === key)?.[1] ?? [key];
   const tokens = resourceTypeTokens(resourceType);
   return family.some((f) => tokens.some((t) => t.includes(f) || f.includes(t)));
 }
@@ -73,7 +73,7 @@ export function filterLinkCandidates(
 export function validateLink(
   componentEnvId: string,
   resource: LinkableResource | undefined | null,
-): { resourceId: string } | { error: string } {
+) {
   if (!resource) return { error: "Resource unavailable" };
   const cEnv = normalizeEnvironmentId(componentEnvId);
   const rEnv = normalizeEnvironmentId(resource.environmentId);
@@ -84,12 +84,7 @@ export function validateLink(
 }
 
 /** Suggest place fields when starting from a resource (Connected flow). */
-export function suggestPlaceFromResource(resource: LinkableResource): {
-  name: string;
-  environmentId: string;
-  resourceId: string;
-  suggestedComponentType?: string;
-} {
+export function suggestPlaceFromResource(resource: LinkableResource) {
   const envId = normalizeEnvironmentId(resource.environmentId) || resource.environmentId;
   const tokens = resourceTypeTokens(resource.type);
   let suggested: string | undefined;

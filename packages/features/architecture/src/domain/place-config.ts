@@ -89,20 +89,22 @@ export function environmentIdsFromConfig(config: PlaceConfig): string[] {
   return [config.environmentId];
 }
 
-/** Metadata patch for role (and future place-time keys). */
-export function metadataFromPlaceConfig(
-  config: PlaceConfig,
-): Record<string, string | number | boolean> | undefined {
-  if (!config.role) return undefined;
-  return { role: config.role };
-}
-
-/** Build docAddNode partial lifecycle fields from place config. */
-export function lifecycleFromPlaceConfig(config: PlaceConfig): {
+export interface PlaceLifecycleFields {
   state: "planned" | "linked";
   linkStatus: "unlinked" | "linked";
   resourceId: string | null;
-} {
+}
+
+/** Metadata patch for role (and future place-time keys). */
+export function metadataFromPlaceConfig(
+  config: PlaceConfig,
+) {
+  if (!config.role) return undefined;
+  return { role: config.role } satisfies Record<string, string | number | boolean>;
+}
+
+/** Build docAddNode partial lifecycle fields from place config. */
+export function lifecycleFromPlaceConfig(config: PlaceConfig): PlaceLifecycleFields {
   if (config.resourceId) {
     return { state: "linked", linkStatus: "linked", resourceId: config.resourceId };
   }

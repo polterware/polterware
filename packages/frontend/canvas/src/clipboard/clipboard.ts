@@ -6,7 +6,7 @@ import type {
   SelectionState,
 } from "../document/types";
 import { newId, touchUpdated } from "../document/document";
-import { sanitizeText } from "../document/serialize";
+import { deserializeAndMigrate, sanitizeText } from "../document/serialize";
 
 export type DocumentFragment = {
   formatVersion: 1;
@@ -47,7 +47,7 @@ export function pasteFragment(
   doc: ArchitectureDocument,
   fragment: DocumentFragment,
   offset: { x: number; y: number },
-): { doc: ArchitectureDocument; newSelection: SelectionState } {
+) {
   const idMap = new Map<string, string>();
   for (const n of fragment.nodes) idMap.set(n.id, newId("node"));
   for (const b of fragment.boundaries) idMap.set(b.id, newId("boundary"));
@@ -70,24 +70,23 @@ export function pasteFragment(
     y: b.y + offset.y,
     memberNodeIds: (b.memberNodeIds ?? [])
       .map((id) => idMap.get(id))
-      .filter(Boolean) as string[],
+      .filter((id): id is string => id !== undefined),
   }));
 
   const relationships: Relationship[] = fragment.relationships
-    .map((r) => {
+    .flatMap((r): Relationship[] => {
       const sourceNodeId = idMap.get(r.sourceNodeId);
       const targetNodeId = idMap.get(r.targetNodeId);
-      if (!sourceNodeId || !targetNodeId) return null;
-      return {
+      if (!sourceNodeId || !targetNodeId) return [];
+      return [{
         ...r,
         id: idMap.get(r.id)!,
         sourceNodeId,
         targetNodeId,
         manualPoints: undefined,
         label: r.label ? sanitizeText(r.label, 200) : undefined,
-      };
-    })
-    .filter(Boolean) as Relationship[];
+      }];
+    });
 
   const next = touchUpdated({
     ...doc,
@@ -110,15 +109,34 @@ export function serializeFragment(f: DocumentFragment): string {
   return JSON.stringify(f);
 }
 
+import type { JsonObject, JsonValue } from "../document/types";
+
+function isJsonObject(value: JsonValue): value is JsonObject {
+  return value !== null && !Array.isArray(value) && Object(value) === value;
+}
+
 export function parseFragment(json: string): DocumentFragment | null {
   try {
-    const p = JSON.parse(json) as DocumentFragment;
+    const p: JsonValue = JSON.parse(json);
+    if (!isJsonObject(p)) return null;
     if (p.formatVersion !== 1 || !Array.isArray(p.nodes)) return null;
+    const wrappedDocument = {
+      formatVersion: 1,
+      systemId: "clipboard",
+      revision: 0,
+      createdAt: "1970-01-01T00:00:00.000Z",
+      updatedAt: "1970-01-01T00:00:00.000Z",
+      nodes: p.nodes,
+      relationships: Array.isArray(p.relationships) ? p.relationships : [],
+      boundaries: Array.isArray(p.boundaries) ? p.boundaries : [],
+    };
+    const parsed = deserializeAndMigrate(JSON.stringify(wrappedDocument), "clipboard");
+    if (parsed.warnings.some((warning) => warning.level === "error")) return null;
     return {
       formatVersion: 1,
-      nodes: p.nodes ?? [],
-      relationships: p.relationships ?? [],
-      boundaries: p.boundaries ?? [],
+      nodes: parsed.doc.nodes,
+      relationships: parsed.doc.relationships,
+      boundaries: parsed.doc.boundaries,
     };
   } catch {
     return null;

@@ -60,7 +60,7 @@ export type NavItem = {
   requiredCapability?: PlatformCapability;
 };
 
-export const DEFAULT_TABS: Record<SectionId, string> = {
+export const DEFAULT_TABS = {
   architecture: "canvas",
   resources: "inventory",
   knowledge: "docs",
@@ -69,9 +69,9 @@ export const DEFAULT_TABS: Record<SectionId, string> = {
   integrations: "connected",
   settings: "general",
   "create-project": "index",
-};
+} satisfies Record<SectionId, string>;
 
-export const SECTION_TABS: Partial<Record<SectionId, { id: string; label: string }[]>> = {
+export const SECTION_TABS = {
   architecture: [
     { id: "canvas", label: "Canvas" },
     { id: "components", label: "Components" },
@@ -100,28 +100,30 @@ export const SECTION_TABS: Partial<Record<SectionId, { id: string; label: string
     { id: "environments", label: "Environments" },
     { id: "advanced", label: "Advanced" },
   ],
-};
+} satisfies Partial<Record<SectionId, { id: string; label: string }[]>>;
 
-const NAV_SECTIONS = new Set<NavSectionId>([
-  "architecture",
-  "resources",
-  "knowledge",
-  "operations",
-  "terminal",
-  "integrations",
-  "settings",
-]);
+const NAV_SECTIONS = {
+  architecture: true,
+  resources: true,
+  knowledge: true,
+  operations: true,
+  terminal: true,
+  integrations: true,
+  settings: true,
+} satisfies Record<string, boolean>;
 
-const CHROME_SECTIONS = new Set<ChromeSectionId>(["create-project"]);
+const CHROME_SECTIONS = {
+  "create-project": true,
+} satisfies Record<string, boolean>;
 
 const ROUTE_CAPABILITIES: Partial<Record<SectionId, PlatformCapability>> = {};
 
 export function isNavSectionId(value: string): value is NavSectionId {
-  return NAV_SECTIONS.has(value as NavSectionId);
+  return Object.prototype.hasOwnProperty.call(NAV_SECTIONS, value);
 }
 
 export function isChromeSectionId(value: string): value is ChromeSectionId {
-  return CHROME_SECTIONS.has(value as ChromeSectionId);
+  return Object.prototype.hasOwnProperty.call(CHROME_SECTIONS, value);
 }
 
 export function isSectionId(value: string): value is SectionId {
@@ -155,7 +157,7 @@ export function sectionAvailable(
 }
 
 function normalizeTab(section: SectionId, tab?: string): string {
-  const allowed = SECTION_TABS[section];
+  const allowed = Object.entries(SECTION_TABS).find(([key]) => key === section)?.[1];
   if (!allowed) return DEFAULT_TABS[section];
   return allowed.some((item) => item.id === tab) ? tab! : DEFAULT_TABS[section];
 }

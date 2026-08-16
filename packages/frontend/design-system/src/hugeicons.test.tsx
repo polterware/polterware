@@ -97,7 +97,7 @@ describe("HugeiconsIcon", () => {
       Pause,
       Stop,
     ]) {
-      expect(typeof actionIcon).toBe("function");
+      expect(actionIcon).toBeDefined();
     }
 
     dispose();

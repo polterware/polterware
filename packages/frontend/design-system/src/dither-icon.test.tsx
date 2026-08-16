@@ -16,10 +16,10 @@ const styles = readFileSync(
   "utf8",
 );
 
-function renderHtml(ui: () => unknown) {
+function renderHtml(ui: Parameters<typeof render>[0]) {
   const host = document.createElement("div");
   document.body.appendChild(host);
-  const dispose = render(ui as Parameters<typeof render>[0], host);
+  const dispose = render(ui, host);
   const html = host.innerHTML;
   dispose();
   host.remove();

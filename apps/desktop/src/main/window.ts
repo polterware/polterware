@@ -93,14 +93,13 @@ function loadRenderer(window: BrowserWindow, surface?: "commander"): void {
 }
 
 export function createMainWindow(): BrowserWindow {
-  const window = new BrowserWindow({
+  const options: BrowserWindowConstructorOptions = {
     width: 1440,
     height: 920,
     minWidth: 1180,
     minHeight: 760,
     title: "Polterware Desktop",
     titleBarStyle: "hidden",
-    ...(process.platform !== "darwin" ? { titleBarOverlay: true } : {}),
     backgroundColor: "#070707",
     show: false,
     ...getAppIconWindowOptions(),
@@ -111,7 +110,13 @@ export function createMainWindow(): BrowserWindow {
       sandbox: true,
       webSecurity: true,
     },
-  });
+  };
+
+  if (process.platform !== "darwin") {
+    options.titleBarOverlay = true;
+  }
+
+  const window = new BrowserWindow(options);
 
   mainWindow = window;
   configureWindowSecurity(window);

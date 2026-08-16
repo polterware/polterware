@@ -13,7 +13,7 @@ export function setupAutoUpdater(): void {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
 
-  autoUpdater.on("error", (error) => {
+  autoUpdater.on("error", (error: Error) => {
     log.error("Auto-update error", error);
   });
 
@@ -25,7 +25,8 @@ export function setupAutoUpdater(): void {
     log.info("Update downloaded", info.version);
   });
 
-  void autoUpdater.checkForUpdatesAndNotify().catch((error: unknown) => {
+  void autoUpdater.checkForUpdatesAndNotify().catch((reason) => {
+    const error = reason instanceof Error ? reason : new Error(String(reason));
     log.error("Failed to check for updates", error);
   });
 }

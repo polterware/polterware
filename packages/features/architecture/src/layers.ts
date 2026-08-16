@@ -27,12 +27,12 @@ export function assignLayer(node: CanvasNode): ArchitectureLayer {
 
 export const LAYER_ORDER: ArchitectureLayer[] = ["cloud", "applications", "data", "other"];
 
-export const LAYER_LABEL: Record<ArchitectureLayer, string> = {
+export const LAYER_LABEL = {
   cloud: "Cloud",
   applications: "Applications",
   data: "Data",
   other: "Other",
-};
+} satisfies Record<ArchitectureLayer, string>;
 
 export function layerBandY(layer: ArchitectureLayer): number {
   switch (layer) {

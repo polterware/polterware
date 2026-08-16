@@ -1,7 +1,7 @@
-import type { ArchitectureDocument } from "./types";
+import type { ArchitectureDocument, JsonValue } from "./types";
 import { MAX_BODY_BYTES } from "./types";
 import { createEmptyDocument, validateDocument, type ValidationIssue } from "./document";
-import { isArchitectureDocumentV1, migrateLegacyToV1, type LegacyCanvasBody } from "./migrate";
+import { isArchitectureDocumentV1, migrateLegacyToV1, isLegacyCanvasBody } from "./migrate";
 
 export type ParseResult = {
   doc: ArchitectureDocument;
@@ -40,9 +40,9 @@ export function deserializeAndMigrate(
     return { doc: createEmptyDocument({ systemId }), warnings, migrated: false };
   }
 
-  let parsed: unknown;
+  let parsed: JsonValue;
   try {
-    parsed = JSON.parse(json) as unknown;
+    parsed = JSON.parse(json);
   } catch {
     return {
       doc: createEmptyDocument({ systemId }),
@@ -86,23 +86,33 @@ export function deserializeAndMigrate(
   }
 
   // Future unknown version
-  const maybe = parsed as { formatVersion?: number };
-  if (typeof maybe.formatVersion === "number" && maybe.formatVersion > 1) {
-    return {
-      doc: createEmptyDocument({ systemId }),
-      warnings: [
-        {
-          level: "error",
-          message: `Unknown format version ${maybe.formatVersion}; document not loaded`,
-        },
-      ],
-      migrated: false,
-    };
+  if (parsed && Object.prototype.toString.call(parsed) === "[object Object]") {
+    // SAFETY: Object prototype check ensures plain object payload
+    const maybe = parsed as Record<string, JsonValue>;
+    // SAFETY: We verified the type of formatVersion via Object.prototype.toString
+    if (Object.prototype.toString.call(maybe["formatVersion"]) === "[object Number]" && (maybe["formatVersion"] as number) > 1) {
+      return {
+        doc: createEmptyDocument({ systemId }),
+        warnings: [
+          {
+            level: "error",
+            message: `Unknown format version ${maybe["formatVersion"]}; document not loaded`,
+          },
+        ],
+        migrated: false,
+      };
+    }
   }
 
   // Legacy format 0
-  const legacy = parsed as LegacyCanvasBody;
-  const doc = migrateLegacyToV1(legacy, systemId);
+  if (!isLegacyCanvasBody(parsed)) {
+    return {
+      doc: createEmptyDocument({ systemId }),
+      warnings: [{ level: "error", message: "Malformed JSON; loaded empty document" }],
+      migrated: false,
+    };
+  }
+  const doc = migrateLegacyToV1(parsed, systemId);
   const issues = validateDocument(doc);
   return {
     doc,
@@ -115,11 +125,7 @@ export function deserializeAndMigrate(
 }
 
 /** Validate import without replacing — returns errors if unsafe. */
-export function validateImportJson(json: string): {
-  ok: boolean;
-  result?: ParseResult;
-  error?: string;
-} {
+export function validateImportJson(json: string) {
   try {
     const result = deserializeAndMigrate(json);
     const hard = result.warnings.filter((w) => w.level === "error");

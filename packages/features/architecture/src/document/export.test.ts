@@ -7,7 +7,7 @@ describe("export json", () => {
     let doc = createEmptyDocument({ systemId: "s" });
     doc = docAddNode(doc, { name: "A", type: "api", x: 0, y: 0 });
     const json = exportDocumentJson(doc);
-    const p = JSON.parse(json) as { formatVersion: number; nodes: unknown[] };
+    const p: { formatVersion: number; nodes: object[] } = JSON.parse(json);
     expect(p.formatVersion).toBe(1);
     expect(p.nodes).toHaveLength(1);
   });
@@ -21,7 +21,7 @@ describe("export json", () => {
       relationshipIds: [],
       boundaryIds: [],
     });
-    const p = JSON.parse(json) as { nodes: unknown[] };
+    const p: { nodes: object[] } = JSON.parse(json);
     expect(p.nodes).toHaveLength(1);
   });
 });

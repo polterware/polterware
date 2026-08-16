@@ -136,14 +136,23 @@ export type HugeiconComponent = Component<
   Omit<HugeiconsIconProps, "icon">
 >;
 
-const DECORATIVE_SVG_ATTRIBUTES = {
+interface DecorativeSvgAttributes extends JSX.SvgSVGAttributes<SVGSVGElement> {
+  focusable: "false";
+}
+
+const DECORATIVE_SVG_ATTRIBUTES: DecorativeSvgAttributes = {
   focusable: "false",
-} as unknown as JSX.SvgSVGAttributes<SVGSVGElement>;
+};
+
+interface NormalizedNodeAttributes {
+  [key: string]: string | number;
+  "stroke-width": number;
+}
 
 function normalizeNodeAttributes(
   attributes: HugeIconNodeAttributes,
   strokeWidth: number,
-): Record<string, string | number> {
+): NormalizedNodeAttributes {
   const {
     key: _key,
     strokeLinecap,
@@ -152,12 +161,13 @@ function normalizeNodeAttributes(
     ...rest
   } = attributes;
 
-  return {
+  const result: NormalizedNodeAttributes = {
     ...rest,
-    ...(strokeLinecap === undefined ? {} : { "stroke-linecap": strokeLinecap }),
-    ...(strokeLinejoin === undefined ? {} : { "stroke-linejoin": strokeLinejoin }),
     "stroke-width": strokeWidth,
   };
+  if (strokeLinecap !== undefined) result["stroke-linecap"] = strokeLinecap;
+  if (strokeLinejoin !== undefined) result["stroke-linejoin"] = strokeLinejoin;
+  return result;
 }
 
 export function HugeiconsIcon(props: HugeiconsIconProps): JSX.Element {
@@ -324,6 +334,7 @@ const iconDefinitions = {
 
 type PolterIconName = keyof typeof iconDefinitions;
 
+// SAFETY: We map the exact keys of iconDefinitions to their corresponding HugeiconComponent.
 const iconComponents = Object.fromEntries(
   Object.entries(iconDefinitions).map(([name, definition]) => [
     name,

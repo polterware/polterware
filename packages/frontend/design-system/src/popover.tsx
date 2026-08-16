@@ -124,7 +124,7 @@ export function Popover(props: PopoverProps) {
                 display: "flex",
                 "flex-direction": "column",
                 color: "var(--color-text-primary)",
-                ...(props.style ?? {}),
+                ...props.style,
               }}
             >
               <Show when={props.title}>

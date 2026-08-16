@@ -4,7 +4,20 @@ import { cliStateLabel, providerByName } from "./setup-wizard-helpers";
 
 describe("CLI visual state", () => {
   it("labels every supported state", () => {
-    expect(["cli-unavailable", "ready", "authenticating", "connected", "failed"].map((state) => cliStateLabel(state as never))).toEqual(["CLI unavailable", "Ready", "Authenticating", "Connected", "Failed"]);
+    const states: Array<Parameters<typeof cliStateLabel>[0]> = [
+      "cli-unavailable",
+      "ready",
+      "authenticating",
+      "connected",
+      "failed",
+    ];
+    expect(states.map(cliStateLabel)).toEqual([
+      "CLI unavailable",
+      "Ready",
+      "Authenticating",
+      "Connected",
+      "Failed",
+    ]);
   });
 
   it("resolves providers by id and name", () => {

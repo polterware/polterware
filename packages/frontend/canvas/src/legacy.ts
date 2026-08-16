@@ -51,18 +51,59 @@ export function serialize(model: CanvasModel): string {
   return JSON.stringify({ nodes: model.nodes, edges: model.edges, revision: model.revision });
 }
 
+import type { JsonObject, JsonValue } from "./document/types";
+
+function isJsonObject(value: JsonValue): value is JsonObject {
+  return value !== null && !Array.isArray(value) && Object(value) === value;
+}
+
+function readString(value: JsonValue | undefined): string | undefined {
+  return Object.prototype.toString.call(value) === "[object String]" ? String(value) : undefined;
+}
+
+function readNumber(value: JsonValue | undefined): number | undefined {
+  const number = Number(value);
+  return value === number && Number.isFinite(number) ? number : undefined;
+}
+
+function decodeCanvasNode(value: JsonValue): CanvasNode | undefined {
+  if (!isJsonObject(value)) return undefined;
+  const id = readString(value.id);
+  const x = readNumber(value.x);
+  const y = readNumber(value.y);
+  const label = readString(value.label);
+  if (!id || x == null || y == null || label == null) return undefined;
+  const kind = readString(value.kind);
+  return {
+    id,
+    x,
+    y,
+    label,
+    kind: kind === "system" || kind === "resource" || kind === "environment" ? kind : undefined,
+    source: readString(value.source),
+    externalKey: readString(value.externalKey),
+  };
+}
+
+function decodeCanvasEdge(value: JsonValue): CanvasEdge | undefined {
+  if (!isJsonObject(value)) return undefined;
+  const id = readString(value.id);
+  const from = readString(value.from);
+  const to = readString(value.to);
+  const kind = readString(value.kind);
+  if (!id || !from || !to || (kind !== "contains" && kind !== "related")) return undefined;
+  return { id, from, to, kind, evidence: value.evidence === true };
+}
+
 export function deserialize(json: string): CanvasModel {
   if (!json || json === "{}") return createEmptyCanvas();
   try {
-    const parsed = JSON.parse(json) as {
-      nodes?: CanvasNode[];
-      edges?: CanvasEdge[];
-      revision?: number;
-    };
+    const parsed: JsonValue = JSON.parse(json);
+    if (!isJsonObject(parsed)) return createEmptyCanvas();
     return {
-      nodes: parsed.nodes ?? [],
-      edges: parsed.edges ?? [],
-      revision: parsed.revision ?? 0,
+      nodes: Array.isArray(parsed.nodes) ? parsed.nodes.flatMap((value) => decodeCanvasNode(value) ?? []) : [],
+      edges: Array.isArray(parsed.edges) ? parsed.edges.flatMap((value) => decodeCanvasEdge(value) ?? []) : [],
+      revision: readNumber(parsed.revision) ?? 0,
       selection: [],
     };
   } catch {

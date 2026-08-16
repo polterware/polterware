@@ -27,7 +27,7 @@ export const ARCH_CANVAS_FIXTURE: CanvasModel = {
   ],
 };
 
-export const NODE_DETAIL_FIXTURES: Record<string, ArchitectureNodeView> = {
+export const NODE_DETAIL_FIXTURES = {
   "n-pay": {
     id: "n-pay",
     label: "Payment Service",
@@ -85,10 +85,11 @@ export const NODE_DETAIL_FIXTURES: Record<string, ArchitectureNodeView> = {
     docs: [],
     notes: "Placed on the map; not linked to inventory yet.",
   },
-};
+} satisfies Record<string, ArchitectureNodeView>;
 
 export function fixtureNodeDetail(id: string, label?: string): ArchitectureNodeView {
-  if (NODE_DETAIL_FIXTURES[id]) return NODE_DETAIL_FIXTURES[id];
+  const fixture = Object.entries(NODE_DETAIL_FIXTURES).find(([key]) => key === id)?.[1];
+  if (fixture) return fixture;
   return {
     id,
     label: label ?? id,

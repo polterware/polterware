@@ -225,12 +225,7 @@ export function moveBoundaryWithMembers(
   });
 }
 
-export function documentBounds(doc: ArchitectureDocument): {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-} {
+export function documentBounds(doc: ArchitectureDocument) {
   if (doc.nodes.length === 0 && doc.boundaries.length === 0) {
     return { minX: 0, minY: 0, maxX: 800, maxY: 600 };
   }

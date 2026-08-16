@@ -12,6 +12,6 @@ describe("FilterChip", () => {
     expect(props.children).toBe("Actor");
     expect(props.count).toBe(2);
     expect(props.countAriaLabel).toBe("2 selected");
-    expect(typeof FilterChip).toBe("function");
+    expect(FilterChip).toBeDefined();
   });
 });

@@ -63,9 +63,9 @@ describe("ArchitectureDocument v1", () => {
       type: "deploys_to",
     });
 
-    const serialized = JSON.parse(serializeDocument(doc)) as {
-      relationships: Array<Record<string, unknown>>;
-    };
+    const serialized: { relationships: Array<{ origin?: string }> } = JSON.parse(
+      serializeDocument(doc),
+    );
     delete serialized.relationships[0]!.origin;
 
     const { doc: round } = deserializeAndMigrate(JSON.stringify(serialized), "sys-local");

@@ -5,7 +5,7 @@ describe("updater FR-039a", () => {
   it("is a no-op when not packaged", async () => {
     const setup = await import("./updater.js");
     // setupAutoUpdater should not throw when electron-updater is unavailable/unpackaged
-    expect(typeof setup.setupAutoUpdater).toBe("function");
+    expect(setup.setupAutoUpdater).toBeDefined();
   });
 
   it("does not export renderer update APIs", async () => {

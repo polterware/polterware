@@ -58,6 +58,16 @@ const SYSTEM_ID_DEFAULT = "sys-local";
 
 const EDGE_FLOW_PREF_KEY = "architecture-edge-flow";
 
+function readStringMetadata(
+  metadata: Record<string, string | number | boolean> | undefined,
+  key: string,
+): string | undefined {
+  const value = metadata?.[key];
+  return Object.prototype.toString.call(value) === "[object String]"
+    ? String(value)
+    : undefined;
+}
+
 function readEdgeFlowPref(): boolean {
   try {
     return localStorage.getItem(EDGE_FLOW_PREF_KEY) !== "0";
@@ -66,7 +76,7 @@ function readEdgeFlowPref(): boolean {
   }
 }
 
-const FIXTURE_NODE_TYPES: Record<string, NodeType> = {
+const FIXTURE_NODE_TYPES = {
   "n-gha": "ci_pipeline",
   "n-vercel": "web_application",
   "n-gw": "api_gateway",
@@ -76,13 +86,13 @@ const FIXTURE_NODE_TYPES: Record<string, NodeType> = {
   "n-pg": "database",
   "n-redis": "cache",
   "n-queue": "queue",
-};
+} satisfies Record<string, NodeType>;
 
-const FIXTURE_PROVIDERS: Record<string, string> = {
+const FIXTURE_PROVIDERS = {
   github: "GitHub",
   vercel: "Vercel",
   aws: "AWS",
-};
+} satisfies Record<string, string>;
 
 export type ArchResource = {
   id: string;
@@ -130,7 +140,7 @@ export {
 } from "./components-list";
 
 function mapDraftType(t: string, typeId?: string): NodeType {
-  if (typeId) return typeId as NodeType;
+  if (typeId) return typeId;
   const k = t.toLowerCase().replace(/\s+/g, "_");
   if (k.includes("database")) return "database";
   if (k.includes("cache")) return "cache";
@@ -158,8 +168,10 @@ function fixtureToDocument(): ArchitectureDocument {
         const fixtureNode = fixtureNodes.get(node.id);
         return {
           ...node,
-          type: FIXTURE_NODE_TYPES[node.id] ?? node.type,
-          provider: fixtureNode?.source ? FIXTURE_PROVIDERS[fixtureNode.source] : undefined,
+          type: Object.entries(FIXTURE_NODE_TYPES).find(([id]) => id === node.id)?.[1] ?? node.type,
+          provider: fixtureNode?.source
+            ? Object.entries(FIXTURE_PROVIDERS).find(([id]) => id === fixtureNode.source)?.[1]
+            : undefined,
           environmentIds: ["Production"],
           state: "observed",
         };
@@ -454,9 +466,7 @@ export function ArchitectureView(props: {
       resourceName: linkedResource?.name,
       canLinkResource: !n.resourceId && (n.linkStatus ?? "unlinked") !== "linked",
       owner: n.owner,
-      role: roleLabel(
-        typeof n.metadata?.role === "string" ? n.metadata.role : undefined,
-      ),
+      role: roleLabel(readStringMetadata(n.metadata, "role")),
       connected: doc()
         .relationships.filter((e) => e.sourceNodeId === n.id || e.targetNodeId === n.id)
         .map((e) => {

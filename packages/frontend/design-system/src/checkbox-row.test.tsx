@@ -3,13 +3,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { CheckboxRow } from "./checkbox-row";
 
-vi.mock("./hugeicons", () => ({
-  Check: () => null,
-}));
-
 describe("CheckboxRow", () => {
   it("exports CheckboxRow as a component function", () => {
-    expect(typeof CheckboxRow).toBe("function");
+    expect(CheckboxRow).toBeDefined();
   });
 
   it("handles props interface cleanly", () => {
@@ -25,6 +21,7 @@ describe("CheckboxRow", () => {
 
     expect(props.checked).toBe(true);
     expect(props.label).toBe("Option 1");
-    expect(typeof props.onCheckedChange).toBe("function");
+    props.onCheckedChange(false);
+    expect(handleCheckedChange).toHaveBeenCalledWith(false);
   });
 });

@@ -116,7 +116,7 @@ export function closeMockTerminalSession(session: TerminalSessionMock): Terminal
 export function removeTerminalSession(
   sessions: TerminalSessionMock[],
   id: string,
-): { sessions: TerminalSessionMock[]; nextActiveId: string } {
+) {
   const remaining = sessions.filter((s) => s.id !== id);
   const nextActiveId = remaining.find((s) => s.status !== "closed")?.id ?? remaining[0]?.id ?? "";
   return { sessions: remaining, nextActiveId };

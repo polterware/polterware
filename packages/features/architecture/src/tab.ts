@@ -7,7 +7,15 @@ export const ARCHITECTURE_TABS = [
 
 export type ArchitectureTabId = (typeof ARCHITECTURE_TABS)[number]["id"];
 
-const ARCHITECTURE_TAB_IDS = new Set<string>(ARCHITECTURE_TABS.map((tab) => tab.id));
+const ARCHITECTURE_TAB_MAP = {
+  canvas: true,
+  components: true,
+  views: true,
+} satisfies Record<string, boolean>;
+
+function isArchitectureTabId(val: string): val is ArchitectureTabId {
+  return Object.prototype.hasOwnProperty.call(ARCHITECTURE_TAB_MAP, val);
+}
 
 /**
  * Normalize Architecture in-feature tab ids.
@@ -16,7 +24,7 @@ const ARCHITECTURE_TAB_IDS = new Set<string>(ARCHITECTURE_TABS.map((tab) => tab.
  */
 export function normalizeArchitectureTab(tab: string | undefined | null): ArchitectureTabId {
   const t = (tab ?? "canvas").trim().toLowerCase();
-  if (ARCHITECTURE_TAB_IDS.has(t)) return t as ArchitectureTabId;
+  if (isArchitectureTabId(t)) return t;
   // Retired architecture surfaces map to the primary canvas view.
   if (t === "dependencies" || t === "changes") return "canvas";
   return "canvas";

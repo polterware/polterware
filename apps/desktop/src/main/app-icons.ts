@@ -13,14 +13,33 @@ import {
   type AppIconOption,
   type AppIconSelection,
 } from "../shared/app-icons.js";
+import type { JsonObject, JsonValue } from "../shared/ipc.js";
 
 const APP_ICON_PREFERENCES_FILE = "app-icon-preferences.json";
 const APP_ICON_PREFERENCES_VERSION = 2;
 const LEGACY_APP_ICON_PREFERENCE = "__legacy__";
 
 interface StoredAppIconPreferences {
-  selectedId?: unknown;
-  version?: unknown;
+  selectedId?: string;
+  version?: number;
+}
+
+function isJsonObject(value: JsonValue): value is JsonObject {
+  return value !== null && !Array.isArray(value) && Object(value) === value;
+}
+
+function decodeStoredAppIconPreferences(value: JsonValue): StoredAppIconPreferences | undefined {
+  if (!isJsonObject(value)) return undefined;
+
+  const versionValue = value.version;
+  const selectedIdValue = value.selectedId;
+  const version = Number(versionValue);
+  if (versionValue !== version || !Number.isInteger(version)) return undefined;
+
+  if (selectedIdValue == null) return { version };
+  const selectedId = String(selectedIdValue);
+  if (selectedIdValue !== selectedId) return undefined;
+  return { selectedId, version };
 }
 
 interface RuntimeAppIconOption extends AppIconOption {
@@ -62,11 +81,11 @@ function toUniqueExistingDirectories(directories: string[]): string[] {
   return existingDirectories;
 }
 
-const APP_ICON_LABELS: Record<AppIconId, string> = {
+const APP_ICON_LABELS = {
   main: "Polterware",
   black: "Black",
   white: "White",
-};
+} satisfies Record<AppIconId, string>;
 
 function createPreviewDataUrl(filePath: string): string {
   const encoded = readFileSync(filePath).toString("base64");
@@ -116,15 +135,13 @@ function toPublicIcon(icon: RuntimeAppIconOption): AppIconOption {
 function readStoredIconId(userDataDirectory: string): string | undefined {
   try {
     const preferencesPath = join(userDataDirectory, APP_ICON_PREFERENCES_FILE);
-    const parsed = JSON.parse(
-      readFileSync(preferencesPath, "utf8"),
-    ) as StoredAppIconPreferences;
+    const wireValue: JsonValue = JSON.parse(readFileSync(preferencesPath, "utf8"));
+    const parsed = decodeStoredAppIconPreferences(wireValue);
+    if (!parsed) return LEGACY_APP_ICON_PREFERENCE;
     if (parsed.version !== APP_ICON_PREFERENCES_VERSION) {
       return LEGACY_APP_ICON_PREFERENCE;
     }
-    return typeof parsed.selectedId === "string"
-      ? parsed.selectedId
-      : undefined;
+    return parsed.selectedId;
   } catch {
     return undefined;
   }

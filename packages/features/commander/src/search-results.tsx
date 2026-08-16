@@ -47,7 +47,8 @@ export function SearchResultsPage(props: {
       );
     }
     if (props.category && props.category !== "all") {
-      hits = hits.filter((h) => h.category.toLowerCase() === props.category!.toLowerCase());
+      const cat = props.category;
+      if (cat) hits = hits.filter((h) => h.category.toLowerCase() === cat.toLowerCase());
     }
     return hits;
   });
@@ -59,8 +60,8 @@ export function SearchResultsPage(props: {
         h.subtitle.toLowerCase().includes(q()) ||
         h.category.toLowerCase().includes(q()),
     );
-    const c: Record<string, number> = { all: base.length };
-    for (const h of base) c[h.category] = (c[h.category] ?? 0) + 1;
+    const c = new Map<string, number>([["all", base.length]]);
+    for (const h of base) c.set(h.category, (c.get(h.category) ?? 0) + 1);
     return c;
   });
   const cats = () => ["all", "Architecture", "Resources", "Operations", "Knowledge"];
@@ -75,8 +76,8 @@ export function SearchResultsPage(props: {
             {(c) => (
               <FilterChip
                 selected={(props.category ?? "all") === c || (c === "all" && !props.category)}
-                count={counts()[c] ?? 0}
-                countAriaLabel={`${counts()[c] ?? 0} results`}
+                count={counts().get(c) ?? 0}
+                countAriaLabel={`${counts().get(c) ?? 0} results`}
                 onClick={() => props.onCategory?.(c === "all" ? "all" : c)}
               >
                 {c === "all" ? "All" : c}
