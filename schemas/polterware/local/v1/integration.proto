@@ -79,6 +79,9 @@ message BeginCliAuthResponse {
   string message = 4;
 }
 
+message SyncIntegrationConnectionRequest { string connection_id = 1; }
+message SyncIntegrationConnectionResponse { IntegrationSyncRun run = 1; }
+
 service IntegrationService {
   rpc ListCliProviders(ListCliProvidersRequest) returns (ListCliProvidersResponse);
   rpc ListIntegrationConnections(ListIntegrationConnectionsRequest) returns (ListIntegrationConnectionsResponse);
@@ -86,6 +89,7 @@ service IntegrationService {
   rpc ListIntegrationResources(ListIntegrationResourcesRequest) returns (ListIntegrationResourcesResponse);
   rpc ListIntegrationSyncRuns(ListIntegrationSyncRunsRequest) returns (ListIntegrationSyncRunsResponse);
   rpc SaveIntegrationSyncRun(SaveIntegrationSyncRunRequest) returns (SaveIntegrationSyncRunResponse);
+  rpc SyncIntegrationConnection(SyncIntegrationConnectionRequest) returns (SyncIntegrationConnectionResponse);
   rpc ProbeCliProvider(ProbeCliProviderRequest) returns (ProbeCliProviderResponse);
   rpc BeginCliAuth(BeginCliAuthRequest) returns (BeginCliAuthResponse);
 }

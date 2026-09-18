@@ -32,13 +32,16 @@ import (
 )
 
 type Core struct {
-	Store         *storepkg.Store
-	Token         string
-	Started       time.Time
-	Runner        *processpkg.Manager
-	runnerOnce    sync.Once
-	Terminals     *terminalpkg.Manager
-	terminalOnce  sync.Once
+	Store          *storepkg.Store
+	Token          string
+	Started        time.Time
+	Runner         *processpkg.Manager
+	runnerOnce     sync.Once
+	Terminals      *terminalpkg.Manager
+	terminalOnce   sync.Once
+	scheduleMu     sync.Mutex
+	scheduleCancel context.CancelFunc
+	scheduleFiring map[string]struct{}
 }
 
 func NewCore(store *storepkg.Store, token string) *Core {
@@ -379,12 +382,20 @@ func (core *Core) ListWorkflows(_ context.Context, request *connect.Request[loca
 }
 
 func (core *Core) RunWorkflow(_ context.Context, request *connect.Request[localv1.RunWorkflowRequest]) (*connect.Response[localv1.RunWorkflowResponse], error) {
-	workflow, err := core.Store.GetWorkflow(request.Msg.Id)
+	runID, operationIDs, err := core.startWorkflowRun(request.Msg.Id, request.Msg.EnvironmentId)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
+		return nil, err
+	}
+	return connect.NewResponse(&localv1.RunWorkflowResponse{RunId: runID, Status: "running", OperationIds: operationIDs}), nil
+}
+
+func (core *Core) startWorkflowRun(workflowID, environmentID string) (runID string, operationIDs []string, err error) {
+	workflow, err := core.Store.GetWorkflow(workflowID)
+	if err != nil {
+		return "", nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	correlation := observability.NewCorrelationID()
-	operationIDs := make([]string, 0, len(workflow.Steps))
+	operationIDs = make([]string, 0, len(workflow.Steps))
 	for index, step := range workflow.Steps {
 		params := step.Params
 		if params == nil {
@@ -395,7 +406,7 @@ func (core *Core) RunWorkflow(_ context.Context, request *connect.Request[localv
 			ID:            fmt.Sprintf("op-%s-%d", correlation[:8], index+1),
 			CorrelationID: correlation,
 			ProjectID:     workflow.ProjectID,
-			EnvironmentID: request.Msg.EnvironmentId,
+			EnvironmentID: environmentID,
 			Type:          step.OperationType,
 			Status:        operations.StatusQueued,
 			Params:        params,
@@ -404,13 +415,13 @@ func (core *Core) RunWorkflow(_ context.Context, request *connect.Request[localv
 			Command:       command,
 		}
 		if err := core.Store.SaveOperation(operation); err != nil {
-			return nil, internal(err)
+			return "", nil, internal(err)
 		}
 		_, _ = core.Store.AppendLog(operation.ID, "Workflow step queued for local execution.", false)
 		operationIDs = append(operationIDs, operation.ID)
 		core.enqueueOperationExecution(operation.ID)
 	}
-	return connect.NewResponse(&localv1.RunWorkflowResponse{RunId: "run-" + correlation[:12], Status: "running", OperationIds: operationIDs}), nil
+	return "run-" + correlation[:12], operationIDs, nil
 }
 
 func (core *Core) ListCliProviders(context.Context, *connect.Request[localv1.ListCliProvidersRequest]) (*connect.Response[localv1.ListCliProvidersResponse], error) {
@@ -446,31 +457,6 @@ func (core *Core) SaveIntegrationConnection(_ context.Context, request *connect.
 		return nil, internal(err)
 	}
 	return connect.NewResponse(&localv1.SaveIntegrationConnectionResponse{Connection: connectionProto(connection)}), nil
-}
-
-func (core *Core) StartProcess(_ context.Context, request *connect.Request[localv1.StartProcessRequest]) (*connect.Response[localv1.StartProcessResponse], error) {
-	if request.Msg.ProjectId == "" || request.Msg.Command == "" {
-		return nil, invalid("project id and command are required")
-	}
-	correlation := observability.NewCorrelationID()
-	command := strings.Join(append([]string{request.Msg.Command}, request.Msg.Args...), " ")
-	session := storepkg.ProcessSession{ID: "process-" + correlation[:12], ProjectID: request.Msg.ProjectId, EnvironmentID: request.Msg.EnvironmentId, Command: command, Status: "queued", Name: request.Msg.Name, NodeID: request.Msg.NodeId, StartedAt: time.Now().UTC().Format(time.RFC3339)}
-	if err := core.Store.SaveProcess(session); err != nil {
-		return nil, internal(err)
-	}
-	return connect.NewResponse(&localv1.StartProcessResponse{Session: processProto(session)}), nil
-}
-
-func (core *Core) StopProcess(_ context.Context, request *connect.Request[localv1.StopProcessRequest]) (*connect.Response[localv1.StopProcessResponse], error) {
-	session, err := core.Store.GetProcess(request.Msg.Id)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	session.Status = "stopped"
-	if err := core.Store.SaveProcess(session); err != nil {
-		return nil, internal(err)
-	}
-	return connect.NewResponse(&localv1.StopProcessResponse{Session: processProto(session)}), nil
 }
 
 func (core *Core) GetProcess(_ context.Context, request *connect.Request[localv1.GetProcessRequest]) (*connect.Response[localv1.GetProcessResponse], error) {

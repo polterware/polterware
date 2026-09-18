@@ -10,13 +10,19 @@ The Desktop opens at **Architecture / Canvas** and supports multiple local proje
 - Resources — Inventory, Nodes, Processes
 - Knowledge — Docs, Runbooks
 - Operations — Runs, Workflows, Schedules
-- Terminal — visual session page and drawer
+- Terminal — live local sessions (page and drawer)
 - Integrations — Connected, Catalog
 - Settings — General, Environments, Advanced
 
-Desktop data is demonstrative and held in the current session. It does not launch, query, or supervise the Go core. Integration setup renders a guided terminal transcript but never starts a command, PTY, browser, or authentication flow.
+The Electron Main process starts `polterware-core`. The renderer reads and writes only through `window.polterware`. Project data persists in local SQLite (projects, environments, architecture layout, resources and nodes, knowledge, operations, workflows, schedules, and integration connections).
 
-The only active deployment mode is local and fixture-backed. The public architecture defines possible `self-hosted` and `cloud` modes, but neither is implemented today. See [the deployment model](docs/architecture/deployment-model.md) and [repository map](docs/architecture/repository-map.md).
+Terminal opens interactive local PTY sessions on the Terminal page and in the quick drawer; Expand hands the live session off to the full page. Integrations detect CLI binaries, run provider login in an in-app PTY from the setup wizard, and probe connection status. Credentials stay in the OS/CLI credential store; the app does not request, display, or persist provider tokens in SQLite.
+
+Operations run locally through the core. Active schedules are evaluated by the core runner while the core is running; missed times while the core was offline are skipped.
+
+Known gaps: integration Sync does not yet import live provider inventory, and Processes remain largely a read-only listing.
+
+The only active deployment mode is **local**. The public architecture defines possible `self-hosted` and `cloud` modes, but neither is implemented today. See [the deployment model](docs/architecture/deployment-model.md) and [repository map](docs/architecture/repository-map.md).
 
 ## Open-source and Cloud
 
@@ -36,7 +42,7 @@ policy remain independent commercial decisions. See
 - `apps/desktop` — Electron Main, preload bridge, and Solid renderer
 - `packages/features` — retained product surfaces
 - `packages/frontend` — shared design system, canvas, and state
-- `backend` — reduced Go core retained for future local runtime work
+- `backend` — local Go runtime (`polterware-core`)
 - `schemas` — Protobuf contracts and generated Go code
 - `docs/spec.md` — normative product scope
 - `docs/architecture` — deployment and repository boundaries
@@ -50,6 +56,12 @@ pnpm install
 pnpm dev:desktop
 ```
 
+`pnpm dev:desktop` starts the Desktop together with `polterware-core`. For standalone core development:
+
+```bash
+pnpm dev:core
+```
+
 Static checks:
 
 ```bash
@@ -59,14 +71,6 @@ cd schemas && buf lint
 cd ../backend && go vet ./...
 git diff --check
 ```
-
-The standalone core can be run explicitly for backend development:
-
-```bash
-pnpm dev:core
-```
-
-The Desktop remains fixture-only until a later version deliberately reconnects it to the core.
 
 ## Contributing and security
 

@@ -10,7 +10,10 @@ describe("Integration sync honesty contract", () => {
     const index = readFileSync(resolve(root, "index.tsx"), "utf8");
 
     expect(detail).toContain('label="Refresh metadata"');
+    expect(detail).toContain("Sync history");
+    expect(detail).toContain("Refresh metadata imports a bounded inventory from the local CLI");
     expect(detail).not.toContain("Refresh fixture");
+    expect(detail).not.toContain("Fixture refresh history");
     expect(detail).not.toContain("Fixture metadata refreshed");
     expect(detail).not.toContain("Connection fixture");
     expect(detail).not.toContain("Last fixture refresh");

@@ -51,6 +51,9 @@ const (
 	// IntegrationServiceSaveIntegrationSyncRunProcedure is the fully-qualified name of the
 	// IntegrationService's SaveIntegrationSyncRun RPC.
 	IntegrationServiceSaveIntegrationSyncRunProcedure = "/polterware.local.v1.IntegrationService/SaveIntegrationSyncRun"
+	// IntegrationServiceSyncIntegrationConnectionProcedure is the fully-qualified name of the
+	// IntegrationService's SyncIntegrationConnection RPC.
+	IntegrationServiceSyncIntegrationConnectionProcedure = "/polterware.local.v1.IntegrationService/SyncIntegrationConnection"
 	// IntegrationServiceProbeCliProviderProcedure is the fully-qualified name of the
 	// IntegrationService's ProbeCliProvider RPC.
 	IntegrationServiceProbeCliProviderProcedure = "/polterware.local.v1.IntegrationService/ProbeCliProvider"
@@ -67,6 +70,7 @@ type IntegrationServiceClient interface {
 	ListIntegrationResources(context.Context, *connect.Request[v1.ListIntegrationResourcesRequest]) (*connect.Response[v1.ListIntegrationResourcesResponse], error)
 	ListIntegrationSyncRuns(context.Context, *connect.Request[v1.ListIntegrationSyncRunsRequest]) (*connect.Response[v1.ListIntegrationSyncRunsResponse], error)
 	SaveIntegrationSyncRun(context.Context, *connect.Request[v1.SaveIntegrationSyncRunRequest]) (*connect.Response[v1.SaveIntegrationSyncRunResponse], error)
+	SyncIntegrationConnection(context.Context, *connect.Request[v1.SyncIntegrationConnectionRequest]) (*connect.Response[v1.SyncIntegrationConnectionResponse], error)
 	ProbeCliProvider(context.Context, *connect.Request[v1.ProbeCliProviderRequest]) (*connect.Response[v1.ProbeCliProviderResponse], error)
 	BeginCliAuth(context.Context, *connect.Request[v1.BeginCliAuthRequest]) (*connect.Response[v1.BeginCliAuthResponse], error)
 }
@@ -118,6 +122,12 @@ func NewIntegrationServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(integrationServiceMethods.ByName("SaveIntegrationSyncRun")),
 			connect.WithClientOptions(opts...),
 		),
+		syncIntegrationConnection: connect.NewClient[v1.SyncIntegrationConnectionRequest, v1.SyncIntegrationConnectionResponse](
+			httpClient,
+			baseURL+IntegrationServiceSyncIntegrationConnectionProcedure,
+			connect.WithSchema(integrationServiceMethods.ByName("SyncIntegrationConnection")),
+			connect.WithClientOptions(opts...),
+		),
 		probeCliProvider: connect.NewClient[v1.ProbeCliProviderRequest, v1.ProbeCliProviderResponse](
 			httpClient,
 			baseURL+IntegrationServiceProbeCliProviderProcedure,
@@ -141,6 +151,7 @@ type integrationServiceClient struct {
 	listIntegrationResources   *connect.Client[v1.ListIntegrationResourcesRequest, v1.ListIntegrationResourcesResponse]
 	listIntegrationSyncRuns    *connect.Client[v1.ListIntegrationSyncRunsRequest, v1.ListIntegrationSyncRunsResponse]
 	saveIntegrationSyncRun     *connect.Client[v1.SaveIntegrationSyncRunRequest, v1.SaveIntegrationSyncRunResponse]
+	syncIntegrationConnection  *connect.Client[v1.SyncIntegrationConnectionRequest, v1.SyncIntegrationConnectionResponse]
 	probeCliProvider           *connect.Client[v1.ProbeCliProviderRequest, v1.ProbeCliProviderResponse]
 	beginCliAuth               *connect.Client[v1.BeginCliAuthRequest, v1.BeginCliAuthResponse]
 }
@@ -176,6 +187,11 @@ func (c *integrationServiceClient) SaveIntegrationSyncRun(ctx context.Context, r
 	return c.saveIntegrationSyncRun.CallUnary(ctx, req)
 }
 
+// SyncIntegrationConnection calls polterware.local.v1.IntegrationService.SyncIntegrationConnection.
+func (c *integrationServiceClient) SyncIntegrationConnection(ctx context.Context, req *connect.Request[v1.SyncIntegrationConnectionRequest]) (*connect.Response[v1.SyncIntegrationConnectionResponse], error) {
+	return c.syncIntegrationConnection.CallUnary(ctx, req)
+}
+
 // ProbeCliProvider calls polterware.local.v1.IntegrationService.ProbeCliProvider.
 func (c *integrationServiceClient) ProbeCliProvider(ctx context.Context, req *connect.Request[v1.ProbeCliProviderRequest]) (*connect.Response[v1.ProbeCliProviderResponse], error) {
 	return c.probeCliProvider.CallUnary(ctx, req)
@@ -195,6 +211,7 @@ type IntegrationServiceHandler interface {
 	ListIntegrationResources(context.Context, *connect.Request[v1.ListIntegrationResourcesRequest]) (*connect.Response[v1.ListIntegrationResourcesResponse], error)
 	ListIntegrationSyncRuns(context.Context, *connect.Request[v1.ListIntegrationSyncRunsRequest]) (*connect.Response[v1.ListIntegrationSyncRunsResponse], error)
 	SaveIntegrationSyncRun(context.Context, *connect.Request[v1.SaveIntegrationSyncRunRequest]) (*connect.Response[v1.SaveIntegrationSyncRunResponse], error)
+	SyncIntegrationConnection(context.Context, *connect.Request[v1.SyncIntegrationConnectionRequest]) (*connect.Response[v1.SyncIntegrationConnectionResponse], error)
 	ProbeCliProvider(context.Context, *connect.Request[v1.ProbeCliProviderRequest]) (*connect.Response[v1.ProbeCliProviderResponse], error)
 	BeginCliAuth(context.Context, *connect.Request[v1.BeginCliAuthRequest]) (*connect.Response[v1.BeginCliAuthResponse], error)
 }
@@ -242,6 +259,12 @@ func NewIntegrationServiceHandler(svc IntegrationServiceHandler, opts ...connect
 		connect.WithSchema(integrationServiceMethods.ByName("SaveIntegrationSyncRun")),
 		connect.WithHandlerOptions(opts...),
 	)
+	integrationServiceSyncIntegrationConnectionHandler := connect.NewUnaryHandler(
+		IntegrationServiceSyncIntegrationConnectionProcedure,
+		svc.SyncIntegrationConnection,
+		connect.WithSchema(integrationServiceMethods.ByName("SyncIntegrationConnection")),
+		connect.WithHandlerOptions(opts...),
+	)
 	integrationServiceProbeCliProviderHandler := connect.NewUnaryHandler(
 		IntegrationServiceProbeCliProviderProcedure,
 		svc.ProbeCliProvider,
@@ -268,6 +291,8 @@ func NewIntegrationServiceHandler(svc IntegrationServiceHandler, opts ...connect
 			integrationServiceListIntegrationSyncRunsHandler.ServeHTTP(w, r)
 		case IntegrationServiceSaveIntegrationSyncRunProcedure:
 			integrationServiceSaveIntegrationSyncRunHandler.ServeHTTP(w, r)
+		case IntegrationServiceSyncIntegrationConnectionProcedure:
+			integrationServiceSyncIntegrationConnectionHandler.ServeHTTP(w, r)
 		case IntegrationServiceProbeCliProviderProcedure:
 			integrationServiceProbeCliProviderHandler.ServeHTTP(w, r)
 		case IntegrationServiceBeginCliAuthProcedure:
@@ -303,6 +328,10 @@ func (UnimplementedIntegrationServiceHandler) ListIntegrationSyncRuns(context.Co
 
 func (UnimplementedIntegrationServiceHandler) SaveIntegrationSyncRun(context.Context, *connect.Request[v1.SaveIntegrationSyncRunRequest]) (*connect.Response[v1.SaveIntegrationSyncRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.IntegrationService.SaveIntegrationSyncRun is not implemented"))
+}
+
+func (UnimplementedIntegrationServiceHandler) SyncIntegrationConnection(context.Context, *connect.Request[v1.SyncIntegrationConnectionRequest]) (*connect.Response[v1.SyncIntegrationConnectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.IntegrationService.SyncIntegrationConnection is not implemented"))
 }
 
 func (UnimplementedIntegrationServiceHandler) ProbeCliProvider(context.Context, *connect.Request[v1.ProbeCliProviderRequest]) (*connect.Response[v1.ProbeCliProviderResponse], error) {

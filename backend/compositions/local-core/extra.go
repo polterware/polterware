@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -112,7 +113,40 @@ func (core *Core) SaveSchedule(_ context.Context, request *connect.Request[local
 	if item == nil || item.Id == "" || item.ProjectId == "" || item.WorkflowId == "" {
 		return nil, invalid("schedule id, project id, and workflow id are required")
 	}
-	schedule := operations.Schedule{ID: item.Id, ProjectID: item.ProjectId, EnvironmentID: item.EnvironmentId, Name: item.Name, Description: item.Description, Status: item.Status, WorkflowID: item.WorkflowId, Expression: item.Expression, Timezone: item.Timezone, NextRunAt: item.NextRunAt, LastRunAt: item.LastRunAt}
+	timezone := item.Timezone
+	if timezone == "" {
+		timezone = "UTC"
+	}
+	if _, _, err := ParseScheduleCron(item.Expression, timezone); err != nil {
+		return nil, invalid(err.Error())
+	}
+	nextRunAt := item.NextRunAt
+	if nextRunAt == "" {
+		computed, err := NextRunAtString(item.Expression, timezone, time.Now().UTC())
+		if err != nil {
+			return nil, invalid(err.Error())
+		}
+		nextRunAt = computed
+	} else if _, err := ParseScheduleInstant(nextRunAt); err != nil {
+		computed, err := NextRunAtString(item.Expression, timezone, time.Now().UTC())
+		if err != nil {
+			return nil, invalid(err.Error())
+		}
+		nextRunAt = computed
+	}
+	schedule := operations.Schedule{
+		ID:            item.Id,
+		ProjectID:     item.ProjectId,
+		EnvironmentID: item.EnvironmentId,
+		Name:          item.Name,
+		Description:   item.Description,
+		Status:        item.Status,
+		WorkflowID:    item.WorkflowId,
+		Expression:    item.Expression,
+		Timezone:      timezone,
+		NextRunAt:     nextRunAt,
+		LastRunAt:     item.LastRunAt,
+	}
 	if err := core.Store.SaveSchedule(schedule); err != nil {
 		return nil, internal(err)
 	}

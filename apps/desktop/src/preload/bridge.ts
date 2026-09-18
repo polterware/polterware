@@ -84,6 +84,7 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
         listResources: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listIntegrationResources, payload),
         listSyncRuns: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listIntegrationSyncRuns, payload),
         saveSyncRun: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveIntegrationSyncRun, payload),
+        syncConnection: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.syncIntegrationConnection, payload),
         probeProvider: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.probeCliProvider, payload),
         beginAuth: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.beginCliAuth, payload),
       },

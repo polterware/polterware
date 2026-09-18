@@ -3,6 +3,7 @@ import type { ArchitectureDocument, CaptureMode, NodeType } from "@polterware/fr
 import {
   createEmptyDocument,
   docAddNode,
+  newId,
   serializeDocument,
   updateNode as docUpdateNode,
 } from "@polterware/frontend-canvas";
@@ -214,7 +215,9 @@ export function ArchitectureView(props: {
   onTabChange?: (tab: string) => void;
   onCreateNode?: () => void;
   onCloseCreateNode?: () => void;
-  onSubmitCreateNode?: (draft: ArchNodeDraft) => void;
+  onSubmitCreateNode?: (
+    result: { ok: true; nodeId: string } | { ok: false; error: string },
+  ) => void;
 }) {
   const tab = () => normalizeArchitectureTab(props.tab);
   const systemId = () => props.systems?.[0]?.id ?? SYSTEM_ID_DEFAULT;
@@ -403,13 +406,15 @@ export function ArchitectureView(props: {
     setSaveStatus("saved");
   }
 
-  function submitCreate(draft: ArchNodeDraft) {
+  async function submitCreate(draft: ArchNodeDraft) {
     const type = mapDraftType(draft.type, draft.typeId);
     const envId = draft.environment
       ? draft.environment.toLowerCase().replace(/\s+/g, "-")
       : "production";
     const linked = Boolean(draft.linkedResourceId);
+    const nodeId = newId("node");
     const next = docAddNode(doc(), {
+      id: nodeId,
       name: draft.name.trim() || draft.type || "Untitled",
       type,
       subtype: draft.subtype,
@@ -425,7 +430,25 @@ export function ArchitectureView(props: {
       linkStatus: linked ? "linked" : "unlinked",
     });
     onDocumentChange(next, "immediately");
-    props.onSubmitCreateNode?.(draft);
+
+    const ctrl = autosave();
+    if (ctrl) {
+      await ctrl.flush(
+        () => serializeDocument(next),
+        () => revision(),
+      );
+      if (ctrl.status() === "error") {
+        props.onSubmitCreateNode?.({
+          ok: false,
+          error: ctrl.lastError() ?? "Could not save architecture layout.",
+        });
+        props.onCloseCreateNode?.();
+        return;
+      }
+    }
+
+    select(nodeId);
+    props.onSubmitCreateNode?.({ ok: true, nodeId });
     props.onCloseCreateNode?.();
   }
 

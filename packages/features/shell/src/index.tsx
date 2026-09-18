@@ -10,14 +10,12 @@ import { TitleBar } from "./title-bar";
 import { TargetPicker } from "./target-picker";
 import { TerminalSidePanel } from "./terminal-side-panel";
 import { unusableTerminalTargetFeedback } from "./terminal-session-model";
+import type { LiveTerminalSession } from "./live-terminal-session";
 import type { BreadcrumbLevel, WorkspaceContext } from "./context-switchers";
 import type { EnvironmentItem, ProjectSwitcherItem, TerminalTargetItem } from "./types";
-import {
-  ENVIRONMENT_FIXTURES,
-  PROJECT_SWITCHER_FIXTURES,
-  TERMINAL_TARGET_FIXTURES,
-} from "./fixtures";
+import { ENVIRONMENT_FIXTURES } from "./fixtures";
 
+export type { LiveTerminalSession } from "./live-terminal-session";
 export type {
   ClientRoute,
   DialogState,
@@ -86,6 +84,7 @@ export { MainSurface, PageHeader, PageContent } from "./main-surface";
 export { SidebarNav, SidebarSettingsItem } from "./sidebar";
 export { TitleBar } from "./title-bar";
 export { TerminalPage } from "./terminal-page";
+export { TerminalEmulator } from "./terminal-emulator";
 export { TerminalTranscript } from "./terminal-transcript";
 export { CreateProjectPage } from "./create-project";
 export { ProjectSwitcher } from "./project-switcher";
@@ -156,12 +155,27 @@ export function Shell(props: {
   onCreateProject?: () => void;
   onSelectEnvironment?: (environmentId: string) => void;
   onOpenCommander?: () => void;
-  onExpandTerminal?: (targetId: string) => void;
+  onExpandTerminal?: (payload: { targetId: string; session: LiveTerminalSession }) => void;
   onOpenSettings?: () => void;
   workspace?: WorkspaceContext;
   projects?: ProjectSwitcherItem[];
   environments?: EnvironmentItem[];
   terminalTargets?: TerminalTargetItem[];
+  projectId?: string;
+  onCreateTerminalSession?: (input: {
+    projectId: string;
+    targetId: string;
+    cols: number;
+    rows: number;
+  }) => Promise<LiveTerminalSession>;
+  onWriteTerminalSession?: (id: string, data: string) => Promise<void>;
+  onResizeTerminalSession?: (id: string, cols: number, rows: number) => Promise<void>;
+  onCloseTerminalSession?: (id: string) => Promise<void>;
+  onReadTerminalSession?: (id: string, offset: number) => Promise<{
+    data: string;
+    nextOffset: number;
+    closed: boolean;
+  }>;
   status?: ShellStatus;
   navItems?: NavItem[];
   platform?: PlatformContext;
@@ -273,7 +287,7 @@ export function Shell(props: {
       <TargetPicker
         open={targetPickerOpen()}
         onClose={() => setTargetPickerOpen(false)}
-        targets={props.terminalTargets ?? TERMINAL_TARGET_FIXTURES}
+        targets={props.terminalTargets ?? []}
         environmentId={workspace().environmentId}
         onSelect={(targetId) => {
           setTerminalTargetId(targetId);
@@ -285,11 +299,17 @@ export function Shell(props: {
       <TerminalSidePanel
         open={Boolean(terminalTargetId())}
         targetId={terminalTargetId()}
-        targets={props.terminalTargets ?? TERMINAL_TARGET_FIXTURES}
+        targets={props.terminalTargets ?? []}
+        projectId={props.projectId}
+        onCreateSession={props.onCreateTerminalSession}
+        onWriteSession={props.onWriteTerminalSession}
+        onResizeSession={props.onResizeTerminalSession}
+        onCloseSession={props.onCloseTerminalSession}
+        onReadSession={props.onReadTerminalSession}
         onClose={() => setTerminalTargetId(null)}
-        onExpand={(targetId) => {
+        onExpand={(payload) => {
           setTerminalTargetId(null);
-          props.onExpandTerminal?.(targetId);
+          props.onExpandTerminal?.(payload);
         }}
       />
       <ToastRegion />

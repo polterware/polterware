@@ -20,6 +20,7 @@ import {
   routesEqual,
   type ClientRoute,
   type EnvironmentItem,
+  type LiveTerminalSession,
 } from "@polterware/feature-shell";
 import { ArchitectureView } from "@polterware/feature-architecture";
 import { ResourcesView } from "@polterware/feature-resources";
@@ -48,7 +49,10 @@ import {
   persistLayout,
   persistOperationPreview,
   persistProjectSettings,
+  persistNode,
   persistResource,
+  persistStartProcess,
+  persistStopProcess,
   persistRunbookRun,
   persistSchedule,
   persistView,
@@ -220,12 +224,17 @@ export function App() {
     return "local" as const;
   };
 
+  const [handedOffTerminalSession, setHandedOffTerminalSession] = createSignal<LiveTerminalSession | null>(
+    null,
+  );
+
   return (
     <Shell
       route={route}
       projects={workspace().projects}
       environments={workspace().environments}
       terminalTargets={workspace().terminalTargets}
+      projectId={currentProjectId()}
       onNavigate={navigateSection}
       onProjectSelect={selectProject}
       onCreateProject={() => applyRoute(goCreateProject(route()))}
@@ -233,7 +242,36 @@ export function App() {
         applyRoute(setEnvironment(route(), environmentId))
       }
       onOpenCommander={() => setPaletteOpen(true)}
-      onExpandTerminal={() => applyRoute(goSection(route(), "terminal"))}
+      onExpandTerminal={(payload) => {
+        setHandedOffTerminalSession(payload.session);
+        applyRoute(setSessionId(goSection(route(), "terminal"), payload.session.id));
+      }}
+      onCreateTerminalSession={async (input) => {
+        const { createLiveTerminalSession } = await import("./workspace/terminal");
+        const session = await createLiveTerminalSession(input);
+        const target = workspace().terminalTargets.find((item) => item.id === input.targetId);
+        return {
+          ...session,
+          name: target?.name ?? session.name,
+          nodeName: target?.name ?? session.nodeName,
+        };
+      }}
+      onWriteTerminalSession={async (id, data) => {
+        const { writeLiveTerminalSession } = await import("./workspace/terminal");
+        await writeLiveTerminalSession(id, data);
+      }}
+      onResizeTerminalSession={async (id, cols, rows) => {
+        const { resizeLiveTerminalSession } = await import("./workspace/terminal");
+        await resizeLiveTerminalSession(id, cols, rows);
+      }}
+      onCloseTerminalSession={async (id) => {
+        const { closeLiveTerminalSession } = await import("./workspace/terminal");
+        await closeLiveTerminalSession(id);
+      }}
+      onReadTerminalSession={async (id, offset) => {
+        const { readLiveTerminalOutput } = await import("./workspace/terminal");
+        return readLiveTerminalOutput(id, offset);
+      }}
       onOpenSettings={() => applyRoute(setTab(goSection(route(), "settings"), "general"))}
       canGoBack={historyIndex() > 0}
       canGoForward={historyIndex() < history().length - 1}
@@ -295,9 +333,13 @@ export function App() {
               applyRoute(openDialog(route(), { type: "arch-node-create" }), "silent")
             }
             onCloseCreateNode={() => applyRoute(closeDialog(route()), "silent")}
-            onSubmitCreateNode={() => {
+            onSubmitCreateNode={(result) => {
               applyRoute(closeDialog(route()), "silent");
-              pushToast("Architecture node added to the local canvas.", "success");
+              if (!result.ok) {
+                pushToast(result.error || "Could not save architecture node.", "danger");
+                return;
+              }
+              pushToast("Architecture node saved to the local canvas.", "success");
             }}
             onSaveLayout={async (bodyJson, expectedRevision) => {
               const result = await persistLayout(currentProjectId(), bodyJson, expectedRevision);
@@ -343,6 +385,8 @@ export function App() {
             filters={[...(route().filters?.status ?? [])]}
             environmentId={route().environmentId}
             dialogOpen={route().dialog?.type === "resource-create"}
+            nodeDialogOpen={route().dialog?.type === "node-create"}
+            processDialogOpen={route().dialog?.type === "process-create"}
             onSearch={(search) => applyRoute(setSearch(route(), search), "replace")}
             onFiltersChange={(filters) =>
               applyRoute(setFilters(route(), { status: filters }), "replace")
@@ -360,7 +404,11 @@ export function App() {
               )
             }
             onCreate={() => applyRoute(openDialog(route(), { type: "resource-create" }), "silent")}
+            onCreateNode={() => applyRoute(openDialog(route(), { type: "node-create" }), "silent")}
+            onCreateProcess={() => applyRoute(openDialog(route(), { type: "process-create" }), "silent")}
             onCloseDialog={() => applyRoute(closeDialog(route()), "silent")}
+            onCloseNodeDialog={() => applyRoute(closeDialog(route()), "silent")}
+            onCloseProcessDialog={() => applyRoute(closeDialog(route()), "silent")}
             onSubmitDialog={(draft) => {
               void persistResource({
                 projectId: currentProjectId(),
@@ -373,6 +421,44 @@ export function App() {
                 await refreshWorkspace(currentProjectId());
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not save resource.", "danger");
+              });
+            }}
+            onSubmitNodeDialog={(draft) => {
+              void persistNode({
+                projectId: currentProjectId(),
+                environmentId: route().environmentId,
+                name: draft.name,
+                platform: draft.platform,
+                shell: draft.shell,
+              }).then(async () => {
+                applyRoute(closeDialog(route()), "silent");
+                pushToast("Node saved locally.", "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not save node.", "danger");
+              });
+            }}
+            onSubmitProcessDialog={(draft) => {
+              void persistStartProcess({
+                projectId: currentProjectId(),
+                environmentId: route().environmentId,
+                name: draft.name,
+                command: draft.command,
+                cwd: draft.cwd,
+              }).then(async () => {
+                applyRoute(closeDialog(route()), "silent");
+                pushToast("Process started on the local host.", "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not start process.", "danger");
+              });
+            }}
+            onStopProcess={(id) => {
+              void persistStopProcess(id).then(async () => {
+                pushToast("Process stopped.", "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not stop process.", "danger");
               });
             }}
             onTerminal={() => applyRoute(goSection(route(), "terminal"))}
@@ -466,8 +552,14 @@ export function App() {
           <TerminalPage
             projectId={currentProjectId()}
             sessionId={route().sessionId}
+            initialSession={handedOffTerminalSession()}
             targets={workspace().terminalTargets}
-            onSelectSession={(id) => applyRoute(setSessionId(route(), id), "silent")}
+            onSelectSession={(id) => {
+              applyRoute(setSessionId(route(), id), "silent");
+              if (handedOffTerminalSession()?.id === id) {
+                setHandedOffTerminalSession(null);
+              }
+            }}
             onCreateSession={async (input) => {
               const { createLiveTerminalSession } = await import("./workspace/terminal");
               const session = await createLiveTerminalSession(input);
@@ -585,6 +677,7 @@ export function App() {
 
         <Match when={route().section === "integrations"}>
           <IntegrationsView
+            projectId={currentProjectId()}
             providers={workspace().providers}
             integrations={workspace().integrations}
             resources={workspace().integrationResources}
@@ -613,15 +706,14 @@ export function App() {
               });
             }}
             onSync={(integrationId) => {
-              const resourceCount = workspace().integrationResources.filter(
-                (resource) => resource.integrationId === integrationId,
-              ).length;
               void persistIntegrationSync({
-                projectId: currentProjectId(),
                 connectionId: integrationId,
-                resourceCount,
-              }).then(async () => {
-                pushToast("Integration metadata refreshed locally.", "success");
+              }).then(async (run) => {
+                if (run.result === "success") {
+                  pushToast(run.message || "Integration inventory synced.", "success");
+                } else {
+                  pushToast(run.message || "Integration inventory sync failed.", "danger");
+                }
                 await refreshWorkspace(currentProjectId());
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not refresh integration metadata.", "danger");

@@ -134,7 +134,8 @@ describe("UI contract source", () => {
     const page = readFileSync(join(here, "terminal-page.tsx"), "utf8");
     expect(page).toContain("StatusChip");
     expect(page).toContain("terminalSessionStatusTone");
-    expect(page).toContain("font-mono");
+    expect(page).toContain("TerminalEmulator");
+    expect(page).toContain("initialSession");
     expect(page).toContain("unusableTerminalTargetFeedback");
     expect(page).toContain("No terminal sessions");
     expect(page).toContain("No targets available");
@@ -150,10 +151,14 @@ describe("UI contract source", () => {
     expect(picker).toContain("No targets available");
   });
 
-  it("side panel shows StatusChip without live-host claim", () => {
+  it("side panel hosts live TerminalEmulator without fixture transcript", () => {
     const panel = readFileSync(join(here, "terminal-side-panel.tsx"), "utf8");
     expect(panel).toContain("StatusChip");
-    expect(panel).toContain("font-mono");
+    expect(panel).toContain("TerminalEmulator");
+    expect(panel).toContain("closeOnInteractOutside={false}");
+    expect(panel).toContain("flush");
+    expect(panel).not.toContain("TERMINAL_SESSION_MOCKS");
+    expect(panel).not.toContain("TERMINAL_OUTPUT_FIXTURES");
     expect(panel.toLowerCase()).not.toMatch(/connected to real host/);
     // Old dishonest "Connected" for usable targets must not return
     expect(panel).not.toMatch(/return "Connected"/);

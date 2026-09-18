@@ -40,6 +40,18 @@ func (s *Store) SaveNode(node resources.Node) error {
 	return err
 }
 
+func (s *Store) GetNode(id string) (resources.Node, error) {
+	var item resources.Node
+	err := s.DB.QueryRow(
+		`SELECT id,project_id,COALESCE(environment_id,''),name,platform,shell,status,address,cpu,memory,last_seen_at FROM nodes WHERE id=?`,
+		id,
+	).Scan(
+		&item.ID, &item.ProjectID, &item.EnvironmentID, &item.Name, &item.Platform, &item.Shell,
+		&item.Status, &item.Address, &item.CPU, &item.Memory, &item.LastSeenAt,
+	)
+	return item, err
+}
+
 func (s *Store) ListNodes(projectID string) ([]resources.Node, error) {
 	rows, err := s.DB.Query(`SELECT id,project_id,COALESCE(environment_id,''),name,platform,shell,status,address,cpu,memory,last_seen_at FROM nodes WHERE project_id=? ORDER BY name`, projectID)
 	if err != nil {
@@ -160,11 +172,39 @@ func (s *Store) ListSchedules(projectID string) ([]operations.Schedule, error) {
 	return result, rows.Err()
 }
 
+func (s *Store) ListActiveSchedules() ([]operations.Schedule, error) {
+	rows, err := s.DB.Query(`SELECT id,project_id,COALESCE(environment_id,''),name,description,status,workflow_id,expression,timezone,next_run_at,last_run_at FROM operation_schedules WHERE status='active' ORDER BY next_run_at, name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []operations.Schedule
+	for rows.Next() {
+		var item operations.Schedule
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.EnvironmentID, &item.Name, &item.Description, &item.Status, &item.WorkflowID, &item.Expression, &item.Timezone, &item.NextRunAt, &item.LastRunAt); err != nil {
+			return nil, err
+		}
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
 func (s *Store) SaveIntegrationResource(resource integrations.Resource) error {
 	_, err := s.DB.Exec(`INSERT INTO integration_resources(id,connection_id,name,kind,external_id,environment_id,status,inventory_resource_id) VALUES(?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET connection_id=excluded.connection_id,name=excluded.name,kind=excluded.kind,external_id=excluded.external_id,environment_id=excluded.environment_id,status=excluded.status,inventory_resource_id=excluded.inventory_resource_id`,
 		resource.ID, resource.ConnectionID, resource.Name, resource.Kind, resource.ExternalID, nullable(resource.EnvironmentID), resource.Status, nullable(resource.InventoryResourceID))
 	return err
+}
+
+func (s *Store) DeleteIntegrationResourcesByConnection(connectionID string) error {
+	_, err := s.DB.Exec(`DELETE FROM integration_resources WHERE connection_id=?`, connectionID)
+	return err
+}
+
+func (s *Store) CountIntegrationResourcesByConnection(connectionID string) (int, error) {
+	var count int
+	err := s.DB.QueryRow(`SELECT COUNT(*) FROM integration_resources WHERE connection_id=?`, connectionID).Scan(&count)
+	return count, err
 }
 
 func (s *Store) ListIntegrationResources(projectID string) ([]integrations.Resource, error) {

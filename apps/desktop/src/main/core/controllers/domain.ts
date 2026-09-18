@@ -1,4 +1,5 @@
 import type { JsonObject } from "../../../shared/ipc.js";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { decodeBase64Bytes, toJsonObject, type CoreClients } from "../client.js";
 
 function payload(value: JsonObject | undefined): Record<string, unknown> {
@@ -14,6 +15,16 @@ function terminalWriteMessage(value: JsonObject | undefined): never {
   const data = decodeBase64Bytes(next.data);
   if (data) next.data = data;
   return next as never;
+}
+
+function isTerminalNotFound(error: unknown): boolean {
+  if (error instanceof ConnectError) {
+    if (error.code === Code.NotFound) return true;
+    const raw = `${error.rawMessage ?? ""} ${error.message}`.toLowerCase();
+    if (raw.includes("terminal session not found")) return true;
+  }
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return message.includes("terminal session not found") || message.includes("not_found");
 }
 
 export function createCoreDomainControllers(clients: CoreClients) {
@@ -56,6 +67,7 @@ export function createCoreDomainControllers(clients: CoreClients) {
     listIntegrationResources: async (input?: JsonObject) => toJsonObject(await clients.integrations.listIntegrationResources(requestMessage(input))),
     listIntegrationSyncRuns: async (input?: JsonObject) => toJsonObject(await clients.integrations.listIntegrationSyncRuns(requestMessage(input))),
     saveIntegrationSyncRun: async (input?: JsonObject) => toJsonObject(await clients.integrations.saveIntegrationSyncRun(requestMessage(input))),
+    syncIntegrationConnection: async (input?: JsonObject) => toJsonObject(await clients.integrations.syncIntegrationConnection(requestMessage(input))),
     probeCliProvider: async (input?: JsonObject) => toJsonObject(await clients.integrations.probeCliProvider(requestMessage(input))),
     beginCliAuth: async (input?: JsonObject) => toJsonObject(await clients.integrations.beginCliAuth(requestMessage(input))),
     listProcesses: async (input?: JsonObject) => toJsonObject(await clients.processes.listProcesses(requestMessage(input))),
@@ -63,10 +75,41 @@ export function createCoreDomainControllers(clients: CoreClients) {
     stopProcess: async (input?: JsonObject) => toJsonObject(await clients.processes.stopProcess(requestMessage(input))),
     getProcess: async (input?: JsonObject) => toJsonObject(await clients.processes.getProcess(requestMessage(input))),
     createTerminalSession: async (input?: JsonObject) => toJsonObject(await clients.terminals.createTerminalSession(requestMessage(input))),
-    writeTerminalSession: async (input?: JsonObject) => toJsonObject(await clients.terminals.writeTerminalSession(terminalWriteMessage(input))),
-    resizeTerminalSession: async (input?: JsonObject) => toJsonObject(await clients.terminals.resizeTerminalSession(requestMessage(input))),
-    closeTerminalSession: async (input?: JsonObject) => toJsonObject(await clients.terminals.closeTerminalSession(requestMessage(input))),
-    readTerminalOutput: async (input?: JsonObject) => toJsonObject(await clients.terminals.readTerminalOutput(requestMessage(input))),
+    writeTerminalSession: async (input?: JsonObject) => {
+      try {
+        return toJsonObject(await clients.terminals.writeTerminalSession(terminalWriteMessage(input)));
+      } catch (error: unknown) {
+        if (isTerminalNotFound(error)) return {};
+        throw error;
+      }
+    },
+    resizeTerminalSession: async (input?: JsonObject) => {
+      try {
+        return toJsonObject(await clients.terminals.resizeTerminalSession(requestMessage(input)));
+      } catch (error: unknown) {
+        if (isTerminalNotFound(error)) return {};
+        throw error;
+      }
+    },
+    closeTerminalSession: async (input?: JsonObject) => {
+      try {
+        return toJsonObject(await clients.terminals.closeTerminalSession(requestMessage(input)));
+      } catch (error: unknown) {
+        if (isTerminalNotFound(error)) return {};
+        throw error;
+      }
+    },
+    readTerminalOutput: async (input?: JsonObject) => {
+      try {
+        return toJsonObject(await clients.terminals.readTerminalOutput(requestMessage(input)));
+      } catch (error: unknown) {
+        if (isTerminalNotFound(error)) {
+          const offset = Number(payload(input).offset ?? 0);
+          return { data: "", nextOffset: offset, closed: true };
+        }
+        throw error;
+      }
+    },
     listTerminalSessions: async (input?: JsonObject) => toJsonObject(await clients.terminals.listTerminalSessions(requestMessage(input))),
     queryLogs: async (input?: JsonObject) => toJsonObject(await clients.logs.queryLogs(requestMessage(input))),
   };

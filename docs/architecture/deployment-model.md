@@ -47,7 +47,7 @@ subscription or authorization.
 
 ## Modes
 
-The only active first-version mode is `local`, and it is fixture-backed.
+The only active first-version mode is `local`, which uses local SQLite persistence and `polterware-core` for execution (not fixture-only).
 
 `self-hosted` exposes only the capabilities implemented by that installation.
 

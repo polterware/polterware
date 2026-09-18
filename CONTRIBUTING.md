@@ -9,7 +9,7 @@ Thank you for helping improve Polterware.
 - Open an issue before starting a large feature or architecture change.
 - Never include credentials, real tokens, personal data, production configuration, or customer data.
 
-The active product is local and fixture-backed. A contribution must not imply that self-hosted or Polterware Cloud functionality exists unless an accepted specification introduces it.
+The active product is a local SQLite-backed Desktop with `polterware-core`. A contribution must not imply that self-hosted or Polterware Cloud functionality exists unless an accepted specification introduces it.
 
 ## Development
 

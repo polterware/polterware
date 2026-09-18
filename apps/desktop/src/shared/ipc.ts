@@ -61,6 +61,7 @@ export const IPC_CHANNELS = {
     listIntegrationResources: "core:list-integration-resources",
     listIntegrationSyncRuns: "core:list-integration-sync-runs",
     saveIntegrationSyncRun: "core:save-integration-sync-run",
+    syncIntegrationConnection: "core:sync-integration-connection",
     probeCliProvider: "core:probe-cli-provider",
     beginCliAuth: "core:begin-cli-auth",
     listProcesses: "core:list-processes",

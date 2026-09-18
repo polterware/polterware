@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import { Plus } from "@polterware/frontend-design-system";
 import {
   Button,
@@ -9,6 +9,7 @@ import {
 } from "@polterware/frontend-design-system";
 import type { TerminalSessionMock } from "./workspace-mocks";
 import type { TerminalTargetItem } from "./types";
+import type { LiveTerminalSession } from "./live-terminal-session";
 import { TERMINAL_TARGET_FIXTURES } from "./fixtures";
 import { TargetPicker } from "./target-picker";
 import { TerminalEmulator } from "./terminal-emulator";
@@ -20,20 +21,13 @@ import {
   unusableTerminalTargetFeedback,
 } from "./terminal-session-model";
 
-export type LiveTerminalSession = {
-  id: string;
-  name: string;
-  targetId: string;
-  nodeName: string;
-  shell: string;
-  status: "active" | "idle" | "closed";
-  startedAt: string;
-};
+export type { LiveTerminalSession } from "./live-terminal-session";
 
 export function TerminalPage(props: {
   sessionId?: string;
   projectId?: string;
   targets?: TerminalTargetItem[];
+  initialSession?: LiveTerminalSession | null;
   onSelectSession?: (id: string) => void;
   onCreateSession?: (input: {
     projectId: string;
@@ -55,6 +49,24 @@ export function TerminalPage(props: {
   const [activeId, setActiveId] = createSignal(props.sessionId ?? "");
   const [opening, setOpening] = createSignal(false);
   let addTargetButtonEl: HTMLButtonElement | undefined;
+  let seededSessionId: string | null = null;
+
+  createEffect(() => {
+    const seed = props.initialSession;
+    if (!seed || seed.id === seededSessionId) return;
+    seededSessionId = seed.id;
+    setSessions((list) => (list.some((session) => session.id === seed.id) ? list : [...list, seed]));
+    setActiveId(seed.id);
+    props.onSelectSession?.(seed.id);
+  });
+
+  createEffect(() => {
+    const routeSessionId = props.sessionId;
+    if (!routeSessionId) return;
+    if (sessions().some((session) => session.id === routeSessionId)) {
+      setActiveId(routeSessionId);
+    }
+  });
 
   const active = createMemo(() => sessions().find((s) => s.id === activeId()) ?? null);
   const targets = () => props.targets ?? TERMINAL_TARGET_FIXTURES;

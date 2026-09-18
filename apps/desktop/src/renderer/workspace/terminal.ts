@@ -74,35 +74,77 @@ export async function createLiveTerminalSession(input: {
   };
 }
 
-export async function writeLiveTerminalSession(id: string, data: string): Promise<void> {
-  await core().terminals.write({
-    id,
-    data: utf8ToBase64(data),
-  });
-}
-
 export async function resizeLiveTerminalSession(id: string, cols: number, rows: number): Promise<void> {
-  await core().terminals.resize({ id, cols, rows });
+  if (!id) return;
+  try {
+    await core().terminals.resize({ id, cols, rows });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    if (message.includes("terminal session not found") || message.includes("not_found") || message.includes("not found")) {
+      return;
+    }
+    throw error;
+  }
 }
 
 export async function closeLiveTerminalSession(id: string): Promise<void> {
-  await core().terminals.close({ id });
+  if (!id) return;
+  try {
+    await core().terminals.close({ id });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    if (message.includes("terminal session not found") || message.includes("not_found") || message.includes("not found")) {
+      return;
+    }
+    throw error;
+  }
+}
+
+export async function writeLiveTerminalSession(id: string, data: string): Promise<void> {
+  if (!id) return;
+  try {
+    await core().terminals.write({
+      id,
+      data: utf8ToBase64(data),
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    if (message.includes("terminal session not found") || message.includes("not_found") || message.includes("not found")) {
+      return;
+    }
+    throw error;
+  }
 }
 
 export async function readLiveTerminalOutput(
   id: string,
   offset: number,
 ): Promise<{ data: string; nextOffset: number; closed: boolean }> {
-  const response = asRecord(
-    await core().terminals.read({
-      id,
-      offset,
-    }),
-  );
-  const encoded = coerceBase64(response.data);
-  return {
-    data: base64ToUtf8(encoded),
-    nextOffset: Number(response.nextOffset ?? offset),
-    closed: Boolean(response.closed),
-  };
+  if (!id) {
+    return { data: "", nextOffset: offset, closed: true };
+  }
+  try {
+    const response = asRecord(
+      await core().terminals.read({
+        id,
+        offset,
+      }),
+    );
+    const encoded = coerceBase64(response.data);
+    return {
+      data: base64ToUtf8(encoded),
+      nextOffset: Number(response.nextOffset ?? offset),
+      closed: Boolean(response.closed),
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    if (
+      message.includes("terminal session not found") ||
+      message.includes("not_found") ||
+      message.includes("not found")
+    ) {
+      return { data: "", nextOffset: offset, closed: true };
+    }
+    throw error;
+  }
 }

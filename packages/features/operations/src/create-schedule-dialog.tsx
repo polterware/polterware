@@ -79,7 +79,7 @@ export function CreateScheduleDialog(props: {
     <A11yDialog
       open={props.open}
       title="Add schedule"
-      description="This schedule is stored in the local SQLite database. It does not start a runtime."
+      description="This schedule is stored locally and runs its workflow when due while the Desktop core is open. Missed times while offline are skipped."
       onClose={close}
       footer={
         <>

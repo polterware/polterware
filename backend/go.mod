@@ -6,13 +6,14 @@ toolchain go1.23.0
 
 require (
 	connectrpc.com/connect v1.18.1
+	github.com/creack/pty v1.1.24
+	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/net v0.33.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.34.5
 )
 
 require (
-	github.com/creack/pty v1.1.24 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

@@ -117,26 +117,35 @@ export function IntegrationDetail(props: {
 
               <Show when={section() === "resources"}>
                 <DetailPanel.Section title="Imported resources">
-                  <DataTable.Root rows={resources()} getRowId={(item) => item.id}>
-                    <DataTable.Table aria-label={`${integration().name} resources`}>
-                      <DataTable.Header>
-                        <DataTable.ColumnHeader<WorkspaceIntegrationResource> id="name">Resource</DataTable.ColumnHeader>
-                        <DataTable.ColumnHeader<WorkspaceIntegrationResource> id="kind">Kind</DataTable.ColumnHeader>
-                        <DataTable.ColumnHeader<WorkspaceIntegrationResource> id="environment">Environment</DataTable.ColumnHeader>
-                        <DataTable.ColumnHeader<WorkspaceIntegrationResource> id="status">Status</DataTable.ColumnHeader>
-                      </DataTable.Header>
-                      <DataTable.Body<WorkspaceIntegrationResource>>
-                        {(resource) => (
-                          <DataTable.Row row={resource} rowId={resource.id} onActivate={() => resource.inventoryResourceId && props.onOpenResource?.(resource.inventoryResourceId)}>
-                            <DataTable.PrimaryCell icon={<Plug size={16} />} iconTone="integration" title={resource.name} />
-                            <DataTable.Cell>{resource.kind}</DataTable.Cell>
-                            <DataTable.Cell>{resource.environment}</DataTable.Cell>
-                            <DataTable.Cell><StatusChip tone="healthy" label={resource.status} /></DataTable.Cell>
-                          </DataTable.Row>
-                        )}
-                      </DataTable.Body>
-                    </DataTable.Table>
-                  </DataTable.Root>
+                  <Show
+                    when={resources().length > 0}
+                    fallback={
+                      <p class="m-0 text-[12px] text-[var(--color-text-secondary)]">
+                        No imported resources yet. Refresh metadata imports a bounded inventory from the local CLI.
+                      </p>
+                    }
+                  >
+                    <DataTable.Root rows={resources()} getRowId={(item) => item.id}>
+                      <DataTable.Table aria-label={`${integration().name} resources`}>
+                        <DataTable.Header>
+                          <DataTable.ColumnHeader<WorkspaceIntegrationResource> id="name">Resource</DataTable.ColumnHeader>
+                          <DataTable.ColumnHeader<WorkspaceIntegrationResource> id="kind">Kind</DataTable.ColumnHeader>
+                          <DataTable.ColumnHeader<WorkspaceIntegrationResource> id="environment">Environment</DataTable.ColumnHeader>
+                          <DataTable.ColumnHeader<WorkspaceIntegrationResource> id="status">Status</DataTable.ColumnHeader>
+                        </DataTable.Header>
+                        <DataTable.Body<WorkspaceIntegrationResource>>
+                          {(resource) => (
+                            <DataTable.Row row={resource} rowId={resource.id} onActivate={() => resource.inventoryResourceId && props.onOpenResource?.(resource.inventoryResourceId)}>
+                              <DataTable.PrimaryCell icon={<Plug size={16} />} iconTone="integration" title={resource.name} />
+                              <DataTable.Cell>{resource.kind}</DataTable.Cell>
+                              <DataTable.Cell>{resource.environment}</DataTable.Cell>
+                              <DataTable.Cell><StatusChip tone="healthy" label={resource.status} /></DataTable.Cell>
+                            </DataTable.Row>
+                          )}
+                        </DataTable.Body>
+                      </DataTable.Table>
+                    </DataTable.Root>
+                  </Show>
                 </DetailPanel.Section>
               </Show>
 
@@ -147,22 +156,31 @@ export function IntegrationDetail(props: {
                       <code class="text-[12px]">{item().authCommands.join(" · ")}</code>
                       <StatusChip tone={cliStateTone(item().state)} label={cliStateLabel(item().state)} />
                     </div>
-                    <TerminalTranscript lines={item().transcript} label={`${item().name} CLI transcript`} class="min-h-[220px] rounded-[var(--radius-card)]" />
-                    <p class="m-0 mt-3 text-[11px] text-[var(--color-text-muted)]">Visual transcript only. No command, browser, PTY, or authentication request is started.</p>
+                    <TerminalTranscript lines={item().transcript} label={`${item().name} CLI command preview`} class="min-h-[220px] rounded-[var(--radius-card)]" />
+                    <p class="m-0 mt-3 text-[11px] text-[var(--color-text-muted)]">Command preview only. Use Open CLI flow to start an interactive PTY login in the setup wizard.</p>
                   </DetailPanel.Section>
                 )}
               </Show>
 
               <Show when={section() === "sync"}>
-                <DetailPanel.Section title="Fixture refresh history">
-                  <div class="space-y-3">
-                    <For each={syncRuns()}>{(run) => (
-                      <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div><p class="m-0 text-[13px]">{run.message}</p><p class="m-0 mt-1 text-[11px] text-[var(--color-text-muted)]">{run.startedAt} · {run.imported} items</p></div>
-                        <StatusChip tone={syncTone(run.result)} label={run.result} />
-                      </div>
-                    )}</For>
-                  </div>
+                <DetailPanel.Section title="Sync history">
+                  <Show
+                    when={syncRuns().length > 0}
+                    fallback={
+                      <p class="m-0 text-[12px] text-[var(--color-text-secondary)]">
+                        No sync runs yet. Refresh metadata pulls inventory through the authenticated local CLI.
+                      </p>
+                    }
+                  >
+                    <div class="space-y-3">
+                      <For each={syncRuns()}>{(run) => (
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                          <div><p class="m-0 text-[13px]">{run.message}</p><p class="m-0 mt-1 text-[11px] text-[var(--color-text-muted)]">{run.startedAt} · {run.imported} items</p></div>
+                          <StatusChip tone={syncTone(run.result)} label={run.result} />
+                        </div>
+                      )}</For>
+                    </div>
+                  </Show>
                 </DetailPanel.Section>
               </Show>
             </DetailPanel.Grid>

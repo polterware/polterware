@@ -339,6 +339,57 @@ export async function persistResource(input: {
   });
 }
 
+export async function persistNode(input: {
+  projectId: string;
+  environmentId?: string;
+  name: string;
+  platform?: string;
+  shell?: string;
+}): Promise<void> {
+  await core().nodes.save({
+    node: {
+      id: newId("node"),
+      projectId: input.projectId,
+      environmentId: input.environmentId ?? "",
+      name: input.name,
+      platform: input.platform ?? "local",
+      shell: input.shell ?? "bash",
+      status: "healthy",
+      address: "",
+      cpu: "",
+      memory: "",
+      lastSeenAt: new Date().toISOString(),
+    },
+  });
+}
+
+export async function persistStartProcess(input: {
+  projectId: string;
+  environmentId?: string;
+  name?: string;
+  command: string;
+  args?: string[];
+  cwd?: string;
+  nodeId?: string;
+}): Promise<void> {
+  const parts = input.command.trim().split(/\s+/).filter(Boolean);
+  const command = parts[0] ?? "";
+  const args = input.args ?? parts.slice(1);
+  await core().processes.start({
+    projectId: input.projectId,
+    environmentId: input.environmentId ?? "",
+    name: input.name ?? "",
+    command,
+    args,
+    cwd: input.cwd ?? "",
+    nodeId: input.nodeId ?? "",
+  });
+}
+
+export async function persistStopProcess(id: string): Promise<void> {
+  await core().processes.stop({ id });
+}
+
 export async function persistOperationPreview(input: {
   projectId: string;
   environmentId?: string;
@@ -467,46 +518,16 @@ export async function persistIntegrationConnection(input: {
 }
 
 export async function persistIntegrationSync(input: {
-  projectId: string;
   connectionId: string;
-  resourceCount: number;
-}): Promise<void> {
-  const now = new Date().toISOString();
-  await core().integrations.saveSyncRun({
-    run: {
-      id: newId("sync"),
-      connectionId: input.connectionId,
-      startedAt: now,
-      finishedAt: now,
-      result: "success",
-      imported: input.resourceCount,
-      changed: 0,
-      message: "Metadata refreshed from the local store.",
-    },
-  });
-
-  const listed = asRecord(await core().integrations.listConnections({ projectId: input.projectId }));
-  const current = asObjectArray(listed.connections).find(
-    (connection) => asString(connection.id) === input.connectionId,
-  );
-  if (!current) return;
-
-  await core().integrations.saveConnection({
-    connection: {
-      id: asString(current.id),
-      projectId: asString(current.projectId, input.projectId),
-      providerId: asString(current.providerId),
-      status: asString(current.status, "connected"),
-      label: asString(current.label),
-      environmentId: asString(current.environmentId),
-      lastSyncAt: now,
-      summary: asString(current.summary),
-      cliCommand: asString(current.cliCommand),
-      syncInterval: asString(current.syncInterval),
-      freshness: "fresh",
-      errorMessage: asString(current.errorMessage),
-    },
-  });
+}): Promise<{ result: string; message: string }> {
+  const response = asRecord(await core().integrations.syncConnection({
+    connectionId: input.connectionId,
+  }));
+  const run = asRecord(response.run);
+  return {
+    result: asString(run.result, "failed"),
+    message: asString(run.message, "CLI inventory sync finished."),
+  };
 }
 
 export async function resetLocalStore(): Promise<void> {

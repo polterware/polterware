@@ -80,13 +80,31 @@ func BeginAuth(providerID string) (AuthPlan, error) {
 		ProviderID:  providerID,
 		AuthCommand: command,
 		DocsURL:     docsURL(providerID),
-		Message:     "Complete authentication with the provider CLI. Polterware never stores provider tokens.",
+		Message:     "Complete authentication in the in-app terminal. Polterware never stores provider tokens.",
 	}, nil
 }
 
 func probeAccount(provider integrations.CLIProvider) (string, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
+
+	switch provider.ID {
+	case "terraform":
+		if terraformCredentialsPresent(terraformCredentialsPath()) {
+			return "Terraform Cloud credentials", true
+		}
+		return "", false
+	case "docker":
+		cmd := exec.CommandContext(ctx, provider.Binary, "info", "--format", "{{.ServerVersion}}")
+		if _, err := cmd.CombinedOutput(); err != nil {
+			return "", false
+		}
+		if dockerHasRegistryAuth(dockerConfigPath()) {
+			return "Docker registry credentials", true
+		}
+		return "", false
+	}
+
 	var cmd *exec.Cmd
 	switch provider.ID {
 	case "github":
@@ -103,10 +121,6 @@ func probeAccount(provider integrations.CLIProvider) (string, bool) {
 		cmd = exec.CommandContext(ctx, provider.Binary, "whoami")
 	case "supabase":
 		cmd = exec.CommandContext(ctx, provider.Binary, "projects", "list")
-	case "terraform":
-		cmd = exec.CommandContext(ctx, provider.Binary, "version")
-	case "docker":
-		cmd = exec.CommandContext(ctx, provider.Binary, "info", "--format", "{{.ServerVersion}}")
 	default:
 		return "", false
 	}

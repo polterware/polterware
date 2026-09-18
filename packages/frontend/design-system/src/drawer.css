@@ -53,6 +53,8 @@
 .pw-drawer-content {
   --pw-drawer-inset: 8px;
 
+  display: flex;
+  flex-direction: column;
   height: calc(100% - var(--pw-drawer-inset) - var(--pw-drawer-inset));
   max-width: calc(100vw - var(--pw-drawer-inset) - var(--pw-drawer-inset));
   margin-block: var(--pw-drawer-inset);

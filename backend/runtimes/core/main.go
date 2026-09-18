@@ -43,11 +43,14 @@ func main() {
 	fmt.Fprintf(os.Stderr, "polterware-core listening on %s with session-token authentication\n", endpoint)
 
 	core := localcore.NewCore(store, token)
+	core.StartScheduleRunner()
+	defer core.StopScheduleRunner()
 	hs := localcore.ServeConnect(ln, core)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
+	core.StopScheduleRunner()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = hs.Shutdown(ctx)

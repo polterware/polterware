@@ -23,6 +23,8 @@ export type IntegrationsTabId = "connected" | "catalog";
 export type DialogState =
   | { type: "resource-create" }
   | { type: "resource-edit"; entityId: string }
+  | { type: "node-create" }
+  | { type: "process-create" }
   | { type: "arch-node-create" }
   | { type: "run-command" }
   | { type: "workflow-create" }

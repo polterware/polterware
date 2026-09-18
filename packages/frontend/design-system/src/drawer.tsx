@@ -15,11 +15,19 @@ export type DrawerProps = {
   children: JSX.Element;
   footer?: JSX.Element;
   width?: number;
+  /** Defaults to true. Pass false for interactive surfaces (e.g. live terminal). */
+  closeOnInteractOutside?: boolean;
+  /** Remove body padding and use overflow-hidden for full-bleed children (e.g. xterm). */
+  flush?: boolean;
 };
 
 /** Temporary side panel — modal sheet edge layout via CSS only. */
 export function Drawer(props: DrawerProps) {
   const width = () => props.width ?? 360;
+  const bodyClass = () =>
+    props.flush
+      ? "relative flex min-h-0 flex-1 flex-col overflow-hidden p-0 text-[13px] text-[var(--color-text-secondary)]"
+      : "min-h-0 flex-1 overflow-auto px-4 py-3 text-[13px] text-[var(--color-text-secondary)]";
 
   return (
     <ArkDrawer.Root
@@ -30,7 +38,7 @@ export function Drawer(props: DrawerProps) {
       lazyMount
       unmountOnExit
       closeOnEscape
-      closeOnInteractOutside
+      closeOnInteractOutside={props.closeOnInteractOutside !== false}
     >
       <ArkDrawer.Backdrop
         class="pw-drawer-backdrop fixed inset-0 z-[var(--z-dialog,50)] bg-[var(--color-overlay)]"
@@ -61,9 +69,7 @@ export function Drawer(props: DrawerProps) {
               ×
             </ArkDrawer.CloseTrigger>
           </header>
-          <div class="min-h-0 flex-1 overflow-auto px-4 py-3 text-[13px] text-[var(--color-text-secondary)]">
-            {props.children}
-          </div>
+          <div class={bodyClass()}>{props.children}</div>
           <Show when={props.footer}>
             <footer class="shrink-0 border-t border-[var(--color-border-subtle)] px-4 py-3">
               {props.footer}

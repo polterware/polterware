@@ -417,6 +417,18 @@ func (s *Store) SaveConnection(connection integrations.Connection) error {
 	return err
 }
 
+func (s *Store) GetConnection(id string) (integrations.Connection, error) {
+	var item integrations.Connection
+	err := s.DB.QueryRow(
+		`SELECT id,project_id,provider_id,status,label,COALESCE(environment_id,''),last_sync_at,summary,cli_command,sync_interval,freshness,error_message FROM integration_connections WHERE id=?`,
+		id,
+	).Scan(
+		&item.ID, &item.ProjectID, &item.ProviderID, &item.Status, &item.Label, &item.EnvironmentID,
+		&item.LastSyncAt, &item.Summary, &item.CLICommand, &item.SyncInterval, &item.Freshness, &item.ErrorMessage,
+	)
+	return item, err
+}
+
 func (s *Store) ListConnections(projectID string) ([]integrations.Connection, error) {
 	rows, err := s.DB.Query(`SELECT id,project_id,provider_id,status,label,COALESCE(environment_id,''),last_sync_at,summary,cli_command,sync_interval,freshness,error_message FROM integration_connections WHERE project_id=? ORDER BY label`, projectID)
 	if err != nil {

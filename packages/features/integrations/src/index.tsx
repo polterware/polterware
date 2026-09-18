@@ -41,6 +41,7 @@ function integrationTone(status: WorkspaceIntegration["status"]): "healthy" | "d
 }
 
 export function IntegrationsView(props: {
+  projectId?: string;
   providers?: WorkspaceCatalogProvider[];
   integrations?: WorkspaceIntegration[];
   resources?: WorkspaceIntegrationResource[];
@@ -208,6 +209,7 @@ export function IntegrationsView(props: {
         </div>
       }>
         <SetupWizard
+          projectId={props.projectId}
           providerName={setupProvider()}
           providers={props.providers ?? []}
           onBack={closeSetup}
