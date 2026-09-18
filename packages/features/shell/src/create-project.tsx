@@ -3,7 +3,7 @@ import { Button, CheckboxRow, Input, Surface } from "@polterware/frontend-design
 
 /**
  * Neutral full-page create project form.
- * Session-local fixture form for a local project.
+ * Persists a local project through the Desktop core.
  */
 export function CreateProjectPage(props: {
   onCancel?: () => void;

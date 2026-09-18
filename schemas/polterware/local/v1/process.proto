@@ -8,8 +8,20 @@ message ProcessSession {
   string environment_id = 3;
   string command = 4;
   string status = 5;
+  string name = 6;
+  string node_id = 7;
+  int32 pid = 8;
+  string started_at = 9;
 }
-message StartProcessRequest { string project_id = 1; string environment_id = 2; string command = 3; repeated string args = 4; string cwd = 5; }
+message StartProcessRequest {
+  string project_id = 1;
+  string environment_id = 2;
+  string command = 3;
+  repeated string args = 4;
+  string cwd = 5;
+  string name = 6;
+  string node_id = 7;
+}
 message StartProcessResponse { ProcessSession session = 1; }
 message StopProcessRequest { string id = 1; }
 message StopProcessResponse { ProcessSession session = 1; }

@@ -49,7 +49,7 @@ export type ClientRoute = {
 };
 
 export type ShellStatus = {
-  dataMode?: "fixture" | "offline";
+  dataMode?: "fixture" | "offline" | "local";
 };
 
 export type NavItem = {

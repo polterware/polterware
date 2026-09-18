@@ -77,4 +77,9 @@ describe("createPolterwareIpcHandlers", () => {
     expect(appIcons.getIcon).toHaveBeenCalledOnce();
     expect(appIcons.setIcon).toHaveBeenCalledWith("white");
   });
+
+  it("rejects core channels when the core controller is missing", async () => {
+    const handlers = createPolterwareIpcHandlers();
+    await expect(handlers[IPC_CHANNELS.core.listProjects]()).rejects.toThrow(/not connected/);
+  });
 });

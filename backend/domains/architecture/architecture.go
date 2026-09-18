@@ -9,6 +9,28 @@ type Layout struct {
 	BodyJSON  string
 }
 
+type ViewMember struct {
+	NodeID string
+	Name   string
+	Type   string
+	Layer  string
+}
+
+type View struct {
+	ID            string
+	ProjectID     string
+	Name          string
+	Description   string
+	Owner         string
+	Purpose       string
+	Notes         string
+	FilterSummary string
+	Environments  []string
+	Tags          []string
+	UpdatedAt     string
+	Members       []ViewMember
+}
+
 var ErrConflict = errors.New("layout revision conflict")
 
 func UpdateLayout(current Layout, expectedRevision int64, body string) (Layout, error) {

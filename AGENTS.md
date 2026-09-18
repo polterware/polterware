@@ -10,13 +10,13 @@
 
 ## Current product boundary
 
-Polterware's first version is a local fixture-backed Desktop with six project surfaces: Architecture, Resources, Knowledge, Operations, Terminal, and Integrations. Settings is fixed in the sidebar footer. Architecture / Canvas is the default route.
+Polterware's first version is a local SQLite-backed Desktop with six project surfaces: Architecture, Resources, Knowledge, Operations, Terminal, and Integrations. Settings is fixed in the sidebar footer. Architecture / Canvas is the default route.
 
-The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. All apparent mutations remain in renderer memory and must be presented as demonstrative.
+The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. The Electron Main process starts `polterware-core`, and the renderer reads and writes through `window.polterware` only.
 
-The Desktop must not start or query the Go core. It must not execute shell commands, create PTYs, open provider login browsers, detect CLI binaries, authenticate, or synchronize data. The terminal and integration flows are visual transcripts only.
+The Desktop must not execute shell commands, create PTYs, open provider login browsers, detect CLI binaries, authenticate against remotes, or stream live logs. Terminal and integration flows remain visual transcripts. Operations are recorded in SQLite; they are not executed.
 
-The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Do not add placeholders. Never request, display, or persist real tokens in fixtures.
+The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Do not add placeholders. Never request, display, or persist real tokens.
 
 ## Architecture boundaries
 
@@ -24,7 +24,7 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
 - Desktop: `apps/desktop` with thin Electron Main, typed preload bridge, and Solid renderer.
 - Features: `packages/features/<feature>`.
 - Shared frontend: `packages/frontend`.
-- Contracts: `schemas` to generated Go code in `backend/platform/gen`.
+- Contracts: `schemas` to generated Go code in `backend/platform/gen` and TypeScript in `packages/contracts`.
 - Renderer access: `window.polterware` only; no raw Electron or Node.js.
 - The core uses a technical bearer session token without an account directory.
 - There is one clean SQLite baseline and no compatibility requirement for earlier databases.

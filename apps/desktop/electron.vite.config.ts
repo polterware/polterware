@@ -15,7 +15,12 @@ const packagesDir = resolve(rootDir, "../../packages");
  */
 export default defineConfig({
   main: {
-    resolve: { preserveSymlinks: false },
+    resolve: {
+      preserveSymlinks: false,
+      alias: {
+        "@polterware/contracts": resolve(rootDir, "../../packages/contracts/src/index.ts"),
+      },
+    },
     build: {
       outDir: "out/main",
       rollupOptions: {
@@ -59,6 +64,7 @@ export default defineConfig({
       conditions: ["solid", "browser", "development", "import", "module", "default"],
       alias: {
         "@": resolve(rootDir, "src/renderer"),
+        "@polterware/contracts": resolve(rootDir, "../../packages/contracts/src/index.ts"),
         "@polterware/feature-shell": resolve(rootDir, "../../packages/features/shell/src/index.tsx"),
         // Subpath before package root alias so Vite does not treat /icons as a file suffix.
         "@polterware/feature-architecture/icons": resolve(

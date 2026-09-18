@@ -18,6 +18,10 @@ extraResources:
       - "main.png"
       - "black.png"
       - "white.png"
+  - from: ../../dist
+    to: .
+    filter:
+      - polterware-core
 publish:
   - provider: github
     owner: polterware

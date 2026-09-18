@@ -14,10 +14,20 @@ type Project struct {
 }
 
 type Environment struct {
-	ID        string
-	ProjectID string
-	Name      string
-	Kind      string
+	ID          string
+	ProjectID   string
+	Name        string
+	Kind        string
+	Protection  string
+	IsDefault   bool
+	Description string
+}
+
+type Settings struct {
+	ProjectID            string
+	Description          string
+	DefaultEnvironmentID string
+	Repository           string
 }
 
 var ErrInvalid = errors.New("invalid project entity")
@@ -37,5 +47,5 @@ func NewEnvironment(id, projectID, name, kind string) (Environment, error) {
 	if kind == "" {
 		kind = "local"
 	}
-	return Environment{ID: id, ProjectID: projectID, Name: name, Kind: kind}, nil
+	return Environment{ID: id, ProjectID: projectID, Name: name, Kind: kind, Protection: "standard"}, nil
 }

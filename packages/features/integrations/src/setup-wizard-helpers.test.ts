@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CATALOG_PROVIDER_MOCKS } from "@polterware/feature-shell";
+import { CATALOG_TEST_PROVIDERS } from "./test-fixtures";
 import { cliStateLabel, providerByName } from "./setup-wizard-helpers";
 
 describe("CLI visual state", () => {
@@ -21,7 +21,7 @@ describe("CLI visual state", () => {
   });
 
   it("resolves providers by id and name", () => {
-    expect(providerByName(CATALOG_PROVIDER_MOCKS, "aws")?.name).toBe("AWS");
-    expect(providerByName(CATALOG_PROVIDER_MOCKS, "Google Cloud")?.binary).toBe("gcloud");
+    expect(providerByName(CATALOG_TEST_PROVIDERS, "aws")?.name).toBe("AWS");
+    expect(providerByName(CATALOG_TEST_PROVIDERS, "Google Cloud")?.binary).toBe("gcloud");
   });
 });

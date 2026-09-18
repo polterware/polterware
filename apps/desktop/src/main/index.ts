@@ -10,6 +10,15 @@ import {
 } from "./window.js";
 import { setupAutoUpdater } from "./updater.js";
 import { registerPolterwareIpcHandlers } from "./ipc.js";
+import { createCoreClients, waitForHealth } from "./core/client.js";
+import { createCoreDomainControllers } from "./core/controllers/domain.js";
+import {
+  mintSessionToken,
+  resolveUserDatabasePath,
+  startCoreProcess,
+  stopCoreProcess,
+  type CoreProcessHandle,
+} from "./core/process-supervisor.js";
 
 function configureLogging() {
   log.initialize();
@@ -27,24 +36,57 @@ async function bootstrap() {
   configureLogging();
   const appIcons = getElectronAppIconController();
   appIcons.applySelectedIcon();
-  registerPolterwareIpcHandlers({
-    appInfo: {
-      getInfo: () => ({ name: app.getName(), version: app.getVersion() }),
-    },
-    appIcons: {
-      getIcon: () => appIcons.getIcon(),
-      listIcons: () => appIcons.listIcons(),
-      setIcon: (id) => {
-        const selection = appIcons.setIcon(id);
-        appIcons.applySelectedIcon();
-        return selection;
+
+  let coreHandle: CoreProcessHandle | undefined;
+  try {
+    const token = mintSessionToken();
+    coreHandle = await startCoreProcess({
+      dbPath: resolveUserDatabasePath(),
+      token,
+      log: (message) => log.debug(message),
+    });
+    const clients = createCoreClients(coreHandle.endpoint, coreHandle.token);
+    await waitForHealth(clients);
+    registerPolterwareIpcHandlers({
+      appInfo: {
+        getInfo: () => ({ name: app.getName(), version: app.getVersion() }),
       },
-    },
-    commander: {
-      hideOverlay: hideCommanderWindow,
-      showMainWindow,
-    },
-  });
+      appIcons: {
+        getIcon: () => appIcons.getIcon(),
+        listIcons: () => appIcons.listIcons(),
+        setIcon: (id) => {
+          const selection = appIcons.setIcon(id);
+          appIcons.applySelectedIcon();
+          return selection;
+        },
+      },
+      commander: {
+        hideOverlay: hideCommanderWindow,
+        showMainWindow,
+      },
+      core: createCoreDomainControllers(clients),
+    });
+  } catch (error) {
+    log.error("Failed to start Polterware core.", error);
+    registerPolterwareIpcHandlers({
+      appInfo: {
+        getInfo: () => ({ name: app.getName(), version: app.getVersion() }),
+      },
+      appIcons: {
+        getIcon: () => appIcons.getIcon(),
+        listIcons: () => appIcons.listIcons(),
+        setIcon: (id) => {
+          const selection = appIcons.setIcon(id);
+          appIcons.applySelectedIcon();
+          return selection;
+        },
+      },
+      commander: {
+        hideOverlay: hideCommanderWindow,
+        showMainWindow,
+      },
+    });
+  }
 
   const unregisterCommanderShortcut = registerGlobalCommanderShortcut({
     log,
@@ -59,6 +101,7 @@ async function bootstrap() {
 
   app.on("before-quit", () => {
     unregisterCommanderShortcut();
+    void stopCoreProcess(coreHandle);
   });
 }
 

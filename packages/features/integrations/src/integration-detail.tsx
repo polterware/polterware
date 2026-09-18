@@ -9,10 +9,8 @@ import {
   pushToast,
 } from "@polterware/frontend-design-system";
 import {
-  CATALOG_PROVIDER_MOCKS,
-  INTEGRATION_RESOURCE_MOCKS,
-  INTEGRATION_SYNC_RUN_MOCKS,
   TerminalTranscript,
+  type WorkspaceCatalogProvider,
   type WorkspaceIntegration,
   type WorkspaceIntegrationResource,
   type WorkspaceIntegrationSyncRun,
@@ -57,6 +55,9 @@ function syncTone(result: WorkspaceIntegrationSyncRun["result"]): "healthy" | "w
 
 export function IntegrationDetail(props: {
   integration: WorkspaceIntegration | null | undefined;
+  providers?: WorkspaceCatalogProvider[];
+  resources?: WorkspaceIntegrationResource[];
+  syncRuns?: WorkspaceIntegrationSyncRun[];
   status?: WorkspaceIntegration["status"];
   section?: IntegrationDetailSection;
   onSync?: () => void;
@@ -66,13 +67,13 @@ export function IntegrationDetail(props: {
   const [section, setSection] = createSignal<IntegrationDetailSection>("overview");
   createEffect(() => props.section && setSection(props.section));
 
-  const resources = createMemo(() => INTEGRATION_RESOURCE_MOCKS.filter(
+  const resources = createMemo(() => (props.resources ?? []).filter(
     (resource) => resource.integrationId === props.integration?.id,
   ));
-  const syncRuns = createMemo(() => INTEGRATION_SYNC_RUN_MOCKS.filter(
+  const syncRuns = createMemo(() => (props.syncRuns ?? []).filter(
     (run) => run.integrationId === props.integration?.id,
   ));
-  const provider = createMemo(() => CATALOG_PROVIDER_MOCKS.find(
+  const provider = createMemo(() => (props.providers ?? []).find(
     (item) => item.id === props.integration?.providerId,
   ));
 

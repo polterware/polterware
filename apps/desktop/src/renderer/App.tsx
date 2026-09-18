@@ -1,10 +1,8 @@
-import { Match, Switch, createSignal, onCleanup, onMount } from "solid-js";
+import { Match, Switch, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import {
   Shell,
   CreateProjectPage,
   TerminalPage,
-  ENVIRONMENT_FIXTURES,
-  PROJECT_SWITCHER_FIXTURES,
   createDefaultRoute,
   goSection,
   goCreateProject,
@@ -22,13 +20,9 @@ import {
   routesEqual,
   type ClientRoute,
   type EnvironmentItem,
-  type ProjectSwitcherItem,
 } from "@polterware/feature-shell";
 import { ArchitectureView } from "@polterware/feature-architecture";
-import {
-  ResourcesView,
-  RESOURCE_FIXTURES,
-} from "@polterware/feature-resources";
+import { ResourcesView } from "@polterware/feature-resources";
 import { OperationsView } from "@polterware/feature-operations";
 import { KnowledgeView } from "@polterware/feature-knowledge";
 import { IntegrationsView } from "@polterware/feature-integrations";
@@ -37,6 +31,17 @@ import { CommandPalette } from "@polterware/feature-commander";
 import { pushToast } from "@polterware/frontend-design-system";
 import { detailPanelStore } from "@polterware/frontend-state";
 import { bootstrapPlatform } from "./platform-bootstrap";
+import { emptyWorkspace, loadWorkspace, type WorkspaceSnapshot } from "./workspace/load";
+import {
+  persistCreatedProject,
+  persistIntegrationConnection,
+  persistKnowledgeBody,
+  persistLayout,
+  persistOperationPreview,
+  persistProjectSettings,
+  persistResource,
+  resetLocalStore,
+} from "./workspace/persist";
 
 const SYSTEM_ID = "sys-local";
 const PLATFORM_CONTEXT = bootstrapPlatform();
@@ -51,8 +56,6 @@ function isEnvironmentKind(kind: string): kind is EnvironmentItem["kind"] {
   return kind === "production"
     || kind === "staging"
     || kind === "development"
-    || kind === "preview"
-    || kind === "test"
     || kind === "local";
 }
 
@@ -62,8 +65,35 @@ export function App() {
   const [history, setHistory] = createSignal<ClientRoute[]>([historySnapshot(initialRoute)]);
   const [historyIndex, setHistoryIndex] = createSignal(0);
   const [paletteOpen, setPaletteOpen] = createSignal(false);
-  const [projects, setProjects] = createSignal<ProjectSwitcherItem[]>(PROJECT_SWITCHER_FIXTURES);
-  const [environments, setEnvironments] = createSignal<EnvironmentItem[]>(ENVIRONMENT_FIXTURES);
+  const [workspace, setWorkspace] = createSignal<WorkspaceSnapshot>(emptyWorkspace());
+  const [loading, setLoading] = createSignal(true);
+
+  async function refreshWorkspace(projectId = route().projectId ?? "") {
+    try {
+      const snapshot = await loadWorkspace(projectId || "proj-polter");
+      setWorkspace(snapshot);
+      const current = route();
+      if (!current.environmentId) {
+        const environment = snapshot.environments.find((item) => item.projectId === snapshot.settings.projectId || item.projectId === current.projectId);
+        if (environment) applyRoute(setEnvironment(current, environment.id), "silent");
+      }
+    } catch (error) {
+      setWorkspace({
+        ...emptyWorkspace(),
+        healthMessage: error instanceof Error ? error.message : "Core unavailable",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  let loadedProjectId = "";
+  createEffect(() => {
+    const projectId = route().projectId ?? "proj-polter";
+    if (projectId === loadedProjectId) return;
+    loadedProjectId = projectId;
+    void refreshWorkspace(projectId);
+  });
 
   onMount(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -161,7 +191,7 @@ export function App() {
 
   function selectProject(projectId: string) {
     const environment =
-      environments().find((item) => item.projectId === projectId) ?? environments()[0];
+      workspace().environments.find((item) => item.projectId === projectId) ?? workspace().environments[0];
     applyRoute(
       enterProject(route(), projectId, {
         environmentId: environment?.id,
@@ -169,11 +199,19 @@ export function App() {
     );
   }
 
+  const currentProjectId = () => route().projectId ?? workspace().settings.projectId;
+  const dataMode = () => {
+    if (!workspace().available) return "offline" as const;
+    if (workspace().quarantined) return "offline" as const;
+    return "local" as const;
+  };
+
   return (
     <Shell
       route={route}
-      projects={projects()}
-      environments={environments()}
+      projects={workspace().projects}
+      environments={workspace().environments}
+      terminalTargets={workspace().terminalTargets}
       onNavigate={navigateSection}
       onProjectSelect={selectProject}
       onCreateProject={() => applyRoute(goCreateProject(route()))}
@@ -187,7 +225,7 @@ export function App() {
       canGoForward={historyIndex() < history().length - 1}
       onBack={goBack}
       onForward={goForward}
-      status={{ dataMode: "fixture" }}
+      status={{ dataMode: dataMode() }}
       platform={PLATFORM_CONTEXT}
     >
       <Switch>
@@ -195,57 +233,46 @@ export function App() {
           <CreateProjectPage
             onCancel={() => applyRoute(goSection(route(), "architecture"))}
             onCreate={(input) => {
-              const suffix = Date.now().toString(36);
-              const projectId = `proj-${suffix}`;
-              const createdEnvironments = input.environments.map((kind, index) => {
-                const validKind = isEnvironmentKind(kind) ? kind : "development";
-
-                return {
-                  id: `env-${suffix}-${index}`,
-                  name: kind === "production" ? "main" : kind,
-                  kind: validKind,
-                  projectId,
-                };
+              void (async () => {
+                const kinds = input.environments.filter(isEnvironmentKind);
+                const created = await persistCreatedProject({
+                  ...input,
+                  environments: kinds.length > 0 ? kinds : ["development"],
+                });
+                applyRoute(
+                  enterProject(route(), created.projectId, {
+                    environmentId: created.environmentId,
+                  }),
+                );
+                pushToast(`Created ${input.name}.`, "success");
+                await refreshWorkspace(created.projectId);
+              })().catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not create project.", "danger");
               });
-              setProjects((items) => [
-                ...items.map((item) => ({ ...item, isCurrent: false })),
-                {
-                  projectId,
-                  name: input.name,
-                  directory: input.directory,
-                  environmentSummary: input.environments.join(", "),
-                  isCurrent: true,
-                  status: "active",
-                  refId: projectId,
-                },
-              ]);
-              setEnvironments((items) => [...items, ...createdEnvironments]);
-              applyRoute(
-                enterProject(route(), projectId, {
-                  environmentId: createdEnvironments[0]?.id,
-                }),
-              );
-              pushToast(`Created ${input.name} for this preview session.`, "success");
             }}
           />
         </Match>
 
         <Match when={route().section === "architecture"}>
           <ArchitectureView
-            systems={[{ id: SYSTEM_ID, name: "Polter" }]}
-            resources={RESOURCE_FIXTURES.map((resource) => ({
+            systems={[{ id: SYSTEM_ID, name: workspace().settings.name || "Polterware" }]}
+            resources={workspace().resources.map((resource) => ({
               id: resource.id,
               name: resource.name,
               type: resource.type,
               source: resource.provider,
               systemId: SYSTEM_ID,
             }))}
-            dataSource="fixture"
-            fixtureMode="force"
+            layoutBody={workspace().layoutBody}
+            layoutRevision={workspace().layoutRevision}
+            dataSource="empty"
+            fixtureMode="off"
+            loading={loading()}
             inspector={{ knowledge: [], ops: [], logs: [] }}
             tab={route().tab}
             search={route().search}
             selectedNodeId={route().selectedNodeId}
+            views={workspace().views}
             createDialogOpen={route().dialog?.type === "arch-node-create"}
             onSelect={(id) => applyRoute(setSelectedNode(route(), id), "silent")}
             onOpenNode={(id) => activateDetail("architecture:canvas", id, "arch-node")}
@@ -256,15 +283,26 @@ export function App() {
             onCloseCreateNode={() => applyRoute(closeDialog(route()), "silent")}
             onSubmitCreateNode={() => {
               applyRoute(closeDialog(route()), "silent");
-              pushToast("Architecture node added for this preview session.", "success");
+              pushToast("Architecture node added to the local canvas.", "success");
+            }}
+            onSaveLayout={async (bodyJson, expectedRevision) => {
+              const result = await persistLayout(currentProjectId(), bodyJson, expectedRevision);
+              setWorkspace((current) => ({
+                ...current,
+                layoutBody: bodyJson,
+                layoutRevision: result.revision,
+              }));
+              return result;
             }}
           />
         </Match>
 
         <Match when={route().section === "resources"}>
           <ResourcesView
-            catalog={RESOURCE_FIXTURES}
-            dataSource="fixture"
+            catalog={workspace().resources}
+            nodes={workspace().nodes}
+            processes={workspace().processes}
+            dataSource="empty"
             tab={route().tab}
             search={route().search}
             filters={[...(route().filters?.status ?? [])]}
@@ -289,8 +327,18 @@ export function App() {
             onCreate={() => applyRoute(openDialog(route(), { type: "resource-create" }), "silent")}
             onCloseDialog={() => applyRoute(closeDialog(route()), "silent")}
             onSubmitDialog={() => {
-              applyRoute(closeDialog(route()), "silent");
-              pushToast("Resource added for this preview session.", "success");
+              void persistResource({
+                projectId: currentProjectId(),
+                environmentId: route().environmentId,
+                name: "New resource",
+                type: "Service",
+              }).then(async () => {
+                applyRoute(closeDialog(route()), "silent");
+                pushToast("Resource saved locally.", "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not save resource.", "danger");
+              });
             }}
             onTerminal={() => applyRoute(goSection(route(), "terminal"))}
             onRunCommand={() =>
@@ -301,6 +349,9 @@ export function App() {
 
         <Match when={route().section === "operations"}>
           <OperationsView
+            runs={workspace().runs}
+            workflows={workspace().workflows}
+            schedules={workspace().schedules}
             tab={route().tab}
             search={route().search}
             filters={[...(route().filters?.status ?? [])]}
@@ -316,8 +367,17 @@ export function App() {
             onRunCommand={() => applyRoute(openDialog(route(), { type: "run-command" }), "silent")}
             onCloseRunCommand={() => applyRoute(closeDialog(route()), "silent")}
             onSubmitRunCommand={(input) => {
-              applyRoute(closeDialog(route()), "silent");
-              pushToast(`Previewed command: ${input.command}`, "success");
+              void persistOperationPreview({
+                projectId: currentProjectId(),
+                environmentId: route().environmentId,
+                ...input,
+              }).then(async () => {
+                applyRoute(closeDialog(route()), "silent");
+                pushToast(`Recorded command preview: ${input.command}`, "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not record operation.", "danger");
+              });
             }}
           />
         </Match>
@@ -325,16 +385,24 @@ export function App() {
         <Match when={route().section === "terminal"}>
           <TerminalPage
             sessionId={route().sessionId}
+            targets={workspace().terminalTargets}
             onSelectSession={(id) => applyRoute(setSessionId(route(), id), "silent")}
           />
         </Match>
 
         <Match when={route().section === "knowledge"}>
           <KnowledgeView
+            documents={workspace().documents}
+            runbooks={workspace().runbooks}
             tab={route().tab}
             onTabChange={(tab) => applyRoute(setTab(route(), tab))}
             onOpenDoc={(id) => activateDetail("knowledge:docs", id, "document")}
             onOpenRunbook={(id) => activateDetail("knowledge:runbooks", id, "runbook")}
+            onSaveBody={(id, body) => {
+              void persistKnowledgeBody(workspace(), currentProjectId(), id, body).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not save knowledge.", "danger");
+              });
+            }}
             onOpenComponent={(id) =>
               navigateToDetail(
                 setTab(goSection(route(), "architecture"), "canvas"),
@@ -356,6 +424,10 @@ export function App() {
 
         <Match when={route().section === "integrations"}>
           <IntegrationsView
+            providers={workspace().providers}
+            integrations={workspace().integrations}
+            resources={workspace().integrationResources}
+            syncRuns={workspace().syncRuns}
             tab={route().tab}
             onTabChange={(tab) => applyRoute(setTab(route(), tab))}
             onOpen={(id) => activateDetail("integrations:connected", id, "integration")}
@@ -368,6 +440,17 @@ export function App() {
               )
             }
             onCloseSetup={() => applyRoute(closeDialog(route()), "silent")}
+            onConnect={(provider) => {
+              void persistIntegrationConnection({
+                projectId: currentProjectId(),
+                environmentId: route().environmentId,
+                provider,
+              }).then(async () => {
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not save connection.", "danger");
+              });
+            }}
             onOpenResource={(id) =>
               navigateToDetail(
                 setTab(goSection(route(), "resources"), "inventory"),
@@ -382,7 +465,26 @@ export function App() {
         <Match when={route().section === "settings"}>
           <SettingsView
             tab={route().tab}
+            general={workspace().settings}
+            environments={workspace().settingsEnvironments}
             onTabChange={(tab) => applyRoute(setTab(route(), tab))}
+            onSaveGeneral={(settings) => {
+              void persistProjectSettings(currentProjectId(), settings).then(async () => {
+                pushToast("Project settings saved.", "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not save settings.", "danger");
+              });
+            }}
+            onResetLocalStore={() => {
+              void resetLocalStore().then(async () => {
+                pushToast("Local store reset to the demonstration project.", "success");
+                applyRoute(createDefaultRoute("architecture", PLATFORM_CONTEXT), "replace");
+                await refreshWorkspace("proj-polter");
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not reset the local store.", "danger");
+              });
+            }}
           />
         </Match>
       </Switch>

@@ -45,6 +45,12 @@ const (
 	// ProjectServiceSaveEnvironmentProcedure is the fully-qualified name of the ProjectService's
 	// SaveEnvironment RPC.
 	ProjectServiceSaveEnvironmentProcedure = "/polterware.local.v1.ProjectService/SaveEnvironment"
+	// ProjectServiceGetProjectSettingsProcedure is the fully-qualified name of the ProjectService's
+	// GetProjectSettings RPC.
+	ProjectServiceGetProjectSettingsProcedure = "/polterware.local.v1.ProjectService/GetProjectSettings"
+	// ProjectServiceSaveProjectSettingsProcedure is the fully-qualified name of the ProjectService's
+	// SaveProjectSettings RPC.
+	ProjectServiceSaveProjectSettingsProcedure = "/polterware.local.v1.ProjectService/SaveProjectSettings"
 )
 
 // ProjectServiceClient is a client for the polterware.local.v1.ProjectService service.
@@ -53,6 +59,8 @@ type ProjectServiceClient interface {
 	SaveProject(context.Context, *connect.Request[v1.SaveProjectRequest]) (*connect.Response[v1.SaveProjectResponse], error)
 	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
 	SaveEnvironment(context.Context, *connect.Request[v1.SaveEnvironmentRequest]) (*connect.Response[v1.SaveEnvironmentResponse], error)
+	GetProjectSettings(context.Context, *connect.Request[v1.GetProjectSettingsRequest]) (*connect.Response[v1.GetProjectSettingsResponse], error)
+	SaveProjectSettings(context.Context, *connect.Request[v1.SaveProjectSettingsRequest]) (*connect.Response[v1.SaveProjectSettingsResponse], error)
 }
 
 // NewProjectServiceClient constructs a client for the polterware.local.v1.ProjectService service.
@@ -90,15 +98,29 @@ func NewProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(projectServiceMethods.ByName("SaveEnvironment")),
 			connect.WithClientOptions(opts...),
 		),
+		getProjectSettings: connect.NewClient[v1.GetProjectSettingsRequest, v1.GetProjectSettingsResponse](
+			httpClient,
+			baseURL+ProjectServiceGetProjectSettingsProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("GetProjectSettings")),
+			connect.WithClientOptions(opts...),
+		),
+		saveProjectSettings: connect.NewClient[v1.SaveProjectSettingsRequest, v1.SaveProjectSettingsResponse](
+			httpClient,
+			baseURL+ProjectServiceSaveProjectSettingsProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("SaveProjectSettings")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // projectServiceClient implements ProjectServiceClient.
 type projectServiceClient struct {
-	listProjects     *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
-	saveProject      *connect.Client[v1.SaveProjectRequest, v1.SaveProjectResponse]
-	listEnvironments *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
-	saveEnvironment  *connect.Client[v1.SaveEnvironmentRequest, v1.SaveEnvironmentResponse]
+	listProjects        *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
+	saveProject         *connect.Client[v1.SaveProjectRequest, v1.SaveProjectResponse]
+	listEnvironments    *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
+	saveEnvironment     *connect.Client[v1.SaveEnvironmentRequest, v1.SaveEnvironmentResponse]
+	getProjectSettings  *connect.Client[v1.GetProjectSettingsRequest, v1.GetProjectSettingsResponse]
+	saveProjectSettings *connect.Client[v1.SaveProjectSettingsRequest, v1.SaveProjectSettingsResponse]
 }
 
 // ListProjects calls polterware.local.v1.ProjectService.ListProjects.
@@ -121,12 +143,24 @@ func (c *projectServiceClient) SaveEnvironment(ctx context.Context, req *connect
 	return c.saveEnvironment.CallUnary(ctx, req)
 }
 
+// GetProjectSettings calls polterware.local.v1.ProjectService.GetProjectSettings.
+func (c *projectServiceClient) GetProjectSettings(ctx context.Context, req *connect.Request[v1.GetProjectSettingsRequest]) (*connect.Response[v1.GetProjectSettingsResponse], error) {
+	return c.getProjectSettings.CallUnary(ctx, req)
+}
+
+// SaveProjectSettings calls polterware.local.v1.ProjectService.SaveProjectSettings.
+func (c *projectServiceClient) SaveProjectSettings(ctx context.Context, req *connect.Request[v1.SaveProjectSettingsRequest]) (*connect.Response[v1.SaveProjectSettingsResponse], error) {
+	return c.saveProjectSettings.CallUnary(ctx, req)
+}
+
 // ProjectServiceHandler is an implementation of the polterware.local.v1.ProjectService service.
 type ProjectServiceHandler interface {
 	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
 	SaveProject(context.Context, *connect.Request[v1.SaveProjectRequest]) (*connect.Response[v1.SaveProjectResponse], error)
 	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
 	SaveEnvironment(context.Context, *connect.Request[v1.SaveEnvironmentRequest]) (*connect.Response[v1.SaveEnvironmentResponse], error)
+	GetProjectSettings(context.Context, *connect.Request[v1.GetProjectSettingsRequest]) (*connect.Response[v1.GetProjectSettingsResponse], error)
+	SaveProjectSettings(context.Context, *connect.Request[v1.SaveProjectSettingsRequest]) (*connect.Response[v1.SaveProjectSettingsResponse], error)
 }
 
 // NewProjectServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -160,6 +194,18 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 		connect.WithSchema(projectServiceMethods.ByName("SaveEnvironment")),
 		connect.WithHandlerOptions(opts...),
 	)
+	projectServiceGetProjectSettingsHandler := connect.NewUnaryHandler(
+		ProjectServiceGetProjectSettingsProcedure,
+		svc.GetProjectSettings,
+		connect.WithSchema(projectServiceMethods.ByName("GetProjectSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectServiceSaveProjectSettingsHandler := connect.NewUnaryHandler(
+		ProjectServiceSaveProjectSettingsProcedure,
+		svc.SaveProjectSettings,
+		connect.WithSchema(projectServiceMethods.ByName("SaveProjectSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/polterware.local.v1.ProjectService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProjectServiceListProjectsProcedure:
@@ -170,6 +216,10 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 			projectServiceListEnvironmentsHandler.ServeHTTP(w, r)
 		case ProjectServiceSaveEnvironmentProcedure:
 			projectServiceSaveEnvironmentHandler.ServeHTTP(w, r)
+		case ProjectServiceGetProjectSettingsProcedure:
+			projectServiceGetProjectSettingsHandler.ServeHTTP(w, r)
+		case ProjectServiceSaveProjectSettingsProcedure:
+			projectServiceSaveProjectSettingsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -193,4 +243,12 @@ func (UnimplementedProjectServiceHandler) ListEnvironments(context.Context, *con
 
 func (UnimplementedProjectServiceHandler) SaveEnvironment(context.Context, *connect.Request[v1.SaveEnvironmentRequest]) (*connect.Response[v1.SaveEnvironmentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.SaveEnvironment is not implemented"))
+}
+
+func (UnimplementedProjectServiceHandler) GetProjectSettings(context.Context, *connect.Request[v1.GetProjectSettingsRequest]) (*connect.Response[v1.GetProjectSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.GetProjectSettings is not implemented"))
+}
+
+func (UnimplementedProjectServiceHandler) SaveProjectSettings(context.Context, *connect.Request[v1.SaveProjectSettingsRequest]) (*connect.Response[v1.SaveProjectSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.SaveProjectSettings is not implemented"))
 }

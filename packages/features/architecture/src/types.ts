@@ -43,5 +43,5 @@ export type ArchitectureNodeView = {
   docs: DocLink[];
   x: number;
   y: number;
-  dataSource: "fixture";
+  dataSource: "fixture" | "core";
 };

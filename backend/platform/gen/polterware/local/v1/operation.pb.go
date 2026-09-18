@@ -35,6 +35,10 @@ type Operation struct {
 	StartedAt     string                 `protobuf:"bytes,10,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	FinishedAt    string                 `protobuf:"bytes,11,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
 	Params        map[string]string      `protobuf:"bytes,12,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Title         string                 `protobuf:"bytes,13,opt,name=title,proto3" json:"title,omitempty"`
+	Target        string                 `protobuf:"bytes,14,opt,name=target,proto3" json:"target,omitempty"`
+	Command       string                 `protobuf:"bytes,15,opt,name=command,proto3" json:"command,omitempty"`
+	StepsJson     string                 `protobuf:"bytes,16,opt,name=steps_json,json=stepsJson,proto3" json:"steps_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -153,6 +157,158 @@ func (x *Operation) GetParams() map[string]string {
 	return nil
 }
 
+func (x *Operation) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *Operation) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *Operation) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *Operation) GetStepsJson() string {
+	if x != nil {
+		return x.StepsJson
+	}
+	return ""
+}
+
+type OperationSchedule struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,3,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	WorkflowId    string                 `protobuf:"bytes,7,opt,name=workflow_id,json=workflowId,proto3" json:"workflow_id,omitempty"`
+	Expression    string                 `protobuf:"bytes,8,opt,name=expression,proto3" json:"expression,omitempty"`
+	Timezone      string                 `protobuf:"bytes,9,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	NextRunAt     string                 `protobuf:"bytes,10,opt,name=next_run_at,json=nextRunAt,proto3" json:"next_run_at,omitempty"`
+	LastRunAt     string                 `protobuf:"bytes,11,opt,name=last_run_at,json=lastRunAt,proto3" json:"last_run_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OperationSchedule) Reset() {
+	*x = OperationSchedule{}
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OperationSchedule) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OperationSchedule) ProtoMessage() {}
+
+func (x *OperationSchedule) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OperationSchedule.ProtoReflect.Descriptor instead.
+func (*OperationSchedule) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *OperationSchedule) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *OperationSchedule) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *OperationSchedule) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *OperationSchedule) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *OperationSchedule) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *OperationSchedule) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *OperationSchedule) GetWorkflowId() string {
+	if x != nil {
+		return x.WorkflowId
+	}
+	return ""
+}
+
+func (x *OperationSchedule) GetExpression() string {
+	if x != nil {
+		return x.Expression
+	}
+	return ""
+}
+
+func (x *OperationSchedule) GetTimezone() string {
+	if x != nil {
+		return x.Timezone
+	}
+	return ""
+}
+
+func (x *OperationSchedule) GetNextRunAt() string {
+	if x != nil {
+		return x.NextRunAt
+	}
+	return ""
+}
+
+func (x *OperationSchedule) GetLastRunAt() string {
+	if x != nil {
+		return x.LastRunAt
+	}
+	return ""
+}
+
 type RequestOperationRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Type           string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
@@ -161,13 +317,16 @@ type RequestOperationRequest struct {
 	Cwd            string                 `protobuf:"bytes,4,opt,name=cwd,proto3" json:"cwd,omitempty"`
 	Params         map[string]string      `protobuf:"bytes,5,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	IdempotencyKey string                 `protobuf:"bytes,6,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	Title          string                 `protobuf:"bytes,7,opt,name=title,proto3" json:"title,omitempty"`
+	Target         string                 `protobuf:"bytes,8,opt,name=target,proto3" json:"target,omitempty"`
+	Command        string                 `protobuf:"bytes,9,opt,name=command,proto3" json:"command,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RequestOperationRequest) Reset() {
 	*x = RequestOperationRequest{}
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[1]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -179,7 +338,7 @@ func (x *RequestOperationRequest) String() string {
 func (*RequestOperationRequest) ProtoMessage() {}
 
 func (x *RequestOperationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[1]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -192,7 +351,7 @@ func (x *RequestOperationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestOperationRequest.ProtoReflect.Descriptor instead.
 func (*RequestOperationRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{1}
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RequestOperationRequest) GetType() string {
@@ -237,6 +396,27 @@ func (x *RequestOperationRequest) GetIdempotencyKey() string {
 	return ""
 }
 
+func (x *RequestOperationRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *RequestOperationRequest) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *RequestOperationRequest) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
 type RequestOperationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Operation     *Operation             `protobuf:"bytes,1,opt,name=operation,proto3" json:"operation,omitempty"`
@@ -246,7 +426,7 @@ type RequestOperationResponse struct {
 
 func (x *RequestOperationResponse) Reset() {
 	*x = RequestOperationResponse{}
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[2]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -258,7 +438,7 @@ func (x *RequestOperationResponse) String() string {
 func (*RequestOperationResponse) ProtoMessage() {}
 
 func (x *RequestOperationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[2]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -271,7 +451,7 @@ func (x *RequestOperationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestOperationResponse.ProtoReflect.Descriptor instead.
 func (*RequestOperationResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{2}
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RequestOperationResponse) GetOperation() *Operation {
@@ -290,7 +470,7 @@ type GetOperationRequest struct {
 
 func (x *GetOperationRequest) Reset() {
 	*x = GetOperationRequest{}
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[3]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -302,7 +482,7 @@ func (x *GetOperationRequest) String() string {
 func (*GetOperationRequest) ProtoMessage() {}
 
 func (x *GetOperationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[3]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -315,7 +495,7 @@ func (x *GetOperationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOperationRequest.ProtoReflect.Descriptor instead.
 func (*GetOperationRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{3}
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetOperationRequest) GetId() string {
@@ -334,7 +514,7 @@ type GetOperationResponse struct {
 
 func (x *GetOperationResponse) Reset() {
 	*x = GetOperationResponse{}
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[4]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +526,7 @@ func (x *GetOperationResponse) String() string {
 func (*GetOperationResponse) ProtoMessage() {}
 
 func (x *GetOperationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[4]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +539,7 @@ func (x *GetOperationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOperationResponse.ProtoReflect.Descriptor instead.
 func (*GetOperationResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{4}
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetOperationResponse) GetOperation() *Operation {
@@ -379,7 +559,7 @@ type ListOperationsRequest struct {
 
 func (x *ListOperationsRequest) Reset() {
 	*x = ListOperationsRequest{}
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[5]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -391,7 +571,7 @@ func (x *ListOperationsRequest) String() string {
 func (*ListOperationsRequest) ProtoMessage() {}
 
 func (x *ListOperationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[5]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -404,7 +584,7 @@ func (x *ListOperationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOperationsRequest.ProtoReflect.Descriptor instead.
 func (*ListOperationsRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{5}
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListOperationsRequest) GetProjectId() string {
@@ -430,7 +610,7 @@ type ListOperationsResponse struct {
 
 func (x *ListOperationsResponse) Reset() {
 	*x = ListOperationsResponse{}
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[6]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -442,7 +622,7 @@ func (x *ListOperationsResponse) String() string {
 func (*ListOperationsResponse) ProtoMessage() {}
 
 func (x *ListOperationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[6]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -455,7 +635,7 @@ func (x *ListOperationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOperationsResponse.ProtoReflect.Descriptor instead.
 func (*ListOperationsResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{6}
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListOperationsResponse) GetOperations() []*Operation {
@@ -474,7 +654,7 @@ type CancelOperationRequest struct {
 
 func (x *CancelOperationRequest) Reset() {
 	*x = CancelOperationRequest{}
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[7]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -486,7 +666,7 @@ func (x *CancelOperationRequest) String() string {
 func (*CancelOperationRequest) ProtoMessage() {}
 
 func (x *CancelOperationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[7]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -499,7 +679,7 @@ func (x *CancelOperationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelOperationRequest.ProtoReflect.Descriptor instead.
 func (*CancelOperationRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{7}
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CancelOperationRequest) GetId() string {
@@ -518,7 +698,7 @@ type CancelOperationResponse struct {
 
 func (x *CancelOperationResponse) Reset() {
 	*x = CancelOperationResponse{}
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[8]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -530,7 +710,7 @@ func (x *CancelOperationResponse) String() string {
 func (*CancelOperationResponse) ProtoMessage() {}
 
 func (x *CancelOperationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_operation_proto_msgTypes[8]
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -543,7 +723,7 @@ func (x *CancelOperationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelOperationResponse.ProtoReflect.Descriptor instead.
 func (*CancelOperationResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{8}
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CancelOperationResponse) GetOperation() *Operation {
@@ -553,11 +733,187 @@ func (x *CancelOperationResponse) GetOperation() *Operation {
 	return nil
 }
 
+type ListSchedulesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSchedulesRequest) Reset() {
+	*x = ListSchedulesRequest{}
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSchedulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSchedulesRequest) ProtoMessage() {}
+
+func (x *ListSchedulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSchedulesRequest.ProtoReflect.Descriptor instead.
+func (*ListSchedulesRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ListSchedulesRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+type ListSchedulesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Schedules     []*OperationSchedule   `protobuf:"bytes,1,rep,name=schedules,proto3" json:"schedules,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSchedulesResponse) Reset() {
+	*x = ListSchedulesResponse{}
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSchedulesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSchedulesResponse) ProtoMessage() {}
+
+func (x *ListSchedulesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSchedulesResponse.ProtoReflect.Descriptor instead.
+func (*ListSchedulesResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListSchedulesResponse) GetSchedules() []*OperationSchedule {
+	if x != nil {
+		return x.Schedules
+	}
+	return nil
+}
+
+type SaveScheduleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Schedule      *OperationSchedule     `protobuf:"bytes,1,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveScheduleRequest) Reset() {
+	*x = SaveScheduleRequest{}
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveScheduleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveScheduleRequest) ProtoMessage() {}
+
+func (x *SaveScheduleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveScheduleRequest.ProtoReflect.Descriptor instead.
+func (*SaveScheduleRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SaveScheduleRequest) GetSchedule() *OperationSchedule {
+	if x != nil {
+		return x.Schedule
+	}
+	return nil
+}
+
+type SaveScheduleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Schedule      *OperationSchedule     `protobuf:"bytes,1,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveScheduleResponse) Reset() {
+	*x = SaveScheduleResponse{}
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveScheduleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveScheduleResponse) ProtoMessage() {}
+
+func (x *SaveScheduleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_operation_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveScheduleResponse.ProtoReflect.Descriptor instead.
+func (*SaveScheduleResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_operation_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SaveScheduleResponse) GetSchedule() *OperationSchedule {
+	if x != nil {
+		return x.Schedule
+	}
+	return nil
+}
+
 var File_polterware_local_v1_operation_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_operation_proto_rawDesc = "" +
 	"\n" +
-	"#polterware/local/v1/operation.proto\x12\x13polterware.local.v1\"\xe2\x03\n" +
+	"#polterware/local/v1/operation.proto\x12\x13polterware.local.v1\"\xc9\x04\n" +
 	"\tOperation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0ecorrelation_id\x18\x02 \x01(\tR\rcorrelationId\x12\x1d\n" +
@@ -574,10 +930,32 @@ const file_polterware_local_v1_operation_proto_rawDesc = "" +
 	" \x01(\tR\tstartedAt\x12\x1f\n" +
 	"\vfinished_at\x18\v \x01(\tR\n" +
 	"finishedAt\x12B\n" +
-	"\x06params\x18\f \x03(\v2*.polterware.local.v1.Operation.ParamsEntryR\x06params\x1a9\n" +
+	"\x06params\x18\f \x03(\v2*.polterware.local.v1.Operation.ParamsEntryR\x06params\x12\x14\n" +
+	"\x05title\x18\r \x01(\tR\x05title\x12\x16\n" +
+	"\x06target\x18\x0e \x01(\tR\x06target\x12\x18\n" +
+	"\acommand\x18\x0f \x01(\tR\acommand\x12\x1d\n" +
+	"\n" +
+	"steps_json\x18\x10 \x01(\tR\tstepsJson\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbb\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd4\x02\n" +
+	"\x11OperationSchedule\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12%\n" +
+	"\x0eenvironment_id\x18\x03 \x01(\tR\renvironmentId\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1f\n" +
+	"\vworkflow_id\x18\a \x01(\tR\n" +
+	"workflowId\x12\x1e\n" +
+	"\n" +
+	"expression\x18\b \x01(\tR\n" +
+	"expression\x12\x1a\n" +
+	"\btimezone\x18\t \x01(\tR\btimezone\x12\x1e\n" +
+	"\vnext_run_at\x18\n" +
+	" \x01(\tR\tnextRunAt\x12\x1e\n" +
+	"\vlast_run_at\x18\v \x01(\tR\tlastRunAt\"\x83\x03\n" +
 	"\x17RequestOperationRequest\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1d\n" +
 	"\n" +
@@ -585,7 +963,10 @@ const file_polterware_local_v1_operation_proto_rawDesc = "" +
 	"\x0eenvironment_id\x18\x03 \x01(\tR\renvironmentId\x12\x10\n" +
 	"\x03cwd\x18\x04 \x01(\tR\x03cwd\x12P\n" +
 	"\x06params\x18\x05 \x03(\v28.polterware.local.v1.RequestOperationRequest.ParamsEntryR\x06params\x12'\n" +
-	"\x0fidempotency_key\x18\x06 \x01(\tR\x0eidempotencyKey\x1a9\n" +
+	"\x0fidempotency_key\x18\x06 \x01(\tR\x0eidempotencyKey\x12\x14\n" +
+	"\x05title\x18\a \x01(\tR\x05title\x12\x16\n" +
+	"\x06target\x18\b \x01(\tR\x06target\x12\x18\n" +
+	"\acommand\x18\t \x01(\tR\acommand\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"X\n" +
@@ -606,12 +987,23 @@ const file_polterware_local_v1_operation_proto_rawDesc = "" +
 	"\x16CancelOperationRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"W\n" +
 	"\x17CancelOperationResponse\x12<\n" +
-	"\toperation\x18\x01 \x01(\v2\x1e.polterware.local.v1.OperationR\toperation2\xc1\x03\n" +
+	"\toperation\x18\x01 \x01(\v2\x1e.polterware.local.v1.OperationR\toperation\"5\n" +
+	"\x14ListSchedulesRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"]\n" +
+	"\x15ListSchedulesResponse\x12D\n" +
+	"\tschedules\x18\x01 \x03(\v2&.polterware.local.v1.OperationScheduleR\tschedules\"Y\n" +
+	"\x13SaveScheduleRequest\x12B\n" +
+	"\bschedule\x18\x01 \x01(\v2&.polterware.local.v1.OperationScheduleR\bschedule\"Z\n" +
+	"\x14SaveScheduleResponse\x12B\n" +
+	"\bschedule\x18\x01 \x01(\v2&.polterware.local.v1.OperationScheduleR\bschedule2\x8e\x05\n" +
 	"\x10OperationService\x12o\n" +
 	"\x10RequestOperation\x12,.polterware.local.v1.RequestOperationRequest\x1a-.polterware.local.v1.RequestOperationResponse\x12c\n" +
 	"\fGetOperation\x12(.polterware.local.v1.GetOperationRequest\x1a).polterware.local.v1.GetOperationResponse\x12i\n" +
 	"\x0eListOperations\x12*.polterware.local.v1.ListOperationsRequest\x1a+.polterware.local.v1.ListOperationsResponse\x12l\n" +
-	"\x0fCancelOperation\x12+.polterware.local.v1.CancelOperationRequest\x1a,.polterware.local.v1.CancelOperationResponseB\xea\x01\n" +
+	"\x0fCancelOperation\x12+.polterware.local.v1.CancelOperationRequest\x1a,.polterware.local.v1.CancelOperationResponse\x12f\n" +
+	"\rListSchedules\x12).polterware.local.v1.ListSchedulesRequest\x1a*.polterware.local.v1.ListSchedulesResponse\x12c\n" +
+	"\fSaveSchedule\x12(.polterware.local.v1.SaveScheduleRequest\x1a).polterware.local.v1.SaveScheduleResponseB\xea\x01\n" +
 	"\x17com.polterware.local.v1B\x0eOperationProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
 
 var (
@@ -626,40 +1018,52 @@ func file_polterware_local_v1_operation_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_operation_proto_rawDescData
 }
 
-var file_polterware_local_v1_operation_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_polterware_local_v1_operation_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_polterware_local_v1_operation_proto_goTypes = []any{
 	(*Operation)(nil),                // 0: polterware.local.v1.Operation
-	(*RequestOperationRequest)(nil),  // 1: polterware.local.v1.RequestOperationRequest
-	(*RequestOperationResponse)(nil), // 2: polterware.local.v1.RequestOperationResponse
-	(*GetOperationRequest)(nil),      // 3: polterware.local.v1.GetOperationRequest
-	(*GetOperationResponse)(nil),     // 4: polterware.local.v1.GetOperationResponse
-	(*ListOperationsRequest)(nil),    // 5: polterware.local.v1.ListOperationsRequest
-	(*ListOperationsResponse)(nil),   // 6: polterware.local.v1.ListOperationsResponse
-	(*CancelOperationRequest)(nil),   // 7: polterware.local.v1.CancelOperationRequest
-	(*CancelOperationResponse)(nil),  // 8: polterware.local.v1.CancelOperationResponse
-	nil,                              // 9: polterware.local.v1.Operation.ParamsEntry
-	nil,                              // 10: polterware.local.v1.RequestOperationRequest.ParamsEntry
+	(*OperationSchedule)(nil),        // 1: polterware.local.v1.OperationSchedule
+	(*RequestOperationRequest)(nil),  // 2: polterware.local.v1.RequestOperationRequest
+	(*RequestOperationResponse)(nil), // 3: polterware.local.v1.RequestOperationResponse
+	(*GetOperationRequest)(nil),      // 4: polterware.local.v1.GetOperationRequest
+	(*GetOperationResponse)(nil),     // 5: polterware.local.v1.GetOperationResponse
+	(*ListOperationsRequest)(nil),    // 6: polterware.local.v1.ListOperationsRequest
+	(*ListOperationsResponse)(nil),   // 7: polterware.local.v1.ListOperationsResponse
+	(*CancelOperationRequest)(nil),   // 8: polterware.local.v1.CancelOperationRequest
+	(*CancelOperationResponse)(nil),  // 9: polterware.local.v1.CancelOperationResponse
+	(*ListSchedulesRequest)(nil),     // 10: polterware.local.v1.ListSchedulesRequest
+	(*ListSchedulesResponse)(nil),    // 11: polterware.local.v1.ListSchedulesResponse
+	(*SaveScheduleRequest)(nil),      // 12: polterware.local.v1.SaveScheduleRequest
+	(*SaveScheduleResponse)(nil),     // 13: polterware.local.v1.SaveScheduleResponse
+	nil,                              // 14: polterware.local.v1.Operation.ParamsEntry
+	nil,                              // 15: polterware.local.v1.RequestOperationRequest.ParamsEntry
 }
 var file_polterware_local_v1_operation_proto_depIdxs = []int32{
-	9,  // 0: polterware.local.v1.Operation.params:type_name -> polterware.local.v1.Operation.ParamsEntry
-	10, // 1: polterware.local.v1.RequestOperationRequest.params:type_name -> polterware.local.v1.RequestOperationRequest.ParamsEntry
+	14, // 0: polterware.local.v1.Operation.params:type_name -> polterware.local.v1.Operation.ParamsEntry
+	15, // 1: polterware.local.v1.RequestOperationRequest.params:type_name -> polterware.local.v1.RequestOperationRequest.ParamsEntry
 	0,  // 2: polterware.local.v1.RequestOperationResponse.operation:type_name -> polterware.local.v1.Operation
 	0,  // 3: polterware.local.v1.GetOperationResponse.operation:type_name -> polterware.local.v1.Operation
 	0,  // 4: polterware.local.v1.ListOperationsResponse.operations:type_name -> polterware.local.v1.Operation
 	0,  // 5: polterware.local.v1.CancelOperationResponse.operation:type_name -> polterware.local.v1.Operation
-	1,  // 6: polterware.local.v1.OperationService.RequestOperation:input_type -> polterware.local.v1.RequestOperationRequest
-	3,  // 7: polterware.local.v1.OperationService.GetOperation:input_type -> polterware.local.v1.GetOperationRequest
-	5,  // 8: polterware.local.v1.OperationService.ListOperations:input_type -> polterware.local.v1.ListOperationsRequest
-	7,  // 9: polterware.local.v1.OperationService.CancelOperation:input_type -> polterware.local.v1.CancelOperationRequest
-	2,  // 10: polterware.local.v1.OperationService.RequestOperation:output_type -> polterware.local.v1.RequestOperationResponse
-	4,  // 11: polterware.local.v1.OperationService.GetOperation:output_type -> polterware.local.v1.GetOperationResponse
-	6,  // 12: polterware.local.v1.OperationService.ListOperations:output_type -> polterware.local.v1.ListOperationsResponse
-	8,  // 13: polterware.local.v1.OperationService.CancelOperation:output_type -> polterware.local.v1.CancelOperationResponse
-	10, // [10:14] is the sub-list for method output_type
-	6,  // [6:10] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	1,  // 6: polterware.local.v1.ListSchedulesResponse.schedules:type_name -> polterware.local.v1.OperationSchedule
+	1,  // 7: polterware.local.v1.SaveScheduleRequest.schedule:type_name -> polterware.local.v1.OperationSchedule
+	1,  // 8: polterware.local.v1.SaveScheduleResponse.schedule:type_name -> polterware.local.v1.OperationSchedule
+	2,  // 9: polterware.local.v1.OperationService.RequestOperation:input_type -> polterware.local.v1.RequestOperationRequest
+	4,  // 10: polterware.local.v1.OperationService.GetOperation:input_type -> polterware.local.v1.GetOperationRequest
+	6,  // 11: polterware.local.v1.OperationService.ListOperations:input_type -> polterware.local.v1.ListOperationsRequest
+	8,  // 12: polterware.local.v1.OperationService.CancelOperation:input_type -> polterware.local.v1.CancelOperationRequest
+	10, // 13: polterware.local.v1.OperationService.ListSchedules:input_type -> polterware.local.v1.ListSchedulesRequest
+	12, // 14: polterware.local.v1.OperationService.SaveSchedule:input_type -> polterware.local.v1.SaveScheduleRequest
+	3,  // 15: polterware.local.v1.OperationService.RequestOperation:output_type -> polterware.local.v1.RequestOperationResponse
+	5,  // 16: polterware.local.v1.OperationService.GetOperation:output_type -> polterware.local.v1.GetOperationResponse
+	7,  // 17: polterware.local.v1.OperationService.ListOperations:output_type -> polterware.local.v1.ListOperationsResponse
+	9,  // 18: polterware.local.v1.OperationService.CancelOperation:output_type -> polterware.local.v1.CancelOperationResponse
+	11, // 19: polterware.local.v1.OperationService.ListSchedules:output_type -> polterware.local.v1.ListSchedulesResponse
+	13, // 20: polterware.local.v1.OperationService.SaveSchedule:output_type -> polterware.local.v1.SaveScheduleResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_operation_proto_init() }
@@ -673,7 +1077,7 @@ func file_polterware_local_v1_operation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_operation_proto_rawDesc), len(file_polterware_local_v1_operation_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

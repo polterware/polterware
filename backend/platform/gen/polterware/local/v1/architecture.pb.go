@@ -30,6 +30,12 @@ type Resource struct {
 	Type          string                 `protobuf:"bytes,5,opt,name=type,proto3" json:"type,omitempty"`
 	ExternalKey   string                 `protobuf:"bytes,6,opt,name=external_key,json=externalKey,proto3" json:"external_key,omitempty"`
 	Source        string                 `protobuf:"bytes,7,opt,name=source,proto3" json:"source,omitempty"`
+	Provider      string                 `protobuf:"bytes,8,opt,name=provider,proto3" json:"provider,omitempty"`
+	Status        string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	Region        string                 `protobuf:"bytes,10,opt,name=region,proto3" json:"region,omitempty"`
+	Address       string                 `protobuf:"bytes,11,opt,name=address,proto3" json:"address,omitempty"`
+	Tags          []string               `protobuf:"bytes,12,rep,name=tags,proto3" json:"tags,omitempty"`
+	Description   string                 `protobuf:"bytes,13,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -113,6 +119,48 @@ func (x *Resource) GetSource() string {
 	return ""
 }
 
+func (x *Resource) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *Resource) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Resource) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *Resource) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *Resource) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *Resource) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
 type Layout struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -181,6 +229,206 @@ func (x *Layout) GetBodyJson() string {
 	return ""
 }
 
+type ArchitectureViewMember struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Layer         string                 `protobuf:"bytes,4,opt,name=layer,proto3" json:"layer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchitectureViewMember) Reset() {
+	*x = ArchitectureViewMember{}
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureViewMember) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureViewMember) ProtoMessage() {}
+
+func (x *ArchitectureViewMember) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureViewMember.ProtoReflect.Descriptor instead.
+func (*ArchitectureViewMember) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ArchitectureViewMember) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *ArchitectureViewMember) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ArchitectureViewMember) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ArchitectureViewMember) GetLayer() string {
+	if x != nil {
+		return x.Layer
+	}
+	return ""
+}
+
+type ArchitectureView struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Id            string                    `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     string                    `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                    `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                    `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Owner         string                    `protobuf:"bytes,5,opt,name=owner,proto3" json:"owner,omitempty"`
+	Purpose       string                    `protobuf:"bytes,6,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	Notes         string                    `protobuf:"bytes,7,opt,name=notes,proto3" json:"notes,omitempty"`
+	FilterSummary string                    `protobuf:"bytes,8,opt,name=filter_summary,json=filterSummary,proto3" json:"filter_summary,omitempty"`
+	Environments  []string                  `protobuf:"bytes,9,rep,name=environments,proto3" json:"environments,omitempty"`
+	Tags          []string                  `protobuf:"bytes,10,rep,name=tags,proto3" json:"tags,omitempty"`
+	UpdatedAt     string                    `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Members       []*ArchitectureViewMember `protobuf:"bytes,12,rep,name=members,proto3" json:"members,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchitectureView) Reset() {
+	*x = ArchitectureView{}
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchitectureView) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchitectureView) ProtoMessage() {}
+
+func (x *ArchitectureView) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchitectureView.ProtoReflect.Descriptor instead.
+func (*ArchitectureView) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ArchitectureView) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ArchitectureView) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ArchitectureView) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ArchitectureView) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ArchitectureView) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *ArchitectureView) GetPurpose() string {
+	if x != nil {
+		return x.Purpose
+	}
+	return ""
+}
+
+func (x *ArchitectureView) GetNotes() string {
+	if x != nil {
+		return x.Notes
+	}
+	return ""
+}
+
+func (x *ArchitectureView) GetFilterSummary() string {
+	if x != nil {
+		return x.FilterSummary
+	}
+	return ""
+}
+
+func (x *ArchitectureView) GetEnvironments() []string {
+	if x != nil {
+		return x.Environments
+	}
+	return nil
+}
+
+func (x *ArchitectureView) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *ArchitectureView) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *ArchitectureView) GetMembers() []*ArchitectureViewMember {
+	if x != nil {
+		return x.Members
+	}
+	return nil
+}
+
 type GetLayoutRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
@@ -190,7 +438,7 @@ type GetLayoutRequest struct {
 
 func (x *GetLayoutRequest) Reset() {
 	*x = GetLayoutRequest{}
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[2]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -202,7 +450,7 @@ func (x *GetLayoutRequest) String() string {
 func (*GetLayoutRequest) ProtoMessage() {}
 
 func (x *GetLayoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[2]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -215,7 +463,7 @@ func (x *GetLayoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLayoutRequest.ProtoReflect.Descriptor instead.
 func (*GetLayoutRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{2}
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetLayoutRequest) GetProjectId() string {
@@ -234,7 +482,7 @@ type GetLayoutResponse struct {
 
 func (x *GetLayoutResponse) Reset() {
 	*x = GetLayoutResponse{}
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[3]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -246,7 +494,7 @@ func (x *GetLayoutResponse) String() string {
 func (*GetLayoutResponse) ProtoMessage() {}
 
 func (x *GetLayoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[3]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -259,7 +507,7 @@ func (x *GetLayoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLayoutResponse.ProtoReflect.Descriptor instead.
 func (*GetLayoutResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{3}
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetLayoutResponse) GetLayout() *Layout {
@@ -280,7 +528,7 @@ type UpdateLayoutRequest struct {
 
 func (x *UpdateLayoutRequest) Reset() {
 	*x = UpdateLayoutRequest{}
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[4]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -292,7 +540,7 @@ func (x *UpdateLayoutRequest) String() string {
 func (*UpdateLayoutRequest) ProtoMessage() {}
 
 func (x *UpdateLayoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[4]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -305,7 +553,7 @@ func (x *UpdateLayoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateLayoutRequest.ProtoReflect.Descriptor instead.
 func (*UpdateLayoutRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{4}
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UpdateLayoutRequest) GetProjectId() string {
@@ -338,7 +586,7 @@ type UpdateLayoutResponse struct {
 
 func (x *UpdateLayoutResponse) Reset() {
 	*x = UpdateLayoutResponse{}
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[5]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -350,7 +598,7 @@ func (x *UpdateLayoutResponse) String() string {
 func (*UpdateLayoutResponse) ProtoMessage() {}
 
 func (x *UpdateLayoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[5]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -363,7 +611,7 @@ func (x *UpdateLayoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateLayoutResponse.ProtoReflect.Descriptor instead.
 func (*UpdateLayoutResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{5}
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UpdateLayoutResponse) GetLayout() *Layout {
@@ -382,7 +630,7 @@ type ListResourcesRequest struct {
 
 func (x *ListResourcesRequest) Reset() {
 	*x = ListResourcesRequest{}
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[6]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -394,7 +642,7 @@ func (x *ListResourcesRequest) String() string {
 func (*ListResourcesRequest) ProtoMessage() {}
 
 func (x *ListResourcesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[6]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -407,7 +655,7 @@ func (x *ListResourcesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResourcesRequest.ProtoReflect.Descriptor instead.
 func (*ListResourcesRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{6}
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListResourcesRequest) GetProjectId() string {
@@ -426,7 +674,7 @@ type ListResourcesResponse struct {
 
 func (x *ListResourcesResponse) Reset() {
 	*x = ListResourcesResponse{}
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[7]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -438,7 +686,7 @@ func (x *ListResourcesResponse) String() string {
 func (*ListResourcesResponse) ProtoMessage() {}
 
 func (x *ListResourcesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[7]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -451,7 +699,7 @@ func (x *ListResourcesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResourcesResponse.ProtoReflect.Descriptor instead.
 func (*ListResourcesResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{7}
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListResourcesResponse) GetResources() []*Resource {
@@ -470,7 +718,7 @@ type SaveResourceRequest struct {
 
 func (x *SaveResourceRequest) Reset() {
 	*x = SaveResourceRequest{}
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[8]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -482,7 +730,7 @@ func (x *SaveResourceRequest) String() string {
 func (*SaveResourceRequest) ProtoMessage() {}
 
 func (x *SaveResourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[8]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -495,7 +743,7 @@ func (x *SaveResourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveResourceRequest.ProtoReflect.Descriptor instead.
 func (*SaveResourceRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{8}
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SaveResourceRequest) GetResource() *Resource {
@@ -514,7 +762,7 @@ type SaveResourceResponse struct {
 
 func (x *SaveResourceResponse) Reset() {
 	*x = SaveResourceResponse{}
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[9]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -526,7 +774,7 @@ func (x *SaveResourceResponse) String() string {
 func (*SaveResourceResponse) ProtoMessage() {}
 
 func (x *SaveResourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_architecture_proto_msgTypes[9]
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -539,7 +787,7 @@ func (x *SaveResourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveResourceResponse.ProtoReflect.Descriptor instead.
 func (*SaveResourceResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{9}
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SaveResourceResponse) GetResource() *Resource {
@@ -549,11 +797,267 @@ func (x *SaveResourceResponse) GetResource() *Resource {
 	return nil
 }
 
+type ListViewsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListViewsRequest) Reset() {
+	*x = ListViewsRequest{}
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListViewsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListViewsRequest) ProtoMessage() {}
+
+func (x *ListViewsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListViewsRequest.ProtoReflect.Descriptor instead.
+func (*ListViewsRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListViewsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+type ListViewsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Views         []*ArchitectureView    `protobuf:"bytes,1,rep,name=views,proto3" json:"views,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListViewsResponse) Reset() {
+	*x = ListViewsResponse{}
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListViewsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListViewsResponse) ProtoMessage() {}
+
+func (x *ListViewsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListViewsResponse.ProtoReflect.Descriptor instead.
+func (*ListViewsResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListViewsResponse) GetViews() []*ArchitectureView {
+	if x != nil {
+		return x.Views
+	}
+	return nil
+}
+
+type SaveViewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	View          *ArchitectureView      `protobuf:"bytes,1,opt,name=view,proto3" json:"view,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveViewRequest) Reset() {
+	*x = SaveViewRequest{}
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveViewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveViewRequest) ProtoMessage() {}
+
+func (x *SaveViewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveViewRequest.ProtoReflect.Descriptor instead.
+func (*SaveViewRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SaveViewRequest) GetView() *ArchitectureView {
+	if x != nil {
+		return x.View
+	}
+	return nil
+}
+
+type SaveViewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	View          *ArchitectureView      `protobuf:"bytes,1,opt,name=view,proto3" json:"view,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveViewResponse) Reset() {
+	*x = SaveViewResponse{}
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveViewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveViewResponse) ProtoMessage() {}
+
+func (x *SaveViewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveViewResponse.ProtoReflect.Descriptor instead.
+func (*SaveViewResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SaveViewResponse) GetView() *ArchitectureView {
+	if x != nil {
+		return x.View
+	}
+	return nil
+}
+
+type DeleteViewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteViewRequest) Reset() {
+	*x = DeleteViewRequest{}
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteViewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteViewRequest) ProtoMessage() {}
+
+func (x *DeleteViewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteViewRequest.ProtoReflect.Descriptor instead.
+func (*DeleteViewRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DeleteViewRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type DeleteViewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteViewResponse) Reset() {
+	*x = DeleteViewResponse{}
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteViewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteViewResponse) ProtoMessage() {}
+
+func (x *DeleteViewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_architecture_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteViewResponse.ProtoReflect.Descriptor instead.
+func (*DeleteViewResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_architecture_proto_rawDescGZIP(), []int{17}
+}
+
 var File_polterware_local_v1_architecture_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_architecture_proto_rawDesc = "" +
 	"\n" +
-	"&polterware/local/v1/architecture.proto\x12\x13polterware.local.v1\"\xc3\x01\n" +
+	"&polterware/local/v1/architecture.proto\x12\x13polterware.local.v1\"\xdf\x02\n" +
 	"\bResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -562,13 +1066,41 @@ const file_polterware_local_v1_architecture_proto_rawDesc = "" +
 	"\x04name\x18\x04 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x05 \x01(\tR\x04type\x12!\n" +
 	"\fexternal_key\x18\x06 \x01(\tR\vexternalKey\x12\x16\n" +
-	"\x06source\x18\a \x01(\tR\x06source\"p\n" +
+	"\x06source\x18\a \x01(\tR\x06source\x12\x1a\n" +
+	"\bprovider\x18\b \x01(\tR\bprovider\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12\x16\n" +
+	"\x06region\x18\n" +
+	" \x01(\tR\x06region\x12\x18\n" +
+	"\aaddress\x18\v \x01(\tR\aaddress\x12\x12\n" +
+	"\x04tags\x18\f \x03(\tR\x04tags\x12 \n" +
+	"\vdescription\x18\r \x01(\tR\vdescription\"p\n" +
 	"\x06Layout\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x1a\n" +
 	"\brevision\x18\x03 \x01(\x03R\brevision\x12\x1b\n" +
-	"\tbody_json\x18\x04 \x01(\tR\bbodyJson\"1\n" +
+	"\tbody_json\x18\x04 \x01(\tR\bbodyJson\"o\n" +
+	"\x16ArchitectureViewMember\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12\x14\n" +
+	"\x05layer\x18\x04 \x01(\tR\x05layer\"\x82\x03\n" +
+	"\x10ArchitectureView\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05owner\x18\x05 \x01(\tR\x05owner\x12\x18\n" +
+	"\apurpose\x18\x06 \x01(\tR\apurpose\x12\x14\n" +
+	"\x05notes\x18\a \x01(\tR\x05notes\x12%\n" +
+	"\x0efilter_summary\x18\b \x01(\tR\rfilterSummary\x12\"\n" +
+	"\fenvironments\x18\t \x03(\tR\fenvironments\x12\x12\n" +
+	"\x04tags\x18\n" +
+	" \x03(\tR\x04tags\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\v \x01(\tR\tupdatedAt\x12E\n" +
+	"\amembers\x18\f \x03(\v2+.polterware.local.v1.ArchitectureViewMemberR\amembers\"1\n" +
 	"\x10GetLayoutRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\"H\n" +
@@ -589,12 +1121,28 @@ const file_polterware_local_v1_architecture_proto_rawDesc = "" +
 	"\x13SaveResourceRequest\x129\n" +
 	"\bresource\x18\x01 \x01(\v2\x1d.polterware.local.v1.ResourceR\bresource\"Q\n" +
 	"\x14SaveResourceResponse\x129\n" +
-	"\bresource\x18\x01 \x01(\v2\x1d.polterware.local.v1.ResourceR\bresource2\xa3\x03\n" +
+	"\bresource\x18\x01 \x01(\v2\x1d.polterware.local.v1.ResourceR\bresource\"1\n" +
+	"\x10ListViewsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"P\n" +
+	"\x11ListViewsResponse\x12;\n" +
+	"\x05views\x18\x01 \x03(\v2%.polterware.local.v1.ArchitectureViewR\x05views\"L\n" +
+	"\x0fSaveViewRequest\x129\n" +
+	"\x04view\x18\x01 \x01(\v2%.polterware.local.v1.ArchitectureViewR\x04view\"M\n" +
+	"\x10SaveViewResponse\x129\n" +
+	"\x04view\x18\x01 \x01(\v2%.polterware.local.v1.ArchitectureViewR\x04view\"#\n" +
+	"\x11DeleteViewRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x14\n" +
+	"\x12DeleteViewResponse2\xb7\x05\n" +
 	"\x13ArchitectureService\x12Z\n" +
 	"\tGetLayout\x12%.polterware.local.v1.GetLayoutRequest\x1a&.polterware.local.v1.GetLayoutResponse\x12c\n" +
 	"\fUpdateLayout\x12(.polterware.local.v1.UpdateLayoutRequest\x1a).polterware.local.v1.UpdateLayoutResponse\x12f\n" +
 	"\rListResources\x12).polterware.local.v1.ListResourcesRequest\x1a*.polterware.local.v1.ListResourcesResponse\x12c\n" +
-	"\fSaveResource\x12(.polterware.local.v1.SaveResourceRequest\x1a).polterware.local.v1.SaveResourceResponseB\xed\x01\n" +
+	"\fSaveResource\x12(.polterware.local.v1.SaveResourceRequest\x1a).polterware.local.v1.SaveResourceResponse\x12Z\n" +
+	"\tListViews\x12%.polterware.local.v1.ListViewsRequest\x1a&.polterware.local.v1.ListViewsResponse\x12W\n" +
+	"\bSaveView\x12$.polterware.local.v1.SaveViewRequest\x1a%.polterware.local.v1.SaveViewResponse\x12]\n" +
+	"\n" +
+	"DeleteView\x12&.polterware.local.v1.DeleteViewRequest\x1a'.polterware.local.v1.DeleteViewResponseB\xed\x01\n" +
 	"\x17com.polterware.local.v1B\x11ArchitectureProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
 
 var (
@@ -609,38 +1157,56 @@ func file_polterware_local_v1_architecture_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_architecture_proto_rawDescData
 }
 
-var file_polterware_local_v1_architecture_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_polterware_local_v1_architecture_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_polterware_local_v1_architecture_proto_goTypes = []any{
-	(*Resource)(nil),              // 0: polterware.local.v1.Resource
-	(*Layout)(nil),                // 1: polterware.local.v1.Layout
-	(*GetLayoutRequest)(nil),      // 2: polterware.local.v1.GetLayoutRequest
-	(*GetLayoutResponse)(nil),     // 3: polterware.local.v1.GetLayoutResponse
-	(*UpdateLayoutRequest)(nil),   // 4: polterware.local.v1.UpdateLayoutRequest
-	(*UpdateLayoutResponse)(nil),  // 5: polterware.local.v1.UpdateLayoutResponse
-	(*ListResourcesRequest)(nil),  // 6: polterware.local.v1.ListResourcesRequest
-	(*ListResourcesResponse)(nil), // 7: polterware.local.v1.ListResourcesResponse
-	(*SaveResourceRequest)(nil),   // 8: polterware.local.v1.SaveResourceRequest
-	(*SaveResourceResponse)(nil),  // 9: polterware.local.v1.SaveResourceResponse
+	(*Resource)(nil),               // 0: polterware.local.v1.Resource
+	(*Layout)(nil),                 // 1: polterware.local.v1.Layout
+	(*ArchitectureViewMember)(nil), // 2: polterware.local.v1.ArchitectureViewMember
+	(*ArchitectureView)(nil),       // 3: polterware.local.v1.ArchitectureView
+	(*GetLayoutRequest)(nil),       // 4: polterware.local.v1.GetLayoutRequest
+	(*GetLayoutResponse)(nil),      // 5: polterware.local.v1.GetLayoutResponse
+	(*UpdateLayoutRequest)(nil),    // 6: polterware.local.v1.UpdateLayoutRequest
+	(*UpdateLayoutResponse)(nil),   // 7: polterware.local.v1.UpdateLayoutResponse
+	(*ListResourcesRequest)(nil),   // 8: polterware.local.v1.ListResourcesRequest
+	(*ListResourcesResponse)(nil),  // 9: polterware.local.v1.ListResourcesResponse
+	(*SaveResourceRequest)(nil),    // 10: polterware.local.v1.SaveResourceRequest
+	(*SaveResourceResponse)(nil),   // 11: polterware.local.v1.SaveResourceResponse
+	(*ListViewsRequest)(nil),       // 12: polterware.local.v1.ListViewsRequest
+	(*ListViewsResponse)(nil),      // 13: polterware.local.v1.ListViewsResponse
+	(*SaveViewRequest)(nil),        // 14: polterware.local.v1.SaveViewRequest
+	(*SaveViewResponse)(nil),       // 15: polterware.local.v1.SaveViewResponse
+	(*DeleteViewRequest)(nil),      // 16: polterware.local.v1.DeleteViewRequest
+	(*DeleteViewResponse)(nil),     // 17: polterware.local.v1.DeleteViewResponse
 }
 var file_polterware_local_v1_architecture_proto_depIdxs = []int32{
-	1, // 0: polterware.local.v1.GetLayoutResponse.layout:type_name -> polterware.local.v1.Layout
-	1, // 1: polterware.local.v1.UpdateLayoutResponse.layout:type_name -> polterware.local.v1.Layout
-	0, // 2: polterware.local.v1.ListResourcesResponse.resources:type_name -> polterware.local.v1.Resource
-	0, // 3: polterware.local.v1.SaveResourceRequest.resource:type_name -> polterware.local.v1.Resource
-	0, // 4: polterware.local.v1.SaveResourceResponse.resource:type_name -> polterware.local.v1.Resource
-	2, // 5: polterware.local.v1.ArchitectureService.GetLayout:input_type -> polterware.local.v1.GetLayoutRequest
-	4, // 6: polterware.local.v1.ArchitectureService.UpdateLayout:input_type -> polterware.local.v1.UpdateLayoutRequest
-	6, // 7: polterware.local.v1.ArchitectureService.ListResources:input_type -> polterware.local.v1.ListResourcesRequest
-	8, // 8: polterware.local.v1.ArchitectureService.SaveResource:input_type -> polterware.local.v1.SaveResourceRequest
-	3, // 9: polterware.local.v1.ArchitectureService.GetLayout:output_type -> polterware.local.v1.GetLayoutResponse
-	5, // 10: polterware.local.v1.ArchitectureService.UpdateLayout:output_type -> polterware.local.v1.UpdateLayoutResponse
-	7, // 11: polterware.local.v1.ArchitectureService.ListResources:output_type -> polterware.local.v1.ListResourcesResponse
-	9, // 12: polterware.local.v1.ArchitectureService.SaveResource:output_type -> polterware.local.v1.SaveResourceResponse
-	9, // [9:13] is the sub-list for method output_type
-	5, // [5:9] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	2,  // 0: polterware.local.v1.ArchitectureView.members:type_name -> polterware.local.v1.ArchitectureViewMember
+	1,  // 1: polterware.local.v1.GetLayoutResponse.layout:type_name -> polterware.local.v1.Layout
+	1,  // 2: polterware.local.v1.UpdateLayoutResponse.layout:type_name -> polterware.local.v1.Layout
+	0,  // 3: polterware.local.v1.ListResourcesResponse.resources:type_name -> polterware.local.v1.Resource
+	0,  // 4: polterware.local.v1.SaveResourceRequest.resource:type_name -> polterware.local.v1.Resource
+	0,  // 5: polterware.local.v1.SaveResourceResponse.resource:type_name -> polterware.local.v1.Resource
+	3,  // 6: polterware.local.v1.ListViewsResponse.views:type_name -> polterware.local.v1.ArchitectureView
+	3,  // 7: polterware.local.v1.SaveViewRequest.view:type_name -> polterware.local.v1.ArchitectureView
+	3,  // 8: polterware.local.v1.SaveViewResponse.view:type_name -> polterware.local.v1.ArchitectureView
+	4,  // 9: polterware.local.v1.ArchitectureService.GetLayout:input_type -> polterware.local.v1.GetLayoutRequest
+	6,  // 10: polterware.local.v1.ArchitectureService.UpdateLayout:input_type -> polterware.local.v1.UpdateLayoutRequest
+	8,  // 11: polterware.local.v1.ArchitectureService.ListResources:input_type -> polterware.local.v1.ListResourcesRequest
+	10, // 12: polterware.local.v1.ArchitectureService.SaveResource:input_type -> polterware.local.v1.SaveResourceRequest
+	12, // 13: polterware.local.v1.ArchitectureService.ListViews:input_type -> polterware.local.v1.ListViewsRequest
+	14, // 14: polterware.local.v1.ArchitectureService.SaveView:input_type -> polterware.local.v1.SaveViewRequest
+	16, // 15: polterware.local.v1.ArchitectureService.DeleteView:input_type -> polterware.local.v1.DeleteViewRequest
+	5,  // 16: polterware.local.v1.ArchitectureService.GetLayout:output_type -> polterware.local.v1.GetLayoutResponse
+	7,  // 17: polterware.local.v1.ArchitectureService.UpdateLayout:output_type -> polterware.local.v1.UpdateLayoutResponse
+	9,  // 18: polterware.local.v1.ArchitectureService.ListResources:output_type -> polterware.local.v1.ListResourcesResponse
+	11, // 19: polterware.local.v1.ArchitectureService.SaveResource:output_type -> polterware.local.v1.SaveResourceResponse
+	13, // 20: polterware.local.v1.ArchitectureService.ListViews:output_type -> polterware.local.v1.ListViewsResponse
+	15, // 21: polterware.local.v1.ArchitectureService.SaveView:output_type -> polterware.local.v1.SaveViewResponse
+	17, // 22: polterware.local.v1.ArchitectureService.DeleteView:output_type -> polterware.local.v1.DeleteViewResponse
+	16, // [16:23] is the sub-list for method output_type
+	9,  // [9:16] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_architecture_proto_init() }
@@ -654,7 +1220,7 @@ func file_polterware_local_v1_architecture_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_architecture_proto_rawDesc), len(file_polterware_local_v1_architecture_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

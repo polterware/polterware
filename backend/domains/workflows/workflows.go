@@ -10,11 +10,14 @@ type Step struct {
 }
 
 type Workflow struct {
-	ID        string
-	ProjectID string
-	Name      string
-	Status    string
-	Steps     []Step
+	ID          string
+	ProjectID   string
+	Name        string
+	Status      string
+	Steps       []Step
+	Description string
+	Trigger     string
+	LastRunAt   string
 }
 
 var ErrInvalid = errors.New("invalid workflow")

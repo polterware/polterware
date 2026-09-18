@@ -96,6 +96,9 @@ type Workflow struct {
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	Steps         []*WorkflowStep        `protobuf:"bytes,5,rep,name=steps,proto3" json:"steps,omitempty"`
+	Description   string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	Trigger       string                 `protobuf:"bytes,7,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	LastRunAt     string                 `protobuf:"bytes,8,opt,name=last_run_at,json=lastRunAt,proto3" json:"last_run_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -163,6 +166,27 @@ func (x *Workflow) GetSteps() []*WorkflowStep {
 		return x.Steps
 	}
 	return nil
+}
+
+func (x *Workflow) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *Workflow) GetTrigger() string {
+	if x != nil {
+		return x.Trigger
+	}
+	return ""
+}
+
+func (x *Workflow) GetLastRunAt() string {
+	if x != nil {
+		return x.LastRunAt
+	}
+	return ""
 }
 
 type SaveWorkflowRequest struct {
@@ -465,14 +489,17 @@ const file_polterware_local_v1_workflow_proto_rawDesc = "" +
 	"\x06params\x18\x04 \x03(\v2-.polterware.local.v1.WorkflowStep.ParamsEntryR\x06params\x1a9\n" +
 	"\vParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9e\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfa\x01\n" +
 	"\bWorkflow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x127\n" +
-	"\x05steps\x18\x05 \x03(\v2!.polterware.local.v1.WorkflowStepR\x05steps\"P\n" +
+	"\x05steps\x18\x05 \x03(\v2!.polterware.local.v1.WorkflowStepR\x05steps\x12 \n" +
+	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x18\n" +
+	"\atrigger\x18\a \x01(\tR\atrigger\x12\x1e\n" +
+	"\vlast_run_at\x18\b \x01(\tR\tlastRunAt\"P\n" +
 	"\x13SaveWorkflowRequest\x129\n" +
 	"\bworkflow\x18\x01 \x01(\v2\x1d.polterware.local.v1.WorkflowR\bworkflow\"Q\n" +
 	"\x14SaveWorkflowResponse\x129\n" +

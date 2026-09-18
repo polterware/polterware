@@ -20,6 +20,18 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@bufbuild/protobuf':
+        specifier: ^2.11.0
+        version: 2.15.0
+      '@connectrpc/connect':
+        specifier: ^2.1.1
+        version: 2.2.0(@bufbuild/protobuf@2.15.0)
+      '@connectrpc/connect-node':
+        specifier: ^2.1.1
+        version: 2.2.0(@bufbuild/protobuf@2.15.0)(@connectrpc/connect@2.2.0(@bufbuild/protobuf@2.15.0))
+      '@polterware/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@polterware/feature-architecture':
         specifier: workspace:*
         version: link:../../packages/features/architecture
@@ -105,6 +117,15 @@ importers:
       vitest:
         specifier: ^4.1.5
         version: 4.1.5(@opentelemetry/api@1.9.1)(@types/node@24.12.2)(jsdom@29.0.2(@noble/hashes@1.8.0))(msw@2.14.6(@types/node@24.12.2)(typescript@6.0.3))(vite@7.3.2(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/contracts:
+    dependencies:
+      '@bufbuild/protobuf':
+        specifier: ^2.11.0
+        version: 2.15.0
+      '@connectrpc/connect':
+        specifier: ^2.1.1
+        version: 2.2.0(@bufbuild/protobuf@2.15.0)
 
   packages/features/architecture:
     dependencies:
@@ -446,6 +467,21 @@ packages:
   '@bramus/specificity@2.4.2':
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
+
+  '@bufbuild/protobuf@2.15.0':
+    resolution: {integrity: sha512-DAheWUkVr/SJTWCc+lg9dhY0eN4SaWlf4+bG1KzHeXbnqt0AfB/NX0Z+VunGlM1ki1B4zVvye27MpKh/svySUA==}
+
+  '@connectrpc/connect-node@2.2.0':
+    resolution: {integrity: sha512-E6uUO6e11WdynAuBjuN+0WpHjqxEM9BNDdfDIJHcn49Esg/WxSIbn2y1KFt9XL96IJi01qdBbvubcdpBz1X3Zw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.7.0
+      '@connectrpc/connect': 2.2.0
+
+  '@connectrpc/connect@2.2.0':
+    resolution: {integrity: sha512-M63OQ1ZFcPUm85CuewJ9G9CMV8LjzGR9935xOnXNQGSazAbwMb3x2W7vXBYM1zqrP7XFD8uxp/dUAhirclgwnQ==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.7.0
 
   '@corvu/resizable@0.2.5':
     resolution: {integrity: sha512-psax38DraM9SXtaNh/sfvizGO6xLCL4sqT4rWYlMZP5ZsUM05Q30tvXgnTo2roQFNOz2e06WofhDsBXTjY6g4A==}
@@ -3763,6 +3799,17 @@ snapshots:
   '@bramus/specificity@2.4.2':
     dependencies:
       css-tree: 3.2.1
+
+  '@bufbuild/protobuf@2.15.0': {}
+
+  '@connectrpc/connect-node@2.2.0(@bufbuild/protobuf@2.15.0)(@connectrpc/connect@2.2.0(@bufbuild/protobuf@2.15.0))':
+    dependencies:
+      '@bufbuild/protobuf': 2.15.0
+      '@connectrpc/connect': 2.2.0(@bufbuild/protobuf@2.15.0)
+
+  '@connectrpc/connect@2.2.0(@bufbuild/protobuf@2.15.0)':
+    dependencies:
+      '@bufbuild/protobuf': 2.15.0
 
   '@corvu/resizable@0.2.5(solid-js@1.9.14)':
     dependencies:

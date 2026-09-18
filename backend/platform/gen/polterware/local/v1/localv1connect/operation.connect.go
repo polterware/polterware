@@ -45,6 +45,12 @@ const (
 	// OperationServiceCancelOperationProcedure is the fully-qualified name of the OperationService's
 	// CancelOperation RPC.
 	OperationServiceCancelOperationProcedure = "/polterware.local.v1.OperationService/CancelOperation"
+	// OperationServiceListSchedulesProcedure is the fully-qualified name of the OperationService's
+	// ListSchedules RPC.
+	OperationServiceListSchedulesProcedure = "/polterware.local.v1.OperationService/ListSchedules"
+	// OperationServiceSaveScheduleProcedure is the fully-qualified name of the OperationService's
+	// SaveSchedule RPC.
+	OperationServiceSaveScheduleProcedure = "/polterware.local.v1.OperationService/SaveSchedule"
 )
 
 // OperationServiceClient is a client for the polterware.local.v1.OperationService service.
@@ -53,6 +59,8 @@ type OperationServiceClient interface {
 	GetOperation(context.Context, *connect.Request[v1.GetOperationRequest]) (*connect.Response[v1.GetOperationResponse], error)
 	ListOperations(context.Context, *connect.Request[v1.ListOperationsRequest]) (*connect.Response[v1.ListOperationsResponse], error)
 	CancelOperation(context.Context, *connect.Request[v1.CancelOperationRequest]) (*connect.Response[v1.CancelOperationResponse], error)
+	ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error)
+	SaveSchedule(context.Context, *connect.Request[v1.SaveScheduleRequest]) (*connect.Response[v1.SaveScheduleResponse], error)
 }
 
 // NewOperationServiceClient constructs a client for the polterware.local.v1.OperationService
@@ -90,6 +98,18 @@ func NewOperationServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(operationServiceMethods.ByName("CancelOperation")),
 			connect.WithClientOptions(opts...),
 		),
+		listSchedules: connect.NewClient[v1.ListSchedulesRequest, v1.ListSchedulesResponse](
+			httpClient,
+			baseURL+OperationServiceListSchedulesProcedure,
+			connect.WithSchema(operationServiceMethods.ByName("ListSchedules")),
+			connect.WithClientOptions(opts...),
+		),
+		saveSchedule: connect.NewClient[v1.SaveScheduleRequest, v1.SaveScheduleResponse](
+			httpClient,
+			baseURL+OperationServiceSaveScheduleProcedure,
+			connect.WithSchema(operationServiceMethods.ByName("SaveSchedule")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -99,6 +119,8 @@ type operationServiceClient struct {
 	getOperation     *connect.Client[v1.GetOperationRequest, v1.GetOperationResponse]
 	listOperations   *connect.Client[v1.ListOperationsRequest, v1.ListOperationsResponse]
 	cancelOperation  *connect.Client[v1.CancelOperationRequest, v1.CancelOperationResponse]
+	listSchedules    *connect.Client[v1.ListSchedulesRequest, v1.ListSchedulesResponse]
+	saveSchedule     *connect.Client[v1.SaveScheduleRequest, v1.SaveScheduleResponse]
 }
 
 // RequestOperation calls polterware.local.v1.OperationService.RequestOperation.
@@ -121,12 +143,24 @@ func (c *operationServiceClient) CancelOperation(ctx context.Context, req *conne
 	return c.cancelOperation.CallUnary(ctx, req)
 }
 
+// ListSchedules calls polterware.local.v1.OperationService.ListSchedules.
+func (c *operationServiceClient) ListSchedules(ctx context.Context, req *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error) {
+	return c.listSchedules.CallUnary(ctx, req)
+}
+
+// SaveSchedule calls polterware.local.v1.OperationService.SaveSchedule.
+func (c *operationServiceClient) SaveSchedule(ctx context.Context, req *connect.Request[v1.SaveScheduleRequest]) (*connect.Response[v1.SaveScheduleResponse], error) {
+	return c.saveSchedule.CallUnary(ctx, req)
+}
+
 // OperationServiceHandler is an implementation of the polterware.local.v1.OperationService service.
 type OperationServiceHandler interface {
 	RequestOperation(context.Context, *connect.Request[v1.RequestOperationRequest]) (*connect.Response[v1.RequestOperationResponse], error)
 	GetOperation(context.Context, *connect.Request[v1.GetOperationRequest]) (*connect.Response[v1.GetOperationResponse], error)
 	ListOperations(context.Context, *connect.Request[v1.ListOperationsRequest]) (*connect.Response[v1.ListOperationsResponse], error)
 	CancelOperation(context.Context, *connect.Request[v1.CancelOperationRequest]) (*connect.Response[v1.CancelOperationResponse], error)
+	ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error)
+	SaveSchedule(context.Context, *connect.Request[v1.SaveScheduleRequest]) (*connect.Response[v1.SaveScheduleResponse], error)
 }
 
 // NewOperationServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -160,6 +194,18 @@ func NewOperationServiceHandler(svc OperationServiceHandler, opts ...connect.Han
 		connect.WithSchema(operationServiceMethods.ByName("CancelOperation")),
 		connect.WithHandlerOptions(opts...),
 	)
+	operationServiceListSchedulesHandler := connect.NewUnaryHandler(
+		OperationServiceListSchedulesProcedure,
+		svc.ListSchedules,
+		connect.WithSchema(operationServiceMethods.ByName("ListSchedules")),
+		connect.WithHandlerOptions(opts...),
+	)
+	operationServiceSaveScheduleHandler := connect.NewUnaryHandler(
+		OperationServiceSaveScheduleProcedure,
+		svc.SaveSchedule,
+		connect.WithSchema(operationServiceMethods.ByName("SaveSchedule")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/polterware.local.v1.OperationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OperationServiceRequestOperationProcedure:
@@ -170,6 +216,10 @@ func NewOperationServiceHandler(svc OperationServiceHandler, opts ...connect.Han
 			operationServiceListOperationsHandler.ServeHTTP(w, r)
 		case OperationServiceCancelOperationProcedure:
 			operationServiceCancelOperationHandler.ServeHTTP(w, r)
+		case OperationServiceListSchedulesProcedure:
+			operationServiceListSchedulesHandler.ServeHTTP(w, r)
+		case OperationServiceSaveScheduleProcedure:
+			operationServiceSaveScheduleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -193,4 +243,12 @@ func (UnimplementedOperationServiceHandler) ListOperations(context.Context, *con
 
 func (UnimplementedOperationServiceHandler) CancelOperation(context.Context, *connect.Request[v1.CancelOperationRequest]) (*connect.Response[v1.CancelOperationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.OperationService.CancelOperation is not implemented"))
+}
+
+func (UnimplementedOperationServiceHandler) ListSchedules(context.Context, *connect.Request[v1.ListSchedulesRequest]) (*connect.Response[v1.ListSchedulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.OperationService.ListSchedules is not implemented"))
+}
+
+func (UnimplementedOperationServiceHandler) SaveSchedule(context.Context, *connect.Request[v1.SaveScheduleRequest]) (*connect.Response[v1.SaveScheduleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.OperationService.SaveSchedule is not implemented"))
 }

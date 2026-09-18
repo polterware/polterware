@@ -11,7 +11,7 @@ export type Resource = {
   address?: string;
   tags: string[];
   description: string;
-  dataSource: "fixture";
+  dataSource: "fixture" | "core";
 };
 
 export type NodeFixture = {

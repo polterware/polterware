@@ -11,8 +11,6 @@ import {
   Tabs,
 } from "@polterware/frontend-design-system";
 import {
-  DOCUMENT_MOCKS,
-  RUNBOOK_MOCKS,
   type WorkspaceDocument,
   type WorkspaceRunbook,
 } from "@polterware/feature-shell";
@@ -31,6 +29,8 @@ function normalizeTab(raw?: string): "docs" | "runbooks" {
 }
 
 export function KnowledgeView(props: {
+  documents?: WorkspaceDocument[];
+  runbooks?: WorkspaceRunbook[];
   tab?: string;
   error?: string;
   onTabChange?: (tab: string) => void;
@@ -39,6 +39,7 @@ export function KnowledgeView(props: {
   onOpenComponent?: (componentId: string) => void;
   onOpenTerminal?: () => void;
   onOpenOperation?: (id?: string) => void;
+  onSaveBody?: (id: string, body: string) => void;
 }) {
   const tab = () => normalizeTab(props.tab);
   const [query, setQuery] = createSignal("");
@@ -49,7 +50,7 @@ export function KnowledgeView(props: {
 
   const docs = createMemo(() => {
     const needle = query().trim().toLowerCase();
-    return DOCUMENT_MOCKS.filter((document) => {
+    return (props.documents ?? []).filter((document) => {
       if (document.archived) return false;
       if (filters().length > 0 && !filters().includes(document.status)) return false;
       if (!needle) return true;
@@ -60,7 +61,7 @@ export function KnowledgeView(props: {
 
   const runbooks = createMemo(() => {
     const needle = query().trim().toLowerCase();
-    return RUNBOOK_MOCKS.filter((runbook) => {
+    return (props.runbooks ?? []).filter((runbook) => {
       if (filters().length > 0 && !filters().includes(runbook.severity)) return false;
       if (!needle) return true;
       return [runbook.title, runbook.service, runbook.owner]
@@ -84,14 +85,14 @@ export function KnowledgeView(props: {
   const document = createMemo((): WorkspaceDocument | undefined => {
     const target = activeTarget();
     return target?.scopeId === "knowledge:docs" && target.entityKind === "document"
-      ? DOCUMENT_MOCKS.find((item) => item.id === target.entityId)
+      ? (props.documents ?? []).find((item) => item.id === target.entityId)
       : undefined;
   });
 
   const runbook = createMemo((): WorkspaceRunbook | undefined => {
     const target = activeTarget();
     return target?.scopeId === "knowledge:runbooks" && target.entityKind === "runbook"
-      ? RUNBOOK_MOCKS.find((item) => item.id === target.entityId)
+      ? (props.runbooks ?? []).find((item) => item.id === target.entityId)
       : undefined;
   });
 
@@ -226,7 +227,10 @@ export function KnowledgeView(props: {
           <DocumentDetail
             document={item()}
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
-            onBodyChange={(markdown) => setBodyOverrides((current) => ({ ...current, [item().id]: markdown }))}
+            onBodyChange={(markdown) => {
+              setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
+              props.onSaveBody?.(item().id, markdown);
+            }}
             onOpenComponent={props.onOpenComponent}
           />
         )}
@@ -236,7 +240,10 @@ export function KnowledgeView(props: {
           <RunbookDetail
             runbook={item()}
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
-            onBodyChange={(markdown) => setBodyOverrides((current) => ({ ...current, [item().id]: markdown }))}
+            onBodyChange={(markdown) => {
+              setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
+              props.onSaveBody?.(item().id, markdown);
+            }}
             onOpenTerminal={props.onOpenTerminal}
             onOpenComponent={props.onOpenComponent}
             onOpenOperation={props.onOpenOperation}

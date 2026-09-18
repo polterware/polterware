@@ -4,12 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Optional desktop package version override (ex: 0.1.1)"
+        description: "Optional desktop package version override (ex: 0.1.0)"
         required: false
         type: string
-  push:
-    tags:
-      - "v*"
 
 permissions:
   contents: write
@@ -31,6 +28,11 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
       - name: Optional version override
         if: ${{ inputs.version != '' }}
         shell: bash
@@ -50,6 +52,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build core binary
+        run: pnpm build:core
 
       - name: Build desktop app
         run: pnpm --filter @polterware/desktop build

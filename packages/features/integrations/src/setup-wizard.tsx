@@ -1,4 +1,4 @@
-import { Show, createMemo, createSignal } from "solid-js";
+import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import {
   Button,
   PageContent,
@@ -7,7 +7,6 @@ import {
   pushToast,
 } from "@polterware/frontend-design-system";
 import {
-  CATALOG_PROVIDER_MOCKS,
   TerminalTranscript,
   type CliConnectionState,
   type WorkspaceCatalogProvider,
@@ -16,62 +15,80 @@ import { cliStateLabel, cliStateTone, providerByName } from "./setup-wizard-help
 
 export function SetupWizard(props: {
   providerName?: string;
+  providers?: WorkspaceCatalogProvider[];
   onBack?: () => void;
   onFinish?: (provider: WorkspaceCatalogProvider) => void;
 }) {
   const provider = createMemo(() =>
-    providerByName(CATALOG_PROVIDER_MOCKS, props.providerName) ?? CATALOG_PROVIDER_MOCKS[0]!,
+    providerByName(props.providers ?? [], props.providerName) ?? (props.providers ?? [])[0],
   );
-  const [state, setState] = createSignal<CliConnectionState>(provider().state);
-  const [lines, setLines] = createSignal<string[]>([
-    `Visual authentication preview for ${provider().name}`,
-    `CLI: ${provider().binary}`,
-    "No command, browser, PTY, or authentication request will be started.",
-    ...provider().authCommands.map((command) => `$ ${command}`),
-  ]);
+  const [state, setState] = createSignal<CliConnectionState>("ready");
+  const [lines, setLines] = createSignal<string[]>([]);
+
+  createEffect(() => {
+    const current = provider();
+    if (!current) return;
+    setState(current.state);
+    setLines([
+      `Visual authentication preview for ${current.name}`,
+      `CLI: ${current.binary}`,
+      "No command, browser, PTY, or authentication request will be started.",
+      ...current.authCommands.map((command) => `$ ${command}`),
+    ]);
+  });
 
   function startAuthentication() {
+    const current = provider();
+    if (!current) return;
     setState("authenticating");
     setLines([
-      ...provider().transcript.slice(0, -1),
+      ...current.transcript.slice(0, -1),
       "Authentication is waiting in this visual preview. Nothing is running.",
     ]);
   }
 
   function completeAuthentication() {
+    const current = provider();
+    if (!current) return;
     setState("connected");
-    setLines([...provider().transcript, "Connection stored in memory for this session only."]);
-    pushToast(`${provider().name} connected for this preview session.`, "success");
-    props.onFinish?.(provider());
+    setLines([...current.transcript, "Connection stored locally for this project."]);
+    pushToast(`${current.name} connection saved.`, "success");
+    props.onFinish?.(current);
   }
 
   function failAuthentication() {
+    const current = provider();
+    if (!current) return;
     setState("failed");
-    setLines([...provider().transcript.slice(0, -1), "Authentication failed (mock)."]);
+    setLines([...current.transcript.slice(0, -1), "Authentication failed (visual only)."]);
   }
 
   function markUnavailable() {
+    const current = provider();
+    if (!current) return;
     setState("cli-unavailable");
     setLines([
-      `$ ${provider().binary} --version`,
-      `${provider().binary}: command not found (mock)`,
+      `$ ${current.binary} --version`,
+      `${current.binary}: command not found (visual only)`,
       "Install the CLI outside Polterware before connecting.",
     ]);
   }
 
   return (
+    <Show when={provider()}>
+      {(current) => (
     <div class="flex h-full min-h-0 flex-col">
       <PageHeader
-        title={`Connect ${provider().name}`}
+        title={`Connect ${current().name}`}
         subtitle="Visual CLI authentication"
         actions={<Button size="sm" variant="ghost" onClick={() => props.onBack?.()}>Cancel</Button>}
       />
       <PageContent class="mx-auto flex w-full max-w-[900px] flex-1 flex-col gap-4 p-6">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p class="m-0 text-[13px] font-medium text-[var(--color-text-primary)]">{provider().binary}</p>
+            <p class="m-0 text-[13px] font-medium text-[var(--color-text-primary)]">{current().binary}</p>
             <p class="m-0 mt-1 text-[12px] text-[var(--color-text-muted)]">
-              {provider().authCommands.join(" · ")}
+              {current().authCommands.join(" · ")}
             </p>
           </div>
           <StatusChip tone={cliStateTone(state())} label={cliStateLabel(state())} />
@@ -79,7 +96,7 @@ export function SetupWizard(props: {
 
         <TerminalTranscript
           lines={lines()}
-          label={`${provider().name} authentication transcript`}
+          label={`${current().name} authentication transcript`}
           class="min-h-[320px] flex-1 rounded-[var(--radius-card)]"
         />
 
@@ -103,5 +120,7 @@ export function SetupWizard(props: {
         </div>
       </PageContent>
     </div>
+      )}
+    </Show>
   );
 }

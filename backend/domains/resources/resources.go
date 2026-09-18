@@ -10,6 +10,26 @@ type Resource struct {
 	Type          string
 	ExternalKey   string
 	Source        string
+	Provider      string
+	Status        string
+	Region        string
+	Address       string
+	Tags          []string
+	Description   string
+}
+
+type Node struct {
+	ID            string
+	ProjectID     string
+	EnvironmentID string
+	Name          string
+	Platform      string
+	Shell         string
+	Status        string
+	Address       string
+	CPU           string
+	Memory        string
+	LastSeenAt    string
 }
 
 var ErrDuplicateKey = errors.New("external_key not unique for project")

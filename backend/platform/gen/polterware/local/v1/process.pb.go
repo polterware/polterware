@@ -28,6 +28,10 @@ type ProcessSession struct {
 	EnvironmentId string                 `protobuf:"bytes,3,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	Command       string                 `protobuf:"bytes,4,opt,name=command,proto3" json:"command,omitempty"`
 	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Name          string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	NodeId        string                 `protobuf:"bytes,7,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Pid           int32                  `protobuf:"varint,8,opt,name=pid,proto3" json:"pid,omitempty"`
+	StartedAt     string                 `protobuf:"bytes,9,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -97,6 +101,34 @@ func (x *ProcessSession) GetStatus() string {
 	return ""
 }
 
+func (x *ProcessSession) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ProcessSession) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *ProcessSession) GetPid() int32 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
+func (x *ProcessSession) GetStartedAt() string {
+	if x != nil {
+		return x.StartedAt
+	}
+	return ""
+}
+
 type StartProcessRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
@@ -104,6 +136,8 @@ type StartProcessRequest struct {
 	Command       string                 `protobuf:"bytes,3,opt,name=command,proto3" json:"command,omitempty"`
 	Args          []string               `protobuf:"bytes,4,rep,name=args,proto3" json:"args,omitempty"`
 	Cwd           string                 `protobuf:"bytes,5,opt,name=cwd,proto3" json:"cwd,omitempty"`
+	Name          string                 `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	NodeId        string                 `protobuf:"bytes,7,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -169,6 +203,20 @@ func (x *StartProcessRequest) GetArgs() []string {
 func (x *StartProcessRequest) GetCwd() string {
 	if x != nil {
 		return x.Cwd
+	}
+	return ""
+}
+
+func (x *StartProcessRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *StartProcessRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
 	}
 	return ""
 }
@@ -485,21 +533,28 @@ var File_polterware_local_v1_process_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_process_proto_rawDesc = "" +
 	"\n" +
-	"!polterware/local/v1/process.proto\x12\x13polterware.local.v1\"\x98\x01\n" +
+	"!polterware/local/v1/process.proto\x12\x13polterware.local.v1\"\xf6\x01\n" +
 	"\x0eProcessSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12%\n" +
 	"\x0eenvironment_id\x18\x03 \x01(\tR\renvironmentId\x12\x18\n" +
 	"\acommand\x18\x04 \x01(\tR\acommand\x12\x16\n" +
-	"\x06status\x18\x05 \x01(\tR\x06status\"\x9b\x01\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x12\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\x12\x17\n" +
+	"\anode_id\x18\a \x01(\tR\x06nodeId\x12\x10\n" +
+	"\x03pid\x18\b \x01(\x05R\x03pid\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\t \x01(\tR\tstartedAt\"\xc8\x01\n" +
 	"\x13StartProcessRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12%\n" +
 	"\x0eenvironment_id\x18\x02 \x01(\tR\renvironmentId\x12\x18\n" +
 	"\acommand\x18\x03 \x01(\tR\acommand\x12\x12\n" +
 	"\x04args\x18\x04 \x03(\tR\x04args\x12\x10\n" +
-	"\x03cwd\x18\x05 \x01(\tR\x03cwd\"U\n" +
+	"\x03cwd\x18\x05 \x01(\tR\x03cwd\x12\x12\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\x12\x17\n" +
+	"\anode_id\x18\a \x01(\tR\x06nodeId\"U\n" +
 	"\x14StartProcessResponse\x12=\n" +
 	"\asession\x18\x01 \x01(\v2#.polterware.local.v1.ProcessSessionR\asession\"$\n" +
 	"\x12StopProcessRequest\x12\x0e\n" +

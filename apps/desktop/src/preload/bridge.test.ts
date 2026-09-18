@@ -28,6 +28,17 @@ describe("createPolterwareBridge", () => {
     );
   });
 
+  it("routes core calls through namespaced IPC channels", async () => {
+    const invoke = vi.fn().mockResolvedValue({});
+    const bridge = createPolterwareBridge({ invoke });
+
+    await bridge.core.projects.list();
+    await bridge.core.health.getStoreHealth();
+
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.core.listProjects, undefined);
+    expect(invoke).toHaveBeenCalledWith(IPC_CHANNELS.core.getStoreHealth, undefined);
+  });
+
   it("subscribes to Commander focus events and returns an unsubscribe function", () => {
     const invoke = vi.fn().mockResolvedValue([]);
     const listeners = new Map<string, (...args: unknown[]) => void>();

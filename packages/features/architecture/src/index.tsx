@@ -19,7 +19,7 @@ import type { SaveStatus } from "./architecture-canvas";
 import { ArchitectureNodeDetail } from "./node-detail";
 import { ArchitectureViewDetail } from "./view-detail";
 import { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
-import { VIEW_FIXTURES } from "./extra-fixtures";
+import { type ArchViewCard } from "./extra-fixtures";
 import { ViewsTable } from "./views-table";
 import { ComponentsTable } from "./components-table";
 import {
@@ -124,6 +124,7 @@ export { ArchitectureCanvas } from "./architecture-canvas";
 export { ArchitectureNodeDetail } from "./node-detail";
 export { ArchitectureViewDetail } from "./view-detail";
 export { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
+export type { ArchViewCard } from "./extra-fixtures";
 export { VIEW_FIXTURES } from "./extra-fixtures";
 export { assignLayer } from "./layers";
 export { filterNodes, groupNodesByLayer } from "./map-view";
@@ -201,9 +202,10 @@ export function ArchitectureView(props: {
   dataSource?: "fixture" | "empty";
   fixtureMode?: FixtureMode;
   createDialogOpen?: boolean;
+  views?: ArchViewCard[];
   onSelect?: (nodeId: string | null) => void;
   onOpenNode?: (nodeId: string) => void;
-  onSaveLayout?: (bodyJson: string, expectedRevision: number) => void;
+  onSaveLayout?: (bodyJson: string, expectedRevision: number) => Promise<{ revision: number }> | { revision: number };
   onAssociate?: (c: DiscoveryCandidate) => void;
   onRefresh?: () => void;
   onTabChange?: (tab: string) => void;
@@ -214,6 +216,7 @@ export function ArchitectureView(props: {
   const tab = () => normalizeArchitectureTab(props.tab);
   const systemId = () => props.systems?.[0]?.id ?? SYSTEM_ID_DEFAULT;
   const fixtureMode = () => props.fixtureMode ?? "fallback";
+  const views = () => props.views ?? [];
   const [deepMode, setDeepMode] = createSignal<"none" | "view-edit">("none");
   const [editViewName, setEditViewName] = createSignal("Payment flow");
   const [activeViewId, setActiveViewId] = createSignal<string | null>(null);
@@ -248,9 +251,11 @@ export function ArchitectureView(props: {
       systemId: systemId(),
       port: {
         save: async (_sid, expectedRevision, bodyJson) => {
-          props.onSaveLayout?.(bodyJson, expectedRevision);
-          // App refetches; optimistically bump
-          return { revision: expectedRevision + 1 };
+          const result = await props.onSaveLayout?.(bodyJson, expectedRevision);
+          if (!result) {
+            throw new Error("Layout save did not return a revision.");
+          }
+          return result;
         },
       },
       onRevision: (rev) => setRevision(rev),
@@ -506,7 +511,7 @@ export function ArchitectureView(props: {
     if (target?.scopeId !== "architecture:views" || target.entityKind !== "arch-view") {
       return undefined;
     }
-    return VIEW_FIXTURES.find((view) => view.id === target.entityId);
+    return views().find((view) => view.id === target.entityId);
   });
 
   const componentRows = createMemo(() =>
@@ -566,7 +571,7 @@ export function ArchitectureView(props: {
 
     const targets =
       tab() === "views"
-        ? VIEW_FIXTURES.map((view) => ({
+        ? views().map((view) => ({
             scopeId: scope,
             entityId: view.id,
             entityKind: "arch-view" as const,
@@ -671,7 +676,7 @@ export function ArchitectureView(props: {
                       id: "view",
                       label: "View",
                       selectionMode: "single",
-                      options: VIEW_FIXTURES.map((view) => ({
+                      options: views().map((view) => ({
                           id: view.id,
                           label: view.name,
                           checked: activeViewId() === view.id,
@@ -817,8 +822,8 @@ export function ArchitectureView(props: {
             </Show>
             <Show when={tab() === "views"}>
               <ViewsTable
-                views={VIEW_FIXTURES}
-                dataSource="fixture"
+                views={views()}
+                dataSource="core"
                 activeRowId={
                   activeTarget()?.scopeId === "architecture:views"
                     ? activeTarget()?.entityId

@@ -9,7 +9,14 @@ message KnowledgeItem {
   string body = 4;
   string kind = 5;
   repeated string tags = 6;
+  string summary = 7;
+  string owner = 8;
+  string status = 9;
+  string extra_json = 10;
+  string created_at = 11;
+  string updated_at = 12;
 }
+
 message SaveKnowledgeRequest { KnowledgeItem item = 1; }
 message SaveKnowledgeResponse { KnowledgeItem item = 1; }
 message ListKnowledgeRequest { string project_id = 1; string kind = 2; }

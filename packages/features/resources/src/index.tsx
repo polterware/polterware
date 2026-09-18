@@ -19,11 +19,9 @@ import {
   Tabs,
 } from "@polterware/frontend-design-system";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
-import { NODE_FIXTURES, PROCESS_FIXTURES, RESOURCE_FIXTURES } from "./fixtures";
 import type { NodeFixture, ProcessFixture, Resource, ResourceStatus } from "./types";
 
 export type * from "./types";
-export { NODE_FIXTURES, PROCESS_FIXTURES, RESOURCE_FIXTURES } from "./fixtures";
 
 const TABS = [
   { id: "inventory", label: "Inventory" },
@@ -51,6 +49,8 @@ function processTone(status: ProcessFixture["status"]): "healthy" | "muted" | "d
 
 export function ResourcesView(props: {
   catalog?: Resource[];
+  nodes?: NodeFixture[];
+  processes?: ProcessFixture[];
   dataSource?: "fixture" | "empty";
   tab?: string;
   search?: string;
@@ -71,7 +71,9 @@ export function ResourcesView(props: {
   onRunCommand?: () => void;
 }) {
   const tab = () => normalizeTab(props.tab);
-  const catalog = () => props.catalog ?? RESOURCE_FIXTURES;
+  const catalog = () => props.catalog ?? [];
+  const nodeRows = () => props.nodes ?? [];
+  const processRows = () => props.processes ?? [];
   const [query, setQuery] = createSignal(props.search ?? "");
   const [statuses, setStatuses] = createSignal<string[]>(props.filters ?? []);
   const [name, setName] = createSignal("");
@@ -85,12 +87,12 @@ export function ResourcesView(props: {
     if (statuses().length > 0 && !statuses().includes(resource.status)) return false;
     return !needle || [resource.name, resource.type, resource.provider, ...resource.tags].some((value) => value.toLowerCase().includes(needle));
   }));
-  const nodes = createMemo(() => NODE_FIXTURES.filter((node) => {
+  const nodes = createMemo(() => nodeRows().filter((node) => {
     const needle = query().trim().toLowerCase();
     if (statuses().length > 0 && !statuses().includes(node.status)) return false;
     return !needle || [node.name, node.platform, node.environment].some((value) => value.toLowerCase().includes(needle));
   }));
-  const processes = createMemo(() => PROCESS_FIXTURES.filter((process) => {
+  const processes = createMemo(() => processRows().filter((process) => {
     const needle = query().trim().toLowerCase();
     if (statuses().length > 0 && !statuses().includes(process.status)) return false;
     return !needle || [process.name, process.nodeName, process.command].some((value) => value.toLowerCase().includes(needle));
@@ -108,8 +110,8 @@ export function ResourcesView(props: {
   });
 
   const activeResource = createMemo(() => activeTarget()?.scopeId === "resources:inventory" ? catalog().find((item) => item.id === activeTarget()?.entityId) : undefined);
-  const activeNode = createMemo(() => activeTarget()?.scopeId === "resources:nodes" ? NODE_FIXTURES.find((item) => item.id === activeTarget()?.entityId) : undefined);
-  const activeProcess = createMemo(() => activeTarget()?.scopeId === "resources:processes" ? PROCESS_FIXTURES.find((item) => item.id === activeTarget()?.entityId) : undefined);
+  const activeNode = createMemo(() => activeTarget()?.scopeId === "resources:nodes" ? nodeRows().find((item) => item.id === activeTarget()?.entityId) : undefined);
+  const activeProcess = createMemo(() => activeTarget()?.scopeId === "resources:processes" ? processRows().find((item) => item.id === activeTarget()?.entityId) : undefined);
 
   function activate(id: string, kind: "resource" | "node" | "process") {
     detailPanelStore.getState().activateTarget({ scopeId: scopeId(), entityId: id, entityKind: kind });
@@ -125,7 +127,7 @@ export function ResourcesView(props: {
           <PageToolbar.Tabs><Tabs items={[...TABS]} value={tab()} onChange={(value) => { setQuery(""); setStatuses([]); props.onTabChange?.(value); }} aria-label="Resources" /></PageToolbar.Tabs>
           <PageToolbar.Actions>
             <FilterPopover ariaLabel="Resource filters" title="Filter resources" search={{ placeholder: `Search ${tab()}…`, value: query(), onInput: (value) => { setQuery(value); props.onSearch?.(value); } }} active={statuses().length > 0} onClear={() => { setStatuses([]); props.onFiltersChange?.([]); }} groups={[{ id: "status", label: "Status", options: (tab() === "processes" ? ["running", "stopped", "failed"] : ["healthy", "degraded", "offline", "unknown"]).map((status) => ({ id: status, label: status, checked: statuses().includes(status), onCheckedChange: (checked: boolean) => { const next = checked ? [...statuses(), status] : statuses().filter((value) => value !== status); setStatuses(next); props.onFiltersChange?.(next); } })) }]} />
-            <Button size="sm" variant="primary" onClick={() => props.onCreate?.()}>Add fixture</Button>
+            <Button size="sm" variant="primary" onClick={() => props.onCreate?.()}>Add resource</Button>
           </PageToolbar.Actions>
         </PageToolbar.Root>
         <PageContent class="p-0">
@@ -149,11 +151,11 @@ export function ResourcesView(props: {
         </PageContent>
       </div>
 
-      <Show when={activeResource()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<Package size={16} />} title={item().name}><DetailPanel.Actions><DetailPanel.Action label="Open architecture" onClick={() => props.onOpenArchitecture?.(item().id)}><Package /></DetailPanel.Action></DetailPanel.Actions></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Resource"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={healthTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Type" value={item().type} /><DetailPanel.MetadataItem label="Provider" value={item().provider} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /><DetailPanel.MetadataItem label="Region" value={item().region} /><DetailPanel.MetadataItem label="Source" value="Fixture" /></DetailPanel.Metadata><p class="mb-0 mt-3 text-[12px] text-[var(--color-text-secondary)]">{item().description}</p></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
+      <Show when={activeResource()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<Package size={16} />} title={item().name}><DetailPanel.Actions><DetailPanel.Action label="Open architecture" onClick={() => props.onOpenArchitecture?.(item().id)}><Package /></DetailPanel.Action></DetailPanel.Actions></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Resource"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={healthTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Type" value={item().type} /><DetailPanel.MetadataItem label="Provider" value={item().provider} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /><DetailPanel.MetadataItem label="Region" value={item().region} /><DetailPanel.MetadataItem label="Source" value="Local store" /></DetailPanel.Metadata><p class="mb-0 mt-3 text-[12px] text-[var(--color-text-secondary)]">{item().description}</p></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
       <Show when={activeNode()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<Laptop size={16} />} title={item().name}><DetailPanel.Actions><DetailPanel.Action label="Open visual terminal" onClick={() => props.onTerminal?.()}><SquareTerminal /></DetailPanel.Action></DetailPanel.Actions></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Node"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={healthTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Platform" value={item().platform} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /><DetailPanel.MetadataItem label="Address" value={item().address} /><DetailPanel.MetadataItem label="CPU" value={item().cpu} /><DetailPanel.MetadataItem label="Memory" value={item().memory} /></DetailPanel.Metadata></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
-      <Show when={activeProcess()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<SquareTerminal size={16} />} title={item().name}><DetailPanel.Actions><DetailPanel.Action label="Preview command" onClick={() => props.onRunCommand?.()}><Play /></DetailPanel.Action><DetailPanel.Action label="Open visual terminal" onClick={() => props.onTerminal?.()}><SquareTerminal /></DetailPanel.Action></DetailPanel.Actions></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Process"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={processTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Node" value={item().nodeName} /><DetailPanel.MetadataItem label="PID" value={item().pid?.toString() ?? "—"} /><DetailPanel.MetadataItem label="Started" value={item().startedAt} /><DetailPanel.MetadataItem label="Command" value={item().command} /><DetailPanel.MetadataItem label="Source" value="Fixture" /></DetailPanel.Metadata></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
+      <Show when={activeProcess()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<SquareTerminal size={16} />} title={item().name}><DetailPanel.Actions><DetailPanel.Action label="Preview command" onClick={() => props.onRunCommand?.()}><Play /></DetailPanel.Action><DetailPanel.Action label="Open visual terminal" onClick={() => props.onTerminal?.()}><SquareTerminal /></DetailPanel.Action></DetailPanel.Actions></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Process"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={processTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Node" value={item().nodeName} /><DetailPanel.MetadataItem label="PID" value={item().pid?.toString() ?? "—"} /><DetailPanel.MetadataItem label="Started" value={item().startedAt} /><DetailPanel.MetadataItem label="Command" value={item().command} /><DetailPanel.MetadataItem label="Source" value="Local store" /></DetailPanel.Metadata></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
 
-      <A11yDialog open={Boolean(props.dialogOpen)} title="Add resource fixture" size="xl" onClose={() => props.onCloseDialog?.()} footer={<><Button variant="ghost" size="sm" onClick={() => props.onCloseDialog?.()}>Cancel</Button><Button variant="primary" size="sm" disabled={!name().trim()} onClick={() => props.onSubmitDialog?.()}>Add to session</Button></>}><div class="grid gap-3"><p class="m-0 text-[12px] text-[var(--color-text-muted)]">This resource exists only for the current visual session.</p><Field label="Name"><Input size="sm" value={name()} onInput={(event) => setName(event.currentTarget.value)} /></Field><Field label="Type"><Select size="sm" value={type()} options={[{ value: "Service", label: "Service" }, { value: "Database", label: "Database" }, { value: "Cache", label: "Cache" }]} onChange={setType} /></Field><Field label="Environment"><Select size="sm" value={environment()} options={[{ value: "Development", label: "Development" }, { value: "Staging", label: "Staging" }, { value: "Production", label: "Production" }]} onChange={setEnvironment} /></Field></div></A11yDialog>
+      <A11yDialog open={Boolean(props.dialogOpen)} title="Add resource" size="xl" onClose={() => props.onCloseDialog?.()} footer={<><Button variant="ghost" size="sm" onClick={() => props.onCloseDialog?.()}>Cancel</Button><Button variant="primary" size="sm" disabled={!name().trim()} onClick={() => props.onSubmitDialog?.()}>Save</Button></>}><div class="grid gap-3"><p class="m-0 text-[12px] text-[var(--color-text-muted)]">This resource is stored in the local SQLite database.</p><Field label="Name"><Input size="sm" value={name()} onInput={(event) => setName(event.currentTarget.value)} /></Field><Field label="Type"><Select size="sm" value={type()} options={[{ value: "Service", label: "Service" }, { value: "Database", label: "Database" }, { value: "Cache", label: "Cache" }]} onChange={setType} /></Field><Field label="Environment"><Select size="sm" value={environment()} options={[{ value: "Development", label: "Development" }, { value: "Staging", label: "Staging" }, { value: "Production", label: "Production" }]} onChange={setEnvironment} /></Field></div></A11yDialog>
     </>
   );
 }

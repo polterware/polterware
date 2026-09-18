@@ -16,7 +16,8 @@ describe("Environments table composition contract", () => {
     expect(source).toContain("protectionTone");
     expect(source).toContain("protectionLabel");
     expect(source).toContain('aria-label="Environments"');
-    expect(source).toContain("SETTINGS_ENVIRONMENT_MOCKS");
+    expect(source).toContain("environments()");
+    expect(source).not.toContain("SETTINGS_ENVIRONMENT_MOCKS");
     expect(source).toContain("activateFirstRow");
     expect(source).toContain("onActiveRowChange");
   });

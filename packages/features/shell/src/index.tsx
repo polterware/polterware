@@ -131,13 +131,16 @@ export const DEFAULT_NAV: NavItem[] = [
   { id: "integrations", label: "Integrations", group: "MANAGEMENT" },
 ];
 
-function workspaceFromRoute(route?: ClientRoute): WorkspaceContext {
-  const projectId = route?.projectId ?? "proj-polter";
+function workspaceFromRoute(
+  route: ClientRoute | undefined,
+  environments: readonly EnvironmentItem[],
+): WorkspaceContext {
+  const projectId = route?.projectId ?? environments[0]?.projectId ?? "proj-polter";
   const environment =
-    ENVIRONMENT_FIXTURES.find((item) => item.id === route?.environmentId) ??
-    ENVIRONMENT_FIXTURES.find((item) => item.projectId === projectId) ??
-    ENVIRONMENT_FIXTURES[0]!;
-  return { projectId, environmentId: environment.id };
+    environments.find((item) => item.id === route?.environmentId) ??
+    environments.find((item) => item.projectId === projectId) ??
+    environments[0];
+  return { projectId, environmentId: environment?.id ?? "" };
 }
 
 function breadcrumbLevel(section: string): BreadcrumbLevel {
@@ -177,7 +180,7 @@ export function Shell(props: {
   const mode = () => shellLayoutMode(currentSection());
   const items = () => props.navItems ?? DEFAULT_NAV;
   const workspace = createMemo(
-    () => props.workspace ?? localWorkspace() ?? workspaceFromRoute(props.route?.()),
+    () => props.workspace ?? localWorkspace() ?? workspaceFromRoute(props.route?.(), props.environments ?? ENVIRONMENT_FIXTURES),
   );
   const activeId = () => (isNavSectionId(currentSection()) ? currentSection() : "");
 

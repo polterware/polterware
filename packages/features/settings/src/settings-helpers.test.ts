@@ -26,7 +26,7 @@ describe("settings helpers", () => {
   });
 
   it("builds select options and detail targets from fixtures", () => {
-    const options = environmentSelectOptions();
+    const options = environmentSelectOptions(SETTINGS_ENVIRONMENT_MOCKS);
     expect(options.length).toBe(SETTINGS_ENVIRONMENT_MOCKS.length);
     expect(options[0]).toEqual({
       value: SETTINGS_ENVIRONMENT_MOCKS[0]!.id,

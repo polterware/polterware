@@ -9,10 +9,10 @@ import {
   Tabs,
 } from "@polterware/frontend-design-system";
 import {
-  CATALOG_PROVIDER_MOCKS,
-  INTEGRATION_MOCKS,
   type WorkspaceCatalogProvider,
   type WorkspaceIntegration,
+  type WorkspaceIntegrationResource,
+  type WorkspaceIntegrationSyncRun,
 } from "@polterware/feature-shell";
 import { NodeIcon } from "@polterware/feature-architecture/icons";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
@@ -41,6 +41,10 @@ function integrationTone(status: WorkspaceIntegration["status"]): "healthy" | "d
 }
 
 export function IntegrationsView(props: {
+  providers?: WorkspaceCatalogProvider[];
+  integrations?: WorkspaceIntegration[];
+  resources?: WorkspaceIntegrationResource[];
+  syncRuns?: WorkspaceIntegrationSyncRun[];
   tab?: string;
   onTabChange?: (tab: string) => void;
   onOpen?: (id: string) => void;
@@ -49,6 +53,7 @@ export function IntegrationsView(props: {
   onOpenSetup?: (providerId?: string) => void;
   onCloseSetup?: () => void;
   onOpenResource?: (resourceId: string) => void;
+  onConnect?: (provider: WorkspaceCatalogProvider) => void;
 }) {
   const tab = () => normalizeTab(props.tab);
   const [localSetupProvider, setLocalSetupProvider] = createSignal<string | null>(null);
@@ -62,7 +67,7 @@ export function IntegrationsView(props: {
 
   const catalog = createMemo(() => {
     const needle = query().trim().toLowerCase();
-    return CATALOG_PROVIDER_MOCKS.filter((provider) => {
+    return (props.providers ?? []).filter((provider) => {
       if (categories().length > 0 && !categories().includes(provider.category)) return false;
       if (!needle) return true;
       return [provider.name, provider.description, provider.category, provider.binary]
@@ -73,7 +78,7 @@ export function IntegrationsView(props: {
   const activeIntegration = createMemo(() => {
     const target = activeTarget();
     return target?.scopeId === "integrations:connected" && target.entityKind === "integration"
-      ? INTEGRATION_MOCKS.find((integration) => integration.id === target.entityId)
+      ? (props.integrations ?? []).find((integration) => integration.id === target.entityId)
       : undefined;
   });
 
@@ -83,7 +88,7 @@ export function IntegrationsView(props: {
       scopeId: scope,
       status: "ready",
       targets: !setupOpen() && tab() === "connected"
-        ? INTEGRATION_MOCKS.map((integration) => ({ scopeId: scope, entityId: integration.id, entityKind: "integration" }))
+        ? (props.integrations ?? []).map((integration) => ({ scopeId: scope, entityId: integration.id, entityKind: "integration" }))
         : [],
     });
     onCleanup(() => detailPanelStore.getState().unregisterCollection(scope));
@@ -127,7 +132,7 @@ export function IntegrationsView(props: {
                   groups={[{
                     id: "category",
                     label: "Category",
-                    options: [...new Set(CATALOG_PROVIDER_MOCKS.map((provider) => provider.category))].map((category) => ({
+                    options: [...new Set((props.providers ?? []).map((provider) => provider.category))].map((category) => ({
                       id: category,
                       label: category,
                       checked: categories().includes(category),
@@ -144,7 +149,7 @@ export function IntegrationsView(props: {
           <PageContent class="p-0">
             <Show when={tab() === "connected"}>
               <DataTable.Root
-                rows={INTEGRATION_MOCKS}
+                rows={props.integrations ?? []}
                 getRowId={(item) => item.id}
                 activeRowId={activeTarget()?.scopeId === "integrations:connected" ? activeTarget()?.entityId : null}
                 activateFirstRow
@@ -203,10 +208,12 @@ export function IntegrationsView(props: {
       }>
         <SetupWizard
           providerName={setupProvider()}
+          providers={props.providers ?? []}
           onBack={closeSetup}
           onFinish={(provider) => {
-            const integrationId = matchConnectedIntegrationId(provider.name, INTEGRATION_MOCKS);
+            const integrationId = matchConnectedIntegrationId(provider.name, props.integrations ?? []);
             closeSetup();
+            props.onConnect?.(provider);
             if (integrationId) {
               setStatusOverrides((current) => ({ ...current, [integrationId]: "connected" }));
               props.onTabChange?.("connected");
@@ -220,6 +227,9 @@ export function IntegrationsView(props: {
         {(integration) => (
           <IntegrationDetail
             integration={integration()}
+            providers={props.providers ?? []}
+            resources={props.resources ?? []}
+            syncRuns={props.syncRuns ?? []}
             status={statusOverrides()[integration().id] ?? integration().status}
             onReconfigure={() => openSetup(integration().providerId)}
             onSync={() => undefined}

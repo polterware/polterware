@@ -18,18 +18,10 @@ import {
 } from "@polterware/frontend-design-system";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
 import { EnvironmentDetail } from "./environment-detail";
-import {
-  archiveProjectToast,
-  environmentKindLabel,
-  environmentKindTone,
-  protectionLabel,
-  protectionTone,
-  saveGeneralSettingsToast,
-} from "./environment-status";
+import { environmentKindLabel, environmentKindTone, protectionLabel, protectionTone, archiveProjectToast, saveGeneralSettingsToast } from "./environment-status";
+import type { ProjectEnvironment, ProjectGeneralSettings } from "./types";
 import {
   findEnvironmentById,
-  PROJECT_GENERAL_SETTINGS_MOCK,
-  SETTINGS_ENVIRONMENT_MOCKS,
 } from "./fixtures";
 import {
   environmentDetailTarget,
@@ -39,7 +31,7 @@ import {
   SETTINGS_TABS,
 } from "./settings-helpers";
 
-export type { ProjectEnvironment, ProjectGeneralSettings, SettingsTabId } from "./types";
+export type { ProjectEnvironment, ProjectGeneralSettings, ProtectionLevel, SettingsTabId } from "./types";
 export { SETTINGS_ENVIRONMENT_MOCKS, PROJECT_GENERAL_SETTINGS_MOCK } from "./fixtures";
 export {
   environmentKindLabel,
@@ -50,29 +42,37 @@ export {
 export { normalizeSettingsTab, SETTINGS_TABS } from "./settings-helpers";
 export { EnvironmentDetail } from "./environment-detail";
 
-/** Project-scoped settings for the local visual version. */
+/** Project-scoped settings persisted in the local store. */
 export function SettingsView(props: {
   tab?: string;
+  general?: ProjectGeneralSettings;
+  environments?: ProjectEnvironment[];
   onTabChange?: (t: string) => void;
+  onSaveGeneral?: (settings: ProjectGeneralSettings) => void;
+  onResetLocalStore?: () => void;
   children?: JSX.Element;
 }) {
   const tab = () => normalizeSettingsTab(props.tab);
   const scopeId = createMemo(() => environmentsDetailScope());
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
+  const general = () => props.general;
+  const environments = () => props.environments ?? [];
 
-  const [name, setName] = createSignal(PROJECT_GENERAL_SETTINGS_MOCK.name);
-  const [description, setDescription] = createSignal(
-    PROJECT_GENERAL_SETTINGS_MOCK.description,
-  );
-  const [defaultEnvironmentId, setDefaultEnvironmentId] = createSignal(
-    PROJECT_GENERAL_SETTINGS_MOCK.defaultEnvironmentId,
-  );
-  const [repository, setRepository] = createSignal(
-    PROJECT_GENERAL_SETTINGS_MOCK.repository,
-  );
+  const [name, setName] = createSignal(general()?.name ?? "");
+  const [description, setDescription] = createSignal(general()?.description ?? "");
+  const [defaultEnvironmentId, setDefaultEnvironmentId] = createSignal(general()?.defaultEnvironmentId ?? "");
+  const [repository, setRepository] = createSignal(general()?.repository ?? "");
   const [archiveOpen, setArchiveOpen] = createSignal(false);
+  const [resetOpen, setResetOpen] = createSignal(false);
 
-  const environments = () => SETTINGS_ENVIRONMENT_MOCKS;
+  createEffect(() => {
+    const next = general();
+    if (!next) return;
+    setName(next.name);
+    setDescription(next.description);
+    setDefaultEnvironmentId(next.defaultEnvironmentId);
+    setRepository(next.repository);
+  });
 
   const currentEnvironment = createMemo(() => {
     const target = activeTarget();
@@ -80,7 +80,7 @@ export function SettingsView(props: {
       target?.scopeId === environmentsDetailScope() &&
       target.entityKind === "environment"
     ) {
-      return findEnvironmentById(target.entityId);
+      return findEnvironmentById(target.entityId, environments());
     }
     return undefined;
   });
@@ -104,7 +104,18 @@ export function SettingsView(props: {
   }
 
   function handleSaveGeneral() {
-    pushToast(saveGeneralSettingsToast(), "success");
+    const current = general();
+    props.onSaveGeneral?.({
+      name: name(),
+      description: description(),
+      defaultEnvironmentId: defaultEnvironmentId(),
+      projectId: current?.projectId ?? "",
+      repository: repository(),
+      dataSource: current?.dataSource ?? "empty",
+    });
+    if (!props.onSaveGeneral) {
+      pushToast(saveGeneralSettingsToast(), "success");
+    }
   }
 
   function handleArchiveConfirm() {
@@ -113,7 +124,7 @@ export function SettingsView(props: {
   }
 
   async function handleCopyProjectId() {
-    const id = PROJECT_GENERAL_SETTINGS_MOCK.projectId;
+    const id = general()?.projectId ?? "";
     try {
       if ("navigator" in globalThis && globalThis.navigator.clipboard?.writeText) {
         await globalThis.navigator.clipboard.writeText(id);
@@ -121,7 +132,7 @@ export function SettingsView(props: {
     } catch {
       // Clipboard may be unavailable in some runtimes — toast still honest.
     }
-    pushToast("Project ID copied (mock session clipboard)", "success");
+    pushToast("Project ID copied.", "success");
   }
 
   return (
@@ -142,7 +153,7 @@ export function SettingsView(props: {
           <div class="flex min-h-0 flex-1 flex-col">
             <PageContent class="max-w-xl space-y-4 p-4 text-[12.5px]">
               <p class="m-0 text-[11px] text-[var(--color-text-muted)]">
-                Local project details. Changes are stored in this preview session only.
+                Local project details. Changes persist in the local SQLite store.
               </p>
               <Field label="Name" for="settings-project-name">
                 <Input
@@ -173,7 +184,7 @@ export function SettingsView(props: {
                   id="settings-default-env"
                   size="md"
                   value={defaultEnvironmentId()}
-                  options={environmentSelectOptions()}
+                  options={environmentSelectOptions(environments())}
                   onChange={(value) => setDefaultEnvironmentId(value)}
                 />
               </Field>
@@ -182,7 +193,7 @@ export function SettingsView(props: {
                   Project ID (System)
                 </p>
                 <p class="m-0 mt-1 font-mono text-[12px] text-[var(--color-text-primary)]">
-                  {PROJECT_GENERAL_SETTINGS_MOCK.projectId}{" "}
+                  {general()?.projectId ?? "—"}{" "}
                   <Button size="sm" variant="ghost" onClick={() => void handleCopyProjectId()}>
                     Copy
                   </Button>
@@ -193,12 +204,10 @@ export function SettingsView(props: {
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    setName(PROJECT_GENERAL_SETTINGS_MOCK.name);
-                    setDescription(PROJECT_GENERAL_SETTINGS_MOCK.description);
-                    setDefaultEnvironmentId(
-                      PROJECT_GENERAL_SETTINGS_MOCK.defaultEnvironmentId,
-                    );
-                    setRepository(PROJECT_GENERAL_SETTINGS_MOCK.repository);
+                    setName(general()?.name ?? "");
+                    setDescription(general()?.description ?? "");
+                    setDefaultEnvironmentId(general()?.defaultEnvironmentId ?? "");
+                    setRepository(general()?.repository ?? "");
                   }}
                 >
                   Cancel
@@ -286,7 +295,7 @@ export function SettingsView(props: {
                   <DataTable.Empty>
                     <PageEmpty
                       title="No environments"
-                      description="This project has no environments in fixtures."
+                      description="This project has no environments yet."
                     />
                   </DataTable.Empty>
                 </DataTable.Table>
@@ -302,11 +311,14 @@ export function SettingsView(props: {
                 Danger zone
               </p>
               <p class="m-0 mt-1 text-[12px] text-[var(--color-text-muted)]">
-                Preview archiving this project. Files and persisted data are not changed.
+                Reset recreates the demonstration project in the local store. Architecture, resources, and knowledge are replaced.
               </p>
               <div class="mt-2 flex gap-2">
                 <Button size="sm" variant="danger" onClick={() => setArchiveOpen(true)}>
                   Archive project
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setResetOpen(true)}>
+                  Reset local store
                 </Button>
               </div>
             </Card>
@@ -337,14 +349,40 @@ export function SettingsView(props: {
               Cancel
             </Button>
             <Button size="sm" variant="danger" onClick={handleArchiveConfirm}>
-              Archive (mock)
+              Archive
             </Button>
           </>
         }
       >
         <p class="m-0 text-[12.5px] text-[var(--color-text-secondary)]">
-          This confirms an archive preview for the current session only. It does not
-          modify project files or external services.
+          This confirms an archive preview for the current session. It does not
+          modify files outside the local store.
+        </p>
+      </A11yDialog>
+      <A11yDialog
+        open={resetOpen()}
+        title="Reset local store?"
+        onClose={() => setResetOpen(false)}
+        footer={
+          <>
+            <Button size="sm" variant="ghost" onClick={() => setResetOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => {
+                setResetOpen(false);
+                props.onResetLocalStore?.();
+              }}
+            >
+              Reset store
+            </Button>
+          </>
+        }
+      >
+        <p class="m-0 text-[12.5px] text-[var(--color-text-secondary)]">
+          This deletes local project data and reseeds the demonstration project.
         </p>
       </A11yDialog>
     </>

@@ -1,0 +1,27 @@
+syntax = "proto3";
+package polterware.local.v1;
+option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
+
+message Node {
+  string id = 1;
+  string project_id = 2;
+  string environment_id = 3;
+  string name = 4;
+  string platform = 5;
+  string shell = 6;
+  string status = 7;
+  string address = 8;
+  string cpu = 9;
+  string memory = 10;
+  string last_seen_at = 11;
+}
+
+message ListNodesRequest { string project_id = 1; }
+message ListNodesResponse { repeated Node nodes = 1; }
+message SaveNodeRequest { Node node = 1; }
+message SaveNodeResponse { Node node = 1; }
+
+service NodeService {
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+  rpc SaveNode(SaveNodeRequest) returns (SaveNodeResponse);
+}

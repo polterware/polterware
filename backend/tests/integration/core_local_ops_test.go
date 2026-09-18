@@ -48,7 +48,7 @@ func TestLocalCoreQueuesDirectOperation(t *testing.T) {
 	endpoint, token, cleanup := startConnectCore(t)
 	defer cleanup()
 	client := localv1connect.NewOperationServiceClient(authClient(token), endpoint)
-	response, err := client.RequestOperation(context.Background(), connect.NewRequest(&localv1.RequestOperationRequest{Type: "command", ProjectId: "project-local"}))
+	response, err := client.RequestOperation(context.Background(), connect.NewRequest(&localv1.RequestOperationRequest{Type: "command", ProjectId: "proj-polter"}))
 	if err != nil {
 		t.Fatal(err)
 	}

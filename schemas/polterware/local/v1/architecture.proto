@@ -10,6 +10,12 @@ message Resource {
   string type = 5;
   string external_key = 6;
   string source = 7;
+  string provider = 8;
+  string status = 9;
+  string region = 10;
+  string address = 11;
+  repeated string tags = 12;
+  string description = 13;
 }
 
 message Layout {
@@ -17,6 +23,28 @@ message Layout {
   string project_id = 2;
   int64 revision = 3;
   string body_json = 4;
+}
+
+message ArchitectureViewMember {
+  string node_id = 1;
+  string name = 2;
+  string type = 3;
+  string layer = 4;
+}
+
+message ArchitectureView {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;
+  string description = 4;
+  string owner = 5;
+  string purpose = 6;
+  string notes = 7;
+  string filter_summary = 8;
+  repeated string environments = 9;
+  repeated string tags = 10;
+  string updated_at = 11;
+  repeated ArchitectureViewMember members = 12;
 }
 
 message GetLayoutRequest { string project_id = 1; }
@@ -27,10 +55,19 @@ message ListResourcesRequest { string project_id = 1; }
 message ListResourcesResponse { repeated Resource resources = 1; }
 message SaveResourceRequest { Resource resource = 1; }
 message SaveResourceResponse { Resource resource = 1; }
+message ListViewsRequest { string project_id = 1; }
+message ListViewsResponse { repeated ArchitectureView views = 1; }
+message SaveViewRequest { ArchitectureView view = 1; }
+message SaveViewResponse { ArchitectureView view = 1; }
+message DeleteViewRequest { string id = 1; }
+message DeleteViewResponse {}
 
 service ArchitectureService {
   rpc GetLayout(GetLayoutRequest) returns (GetLayoutResponse);
   rpc UpdateLayout(UpdateLayoutRequest) returns (UpdateLayoutResponse);
   rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse);
   rpc SaveResource(SaveResourceRequest) returns (SaveResourceResponse);
+  rpc ListViews(ListViewsRequest) returns (ListViewsResponse);
+  rpc SaveView(SaveViewRequest) returns (SaveViewResponse);
+  rpc DeleteView(DeleteViewRequest) returns (DeleteViewResponse);
 }

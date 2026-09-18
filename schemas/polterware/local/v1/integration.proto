@@ -7,23 +7,62 @@ message CliProvider {
   string name = 2;
   string binary = 3;
   repeated string auth_commands = 4;
+  string description = 5;
+  string category = 6;
 }
+
 message IntegrationConnection {
   string id = 1;
   string project_id = 2;
   string provider_id = 3;
   string status = 4;
   string label = 5;
+  string environment_id = 6;
+  string last_sync_at = 7;
+  string summary = 8;
+  string cli_command = 9;
+  string sync_interval = 10;
+  string freshness = 11;
+  string error_message = 12;
 }
+
+message IntegrationResource {
+  string id = 1;
+  string connection_id = 2;
+  string name = 3;
+  string kind = 4;
+  string external_id = 5;
+  string environment_id = 6;
+  string status = 7;
+  string inventory_resource_id = 8;
+}
+
+message IntegrationSyncRun {
+  string id = 1;
+  string connection_id = 2;
+  string started_at = 3;
+  string finished_at = 4;
+  string result = 5;
+  int32 imported = 6;
+  int32 changed = 7;
+  string message = 8;
+}
+
 message ListCliProvidersRequest {}
 message ListCliProvidersResponse { repeated CliProvider providers = 1; }
 message ListIntegrationConnectionsRequest { string project_id = 1; }
 message ListIntegrationConnectionsResponse { repeated IntegrationConnection connections = 1; }
 message SaveIntegrationConnectionRequest { IntegrationConnection connection = 1; }
 message SaveIntegrationConnectionResponse { IntegrationConnection connection = 1; }
+message ListIntegrationResourcesRequest { string project_id = 1; }
+message ListIntegrationResourcesResponse { repeated IntegrationResource resources = 1; }
+message ListIntegrationSyncRunsRequest { string project_id = 1; }
+message ListIntegrationSyncRunsResponse { repeated IntegrationSyncRun runs = 1; }
 
 service IntegrationService {
   rpc ListCliProviders(ListCliProvidersRequest) returns (ListCliProvidersResponse);
   rpc ListIntegrationConnections(ListIntegrationConnectionsRequest) returns (ListIntegrationConnectionsResponse);
   rpc SaveIntegrationConnection(SaveIntegrationConnectionRequest) returns (SaveIntegrationConnectionResponse);
+  rpc ListIntegrationResources(ListIntegrationResourcesRequest) returns (ListIntegrationResourcesResponse);
+  rpc ListIntegrationSyncRuns(ListIntegrationSyncRunsRequest) returns (ListIntegrationSyncRunsResponse);
 }

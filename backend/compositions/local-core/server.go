@@ -24,6 +24,7 @@ import (
 	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
 	"github.com/polterware/polterware/backend/platform/gen/polterware/local/v1/localv1connect"
 	"github.com/polterware/polterware/backend/platform/observability"
+	"github.com/polterware/polterware/backend/providers/seed"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
@@ -34,7 +35,7 @@ type Core struct {
 }
 
 func NewCore(store *storepkg.Store, token string) *Core {
-	_ = store.SeedDefaults()
+	_ = seed.Defaults(store)
 	return &Core{Store: store, Token: token, Started: time.Now().UTC()}
 }
 
@@ -76,6 +77,8 @@ func ServeConnect(listener net.Listener, core *Core) *http.Server {
 	path, handler = localv1connect.NewProjectServiceHandler(core, options...)
 	register(path, handler)
 	path, handler = localv1connect.NewArchitectureServiceHandler(core, options...)
+	register(path, handler)
+	path, handler = localv1connect.NewNodeServiceHandler(core, options...)
 	register(path, handler)
 	path, handler = localv1connect.NewKnowledgeServiceHandler(core, options...)
 	register(path, handler)
@@ -125,6 +128,16 @@ func (core *Core) SaveProject(_ context.Context, request *connect.Request[localv
 	if err := core.Store.SaveProject(project); err != nil {
 		return nil, internal(err)
 	}
+	if _, err := core.Store.GetLayout(project.ID); err != nil {
+		if _, err := core.Store.UpdateLayout(project.ID, 0, `{"nodes":[],"edges":[]}`); err != nil {
+			return nil, internal(err)
+		}
+	}
+	if _, err := core.Store.GetProjectSettings(project.ID); err != nil {
+		if err := core.Store.SaveProjectSettings(projects.Settings{ProjectID: project.ID}); err != nil {
+			return nil, internal(err)
+		}
+	}
 	return connect.NewResponse(&localv1.SaveProjectResponse{Project: projectProto(project)}), nil
 }
 
@@ -149,6 +162,9 @@ func (core *Core) SaveEnvironment(_ context.Context, request *connect.Request[lo
 	if err != nil {
 		return nil, invalid(err.Error())
 	}
+	environment.Protection = item.Protection
+	environment.IsDefault = item.IsDefault
+	environment.Description = item.Description
 	if err := core.Store.SaveEnvironment(environment); err != nil {
 		return nil, internal(err)
 	}
@@ -188,7 +204,7 @@ func (core *Core) SaveResource(_ context.Context, request *connect.Request[local
 	if item == nil {
 		return nil, invalid("resource is required")
 	}
-	resource := resources.Resource{ID: item.Id, ProjectID: item.ProjectId, EnvironmentID: item.EnvironmentId, Name: item.Name, Type: item.Type, ExternalKey: item.ExternalKey, Source: item.Source}
+	resource := resources.Resource{ID: item.Id, ProjectID: item.ProjectId, EnvironmentID: item.EnvironmentId, Name: item.Name, Type: item.Type, ExternalKey: item.ExternalKey, Source: item.Source, Provider: item.Provider, Status: item.Status, Region: item.Region, Address: item.Address, Tags: item.Tags, Description: item.Description}
 	if resource.ID == "" || resource.ProjectID == "" || resource.Name == "" {
 		return nil, invalid("resource id, project id, and name are required")
 	}
@@ -207,6 +223,10 @@ func (core *Core) SaveKnowledge(_ context.Context, request *connect.Request[loca
 	if err != nil {
 		return nil, invalid(err.Error())
 	}
+	created.Summary = item.Summary
+	created.Owner = item.Owner
+	created.Status = item.Status
+	created.ExtraJSON = item.ExtraJson
 	if err := core.Store.SaveKnowledge(created); err != nil {
 		return nil, internal(err)
 	}
@@ -238,7 +258,7 @@ func (core *Core) RequestOperation(_ context.Context, request *connect.Request[l
 	}
 	correlation := observability.NewCorrelationID()
 	now := time.Now().UTC()
-	operation := &operations.Operation{ID: "op-" + correlation[:12], CorrelationID: correlation, ProjectID: request.Msg.ProjectId, EnvironmentID: request.Msg.EnvironmentId, Type: request.Msg.Type, Status: operations.StatusQueued, IdempotencyKey: request.Msg.IdempotencyKey, Params: request.Msg.Params, RequestedAt: now}
+	operation := &operations.Operation{ID: "op-" + correlation[:12], CorrelationID: correlation, ProjectID: request.Msg.ProjectId, EnvironmentID: request.Msg.EnvironmentId, Type: request.Msg.Type, Status: operations.StatusQueued, IdempotencyKey: request.Msg.IdempotencyKey, Params: request.Msg.Params, RequestedAt: now, Title: request.Msg.Title, Target: request.Msg.Target, Command: request.Msg.Command, StepsJSON: "[]"}
 	if err := core.Store.SaveOperation(operation); err != nil {
 		return nil, internal(err)
 	}
@@ -324,7 +344,7 @@ func (core *Core) RunWorkflow(_ context.Context, request *connect.Request[localv
 func (core *Core) ListCliProviders(context.Context, *connect.Request[localv1.ListCliProvidersRequest]) (*connect.Response[localv1.ListCliProvidersResponse], error) {
 	items := make([]*localv1.CliProvider, 0, len(integrations.CLIProviders))
 	for _, item := range integrations.CLIProviders {
-		items = append(items, &localv1.CliProvider{Id: item.ID, Name: item.Name, Binary: item.Binary, AuthCommands: item.AuthCommands})
+		items = append(items, &localv1.CliProvider{Id: item.ID, Name: item.Name, Binary: item.Binary, AuthCommands: item.AuthCommands, Description: item.Description, Category: item.Category})
 	}
 	return connect.NewResponse(&localv1.ListCliProvidersResponse{Providers: items}), nil
 }
@@ -346,7 +366,7 @@ func (core *Core) SaveIntegrationConnection(_ context.Context, request *connect.
 	if item == nil {
 		return nil, invalid("connection is required")
 	}
-	connection := integrations.Connection{ID: item.Id, ProjectID: item.ProjectId, ProviderID: item.ProviderId, Status: item.Status, Label: item.Label}
+	connection := integrations.Connection{ID: item.Id, ProjectID: item.ProjectId, ProviderID: item.ProviderId, Status: item.Status, Label: item.Label, EnvironmentID: item.EnvironmentId, LastSyncAt: item.LastSyncAt, Summary: item.Summary, CLICommand: item.CliCommand, SyncInterval: item.SyncInterval, Freshness: item.Freshness, ErrorMessage: item.ErrorMessage}
 	if connection.ID == "" || connection.ProjectID == "" || connection.ProviderID == "" {
 		return nil, invalid("connection id, project id, and provider id are required")
 	}
@@ -362,7 +382,7 @@ func (core *Core) StartProcess(_ context.Context, request *connect.Request[local
 	}
 	correlation := observability.NewCorrelationID()
 	command := strings.Join(append([]string{request.Msg.Command}, request.Msg.Args...), " ")
-	session := storepkg.ProcessSession{ID: "process-" + correlation[:12], ProjectID: request.Msg.ProjectId, EnvironmentID: request.Msg.EnvironmentId, Command: command, Status: "queued"}
+	session := storepkg.ProcessSession{ID: "process-" + correlation[:12], ProjectID: request.Msg.ProjectId, EnvironmentID: request.Msg.EnvironmentId, Command: command, Status: "queued", Name: request.Msg.Name, NodeID: request.Msg.NodeId, StartedAt: time.Now().UTC().Format(time.RFC3339)}
 	if err := core.Store.SaveProcess(session); err != nil {
 		return nil, internal(err)
 	}
@@ -433,6 +453,9 @@ func (core *Core) ResetLocalStore(context.Context, *connect.Request[localv1.Rese
 	if err := core.Store.Reset(); err != nil {
 		return nil, internal(err)
 	}
+	if err := seed.Defaults(core.Store); err != nil {
+		return nil, internal(err)
+	}
 	return connect.NewResponse(&localv1.ResetLocalStoreResponse{Status: "reset"}), nil
 }
 
@@ -445,39 +468,39 @@ func (core *Core) GetStoreHealth(context.Context, *connect.Request[localv1.GetSt
 }
 
 func projectProto(item projects.Project) *localv1.Project {
-	return &localv1.Project{Id: item.ID, Name: item.Name, RootPath: item.RootPath}
+	return &localv1.Project{Id: item.ID, Name: item.Name, RootPath: item.RootPath, CreatedAt: item.CreatedAt.Format(time.RFC3339), UpdatedAt: item.UpdatedAt.Format(time.RFC3339)}
 }
 func environmentProto(item projects.Environment) *localv1.Environment {
-	return &localv1.Environment{Id: item.ID, ProjectId: item.ProjectID, Name: item.Name, Kind: item.Kind}
+	return &localv1.Environment{Id: item.ID, ProjectId: item.ProjectID, Name: item.Name, Kind: item.Kind, Protection: item.Protection, IsDefault: item.IsDefault, Description: item.Description}
 }
 func resourceProto(item resources.Resource) *localv1.Resource {
-	return &localv1.Resource{Id: item.ID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Name: item.Name, Type: item.Type, ExternalKey: item.ExternalKey, Source: item.Source}
+	return &localv1.Resource{Id: item.ID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Name: item.Name, Type: item.Type, ExternalKey: item.ExternalKey, Source: item.Source, Provider: item.Provider, Status: item.Status, Region: item.Region, Address: item.Address, Tags: item.Tags, Description: item.Description}
 }
 func knowledgeProto(item knowledge.Item) *localv1.KnowledgeItem {
-	return &localv1.KnowledgeItem{Id: item.ID, ProjectId: item.ProjectID, Title: item.Title, Body: item.Body, Kind: item.Kind, Tags: item.Tags}
+	return &localv1.KnowledgeItem{Id: item.ID, ProjectId: item.ProjectID, Title: item.Title, Body: item.Body, Kind: item.Kind, Tags: item.Tags, Summary: item.Summary, Owner: item.Owner, Status: item.Status, ExtraJson: item.ExtraJSON, CreatedAt: item.CreatedAt.Format(time.RFC3339), UpdatedAt: item.UpdatedAt.Format(time.RFC3339)}
 }
 func operationProto(item *operations.Operation) *localv1.Operation {
-	return &localv1.Operation{Id: item.ID, CorrelationId: item.CorrelationID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Type: item.Type, Status: string(item.Status), ResultSummary: item.ResultSummary, ErrorMessage: item.ErrorMessage, RequestedAt: item.RequestedAt.Format(time.RFC3339), StartedAt: formatTime(item.StartedAt), FinishedAt: formatTime(item.FinishedAt), Params: item.Params}
+	return &localv1.Operation{Id: item.ID, CorrelationId: item.CorrelationID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Type: item.Type, Status: string(item.Status), ResultSummary: item.ResultSummary, ErrorMessage: item.ErrorMessage, RequestedAt: item.RequestedAt.Format(time.RFC3339), StartedAt: formatTime(item.StartedAt), FinishedAt: formatTime(item.FinishedAt), Params: item.Params, Title: item.Title, Target: item.Target, Command: item.Command, StepsJson: item.StepsJSON}
 }
 func workflowFromProto(item *localv1.Workflow) workflows.Workflow {
 	steps := make([]workflows.Step, 0, len(item.Steps))
 	for _, step := range item.Steps {
 		steps = append(steps, workflows.Step{ID: step.Id, Name: step.Name, OperationType: step.OperationType, Params: step.Params})
 	}
-	return workflows.Workflow{ID: item.Id, ProjectID: item.ProjectId, Name: item.Name, Status: item.Status, Steps: steps}
+	return workflows.Workflow{ID: item.Id, ProjectID: item.ProjectId, Name: item.Name, Status: item.Status, Steps: steps, Description: item.Description, Trigger: item.Trigger, LastRunAt: item.LastRunAt}
 }
 func workflowProto(item workflows.Workflow) *localv1.Workflow {
 	steps := make([]*localv1.WorkflowStep, 0, len(item.Steps))
 	for _, step := range item.Steps {
 		steps = append(steps, &localv1.WorkflowStep{Id: step.ID, Name: step.Name, OperationType: step.OperationType, Params: step.Params})
 	}
-	return &localv1.Workflow{Id: item.ID, ProjectId: item.ProjectID, Name: item.Name, Status: item.Status, Steps: steps}
+	return &localv1.Workflow{Id: item.ID, ProjectId: item.ProjectID, Name: item.Name, Status: item.Status, Steps: steps, Description: item.Description, Trigger: item.Trigger, LastRunAt: item.LastRunAt}
 }
 func connectionProto(item integrations.Connection) *localv1.IntegrationConnection {
-	return &localv1.IntegrationConnection{Id: item.ID, ProjectId: item.ProjectID, ProviderId: item.ProviderID, Status: item.Status, Label: item.Label}
+	return &localv1.IntegrationConnection{Id: item.ID, ProjectId: item.ProjectID, ProviderId: item.ProviderID, Status: item.Status, Label: item.Label, EnvironmentId: item.EnvironmentID, LastSyncAt: item.LastSyncAt, Summary: item.Summary, CliCommand: item.CLICommand, SyncInterval: item.SyncInterval, Freshness: item.Freshness, ErrorMessage: item.ErrorMessage}
 }
 func processProto(item storepkg.ProcessSession) *localv1.ProcessSession {
-	return &localv1.ProcessSession{Id: item.ID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Command: item.Command, Status: item.Status}
+	return &localv1.ProcessSession{Id: item.ID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Command: item.Command, Status: item.Status, Name: item.Name, NodeId: item.NodeID, Pid: int32(item.PID), StartedAt: item.StartedAt}
 }
 func logProto(item storepkg.LogChunk) *localv1.SubscribeLogsResponse {
 	return &localv1.SubscribeLogsResponse{OperationId: item.OperationID, Sequence: item.Sequence, Body: item.Body, Truncated: item.Truncated, At: item.CreatedAt.Format(time.RFC3339)}

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { TerminalTargetItem } from "./types";
+import { UNUSABLE_TERMINAL_TEST_TARGETS } from "./test-fixtures";
 import {
   buildSessionCorrelationId,
   canOpenTerminalSessionOnTarget,
@@ -51,6 +52,7 @@ describe("canOpenTerminalSessionOnTarget", () => {
     expect(canOpenTerminalSessionOnTarget("degraded")).toBe(true);
     expect(canOpenTerminalSessionOnTarget("offline")).toBe(false);
     expect(canOpenTerminalSessionOnTarget("revoked")).toBe(false);
+    expect(UNUSABLE_TERMINAL_TEST_TARGETS.map((target) => target.name)).toEqual(["offline-edge-01", "revoked-node-01"]);
   });
 });
 

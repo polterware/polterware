@@ -29,6 +29,12 @@ type KnowledgeItem struct {
 	Body          string                 `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
 	Kind          string                 `protobuf:"bytes,5,opt,name=kind,proto3" json:"kind,omitempty"`
 	Tags          []string               `protobuf:"bytes,6,rep,name=tags,proto3" json:"tags,omitempty"`
+	Summary       string                 `protobuf:"bytes,7,opt,name=summary,proto3" json:"summary,omitempty"`
+	Owner         string                 `protobuf:"bytes,8,opt,name=owner,proto3" json:"owner,omitempty"`
+	Status        string                 `protobuf:"bytes,9,opt,name=status,proto3" json:"status,omitempty"`
+	ExtraJson     string                 `protobuf:"bytes,10,opt,name=extra_json,json=extraJson,proto3" json:"extra_json,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -103,6 +109,48 @@ func (x *KnowledgeItem) GetTags() []string {
 		return x.Tags
 	}
 	return nil
+}
+
+func (x *KnowledgeItem) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *KnowledgeItem) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *KnowledgeItem) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *KnowledgeItem) GetExtraJson() string {
+	if x != nil {
+		return x.ExtraJson
+	}
+	return ""
+}
+
+func (x *KnowledgeItem) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *KnowledgeItem) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
 }
 
 type SaveKnowledgeRequest struct {
@@ -373,7 +421,7 @@ var File_polterware_local_v1_knowledge_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_knowledge_proto_rawDesc = "" +
 	"\n" +
-	"#polterware/local/v1/knowledge.proto\x12\x13polterware.local.v1\"\x90\x01\n" +
+	"#polterware/local/v1/knowledge.proto\x12\x13polterware.local.v1\"\xb5\x02\n" +
 	"\rKnowledgeItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -381,7 +429,17 @@ const file_polterware_local_v1_knowledge_proto_rawDesc = "" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\x12\n" +
 	"\x04body\x18\x04 \x01(\tR\x04body\x12\x12\n" +
 	"\x04kind\x18\x05 \x01(\tR\x04kind\x12\x12\n" +
-	"\x04tags\x18\x06 \x03(\tR\x04tags\"N\n" +
+	"\x04tags\x18\x06 \x03(\tR\x04tags\x12\x18\n" +
+	"\asummary\x18\a \x01(\tR\asummary\x12\x14\n" +
+	"\x05owner\x18\b \x01(\tR\x05owner\x12\x16\n" +
+	"\x06status\x18\t \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"extra_json\x18\n" +
+	" \x01(\tR\textraJson\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\v \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\f \x01(\tR\tupdatedAt\"N\n" +
 	"\x14SaveKnowledgeRequest\x126\n" +
 	"\x04item\x18\x01 \x01(\v2\".polterware.local.v1.KnowledgeItemR\x04item\"O\n" +
 	"\x15SaveKnowledgeResponse\x126\n" +

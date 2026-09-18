@@ -1,5 +1,4 @@
 import type { ProjectEnvironment, SettingsTabId } from "./types";
-import { SETTINGS_ENVIRONMENT_MOCKS } from "./fixtures";
 
 export const SETTINGS_TABS: ReadonlyArray<{ id: SettingsTabId; label: string }> = [
   { id: "general", label: "General" },
@@ -15,7 +14,7 @@ export function normalizeSettingsTab(raw?: string): SettingsTabId {
 }
 
 export function environmentSelectOptions(
-  environments: readonly ProjectEnvironment[] = SETTINGS_ENVIRONMENT_MOCKS,
+  environments: readonly ProjectEnvironment[],
 ): Array<{ value: string; label: string }> {
   return environments.map((environment) => ({
     value: environment.id,

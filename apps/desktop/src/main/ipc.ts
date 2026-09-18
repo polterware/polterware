@@ -1,8 +1,19 @@
 import { ipcMain, type IpcMain, type IpcMainInvokeEvent } from "electron";
 import type { AppIconOption, AppIconSelection } from "../shared/app-icons.js";
-import { IPC_CHANNELS, type AppInfo, type AppIpcRequests, type AppIpcResponses, type JsonObject, type JsonValue } from "../shared/ipc.js";
+import {
+  IPC_CHANNELS,
+  type AppInfo,
+  type AppIpcRequests,
+  type AppIpcResponses,
+  type JsonObject,
+  type JsonValue,
+} from "../shared/ipc.js";
+import type { CoreDomainControllers } from "./core/controllers/domain.js";
 
-type Handler<K extends keyof AppIpcRequests> = (event?: IpcMainInvokeEvent, payload?: AppIpcRequests[K]) => AppIpcResponses[K] | Promise<AppIpcResponses[K]>;
+type Handler<K extends keyof AppIpcRequests> = (
+  event?: IpcMainInvokeEvent,
+  payload?: AppIpcRequests[K],
+) => AppIpcResponses[K] | Promise<AppIpcResponses[K]>;
 
 export interface PolterwareIpcControllers {
   appInfo?: {
@@ -17,12 +28,11 @@ export interface PolterwareIpcControllers {
     hideOverlay(): void;
     showMainWindow(): void;
   };
+  core?: CoreDomainControllers;
 }
 
-function createUiOnlyHandler<K extends keyof AppIpcRequests>(channel: K): Handler<K> {
-  return async () => {
-    throw new Error(`Polterware Desktop is running in UI-only mode. ${channel} is not connected.`);
-  };
+function missing(channel: string): never {
+  throw new Error(`Polterware IPC channel is not connected: ${channel}`);
 }
 
 function isJsonObject(value: JsonValue): value is JsonObject {
@@ -33,54 +43,86 @@ function parseAppIconSelectionPayload(payload: JsonValue | undefined): string {
   if (!payload || !isJsonObject(payload)) {
     throw new Error("App icon id is required.");
   }
-
   const id = payload.id;
   if (Object.prototype.toString.call(id) !== "[object String]") {
     throw new Error("App icon id is required.");
   }
-
   const parsedId = String(id);
   if (!parsedId.trim()) {
     throw new Error("App icon id is required.");
   }
-
   return parsedId;
 }
 
-export function createPolterwareIpcHandlers(
-  controllers: PolterwareIpcControllers = {},
-) {
+function coreHandler(
+  controllers: PolterwareIpcControllers,
+  key: keyof CoreDomainControllers,
+): Handler<keyof AppIpcRequests> {
+  return async (_event, payload) => {
+    const core = controllers.core;
+    if (!core) missing(key);
+    return (await core[key](payload as JsonObject | undefined)) as JsonObject;
+  };
+}
+
+export function createPolterwareIpcHandlers(controllers: PolterwareIpcControllers = {}) {
   const handlers = {
-    [IPC_CHANNELS.app.getInfo]: createUiOnlyHandler(IPC_CHANNELS.app.getInfo),
-    [IPC_CHANNELS.app.listIcons]: createUiOnlyHandler(IPC_CHANNELS.app.listIcons),
-    [IPC_CHANNELS.app.getIcon]: createUiOnlyHandler(IPC_CHANNELS.app.getIcon),
-    [IPC_CHANNELS.app.setIcon]: createUiOnlyHandler(IPC_CHANNELS.app.setIcon),
-    [IPC_CHANNELS.commander.hideOverlay]: createUiOnlyHandler(IPC_CHANNELS.commander.hideOverlay),
-    [IPC_CHANNELS.commander.showMainWindow]: createUiOnlyHandler(IPC_CHANNELS.commander.showMainWindow),
-  } satisfies { [K in keyof AppIpcRequests]: Handler<K> };
-
-  if (controllers.appInfo) {
-    const { appInfo } = controllers;
-    handlers[IPC_CHANNELS.app.getInfo] = async () => appInfo.getInfo();
-  }
-
-  if (controllers.commander) {
-    const { commander } = controllers;
-    handlers[IPC_CHANNELS.commander.hideOverlay] = async () => {
-      commander.hideOverlay();
-    };
-    handlers[IPC_CHANNELS.commander.showMainWindow] = async () => {
-      commander.showMainWindow();
-    };
-  }
-
-  if (controllers.appIcons) {
-    const { appIcons } = controllers;
-    handlers[IPC_CHANNELS.app.listIcons] = async () => appIcons.listIcons();
-    handlers[IPC_CHANNELS.app.getIcon] = async () => appIcons.getIcon();
-    handlers[IPC_CHANNELS.app.setIcon] = async (_event, payload) =>
-      appIcons.setIcon(parseAppIconSelectionPayload(payload));
-  }
+    [IPC_CHANNELS.app.getInfo]: async () => controllers.appInfo?.getInfo() ?? missing(IPC_CHANNELS.app.getInfo),
+    [IPC_CHANNELS.app.listIcons]: async () => controllers.appIcons?.listIcons() ?? missing(IPC_CHANNELS.app.listIcons),
+    [IPC_CHANNELS.app.getIcon]: async () => controllers.appIcons?.getIcon() ?? missing(IPC_CHANNELS.app.getIcon),
+    [IPC_CHANNELS.app.setIcon]: async (_event, payload) => {
+      if (!controllers.appIcons) missing(IPC_CHANNELS.app.setIcon);
+      return controllers.appIcons.setIcon(parseAppIconSelectionPayload(payload));
+    },
+    [IPC_CHANNELS.commander.hideOverlay]: async () => {
+      if (!controllers.commander) missing(IPC_CHANNELS.commander.hideOverlay);
+      controllers.commander.hideOverlay();
+    },
+    [IPC_CHANNELS.commander.showMainWindow]: async () => {
+      if (!controllers.commander) missing(IPC_CHANNELS.commander.showMainWindow);
+      controllers.commander.showMainWindow();
+    },
+    [IPC_CHANNELS.core.healthCheck]: coreHandler(controllers, "healthCheck"),
+    [IPC_CHANNELS.core.getStoreHealth]: coreHandler(controllers, "getStoreHealth"),
+    [IPC_CHANNELS.core.resetLocalStore]: coreHandler(controllers, "resetLocalStore"),
+    [IPC_CHANNELS.core.listProjects]: coreHandler(controllers, "listProjects"),
+    [IPC_CHANNELS.core.saveProject]: coreHandler(controllers, "saveProject"),
+    [IPC_CHANNELS.core.listEnvironments]: coreHandler(controllers, "listEnvironments"),
+    [IPC_CHANNELS.core.saveEnvironment]: coreHandler(controllers, "saveEnvironment"),
+    [IPC_CHANNELS.core.getProjectSettings]: coreHandler(controllers, "getProjectSettings"),
+    [IPC_CHANNELS.core.saveProjectSettings]: coreHandler(controllers, "saveProjectSettings"),
+    [IPC_CHANNELS.core.getLayout]: coreHandler(controllers, "getLayout"),
+    [IPC_CHANNELS.core.updateLayout]: coreHandler(controllers, "updateLayout"),
+    [IPC_CHANNELS.core.listResources]: coreHandler(controllers, "listResources"),
+    [IPC_CHANNELS.core.saveResource]: coreHandler(controllers, "saveResource"),
+    [IPC_CHANNELS.core.listViews]: coreHandler(controllers, "listViews"),
+    [IPC_CHANNELS.core.saveView]: coreHandler(controllers, "saveView"),
+    [IPC_CHANNELS.core.deleteView]: coreHandler(controllers, "deleteView"),
+    [IPC_CHANNELS.core.listNodes]: coreHandler(controllers, "listNodes"),
+    [IPC_CHANNELS.core.saveNode]: coreHandler(controllers, "saveNode"),
+    [IPC_CHANNELS.core.listKnowledge]: coreHandler(controllers, "listKnowledge"),
+    [IPC_CHANNELS.core.saveKnowledge]: coreHandler(controllers, "saveKnowledge"),
+    [IPC_CHANNELS.core.deleteKnowledge]: coreHandler(controllers, "deleteKnowledge"),
+    [IPC_CHANNELS.core.listOperations]: coreHandler(controllers, "listOperations"),
+    [IPC_CHANNELS.core.requestOperation]: coreHandler(controllers, "requestOperation"),
+    [IPC_CHANNELS.core.getOperation]: coreHandler(controllers, "getOperation"),
+    [IPC_CHANNELS.core.cancelOperation]: coreHandler(controllers, "cancelOperation"),
+    [IPC_CHANNELS.core.listSchedules]: coreHandler(controllers, "listSchedules"),
+    [IPC_CHANNELS.core.saveSchedule]: coreHandler(controllers, "saveSchedule"),
+    [IPC_CHANNELS.core.listWorkflows]: coreHandler(controllers, "listWorkflows"),
+    [IPC_CHANNELS.core.saveWorkflow]: coreHandler(controllers, "saveWorkflow"),
+    [IPC_CHANNELS.core.runWorkflow]: coreHandler(controllers, "runWorkflow"),
+    [IPC_CHANNELS.core.listCliProviders]: coreHandler(controllers, "listCliProviders"),
+    [IPC_CHANNELS.core.listIntegrationConnections]: coreHandler(controllers, "listIntegrationConnections"),
+    [IPC_CHANNELS.core.saveIntegrationConnection]: coreHandler(controllers, "saveIntegrationConnection"),
+    [IPC_CHANNELS.core.listIntegrationResources]: coreHandler(controllers, "listIntegrationResources"),
+    [IPC_CHANNELS.core.listIntegrationSyncRuns]: coreHandler(controllers, "listIntegrationSyncRuns"),
+    [IPC_CHANNELS.core.listProcesses]: coreHandler(controllers, "listProcesses"),
+    [IPC_CHANNELS.core.startProcess]: coreHandler(controllers, "startProcess"),
+    [IPC_CHANNELS.core.stopProcess]: coreHandler(controllers, "stopProcess"),
+    [IPC_CHANNELS.core.getProcess]: coreHandler(controllers, "getProcess"),
+    [IPC_CHANNELS.core.queryLogs]: coreHandler(controllers, "queryLogs"),
+  } as { [K in keyof AppIpcRequests]: Handler<K> };
 
   return handlers;
 }
@@ -90,13 +132,10 @@ export function registerPolterwareIpcHandlers(
   target: Pick<IpcMain, "handle"> = ipcMain,
 ) {
   const handlers = createPolterwareIpcHandlers(controllers);
-
-  target.handle(IPC_CHANNELS.app.getInfo, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.app.getInfo]) => handlers[IPC_CHANNELS.app.getInfo](event, payload));
-  target.handle(IPC_CHANNELS.app.listIcons, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.app.listIcons]) => handlers[IPC_CHANNELS.app.listIcons](event, payload));
-  target.handle(IPC_CHANNELS.app.getIcon, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.app.getIcon]) => handlers[IPC_CHANNELS.app.getIcon](event, payload));
-  target.handle(IPC_CHANNELS.app.setIcon, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.app.setIcon]) => handlers[IPC_CHANNELS.app.setIcon](event, payload));
-  target.handle(IPC_CHANNELS.commander.hideOverlay, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.commander.hideOverlay]) => handlers[IPC_CHANNELS.commander.hideOverlay](event, payload));
-  target.handle(IPC_CHANNELS.commander.showMainWindow, (event, payload: AppIpcRequests[typeof IPC_CHANNELS.commander.showMainWindow]) => handlers[IPC_CHANNELS.commander.showMainWindow](event, payload));
-
+  for (const [channel, handler] of Object.entries(handlers)) {
+    target.handle(channel, (event, payload) =>
+      (handler as Handler<keyof AppIpcRequests>)(event, payload as never),
+    );
+  }
   return handlers;
 }

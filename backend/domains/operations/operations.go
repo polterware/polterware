@@ -30,6 +30,24 @@ type Operation struct {
 	RequestedAt    time.Time
 	StartedAt      *time.Time
 	FinishedAt     *time.Time
+	Title          string
+	Target         string
+	Command        string
+	StepsJSON      string
+}
+
+type Schedule struct {
+	ID            string
+	ProjectID     string
+	EnvironmentID string
+	Name          string
+	Description   string
+	Status        string
+	WorkflowID    string
+	Expression    string
+	Timezone      string
+	NextRunAt     string
+	LastRunAt     string
 }
 
 var (

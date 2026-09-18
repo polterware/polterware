@@ -19,7 +19,7 @@ export type OperationRun = {
   steps: RunStep[];
   outputLines: string[];
   result: string;
-  dataSource: "fixture";
+  dataSource: "fixture" | "core";
 };
 
 export type WorkflowStepType = "validate" | "build" | "deploy" | "health_check" | "command" | "notify";
@@ -39,7 +39,7 @@ export type OperationWorkflow = {
   trigger: "manual" | "schedule";
   steps: WorkflowStep[];
   lastRun: string;
-  dataSource: "fixture";
+  dataSource: "fixture" | "core";
 };
 
 export type OperationSchedule = {
@@ -54,5 +54,5 @@ export type OperationSchedule = {
   nextRun: string;
   lastRun: string;
   environment: string;
-  dataSource: "fixture";
+  dataSource: "fixture" | "core";
 };

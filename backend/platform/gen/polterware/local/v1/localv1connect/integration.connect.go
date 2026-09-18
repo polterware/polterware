@@ -42,6 +42,12 @@ const (
 	// IntegrationServiceSaveIntegrationConnectionProcedure is the fully-qualified name of the
 	// IntegrationService's SaveIntegrationConnection RPC.
 	IntegrationServiceSaveIntegrationConnectionProcedure = "/polterware.local.v1.IntegrationService/SaveIntegrationConnection"
+	// IntegrationServiceListIntegrationResourcesProcedure is the fully-qualified name of the
+	// IntegrationService's ListIntegrationResources RPC.
+	IntegrationServiceListIntegrationResourcesProcedure = "/polterware.local.v1.IntegrationService/ListIntegrationResources"
+	// IntegrationServiceListIntegrationSyncRunsProcedure is the fully-qualified name of the
+	// IntegrationService's ListIntegrationSyncRuns RPC.
+	IntegrationServiceListIntegrationSyncRunsProcedure = "/polterware.local.v1.IntegrationService/ListIntegrationSyncRuns"
 )
 
 // IntegrationServiceClient is a client for the polterware.local.v1.IntegrationService service.
@@ -49,6 +55,8 @@ type IntegrationServiceClient interface {
 	ListCliProviders(context.Context, *connect.Request[v1.ListCliProvidersRequest]) (*connect.Response[v1.ListCliProvidersResponse], error)
 	ListIntegrationConnections(context.Context, *connect.Request[v1.ListIntegrationConnectionsRequest]) (*connect.Response[v1.ListIntegrationConnectionsResponse], error)
 	SaveIntegrationConnection(context.Context, *connect.Request[v1.SaveIntegrationConnectionRequest]) (*connect.Response[v1.SaveIntegrationConnectionResponse], error)
+	ListIntegrationResources(context.Context, *connect.Request[v1.ListIntegrationResourcesRequest]) (*connect.Response[v1.ListIntegrationResourcesResponse], error)
+	ListIntegrationSyncRuns(context.Context, *connect.Request[v1.ListIntegrationSyncRunsRequest]) (*connect.Response[v1.ListIntegrationSyncRunsResponse], error)
 }
 
 // NewIntegrationServiceClient constructs a client for the polterware.local.v1.IntegrationService
@@ -80,6 +88,18 @@ func NewIntegrationServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(integrationServiceMethods.ByName("SaveIntegrationConnection")),
 			connect.WithClientOptions(opts...),
 		),
+		listIntegrationResources: connect.NewClient[v1.ListIntegrationResourcesRequest, v1.ListIntegrationResourcesResponse](
+			httpClient,
+			baseURL+IntegrationServiceListIntegrationResourcesProcedure,
+			connect.WithSchema(integrationServiceMethods.ByName("ListIntegrationResources")),
+			connect.WithClientOptions(opts...),
+		),
+		listIntegrationSyncRuns: connect.NewClient[v1.ListIntegrationSyncRunsRequest, v1.ListIntegrationSyncRunsResponse](
+			httpClient,
+			baseURL+IntegrationServiceListIntegrationSyncRunsProcedure,
+			connect.WithSchema(integrationServiceMethods.ByName("ListIntegrationSyncRuns")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -88,6 +108,8 @@ type integrationServiceClient struct {
 	listCliProviders           *connect.Client[v1.ListCliProvidersRequest, v1.ListCliProvidersResponse]
 	listIntegrationConnections *connect.Client[v1.ListIntegrationConnectionsRequest, v1.ListIntegrationConnectionsResponse]
 	saveIntegrationConnection  *connect.Client[v1.SaveIntegrationConnectionRequest, v1.SaveIntegrationConnectionResponse]
+	listIntegrationResources   *connect.Client[v1.ListIntegrationResourcesRequest, v1.ListIntegrationResourcesResponse]
+	listIntegrationSyncRuns    *connect.Client[v1.ListIntegrationSyncRunsRequest, v1.ListIntegrationSyncRunsResponse]
 }
 
 // ListCliProviders calls polterware.local.v1.IntegrationService.ListCliProviders.
@@ -106,12 +128,24 @@ func (c *integrationServiceClient) SaveIntegrationConnection(ctx context.Context
 	return c.saveIntegrationConnection.CallUnary(ctx, req)
 }
 
+// ListIntegrationResources calls polterware.local.v1.IntegrationService.ListIntegrationResources.
+func (c *integrationServiceClient) ListIntegrationResources(ctx context.Context, req *connect.Request[v1.ListIntegrationResourcesRequest]) (*connect.Response[v1.ListIntegrationResourcesResponse], error) {
+	return c.listIntegrationResources.CallUnary(ctx, req)
+}
+
+// ListIntegrationSyncRuns calls polterware.local.v1.IntegrationService.ListIntegrationSyncRuns.
+func (c *integrationServiceClient) ListIntegrationSyncRuns(ctx context.Context, req *connect.Request[v1.ListIntegrationSyncRunsRequest]) (*connect.Response[v1.ListIntegrationSyncRunsResponse], error) {
+	return c.listIntegrationSyncRuns.CallUnary(ctx, req)
+}
+
 // IntegrationServiceHandler is an implementation of the polterware.local.v1.IntegrationService
 // service.
 type IntegrationServiceHandler interface {
 	ListCliProviders(context.Context, *connect.Request[v1.ListCliProvidersRequest]) (*connect.Response[v1.ListCliProvidersResponse], error)
 	ListIntegrationConnections(context.Context, *connect.Request[v1.ListIntegrationConnectionsRequest]) (*connect.Response[v1.ListIntegrationConnectionsResponse], error)
 	SaveIntegrationConnection(context.Context, *connect.Request[v1.SaveIntegrationConnectionRequest]) (*connect.Response[v1.SaveIntegrationConnectionResponse], error)
+	ListIntegrationResources(context.Context, *connect.Request[v1.ListIntegrationResourcesRequest]) (*connect.Response[v1.ListIntegrationResourcesResponse], error)
+	ListIntegrationSyncRuns(context.Context, *connect.Request[v1.ListIntegrationSyncRunsRequest]) (*connect.Response[v1.ListIntegrationSyncRunsResponse], error)
 }
 
 // NewIntegrationServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -139,6 +173,18 @@ func NewIntegrationServiceHandler(svc IntegrationServiceHandler, opts ...connect
 		connect.WithSchema(integrationServiceMethods.ByName("SaveIntegrationConnection")),
 		connect.WithHandlerOptions(opts...),
 	)
+	integrationServiceListIntegrationResourcesHandler := connect.NewUnaryHandler(
+		IntegrationServiceListIntegrationResourcesProcedure,
+		svc.ListIntegrationResources,
+		connect.WithSchema(integrationServiceMethods.ByName("ListIntegrationResources")),
+		connect.WithHandlerOptions(opts...),
+	)
+	integrationServiceListIntegrationSyncRunsHandler := connect.NewUnaryHandler(
+		IntegrationServiceListIntegrationSyncRunsProcedure,
+		svc.ListIntegrationSyncRuns,
+		connect.WithSchema(integrationServiceMethods.ByName("ListIntegrationSyncRuns")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/polterware.local.v1.IntegrationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case IntegrationServiceListCliProvidersProcedure:
@@ -147,6 +193,10 @@ func NewIntegrationServiceHandler(svc IntegrationServiceHandler, opts ...connect
 			integrationServiceListIntegrationConnectionsHandler.ServeHTTP(w, r)
 		case IntegrationServiceSaveIntegrationConnectionProcedure:
 			integrationServiceSaveIntegrationConnectionHandler.ServeHTTP(w, r)
+		case IntegrationServiceListIntegrationResourcesProcedure:
+			integrationServiceListIntegrationResourcesHandler.ServeHTTP(w, r)
+		case IntegrationServiceListIntegrationSyncRunsProcedure:
+			integrationServiceListIntegrationSyncRunsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -166,4 +216,12 @@ func (UnimplementedIntegrationServiceHandler) ListIntegrationConnections(context
 
 func (UnimplementedIntegrationServiceHandler) SaveIntegrationConnection(context.Context, *connect.Request[v1.SaveIntegrationConnectionRequest]) (*connect.Response[v1.SaveIntegrationConnectionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.IntegrationService.SaveIntegrationConnection is not implemented"))
+}
+
+func (UnimplementedIntegrationServiceHandler) ListIntegrationResources(context.Context, *connect.Request[v1.ListIntegrationResourcesRequest]) (*connect.Response[v1.ListIntegrationResourcesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.IntegrationService.ListIntegrationResources is not implemented"))
+}
+
+func (UnimplementedIntegrationServiceHandler) ListIntegrationSyncRuns(context.Context, *connect.Request[v1.ListIntegrationSyncRunsRequest]) (*connect.Response[v1.ListIntegrationSyncRunsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.IntegrationService.ListIntegrationSyncRuns is not implemented"))
 }

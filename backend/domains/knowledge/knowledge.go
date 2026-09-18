@@ -12,6 +12,10 @@ type Item struct {
 	Body      string
 	Kind      string
 	Tags      []string
+	Summary   string
+	Owner     string
+	Status    string
+	ExtraJSON string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -25,5 +29,5 @@ func NewItem(id, projectID, title, body, kind string, tags []string) (Item, erro
 		return Item{}, ErrInvalid
 	}
 	now := time.Now().UTC()
-	return Item{ID: id, ProjectID: projectID, Title: title, Body: body, Kind: kind, Tags: tags, CreatedAt: now, UpdatedAt: now}, nil
+	return Item{ID: id, ProjectID: projectID, Title: title, Body: body, Kind: kind, Tags: tags, ExtraJSON: "{}", CreatedAt: now, UpdatedAt: now}, nil
 }

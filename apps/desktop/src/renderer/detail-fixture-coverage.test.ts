@@ -1,21 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { RESOURCE_FIXTURES, NODE_FIXTURES, PROCESS_FIXTURES } from "@polterware/feature-resources";
-import { RUN_FIXTURES, WORKFLOW_FIXTURES, SCHEDULE_FIXTURES } from "@polterware/feature-operations";
-import { CATALOG_PROVIDER_MOCKS, DOCUMENT_MOCKS, RUNBOOK_MOCKS } from "@polterware/feature-shell";
+import { CATALOG_PROVIDER_NAMES, UNUSABLE_TERMINAL_TEST_TARGETS } from "./workspace/test-fixtures";
 
-describe("retained fixture coverage", () => {
-  it("covers every retained operational collection", () => {
-    expect(RESOURCE_FIXTURES.length).toBeGreaterThan(0);
-    expect(NODE_FIXTURES.length).toBeGreaterThan(0);
-    expect(PROCESS_FIXTURES.length).toBeGreaterThan(0);
-    expect(RUN_FIXTURES.length).toBeGreaterThan(0);
-    expect(WORKFLOW_FIXTURES.length).toBeGreaterThan(0);
-    expect(SCHEDULE_FIXTURES.length).toBeGreaterThan(0);
-    expect(DOCUMENT_MOCKS.length).toBeGreaterThan(0);
-    expect(RUNBOOK_MOCKS.length).toBeGreaterThan(0);
+describe("local workspace test fixtures", () => {
+  it("keeps the nine catalog providers", () => {
+    expect([...CATALOG_PROVIDER_NAMES]).toEqual([
+      "GitHub",
+      "GitLab",
+      "AWS",
+      "Google Cloud",
+      "Azure",
+      "Vercel",
+      "Supabase",
+      "Terraform",
+      "Docker",
+    ]);
   });
 
-  it("keeps the CLI catalog exact", () => {
-    expect(CATALOG_PROVIDER_MOCKS.map((provider) => provider.name)).toEqual(["GitHub", "GitLab", "AWS", "Google Cloud", "Azure", "Vercel", "Supabase", "Terraform", "Docker"]);
+  it("keeps unusable terminal targets for honest picker feedback", () => {
+    expect(UNUSABLE_TERMINAL_TEST_TARGETS.map((target) => target.name)).toEqual([
+      "offline-edge-01",
+      "revoked-node-01",
+    ]);
+    expect(UNUSABLE_TERMINAL_TEST_TARGETS.every((target) => target.status === "offline" || target.status === "revoked")).toBe(true);
   });
 });

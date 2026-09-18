@@ -3,7 +3,7 @@
   "tasks": {
     "generate": {
       "cache": false,
-      "outputs": ["backend/platform/gen/**"]
+      "outputs": ["backend/platform/gen/**", "packages/contracts/src/gen/**"]
     },
     "dev": {
       "cache": false,
