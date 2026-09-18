@@ -1,5 +1,6 @@
 import { For, Show } from "solid-js";
 import {
+  Check,
   DetailPanel,
   PageError,
   PageLoading,
@@ -19,6 +20,7 @@ export function EnvironmentDetail(props: {
   loading?: boolean;
   error?: string | null;
   notFound?: boolean;
+  onSetDefault?: (environmentId: string) => void;
 }) {
   return (
     <DetailPanel.Content>
@@ -73,7 +75,18 @@ export function EnvironmentDetail(props: {
               <DetailPanel.Header
                 icon={<Server size={16} />}
                 title={environment().name}
-              />
+              >
+                <Show when={props.onSetDefault && !environment().isDefault}>
+                  <DetailPanel.Actions>
+                    <DetailPanel.Action
+                      label="Set as default"
+                      onClick={() => props.onSetDefault?.(environment().id)}
+                    >
+                      <Check />
+                    </DetailPanel.Action>
+                  </DetailPanel.Actions>
+                </Show>
+              </DetailPanel.Header>
 
               <DetailPanel.Body layout="sections">
                 <DetailPanel.Grid>

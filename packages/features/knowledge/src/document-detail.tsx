@@ -29,7 +29,7 @@ export function DocumentDetail(props: {
           <DetailPanel.Header icon={<Book03Icon size={16} />} title={doc().title}>
             <DetailPanel.Actions>
               <Show when={props.onArchive}>
-                <DetailPanel.Action label="Archive" onClick={() => props.onArchive?.()}>
+                <DetailPanel.Action label="Archive" tone="danger" onClick={() => props.onArchive?.()}>
                   <Archive />
                 </DetailPanel.Action>
               </Show>

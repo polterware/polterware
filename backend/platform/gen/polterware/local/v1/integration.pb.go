@@ -869,6 +869,94 @@ func (x *ListIntegrationSyncRunsResponse) GetRuns() []*IntegrationSyncRun {
 	return nil
 }
 
+type SaveIntegrationSyncRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *IntegrationSyncRun    `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveIntegrationSyncRunRequest) Reset() {
+	*x = SaveIntegrationSyncRunRequest{}
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveIntegrationSyncRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveIntegrationSyncRunRequest) ProtoMessage() {}
+
+func (x *SaveIntegrationSyncRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveIntegrationSyncRunRequest.ProtoReflect.Descriptor instead.
+func (*SaveIntegrationSyncRunRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_integration_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SaveIntegrationSyncRunRequest) GetRun() *IntegrationSyncRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+type SaveIntegrationSyncRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *IntegrationSyncRun    `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveIntegrationSyncRunResponse) Reset() {
+	*x = SaveIntegrationSyncRunResponse{}
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveIntegrationSyncRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveIntegrationSyncRunResponse) ProtoMessage() {}
+
+func (x *SaveIntegrationSyncRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveIntegrationSyncRunResponse.ProtoReflect.Descriptor instead.
+func (*SaveIntegrationSyncRunResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_integration_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SaveIntegrationSyncRunResponse) GetRun() *IntegrationSyncRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
 var File_polterware_local_v1_integration_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_integration_proto_rawDesc = "" +
@@ -945,13 +1033,18 @@ const file_polterware_local_v1_integration_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\"^\n" +
 	"\x1fListIntegrationSyncRunsResponse\x12;\n" +
-	"\x04runs\x18\x01 \x03(\v2'.polterware.local.v1.IntegrationSyncRunR\x04runs2\xb3\x05\n" +
+	"\x04runs\x18\x01 \x03(\v2'.polterware.local.v1.IntegrationSyncRunR\x04runs\"Z\n" +
+	"\x1dSaveIntegrationSyncRunRequest\x129\n" +
+	"\x03run\x18\x01 \x01(\v2'.polterware.local.v1.IntegrationSyncRunR\x03run\"[\n" +
+	"\x1eSaveIntegrationSyncRunResponse\x129\n" +
+	"\x03run\x18\x01 \x01(\v2'.polterware.local.v1.IntegrationSyncRunR\x03run2\xb7\x06\n" +
 	"\x12IntegrationService\x12o\n" +
 	"\x10ListCliProviders\x12,.polterware.local.v1.ListCliProvidersRequest\x1a-.polterware.local.v1.ListCliProvidersResponse\x12\x8d\x01\n" +
 	"\x1aListIntegrationConnections\x126.polterware.local.v1.ListIntegrationConnectionsRequest\x1a7.polterware.local.v1.ListIntegrationConnectionsResponse\x12\x8a\x01\n" +
 	"\x19SaveIntegrationConnection\x125.polterware.local.v1.SaveIntegrationConnectionRequest\x1a6.polterware.local.v1.SaveIntegrationConnectionResponse\x12\x87\x01\n" +
 	"\x18ListIntegrationResources\x124.polterware.local.v1.ListIntegrationResourcesRequest\x1a5.polterware.local.v1.ListIntegrationResourcesResponse\x12\x84\x01\n" +
-	"\x17ListIntegrationSyncRuns\x123.polterware.local.v1.ListIntegrationSyncRunsRequest\x1a4.polterware.local.v1.ListIntegrationSyncRunsResponseB\xec\x01\n" +
+	"\x17ListIntegrationSyncRuns\x123.polterware.local.v1.ListIntegrationSyncRunsRequest\x1a4.polterware.local.v1.ListIntegrationSyncRunsResponse\x12\x81\x01\n" +
+	"\x16SaveIntegrationSyncRun\x122.polterware.local.v1.SaveIntegrationSyncRunRequest\x1a3.polterware.local.v1.SaveIntegrationSyncRunResponseB\xec\x01\n" +
 	"\x17com.polterware.local.v1B\x10IntegrationProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
 
 var (
@@ -966,7 +1059,7 @@ func file_polterware_local_v1_integration_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_integration_proto_rawDescData
 }
 
-var file_polterware_local_v1_integration_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_polterware_local_v1_integration_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_polterware_local_v1_integration_proto_goTypes = []any{
 	(*CliProvider)(nil),                        // 0: polterware.local.v1.CliProvider
 	(*IntegrationConnection)(nil),              // 1: polterware.local.v1.IntegrationConnection
@@ -982,6 +1075,8 @@ var file_polterware_local_v1_integration_proto_goTypes = []any{
 	(*ListIntegrationResourcesResponse)(nil),   // 11: polterware.local.v1.ListIntegrationResourcesResponse
 	(*ListIntegrationSyncRunsRequest)(nil),     // 12: polterware.local.v1.ListIntegrationSyncRunsRequest
 	(*ListIntegrationSyncRunsResponse)(nil),    // 13: polterware.local.v1.ListIntegrationSyncRunsResponse
+	(*SaveIntegrationSyncRunRequest)(nil),      // 14: polterware.local.v1.SaveIntegrationSyncRunRequest
+	(*SaveIntegrationSyncRunResponse)(nil),     // 15: polterware.local.v1.SaveIntegrationSyncRunResponse
 }
 var file_polterware_local_v1_integration_proto_depIdxs = []int32{
 	0,  // 0: polterware.local.v1.ListCliProvidersResponse.providers:type_name -> polterware.local.v1.CliProvider
@@ -990,21 +1085,25 @@ var file_polterware_local_v1_integration_proto_depIdxs = []int32{
 	1,  // 3: polterware.local.v1.SaveIntegrationConnectionResponse.connection:type_name -> polterware.local.v1.IntegrationConnection
 	2,  // 4: polterware.local.v1.ListIntegrationResourcesResponse.resources:type_name -> polterware.local.v1.IntegrationResource
 	3,  // 5: polterware.local.v1.ListIntegrationSyncRunsResponse.runs:type_name -> polterware.local.v1.IntegrationSyncRun
-	4,  // 6: polterware.local.v1.IntegrationService.ListCliProviders:input_type -> polterware.local.v1.ListCliProvidersRequest
-	6,  // 7: polterware.local.v1.IntegrationService.ListIntegrationConnections:input_type -> polterware.local.v1.ListIntegrationConnectionsRequest
-	8,  // 8: polterware.local.v1.IntegrationService.SaveIntegrationConnection:input_type -> polterware.local.v1.SaveIntegrationConnectionRequest
-	10, // 9: polterware.local.v1.IntegrationService.ListIntegrationResources:input_type -> polterware.local.v1.ListIntegrationResourcesRequest
-	12, // 10: polterware.local.v1.IntegrationService.ListIntegrationSyncRuns:input_type -> polterware.local.v1.ListIntegrationSyncRunsRequest
-	5,  // 11: polterware.local.v1.IntegrationService.ListCliProviders:output_type -> polterware.local.v1.ListCliProvidersResponse
-	7,  // 12: polterware.local.v1.IntegrationService.ListIntegrationConnections:output_type -> polterware.local.v1.ListIntegrationConnectionsResponse
-	9,  // 13: polterware.local.v1.IntegrationService.SaveIntegrationConnection:output_type -> polterware.local.v1.SaveIntegrationConnectionResponse
-	11, // 14: polterware.local.v1.IntegrationService.ListIntegrationResources:output_type -> polterware.local.v1.ListIntegrationResourcesResponse
-	13, // 15: polterware.local.v1.IntegrationService.ListIntegrationSyncRuns:output_type -> polterware.local.v1.ListIntegrationSyncRunsResponse
-	11, // [11:16] is the sub-list for method output_type
-	6,  // [6:11] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	3,  // 6: polterware.local.v1.SaveIntegrationSyncRunRequest.run:type_name -> polterware.local.v1.IntegrationSyncRun
+	3,  // 7: polterware.local.v1.SaveIntegrationSyncRunResponse.run:type_name -> polterware.local.v1.IntegrationSyncRun
+	4,  // 8: polterware.local.v1.IntegrationService.ListCliProviders:input_type -> polterware.local.v1.ListCliProvidersRequest
+	6,  // 9: polterware.local.v1.IntegrationService.ListIntegrationConnections:input_type -> polterware.local.v1.ListIntegrationConnectionsRequest
+	8,  // 10: polterware.local.v1.IntegrationService.SaveIntegrationConnection:input_type -> polterware.local.v1.SaveIntegrationConnectionRequest
+	10, // 11: polterware.local.v1.IntegrationService.ListIntegrationResources:input_type -> polterware.local.v1.ListIntegrationResourcesRequest
+	12, // 12: polterware.local.v1.IntegrationService.ListIntegrationSyncRuns:input_type -> polterware.local.v1.ListIntegrationSyncRunsRequest
+	14, // 13: polterware.local.v1.IntegrationService.SaveIntegrationSyncRun:input_type -> polterware.local.v1.SaveIntegrationSyncRunRequest
+	5,  // 14: polterware.local.v1.IntegrationService.ListCliProviders:output_type -> polterware.local.v1.ListCliProvidersResponse
+	7,  // 15: polterware.local.v1.IntegrationService.ListIntegrationConnections:output_type -> polterware.local.v1.ListIntegrationConnectionsResponse
+	9,  // 16: polterware.local.v1.IntegrationService.SaveIntegrationConnection:output_type -> polterware.local.v1.SaveIntegrationConnectionResponse
+	11, // 17: polterware.local.v1.IntegrationService.ListIntegrationResources:output_type -> polterware.local.v1.ListIntegrationResourcesResponse
+	13, // 18: polterware.local.v1.IntegrationService.ListIntegrationSyncRuns:output_type -> polterware.local.v1.ListIntegrationSyncRunsResponse
+	15, // 19: polterware.local.v1.IntegrationService.SaveIntegrationSyncRun:output_type -> polterware.local.v1.SaveIntegrationSyncRunResponse
+	14, // [14:20] is the sub-list for method output_type
+	8,  // [8:14] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_integration_proto_init() }
@@ -1018,7 +1117,7 @@ func file_polterware_local_v1_integration_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_integration_proto_rawDesc), len(file_polterware_local_v1_integration_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

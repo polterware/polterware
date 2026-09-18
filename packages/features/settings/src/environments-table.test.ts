@@ -29,6 +29,10 @@ describe("Environments table composition contract", () => {
     expect(source).toContain("registerCollection");
     expect(source).toContain("activateTarget");
     expect(source).toContain("SETTINGS_TABS");
+    expect(source).toContain("Add environment");
+    expect(source).toContain("<CreateEnvironmentDialog");
+    expect(source).toContain("onCreateEnvironment");
+    expect(source).toContain("onSetDefaultEnvironment");
     expect(source).not.toMatch(/id:\s*"access"/);
     expect(source).not.toMatch(/id:\s*"integrations"/);
     expect(source).not.toMatch(/id:\s*"connected"/);

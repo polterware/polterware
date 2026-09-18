@@ -12,6 +12,7 @@ export default defineConfig({
       "src/resource-detail.test.ts",
       "src/node-detail.test.ts",
       "src/process-detail.test.ts",
+      "src/resources-create-dialog.test.ts",
     ],
   },
 });

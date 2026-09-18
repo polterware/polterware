@@ -117,6 +117,7 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.saveIntegrationConnection]: coreHandler(controllers, "saveIntegrationConnection"),
     [IPC_CHANNELS.core.listIntegrationResources]: coreHandler(controllers, "listIntegrationResources"),
     [IPC_CHANNELS.core.listIntegrationSyncRuns]: coreHandler(controllers, "listIntegrationSyncRuns"),
+    [IPC_CHANNELS.core.saveIntegrationSyncRun]: coreHandler(controllers, "saveIntegrationSyncRun"),
     [IPC_CHANNELS.core.listProcesses]: coreHandler(controllers, "listProcesses"),
     [IPC_CHANNELS.core.startProcess]: coreHandler(controllers, "startProcess"),
     [IPC_CHANNELS.core.stopProcess]: coreHandler(controllers, "stopProcess"),

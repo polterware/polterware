@@ -58,6 +58,8 @@ message ListIntegrationResourcesRequest { string project_id = 1; }
 message ListIntegrationResourcesResponse { repeated IntegrationResource resources = 1; }
 message ListIntegrationSyncRunsRequest { string project_id = 1; }
 message ListIntegrationSyncRunsResponse { repeated IntegrationSyncRun runs = 1; }
+message SaveIntegrationSyncRunRequest { IntegrationSyncRun run = 1; }
+message SaveIntegrationSyncRunResponse { IntegrationSyncRun run = 1; }
 
 service IntegrationService {
   rpc ListCliProviders(ListCliProvidersRequest) returns (ListCliProvidersResponse);
@@ -65,4 +67,5 @@ service IntegrationService {
   rpc SaveIntegrationConnection(SaveIntegrationConnectionRequest) returns (SaveIntegrationConnectionResponse);
   rpc ListIntegrationResources(ListIntegrationResourcesRequest) returns (ListIntegrationResourcesResponse);
   rpc ListIntegrationSyncRuns(ListIntegrationSyncRunsRequest) returns (ListIntegrationSyncRunsResponse);
+  rpc SaveIntegrationSyncRun(SaveIntegrationSyncRunRequest) returns (SaveIntegrationSyncRunResponse);
 }

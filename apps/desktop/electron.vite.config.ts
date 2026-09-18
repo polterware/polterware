@@ -23,6 +23,11 @@ export default defineConfig({
     },
     build: {
       outDir: "out/main",
+      // Workspace contracts ship TypeScript with `.js` specifiers; bundle them
+      // so Electron does not try to load missing generated `.js` files.
+      externalizeDeps: {
+        exclude: ["@polterware/contracts"],
+      },
       rollupOptions: {
         input: { index: resolve(rootDir, "src/main/index.ts") },
       },

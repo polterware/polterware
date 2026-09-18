@@ -66,7 +66,7 @@ export function ResourcesView(props: {
   onOpenArchitecture?: (id: string) => void;
   onCreate?: () => void;
   onCloseDialog?: () => void;
-  onSubmitDialog?: () => void;
+  onSubmitDialog?: (draft: { name: string; type: string }) => void;
   onTerminal?: () => void;
   onRunCommand?: () => void;
 }) {
@@ -78,9 +78,14 @@ export function ResourcesView(props: {
   const [statuses, setStatuses] = createSignal<string[]>(props.filters ?? []);
   const [name, setName] = createSignal("");
   const [type, setType] = createSignal("Service");
-  const [environment, setEnvironment] = createSignal("Development");
   const scopeId = createMemo(() => `resources:${tab()}`);
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
+
+  createEffect(() => {
+    if (props.dialogOpen) return;
+    setName("");
+    setType("Service");
+  });
 
   const resources = createMemo(() => catalog().filter((resource) => {
     const needle = query().trim().toLowerCase();
@@ -155,7 +160,49 @@ export function ResourcesView(props: {
       <Show when={activeNode()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<Laptop size={16} />} title={item().name}><DetailPanel.Actions><DetailPanel.Action label="Open visual terminal" onClick={() => props.onTerminal?.()}><SquareTerminal /></DetailPanel.Action></DetailPanel.Actions></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Node"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={healthTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Platform" value={item().platform} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /><DetailPanel.MetadataItem label="Address" value={item().address} /><DetailPanel.MetadataItem label="CPU" value={item().cpu} /><DetailPanel.MetadataItem label="Memory" value={item().memory} /></DetailPanel.Metadata></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
       <Show when={activeProcess()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<SquareTerminal size={16} />} title={item().name}><DetailPanel.Actions><DetailPanel.Action label="Preview command" onClick={() => props.onRunCommand?.()}><Play /></DetailPanel.Action><DetailPanel.Action label="Open visual terminal" onClick={() => props.onTerminal?.()}><SquareTerminal /></DetailPanel.Action></DetailPanel.Actions></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Process"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={processTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Node" value={item().nodeName} /><DetailPanel.MetadataItem label="PID" value={item().pid?.toString() ?? "—"} /><DetailPanel.MetadataItem label="Started" value={item().startedAt} /><DetailPanel.MetadataItem label="Command" value={item().command} /><DetailPanel.MetadataItem label="Source" value="Local store" /></DetailPanel.Metadata></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
 
-      <A11yDialog open={Boolean(props.dialogOpen)} title="Add resource" size="xl" onClose={() => props.onCloseDialog?.()} footer={<><Button variant="ghost" size="sm" onClick={() => props.onCloseDialog?.()}>Cancel</Button><Button variant="primary" size="sm" disabled={!name().trim()} onClick={() => props.onSubmitDialog?.()}>Save</Button></>}><div class="grid gap-3"><p class="m-0 text-[12px] text-[var(--color-text-muted)]">This resource is stored in the local SQLite database.</p><Field label="Name"><Input size="sm" value={name()} onInput={(event) => setName(event.currentTarget.value)} /></Field><Field label="Type"><Select size="sm" value={type()} options={[{ value: "Service", label: "Service" }, { value: "Database", label: "Database" }, { value: "Cache", label: "Cache" }]} onChange={setType} /></Field><Field label="Environment"><Select size="sm" value={environment()} options={[{ value: "Development", label: "Development" }, { value: "Staging", label: "Staging" }, { value: "Production", label: "Production" }]} onChange={setEnvironment} /></Field></div></A11yDialog>
+      <A11yDialog
+        open={Boolean(props.dialogOpen)}
+        title="Add resource"
+        size="xl"
+        onClose={() => props.onCloseDialog?.()}
+        footer={(
+          <>
+            <Button variant="ghost" size="sm" onClick={() => props.onCloseDialog?.()}>Cancel</Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={!name().trim()}
+              onClick={() => props.onSubmitDialog?.({ name: name().trim(), type: type() })}
+            >
+              Save
+            </Button>
+          </>
+        )}
+      >
+        <div class="grid gap-3">
+          <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
+            This resource is stored in the local SQLite database.
+          </p>
+          <Field label="Name">
+            <Input size="sm" value={name()} onInput={(event) => setName(event.currentTarget.value)} />
+          </Field>
+          <Field label="Type">
+            <Select
+              size="sm"
+              value={type()}
+              options={[
+                { value: "Service", label: "Service" },
+                { value: "Database", label: "Database" },
+                { value: "Cache", label: "Cache" },
+              ]}
+              onChange={setType}
+            />
+          </Field>
+          <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
+            Created in the currently selected environment from the header switcher.
+          </p>
+        </div>
+      </A11yDialog>
     </>
   );
 }

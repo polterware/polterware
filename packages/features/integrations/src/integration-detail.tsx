@@ -6,7 +6,6 @@ import {
   RefreshCw,
   StatusChip,
   Tabs,
-  pushToast,
 } from "@polterware/frontend-design-system";
 import {
   TerminalTranscript,
@@ -86,9 +85,8 @@ export function IntegrationDetail(props: {
             title={integration().name}
           >
             <DetailPanel.Actions>
-              <DetailPanel.Action label="Refresh fixture" onClick={() => {
+              <DetailPanel.Action label="Refresh metadata" onClick={() => {
                 props.onSync?.();
-                pushToast("Fixture metadata refreshed in memory.", "success");
               }}>
                 <RefreshCw />
               </DetailPanel.Action>
@@ -109,9 +107,9 @@ export function IntegrationDetail(props: {
                 <DetailPanel.Section title="Connection">
                   <div class="grid gap-4 sm:grid-cols-2">
                     <div><p class="m-0 text-[11px] text-[var(--color-text-muted)]">Status</p><StatusChip tone={integrationTone(props.status ?? integration().status)} label={props.status ?? integration().status} /></div>
-                    <div><p class="m-0 text-[11px] text-[var(--color-text-muted)]">Connection fixture</p><p class="m-0 mt-1 text-[13px]">{integration().connectionLabel}</p></div>
+                    <div><p class="m-0 text-[11px] text-[var(--color-text-muted)]">Connection</p><p class="m-0 mt-1 text-[13px]">{integration().connectionLabel}</p></div>
                     <div><p class="m-0 text-[11px] text-[var(--color-text-muted)]">Environment</p><p class="m-0 mt-1 text-[13px]">{integration().environment}</p></div>
-                    <div><p class="m-0 text-[11px] text-[var(--color-text-muted)]">Last fixture refresh</p><p class="m-0 mt-1 text-[13px]">{integration().lastSync}</p></div>
+                    <div><p class="m-0 text-[11px] text-[var(--color-text-muted)]">Last sync</p><p class="m-0 mt-1 text-[13px]">{integration().lastSync}</p></div>
                   </div>
                   <p class="m-0 mt-4 text-[12px] text-[var(--color-text-secondary)]">{integration().summary}</p>
                 </DetailPanel.Section>

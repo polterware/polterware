@@ -57,6 +57,7 @@ export const IPC_CHANNELS = {
     saveIntegrationConnection: "core:save-integration-connection",
     listIntegrationResources: "core:list-integration-resources",
     listIntegrationSyncRuns: "core:list-integration-sync-runs",
+    saveIntegrationSyncRun: "core:save-integration-sync-run",
     listProcesses: "core:list-processes",
     startProcess: "core:start-process",
     stopProcess: "core:stop-process",

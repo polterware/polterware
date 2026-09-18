@@ -27,5 +27,8 @@ describe("EnvironmentDetail composition contract", () => {
     expect(indexSource).toContain("<EnvironmentDetail");
     expect(indexSource).toContain("registerCollection");
     expect(indexSource).toContain("activateTarget");
+    expect(indexSource).toContain("onSetDefault");
+    expect(source).toContain('label="Set as default"');
+    expect(source).toContain("onSetDefault");
   });
 });

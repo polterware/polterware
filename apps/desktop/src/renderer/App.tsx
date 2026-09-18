@@ -34,12 +34,22 @@ import { bootstrapPlatform } from "./platform-bootstrap";
 import { emptyWorkspace, loadWorkspace, type WorkspaceSnapshot } from "./workspace/load";
 import {
   persistCreatedProject,
+  persistDeleteView,
+  persistEnvironment,
+  persistEnvironmentDefault,
   persistIntegrationConnection,
+  persistIntegrationSync,
   persistKnowledgeBody,
+  persistKnowledgeCreate,
+  persistKnowledgeDelete,
+  persistKnowledgeDuplicate,
   persistLayout,
   persistOperationPreview,
   persistProjectSettings,
   persistResource,
+  persistSchedule,
+  persistView,
+  persistWorkflow,
   resetLocalStore,
 } from "./workspace/persist";
 
@@ -294,6 +304,27 @@ export function App() {
               }));
               return result;
             }}
+            onSaveView={(draft) =>
+              persistView({
+                projectId: currentProjectId(),
+                ...draft,
+              }).then(async () => {
+                pushToast("View saved locally.", "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not save view.", "danger");
+                throw error;
+              })
+            }
+            onDeleteView={(id) =>
+              persistDeleteView(id).then(async () => {
+                pushToast("View deleted.", "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not delete view.", "danger");
+                throw error;
+              })
+            }
           />
         </Match>
 
@@ -326,12 +357,12 @@ export function App() {
             }
             onCreate={() => applyRoute(openDialog(route(), { type: "resource-create" }), "silent")}
             onCloseDialog={() => applyRoute(closeDialog(route()), "silent")}
-            onSubmitDialog={() => {
+            onSubmitDialog={(draft) => {
               void persistResource({
                 projectId: currentProjectId(),
                 environmentId: route().environmentId,
-                name: "New resource",
-                type: "Service",
+                name: draft.name,
+                type: draft.type,
               }).then(async () => {
                 applyRoute(closeDialog(route()), "silent");
                 pushToast("Resource saved locally.", "success");
@@ -364,6 +395,33 @@ export function App() {
             onOpenRun={(id) => activateDetail("operations:runs", id, "run")}
             onOpenWorkflow={(id) => activateDetail("operations:workflows", id, "workflow")}
             onOpenSchedule={(id) => activateDetail("operations:schedules", id, "schedule")}
+            onCreateWorkflow={(draft) => {
+              void persistWorkflow({
+                projectId: currentProjectId(),
+                name: draft.name,
+                description: draft.description,
+              }).then(async () => {
+                pushToast(`Workflow "${draft.name}" saved locally.`, "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not save workflow.", "danger");
+              });
+            }}
+            onCreateSchedule={(draft) => {
+              void persistSchedule({
+                projectId: currentProjectId(),
+                environmentId: route().environmentId,
+                name: draft.name,
+                workflowId: draft.workflowId,
+                expression: draft.expression,
+                timezone: draft.timezone,
+              }).then(async () => {
+                pushToast(`Schedule "${draft.name}" saved locally.`, "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not save schedule.", "danger");
+              });
+            }}
             onRunCommand={() => applyRoute(openDialog(route(), { type: "run-command" }), "silent")}
             onCloseRunCommand={() => applyRoute(closeDialog(route()), "silent")}
             onSubmitRunCommand={(input) => {
@@ -399,8 +457,44 @@ export function App() {
             onOpenDoc={(id) => activateDetail("knowledge:docs", id, "document")}
             onOpenRunbook={(id) => activateDetail("knowledge:runbooks", id, "runbook")}
             onSaveBody={(id, body) => {
-              void persistKnowledgeBody(workspace(), currentProjectId(), id, body).catch((error: unknown) => {
+              void persistKnowledgeBody(workspace(), currentProjectId(), id, body).then(async () => {
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not save knowledge.", "danger");
+              });
+            }}
+            onCreate={(kind, title) => {
+              void persistKnowledgeCreate({
+                projectId: currentProjectId(),
+                kind,
+                title,
+              }).then(async (id) => {
+                await refreshWorkspace(currentProjectId());
+                if (kind === "runbook") {
+                  activateDetail("knowledge:runbooks", id, "runbook");
+                } else {
+                  activateDetail("knowledge:docs", id, "document");
+                }
+                pushToast(kind === "runbook" ? "Runbook saved locally." : "Document saved locally.", "success");
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not create knowledge.", "danger");
+              });
+            }}
+            onArchive={(id) => {
+              void persistKnowledgeDelete(id).then(async () => {
+                pushToast("Knowledge archived.", "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not archive knowledge.", "danger");
+              });
+            }}
+            onDuplicate={(id) => {
+              void persistKnowledgeDuplicate(workspace(), currentProjectId(), id).then(async (nextId) => {
+                await refreshWorkspace(currentProjectId());
+                if (nextId) activateDetail("knowledge:runbooks", nextId, "runbook");
+                pushToast("Runbook duplicated.", "success");
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not duplicate runbook.", "danger");
               });
             }}
             onOpenComponent={(id) =>
@@ -451,6 +545,21 @@ export function App() {
                 pushToast(error instanceof Error ? error.message : "Could not save connection.", "danger");
               });
             }}
+            onSync={(integrationId) => {
+              const resourceCount = workspace().integrationResources.filter(
+                (resource) => resource.integrationId === integrationId,
+              ).length;
+              void persistIntegrationSync({
+                projectId: currentProjectId(),
+                connectionId: integrationId,
+                resourceCount,
+              }).then(async () => {
+                pushToast("Integration metadata refreshed locally.", "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not refresh integration metadata.", "danger");
+              });
+            }}
             onOpenResource={(id) =>
               navigateToDetail(
                 setTab(goSection(route(), "resources"), "inventory"),
@@ -469,11 +578,44 @@ export function App() {
             environments={workspace().settingsEnvironments}
             onTabChange={(tab) => applyRoute(setTab(route(), tab))}
             onSaveGeneral={(settings) => {
-              void persistProjectSettings(currentProjectId(), settings).then(async () => {
+              void persistProjectSettings(
+                currentProjectId(),
+                settings,
+                workspace().settingsEnvironments,
+              ).then(async () => {
                 pushToast("Project settings saved.", "success");
                 await refreshWorkspace(currentProjectId());
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not save settings.", "danger");
+              });
+            }}
+            onCreateEnvironment={(draft) => {
+              void persistEnvironment({
+                projectId: currentProjectId(),
+                name: draft.name,
+                kind: draft.kind,
+                protection: draft.protection,
+                existingCount: workspace().settingsEnvironments.length,
+                settings: workspace().settings,
+              }).then(async () => {
+                pushToast(`Environment "${draft.name}" saved locally.`, "success");
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not save environment.", "danger");
+              });
+            }}
+            onSetDefaultEnvironment={(environmentId) => {
+              const environment = workspace().settingsEnvironments.find((item) => item.id === environmentId);
+              void persistEnvironmentDefault(workspace(), currentProjectId(), environmentId).then(async () => {
+                pushToast(
+                  environment
+                    ? `${environment.name} is now the default environment.`
+                    : "Default environment updated.",
+                  "success",
+                );
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not update default environment.", "danger");
               });
             }}
             onResetLocalStore={() => {

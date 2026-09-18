@@ -2,11 +2,13 @@ import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-j
 import {
   Book03Icon,
   BookOpen02Icon,
+  Button,
   DataTable,
   FilterPopover,
   PageContent,
   PageEmpty,
   PageToolbar,
+  Plus,
   StatusChip,
   Tabs,
 } from "@polterware/frontend-design-system";
@@ -15,6 +17,7 @@ import {
   type WorkspaceRunbook,
 } from "@polterware/feature-shell";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
+import { CreateKnowledgeDialog } from "./create-knowledge-dialog";
 import { DocumentDetail } from "./document-detail";
 import { RunbookDetail } from "./runbook-detail";
 import { documentStatusTone, runbookSeverityTone } from "./knowledge-document-helpers";
@@ -40,11 +43,15 @@ export function KnowledgeView(props: {
   onOpenTerminal?: () => void;
   onOpenOperation?: (id?: string) => void;
   onSaveBody?: (id: string, body: string) => void;
+  onCreate?: (kind: "doc" | "runbook", title: string) => void;
+  onArchive?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
 }) {
   const tab = () => normalizeTab(props.tab);
   const [query, setQuery] = createSignal("");
   const [filters, setFilters] = createSignal<readonly string[]>([]);
   const [bodyOverrides, setBodyOverrides] = createSignal<Record<string, string>>({});
+  const [createOpen, setCreateOpen] = createSignal(false);
   const scopeId = createMemo(() => `knowledge:${tab()}`);
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
 
@@ -130,6 +137,7 @@ export function KnowledgeView(props: {
               onChange={(next) => {
                 setQuery("");
                 setFilters([]);
+                setCreateOpen(false);
                 props.onTabChange?.(next);
               }}
               aria-label="Knowledge"
@@ -152,6 +160,18 @@ export function KnowledgeView(props: {
                 options: filterOptions(),
               }]}
             />
+            <Show when={props.onCreate}>
+              <Button
+                size="icon"
+                variant="primary"
+                class="!rounded-full"
+                aria-label={tab() === "runbooks" ? "New runbook" : "New document"}
+                title={tab() === "runbooks" ? "New runbook" : "New document"}
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus size={14} />
+              </Button>
+            </Show>
           </PageToolbar.Actions>
         </PageToolbar.Root>
 
@@ -232,6 +252,7 @@ export function KnowledgeView(props: {
               props.onSaveBody?.(item().id, markdown);
             }}
             onOpenComponent={props.onOpenComponent}
+            onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
           />
         )}
       </Show>
@@ -247,9 +268,20 @@ export function KnowledgeView(props: {
             onOpenTerminal={props.onOpenTerminal}
             onOpenComponent={props.onOpenComponent}
             onOpenOperation={props.onOpenOperation}
+            onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
+            onDuplicate={props.onDuplicate ? () => props.onDuplicate?.(item().id) : undefined}
           />
         )}
       </Show>
+      <CreateKnowledgeDialog
+        open={createOpen()}
+        kind={tab() === "runbooks" ? "runbook" : "doc"}
+        onClose={() => setCreateOpen(false)}
+        onSubmit={(title) => {
+          props.onCreate?.(tab() === "runbooks" ? "runbook" : "doc", title);
+          setCreateOpen(false);
+        }}
+      />
     </>
   );
 }

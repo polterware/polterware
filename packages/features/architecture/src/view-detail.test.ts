@@ -64,6 +64,8 @@ describe("ArchitectureViewDetail composition contract", () => {
     expect(source).toContain('label="Open"');
     expect(source).toContain('tone="primary"');
     expect(source).toContain('label="Edit"');
+    expect(source).toContain('label="Delete"');
+    expect(source).toContain('tone="danger"');
     expect(source).toContain("PageLoading");
     expect(source).toContain("PageError");
     expect(source).toContain("View not found");
@@ -87,6 +89,8 @@ describe("ArchitectureViewDetail composition contract", () => {
     expect(architectureIndex).toContain('entityKind === "arch-view"');
     expect(architectureIndex).toContain("onOpen");
     expect(architectureIndex).toContain("onEdit");
+    expect(architectureIndex).toContain("onDelete");
+    expect(architectureIndex).toContain("openEditView");
     expect(architectureIndex).toContain('setDeepMode("view-edit")');
     expect(architectureIndex).toContain("setActiveViewId");
     expect(architectureIndex).toContain('props.onTabChange?.("canvas")');

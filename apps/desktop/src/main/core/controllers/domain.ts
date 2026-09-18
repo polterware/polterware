@@ -46,6 +46,7 @@ export function createCoreDomainControllers(clients: CoreClients) {
     saveIntegrationConnection: async (input?: JsonObject) => toJsonObject(await clients.integrations.saveIntegrationConnection(requestMessage(input))),
     listIntegrationResources: async (input?: JsonObject) => toJsonObject(await clients.integrations.listIntegrationResources(requestMessage(input))),
     listIntegrationSyncRuns: async (input?: JsonObject) => toJsonObject(await clients.integrations.listIntegrationSyncRuns(requestMessage(input))),
+    saveIntegrationSyncRun: async (input?: JsonObject) => toJsonObject(await clients.integrations.saveIntegrationSyncRun(requestMessage(input))),
     listProcesses: async (input?: JsonObject) => toJsonObject(await clients.processes.listProcesses(requestMessage(input))),
     startProcess: async (input?: JsonObject) => toJsonObject(await clients.processes.startProcess(requestMessage(input))),
     stopProcess: async (input?: JsonObject) => toJsonObject(await clients.processes.stopProcess(requestMessage(input))),

@@ -19,7 +19,7 @@ import type { SaveStatus } from "./architecture-canvas";
 import { ArchitectureNodeDetail } from "./node-detail";
 import { ArchitectureViewDetail } from "./view-detail";
 import { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
-import { type ArchViewCard } from "./extra-fixtures";
+import { type ArchitectureViewDraft, type ArchViewCard } from "./extra-fixtures";
 import { ViewsTable } from "./views-table";
 import { ComponentsTable } from "./components-table";
 import {
@@ -29,7 +29,8 @@ import {
   typeLabelFor,
 } from "./components-list";
 import { CreateNodeDialog, type ArchNodeDraft } from "./create-node-dialog";
-import { ViewEditor } from "./deep-flows";
+import { ViewEditor } from "./view-editor";
+import { membersFromSelection, nodesFromArchitectureDocument } from "./view-editor-helpers";
 import { roleLabel } from "./domain/place-config";
 import { createFixtureResourceLinkPort } from "./domain/fixture-resource-link-port";
 import { DEFAULT_PROJECT_ENVIRONMENTS, environmentLabel } from "./domain/project-environments";
@@ -124,7 +125,7 @@ export { ArchitectureCanvas } from "./architecture-canvas";
 export { ArchitectureNodeDetail } from "./node-detail";
 export { ArchitectureViewDetail } from "./view-detail";
 export { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
-export type { ArchViewCard } from "./extra-fixtures";
+export type { ArchitectureViewDraft, ArchViewCard } from "./extra-fixtures";
 export { VIEW_FIXTURES } from "./extra-fixtures";
 export { assignLayer } from "./layers";
 export { filterNodes, groupNodesByLayer } from "./map-view";
@@ -203,6 +204,8 @@ export function ArchitectureView(props: {
   fixtureMode?: FixtureMode;
   createDialogOpen?: boolean;
   views?: ArchViewCard[];
+  onSaveView?: (draft: ArchitectureViewDraft) => void | Promise<void>;
+  onDeleteView?: (id: string) => void | Promise<void>;
   onSelect?: (nodeId: string | null) => void;
   onOpenNode?: (nodeId: string) => void;
   onSaveLayout?: (bodyJson: string, expectedRevision: number) => Promise<{ revision: number }> | { revision: number };
@@ -218,7 +221,9 @@ export function ArchitectureView(props: {
   const fixtureMode = () => props.fixtureMode ?? "fallback";
   const views = () => props.views ?? [];
   const [deepMode, setDeepMode] = createSignal<"none" | "view-edit">("none");
-  const [editViewName, setEditViewName] = createSignal("Payment flow");
+  const [editViewId, setEditViewId] = createSignal<string | undefined>();
+  const [editViewName, setEditViewName] = createSignal("");
+  const [editMemberIds, setEditMemberIds] = createSignal<string[]>([]);
   const [activeViewId, setActiveViewId] = createSignal<string | null>(null);
   const [edgeFlow, setEdgeFlow] = createSignal(readEdgeFlowPref());
   const [componentLifecycleFilters, setComponentLifecycleFilters] = createSignal<string[]>([]);
@@ -514,6 +519,38 @@ export function ArchitectureView(props: {
     return views().find((view) => view.id === target.entityId);
   });
 
+  const availableViewNodes = createMemo(() => nodesFromArchitectureDocument(doc().nodes));
+
+  function openCreateView() {
+    setEditViewId(undefined);
+    setEditViewName("");
+    setEditMemberIds([]);
+    setDeepMode("view-edit");
+  }
+
+  function openEditView(view: ArchViewCard) {
+    setEditViewId(view.id);
+    setEditViewName(view.name);
+    setEditMemberIds((view.members ?? []).map((member) => member.id));
+    setDeepMode("view-edit");
+  }
+
+  async function saveEditedView(draft: { id?: string; name: string; memberIds: string[] }) {
+    const current = draft.id ? views().find((view) => view.id === draft.id) : undefined;
+    await props.onSaveView?.({
+      id: draft.id,
+      name: draft.name,
+      members: membersFromSelection(draft.memberIds, availableViewNodes(), current?.members),
+      description: current?.description,
+      owner: current?.owner,
+      purpose: current?.purpose,
+      notes: current?.notes,
+      filterSummary: current?.filterSummary,
+      environments: current?.environments,
+      tags: current?.tags,
+    });
+  }
+
   const componentRows = createMemo(() =>
     filterComponentRows(projectComponentRows(doc().nodes), {
       search: props.search,
@@ -686,7 +723,7 @@ export function ArchitectureView(props: {
                       action: {
                         label: "Manage views…",
                         onSelect: () => {
-                          setDeepMode("view-edit");
+                          props.onTabChange?.("views");
                           setActiveViewId(null);
                         },
                       },
@@ -783,7 +820,7 @@ export function ArchitectureView(props: {
                   class="!rounded-full"
                   aria-label="Create view"
                   title="Create view"
-                  onClick={() => setDeepMode("view-edit")}
+                  onClick={openCreateView}
                 >
                   <Plus size={14} />
                 </Button>
@@ -839,7 +876,14 @@ export function ArchitectureView(props: {
               />
             </Show>
             <Show when={deepMode() === "view-edit"}>
-              <ViewEditor name={editViewName()} onClose={() => setDeepMode("none")} />
+              <ViewEditor
+                viewId={editViewId()}
+                name={editViewName()}
+                initialMemberIds={editMemberIds()}
+                availableNodes={availableViewNodes()}
+                onClose={() => setDeepMode("none")}
+                onSave={saveEditedView}
+              />
             </Show>
           </div>
         </div>
@@ -884,10 +928,17 @@ export function ArchitectureView(props: {
             setActiveViewId(viewId);
             props.onTabChange?.("canvas");
           }}
-          onEdit={(view) => {
-            setEditViewName(view.name);
-            setDeepMode("view-edit");
-          }}
+          onEdit={openEditView}
+          onDelete={
+            props.onDeleteView
+              ? (view) => {
+                  void Promise.resolve(props.onDeleteView?.(view.id)).then(() => {
+                    setActiveViewId((current) => (current === view.id ? null : current));
+                    if (editViewId() === view.id) setDeepMode("none");
+                  }).catch(() => undefined);
+                }
+              : undefined
+          }
           onOpenMember={(memberId) => {
             props.onTabChange?.("canvas");
             props.onSelect?.(memberId);

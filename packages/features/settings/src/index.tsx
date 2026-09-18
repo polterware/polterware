@@ -9,6 +9,7 @@ import {
   PageContent,
   PageEmpty,
   PageToolbar,
+  Plus,
   Select,
   Server,
   StatusChip,
@@ -17,6 +18,7 @@ import {
   pushToast,
 } from "@polterware/frontend-design-system";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
+import { CreateEnvironmentDialog, type CreateEnvironmentDraft } from "./create-environment-dialog";
 import { EnvironmentDetail } from "./environment-detail";
 import { environmentKindLabel, environmentKindTone, protectionLabel, protectionTone, archiveProjectToast, saveGeneralSettingsToast } from "./environment-status";
 import type { ProjectEnvironment, ProjectGeneralSettings } from "./types";
@@ -31,7 +33,8 @@ import {
   SETTINGS_TABS,
 } from "./settings-helpers";
 
-export type { ProjectEnvironment, ProjectGeneralSettings, ProtectionLevel, SettingsTabId } from "./types";
+export type { EnvironmentKind, ProjectEnvironment, ProjectGeneralSettings, ProtectionLevel, SettingsTabId } from "./types";
+export type { CreateEnvironmentDraft } from "./create-environment-dialog";
 export { SETTINGS_ENVIRONMENT_MOCKS, PROJECT_GENERAL_SETTINGS_MOCK } from "./fixtures";
 export {
   environmentKindLabel,
@@ -41,6 +44,7 @@ export {
 } from "./environment-status";
 export { normalizeSettingsTab, SETTINGS_TABS } from "./settings-helpers";
 export { EnvironmentDetail } from "./environment-detail";
+export { CreateEnvironmentDialog } from "./create-environment-dialog";
 
 /** Project-scoped settings persisted in the local store. */
 export function SettingsView(props: {
@@ -49,6 +53,8 @@ export function SettingsView(props: {
   environments?: ProjectEnvironment[];
   onTabChange?: (t: string) => void;
   onSaveGeneral?: (settings: ProjectGeneralSettings) => void;
+  onCreateEnvironment?: (draft: CreateEnvironmentDraft) => void;
+  onSetDefaultEnvironment?: (environmentId: string) => void;
   onResetLocalStore?: () => void;
   children?: JSX.Element;
 }) {
@@ -64,6 +70,7 @@ export function SettingsView(props: {
   const [repository, setRepository] = createSignal(general()?.repository ?? "");
   const [archiveOpen, setArchiveOpen] = createSignal(false);
   const [resetOpen, setResetOpen] = createSignal(false);
+  const [createOpen, setCreateOpen] = createSignal(false);
 
   createEffect(() => {
     const next = general();
@@ -147,6 +154,14 @@ export function SettingsView(props: {
               aria-label="Project settings"
             />
           </PageToolbar.Tabs>
+          <Show when={tab() === "environments"}>
+            <PageToolbar.Actions>
+              <Button size="sm" variant="primary" onClick={() => setCreateOpen(true)}>
+                <Plus size={16} />
+                Add environment
+              </Button>
+            </PageToolbar.Actions>
+          </Show>
         </PageToolbar.Root>
 
         <Show when={tab() === "general"}>
@@ -336,8 +351,22 @@ export function SettingsView(props: {
             activeTarget()?.entityKind === "environment" &&
             !currentEnvironment()
           }
+          onSetDefault={
+            props.onSetDefaultEnvironment
+              ? (environmentId) => props.onSetDefaultEnvironment?.(environmentId)
+              : undefined
+          }
         />
       </Show>
+
+      <CreateEnvironmentDialog
+        open={createOpen()}
+        onClose={() => setCreateOpen(false)}
+        onSubmit={(draft) => {
+          setCreateOpen(false);
+          props.onCreateEnvironment?.(draft);
+        }}
+      />
 
       <A11yDialog
         open={archiveOpen()}

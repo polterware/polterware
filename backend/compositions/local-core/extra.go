@@ -142,6 +142,27 @@ func (core *Core) ListIntegrationSyncRuns(_ context.Context, request *connect.Re
 	return connect.NewResponse(&localv1.ListIntegrationSyncRunsResponse{Runs: result}), nil
 }
 
+func (core *Core) SaveIntegrationSyncRun(_ context.Context, request *connect.Request[localv1.SaveIntegrationSyncRunRequest]) (*connect.Response[localv1.SaveIntegrationSyncRunResponse], error) {
+	item := request.Msg.GetRun()
+	if item == nil || item.Id == "" || item.ConnectionId == "" {
+		return nil, invalid("sync run id and connection id are required")
+	}
+	run := integrations.SyncRun{
+		ID:           item.Id,
+		ConnectionID: item.ConnectionId,
+		StartedAt:    item.StartedAt,
+		FinishedAt:   item.FinishedAt,
+		Result:       item.Result,
+		Imported:     int(item.Imported),
+		Changed:      int(item.Changed),
+		Message:      item.Message,
+	}
+	if err := core.Store.SaveIntegrationSyncRun(run); err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&localv1.SaveIntegrationSyncRunResponse{Run: syncRunProto(run)}), nil
+}
+
 func settingsProto(item projects.Settings) *localv1.ProjectSettings {
 	return &localv1.ProjectSettings{ProjectId: item.ProjectID, Description: item.Description, DefaultEnvironmentId: item.DefaultEnvironmentID, Repository: item.Repository}
 }
