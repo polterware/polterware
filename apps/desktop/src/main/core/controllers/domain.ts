@@ -1,5 +1,5 @@
 import type { JsonObject } from "../../../shared/ipc.js";
-import { toJsonObject, type CoreClients } from "../client.js";
+import { decodeBase64Bytes, toJsonObject, type CoreClients } from "../client.js";
 
 function payload(value: JsonObject | undefined): Record<string, unknown> {
   return value ?? {};
@@ -7,6 +7,13 @@ function payload(value: JsonObject | undefined): Record<string, unknown> {
 
 function requestMessage(value: JsonObject | undefined): never {
   return payload(value) as never;
+}
+
+function terminalWriteMessage(value: JsonObject | undefined): never {
+  const next = payload(value);
+  const data = decodeBase64Bytes(next.data);
+  if (data) next.data = data;
+  return next as never;
 }
 
 export function createCoreDomainControllers(clients: CoreClients) {
@@ -56,7 +63,7 @@ export function createCoreDomainControllers(clients: CoreClients) {
     stopProcess: async (input?: JsonObject) => toJsonObject(await clients.processes.stopProcess(requestMessage(input))),
     getProcess: async (input?: JsonObject) => toJsonObject(await clients.processes.getProcess(requestMessage(input))),
     createTerminalSession: async (input?: JsonObject) => toJsonObject(await clients.terminals.createTerminalSession(requestMessage(input))),
-    writeTerminalSession: async (input?: JsonObject) => toJsonObject(await clients.terminals.writeTerminalSession(requestMessage(input))),
+    writeTerminalSession: async (input?: JsonObject) => toJsonObject(await clients.terminals.writeTerminalSession(terminalWriteMessage(input))),
     resizeTerminalSession: async (input?: JsonObject) => toJsonObject(await clients.terminals.resizeTerminalSession(requestMessage(input))),
     closeTerminalSession: async (input?: JsonObject) => toJsonObject(await clients.terminals.closeTerminalSession(requestMessage(input))),
     readTerminalOutput: async (input?: JsonObject) => toJsonObject(await clients.terminals.readTerminalOutput(requestMessage(input))),

@@ -23,8 +23,19 @@ function base64ToUtf8(value: string): string {
 
 function coerceBase64(data: unknown): string {
   if (typeof data === "string") return data;
-  if (data && typeof data === "object" && "data" in (data as object)) {
-    return coerceBase64((data as { data: unknown }).data);
+  if (ArrayBuffer.isView(data)) {
+    return bytesToBase64(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+  }
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>;
+    if ("data" in record) return coerceBase64(record.data);
+    // Legacy/mangled IPC shape from JSON.stringify(Uint8Array): {0:n,1:n,...}
+    const keys = Object.keys(record);
+    if (keys.length > 0 && keys.every((key) => /^\d+$/.test(key))) {
+      const bytes = new Uint8Array(keys.length);
+      for (const key of keys) bytes[Number(key)] = Number(record[key]) & 0xff;
+      return bytesToBase64(bytes);
+    }
   }
   return "";
 }

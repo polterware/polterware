@@ -75,8 +75,37 @@ export async function waitForHealth(clients: CoreClients): Promise<void> {
   throw lastError instanceof Error ? lastError : new Error("Polterware core health check failed.");
 }
 
+function bytesToBase64(value: Uint8Array): string {
+  return Buffer.from(value).toString("base64");
+}
+
+function sanitizeForIpc(value: unknown): unknown {
+  if (typeof value === "bigint") return Number(value);
+  // Buffer extends Uint8Array; convert before JSON.stringify (Buffer.toJSON would otherwise emit {type,data}).
+  if (value instanceof Uint8Array || Buffer.isBuffer(value)) {
+    return bytesToBase64(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForIpc(item));
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = sanitizeForIpc(nested);
+    }
+    return out;
+  }
+  return value;
+}
+
 export function toJsonObject(value: unknown): Record<string, unknown> {
-  return JSON.parse(JSON.stringify(value ?? {}, (_key, current) => (
-    typeof current === "bigint" ? Number(current) : current
-  ))) as Record<string, unknown>;
+  return sanitizeForIpc(value ?? {}) as Record<string, unknown>;
+}
+
+/** Decode base64 protobuf bytes payloads coming from the renderer over IPC. */
+export function decodeBase64Bytes(value: unknown): Uint8Array | undefined {
+  if (value instanceof Uint8Array) return value;
+  if (Buffer.isBuffer(value)) return new Uint8Array(value);
+  if (typeof value !== "string" || value.length === 0) return undefined;
+  return new Uint8Array(Buffer.from(value, "base64"));
 }
