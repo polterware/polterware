@@ -17,7 +17,9 @@
   "dependencies": {
     "@polterware/frontend-design-system": "workspace:*",
     "@polterware/frontend-platform": "workspace:*",
-    "@polterware/frontend-state": "workspace:*"
+    "@polterware/frontend-state": "workspace:*",
+    "@xterm/addon-fit": "0.10.0",
+    "@xterm/xterm": "5.5.0"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",

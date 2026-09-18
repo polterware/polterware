@@ -10,4 +10,5 @@ export * from "./gen/polterware/local/v1/node_pb.js";
 export * from "./gen/polterware/local/v1/operation_pb.js";
 export * from "./gen/polterware/local/v1/process_pb.js";
 export * from "./gen/polterware/local/v1/project_pb.js";
+export * from "./gen/polterware/local/v1/terminal_pb.js";
 export * from "./gen/polterware/local/v1/workflow_pb.js";

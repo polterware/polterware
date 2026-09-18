@@ -2,6 +2,7 @@ import { For, Show } from "solid-js";
 import {
   DataTable,
   DetailPanel,
+  Delete,
   Eye,
   Package,
   PageError,
@@ -37,6 +38,7 @@ export function ArchitectureViewDetail(props: {
   notFound?: boolean;
   onOpen?: (viewId: string) => void;
   onEdit?: (view: ArchViewCard) => void;
+  onDelete?: (view: ArchViewCard) => void;
   onOpenMember?: (memberId: string) => void;
 }) {
   return (
@@ -91,6 +93,15 @@ export function ArchitectureViewDetail(props: {
                   <DetailPanel.Action label="Edit" onClick={() => props.onEdit?.(v())}>
                     <Pencil />
                   </DetailPanel.Action>
+                  <Show when={props.onDelete}>
+                    <DetailPanel.Action
+                      label="Delete"
+                      tone="danger"
+                      onClick={() => props.onDelete?.(v())}
+                    >
+                      <Delete />
+                    </DetailPanel.Action>
+                  </Show>
                 </DetailPanel.Actions>
               </DetailPanel.Header>
 

@@ -54,6 +54,7 @@ export function IntegrationsView(props: {
   onCloseSetup?: () => void;
   onOpenResource?: (resourceId: string) => void;
   onConnect?: (provider: WorkspaceCatalogProvider) => void;
+  onSync?: (integrationId: string) => void;
 }) {
   const tab = () => normalizeTab(props.tab);
   const [localSetupProvider, setLocalSetupProvider] = createSignal<string | null>(null);
@@ -232,7 +233,7 @@ export function IntegrationsView(props: {
             syncRuns={props.syncRuns ?? []}
             status={statusOverrides()[integration().id] ?? integration().status}
             onReconfigure={() => openSetup(integration().providerId)}
-            onSync={() => undefined}
+            onSync={() => props.onSync?.(integration().id)}
             onOpenResource={props.onOpenResource}
           />
         )}

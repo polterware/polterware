@@ -5,6 +5,19 @@ export type ArchViewMember = {
   layer?: string;
 };
 
+export type ArchitectureViewDraft = {
+  id?: string;
+  name: string;
+  members: Array<{ nodeId: string; name: string; type?: string; layer?: string }>;
+  description?: string;
+  owner?: string;
+  purpose?: string;
+  notes?: string;
+  filterSummary?: string;
+  environments?: string[];
+  tags?: string[];
+};
+
 export type ArchViewCard = {
   id: string;
   name: string;

@@ -23,6 +23,7 @@ describe("RunbookDetail composition contract", () => {
     expect(detailSource).toContain("KnowledgeDocumentShell");
     expect(detailSource).toContain('label="Run"');
     expect(detailSource).toContain('label="Duplicate"');
+    expect(detailSource).toContain('label="Archive"');
     expect(detailSource).toContain('label="Open terminal"');
     expect(detailSource).toContain("KnowledgeDocumentNotFound");
     expect(detailSource).not.toContain("live execution");
@@ -36,5 +37,7 @@ describe("RunbookDetail composition contract", () => {
     expect(indexSource).toContain("<RunbookDetail");
     expect(indexSource).toContain("onOpenTerminal");
     expect(indexSource).toContain("onOpenOperation");
+    expect(indexSource).toContain("onDuplicate");
+    expect(indexSource).toContain("onArchive");
   });
 });

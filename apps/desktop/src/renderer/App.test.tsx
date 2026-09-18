@@ -15,6 +15,17 @@ describe("Desktop core composition", () => {
     const { join } = await import("node:path");
     const source = readFileSync(join(import.meta.dirname, "App.tsx"), "utf8");
     expect(source).toContain("loadWorkspace");
+    expect(source).toContain("persistView");
+    expect(source).toContain("persistKnowledgeCreate");
+    expect(source).toContain("persistResource");
+    expect(source).toContain("persistEnvironment");
+    expect(source).toContain("persistEnvironmentDefault");
+    expect(source).toContain("persistWorkflow");
+    expect(source).toContain("persistSchedule");
+    expect(source).toContain("persistIntegrationSync");
+    expect(source).toContain("draft.name");
+    expect(source).toContain("draft.type");
+    expect(source).not.toContain('name: "New resource"');
     expect(source).toContain('fixtureMode="off"');
     expect(source).not.toContain("PROJECT_SWITCHER_FIXTURES");
     expect(source).not.toContain("RESOURCE_FIXTURES");

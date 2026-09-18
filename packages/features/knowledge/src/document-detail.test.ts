@@ -21,6 +21,7 @@ describe("DocumentDetail composition contract", () => {
     expect(detailSource).toContain("KnowledgeDocumentShell");
     expect(detailSource).toContain("KnowledgeDocumentNotFound");
     expect(detailSource).toContain('label="Archive"');
+    expect(detailSource).toContain('tone="danger"');
     expect(detailSource).toContain("Book03Icon");
     expect(shellSource).toContain('layout="document"');
     expect(shellSource).toContain("MarkdownEditor");
@@ -32,6 +33,8 @@ describe("DocumentDetail composition contract", () => {
   it("is wired from Knowledge index orchestration", () => {
     expect(indexSource).toContain('from "./document-detail"');
     expect(indexSource).toContain("<DocumentDetail");
+    expect(indexSource).toContain("onArchive");
+    expect(indexSource).toContain("<CreateKnowledgeDialog");
     expect(indexSource).not.toContain("function DocumentCanvas");
     expect(indexSource).not.toContain("function DocumentProperties");
   });

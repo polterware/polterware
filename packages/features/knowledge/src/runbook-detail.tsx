@@ -1,6 +1,7 @@
 import { Show } from "solid-js";
 import {
   DetailPanel,
+  Archive,
   BookOpen02Icon,
   Copy,
   Play,
@@ -16,6 +17,7 @@ export function RunbookDetail(props: {
   onBodyChange: (md: string) => void;
   onRun?: () => void;
   onDuplicate?: () => void;
+  onArchive?: () => void;
   onOpenTerminal?: () => void;
   onOpenComponent?: (componentId: string) => void;
   onOpenOperation?: (operationId: string) => void;
@@ -41,6 +43,11 @@ export function RunbookDetail(props: {
               <Show when={props.onDuplicate}>
                 <DetailPanel.Action label="Duplicate" onClick={() => props.onDuplicate?.()}>
                   <Copy />
+                </DetailPanel.Action>
+              </Show>
+              <Show when={props.onArchive}>
+                <DetailPanel.Action label="Archive" tone="danger" onClick={() => props.onArchive?.()}>
+                  <Archive />
                 </DetailPanel.Action>
               </Show>
               <Show when={props.onOpenTerminal}>

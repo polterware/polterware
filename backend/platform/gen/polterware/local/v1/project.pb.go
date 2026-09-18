@@ -28,6 +28,8 @@ type Project struct {
 	RootPath      string                 `protobuf:"bytes,3,opt,name=root_path,json=rootPath,proto3" json:"root_path,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     string                 `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Status        string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"` // active | archived
+	ArchivedAt    string                 `protobuf:"bytes,7,opt,name=archived_at,json=archivedAt,proto3" json:"archived_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -93,6 +95,20 @@ func (x *Project) GetCreatedAt() string {
 func (x *Project) GetUpdatedAt() string {
 	if x != nil {
 		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *Project) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Project) GetArchivedAt() string {
+	if x != nil {
+		return x.ArchivedAt
 	}
 	return ""
 }
@@ -258,9 +274,10 @@ func (x *ProjectSettings) GetRepository() string {
 }
 
 type ListProjectsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	IncludeArchived bool                   `protobuf:"varint,1,opt,name=include_archived,json=includeArchived,proto3" json:"include_archived,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListProjectsRequest) Reset() {
@@ -291,6 +308,13 @@ func (x *ListProjectsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListProjectsRequest.ProtoReflect.Descriptor instead.
 func (*ListProjectsRequest) Descriptor() ([]byte, []int) {
 	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListProjectsRequest) GetIncludeArchived() bool {
+	if x != nil {
+		return x.IncludeArchived
+	}
+	return false
 }
 
 type ListProjectsResponse struct {
@@ -425,6 +449,94 @@ func (x *SaveProjectResponse) GetProject() *Project {
 	return nil
 }
 
+type ArchiveProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveProjectRequest) Reset() {
+	*x = ArchiveProjectRequest{}
+	mi := &file_polterware_local_v1_project_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveProjectRequest) ProtoMessage() {}
+
+func (x *ArchiveProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_project_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveProjectRequest.ProtoReflect.Descriptor instead.
+func (*ArchiveProjectRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ArchiveProjectRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ArchiveProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveProjectResponse) Reset() {
+	*x = ArchiveProjectResponse{}
+	mi := &file_polterware_local_v1_project_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveProjectResponse) ProtoMessage() {}
+
+func (x *ArchiveProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_project_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveProjectResponse.ProtoReflect.Descriptor instead.
+func (*ArchiveProjectResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ArchiveProjectResponse) GetProject() *Project {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
 type ListEnvironmentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
@@ -434,7 +546,7 @@ type ListEnvironmentsRequest struct {
 
 func (x *ListEnvironmentsRequest) Reset() {
 	*x = ListEnvironmentsRequest{}
-	mi := &file_polterware_local_v1_project_proto_msgTypes[7]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -446,7 +558,7 @@ func (x *ListEnvironmentsRequest) String() string {
 func (*ListEnvironmentsRequest) ProtoMessage() {}
 
 func (x *ListEnvironmentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_project_proto_msgTypes[7]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -459,7 +571,7 @@ func (x *ListEnvironmentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEnvironmentsRequest.ProtoReflect.Descriptor instead.
 func (*ListEnvironmentsRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{7}
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListEnvironmentsRequest) GetProjectId() string {
@@ -478,7 +590,7 @@ type ListEnvironmentsResponse struct {
 
 func (x *ListEnvironmentsResponse) Reset() {
 	*x = ListEnvironmentsResponse{}
-	mi := &file_polterware_local_v1_project_proto_msgTypes[8]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +602,7 @@ func (x *ListEnvironmentsResponse) String() string {
 func (*ListEnvironmentsResponse) ProtoMessage() {}
 
 func (x *ListEnvironmentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_project_proto_msgTypes[8]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,7 +615,7 @@ func (x *ListEnvironmentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEnvironmentsResponse.ProtoReflect.Descriptor instead.
 func (*ListEnvironmentsResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{8}
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListEnvironmentsResponse) GetEnvironments() []*Environment {
@@ -522,7 +634,7 @@ type SaveEnvironmentRequest struct {
 
 func (x *SaveEnvironmentRequest) Reset() {
 	*x = SaveEnvironmentRequest{}
-	mi := &file_polterware_local_v1_project_proto_msgTypes[9]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +646,7 @@ func (x *SaveEnvironmentRequest) String() string {
 func (*SaveEnvironmentRequest) ProtoMessage() {}
 
 func (x *SaveEnvironmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_project_proto_msgTypes[9]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +659,7 @@ func (x *SaveEnvironmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveEnvironmentRequest.ProtoReflect.Descriptor instead.
 func (*SaveEnvironmentRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{9}
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SaveEnvironmentRequest) GetEnvironment() *Environment {
@@ -566,7 +678,7 @@ type SaveEnvironmentResponse struct {
 
 func (x *SaveEnvironmentResponse) Reset() {
 	*x = SaveEnvironmentResponse{}
-	mi := &file_polterware_local_v1_project_proto_msgTypes[10]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -578,7 +690,7 @@ func (x *SaveEnvironmentResponse) String() string {
 func (*SaveEnvironmentResponse) ProtoMessage() {}
 
 func (x *SaveEnvironmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_project_proto_msgTypes[10]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -591,7 +703,7 @@ func (x *SaveEnvironmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveEnvironmentResponse.ProtoReflect.Descriptor instead.
 func (*SaveEnvironmentResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{10}
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SaveEnvironmentResponse) GetEnvironment() *Environment {
@@ -599,6 +711,94 @@ func (x *SaveEnvironmentResponse) GetEnvironment() *Environment {
 		return x.Environment
 	}
 	return nil
+}
+
+type DeleteEnvironmentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteEnvironmentRequest) Reset() {
+	*x = DeleteEnvironmentRequest{}
+	mi := &file_polterware_local_v1_project_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteEnvironmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteEnvironmentRequest) ProtoMessage() {}
+
+func (x *DeleteEnvironmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_project_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteEnvironmentRequest.ProtoReflect.Descriptor instead.
+func (*DeleteEnvironmentRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DeleteEnvironmentRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DeleteEnvironmentRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+type DeleteEnvironmentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteEnvironmentResponse) Reset() {
+	*x = DeleteEnvironmentResponse{}
+	mi := &file_polterware_local_v1_project_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteEnvironmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteEnvironmentResponse) ProtoMessage() {}
+
+func (x *DeleteEnvironmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_project_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteEnvironmentResponse.ProtoReflect.Descriptor instead.
+func (*DeleteEnvironmentResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{14}
 }
 
 type GetProjectSettingsRequest struct {
@@ -610,7 +810,7 @@ type GetProjectSettingsRequest struct {
 
 func (x *GetProjectSettingsRequest) Reset() {
 	*x = GetProjectSettingsRequest{}
-	mi := &file_polterware_local_v1_project_proto_msgTypes[11]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -622,7 +822,7 @@ func (x *GetProjectSettingsRequest) String() string {
 func (*GetProjectSettingsRequest) ProtoMessage() {}
 
 func (x *GetProjectSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_project_proto_msgTypes[11]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -635,7 +835,7 @@ func (x *GetProjectSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProjectSettingsRequest.ProtoReflect.Descriptor instead.
 func (*GetProjectSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{11}
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetProjectSettingsRequest) GetProjectId() string {
@@ -654,7 +854,7 @@ type GetProjectSettingsResponse struct {
 
 func (x *GetProjectSettingsResponse) Reset() {
 	*x = GetProjectSettingsResponse{}
-	mi := &file_polterware_local_v1_project_proto_msgTypes[12]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -666,7 +866,7 @@ func (x *GetProjectSettingsResponse) String() string {
 func (*GetProjectSettingsResponse) ProtoMessage() {}
 
 func (x *GetProjectSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_project_proto_msgTypes[12]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -679,7 +879,7 @@ func (x *GetProjectSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProjectSettingsResponse.ProtoReflect.Descriptor instead.
 func (*GetProjectSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{12}
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetProjectSettingsResponse) GetSettings() *ProjectSettings {
@@ -698,7 +898,7 @@ type SaveProjectSettingsRequest struct {
 
 func (x *SaveProjectSettingsRequest) Reset() {
 	*x = SaveProjectSettingsRequest{}
-	mi := &file_polterware_local_v1_project_proto_msgTypes[13]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -710,7 +910,7 @@ func (x *SaveProjectSettingsRequest) String() string {
 func (*SaveProjectSettingsRequest) ProtoMessage() {}
 
 func (x *SaveProjectSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_project_proto_msgTypes[13]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -723,7 +923,7 @@ func (x *SaveProjectSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveProjectSettingsRequest.ProtoReflect.Descriptor instead.
 func (*SaveProjectSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{13}
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SaveProjectSettingsRequest) GetSettings() *ProjectSettings {
@@ -742,7 +942,7 @@ type SaveProjectSettingsResponse struct {
 
 func (x *SaveProjectSettingsResponse) Reset() {
 	*x = SaveProjectSettingsResponse{}
-	mi := &file_polterware_local_v1_project_proto_msgTypes[14]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -754,7 +954,7 @@ func (x *SaveProjectSettingsResponse) String() string {
 func (*SaveProjectSettingsResponse) ProtoMessage() {}
 
 func (x *SaveProjectSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_project_proto_msgTypes[14]
+	mi := &file_polterware_local_v1_project_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -767,7 +967,7 @@ func (x *SaveProjectSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveProjectSettingsResponse.ProtoReflect.Descriptor instead.
 func (*SaveProjectSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{14}
+	return file_polterware_local_v1_project_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SaveProjectSettingsResponse) GetSettings() *ProjectSettings {
@@ -781,7 +981,7 @@ var File_polterware_local_v1_project_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_project_proto_rawDesc = "" +
 	"\n" +
-	"!polterware/local/v1/project.proto\x12\x13polterware.local.v1\"\x88\x01\n" +
+	"!polterware/local/v1/project.proto\x12\x13polterware.local.v1\"\xc1\x01\n" +
 	"\aProject\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1b\n" +
@@ -789,7 +989,10 @@ const file_polterware_local_v1_project_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x05 \x01(\tR\tupdatedAt\"\xc5\x01\n" +
+	"updated_at\x18\x05 \x01(\tR\tupdatedAt\x12\x16\n" +
+	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1f\n" +
+	"\varchived_at\x18\a \x01(\tR\n" +
+	"archivedAt\"\xc5\x01\n" +
 	"\vEnvironment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -809,13 +1012,18 @@ const file_polterware_local_v1_project_proto_rawDesc = "" +
 	"\x16default_environment_id\x18\x03 \x01(\tR\x14defaultEnvironmentId\x12\x1e\n" +
 	"\n" +
 	"repository\x18\x04 \x01(\tR\n" +
-	"repository\"\x15\n" +
-	"\x13ListProjectsRequest\"P\n" +
+	"repository\"@\n" +
+	"\x13ListProjectsRequest\x12)\n" +
+	"\x10include_archived\x18\x01 \x01(\bR\x0fincludeArchived\"P\n" +
 	"\x14ListProjectsResponse\x128\n" +
 	"\bprojects\x18\x01 \x03(\v2\x1c.polterware.local.v1.ProjectR\bprojects\"L\n" +
 	"\x12SaveProjectRequest\x126\n" +
 	"\aproject\x18\x01 \x01(\v2\x1c.polterware.local.v1.ProjectR\aproject\"M\n" +
 	"\x13SaveProjectResponse\x126\n" +
+	"\aproject\x18\x01 \x01(\v2\x1c.polterware.local.v1.ProjectR\aproject\"'\n" +
+	"\x15ArchiveProjectRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"P\n" +
+	"\x16ArchiveProjectResponse\x126\n" +
 	"\aproject\x18\x01 \x01(\v2\x1c.polterware.local.v1.ProjectR\aproject\"8\n" +
 	"\x17ListEnvironmentsRequest\x12\x1d\n" +
 	"\n" +
@@ -825,7 +1033,12 @@ const file_polterware_local_v1_project_proto_rawDesc = "" +
 	"\x16SaveEnvironmentRequest\x12B\n" +
 	"\venvironment\x18\x01 \x01(\v2 .polterware.local.v1.EnvironmentR\venvironment\"]\n" +
 	"\x17SaveEnvironmentResponse\x12B\n" +
-	"\venvironment\x18\x01 \x01(\v2 .polterware.local.v1.EnvironmentR\venvironment\":\n" +
+	"\venvironment\x18\x01 \x01(\v2 .polterware.local.v1.EnvironmentR\venvironment\"I\n" +
+	"\x18DeleteEnvironmentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\"\x1b\n" +
+	"\x19DeleteEnvironmentResponse\":\n" +
 	"\x19GetProjectSettingsRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\"^\n" +
@@ -834,12 +1047,14 @@ const file_polterware_local_v1_project_proto_rawDesc = "" +
 	"\x1aSaveProjectSettingsRequest\x12@\n" +
 	"\bsettings\x18\x01 \x01(\v2$.polterware.local.v1.ProjectSettingsR\bsettings\"_\n" +
 	"\x1bSaveProjectSettingsResponse\x12@\n" +
-	"\bsettings\x18\x01 \x01(\v2$.polterware.local.v1.ProjectSettingsR\bsettings2\xa7\x05\n" +
+	"\bsettings\x18\x01 \x01(\v2$.polterware.local.v1.ProjectSettingsR\bsettings2\x86\a\n" +
 	"\x0eProjectService\x12c\n" +
 	"\fListProjects\x12(.polterware.local.v1.ListProjectsRequest\x1a).polterware.local.v1.ListProjectsResponse\x12`\n" +
-	"\vSaveProject\x12'.polterware.local.v1.SaveProjectRequest\x1a(.polterware.local.v1.SaveProjectResponse\x12o\n" +
+	"\vSaveProject\x12'.polterware.local.v1.SaveProjectRequest\x1a(.polterware.local.v1.SaveProjectResponse\x12i\n" +
+	"\x0eArchiveProject\x12*.polterware.local.v1.ArchiveProjectRequest\x1a+.polterware.local.v1.ArchiveProjectResponse\x12o\n" +
 	"\x10ListEnvironments\x12,.polterware.local.v1.ListEnvironmentsRequest\x1a-.polterware.local.v1.ListEnvironmentsResponse\x12l\n" +
-	"\x0fSaveEnvironment\x12+.polterware.local.v1.SaveEnvironmentRequest\x1a,.polterware.local.v1.SaveEnvironmentResponse\x12u\n" +
+	"\x0fSaveEnvironment\x12+.polterware.local.v1.SaveEnvironmentRequest\x1a,.polterware.local.v1.SaveEnvironmentResponse\x12r\n" +
+	"\x11DeleteEnvironment\x12-.polterware.local.v1.DeleteEnvironmentRequest\x1a..polterware.local.v1.DeleteEnvironmentResponse\x12u\n" +
 	"\x12GetProjectSettings\x12..polterware.local.v1.GetProjectSettingsRequest\x1a/.polterware.local.v1.GetProjectSettingsResponse\x12x\n" +
 	"\x13SaveProjectSettings\x12/.polterware.local.v1.SaveProjectSettingsRequest\x1a0.polterware.local.v1.SaveProjectSettingsResponseB\xe8\x01\n" +
 	"\x17com.polterware.local.v1B\fProjectProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
@@ -856,7 +1071,7 @@ func file_polterware_local_v1_project_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_project_proto_rawDescData
 }
 
-var file_polterware_local_v1_project_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_polterware_local_v1_project_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_polterware_local_v1_project_proto_goTypes = []any{
 	(*Project)(nil),                     // 0: polterware.local.v1.Project
 	(*Environment)(nil),                 // 1: polterware.local.v1.Environment
@@ -865,42 +1080,51 @@ var file_polterware_local_v1_project_proto_goTypes = []any{
 	(*ListProjectsResponse)(nil),        // 4: polterware.local.v1.ListProjectsResponse
 	(*SaveProjectRequest)(nil),          // 5: polterware.local.v1.SaveProjectRequest
 	(*SaveProjectResponse)(nil),         // 6: polterware.local.v1.SaveProjectResponse
-	(*ListEnvironmentsRequest)(nil),     // 7: polterware.local.v1.ListEnvironmentsRequest
-	(*ListEnvironmentsResponse)(nil),    // 8: polterware.local.v1.ListEnvironmentsResponse
-	(*SaveEnvironmentRequest)(nil),      // 9: polterware.local.v1.SaveEnvironmentRequest
-	(*SaveEnvironmentResponse)(nil),     // 10: polterware.local.v1.SaveEnvironmentResponse
-	(*GetProjectSettingsRequest)(nil),   // 11: polterware.local.v1.GetProjectSettingsRequest
-	(*GetProjectSettingsResponse)(nil),  // 12: polterware.local.v1.GetProjectSettingsResponse
-	(*SaveProjectSettingsRequest)(nil),  // 13: polterware.local.v1.SaveProjectSettingsRequest
-	(*SaveProjectSettingsResponse)(nil), // 14: polterware.local.v1.SaveProjectSettingsResponse
+	(*ArchiveProjectRequest)(nil),       // 7: polterware.local.v1.ArchiveProjectRequest
+	(*ArchiveProjectResponse)(nil),      // 8: polterware.local.v1.ArchiveProjectResponse
+	(*ListEnvironmentsRequest)(nil),     // 9: polterware.local.v1.ListEnvironmentsRequest
+	(*ListEnvironmentsResponse)(nil),    // 10: polterware.local.v1.ListEnvironmentsResponse
+	(*SaveEnvironmentRequest)(nil),      // 11: polterware.local.v1.SaveEnvironmentRequest
+	(*SaveEnvironmentResponse)(nil),     // 12: polterware.local.v1.SaveEnvironmentResponse
+	(*DeleteEnvironmentRequest)(nil),    // 13: polterware.local.v1.DeleteEnvironmentRequest
+	(*DeleteEnvironmentResponse)(nil),   // 14: polterware.local.v1.DeleteEnvironmentResponse
+	(*GetProjectSettingsRequest)(nil),   // 15: polterware.local.v1.GetProjectSettingsRequest
+	(*GetProjectSettingsResponse)(nil),  // 16: polterware.local.v1.GetProjectSettingsResponse
+	(*SaveProjectSettingsRequest)(nil),  // 17: polterware.local.v1.SaveProjectSettingsRequest
+	(*SaveProjectSettingsResponse)(nil), // 18: polterware.local.v1.SaveProjectSettingsResponse
 }
 var file_polterware_local_v1_project_proto_depIdxs = []int32{
 	0,  // 0: polterware.local.v1.ListProjectsResponse.projects:type_name -> polterware.local.v1.Project
 	0,  // 1: polterware.local.v1.SaveProjectRequest.project:type_name -> polterware.local.v1.Project
 	0,  // 2: polterware.local.v1.SaveProjectResponse.project:type_name -> polterware.local.v1.Project
-	1,  // 3: polterware.local.v1.ListEnvironmentsResponse.environments:type_name -> polterware.local.v1.Environment
-	1,  // 4: polterware.local.v1.SaveEnvironmentRequest.environment:type_name -> polterware.local.v1.Environment
-	1,  // 5: polterware.local.v1.SaveEnvironmentResponse.environment:type_name -> polterware.local.v1.Environment
-	2,  // 6: polterware.local.v1.GetProjectSettingsResponse.settings:type_name -> polterware.local.v1.ProjectSettings
-	2,  // 7: polterware.local.v1.SaveProjectSettingsRequest.settings:type_name -> polterware.local.v1.ProjectSettings
-	2,  // 8: polterware.local.v1.SaveProjectSettingsResponse.settings:type_name -> polterware.local.v1.ProjectSettings
-	3,  // 9: polterware.local.v1.ProjectService.ListProjects:input_type -> polterware.local.v1.ListProjectsRequest
-	5,  // 10: polterware.local.v1.ProjectService.SaveProject:input_type -> polterware.local.v1.SaveProjectRequest
-	7,  // 11: polterware.local.v1.ProjectService.ListEnvironments:input_type -> polterware.local.v1.ListEnvironmentsRequest
-	9,  // 12: polterware.local.v1.ProjectService.SaveEnvironment:input_type -> polterware.local.v1.SaveEnvironmentRequest
-	11, // 13: polterware.local.v1.ProjectService.GetProjectSettings:input_type -> polterware.local.v1.GetProjectSettingsRequest
-	13, // 14: polterware.local.v1.ProjectService.SaveProjectSettings:input_type -> polterware.local.v1.SaveProjectSettingsRequest
-	4,  // 15: polterware.local.v1.ProjectService.ListProjects:output_type -> polterware.local.v1.ListProjectsResponse
-	6,  // 16: polterware.local.v1.ProjectService.SaveProject:output_type -> polterware.local.v1.SaveProjectResponse
-	8,  // 17: polterware.local.v1.ProjectService.ListEnvironments:output_type -> polterware.local.v1.ListEnvironmentsResponse
-	10, // 18: polterware.local.v1.ProjectService.SaveEnvironment:output_type -> polterware.local.v1.SaveEnvironmentResponse
-	12, // 19: polterware.local.v1.ProjectService.GetProjectSettings:output_type -> polterware.local.v1.GetProjectSettingsResponse
-	14, // 20: polterware.local.v1.ProjectService.SaveProjectSettings:output_type -> polterware.local.v1.SaveProjectSettingsResponse
-	15, // [15:21] is the sub-list for method output_type
-	9,  // [9:15] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	0,  // 3: polterware.local.v1.ArchiveProjectResponse.project:type_name -> polterware.local.v1.Project
+	1,  // 4: polterware.local.v1.ListEnvironmentsResponse.environments:type_name -> polterware.local.v1.Environment
+	1,  // 5: polterware.local.v1.SaveEnvironmentRequest.environment:type_name -> polterware.local.v1.Environment
+	1,  // 6: polterware.local.v1.SaveEnvironmentResponse.environment:type_name -> polterware.local.v1.Environment
+	2,  // 7: polterware.local.v1.GetProjectSettingsResponse.settings:type_name -> polterware.local.v1.ProjectSettings
+	2,  // 8: polterware.local.v1.SaveProjectSettingsRequest.settings:type_name -> polterware.local.v1.ProjectSettings
+	2,  // 9: polterware.local.v1.SaveProjectSettingsResponse.settings:type_name -> polterware.local.v1.ProjectSettings
+	3,  // 10: polterware.local.v1.ProjectService.ListProjects:input_type -> polterware.local.v1.ListProjectsRequest
+	5,  // 11: polterware.local.v1.ProjectService.SaveProject:input_type -> polterware.local.v1.SaveProjectRequest
+	7,  // 12: polterware.local.v1.ProjectService.ArchiveProject:input_type -> polterware.local.v1.ArchiveProjectRequest
+	9,  // 13: polterware.local.v1.ProjectService.ListEnvironments:input_type -> polterware.local.v1.ListEnvironmentsRequest
+	11, // 14: polterware.local.v1.ProjectService.SaveEnvironment:input_type -> polterware.local.v1.SaveEnvironmentRequest
+	13, // 15: polterware.local.v1.ProjectService.DeleteEnvironment:input_type -> polterware.local.v1.DeleteEnvironmentRequest
+	15, // 16: polterware.local.v1.ProjectService.GetProjectSettings:input_type -> polterware.local.v1.GetProjectSettingsRequest
+	17, // 17: polterware.local.v1.ProjectService.SaveProjectSettings:input_type -> polterware.local.v1.SaveProjectSettingsRequest
+	4,  // 18: polterware.local.v1.ProjectService.ListProjects:output_type -> polterware.local.v1.ListProjectsResponse
+	6,  // 19: polterware.local.v1.ProjectService.SaveProject:output_type -> polterware.local.v1.SaveProjectResponse
+	8,  // 20: polterware.local.v1.ProjectService.ArchiveProject:output_type -> polterware.local.v1.ArchiveProjectResponse
+	10, // 21: polterware.local.v1.ProjectService.ListEnvironments:output_type -> polterware.local.v1.ListEnvironmentsResponse
+	12, // 22: polterware.local.v1.ProjectService.SaveEnvironment:output_type -> polterware.local.v1.SaveEnvironmentResponse
+	14, // 23: polterware.local.v1.ProjectService.DeleteEnvironment:output_type -> polterware.local.v1.DeleteEnvironmentResponse
+	16, // 24: polterware.local.v1.ProjectService.GetProjectSettings:output_type -> polterware.local.v1.GetProjectSettingsResponse
+	18, // 25: polterware.local.v1.ProjectService.SaveProjectSettings:output_type -> polterware.local.v1.SaveProjectSettingsResponse
+	18, // [18:26] is the sub-list for method output_type
+	10, // [10:18] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_project_proto_init() }
@@ -914,7 +1138,7 @@ func file_polterware_local_v1_project_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_project_proto_rawDesc), len(file_polterware_local_v1_project_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

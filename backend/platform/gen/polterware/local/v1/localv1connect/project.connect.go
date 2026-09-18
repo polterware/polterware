@@ -39,12 +39,18 @@ const (
 	// ProjectServiceSaveProjectProcedure is the fully-qualified name of the ProjectService's
 	// SaveProject RPC.
 	ProjectServiceSaveProjectProcedure = "/polterware.local.v1.ProjectService/SaveProject"
+	// ProjectServiceArchiveProjectProcedure is the fully-qualified name of the ProjectService's
+	// ArchiveProject RPC.
+	ProjectServiceArchiveProjectProcedure = "/polterware.local.v1.ProjectService/ArchiveProject"
 	// ProjectServiceListEnvironmentsProcedure is the fully-qualified name of the ProjectService's
 	// ListEnvironments RPC.
 	ProjectServiceListEnvironmentsProcedure = "/polterware.local.v1.ProjectService/ListEnvironments"
 	// ProjectServiceSaveEnvironmentProcedure is the fully-qualified name of the ProjectService's
 	// SaveEnvironment RPC.
 	ProjectServiceSaveEnvironmentProcedure = "/polterware.local.v1.ProjectService/SaveEnvironment"
+	// ProjectServiceDeleteEnvironmentProcedure is the fully-qualified name of the ProjectService's
+	// DeleteEnvironment RPC.
+	ProjectServiceDeleteEnvironmentProcedure = "/polterware.local.v1.ProjectService/DeleteEnvironment"
 	// ProjectServiceGetProjectSettingsProcedure is the fully-qualified name of the ProjectService's
 	// GetProjectSettings RPC.
 	ProjectServiceGetProjectSettingsProcedure = "/polterware.local.v1.ProjectService/GetProjectSettings"
@@ -57,8 +63,10 @@ const (
 type ProjectServiceClient interface {
 	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
 	SaveProject(context.Context, *connect.Request[v1.SaveProjectRequest]) (*connect.Response[v1.SaveProjectResponse], error)
+	ArchiveProject(context.Context, *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error)
 	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
 	SaveEnvironment(context.Context, *connect.Request[v1.SaveEnvironmentRequest]) (*connect.Response[v1.SaveEnvironmentResponse], error)
+	DeleteEnvironment(context.Context, *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error)
 	GetProjectSettings(context.Context, *connect.Request[v1.GetProjectSettingsRequest]) (*connect.Response[v1.GetProjectSettingsResponse], error)
 	SaveProjectSettings(context.Context, *connect.Request[v1.SaveProjectSettingsRequest]) (*connect.Response[v1.SaveProjectSettingsResponse], error)
 }
@@ -86,6 +94,12 @@ func NewProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(projectServiceMethods.ByName("SaveProject")),
 			connect.WithClientOptions(opts...),
 		),
+		archiveProject: connect.NewClient[v1.ArchiveProjectRequest, v1.ArchiveProjectResponse](
+			httpClient,
+			baseURL+ProjectServiceArchiveProjectProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("ArchiveProject")),
+			connect.WithClientOptions(opts...),
+		),
 		listEnvironments: connect.NewClient[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse](
 			httpClient,
 			baseURL+ProjectServiceListEnvironmentsProcedure,
@@ -96,6 +110,12 @@ func NewProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			httpClient,
 			baseURL+ProjectServiceSaveEnvironmentProcedure,
 			connect.WithSchema(projectServiceMethods.ByName("SaveEnvironment")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteEnvironment: connect.NewClient[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse](
+			httpClient,
+			baseURL+ProjectServiceDeleteEnvironmentProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("DeleteEnvironment")),
 			connect.WithClientOptions(opts...),
 		),
 		getProjectSettings: connect.NewClient[v1.GetProjectSettingsRequest, v1.GetProjectSettingsResponse](
@@ -117,8 +137,10 @@ func NewProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 type projectServiceClient struct {
 	listProjects        *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
 	saveProject         *connect.Client[v1.SaveProjectRequest, v1.SaveProjectResponse]
+	archiveProject      *connect.Client[v1.ArchiveProjectRequest, v1.ArchiveProjectResponse]
 	listEnvironments    *connect.Client[v1.ListEnvironmentsRequest, v1.ListEnvironmentsResponse]
 	saveEnvironment     *connect.Client[v1.SaveEnvironmentRequest, v1.SaveEnvironmentResponse]
+	deleteEnvironment   *connect.Client[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse]
 	getProjectSettings  *connect.Client[v1.GetProjectSettingsRequest, v1.GetProjectSettingsResponse]
 	saveProjectSettings *connect.Client[v1.SaveProjectSettingsRequest, v1.SaveProjectSettingsResponse]
 }
@@ -133,6 +155,11 @@ func (c *projectServiceClient) SaveProject(ctx context.Context, req *connect.Req
 	return c.saveProject.CallUnary(ctx, req)
 }
 
+// ArchiveProject calls polterware.local.v1.ProjectService.ArchiveProject.
+func (c *projectServiceClient) ArchiveProject(ctx context.Context, req *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error) {
+	return c.archiveProject.CallUnary(ctx, req)
+}
+
 // ListEnvironments calls polterware.local.v1.ProjectService.ListEnvironments.
 func (c *projectServiceClient) ListEnvironments(ctx context.Context, req *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error) {
 	return c.listEnvironments.CallUnary(ctx, req)
@@ -141,6 +168,11 @@ func (c *projectServiceClient) ListEnvironments(ctx context.Context, req *connec
 // SaveEnvironment calls polterware.local.v1.ProjectService.SaveEnvironment.
 func (c *projectServiceClient) SaveEnvironment(ctx context.Context, req *connect.Request[v1.SaveEnvironmentRequest]) (*connect.Response[v1.SaveEnvironmentResponse], error) {
 	return c.saveEnvironment.CallUnary(ctx, req)
+}
+
+// DeleteEnvironment calls polterware.local.v1.ProjectService.DeleteEnvironment.
+func (c *projectServiceClient) DeleteEnvironment(ctx context.Context, req *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error) {
+	return c.deleteEnvironment.CallUnary(ctx, req)
 }
 
 // GetProjectSettings calls polterware.local.v1.ProjectService.GetProjectSettings.
@@ -157,8 +189,10 @@ func (c *projectServiceClient) SaveProjectSettings(ctx context.Context, req *con
 type ProjectServiceHandler interface {
 	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
 	SaveProject(context.Context, *connect.Request[v1.SaveProjectRequest]) (*connect.Response[v1.SaveProjectResponse], error)
+	ArchiveProject(context.Context, *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error)
 	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
 	SaveEnvironment(context.Context, *connect.Request[v1.SaveEnvironmentRequest]) (*connect.Response[v1.SaveEnvironmentResponse], error)
+	DeleteEnvironment(context.Context, *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error)
 	GetProjectSettings(context.Context, *connect.Request[v1.GetProjectSettingsRequest]) (*connect.Response[v1.GetProjectSettingsResponse], error)
 	SaveProjectSettings(context.Context, *connect.Request[v1.SaveProjectSettingsRequest]) (*connect.Response[v1.SaveProjectSettingsResponse], error)
 }
@@ -182,6 +216,12 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 		connect.WithSchema(projectServiceMethods.ByName("SaveProject")),
 		connect.WithHandlerOptions(opts...),
 	)
+	projectServiceArchiveProjectHandler := connect.NewUnaryHandler(
+		ProjectServiceArchiveProjectProcedure,
+		svc.ArchiveProject,
+		connect.WithSchema(projectServiceMethods.ByName("ArchiveProject")),
+		connect.WithHandlerOptions(opts...),
+	)
 	projectServiceListEnvironmentsHandler := connect.NewUnaryHandler(
 		ProjectServiceListEnvironmentsProcedure,
 		svc.ListEnvironments,
@@ -192,6 +232,12 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 		ProjectServiceSaveEnvironmentProcedure,
 		svc.SaveEnvironment,
 		connect.WithSchema(projectServiceMethods.ByName("SaveEnvironment")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectServiceDeleteEnvironmentHandler := connect.NewUnaryHandler(
+		ProjectServiceDeleteEnvironmentProcedure,
+		svc.DeleteEnvironment,
+		connect.WithSchema(projectServiceMethods.ByName("DeleteEnvironment")),
 		connect.WithHandlerOptions(opts...),
 	)
 	projectServiceGetProjectSettingsHandler := connect.NewUnaryHandler(
@@ -212,10 +258,14 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 			projectServiceListProjectsHandler.ServeHTTP(w, r)
 		case ProjectServiceSaveProjectProcedure:
 			projectServiceSaveProjectHandler.ServeHTTP(w, r)
+		case ProjectServiceArchiveProjectProcedure:
+			projectServiceArchiveProjectHandler.ServeHTTP(w, r)
 		case ProjectServiceListEnvironmentsProcedure:
 			projectServiceListEnvironmentsHandler.ServeHTTP(w, r)
 		case ProjectServiceSaveEnvironmentProcedure:
 			projectServiceSaveEnvironmentHandler.ServeHTTP(w, r)
+		case ProjectServiceDeleteEnvironmentProcedure:
+			projectServiceDeleteEnvironmentHandler.ServeHTTP(w, r)
 		case ProjectServiceGetProjectSettingsProcedure:
 			projectServiceGetProjectSettingsHandler.ServeHTTP(w, r)
 		case ProjectServiceSaveProjectSettingsProcedure:
@@ -237,12 +287,20 @@ func (UnimplementedProjectServiceHandler) SaveProject(context.Context, *connect.
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.SaveProject is not implemented"))
 }
 
+func (UnimplementedProjectServiceHandler) ArchiveProject(context.Context, *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.ArchiveProject is not implemented"))
+}
+
 func (UnimplementedProjectServiceHandler) ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.ListEnvironments is not implemented"))
 }
 
 func (UnimplementedProjectServiceHandler) SaveEnvironment(context.Context, *connect.Request[v1.SaveEnvironmentRequest]) (*connect.Response[v1.SaveEnvironmentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.SaveEnvironment is not implemented"))
+}
+
+func (UnimplementedProjectServiceHandler) DeleteEnvironment(context.Context, *connect.Request[v1.DeleteEnvironmentRequest]) (*connect.Response[v1.DeleteEnvironmentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.DeleteEnvironment is not implemented"))
 }
 
 func (UnimplementedProjectServiceHandler) GetProjectSettings(context.Context, *connect.Request[v1.GetProjectSettingsRequest]) (*connect.Response[v1.GetProjectSettingsResponse], error) {

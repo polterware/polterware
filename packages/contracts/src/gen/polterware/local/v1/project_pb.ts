@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/project.proto.
  */
 export const file_polterware_local_v1_project: GenFile = /*@__PURE__*/
-  fileDesc("CiFwb2x0ZXJ3YXJlL2xvY2FsL3YxL3Byb2plY3QucHJvdG8SE3BvbHRlcndhcmUubG9jYWwudjEiXgoHUHJvamVjdBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhEKCXJvb3RfcGF0aBgDIAEoCRISCgpjcmVhdGVkX2F0GAQgASgJEhIKCnVwZGF0ZWRfYXQYBSABKAkihgEKC0Vudmlyb25tZW50EgoKAmlkGAEgASgJEhIKCnByb2plY3RfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIMCgRraW5kGAQgASgJEhIKCnByb3RlY3Rpb24YBSABKAkSEgoKaXNfZGVmYXVsdBgGIAEoCBITCgtkZXNjcmlwdGlvbhgHIAEoCSJuCg9Qcm9qZWN0U2V0dGluZ3MSEgoKcHJvamVjdF9pZBgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIeChZkZWZhdWx0X2Vudmlyb25tZW50X2lkGAMgASgJEhIKCnJlcG9zaXRvcnkYBCABKAkiFQoTTGlzdFByb2plY3RzUmVxdWVzdCJGChRMaXN0UHJvamVjdHNSZXNwb25zZRIuCghwcm9qZWN0cxgBIAMoCzIcLnBvbHRlcndhcmUubG9jYWwudjEuUHJvamVjdCJDChJTYXZlUHJvamVjdFJlcXVlc3QSLQoHcHJvamVjdBgBIAEoCzIcLnBvbHRlcndhcmUubG9jYWwudjEuUHJvamVjdCJEChNTYXZlUHJvamVjdFJlc3BvbnNlEi0KB3Byb2plY3QYASABKAsyHC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlByb2plY3QiLQoXTGlzdEVudmlyb25tZW50c1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSJSChhMaXN0RW52aXJvbm1lbnRzUmVzcG9uc2USNgoMZW52aXJvbm1lbnRzGAEgAygLMiAucG9sdGVyd2FyZS5sb2NhbC52MS5FbnZpcm9ubWVudCJPChZTYXZlRW52aXJvbm1lbnRSZXF1ZXN0EjUKC2Vudmlyb25tZW50GAEgASgLMiAucG9sdGVyd2FyZS5sb2NhbC52MS5FbnZpcm9ubWVudCJQChdTYXZlRW52aXJvbm1lbnRSZXNwb25zZRI1CgtlbnZpcm9ubWVudBgBIAEoCzIgLnBvbHRlcndhcmUubG9jYWwudjEuRW52aXJvbm1lbnQiLwoZR2V0UHJvamVjdFNldHRpbmdzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJIlQKGkdldFByb2plY3RTZXR0aW5nc1Jlc3BvbnNlEjYKCHNldHRpbmdzGAEgASgLMiQucG9sdGVyd2FyZS5sb2NhbC52MS5Qcm9qZWN0U2V0dGluZ3MiVAoaU2F2ZVByb2plY3RTZXR0aW5nc1JlcXVlc3QSNgoIc2V0dGluZ3MYASABKAsyJC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlByb2plY3RTZXR0aW5ncyJVChtTYXZlUHJvamVjdFNldHRpbmdzUmVzcG9uc2USNgoIc2V0dGluZ3MYASABKAsyJC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlByb2plY3RTZXR0aW5nczKnBQoOUHJvamVjdFNlcnZpY2USYwoMTGlzdFByb2plY3RzEigucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0UHJvamVjdHNSZXF1ZXN0GikucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0UHJvamVjdHNSZXNwb25zZRJgCgtTYXZlUHJvamVjdBInLnBvbHRlcndhcmUubG9jYWwudjEuU2F2ZVByb2plY3RSZXF1ZXN0GigucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlUHJvamVjdFJlc3BvbnNlEm8KEExpc3RFbnZpcm9ubWVudHMSLC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RFbnZpcm9ubWVudHNSZXF1ZXN0Gi0ucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0RW52aXJvbm1lbnRzUmVzcG9uc2USbAoPU2F2ZUVudmlyb25tZW50EisucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlRW52aXJvbm1lbnRSZXF1ZXN0GiwucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlRW52aXJvbm1lbnRSZXNwb25zZRJ1ChJHZXRQcm9qZWN0U2V0dGluZ3MSLi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkdldFByb2plY3RTZXR0aW5nc1JlcXVlc3QaLy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkdldFByb2plY3RTZXR0aW5nc1Jlc3BvbnNlEngKE1NhdmVQcm9qZWN0U2V0dGluZ3MSLy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVQcm9qZWN0U2V0dGluZ3NSZXF1ZXN0GjAucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlUHJvamVjdFNldHRpbmdzUmVzcG9uc2VC6AEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQgxQcm9qZWN0UHJvdG9QAVpRZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvYmFja2VuZC9wbGF0Zm9ybS9nZW4vcG9sdGVyd2FyZS9sb2NhbC92MTtsb2NhbHYxogIDUExYqgITUG9sdGVyd2FyZS5Mb2NhbC5WMcoCE1BvbHRlcndhcmVcTG9jYWxcVjHiAh9Qb2x0ZXJ3YXJlXExvY2FsXFYxXEdQQk1ldGFkYXRh6gIVUG9sdGVyd2FyZTo6TG9jYWw6OlYxYgZwcm90bzM");
+  fileDesc("CiFwb2x0ZXJ3YXJlL2xvY2FsL3YxL3Byb2plY3QucHJvdG8SE3BvbHRlcndhcmUubG9jYWwudjEigwEKB1Byb2plY3QSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIRCglyb290X3BhdGgYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRISCgp1cGRhdGVkX2F0GAUgASgJEg4KBnN0YXR1cxgGIAEoCRITCgthcmNoaXZlZF9hdBgHIAEoCSKGAQoLRW52aXJvbm1lbnQSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEgwKBGtpbmQYBCABKAkSEgoKcHJvdGVjdGlvbhgFIAEoCRISCgppc19kZWZhdWx0GAYgASgIEhMKC2Rlc2NyaXB0aW9uGAcgASgJIm4KD1Byb2plY3RTZXR0aW5ncxISCgpwcm9qZWN0X2lkGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEh4KFmRlZmF1bHRfZW52aXJvbm1lbnRfaWQYAyABKAkSEgoKcmVwb3NpdG9yeRgEIAEoCSIvChNMaXN0UHJvamVjdHNSZXF1ZXN0EhgKEGluY2x1ZGVfYXJjaGl2ZWQYASABKAgiRgoUTGlzdFByb2plY3RzUmVzcG9uc2USLgoIcHJvamVjdHMYASADKAsyHC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlByb2plY3QiQwoSU2F2ZVByb2plY3RSZXF1ZXN0Ei0KB3Byb2plY3QYASABKAsyHC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlByb2plY3QiRAoTU2F2ZVByb2plY3RSZXNwb25zZRItCgdwcm9qZWN0GAEgASgLMhwucG9sdGVyd2FyZS5sb2NhbC52MS5Qcm9qZWN0IiMKFUFyY2hpdmVQcm9qZWN0UmVxdWVzdBIKCgJpZBgBIAEoCSJHChZBcmNoaXZlUHJvamVjdFJlc3BvbnNlEi0KB3Byb2plY3QYASABKAsyHC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlByb2plY3QiLQoXTGlzdEVudmlyb25tZW50c1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSJSChhMaXN0RW52aXJvbm1lbnRzUmVzcG9uc2USNgoMZW52aXJvbm1lbnRzGAEgAygLMiAucG9sdGVyd2FyZS5sb2NhbC52MS5FbnZpcm9ubWVudCJPChZTYXZlRW52aXJvbm1lbnRSZXF1ZXN0EjUKC2Vudmlyb25tZW50GAEgASgLMiAucG9sdGVyd2FyZS5sb2NhbC52MS5FbnZpcm9ubWVudCJQChdTYXZlRW52aXJvbm1lbnRSZXNwb25zZRI1CgtlbnZpcm9ubWVudBgBIAEoCzIgLnBvbHRlcndhcmUubG9jYWwudjEuRW52aXJvbm1lbnQiOgoYRGVsZXRlRW52aXJvbm1lbnRSZXF1ZXN0EgoKAmlkGAEgASgJEhIKCnByb2plY3RfaWQYAiABKAkiGwoZRGVsZXRlRW52aXJvbm1lbnRSZXNwb25zZSIvChlHZXRQcm9qZWN0U2V0dGluZ3NSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkiVAoaR2V0UHJvamVjdFNldHRpbmdzUmVzcG9uc2USNgoIc2V0dGluZ3MYASABKAsyJC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlByb2plY3RTZXR0aW5ncyJUChpTYXZlUHJvamVjdFNldHRpbmdzUmVxdWVzdBI2CghzZXR0aW5ncxgBIAEoCzIkLnBvbHRlcndhcmUubG9jYWwudjEuUHJvamVjdFNldHRpbmdzIlUKG1NhdmVQcm9qZWN0U2V0dGluZ3NSZXNwb25zZRI2CghzZXR0aW5ncxgBIAEoCzIkLnBvbHRlcndhcmUubG9jYWwudjEuUHJvamVjdFNldHRpbmdzMoYHCg5Qcm9qZWN0U2VydmljZRJjCgxMaXN0UHJvamVjdHMSKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RQcm9qZWN0c1JlcXVlc3QaKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RQcm9qZWN0c1Jlc3BvbnNlEmAKC1NhdmVQcm9qZWN0EicucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlUHJvamVjdFJlcXVlc3QaKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVQcm9qZWN0UmVzcG9uc2USaQoOQXJjaGl2ZVByb2plY3QSKi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFyY2hpdmVQcm9qZWN0UmVxdWVzdBorLnBvbHRlcndhcmUubG9jYWwudjEuQXJjaGl2ZVByb2plY3RSZXNwb25zZRJvChBMaXN0RW52aXJvbm1lbnRzEiwucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0RW52aXJvbm1lbnRzUmVxdWVzdBotLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEVudmlyb25tZW50c1Jlc3BvbnNlEmwKD1NhdmVFbnZpcm9ubWVudBIrLnBvbHRlcndhcmUubG9jYWwudjEuU2F2ZUVudmlyb25tZW50UmVxdWVzdBosLnBvbHRlcndhcmUubG9jYWwudjEuU2F2ZUVudmlyb25tZW50UmVzcG9uc2UScgoRRGVsZXRlRW52aXJvbm1lbnQSLS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkRlbGV0ZUVudmlyb25tZW50UmVxdWVzdBouLnBvbHRlcndhcmUubG9jYWwudjEuRGVsZXRlRW52aXJvbm1lbnRSZXNwb25zZRJ1ChJHZXRQcm9qZWN0U2V0dGluZ3MSLi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkdldFByb2plY3RTZXR0aW5nc1JlcXVlc3QaLy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkdldFByb2plY3RTZXR0aW5nc1Jlc3BvbnNlEngKE1NhdmVQcm9qZWN0U2V0dGluZ3MSLy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVQcm9qZWN0U2V0dGluZ3NSZXF1ZXN0GjAucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlUHJvamVjdFNldHRpbmdzUmVzcG9uc2VC6AEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQgxQcm9qZWN0UHJvdG9QAVpRZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvYmFja2VuZC9wbGF0Zm9ybS9nZW4vcG9sdGVyd2FyZS9sb2NhbC92MTtsb2NhbHYxogIDUExYqgITUG9sdGVyd2FyZS5Mb2NhbC5WMcoCE1BvbHRlcndhcmVcTG9jYWxcVjHiAh9Qb2x0ZXJ3YXJlXExvY2FsXFYxXEdQQk1ldGFkYXRh6gIVUG9sdGVyd2FyZTo6TG9jYWw6OlYxYgZwcm90bzM");
 
 /**
  * @generated from message polterware.local.v1.Project
@@ -40,6 +40,18 @@ export type Project = Message<"polterware.local.v1.Project"> & {
    * @generated from field: string updated_at = 5;
    */
   updatedAt: string;
+
+  /**
+   * active | archived
+   *
+   * @generated from field: string status = 6;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string archived_at = 7;
+   */
+  archivedAt: string;
 };
 
 /**
@@ -132,6 +144,10 @@ export const ProjectSettingsSchema: GenMessage<ProjectSettings> = /*@__PURE__*/
  * @generated from message polterware.local.v1.ListProjectsRequest
  */
 export type ListProjectsRequest = Message<"polterware.local.v1.ListProjectsRequest"> & {
+  /**
+   * @generated from field: bool include_archived = 1;
+   */
+  includeArchived: boolean;
 };
 
 /**
@@ -193,6 +209,40 @@ export const SaveProjectResponseSchema: GenMessage<SaveProjectResponse> = /*@__P
   messageDesc(file_polterware_local_v1_project, 6);
 
 /**
+ * @generated from message polterware.local.v1.ArchiveProjectRequest
+ */
+export type ArchiveProjectRequest = Message<"polterware.local.v1.ArchiveProjectRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ArchiveProjectRequest.
+ * Use `create(ArchiveProjectRequestSchema)` to create a new message.
+ */
+export const ArchiveProjectRequestSchema: GenMessage<ArchiveProjectRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_project, 7);
+
+/**
+ * @generated from message polterware.local.v1.ArchiveProjectResponse
+ */
+export type ArchiveProjectResponse = Message<"polterware.local.v1.ArchiveProjectResponse"> & {
+  /**
+   * @generated from field: polterware.local.v1.Project project = 1;
+   */
+  project?: Project | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.ArchiveProjectResponse.
+ * Use `create(ArchiveProjectResponseSchema)` to create a new message.
+ */
+export const ArchiveProjectResponseSchema: GenMessage<ArchiveProjectResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_project, 8);
+
+/**
  * @generated from message polterware.local.v1.ListEnvironmentsRequest
  */
 export type ListEnvironmentsRequest = Message<"polterware.local.v1.ListEnvironmentsRequest"> & {
@@ -207,7 +257,7 @@ export type ListEnvironmentsRequest = Message<"polterware.local.v1.ListEnvironme
  * Use `create(ListEnvironmentsRequestSchema)` to create a new message.
  */
 export const ListEnvironmentsRequestSchema: GenMessage<ListEnvironmentsRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_project, 7);
+  messageDesc(file_polterware_local_v1_project, 9);
 
 /**
  * @generated from message polterware.local.v1.ListEnvironmentsResponse
@@ -224,7 +274,7 @@ export type ListEnvironmentsResponse = Message<"polterware.local.v1.ListEnvironm
  * Use `create(ListEnvironmentsResponseSchema)` to create a new message.
  */
 export const ListEnvironmentsResponseSchema: GenMessage<ListEnvironmentsResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_project, 8);
+  messageDesc(file_polterware_local_v1_project, 10);
 
 /**
  * @generated from message polterware.local.v1.SaveEnvironmentRequest
@@ -241,7 +291,7 @@ export type SaveEnvironmentRequest = Message<"polterware.local.v1.SaveEnvironmen
  * Use `create(SaveEnvironmentRequestSchema)` to create a new message.
  */
 export const SaveEnvironmentRequestSchema: GenMessage<SaveEnvironmentRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_project, 9);
+  messageDesc(file_polterware_local_v1_project, 11);
 
 /**
  * @generated from message polterware.local.v1.SaveEnvironmentResponse
@@ -258,7 +308,42 @@ export type SaveEnvironmentResponse = Message<"polterware.local.v1.SaveEnvironme
  * Use `create(SaveEnvironmentResponseSchema)` to create a new message.
  */
 export const SaveEnvironmentResponseSchema: GenMessage<SaveEnvironmentResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_project, 10);
+  messageDesc(file_polterware_local_v1_project, 12);
+
+/**
+ * @generated from message polterware.local.v1.DeleteEnvironmentRequest
+ */
+export type DeleteEnvironmentRequest = Message<"polterware.local.v1.DeleteEnvironmentRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string project_id = 2;
+   */
+  projectId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.DeleteEnvironmentRequest.
+ * Use `create(DeleteEnvironmentRequestSchema)` to create a new message.
+ */
+export const DeleteEnvironmentRequestSchema: GenMessage<DeleteEnvironmentRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_project, 13);
+
+/**
+ * @generated from message polterware.local.v1.DeleteEnvironmentResponse
+ */
+export type DeleteEnvironmentResponse = Message<"polterware.local.v1.DeleteEnvironmentResponse"> & {
+};
+
+/**
+ * Describes the message polterware.local.v1.DeleteEnvironmentResponse.
+ * Use `create(DeleteEnvironmentResponseSchema)` to create a new message.
+ */
+export const DeleteEnvironmentResponseSchema: GenMessage<DeleteEnvironmentResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_project, 14);
 
 /**
  * @generated from message polterware.local.v1.GetProjectSettingsRequest
@@ -275,7 +360,7 @@ export type GetProjectSettingsRequest = Message<"polterware.local.v1.GetProjectS
  * Use `create(GetProjectSettingsRequestSchema)` to create a new message.
  */
 export const GetProjectSettingsRequestSchema: GenMessage<GetProjectSettingsRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_project, 11);
+  messageDesc(file_polterware_local_v1_project, 15);
 
 /**
  * @generated from message polterware.local.v1.GetProjectSettingsResponse
@@ -292,7 +377,7 @@ export type GetProjectSettingsResponse = Message<"polterware.local.v1.GetProject
  * Use `create(GetProjectSettingsResponseSchema)` to create a new message.
  */
 export const GetProjectSettingsResponseSchema: GenMessage<GetProjectSettingsResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_project, 12);
+  messageDesc(file_polterware_local_v1_project, 16);
 
 /**
  * @generated from message polterware.local.v1.SaveProjectSettingsRequest
@@ -309,7 +394,7 @@ export type SaveProjectSettingsRequest = Message<"polterware.local.v1.SaveProjec
  * Use `create(SaveProjectSettingsRequestSchema)` to create a new message.
  */
 export const SaveProjectSettingsRequestSchema: GenMessage<SaveProjectSettingsRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_project, 13);
+  messageDesc(file_polterware_local_v1_project, 17);
 
 /**
  * @generated from message polterware.local.v1.SaveProjectSettingsResponse
@@ -326,7 +411,7 @@ export type SaveProjectSettingsResponse = Message<"polterware.local.v1.SaveProje
  * Use `create(SaveProjectSettingsResponseSchema)` to create a new message.
  */
 export const SaveProjectSettingsResponseSchema: GenMessage<SaveProjectSettingsResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_project, 14);
+  messageDesc(file_polterware_local_v1_project, 18);
 
 /**
  * @generated from service polterware.local.v1.ProjectService
@@ -349,6 +434,14 @@ export const ProjectService: GenService<{
     output: typeof SaveProjectResponseSchema;
   },
   /**
+   * @generated from rpc polterware.local.v1.ProjectService.ArchiveProject
+   */
+  archiveProject: {
+    methodKind: "unary";
+    input: typeof ArchiveProjectRequestSchema;
+    output: typeof ArchiveProjectResponseSchema;
+  },
+  /**
    * @generated from rpc polterware.local.v1.ProjectService.ListEnvironments
    */
   listEnvironments: {
@@ -363,6 +456,14 @@ export const ProjectService: GenService<{
     methodKind: "unary";
     input: typeof SaveEnvironmentRequestSchema;
     output: typeof SaveEnvironmentResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.ProjectService.DeleteEnvironment
+   */
+  deleteEnvironment: {
+    methodKind: "unary";
+    input: typeof DeleteEnvironmentRequestSchema;
+    output: typeof DeleteEnvironmentResponseSchema;
   },
   /**
    * @generated from rpc polterware.local.v1.ProjectService.GetProjectSettings

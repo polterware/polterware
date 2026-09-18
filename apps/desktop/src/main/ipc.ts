@@ -24,6 +24,9 @@ export interface PolterwareIpcControllers {
     listIcons(): AppIconOption[];
     setIcon(id: string): AppIconSelection;
   };
+  appShell?: {
+    openExternal(url: string): Promise<{ ok: boolean }> | { ok: boolean };
+  };
   commander?: {
     hideOverlay(): void;
     showMainWindow(): void;
@@ -74,6 +77,12 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
       if (!controllers.appIcons) missing(IPC_CHANNELS.app.setIcon);
       return controllers.appIcons.setIcon(parseAppIconSelectionPayload(payload));
     },
+    [IPC_CHANNELS.app.openExternal]: async (_event, payload) => {
+      if (!controllers.appShell) missing(IPC_CHANNELS.app.openExternal);
+      const url = payload && isJsonObject(payload as JsonValue) ? String((payload as JsonObject).url ?? "") : "";
+      if (!url.trim()) throw new Error("External URL is required.");
+      return controllers.appShell.openExternal(url);
+    },
     [IPC_CHANNELS.commander.hideOverlay]: async () => {
       if (!controllers.commander) missing(IPC_CHANNELS.commander.hideOverlay);
       controllers.commander.hideOverlay();
@@ -87,8 +96,10 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.resetLocalStore]: coreHandler(controllers, "resetLocalStore"),
     [IPC_CHANNELS.core.listProjects]: coreHandler(controllers, "listProjects"),
     [IPC_CHANNELS.core.saveProject]: coreHandler(controllers, "saveProject"),
+    [IPC_CHANNELS.core.archiveProject]: coreHandler(controllers, "archiveProject"),
     [IPC_CHANNELS.core.listEnvironments]: coreHandler(controllers, "listEnvironments"),
     [IPC_CHANNELS.core.saveEnvironment]: coreHandler(controllers, "saveEnvironment"),
+    [IPC_CHANNELS.core.deleteEnvironment]: coreHandler(controllers, "deleteEnvironment"),
     [IPC_CHANNELS.core.getProjectSettings]: coreHandler(controllers, "getProjectSettings"),
     [IPC_CHANNELS.core.saveProjectSettings]: coreHandler(controllers, "saveProjectSettings"),
     [IPC_CHANNELS.core.getLayout]: coreHandler(controllers, "getLayout"),
@@ -117,10 +128,19 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.saveIntegrationConnection]: coreHandler(controllers, "saveIntegrationConnection"),
     [IPC_CHANNELS.core.listIntegrationResources]: coreHandler(controllers, "listIntegrationResources"),
     [IPC_CHANNELS.core.listIntegrationSyncRuns]: coreHandler(controllers, "listIntegrationSyncRuns"),
+    [IPC_CHANNELS.core.saveIntegrationSyncRun]: coreHandler(controllers, "saveIntegrationSyncRun"),
+    [IPC_CHANNELS.core.probeCliProvider]: coreHandler(controllers, "probeCliProvider"),
+    [IPC_CHANNELS.core.beginCliAuth]: coreHandler(controllers, "beginCliAuth"),
     [IPC_CHANNELS.core.listProcesses]: coreHandler(controllers, "listProcesses"),
     [IPC_CHANNELS.core.startProcess]: coreHandler(controllers, "startProcess"),
     [IPC_CHANNELS.core.stopProcess]: coreHandler(controllers, "stopProcess"),
     [IPC_CHANNELS.core.getProcess]: coreHandler(controllers, "getProcess"),
+    [IPC_CHANNELS.core.createTerminalSession]: coreHandler(controllers, "createTerminalSession"),
+    [IPC_CHANNELS.core.writeTerminalSession]: coreHandler(controllers, "writeTerminalSession"),
+    [IPC_CHANNELS.core.resizeTerminalSession]: coreHandler(controllers, "resizeTerminalSession"),
+    [IPC_CHANNELS.core.closeTerminalSession]: coreHandler(controllers, "closeTerminalSession"),
+    [IPC_CHANNELS.core.readTerminalOutput]: coreHandler(controllers, "readTerminalOutput"),
+    [IPC_CHANNELS.core.listTerminalSessions]: coreHandler(controllers, "listTerminalSessions"),
     [IPC_CHANNELS.core.queryLogs]: coreHandler(controllers, "queryLogs"),
   } as { [K in keyof AppIpcRequests]: Handler<K> };
 

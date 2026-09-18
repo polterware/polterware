@@ -4,13 +4,14 @@ import {
   archiveProjectToast,
   defaultFlagLabel,
   defaultFlagTone,
-  demoteEnvironmentToast,
+  defaultProtectionForKind,
+  deleteEnvironmentToast,
   environmentKindLabel,
   environmentKindTone,
-  promoteEnvironmentToast,
   protectionLabel,
   protectionTone,
   saveGeneralSettingsToast,
+  setDefaultEnvironmentToast,
 } from "./environment-status";
 
 describe("environment status helpers", () => {
@@ -34,6 +35,13 @@ describe("environment status helpers", () => {
     expect(protectionTone("relaxed")).toBe("muted");
   });
 
+  it("maps default protection by kind", () => {
+    expect(defaultProtectionForKind("production")).toBe("strict");
+    expect(defaultProtectionForKind("staging")).toBe("standard");
+    expect(defaultProtectionForKind("development")).toBe("relaxed");
+    expect(defaultProtectionForKind("local")).toBe("relaxed");
+  });
+
   it("maps default flag chips", () => {
     expect(defaultFlagLabel(true)).toBe("Default");
     expect(defaultFlagLabel(false)).toBe("Not default");
@@ -41,12 +49,15 @@ describe("environment status helpers", () => {
     expect(defaultFlagTone(false)).toBe("muted");
   });
 
-  it("keeps mutation toasts honest about mock stage", () => {
-    expect(promoteEnvironmentToast("Production")).toMatch(/fixture|mock/i);
-    expect(demoteEnvironmentToast("Staging")).toMatch(/fixture|mock/i);
-    expect(addEnvironmentToast()).toMatch(/mock/i);
-    expect(saveGeneralSettingsToast()).toMatch(/mock/i);
-    expect(archiveProjectToast()).toMatch(/mock/i);
-    expect(archiveProjectToast()).not.toMatch(/wiped|deleted from core/i);
+  it("keeps mutation toasts honest about local SQLite persistence", () => {
+    expect(addEnvironmentToast("staging")).toMatch(/saved locally/i);
+    expect(addEnvironmentToast("staging")).not.toMatch(/fixture|preview session|mock/i);
+    expect(setDefaultEnvironmentToast("Production")).toMatch(/default environment/i);
+    expect(setDefaultEnvironmentToast("Production")).not.toMatch(/fixture|mock/i);
+    expect(saveGeneralSettingsToast()).toBe("Project settings saved.");
+    expect(saveGeneralSettingsToast()).not.toMatch(/preview session|mock/i);
+    expect(archiveProjectToast("Demo")).toMatch(/archived/i);
+    expect(archiveProjectToast("Demo")).not.toMatch(/preview|wiped|deleted from core/i);
+    expect(deleteEnvironmentToast("staging")).toMatch(/deleted/i);
   });
 });

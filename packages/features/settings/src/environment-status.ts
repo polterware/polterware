@@ -54,23 +54,30 @@ export function defaultFlagTone(isDefault: boolean): StatusTone {
   return isDefault ? "healthy" : "muted";
 }
 
-/** Honest mock toast copy — never claims remote environment mutation. */
-export function promoteEnvironmentToast(name: string): string {
-  return `Promote requested for ${name} (fixture — not a live environment promote)`;
+export function defaultProtectionForKind(kind: EnvironmentKind | string): ProtectionLevel {
+  const value = kind.toLowerCase();
+  if (value === "production") return "strict";
+  if (value === "staging") return "standard";
+  return "relaxed";
 }
 
-export function demoteEnvironmentToast(name: string): string {
-  return `Demote requested for ${name} (fixture — not a live environment demote)`;
+/** Honest local-store toast copy — never claims remote environment mutation. */
+export function addEnvironmentToast(name: string): string {
+  return `Environment "${name}" saved locally.`;
 }
 
-export function addEnvironmentToast(): string {
-  return "Environment added to this preview session only";
+export function setDefaultEnvironmentToast(name: string): string {
+  return `${name} is now the default environment.`;
 }
 
 export function saveGeneralSettingsToast(): string {
-  return "Project settings saved for this preview session only";
+  return "Project settings saved.";
 }
 
-export function archiveProjectToast(): string {
-  return "Project archive previewed — no files or data were deleted";
+export function archiveProjectToast(name?: string): string {
+  return name ? `Project "${name}" archived.` : "Project archived.";
+}
+
+export function deleteEnvironmentToast(name: string): string {
+  return `Environment "${name}" deleted.`;
 }

@@ -1,5 +1,7 @@
 import { For, Show } from "solid-js";
 import {
+  Check,
+  Delete,
   DetailPanel,
   PageError,
   PageLoading,
@@ -19,6 +21,9 @@ export function EnvironmentDetail(props: {
   loading?: boolean;
   error?: string | null;
   notFound?: boolean;
+  canDelete?: boolean;
+  onSetDefault?: (environmentId: string) => void;
+  onDelete?: (environmentId: string) => void;
 }) {
   return (
     <DetailPanel.Content>
@@ -67,13 +72,39 @@ export function EnvironmentDetail(props: {
       <Show when={!props.loading && props.environment}>
         {(environment) => {
           const rules = () => environment().protectionRules ?? [];
+          const showActions = () =>
+            Boolean(
+              (props.onSetDefault && !environment().isDefault) ||
+                (props.onDelete && props.canDelete !== false),
+            );
 
           return (
             <>
               <DetailPanel.Header
                 icon={<Server size={16} />}
                 title={environment().name}
-              />
+              >
+                <Show when={showActions()}>
+                  <DetailPanel.Actions>
+                    <Show when={props.onSetDefault && !environment().isDefault}>
+                      <DetailPanel.Action
+                        label="Set as default"
+                        onClick={() => props.onSetDefault?.(environment().id)}
+                      >
+                        <Check />
+                      </DetailPanel.Action>
+                    </Show>
+                    <Show when={props.onDelete && props.canDelete !== false}>
+                      <DetailPanel.Action
+                        label="Delete environment"
+                        onClick={() => props.onDelete?.(environment().id)}
+                      >
+                        <Delete />
+                      </DetailPanel.Action>
+                    </Show>
+                  </DetailPanel.Actions>
+                </Show>
+              </DetailPanel.Header>
 
               <DetailPanel.Body layout="sections">
                 <DetailPanel.Grid>

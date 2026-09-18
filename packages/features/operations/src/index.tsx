@@ -11,6 +11,7 @@ import {
   PageEmpty,
   PageToolbar,
   Play,
+  Plus,
   Select,
   StatusChip,
   Tabs,
@@ -19,9 +20,15 @@ import {
   SquareTerminal,
 } from "@polterware/frontend-design-system";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
+import { CreateScheduleDialog, type CreateScheduleDraft } from "./create-schedule-dialog";
+import { CreateWorkflowDialog, type CreateWorkflowDraft } from "./create-workflow-dialog";
 import type { OperationRun, OperationSchedule, OperationWorkflow, RunStatus } from "./types";
 
 export type * from "./types";
+export type { CreateScheduleDraft } from "./create-schedule-dialog";
+export type { CreateWorkflowDraft } from "./create-workflow-dialog";
+export { CreateScheduleDialog } from "./create-schedule-dialog";
+export { CreateWorkflowDialog } from "./create-workflow-dialog";
 
 const TABS = [
   { id: "runs", label: "Runs" },
@@ -67,6 +74,9 @@ export function OperationsView(props: {
   onOpenRun?: (id: string) => void;
   onOpenWorkflow?: (id: string) => void;
   onOpenSchedule?: (id: string) => void;
+  onCreateWorkflow?: (draft: CreateWorkflowDraft) => void;
+  onCreateSchedule?: (draft: CreateScheduleDraft) => void;
+  onRunWorkflow?: (workflowId: string) => void;
   onRunCommand?: () => void;
   onCloseRunCommand?: () => void;
   onSubmitRunCommand?: (input: { target: string; command: string; cwd: string; environment: string }) => void;
@@ -78,6 +88,8 @@ export function OperationsView(props: {
   const [command, setCommand] = createSignal("");
   const [cwd, setCwd] = createSignal("~/project");
   const [environment, setEnvironment] = createSignal("Development");
+  const [createWorkflowOpen, setCreateWorkflowOpen] = createSignal(false);
+  const [createScheduleOpen, setCreateScheduleOpen] = createSignal(false);
   const scopeId = createMemo(() => `operations:${tab()}`);
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
 
@@ -145,16 +157,30 @@ export function OperationsView(props: {
                 })),
               }] : []}
             />
-            <Button
-              size="icon"
-              variant="primary"
-              class="!rounded-full"
-              aria-label="Preview command"
-              title="Preview command"
-              onClick={() => props.onRunCommand?.()}
-            >
-              <Play size={14} />
-            </Button>
+            <Show when={tab() === "runs"}>
+              <Button
+                size="icon"
+                variant="primary"
+                class="!rounded-full"
+                aria-label="Preview command"
+                title="Preview command"
+                onClick={() => props.onRunCommand?.()}
+              >
+                <Play size={14} />
+              </Button>
+            </Show>
+            <Show when={tab() === "workflows"}>
+              <Button size="sm" variant="primary" onClick={() => setCreateWorkflowOpen(true)}>
+                <Plus size={16} />
+                Add workflow
+              </Button>
+            </Show>
+            <Show when={tab() === "schedules"}>
+              <Button size="sm" variant="primary" onClick={() => setCreateScheduleOpen(true)}>
+                <Plus size={16} />
+                Add schedule
+              </Button>
+            </Show>
           </PageToolbar.Actions>
         </PageToolbar.Root>
         <PageContent class="p-0">
@@ -181,11 +207,30 @@ export function OperationsView(props: {
       </div>
 
       <Show when={activeRun()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<SquareTerminal size={16} />} title={item().title} /><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Run"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={runTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Target" value={item().target} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /><DetailPanel.MetadataItem label="Command" value={item().command} /></DetailPanel.Metadata></DetailPanel.Section><DetailPanel.Section title="Steps"><div class="space-y-2">{item().steps.map((step) => <div class="flex justify-between gap-3"><span>{step.name}</span><StatusChip tone={runTone(step.status === "skipped" ? "cancelled" : step.status)} label={step.status} /></div>)}</div></DetailPanel.Section><DetailPanel.Section title="Output"><pre class="m-0 whitespace-pre-wrap font-mono text-[12px]">{item().outputLines.join("\n")}</pre><p class="mb-0 mt-3 text-[12px] text-[var(--color-text-muted)]">{item().result}</p></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
-      <Show when={activeWorkflow()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<Workflow size={16} />} title={item().name} /><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Workflow"><p class="m-0 text-[13px]">{item().description}</p><p class="mb-0 mt-2 text-[12px] text-[var(--color-text-muted)]">Stored locally. Steps are not executed.</p></DetailPanel.Section><DetailPanel.Section title="Direct steps"><div class="space-y-2">{item().steps.map((step, index) => <div class="flex gap-3"><span class="text-[var(--color-text-muted)]">{index + 1}</span><div><p class="m-0 text-[13px]">{step.label}</p><p class="m-0 text-[11px] text-[var(--color-text-muted)]">{step.type}{step.command ? ` · ${step.command}` : ""}</p></div></div>)}</div></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
+      <Show when={activeWorkflow()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<Workflow size={16} />} title={item().name}><Show when={props.onRunWorkflow}><DetailPanel.Actions><DetailPanel.Action label="Run workflow" tone="primary" onClick={() => props.onRunWorkflow?.(item().id)}><Play /></DetailPanel.Action></DetailPanel.Actions></Show></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Workflow"><p class="m-0 text-[13px]">{item().description}</p><p class="mb-0 mt-2 text-[12px] text-[var(--color-text-muted)]">Runs locally through polterware-core.</p></DetailPanel.Section><DetailPanel.Section title="Direct steps"><div class="space-y-2">{item().steps.map((step, index) => <div class="flex gap-3"><span class="text-[var(--color-text-muted)]">{index + 1}</span><div><p class="m-0 text-[13px]">{step.label}</p><p class="m-0 text-[11px] text-[var(--color-text-muted)]">{step.type}{step.command ? ` · ${step.command}` : ""}</p></div></div>)}</div></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
       <Show when={activeSchedule()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<CalendarClock size={16} />} title={item().name} /><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Schedule"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={scheduleTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Workflow" value={item().workflowName} /><DetailPanel.MetadataItem label="Expression" value={item().expression} /><DetailPanel.MetadataItem label="Timezone" value={item().timezone} /><DetailPanel.MetadataItem label="Next run" value={item().nextRun} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /></DetailPanel.Metadata><p class="mb-0 mt-3 text-[12px] text-[var(--color-text-muted)]">Schedule is visual and does not start a runtime.</p></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
 
-      <A11yDialog open={Boolean(props.runCommandOpen)} title="Preview command" size="xl" onClose={() => props.onCloseRunCommand?.()} footer={<><Button variant="ghost" size="sm" onClick={() => props.onCloseRunCommand?.()}>Cancel</Button><Button variant="primary" size="sm" disabled={!command().trim()} onClick={() => props.onSubmitRunCommand?.({ target: target(), command: command(), cwd: cwd(), environment: environment() })}>Record run</Button></>}>
-        <div class="grid gap-3"><p class="m-0 text-[12px] text-[var(--color-text-muted)]">The command is stored as a queued local operation. It will not execute.</p><Field label="Target"><Input size="sm" value={target()} onInput={(event) => setTarget(event.currentTarget.value)} /></Field><Field label="Command"><Input size="sm" class="font-mono" value={command()} onInput={(event) => setCommand(event.currentTarget.value)} placeholder="systemctl status example-api" /></Field><Field label="Working directory"><Input size="sm" value={cwd()} onInput={(event) => setCwd(event.currentTarget.value)} /></Field><Field label="Environment"><Select size="sm" value={environment()} options={[{ value: "Development", label: "Development" }, { value: "Staging", label: "Staging" }, { value: "Production", label: "Production" }]} onChange={setEnvironment} /></Field></div>
+      <CreateWorkflowDialog
+        open={createWorkflowOpen()}
+        onClose={() => setCreateWorkflowOpen(false)}
+        onSubmit={(draft) => {
+          setCreateWorkflowOpen(false);
+          props.onCreateWorkflow?.(draft);
+        }}
+      />
+
+      <CreateScheduleDialog
+        open={createScheduleOpen()}
+        workflows={workflowRows().map((workflow) => ({ id: workflow.id, name: workflow.name }))}
+        onClose={() => setCreateScheduleOpen(false)}
+        onSubmit={(draft) => {
+          setCreateScheduleOpen(false);
+          props.onCreateSchedule?.(draft);
+        }}
+      />
+
+      <A11yDialog open={Boolean(props.runCommandOpen)} title="Run command" size="xl" onClose={() => props.onCloseRunCommand?.()} footer={<><Button variant="ghost" size="sm" onClick={() => props.onCloseRunCommand?.()}>Cancel</Button><Button variant="primary" size="sm" disabled={!command().trim()} onClick={() => props.onSubmitRunCommand?.({ target: target(), command: command(), cwd: cwd(), environment: environment() })}>Run</Button></>}>
+        <div class="grid gap-3"><p class="m-0 text-[12px] text-[var(--color-text-muted)]">The command runs locally through polterware-core and appends logs to the operation.</p><Field label="Target"><Input size="sm" value={target()} onInput={(event) => setTarget(event.currentTarget.value)} /></Field><Field label="Command"><Input size="sm" class="font-mono" value={command()} onInput={(event) => setCommand(event.currentTarget.value)} placeholder="systemctl status example-api" /></Field><Field label="Working directory"><Input size="sm" value={cwd()} onInput={(event) => setCwd(event.currentTarget.value)} /></Field><Field label="Environment"><Select size="sm" value={environment()} options={[{ value: "Development", label: "Development" }, { value: "Staging", label: "Staging" }, { value: "Production", label: "Production" }]} onChange={setEnvironment} /></Field></div>
       </A11yDialog>
     </>
   );

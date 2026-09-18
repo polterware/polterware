@@ -1,4 +1,4 @@
-import { app, globalShortcut } from "electron";
+import { app, globalShortcut, shell } from "electron";
 import log from "electron-log/main";
 import { getElectronAppIconController } from "./electron-app-icons.js";
 import { registerGlobalCommanderShortcut } from "./global-shortcuts.js";
@@ -60,6 +60,15 @@ async function bootstrap() {
           return selection;
         },
       },
+      appShell: {
+        openExternal: async (url) => {
+          if (!/^https?:\/\//i.test(url)) {
+            throw new Error("Only http(s) URLs can be opened.");
+          }
+          await shell.openExternal(url);
+          return { ok: true };
+        },
+      },
       commander: {
         hideOverlay: hideCommanderWindow,
         showMainWindow,
@@ -79,6 +88,15 @@ async function bootstrap() {
           const selection = appIcons.setIcon(id);
           appIcons.applySelectedIcon();
           return selection;
+        },
+      },
+      appShell: {
+        openExternal: async (url) => {
+          if (!/^https?:\/\//i.test(url)) {
+            throw new Error("Only http(s) URLs can be opened.");
+          }
+          await shell.openExternal(url);
+          return { ok: true };
         },
       },
       commander: {

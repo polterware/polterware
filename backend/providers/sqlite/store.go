@@ -46,14 +46,45 @@ func New(path string) (*Store, error) {
 func (s *Store) Close() error { return s.DB.Close() }
 
 func (s *Store) SaveProject(project projects.Project) error {
-	_, err := s.DB.Exec(`INSERT INTO projects(id,name,root_path,created_at,updated_at) VALUES(?,?,?,?,?)
-		ON CONFLICT(id) DO UPDATE SET name=excluded.name,root_path=excluded.root_path,updated_at=excluded.updated_at`,
-		project.ID, project.Name, project.RootPath, project.CreatedAt.Format(time.RFC3339), project.UpdatedAt.Format(time.RFC3339))
+	if project.Status == "" {
+		project.Status = projects.StatusActive
+	}
+	archivedAt := ""
+	if !project.ArchivedAt.IsZero() {
+		archivedAt = project.ArchivedAt.Format(time.RFC3339)
+	}
+	_, err := s.DB.Exec(`INSERT INTO projects(id,name,root_path,created_at,updated_at,status,archived_at) VALUES(?,?,?,?,?,?,?)
+		ON CONFLICT(id) DO UPDATE SET name=excluded.name,root_path=excluded.root_path,updated_at=excluded.updated_at,status=excluded.status,archived_at=excluded.archived_at`,
+		project.ID, project.Name, project.RootPath, project.CreatedAt.Format(time.RFC3339), project.UpdatedAt.Format(time.RFC3339), project.Status, archivedAt)
 	return err
 }
 
-func (s *Store) ListProjects() ([]projects.Project, error) {
-	rows, err := s.DB.Query(`SELECT id,name,root_path,created_at,updated_at FROM projects ORDER BY name`)
+func (s *Store) GetProject(id string) (projects.Project, error) {
+	var item projects.Project
+	var created, updated, archived string
+	err := s.DB.QueryRow(`SELECT id,name,root_path,created_at,updated_at,status,archived_at FROM projects WHERE id=?`, id).
+		Scan(&item.ID, &item.Name, &item.RootPath, &created, &updated, &item.Status, &archived)
+	if err != nil {
+		return projects.Project{}, err
+	}
+	item.CreatedAt, _ = time.Parse(time.RFC3339, created)
+	item.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
+	if archived != "" {
+		item.ArchivedAt, _ = time.Parse(time.RFC3339, archived)
+	}
+	if item.Status == "" {
+		item.Status = projects.StatusActive
+	}
+	return item, nil
+}
+
+func (s *Store) ListProjects(includeArchived bool) ([]projects.Project, error) {
+	query := `SELECT id,name,root_path,created_at,updated_at,status,archived_at FROM projects`
+	if !includeArchived {
+		query += ` WHERE status != 'archived'`
+	}
+	query += ` ORDER BY name`
+	rows, err := s.DB.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -61,15 +92,36 @@ func (s *Store) ListProjects() ([]projects.Project, error) {
 	var result []projects.Project
 	for rows.Next() {
 		var item projects.Project
-		var created, updated string
-		if err := rows.Scan(&item.ID, &item.Name, &item.RootPath, &created, &updated); err != nil {
+		var created, updated, archived string
+		if err := rows.Scan(&item.ID, &item.Name, &item.RootPath, &created, &updated, &item.Status, &archived); err != nil {
 			return nil, err
 		}
 		item.CreatedAt, _ = time.Parse(time.RFC3339, created)
 		item.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
+		if archived != "" {
+			item.ArchivedAt, _ = time.Parse(time.RFC3339, archived)
+		}
+		if item.Status == "" {
+			item.Status = projects.StatusActive
+		}
 		result = append(result, item)
 	}
 	return result, rows.Err()
+}
+
+func (s *Store) ArchiveProject(id string) (projects.Project, error) {
+	project, err := s.GetProject(id)
+	if err != nil {
+		return projects.Project{}, err
+	}
+	now := time.Now().UTC()
+	project.Status = projects.StatusArchived
+	project.ArchivedAt = now
+	project.UpdatedAt = now
+	if err := s.SaveProject(project); err != nil {
+		return projects.Project{}, err
+	}
+	return project, nil
 }
 
 func (s *Store) SaveEnvironment(environment projects.Environment) error {
@@ -103,6 +155,63 @@ func (s *Store) ListEnvironments(projectID string) ([]projects.Environment, erro
 		result = append(result, item)
 	}
 	return result, rows.Err()
+}
+
+func (s *Store) GetEnvironment(id string) (projects.Environment, error) {
+	var item projects.Environment
+	var defaultFlag int
+	err := s.DB.QueryRow(`SELECT id,project_id,name,kind,protection,is_default,description FROM environments WHERE id=?`, id).
+		Scan(&item.ID, &item.ProjectID, &item.Name, &item.Kind, &item.Protection, &defaultFlag, &item.Description)
+	if err != nil {
+		return projects.Environment{}, err
+	}
+	item.IsDefault = defaultFlag != 0
+	return item, nil
+}
+
+func (s *Store) DeleteEnvironment(id, projectID string) error {
+	envs, err := s.ListEnvironments(projectID)
+	if err != nil {
+		return err
+	}
+	if len(envs) <= 1 {
+		return errors.New("cannot delete the last environment")
+	}
+	var target *projects.Environment
+	var replacement *projects.Environment
+	for i := range envs {
+		env := envs[i]
+		if env.ID == id {
+			if env.ProjectID != projectID {
+				return errors.New("environment does not belong to project")
+			}
+			target = &env
+			continue
+		}
+		if replacement == nil {
+			replacement = &env
+		}
+	}
+	if target == nil {
+		return sql.ErrNoRows
+	}
+	if _, err := s.DB.Exec(`DELETE FROM environments WHERE id=? AND project_id=?`, id, projectID); err != nil {
+		return err
+	}
+	if target.IsDefault && replacement != nil {
+		replacement.IsDefault = true
+		if err := s.SaveEnvironment(*replacement); err != nil {
+			return err
+		}
+		settings, err := s.GetProjectSettings(projectID)
+		if err == nil {
+			settings.DefaultEnvironmentID = replacement.ID
+			_ = s.SaveProjectSettings(settings)
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) GetLayout(projectID string) (architecture.Layout, error) {
