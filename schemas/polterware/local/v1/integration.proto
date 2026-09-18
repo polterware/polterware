@@ -61,6 +61,24 @@ message ListIntegrationSyncRunsResponse { repeated IntegrationSyncRun runs = 1; 
 message SaveIntegrationSyncRunRequest { IntegrationSyncRun run = 1; }
 message SaveIntegrationSyncRunResponse { IntegrationSyncRun run = 1; }
 
+message ProbeCliProviderRequest { string provider_id = 1; }
+message ProbeCliProviderResponse {
+  string provider_id = 1;
+  bool available = 2;
+  string binary_path = 3;
+  string status = 4; // cli-unavailable | ready | connected | failed
+  string account_label = 5;
+  string message = 6;
+}
+
+message BeginCliAuthRequest { string provider_id = 1; }
+message BeginCliAuthResponse {
+  string provider_id = 1;
+  string auth_command = 2;
+  string docs_url = 3;
+  string message = 4;
+}
+
 service IntegrationService {
   rpc ListCliProviders(ListCliProvidersRequest) returns (ListCliProvidersResponse);
   rpc ListIntegrationConnections(ListIntegrationConnectionsRequest) returns (ListIntegrationConnectionsResponse);
@@ -68,4 +86,6 @@ service IntegrationService {
   rpc ListIntegrationResources(ListIntegrationResourcesRequest) returns (ListIntegrationResourcesResponse);
   rpc ListIntegrationSyncRuns(ListIntegrationSyncRunsRequest) returns (ListIntegrationSyncRunsResponse);
   rpc SaveIntegrationSyncRun(SaveIntegrationSyncRunRequest) returns (SaveIntegrationSyncRunResponse);
+  rpc ProbeCliProvider(ProbeCliProviderRequest) returns (ProbeCliProviderResponse);
+  rpc BeginCliAuth(BeginCliAuthRequest) returns (BeginCliAuthResponse);
 }

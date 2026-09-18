@@ -8,6 +8,8 @@ message Project {
   string root_path = 3;
   string created_at = 4;
   string updated_at = 5;
+  string status = 6; // active | archived
+  string archived_at = 7;
 }
 
 message Environment {
@@ -27,14 +29,23 @@ message ProjectSettings {
   string repository = 4;
 }
 
-message ListProjectsRequest {}
+message ListProjectsRequest {
+  bool include_archived = 1;
+}
 message ListProjectsResponse { repeated Project projects = 1; }
 message SaveProjectRequest { Project project = 1; }
 message SaveProjectResponse { Project project = 1; }
+message ArchiveProjectRequest { string id = 1; }
+message ArchiveProjectResponse { Project project = 1; }
 message ListEnvironmentsRequest { string project_id = 1; }
 message ListEnvironmentsResponse { repeated Environment environments = 1; }
 message SaveEnvironmentRequest { Environment environment = 1; }
 message SaveEnvironmentResponse { Environment environment = 1; }
+message DeleteEnvironmentRequest {
+  string id = 1;
+  string project_id = 2;
+}
+message DeleteEnvironmentResponse {}
 message GetProjectSettingsRequest { string project_id = 1; }
 message GetProjectSettingsResponse { ProjectSettings settings = 1; }
 message SaveProjectSettingsRequest { ProjectSettings settings = 1; }
@@ -43,8 +54,10 @@ message SaveProjectSettingsResponse { ProjectSettings settings = 1; }
 service ProjectService {
   rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
   rpc SaveProject(SaveProjectRequest) returns (SaveProjectResponse);
+  rpc ArchiveProject(ArchiveProjectRequest) returns (ArchiveProjectResponse);
   rpc ListEnvironments(ListEnvironmentsRequest) returns (ListEnvironmentsResponse);
   rpc SaveEnvironment(SaveEnvironmentRequest) returns (SaveEnvironmentResponse);
+  rpc DeleteEnvironment(DeleteEnvironmentRequest) returns (DeleteEnvironmentResponse);
   rpc GetProjectSettings(GetProjectSettingsRequest) returns (GetProjectSettingsResponse);
   rpc SaveProjectSettings(SaveProjectSettingsRequest) returns (SaveProjectSettingsResponse);
 }

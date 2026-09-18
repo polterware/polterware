@@ -38,7 +38,7 @@ export function CreateWorkflowDialog(props: {
     <A11yDialog
       open={props.open}
       title="Add workflow"
-      description="This workflow is stored in the local SQLite database. Steps are not executed."
+      description="This workflow is stored in the local SQLite database and can run locally through polterware-core."
       onClose={close}
       footer={
         <>

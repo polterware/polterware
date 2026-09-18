@@ -3,7 +3,9 @@ CREATE TABLE IF NOT EXISTS projects (
   name TEXT NOT NULL,
   root_path TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  archived_at TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS environments (

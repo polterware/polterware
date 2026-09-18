@@ -31,10 +31,12 @@ import { CommandPalette } from "@polterware/feature-commander";
 import { pushToast } from "@polterware/frontend-design-system";
 import { detailPanelStore } from "@polterware/frontend-state";
 import { bootstrapPlatform } from "./platform-bootstrap";
-import { emptyWorkspace, loadWorkspace, type WorkspaceSnapshot } from "./workspace/load";
+import { emptyWorkspace, loadProjects, loadWorkspace, type WorkspaceSnapshot } from "./workspace/load";
 import {
   persistCreatedProject,
+  persistDeleteEnvironment,
   persistDeleteView,
+  persistArchiveProject,
   persistEnvironment,
   persistEnvironmentDefault,
   persistIntegrationConnection,
@@ -47,9 +49,11 @@ import {
   persistOperationPreview,
   persistProjectSettings,
   persistResource,
+  persistRunbookRun,
   persistSchedule,
   persistView,
   persistWorkflow,
+  persistWorkflowRun,
   resetLocalStore,
 } from "./workspace/persist";
 
@@ -422,6 +426,21 @@ export function App() {
                 pushToast(error instanceof Error ? error.message : "Could not save schedule.", "danger");
               });
             }}
+            onRunWorkflow={(workflowId) => {
+              void persistWorkflowRun({
+                workflowId,
+                environmentId: route().environmentId,
+              }).then(async () => {
+                pushToast("Workflow started locally.", "success");
+                await refreshWorkspace(currentProjectId());
+                // Brief refresh loop while steps settle.
+                window.setTimeout(() => {
+                  void refreshWorkspace(currentProjectId());
+                }, 1500);
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not run workflow.", "danger");
+              });
+            }}
             onRunCommand={() => applyRoute(openDialog(route(), { type: "run-command" }), "silent")}
             onCloseRunCommand={() => applyRoute(closeDialog(route()), "silent")}
             onSubmitRunCommand={(input) => {
@@ -431,10 +450,13 @@ export function App() {
                 ...input,
               }).then(async () => {
                 applyRoute(closeDialog(route()), "silent");
-                pushToast(`Recorded command preview: ${input.command}`, "success");
+                pushToast(`Running command: ${input.command}`, "success");
                 await refreshWorkspace(currentProjectId());
+                window.setTimeout(() => {
+                  void refreshWorkspace(currentProjectId());
+                }, 1500);
               }).catch((error: unknown) => {
-                pushToast(error instanceof Error ? error.message : "Could not record operation.", "danger");
+                pushToast(error instanceof Error ? error.message : "Could not run operation.", "danger");
               });
             }}
           />
@@ -442,9 +464,36 @@ export function App() {
 
         <Match when={route().section === "terminal"}>
           <TerminalPage
+            projectId={currentProjectId()}
             sessionId={route().sessionId}
             targets={workspace().terminalTargets}
             onSelectSession={(id) => applyRoute(setSessionId(route(), id), "silent")}
+            onCreateSession={async (input) => {
+              const { createLiveTerminalSession } = await import("./workspace/terminal");
+              const session = await createLiveTerminalSession(input);
+              const target = workspace().terminalTargets.find((item) => item.id === input.targetId);
+              return {
+                ...session,
+                name: target?.name ?? session.name,
+                nodeName: target?.name ?? session.nodeName,
+              };
+            }}
+            onWriteSession={async (id, data) => {
+              const { writeLiveTerminalSession } = await import("./workspace/terminal");
+              await writeLiveTerminalSession(id, data);
+            }}
+            onResizeSession={async (id, cols, rows) => {
+              const { resizeLiveTerminalSession } = await import("./workspace/terminal");
+              await resizeLiveTerminalSession(id, cols, rows);
+            }}
+            onCloseSession={async (id) => {
+              const { closeLiveTerminalSession } = await import("./workspace/terminal");
+              await closeLiveTerminalSession(id);
+            }}
+            onReadSession={async (id, offset) => {
+              const { readLiveTerminalOutput } = await import("./workspace/terminal");
+              return readLiveTerminalOutput(id, offset);
+            }}
           />
         </Match>
 
@@ -495,6 +544,24 @@ export function App() {
                 pushToast("Runbook duplicated.", "success");
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not duplicate runbook.", "danger");
+              });
+            }}
+            onRun={(id) => {
+              const runbook = workspace().runbooks.find((item) => item.id === id);
+              void persistRunbookRun({
+                projectId: currentProjectId(),
+                environmentId: route().environmentId,
+                runbookId: id,
+                title: runbook?.title ?? id,
+                body: runbook?.bodyMarkdown ?? "",
+              }).then(async () => {
+                pushToast("Runbook started locally.", "success");
+                await refreshWorkspace(currentProjectId());
+                window.setTimeout(() => {
+                  void refreshWorkspace(currentProjectId());
+                }, 1500);
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not run runbook.", "danger");
               });
             }}
             onOpenComponent={(id) =>
@@ -616,6 +683,38 @@ export function App() {
                 await refreshWorkspace(currentProjectId());
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not update default environment.", "danger");
+              });
+            }}
+            onDeleteEnvironment={(environmentId) => {
+              const environment = workspace().settingsEnvironments.find((item) => item.id === environmentId);
+              void persistDeleteEnvironment(currentProjectId(), environmentId).then(async () => {
+                pushToast(
+                  environment
+                    ? `Environment "${environment.name}" deleted.`
+                    : "Environment deleted.",
+                  "success",
+                );
+                await refreshWorkspace(currentProjectId());
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not delete environment.", "danger");
+              });
+            }}
+            onArchiveProject={() => {
+              const projectId = currentProjectId();
+              const name = workspace().settings.name;
+              void persistArchiveProject(projectId).then(async () => {
+                pushToast(`Project "${name}" archived.`, "success");
+                const listed = await loadProjects();
+                const fallback = listed.projects.find((project) => project.projectId !== projectId) ?? listed.projects[0];
+                if (fallback) {
+                  selectProject(fallback.projectId);
+                  await refreshWorkspace(fallback.projectId);
+                } else {
+                  applyRoute(createDefaultRoute("architecture", PLATFORM_CONTEXT), "replace");
+                  setWorkspace(emptyWorkspace());
+                }
+              }).catch((error: unknown) => {
+                pushToast(error instanceof Error ? error.message : "Could not archive project.", "danger");
               });
             }}
             onResetLocalStore={() => {

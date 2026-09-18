@@ -5,12 +5,19 @@ import (
 	"time"
 )
 
+const (
+	StatusActive   = "active"
+	StatusArchived = "archived"
+)
+
 type Project struct {
-	ID        string
-	Name      string
-	RootPath  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID         string
+	Name       string
+	RootPath   string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	Status     string
+	ArchivedAt time.Time
 }
 
 type Environment struct {
@@ -37,7 +44,14 @@ func NewProject(id, name, rootPath string) (Project, error) {
 		return Project{}, ErrInvalid
 	}
 	now := time.Now().UTC()
-	return Project{ID: id, Name: name, RootPath: rootPath, CreatedAt: now, UpdatedAt: now}, nil
+	return Project{
+		ID:        id,
+		Name:      name,
+		RootPath:  rootPath,
+		CreatedAt: now,
+		UpdatedAt: now,
+		Status:    StatusActive,
+	}, nil
 }
 
 func NewEnvironment(id, projectID, name, kind string) (Environment, error) {

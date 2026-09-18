@@ -268,6 +268,14 @@ export async function persistEnvironmentDefault(
   });
 }
 
+export async function persistDeleteEnvironment(projectId: string, environmentId: string): Promise<void> {
+  await core().projects.deleteEnvironment({ id: environmentId, projectId });
+}
+
+export async function persistArchiveProject(projectId: string): Promise<void> {
+  await core().projects.archive({ id: projectId });
+}
+
 export async function persistCreatedProject(input: {
   name: string;
   directory: string;
@@ -347,8 +355,47 @@ export async function persistOperationPreview(input: {
     title: input.command,
     target: input.target,
     command: input.command,
-    params: { environment: input.environment },
+    params: { environment: input.environment, cwd: input.cwd },
   });
+}
+
+export async function persistWorkflowRun(input: {
+  workflowId: string;
+  environmentId?: string;
+}): Promise<void> {
+  await core().workflows.run({
+    id: input.workflowId,
+    environmentId: input.environmentId ?? "",
+  });
+}
+
+export async function persistRunbookRun(input: {
+  projectId: string;
+  environmentId?: string;
+  runbookId: string;
+  title: string;
+  body: string;
+}): Promise<void> {
+  const command = extractRunbookCommand(input.body) ?? `echo "Runbook ${input.title}"`;
+  await core().operations.request({
+    type: "runbook",
+    projectId: input.projectId,
+    environmentId: input.environmentId ?? "",
+    title: `Runbook: ${input.title}`,
+    target: input.runbookId,
+    command,
+    params: { runbookId: input.runbookId },
+  });
+}
+
+function extractRunbookCommand(body: string): string | undefined {
+  const fence = body.match(/```(?:bash|sh|shell)?\n([\s\S]*?)```/);
+  if (!fence) return undefined;
+  const lines = fence[1]
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  return lines[0];
 }
 
 export async function persistWorkflow(input: {

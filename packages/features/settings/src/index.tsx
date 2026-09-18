@@ -55,6 +55,8 @@ export function SettingsView(props: {
   onSaveGeneral?: (settings: ProjectGeneralSettings) => void;
   onCreateEnvironment?: (draft: CreateEnvironmentDraft) => void;
   onSetDefaultEnvironment?: (environmentId: string) => void;
+  onDeleteEnvironment?: (environmentId: string) => void;
+  onArchiveProject?: () => void;
   onResetLocalStore?: () => void;
   children?: JSX.Element;
 }) {
@@ -127,7 +129,11 @@ export function SettingsView(props: {
 
   function handleArchiveConfirm() {
     setArchiveOpen(false);
-    pushToast(archiveProjectToast(), "default");
+    if (!props.onArchiveProject) {
+      pushToast(archiveProjectToast(general()?.name), "success");
+      return;
+    }
+    props.onArchiveProject();
   }
 
   async function handleCopyProjectId() {
@@ -351,9 +357,15 @@ export function SettingsView(props: {
             activeTarget()?.entityKind === "environment" &&
             !currentEnvironment()
           }
+          canDelete={environments().length > 1}
           onSetDefault={
             props.onSetDefaultEnvironment
               ? (environmentId) => props.onSetDefaultEnvironment?.(environmentId)
+              : undefined
+          }
+          onDelete={
+            props.onDeleteEnvironment
+              ? (environmentId) => props.onDeleteEnvironment?.(environmentId)
               : undefined
           }
         />
@@ -384,8 +396,7 @@ export function SettingsView(props: {
         }
       >
         <p class="m-0 text-[12.5px] text-[var(--color-text-secondary)]">
-          This confirms an archive preview for the current session. It does not
-          modify files outside the local store.
+          The project will be hidden from the switcher. Local data stays in SQLite until you reset the store.
         </p>
       </A11yDialog>
       <A11yDialog

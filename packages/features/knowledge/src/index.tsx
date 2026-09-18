@@ -46,6 +46,7 @@ export function KnowledgeView(props: {
   onCreate?: (kind: "doc" | "runbook", title: string) => void;
   onArchive?: (id: string) => void;
   onDuplicate?: (id: string) => void;
+  onRun?: (id: string) => void;
 }) {
   const tab = () => normalizeTab(props.tab);
   const [query, setQuery] = createSignal("");
@@ -268,6 +269,7 @@ export function KnowledgeView(props: {
             onOpenTerminal={props.onOpenTerminal}
             onOpenComponent={props.onOpenComponent}
             onOpenOperation={props.onOpenOperation}
+            onRun={props.onRun ? () => props.onRun?.(item().id) : undefined}
             onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
             onDuplicate={props.onDuplicate ? () => props.onDuplicate?.(item().id) : undefined}
           />

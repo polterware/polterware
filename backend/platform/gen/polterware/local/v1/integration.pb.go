@@ -957,6 +957,246 @@ func (x *SaveIntegrationSyncRunResponse) GetRun() *IntegrationSyncRun {
 	return nil
 }
 
+type ProbeCliProviderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProbeCliProviderRequest) Reset() {
+	*x = ProbeCliProviderRequest{}
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProbeCliProviderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProbeCliProviderRequest) ProtoMessage() {}
+
+func (x *ProbeCliProviderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProbeCliProviderRequest.ProtoReflect.Descriptor instead.
+func (*ProbeCliProviderRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_integration_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ProbeCliProviderRequest) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+type ProbeCliProviderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	Available     bool                   `protobuf:"varint,2,opt,name=available,proto3" json:"available,omitempty"`
+	BinaryPath    string                 `protobuf:"bytes,3,opt,name=binary_path,json=binaryPath,proto3" json:"binary_path,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"` // cli-unavailable | ready | connected | failed
+	AccountLabel  string                 `protobuf:"bytes,5,opt,name=account_label,json=accountLabel,proto3" json:"account_label,omitempty"`
+	Message       string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProbeCliProviderResponse) Reset() {
+	*x = ProbeCliProviderResponse{}
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProbeCliProviderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProbeCliProviderResponse) ProtoMessage() {}
+
+func (x *ProbeCliProviderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProbeCliProviderResponse.ProtoReflect.Descriptor instead.
+func (*ProbeCliProviderResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_integration_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ProbeCliProviderResponse) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *ProbeCliProviderResponse) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+func (x *ProbeCliProviderResponse) GetBinaryPath() string {
+	if x != nil {
+		return x.BinaryPath
+	}
+	return ""
+}
+
+func (x *ProbeCliProviderResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ProbeCliProviderResponse) GetAccountLabel() string {
+	if x != nil {
+		return x.AccountLabel
+	}
+	return ""
+}
+
+func (x *ProbeCliProviderResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type BeginCliAuthRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BeginCliAuthRequest) Reset() {
+	*x = BeginCliAuthRequest{}
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BeginCliAuthRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BeginCliAuthRequest) ProtoMessage() {}
+
+func (x *BeginCliAuthRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BeginCliAuthRequest.ProtoReflect.Descriptor instead.
+func (*BeginCliAuthRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_integration_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *BeginCliAuthRequest) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+type BeginCliAuthResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	AuthCommand   string                 `protobuf:"bytes,2,opt,name=auth_command,json=authCommand,proto3" json:"auth_command,omitempty"`
+	DocsUrl       string                 `protobuf:"bytes,3,opt,name=docs_url,json=docsUrl,proto3" json:"docs_url,omitempty"`
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BeginCliAuthResponse) Reset() {
+	*x = BeginCliAuthResponse{}
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BeginCliAuthResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BeginCliAuthResponse) ProtoMessage() {}
+
+func (x *BeginCliAuthResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_integration_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BeginCliAuthResponse.ProtoReflect.Descriptor instead.
+func (*BeginCliAuthResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_integration_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *BeginCliAuthResponse) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *BeginCliAuthResponse) GetAuthCommand() string {
+	if x != nil {
+		return x.AuthCommand
+	}
+	return ""
+}
+
+func (x *BeginCliAuthResponse) GetDocsUrl() string {
+	if x != nil {
+		return x.DocsUrl
+	}
+	return ""
+}
+
+func (x *BeginCliAuthResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_polterware_local_v1_integration_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_integration_proto_rawDesc = "" +
@@ -1037,14 +1277,37 @@ const file_polterware_local_v1_integration_proto_rawDesc = "" +
 	"\x1dSaveIntegrationSyncRunRequest\x129\n" +
 	"\x03run\x18\x01 \x01(\v2'.polterware.local.v1.IntegrationSyncRunR\x03run\"[\n" +
 	"\x1eSaveIntegrationSyncRunResponse\x129\n" +
-	"\x03run\x18\x01 \x01(\v2'.polterware.local.v1.IntegrationSyncRunR\x03run2\xb7\x06\n" +
+	"\x03run\x18\x01 \x01(\v2'.polterware.local.v1.IntegrationSyncRunR\x03run\":\n" +
+	"\x17ProbeCliProviderRequest\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\"\xd1\x01\n" +
+	"\x18ProbeCliProviderResponse\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\x12\x1c\n" +
+	"\tavailable\x18\x02 \x01(\bR\tavailable\x12\x1f\n" +
+	"\vbinary_path\x18\x03 \x01(\tR\n" +
+	"binaryPath\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12#\n" +
+	"\raccount_label\x18\x05 \x01(\tR\faccountLabel\x12\x18\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\"6\n" +
+	"\x13BeginCliAuthRequest\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\"\x8f\x01\n" +
+	"\x14BeginCliAuthResponse\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\x12!\n" +
+	"\fauth_command\x18\x02 \x01(\tR\vauthCommand\x12\x19\n" +
+	"\bdocs_url\x18\x03 \x01(\tR\adocsUrl\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage2\x8d\b\n" +
 	"\x12IntegrationService\x12o\n" +
 	"\x10ListCliProviders\x12,.polterware.local.v1.ListCliProvidersRequest\x1a-.polterware.local.v1.ListCliProvidersResponse\x12\x8d\x01\n" +
 	"\x1aListIntegrationConnections\x126.polterware.local.v1.ListIntegrationConnectionsRequest\x1a7.polterware.local.v1.ListIntegrationConnectionsResponse\x12\x8a\x01\n" +
 	"\x19SaveIntegrationConnection\x125.polterware.local.v1.SaveIntegrationConnectionRequest\x1a6.polterware.local.v1.SaveIntegrationConnectionResponse\x12\x87\x01\n" +
 	"\x18ListIntegrationResources\x124.polterware.local.v1.ListIntegrationResourcesRequest\x1a5.polterware.local.v1.ListIntegrationResourcesResponse\x12\x84\x01\n" +
 	"\x17ListIntegrationSyncRuns\x123.polterware.local.v1.ListIntegrationSyncRunsRequest\x1a4.polterware.local.v1.ListIntegrationSyncRunsResponse\x12\x81\x01\n" +
-	"\x16SaveIntegrationSyncRun\x122.polterware.local.v1.SaveIntegrationSyncRunRequest\x1a3.polterware.local.v1.SaveIntegrationSyncRunResponseB\xec\x01\n" +
+	"\x16SaveIntegrationSyncRun\x122.polterware.local.v1.SaveIntegrationSyncRunRequest\x1a3.polterware.local.v1.SaveIntegrationSyncRunResponse\x12o\n" +
+	"\x10ProbeCliProvider\x12,.polterware.local.v1.ProbeCliProviderRequest\x1a-.polterware.local.v1.ProbeCliProviderResponse\x12c\n" +
+	"\fBeginCliAuth\x12(.polterware.local.v1.BeginCliAuthRequest\x1a).polterware.local.v1.BeginCliAuthResponseB\xec\x01\n" +
 	"\x17com.polterware.local.v1B\x10IntegrationProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
 
 var (
@@ -1059,7 +1322,7 @@ func file_polterware_local_v1_integration_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_integration_proto_rawDescData
 }
 
-var file_polterware_local_v1_integration_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_polterware_local_v1_integration_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_polterware_local_v1_integration_proto_goTypes = []any{
 	(*CliProvider)(nil),                        // 0: polterware.local.v1.CliProvider
 	(*IntegrationConnection)(nil),              // 1: polterware.local.v1.IntegrationConnection
@@ -1077,6 +1340,10 @@ var file_polterware_local_v1_integration_proto_goTypes = []any{
 	(*ListIntegrationSyncRunsResponse)(nil),    // 13: polterware.local.v1.ListIntegrationSyncRunsResponse
 	(*SaveIntegrationSyncRunRequest)(nil),      // 14: polterware.local.v1.SaveIntegrationSyncRunRequest
 	(*SaveIntegrationSyncRunResponse)(nil),     // 15: polterware.local.v1.SaveIntegrationSyncRunResponse
+	(*ProbeCliProviderRequest)(nil),            // 16: polterware.local.v1.ProbeCliProviderRequest
+	(*ProbeCliProviderResponse)(nil),           // 17: polterware.local.v1.ProbeCliProviderResponse
+	(*BeginCliAuthRequest)(nil),                // 18: polterware.local.v1.BeginCliAuthRequest
+	(*BeginCliAuthResponse)(nil),               // 19: polterware.local.v1.BeginCliAuthResponse
 }
 var file_polterware_local_v1_integration_proto_depIdxs = []int32{
 	0,  // 0: polterware.local.v1.ListCliProvidersResponse.providers:type_name -> polterware.local.v1.CliProvider
@@ -1093,14 +1360,18 @@ var file_polterware_local_v1_integration_proto_depIdxs = []int32{
 	10, // 11: polterware.local.v1.IntegrationService.ListIntegrationResources:input_type -> polterware.local.v1.ListIntegrationResourcesRequest
 	12, // 12: polterware.local.v1.IntegrationService.ListIntegrationSyncRuns:input_type -> polterware.local.v1.ListIntegrationSyncRunsRequest
 	14, // 13: polterware.local.v1.IntegrationService.SaveIntegrationSyncRun:input_type -> polterware.local.v1.SaveIntegrationSyncRunRequest
-	5,  // 14: polterware.local.v1.IntegrationService.ListCliProviders:output_type -> polterware.local.v1.ListCliProvidersResponse
-	7,  // 15: polterware.local.v1.IntegrationService.ListIntegrationConnections:output_type -> polterware.local.v1.ListIntegrationConnectionsResponse
-	9,  // 16: polterware.local.v1.IntegrationService.SaveIntegrationConnection:output_type -> polterware.local.v1.SaveIntegrationConnectionResponse
-	11, // 17: polterware.local.v1.IntegrationService.ListIntegrationResources:output_type -> polterware.local.v1.ListIntegrationResourcesResponse
-	13, // 18: polterware.local.v1.IntegrationService.ListIntegrationSyncRuns:output_type -> polterware.local.v1.ListIntegrationSyncRunsResponse
-	15, // 19: polterware.local.v1.IntegrationService.SaveIntegrationSyncRun:output_type -> polterware.local.v1.SaveIntegrationSyncRunResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
+	16, // 14: polterware.local.v1.IntegrationService.ProbeCliProvider:input_type -> polterware.local.v1.ProbeCliProviderRequest
+	18, // 15: polterware.local.v1.IntegrationService.BeginCliAuth:input_type -> polterware.local.v1.BeginCliAuthRequest
+	5,  // 16: polterware.local.v1.IntegrationService.ListCliProviders:output_type -> polterware.local.v1.ListCliProvidersResponse
+	7,  // 17: polterware.local.v1.IntegrationService.ListIntegrationConnections:output_type -> polterware.local.v1.ListIntegrationConnectionsResponse
+	9,  // 18: polterware.local.v1.IntegrationService.SaveIntegrationConnection:output_type -> polterware.local.v1.SaveIntegrationConnectionResponse
+	11, // 19: polterware.local.v1.IntegrationService.ListIntegrationResources:output_type -> polterware.local.v1.ListIntegrationResourcesResponse
+	13, // 20: polterware.local.v1.IntegrationService.ListIntegrationSyncRuns:output_type -> polterware.local.v1.ListIntegrationSyncRunsResponse
+	15, // 21: polterware.local.v1.IntegrationService.SaveIntegrationSyncRun:output_type -> polterware.local.v1.SaveIntegrationSyncRunResponse
+	17, // 22: polterware.local.v1.IntegrationService.ProbeCliProvider:output_type -> polterware.local.v1.ProbeCliProviderResponse
+	19, // 23: polterware.local.v1.IntegrationService.BeginCliAuth:output_type -> polterware.local.v1.BeginCliAuthResponse
+	16, // [16:24] is the sub-list for method output_type
+	8,  // [8:16] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -1117,7 +1388,7 @@ func file_polterware_local_v1_integration_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_integration_proto_rawDesc), len(file_polterware_local_v1_integration_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

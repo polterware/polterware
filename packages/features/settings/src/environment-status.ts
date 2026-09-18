@@ -74,6 +74,10 @@ export function saveGeneralSettingsToast(): string {
   return "Project settings saved.";
 }
 
-export function archiveProjectToast(): string {
-  return "Project archive previewed — no files or data were deleted";
+export function archiveProjectToast(name?: string): string {
+  return name ? `Project "${name}" archived.` : "Project archived.";
+}
+
+export function deleteEnvironmentToast(name: string): string {
+  return `Environment "${name}" deleted.`;
 }

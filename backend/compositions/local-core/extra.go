@@ -13,6 +13,7 @@ import (
 	"github.com/polterware/polterware/backend/domains/projects"
 	"github.com/polterware/polterware/backend/domains/resources"
 	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
+	cliprobe "github.com/polterware/polterware/backend/providers/cli"
 )
 
 func (core *Core) GetProjectSettings(_ context.Context, request *connect.Request[localv1.GetProjectSettingsRequest]) (*connect.Response[localv1.GetProjectSettingsResponse], error) {
@@ -161,6 +162,37 @@ func (core *Core) SaveIntegrationSyncRun(_ context.Context, request *connect.Req
 		return nil, internal(err)
 	}
 	return connect.NewResponse(&localv1.SaveIntegrationSyncRunResponse{Run: syncRunProto(run)}), nil
+}
+
+func (core *Core) ProbeCliProvider(_ context.Context, request *connect.Request[localv1.ProbeCliProviderRequest]) (*connect.Response[localv1.ProbeCliProviderResponse], error) {
+	if request.Msg.ProviderId == "" {
+		return nil, invalid("provider id is required")
+	}
+	result := cliprobe.Probe(request.Msg.ProviderId)
+	return connect.NewResponse(&localv1.ProbeCliProviderResponse{
+		ProviderId:   result.ProviderID,
+		Available:    result.Available,
+		BinaryPath:   result.BinaryPath,
+		Status:       result.Status,
+		AccountLabel: result.AccountLabel,
+		Message:      result.Message,
+	}), nil
+}
+
+func (core *Core) BeginCliAuth(_ context.Context, request *connect.Request[localv1.BeginCliAuthRequest]) (*connect.Response[localv1.BeginCliAuthResponse], error) {
+	if request.Msg.ProviderId == "" {
+		return nil, invalid("provider id is required")
+	}
+	plan, err := cliprobe.BeginAuth(request.Msg.ProviderId)
+	if err != nil {
+		return nil, invalid("unknown provider")
+	}
+	return connect.NewResponse(&localv1.BeginCliAuthResponse{
+		ProviderId:  plan.ProviderID,
+		AuthCommand: plan.AuthCommand,
+		DocsUrl:     plan.DocsURL,
+		Message:     plan.Message,
+	}), nil
 }
 
 func settingsProto(item projects.Settings) *localv1.ProjectSettings {

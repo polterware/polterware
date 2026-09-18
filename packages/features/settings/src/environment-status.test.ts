@@ -5,6 +5,7 @@ import {
   defaultFlagLabel,
   defaultFlagTone,
   defaultProtectionForKind,
+  deleteEnvironmentToast,
   environmentKindLabel,
   environmentKindTone,
   protectionLabel,
@@ -55,7 +56,8 @@ describe("environment status helpers", () => {
     expect(setDefaultEnvironmentToast("Production")).not.toMatch(/fixture|mock/i);
     expect(saveGeneralSettingsToast()).toBe("Project settings saved.");
     expect(saveGeneralSettingsToast()).not.toMatch(/preview session|mock/i);
-    expect(archiveProjectToast()).toMatch(/preview/i);
-    expect(archiveProjectToast()).not.toMatch(/wiped|deleted from core/i);
+    expect(archiveProjectToast("Demo")).toMatch(/archived/i);
+    expect(archiveProjectToast("Demo")).not.toMatch(/preview|wiped|deleted from core/i);
+    expect(deleteEnvironmentToast("staging")).toMatch(/deleted/i);
   });
 });

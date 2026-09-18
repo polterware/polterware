@@ -16,6 +16,7 @@ export const IPC_CHANNELS = {
     listIcons: "app:list-icons",
     getIcon: "app:get-icon",
     setIcon: "app:set-icon",
+    openExternal: "app:open-external",
   },
   commander: {
     hideOverlay: "commander:hide-overlay",
@@ -27,8 +28,10 @@ export const IPC_CHANNELS = {
     resetLocalStore: "core:reset-local-store",
     listProjects: "core:list-projects",
     saveProject: "core:save-project",
+    archiveProject: "core:archive-project",
     listEnvironments: "core:list-environments",
     saveEnvironment: "core:save-environment",
+    deleteEnvironment: "core:delete-environment",
     getProjectSettings: "core:get-project-settings",
     saveProjectSettings: "core:save-project-settings",
     getLayout: "core:get-layout",
@@ -58,10 +61,18 @@ export const IPC_CHANNELS = {
     listIntegrationResources: "core:list-integration-resources",
     listIntegrationSyncRuns: "core:list-integration-sync-runs",
     saveIntegrationSyncRun: "core:save-integration-sync-run",
+    probeCliProvider: "core:probe-cli-provider",
+    beginCliAuth: "core:begin-cli-auth",
     listProcesses: "core:list-processes",
     startProcess: "core:start-process",
     stopProcess: "core:stop-process",
     getProcess: "core:get-process",
+    createTerminalSession: "core:create-terminal-session",
+    writeTerminalSession: "core:write-terminal-session",
+    resizeTerminalSession: "core:resize-terminal-session",
+    closeTerminalSession: "core:close-terminal-session",
+    readTerminalOutput: "core:read-terminal-output",
+    listTerminalSessions: "core:list-terminal-sessions",
     queryLogs: "core:query-logs",
   },
 } as const;
@@ -83,6 +94,7 @@ export type AppIpcRequests = {
   [IPC_CHANNELS.app.listIcons]: undefined;
   [IPC_CHANNELS.app.getIcon]: undefined;
   [IPC_CHANNELS.app.setIcon]: JsonValue;
+  [IPC_CHANNELS.app.openExternal]: { url: string };
   [IPC_CHANNELS.commander.hideOverlay]: undefined;
   [IPC_CHANNELS.commander.showMainWindow]: undefined;
 } & Record<CoreIpcChannel, JsonObject | undefined>;
@@ -92,6 +104,7 @@ export type AppIpcResponses = {
   [IPC_CHANNELS.app.listIcons]: AppIconOption[];
   [IPC_CHANNELS.app.getIcon]: AppIconSelection;
   [IPC_CHANNELS.app.setIcon]: AppIconSelection;
+  [IPC_CHANNELS.app.openExternal]: { ok: boolean };
   [IPC_CHANNELS.commander.hideOverlay]: void;
   [IPC_CHANNELS.commander.showMainWindow]: void;
 } & Record<CoreIpcChannel, JsonObject>;

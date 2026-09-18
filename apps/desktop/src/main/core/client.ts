@@ -11,6 +11,7 @@ import {
   OperationService,
   ProcessService,
   ProjectService,
+  TerminalService,
   WorkflowService,
 } from "@polterware/contracts";
 
@@ -30,6 +31,7 @@ export type CoreClients = {
   workflows: Client<typeof WorkflowService>;
   integrations: Client<typeof IntegrationService>;
   processes: Client<typeof ProcessService>;
+  terminals: Client<typeof TerminalService>;
   logs: Client<typeof LogService>;
 };
 
@@ -54,6 +56,7 @@ export function createCoreClients(endpoint: string, token: string): CoreClients 
     workflows: createClient(WorkflowService, transport),
     integrations: createClient(IntegrationService, transport),
     processes: createClient(ProcessService, transport),
+    terminals: createClient(TerminalService, transport),
     logs: createClient(LogService, transport),
   };
 }

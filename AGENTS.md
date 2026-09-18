@@ -14,9 +14,13 @@ Polterware's first version is a local SQLite-backed Desktop with six project sur
 
 The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. The Electron Main process starts `polterware-core`, and the renderer reads and writes through `window.polterware` only.
 
-The Desktop must not execute shell commands, create PTYs, open provider login browsers, detect CLI binaries, authenticate against remotes, or stream live logs. Terminal and integration flows remain visual transcripts. Operations are recorded in SQLite; they are not executed.
+The Desktop may execute on the local machine through `polterware-core` only. The renderer never spawns shells or touches Node APIs; it talks through `window.polterware`.
 
-The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Do not add placeholders. Never request, display, or persist real tokens.
+- Terminal: interactive local sessions via PTY owned by Go core, with live output streams.
+- Operations / Workflows / Runbooks: local runner (`os/exec`) that transitions queued runs to running/succeeded/failed/cancelled and appends logs.
+- Integrations: detect CLI binaries, open provider login via Main `openExternal` or CLI hand-off, and probe connection status. Credentials stay in the OS/CLI credential store.
+
+The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Do not add placeholders. Never request, display, or persist real provider tokens in the app or SQLite.
 
 ## Architecture boundaries
 
@@ -35,7 +39,7 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
 - Resources: Inventory, Nodes, Processes
 - Knowledge: Docs, Runbooks
 - Operations: Runs, Workflows, Schedules
-- Terminal: visual sessions
+- Terminal: local interactive sessions
 - Integrations: Connected, Catalog
 - Settings: General, Environments, Advanced
 

@@ -85,6 +85,18 @@ func (m *Manager) Start(id string, name string, args []string, cwd string) (<-ch
 	return ch, cancel
 }
 
+func (m *Manager) RegisterCancel(id string, cancel context.CancelFunc) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.runs[id] = cancel
+}
+
+func (m *Manager) ClearCancel(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.runs, id)
+}
+
 func (m *Manager) Cancel(id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

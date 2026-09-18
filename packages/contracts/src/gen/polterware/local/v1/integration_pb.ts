@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/integration.proto.
  */
 export const file_polterware_local_v1_integration: GenFile = /*@__PURE__*/
-  fileDesc("CiVwb2x0ZXJ3YXJlL2xvY2FsL3YxL2ludGVncmF0aW9uLnByb3RvEhNwb2x0ZXJ3YXJlLmxvY2FsLnYxInUKC0NsaVByb3ZpZGVyEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYmluYXJ5GAMgASgJEhUKDWF1dGhfY29tbWFuZHMYBCADKAkSEwoLZGVzY3JpcHRpb24YBSABKAkSEAoIY2F0ZWdvcnkYBiABKAkigAIKFUludGVncmF0aW9uQ29ubmVjdGlvbhIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEhMKC3Byb3ZpZGVyX2lkGAMgASgJEg4KBnN0YXR1cxgEIAEoCRINCgVsYWJlbBgFIAEoCRIWCg5lbnZpcm9ubWVudF9pZBgGIAEoCRIUCgxsYXN0X3N5bmNfYXQYByABKAkSDwoHc3VtbWFyeRgIIAEoCRITCgtjbGlfY29tbWFuZBgJIAEoCRIVCg1zeW5jX2ludGVydmFsGAogASgJEhEKCWZyZXNobmVzcxgLIAEoCRIVCg1lcnJvcl9tZXNzYWdlGAwgASgJIrABChNJbnRlZ3JhdGlvblJlc291cmNlEgoKAmlkGAEgASgJEhUKDWNvbm5lY3Rpb25faWQYAiABKAkSDAoEbmFtZRgDIAEoCRIMCgRraW5kGAQgASgJEhMKC2V4dGVybmFsX2lkGAUgASgJEhYKDmVudmlyb25tZW50X2lkGAYgASgJEg4KBnN0YXR1cxgHIAEoCRIdChVpbnZlbnRvcnlfcmVzb3VyY2VfaWQYCCABKAkipAEKEkludGVncmF0aW9uU3luY1J1bhIKCgJpZBgBIAEoCRIVCg1jb25uZWN0aW9uX2lkGAIgASgJEhIKCnN0YXJ0ZWRfYXQYAyABKAkSEwoLZmluaXNoZWRfYXQYBCABKAkSDgoGcmVzdWx0GAUgASgJEhAKCGltcG9ydGVkGAYgASgFEg8KB2NoYW5nZWQYByABKAUSDwoHbWVzc2FnZRgIIAEoCSIZChdMaXN0Q2xpUHJvdmlkZXJzUmVxdWVzdCJPChhMaXN0Q2xpUHJvdmlkZXJzUmVzcG9uc2USMwoJcHJvdmlkZXJzGAEgAygLMiAucG9sdGVyd2FyZS5sb2NhbC52MS5DbGlQcm92aWRlciI3CiFMaXN0SW50ZWdyYXRpb25Db25uZWN0aW9uc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSJlCiJMaXN0SW50ZWdyYXRpb25Db25uZWN0aW9uc1Jlc3BvbnNlEj8KC2Nvbm5lY3Rpb25zGAEgAygLMioucG9sdGVyd2FyZS5sb2NhbC52MS5JbnRlZ3JhdGlvbkNvbm5lY3Rpb24iYgogU2F2ZUludGVncmF0aW9uQ29ubmVjdGlvblJlcXVlc3QSPgoKY29ubmVjdGlvbhgBIAEoCzIqLnBvbHRlcndhcmUubG9jYWwudjEuSW50ZWdyYXRpb25Db25uZWN0aW9uImMKIVNhdmVJbnRlZ3JhdGlvbkNvbm5lY3Rpb25SZXNwb25zZRI+Cgpjb25uZWN0aW9uGAEgASgLMioucG9sdGVyd2FyZS5sb2NhbC52MS5JbnRlZ3JhdGlvbkNvbm5lY3Rpb24iNQofTGlzdEludGVncmF0aW9uUmVzb3VyY2VzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJIl8KIExpc3RJbnRlZ3JhdGlvblJlc291cmNlc1Jlc3BvbnNlEjsKCXJlc291cmNlcxgBIAMoCzIoLnBvbHRlcndhcmUubG9jYWwudjEuSW50ZWdyYXRpb25SZXNvdXJjZSI0Ch5MaXN0SW50ZWdyYXRpb25TeW5jUnVuc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSJYCh9MaXN0SW50ZWdyYXRpb25TeW5jUnVuc1Jlc3BvbnNlEjUKBHJ1bnMYASADKAsyJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkludGVncmF0aW9uU3luY1J1biJVCh1TYXZlSW50ZWdyYXRpb25TeW5jUnVuUmVxdWVzdBI0CgNydW4YASABKAsyJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkludGVncmF0aW9uU3luY1J1biJWCh5TYXZlSW50ZWdyYXRpb25TeW5jUnVuUmVzcG9uc2USNAoDcnVuGAEgASgLMicucG9sdGVyd2FyZS5sb2NhbC52MS5JbnRlZ3JhdGlvblN5bmNSdW4ytwYKEkludGVncmF0aW9uU2VydmljZRJvChBMaXN0Q2xpUHJvdmlkZXJzEiwucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0Q2xpUHJvdmlkZXJzUmVxdWVzdBotLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdENsaVByb3ZpZGVyc1Jlc3BvbnNlEo0BChpMaXN0SW50ZWdyYXRpb25Db25uZWN0aW9ucxI2LnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEludGVncmF0aW9uQ29ubmVjdGlvbnNSZXF1ZXN0GjcucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0SW50ZWdyYXRpb25Db25uZWN0aW9uc1Jlc3BvbnNlEooBChlTYXZlSW50ZWdyYXRpb25Db25uZWN0aW9uEjUucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlSW50ZWdyYXRpb25Db25uZWN0aW9uUmVxdWVzdBo2LnBvbHRlcndhcmUubG9jYWwudjEuU2F2ZUludGVncmF0aW9uQ29ubmVjdGlvblJlc3BvbnNlEocBChhMaXN0SW50ZWdyYXRpb25SZXNvdXJjZXMSNC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RJbnRlZ3JhdGlvblJlc291cmNlc1JlcXVlc3QaNS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RJbnRlZ3JhdGlvblJlc291cmNlc1Jlc3BvbnNlEoQBChdMaXN0SW50ZWdyYXRpb25TeW5jUnVucxIzLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEludGVncmF0aW9uU3luY1J1bnNSZXF1ZXN0GjQucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0SW50ZWdyYXRpb25TeW5jUnVuc1Jlc3BvbnNlEoEBChZTYXZlSW50ZWdyYXRpb25TeW5jUnVuEjIucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlSW50ZWdyYXRpb25TeW5jUnVuUmVxdWVzdBozLnBvbHRlcndhcmUubG9jYWwudjEuU2F2ZUludGVncmF0aW9uU3luY1J1blJlc3BvbnNlQuwBChdjb20ucG9sdGVyd2FyZS5sb2NhbC52MUIQSW50ZWdyYXRpb25Qcm90b1ABWlFnaXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9iYWNrZW5kL3BsYXRmb3JtL2dlbi9wb2x0ZXJ3YXJlL2xvY2FsL3YxO2xvY2FsdjGiAgNQTFiqAhNQb2x0ZXJ3YXJlLkxvY2FsLlYxygITUG9sdGVyd2FyZVxMb2NhbFxWMeICH1BvbHRlcndhcmVcTG9jYWxcVjFcR1BCTWV0YWRhdGHqAhVQb2x0ZXJ3YXJlOjpMb2NhbDo6VjFiBnByb3RvMw");
+  fileDesc("CiVwb2x0ZXJ3YXJlL2xvY2FsL3YxL2ludGVncmF0aW9uLnByb3RvEhNwb2x0ZXJ3YXJlLmxvY2FsLnYxInUKC0NsaVByb3ZpZGVyEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDgoGYmluYXJ5GAMgASgJEhUKDWF1dGhfY29tbWFuZHMYBCADKAkSEwoLZGVzY3JpcHRpb24YBSABKAkSEAoIY2F0ZWdvcnkYBiABKAkigAIKFUludGVncmF0aW9uQ29ubmVjdGlvbhIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEhMKC3Byb3ZpZGVyX2lkGAMgASgJEg4KBnN0YXR1cxgEIAEoCRINCgVsYWJlbBgFIAEoCRIWCg5lbnZpcm9ubWVudF9pZBgGIAEoCRIUCgxsYXN0X3N5bmNfYXQYByABKAkSDwoHc3VtbWFyeRgIIAEoCRITCgtjbGlfY29tbWFuZBgJIAEoCRIVCg1zeW5jX2ludGVydmFsGAogASgJEhEKCWZyZXNobmVzcxgLIAEoCRIVCg1lcnJvcl9tZXNzYWdlGAwgASgJIrABChNJbnRlZ3JhdGlvblJlc291cmNlEgoKAmlkGAEgASgJEhUKDWNvbm5lY3Rpb25faWQYAiABKAkSDAoEbmFtZRgDIAEoCRIMCgRraW5kGAQgASgJEhMKC2V4dGVybmFsX2lkGAUgASgJEhYKDmVudmlyb25tZW50X2lkGAYgASgJEg4KBnN0YXR1cxgHIAEoCRIdChVpbnZlbnRvcnlfcmVzb3VyY2VfaWQYCCABKAkipAEKEkludGVncmF0aW9uU3luY1J1bhIKCgJpZBgBIAEoCRIVCg1jb25uZWN0aW9uX2lkGAIgASgJEhIKCnN0YXJ0ZWRfYXQYAyABKAkSEwoLZmluaXNoZWRfYXQYBCABKAkSDgoGcmVzdWx0GAUgASgJEhAKCGltcG9ydGVkGAYgASgFEg8KB2NoYW5nZWQYByABKAUSDwoHbWVzc2FnZRgIIAEoCSIZChdMaXN0Q2xpUHJvdmlkZXJzUmVxdWVzdCJPChhMaXN0Q2xpUHJvdmlkZXJzUmVzcG9uc2USMwoJcHJvdmlkZXJzGAEgAygLMiAucG9sdGVyd2FyZS5sb2NhbC52MS5DbGlQcm92aWRlciI3CiFMaXN0SW50ZWdyYXRpb25Db25uZWN0aW9uc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSJlCiJMaXN0SW50ZWdyYXRpb25Db25uZWN0aW9uc1Jlc3BvbnNlEj8KC2Nvbm5lY3Rpb25zGAEgAygLMioucG9sdGVyd2FyZS5sb2NhbC52MS5JbnRlZ3JhdGlvbkNvbm5lY3Rpb24iYgogU2F2ZUludGVncmF0aW9uQ29ubmVjdGlvblJlcXVlc3QSPgoKY29ubmVjdGlvbhgBIAEoCzIqLnBvbHRlcndhcmUubG9jYWwudjEuSW50ZWdyYXRpb25Db25uZWN0aW9uImMKIVNhdmVJbnRlZ3JhdGlvbkNvbm5lY3Rpb25SZXNwb25zZRI+Cgpjb25uZWN0aW9uGAEgASgLMioucG9sdGVyd2FyZS5sb2NhbC52MS5JbnRlZ3JhdGlvbkNvbm5lY3Rpb24iNQofTGlzdEludGVncmF0aW9uUmVzb3VyY2VzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJIl8KIExpc3RJbnRlZ3JhdGlvblJlc291cmNlc1Jlc3BvbnNlEjsKCXJlc291cmNlcxgBIAMoCzIoLnBvbHRlcndhcmUubG9jYWwudjEuSW50ZWdyYXRpb25SZXNvdXJjZSI0Ch5MaXN0SW50ZWdyYXRpb25TeW5jUnVuc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSJYCh9MaXN0SW50ZWdyYXRpb25TeW5jUnVuc1Jlc3BvbnNlEjUKBHJ1bnMYASADKAsyJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkludGVncmF0aW9uU3luY1J1biJVCh1TYXZlSW50ZWdyYXRpb25TeW5jUnVuUmVxdWVzdBI0CgNydW4YASABKAsyJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkludGVncmF0aW9uU3luY1J1biJWCh5TYXZlSW50ZWdyYXRpb25TeW5jUnVuUmVzcG9uc2USNAoDcnVuGAEgASgLMicucG9sdGVyd2FyZS5sb2NhbC52MS5JbnRlZ3JhdGlvblN5bmNSdW4iLgoXUHJvYmVDbGlQcm92aWRlclJlcXVlc3QSEwoLcHJvdmlkZXJfaWQYASABKAkijwEKGFByb2JlQ2xpUHJvdmlkZXJSZXNwb25zZRITCgtwcm92aWRlcl9pZBgBIAEoCRIRCglhdmFpbGFibGUYAiABKAgSEwoLYmluYXJ5X3BhdGgYAyABKAkSDgoGc3RhdHVzGAQgASgJEhUKDWFjY291bnRfbGFiZWwYBSABKAkSDwoHbWVzc2FnZRgGIAEoCSIqChNCZWdpbkNsaUF1dGhSZXF1ZXN0EhMKC3Byb3ZpZGVyX2lkGAEgASgJImQKFEJlZ2luQ2xpQXV0aFJlc3BvbnNlEhMKC3Byb3ZpZGVyX2lkGAEgASgJEhQKDGF1dGhfY29tbWFuZBgCIAEoCRIQCghkb2NzX3VybBgDIAEoCRIPCgdtZXNzYWdlGAQgASgJMo0IChJJbnRlZ3JhdGlvblNlcnZpY2USbwoQTGlzdENsaVByb3ZpZGVycxIsLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdENsaVByb3ZpZGVyc1JlcXVlc3QaLS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RDbGlQcm92aWRlcnNSZXNwb25zZRKNAQoaTGlzdEludGVncmF0aW9uQ29ubmVjdGlvbnMSNi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RJbnRlZ3JhdGlvbkNvbm5lY3Rpb25zUmVxdWVzdBo3LnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEludGVncmF0aW9uQ29ubmVjdGlvbnNSZXNwb25zZRKKAQoZU2F2ZUludGVncmF0aW9uQ29ubmVjdGlvbhI1LnBvbHRlcndhcmUubG9jYWwudjEuU2F2ZUludGVncmF0aW9uQ29ubmVjdGlvblJlcXVlc3QaNi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVJbnRlZ3JhdGlvbkNvbm5lY3Rpb25SZXNwb25zZRKHAQoYTGlzdEludGVncmF0aW9uUmVzb3VyY2VzEjQucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0SW50ZWdyYXRpb25SZXNvdXJjZXNSZXF1ZXN0GjUucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0SW50ZWdyYXRpb25SZXNvdXJjZXNSZXNwb25zZRKEAQoXTGlzdEludGVncmF0aW9uU3luY1J1bnMSMy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RJbnRlZ3JhdGlvblN5bmNSdW5zUmVxdWVzdBo0LnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEludGVncmF0aW9uU3luY1J1bnNSZXNwb25zZRKBAQoWU2F2ZUludGVncmF0aW9uU3luY1J1bhIyLnBvbHRlcndhcmUubG9jYWwudjEuU2F2ZUludGVncmF0aW9uU3luY1J1blJlcXVlc3QaMy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVJbnRlZ3JhdGlvblN5bmNSdW5SZXNwb25zZRJvChBQcm9iZUNsaVByb3ZpZGVyEiwucG9sdGVyd2FyZS5sb2NhbC52MS5Qcm9iZUNsaVByb3ZpZGVyUmVxdWVzdBotLnBvbHRlcndhcmUubG9jYWwudjEuUHJvYmVDbGlQcm92aWRlclJlc3BvbnNlEmMKDEJlZ2luQ2xpQXV0aBIoLnBvbHRlcndhcmUubG9jYWwudjEuQmVnaW5DbGlBdXRoUmVxdWVzdBopLnBvbHRlcndhcmUubG9jYWwudjEuQmVnaW5DbGlBdXRoUmVzcG9uc2VC7AEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQhBJbnRlZ3JhdGlvblByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
 
 /**
  * @generated from message polterware.local.v1.CliProvider
@@ -431,6 +431,116 @@ export const SaveIntegrationSyncRunResponseSchema: GenMessage<SaveIntegrationSyn
   messageDesc(file_polterware_local_v1_integration, 15);
 
 /**
+ * @generated from message polterware.local.v1.ProbeCliProviderRequest
+ */
+export type ProbeCliProviderRequest = Message<"polterware.local.v1.ProbeCliProviderRequest"> & {
+  /**
+   * @generated from field: string provider_id = 1;
+   */
+  providerId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ProbeCliProviderRequest.
+ * Use `create(ProbeCliProviderRequestSchema)` to create a new message.
+ */
+export const ProbeCliProviderRequestSchema: GenMessage<ProbeCliProviderRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_integration, 16);
+
+/**
+ * @generated from message polterware.local.v1.ProbeCliProviderResponse
+ */
+export type ProbeCliProviderResponse = Message<"polterware.local.v1.ProbeCliProviderResponse"> & {
+  /**
+   * @generated from field: string provider_id = 1;
+   */
+  providerId: string;
+
+  /**
+   * @generated from field: bool available = 2;
+   */
+  available: boolean;
+
+  /**
+   * @generated from field: string binary_path = 3;
+   */
+  binaryPath: string;
+
+  /**
+   * cli-unavailable | ready | connected | failed
+   *
+   * @generated from field: string status = 4;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string account_label = 5;
+   */
+  accountLabel: string;
+
+  /**
+   * @generated from field: string message = 6;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ProbeCliProviderResponse.
+ * Use `create(ProbeCliProviderResponseSchema)` to create a new message.
+ */
+export const ProbeCliProviderResponseSchema: GenMessage<ProbeCliProviderResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_integration, 17);
+
+/**
+ * @generated from message polterware.local.v1.BeginCliAuthRequest
+ */
+export type BeginCliAuthRequest = Message<"polterware.local.v1.BeginCliAuthRequest"> & {
+  /**
+   * @generated from field: string provider_id = 1;
+   */
+  providerId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.BeginCliAuthRequest.
+ * Use `create(BeginCliAuthRequestSchema)` to create a new message.
+ */
+export const BeginCliAuthRequestSchema: GenMessage<BeginCliAuthRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_integration, 18);
+
+/**
+ * @generated from message polterware.local.v1.BeginCliAuthResponse
+ */
+export type BeginCliAuthResponse = Message<"polterware.local.v1.BeginCliAuthResponse"> & {
+  /**
+   * @generated from field: string provider_id = 1;
+   */
+  providerId: string;
+
+  /**
+   * @generated from field: string auth_command = 2;
+   */
+  authCommand: string;
+
+  /**
+   * @generated from field: string docs_url = 3;
+   */
+  docsUrl: string;
+
+  /**
+   * @generated from field: string message = 4;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.BeginCliAuthResponse.
+ * Use `create(BeginCliAuthResponseSchema)` to create a new message.
+ */
+export const BeginCliAuthResponseSchema: GenMessage<BeginCliAuthResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_integration, 19);
+
+/**
  * @generated from service polterware.local.v1.IntegrationService
  */
 export const IntegrationService: GenService<{
@@ -481,6 +591,22 @@ export const IntegrationService: GenService<{
     methodKind: "unary";
     input: typeof SaveIntegrationSyncRunRequestSchema;
     output: typeof SaveIntegrationSyncRunResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.IntegrationService.ProbeCliProvider
+   */
+  probeCliProvider: {
+    methodKind: "unary";
+    input: typeof ProbeCliProviderRequestSchema;
+    output: typeof ProbeCliProviderResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.IntegrationService.BeginCliAuth
+   */
+  beginCliAuth: {
+    methodKind: "unary";
+    input: typeof BeginCliAuthRequestSchema;
+    output: typeof BeginCliAuthResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_polterware_local_v1_integration, 0);

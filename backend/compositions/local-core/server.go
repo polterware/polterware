@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -24,14 +25,20 @@ import (
 	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
 	"github.com/polterware/polterware/backend/platform/gen/polterware/local/v1/localv1connect"
 	"github.com/polterware/polterware/backend/platform/observability"
+	processpkg "github.com/polterware/polterware/backend/providers/process"
 	"github.com/polterware/polterware/backend/providers/seed"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
+	terminalpkg "github.com/polterware/polterware/backend/providers/terminal"
 )
 
 type Core struct {
-	Store   *storepkg.Store
-	Token   string
-	Started time.Time
+	Store         *storepkg.Store
+	Token         string
+	Started       time.Time
+	Runner        *processpkg.Manager
+	runnerOnce    sync.Once
+	Terminals     *terminalpkg.Manager
+	terminalOnce  sync.Once
 }
 
 func NewCore(store *storepkg.Store, token string) *Core {
@@ -90,6 +97,8 @@ func ServeConnect(listener net.Listener, core *Core) *http.Server {
 	register(path, handler)
 	path, handler = localv1connect.NewProcessServiceHandler(core, options...)
 	register(path, handler)
+	path, handler = localv1connect.NewTerminalServiceHandler(core, options...)
+	register(path, handler)
 	path, handler = localv1connect.NewLogServiceHandler(core, options...)
 	register(path, handler)
 	path, handler = localv1connect.NewMaintenanceServiceHandler(core, options...)
@@ -104,8 +113,8 @@ func (core *Core) Check(context.Context, *connect.Request[localv1.CheckRequest])
 	return connect.NewResponse(&localv1.CheckResponse{Status: "ok", Version: "0.1.0", UptimeSec: time.Since(core.Started).Seconds()}), nil
 }
 
-func (core *Core) ListProjects(context.Context, *connect.Request[localv1.ListProjectsRequest]) (*connect.Response[localv1.ListProjectsResponse], error) {
-	items, err := core.Store.ListProjects()
+func (core *Core) ListProjects(_ context.Context, request *connect.Request[localv1.ListProjectsRequest]) (*connect.Response[localv1.ListProjectsResponse], error) {
+	items, err := core.Store.ListProjects(request.Msg.GetIncludeArchived())
 	if err != nil {
 		return nil, internal(err)
 	}
@@ -141,6 +150,17 @@ func (core *Core) SaveProject(_ context.Context, request *connect.Request[localv
 	return connect.NewResponse(&localv1.SaveProjectResponse{Project: projectProto(project)}), nil
 }
 
+func (core *Core) ArchiveProject(_ context.Context, request *connect.Request[localv1.ArchiveProjectRequest]) (*connect.Response[localv1.ArchiveProjectResponse], error) {
+	if request.Msg.Id == "" {
+		return nil, invalid("project id is required")
+	}
+	project, err := core.Store.ArchiveProject(request.Msg.Id)
+	if err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&localv1.ArchiveProjectResponse{Project: projectProto(project)}), nil
+}
+
 func (core *Core) ListEnvironments(_ context.Context, request *connect.Request[localv1.ListEnvironmentsRequest]) (*connect.Response[localv1.ListEnvironmentsResponse], error) {
 	items, err := core.Store.ListEnvironments(request.Msg.ProjectId)
 	if err != nil {
@@ -169,6 +189,16 @@ func (core *Core) SaveEnvironment(_ context.Context, request *connect.Request[lo
 		return nil, internal(err)
 	}
 	return connect.NewResponse(&localv1.SaveEnvironmentResponse{Environment: environmentProto(environment)}), nil
+}
+
+func (core *Core) DeleteEnvironment(_ context.Context, request *connect.Request[localv1.DeleteEnvironmentRequest]) (*connect.Response[localv1.DeleteEnvironmentResponse], error) {
+	if request.Msg.Id == "" || request.Msg.ProjectId == "" {
+		return nil, invalid("environment id and project id are required")
+	}
+	if err := core.Store.DeleteEnvironment(request.Msg.Id, request.Msg.ProjectId); err != nil {
+		return nil, invalid(err.Error())
+	}
+	return connect.NewResponse(&localv1.DeleteEnvironmentResponse{}), nil
 }
 
 func (core *Core) GetLayout(_ context.Context, request *connect.Request[localv1.GetLayoutRequest]) (*connect.Response[localv1.GetLayoutResponse], error) {
@@ -258,11 +288,33 @@ func (core *Core) RequestOperation(_ context.Context, request *connect.Request[l
 	}
 	correlation := observability.NewCorrelationID()
 	now := time.Now().UTC()
-	operation := &operations.Operation{ID: "op-" + correlation[:12], CorrelationID: correlation, ProjectID: request.Msg.ProjectId, EnvironmentID: request.Msg.EnvironmentId, Type: request.Msg.Type, Status: operations.StatusQueued, IdempotencyKey: request.Msg.IdempotencyKey, Params: request.Msg.Params, RequestedAt: now, Title: request.Msg.Title, Target: request.Msg.Target, Command: request.Msg.Command, StepsJSON: "[]"}
+	params := request.Msg.Params
+	if params == nil {
+		params = map[string]string{}
+	}
+	if request.Msg.Cwd != "" {
+		params["cwd"] = request.Msg.Cwd
+	}
+	operation := &operations.Operation{
+		ID:             "op-" + correlation[:12],
+		CorrelationID:  correlation,
+		ProjectID:      request.Msg.ProjectId,
+		EnvironmentID:  request.Msg.EnvironmentId,
+		Type:           request.Msg.Type,
+		Status:         operations.StatusQueued,
+		IdempotencyKey: request.Msg.IdempotencyKey,
+		Params:         params,
+		RequestedAt:    now,
+		Title:          request.Msg.Title,
+		Target:         request.Msg.Target,
+		Command:        request.Msg.Command,
+		StepsJSON:      "[]",
+	}
 	if err := core.Store.SaveOperation(operation); err != nil {
 		return nil, internal(err)
 	}
 	_, _ = core.Store.AppendLog(operation.ID, "Operation queued for local execution.", false)
+	core.enqueueOperationExecution(operation.ID)
 	return connect.NewResponse(&localv1.RequestOperationResponse{Operation: operationProto(operation)}), nil
 }
 
@@ -292,10 +344,12 @@ func (core *Core) CancelOperation(_ context.Context, request *connect.Request[lo
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	if !item.IsTerminal() {
+		core.processManager().Cancel(item.ID)
 		_ = item.Transition(operations.StatusCancelled)
 		if err := core.Store.SaveOperation(item); err != nil {
 			return nil, internal(err)
 		}
+		_, _ = core.Store.AppendLog(item.ID, "Operation cancelled.", false)
 	}
 	return connect.NewResponse(&localv1.CancelOperationResponse{Operation: operationProto(item)}), nil
 }
@@ -332,13 +386,31 @@ func (core *Core) RunWorkflow(_ context.Context, request *connect.Request[localv
 	correlation := observability.NewCorrelationID()
 	operationIDs := make([]string, 0, len(workflow.Steps))
 	for index, step := range workflow.Steps {
-		operation := &operations.Operation{ID: fmt.Sprintf("op-%s-%d", correlation[:8], index+1), CorrelationID: correlation, ProjectID: workflow.ProjectID, EnvironmentID: request.Msg.EnvironmentId, Type: step.OperationType, Status: operations.StatusQueued, Params: step.Params, RequestedAt: time.Now().UTC()}
+		params := step.Params
+		if params == nil {
+			params = map[string]string{}
+		}
+		command := params["command"]
+		operation := &operations.Operation{
+			ID:            fmt.Sprintf("op-%s-%d", correlation[:8], index+1),
+			CorrelationID: correlation,
+			ProjectID:     workflow.ProjectID,
+			EnvironmentID: request.Msg.EnvironmentId,
+			Type:          step.OperationType,
+			Status:        operations.StatusQueued,
+			Params:        params,
+			RequestedAt:   time.Now().UTC(),
+			Title:         step.Name,
+			Command:       command,
+		}
 		if err := core.Store.SaveOperation(operation); err != nil {
 			return nil, internal(err)
 		}
+		_, _ = core.Store.AppendLog(operation.ID, "Workflow step queued for local execution.", false)
 		operationIDs = append(operationIDs, operation.ID)
+		core.enqueueOperationExecution(operation.ID)
 	}
-	return connect.NewResponse(&localv1.RunWorkflowResponse{RunId: "run-" + correlation[:12], Status: "queued", OperationIds: operationIDs}), nil
+	return connect.NewResponse(&localv1.RunWorkflowResponse{RunId: "run-" + correlation[:12], Status: "running", OperationIds: operationIDs}), nil
 }
 
 func (core *Core) ListCliProviders(context.Context, *connect.Request[localv1.ListCliProvidersRequest]) (*connect.Response[localv1.ListCliProvidersResponse], error) {
@@ -468,7 +540,23 @@ func (core *Core) GetStoreHealth(context.Context, *connect.Request[localv1.GetSt
 }
 
 func projectProto(item projects.Project) *localv1.Project {
-	return &localv1.Project{Id: item.ID, Name: item.Name, RootPath: item.RootPath, CreatedAt: item.CreatedAt.Format(time.RFC3339), UpdatedAt: item.UpdatedAt.Format(time.RFC3339)}
+	archivedAt := ""
+	if !item.ArchivedAt.IsZero() {
+		archivedAt = item.ArchivedAt.Format(time.RFC3339)
+	}
+	status := item.Status
+	if status == "" {
+		status = projects.StatusActive
+	}
+	return &localv1.Project{
+		Id:         item.ID,
+		Name:       item.Name,
+		RootPath:   item.RootPath,
+		CreatedAt:  item.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:  item.UpdatedAt.Format(time.RFC3339),
+		Status:     status,
+		ArchivedAt: archivedAt,
+	}
 }
 func environmentProto(item projects.Environment) *localv1.Environment {
 	return &localv1.Environment{Id: item.ID, ProjectId: item.ProjectID, Name: item.Name, Kind: item.Kind, Protection: item.Protection, IsDefault: item.IsDefault, Description: item.Description}

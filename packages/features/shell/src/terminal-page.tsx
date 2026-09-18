@@ -8,45 +8,62 @@ import {
   pushToast,
 } from "@polterware/frontend-design-system";
 import type { TerminalSessionMock } from "./workspace-mocks";
-import { TERMINAL_SESSION_MOCKS } from "./workspace-mocks";
 import type { TerminalTargetItem } from "./types";
 import { TERMINAL_TARGET_FIXTURES } from "./fixtures";
 import { TargetPicker } from "./target-picker";
-import { TerminalTranscript } from "./terminal-transcript";
+import { TerminalEmulator } from "./terminal-emulator";
 import {
   canOpenTerminalSessionOnTarget,
-  createMockTerminalSession,
-  findSessionForTarget,
   formatTerminalStartedAt,
-  removeTerminalSession,
   terminalSessionStatusLabel,
   terminalSessionStatusTone,
   unusableTerminalTargetFeedback,
 } from "./terminal-session-model";
 
+export type LiveTerminalSession = {
+  id: string;
+  name: string;
+  targetId: string;
+  nodeName: string;
+  shell: string;
+  status: "active" | "idle" | "closed";
+  startedAt: string;
+};
+
 export function TerminalPage(props: {
   sessionId?: string;
-  sessions?: TerminalSessionMock[];
+  projectId?: string;
   targets?: TerminalTargetItem[];
   onSelectSession?: (id: string) => void;
+  onCreateSession?: (input: {
+    projectId: string;
+    targetId: string;
+    cols: number;
+    rows: number;
+  }) => Promise<LiveTerminalSession>;
+  onWriteSession?: (id: string, data: string) => Promise<void>;
+  onResizeSession?: (id: string, cols: number, rows: number) => Promise<void>;
+  onCloseSession?: (id: string) => Promise<void>;
+  onReadSession?: (id: string, offset: number) => Promise<{
+    data: string;
+    nextOffset: number;
+    closed: boolean;
+  }>;
 }) {
-  const [sessions, setSessions] = createSignal(props.sessions ?? TERMINAL_SESSION_MOCKS);
+  const [sessions, setSessions] = createSignal<LiveTerminalSession[]>([]);
   const [targetPickerOpen, setTargetPickerOpen] = createSignal(false);
-  const [activeId, setActiveId] = createSignal(
-    props.sessionId ??
-      sessions().find((s) => s.status !== "closed")?.id ??
-      sessions()[0]?.id ??
-      "",
-  );
+  const [activeId, setActiveId] = createSignal(props.sessionId ?? "");
+  const [opening, setOpening] = createSignal(false);
   let addTargetButtonEl: HTMLButtonElement | undefined;
 
   const active = createMemo(() => sessions().find((s) => s.id === activeId()) ?? null);
   const targets = () => props.targets ?? TERMINAL_TARGET_FIXTURES;
   const hasTargets = createMemo(() => targets().length > 0);
   const openSessions = createMemo(() => sessions().filter((s) => s.status !== "closed"));
-  /** Targets not already bound to an open (non-closed) session. */
   const availableTargets = createMemo(() =>
-    targets().filter((target) => !findSessionForTarget(sessions(), target.id)),
+    targets().filter(
+      (target) => !sessions().some((session) => session.targetId === target.id && session.status !== "closed"),
+    ),
   );
 
   function selectSession(id: string) {
@@ -54,16 +71,23 @@ export function TerminalPage(props: {
     props.onSelectSession?.(id);
   }
 
-  function closeSession(id: string) {
-    const result = removeTerminalSession(sessions(), id);
-    setSessions(result.sessions);
-    if (activeId() === id) {
-      setActiveId(result.nextActiveId);
+  async function closeSession(id: string) {
+    try {
+      await props.onCloseSession?.(id);
+    } catch {
+      // Still remove from UI if close RPC fails.
     }
+    setSessions((list) => {
+      const next = list.filter((session) => session.id !== id);
+      if (activeId() === id) {
+        setActiveId(next[0]?.id ?? "");
+      }
+      return next;
+    });
   }
 
-  function openTargetSession(targetId: string) {
-    const existing = findSessionForTarget(sessions(), targetId);
+  async function openTargetSession(targetId: string) {
+    const existing = sessions().find((session) => session.targetId === targetId && session.status !== "closed");
     if (existing) {
       selectSession(existing.id);
       return;
@@ -80,10 +104,27 @@ export function TerminalPage(props: {
       return;
     }
 
-    const next = createMockTerminalSession({ target, dataSource: "mock" });
-    setSessions((list) => [...list, next]);
-    selectSession(next.id);
-    pushToast(`Opened mock session on ${target.name}.`, "success");
+    if (!props.onCreateSession || !props.projectId) {
+      pushToast("Local terminal is unavailable.", "danger");
+      return;
+    }
+
+    setOpening(true);
+    try {
+      const session = await props.onCreateSession({
+        projectId: props.projectId,
+        targetId: target.id,
+        cols: 120,
+        rows: 32,
+      });
+      setSessions((list) => [...list, session]);
+      selectSession(session.id);
+      pushToast(`Opened local session on ${target.name}.`, "success");
+    } catch (error: unknown) {
+      pushToast(error instanceof Error ? error.message : "Could not open terminal session.", "danger");
+    } finally {
+      setOpening(false);
+    }
   }
 
   return (
@@ -104,7 +145,9 @@ export function TerminalPage(props: {
               }))}
               value={activeId()}
               onChange={selectSession}
-              onClose={closeSession}
+              onClose={(id) => {
+                void closeSession(id);
+              }}
               class="pw-tabs--flush flex-nowrap overflow-x-auto"
               aria-label="Terminal sessions"
             />
@@ -121,7 +164,7 @@ export function TerminalPage(props: {
             aria-label="New terminal session"
             aria-expanded={targetPickerOpen()}
             title={hasTargets() ? "New session" : "No targets available"}
-            disabled={!hasTargets()}
+            disabled={!hasTargets() || opening()}
             onClick={() => {
               if (!hasTargets()) {
                 pushToast("No targets available in this project.", "danger");
@@ -136,7 +179,9 @@ export function TerminalPage(props: {
             open={targetPickerOpen()}
             onClose={() => setTargetPickerOpen(false)}
             targets={availableTargets()}
-            onSelect={openTargetSession}
+            onSelect={(targetId) => {
+              void openTargetSession(targetId);
+            }}
             onUnusableSelect={(target) => {
               pushToast(unusableTerminalTargetFeedback(target), "danger");
             }}
@@ -149,7 +194,7 @@ export function TerminalPage(props: {
         when={active()}
         fallback={
           <div class="flex flex-1 items-center justify-center p-8">
-            <div class="text-center max-w-sm">
+            <div class="max-w-sm text-center">
               <Show
                 when={hasTargets()}
                 fallback={
@@ -163,7 +208,7 @@ export function TerminalPage(props: {
               >
                 <p class="m-0 text-[14px] text-[var(--color-text-primary)]">No terminal sessions</p>
                 <p class="m-0 mt-1 text-[12px] text-[var(--color-text-muted)]">
-                  Open a new session from a usable target.
+                  Open a new interactive local session from a usable target.
                 </p>
                 <Show when={openSessions().length === 0 && sessions().length > 0}>
                   <p class="m-0 mt-2 text-[11px] text-[var(--color-text-disabled)]">
@@ -191,11 +236,27 @@ export function TerminalPage(props: {
                 Started {formatTerminalStartedAt(s().startedAt)}
               </span>
             </header>
-            <TerminalTranscript
-              lines={s().lines}
-              label={`Terminal: ${s().name}`}
-              class="flex-1"
-            />
+            <Show
+              when={props.onReadSession && props.onWriteSession}
+              fallback={
+                <p class="m-0 p-4 text-[12px] text-[var(--color-text-muted)]">
+                  Terminal bridge is not available.
+                </p>
+              }
+            >
+              <div class="min-h-0 flex-1">
+                <TerminalEmulator
+                  sessionId={s().id}
+                  onWrite={(data) => {
+                    void props.onWriteSession?.(s().id, data);
+                  }}
+                  onResize={(cols, rows) => {
+                    void props.onResizeSession?.(s().id, cols, rows);
+                  }}
+                  onRead={(offset) => props.onReadSession!(s().id, offset)}
+                />
+              </div>
+            </Show>
           </div>
         )}
       </Show>
@@ -204,7 +265,7 @@ export function TerminalPage(props: {
 }
 
 /** Session list rows for tests / alternate switcher compositions. */
-export function TerminalSessionMetaRow(props: { session: TerminalSessionMock }) {
+export function TerminalSessionMetaRow(props: { session: TerminalSessionMock | LiveTerminalSession }) {
   return (
     <div class="flex items-center gap-2 text-[12px]">
       <StatusChip

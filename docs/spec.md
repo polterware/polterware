@@ -1,15 +1,15 @@
 # Polterware — First Version Specification
 
 Status: Active  
-Scope: Local fixture-backed desktop preview and reduced future core
+Scope: Local SQLite-backed Desktop with Go core execution authority
 
 ## Objective
 
-Deliver a maintainable first version focused on understanding and rehearsing maintenance work for local software projects. The Desktop is complete as a visual product slice while runtime integration remains deliberately deferred.
+Deliver a maintainable first version focused on understanding and rehearsing maintenance work for local software projects. The Desktop reads and writes through `polterware-core` and may execute local operations, interactive terminals, and CLI-backed integration probes on the host machine.
 
 ## Deployment boundary
 
-Only the `local` deployment mode is active in this first version, and its behavior is fixture-backed. Self-hosted and Cloud functionality is not implemented today. The public deployment contract and capability boundary are defined in [deployment-model.md](architecture/deployment-model.md); repository ownership is defined in [repository-map.md](architecture/repository-map.md) and [ADR 0001](adr/0001-open-source-cloud-boundary.md); the single-Desktop distribution and optional Cloud connection are defined in [ADR 0002](adr/0002-single-desktop-and-cloud-connection.md).
+Only the `local` deployment mode is active in this first version. Self-hosted and Cloud functionality is not implemented today. The public deployment contract and capability boundary are defined in [deployment-model.md](architecture/deployment-model.md); repository ownership is defined in [repository-map.md](architecture/repository-map.md) and [ADR 0001](adr/0001-open-source-cloud-boundary.md); the single-Desktop distribution and optional Cloud connection are defined in [ADR 0002](adr/0002-single-desktop-and-cloud-connection.md).
 
 ## Information architecture
 
@@ -21,7 +21,7 @@ Architecture / Canvas is the initial route and the destination after entering or
 | Resources | Inventory, Nodes, Processes |
 | Knowledge | Docs, Runbooks |
 | Operations | Runs, Workflows, Schedules |
-| Terminal | Dynamic visual sessions |
+| Terminal | Local interactive sessions |
 | Integrations | Connected, Catalog |
 | Settings | General, Environments, Advanced |
 
@@ -29,41 +29,40 @@ The sidebar contains the six product surfaces. Settings is fixed in its footer. 
 
 ## Local project model
 
-The application supports several local projects. A project has an identifier, name, directory, and environments. Project creation asks only for name, directory, and environments. All project and environment changes live in renderer memory for the current session.
+The application supports several local projects. A project has an identifier, name, directory, environments, and an active/archived status. Project creation asks only for name, directory, and environments. Mutations persist in the local SQLite store through `polterware-core`.
 
-## Data honesty
+## Execution authority
 
-Every Desktop surface uses fixtures. No renderer path starts, discovers, supervises, or queries the Go core. Any action that resembles execution must say that it is a preview or fixture and must only update in-memory state.
+The Electron Main process starts `polterware-core`. The renderer reads and writes through `window.polterware` only. Go core owns local execution:
 
-Terminal sessions are visual. They do not create a PTY, shell, SSH session, or child process. Output is synthetic and must not contain real secrets.
+- Terminal sessions create a local PTY/shell child process and stream live output. They must not contain real secrets in persisted transcripts.
+- Operations and workflow steps run locally via `os/exec`, transitioning queued runs through running to terminal states while appending logs.
+- Runbook Run creates local operations through the same runner.
 
-## Integration CLI preview
+## Integration CLI auth
 
-The single provider registry stores provider id, label, executable name, authentication commands, mock transcript, and visual state. The only allowed visual states are `cli-unavailable`, `ready`, `authenticating`, `connected`, and `failed`.
+The provider registry stores provider id, label, executable name, authentication commands, and connection status. Allowed states are `cli-unavailable`, `ready`, `authenticating`, `connected`, and `failed`.
 
-The catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Every catalog row opens the shared terminal-guided preview. Connected detail contains only Overview, Resources, CLI, and Sync.
+The catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Flows may detect the CLI binary, open a provider login browser or CLI hand-off, and probe connection status. Credentials remain in the OS/CLI credential store. No flow requests, displays, or persists provider tokens in the app or SQLite.
 
-No flow detects a binary, starts a command, opens a browser, contacts a provider, accepts credentials, or persists authentication material.
+Connected detail contains Overview, Resources, CLI, and Sync.
 
 ## Reduced core
 
-The repository retains one Go runtime, `polterware-core`, for later evolution. Its active domains are Projects, Architecture, Resources, Knowledge, Operations, Workflows, Integrations, Process, Logs, Health, and Maintenance.
+The repository retains one Go runtime, `polterware-core`. Its active domains are Projects, Architecture, Resources, Knowledge, Operations, Workflows, Integrations, Process, Terminal, Logs, Health, and Maintenance.
 
 Operations and workflow steps are direct local models. Core requests use one technical bearer session token without an account directory. The database is initialized from a clean SQLite baseline with no compatibility guarantee for earlier databases.
-
-The Desktop package excludes the core binary and has no generated TypeScript API client.
 
 ## Acceptance
 
 - The initial route is Architecture / Canvas.
 - The sidebar exposes exactly six surfaces plus footer Settings.
 - Knowledge exposes only Docs and Runbooks.
-- Operations exposes Runs, Workflows, and Schedules with direct local states.
+- Operations exposes Runs, Workflows, and Schedules with local execution states.
+- Terminal opens interactive local sessions through core-owned PTY.
 - The provider catalog contains exactly the nine specified providers.
-- Every provider opens the shared visual terminal login preview.
-- The Desktop code graph contains no core client or supervisor.
-- Active Protobuf and SQLite schemas contain only retained domains.
-- Product actions never claim real execution or authentication.
+- Provider connect may probe CLI availability and authentication status without storing tokens.
+- Product actions that execute locally report real status and logs.
 - Static validation passes: typecheck, design lint, Buf lint, Go vet, and `git diff --check`.
 
 Previous specifications and the broader platform direction are archived under `docs/future/` and are non-normative.
