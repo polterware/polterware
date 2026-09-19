@@ -20,7 +20,7 @@ Terminal opens interactive local PTY sessions on the Terminal page and in the qu
 
 Operations run locally through the core. Active schedules are evaluated by the core runner while the core is running; missed times while the core was offline are skipped.
 
-Known gaps: integration Sync does not yet import live provider inventory, and Processes remain largely a read-only listing.
+Integration Sync imports a bounded inventory through the local authenticated CLI (replace-on-success; failures leave prior resources). Processes support real Start/Stop on the local host only. Sync does not auto-create Architecture inventory rows, crawl full cloud graphs, or run on a background ticker.
 
 The only active deployment mode is **local**. The public architecture defines possible `self-hosted` and `cloud` modes, but neither is implemented today. See [the deployment model](docs/architecture/deployment-model.md) and [repository map](docs/architecture/repository-map.md).
 

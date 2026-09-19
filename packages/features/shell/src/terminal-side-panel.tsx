@@ -196,7 +196,7 @@ export function TerminalSidePanel(
         <Show when={!opening() && error()}>
           <p class="m-0 p-4 text-[12px] text-[var(--color-text-muted)]">{error()}</p>
         </Show>
-        <Show when={!opening() && !error() && session() && live()}>
+        <Show when={!opening() && !error() && live() ? session() : null}>
           {(current) => (
             <div
               class="relative min-h-0 flex-1"
