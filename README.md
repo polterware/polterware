@@ -1,6 +1,6 @@
 # Polterware
 
-Polterware is a local desktop workspace for understanding and maintaining software systems. The first version keeps system architecture, local resources, operational knowledge, visual operations, terminal sessions, CLI-oriented integrations, and project settings in one Electron application.
+Polterware is a local-first source of truth for understanding and maintaining software systems. The current Desktop keeps system architecture, local resources, operational knowledge, visual operations, terminal sessions, CLI-oriented integrations, and project settings in one Electron application.
 
 ## Current product
 
@@ -16,7 +16,7 @@ The Desktop opens at **Architecture / Canvas** and supports multiple local proje
 
 The Electron Main process starts `polterware-core`. The renderer reads and writes only through `window.polterware`. Project data persists in local SQLite (projects, environments, architecture layout, resources and nodes, knowledge, operations, workflows, schedules, and integration connections).
 
-Terminal opens interactive local PTY sessions on the Terminal page and in the quick drawer; Expand hands the live session off to the full page. Integrations detect CLI binaries, run provider login in an in-app PTY from the setup wizard, and probe connection status. Credentials stay in the OS/CLI credential store; the app does not request, display, or persist provider tokens in SQLite.
+Terminal opens interactive local PTY sessions on the Terminal page and in the quick drawer; Expand hands the live session off to the full page. Integrations detect CLI binaries, run provider login in an in-app PTY from the setup wizard, and probe connection status. Credentials stay in the OS/CLI credential store; the app has no provider-token field and does not persist provider credentials in SQLite. Raw terminal output is not a sanitized credential view.
 
 Operations run locally through the core. Active schedules are evaluated by the core runner while the core is running; missed times while the core was offline are skipped.
 
@@ -33,9 +33,10 @@ Polterware Cloud is a managed service built on a separate private control plane.
 Polterware ships one Desktop product rather than separate Tiny and Pro
 editions. The local Community experience works without an account; optional
 sign-in connects the same Desktop to server-authorized Cloud capabilities.
-Polterware Web is an authenticated hosted surface, while pricing and free-tier
-policy remain independent commercial decisions. See
-[ADR 0002](docs/adr/0002-single-desktop-and-cloud-connection.md).
+The public Polterware Website and future authenticated Polterware Web App live
+in the separate `polterware-web` repository. Pricing and free-tier policy remain
+independent commercial decisions. See [ADR 0002](docs/adr/0002-single-desktop-and-cloud-connection.md)
+and [ADR 0003](docs/adr/0003-web-repository-boundary.md).
 
 ## Repository
 
@@ -43,11 +44,12 @@ policy remain independent commercial decisions. See
 - `packages/features` — retained product surfaces
 - `packages/frontend` — shared design system, canvas, and state
 - `backend` — local Go runtime (`polterware-core`)
-- `schemas` — Protobuf contracts and generated Go code
+- `schemas` — Protobuf contracts and generated Go/TypeScript messages
 - `docs/spec.md` — normative product scope
+- `docs/product-vision.md` — normative product direction
 - `docs/architecture` — deployment and repository boundaries
 - `docs/adr` — architecture decisions
-- `docs/future` — archived platform vision and previous specifications
+- `docs/future` — superseded and historical specifications
 
 ## Development
 

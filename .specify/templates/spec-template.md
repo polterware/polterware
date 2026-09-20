@@ -102,15 +102,19 @@
 
 Use Polterware domain language when applicable:
 
-- **Organization / Workspace**: Collaboration and grouping boundaries.
-- **System**: Domain root being modeled (desktop UI may say Project as alias).
-- **Environment**: Named context such as local, preview, staging, production.
-- **Target**: Where operations run (machine, Compose, K8s scope, provider resource, optional Node).
-- **Resource**: Application or infrastructure node (Card = visual only).
-- **Relationship**: Declared/linked/configured/observed/managed/drifted edge.
-- **Evidence**: Proof or challenge of the model.
-- **Operation / Approval / Audit Event**: Safe mutation path artifacts.
-- **Workbench panel**: Dockable operator surface (map, inspector, terminal, …).
+- **Project**: Local directory and product boundary being modeled.
+- **Environment**: Named project context such as local, staging, or production.
+- **Architecture component / relationship / view**: Objects shown through the
+  architecture surfaces and persisted by the local core.
+- **Resource / Node / Process**: Local or integration-observed inventory and
+  execution targets within the current contract.
+- **Knowledge document / Runbook**: Project documentation persisted by the core.
+- **Operation / Workflow / Schedule / Run**: Core-owned local execution records.
+- **Integration connection / resource / sync run**: Bounded CLI-backed provider
+  state; never assume complete cloud discovery.
+- **Terminal session**: Core-owned PTY session exposed through typed IPC.
+- **PPM entity / relation / evidence / provenance**: Product-direction terms only
+  when an accepted feature specification explicitly introduces them.
 
 Replace placeholders with feature-specific entities:
 
@@ -119,27 +123,29 @@ Replace placeholders with feature-specific entities:
 
 ### Constitution Constraints *(mandatory)*
 
-Map the feature to `.specify/memory/constitution.md` (v2.x). Analysis MUST block
-implementation on critical unresolved conflicts.
+Map the feature to `.specify/memory/constitution.md` (v4.0). Analysis MUST
+block implementation on unresolved product-boundary, runtime, security,
+contract, or UI-system conflicts.
 
-- **Operational architecture goal (I)**: [which of: understand / discover-organize / safe execution / collaboration / audit / external tools]
-- **Runtime owner (III)**: [Main / Preload / Renderer / Web / polter-core / polter-server / polter-node / CLI / MCP]
-- **Domain vs adapter (II, IV)**: [which domain/ports; which providers/platform adapters; no domain→concrete imports]
-- **Contracts (V)**: [shared contracts/events/commands/streams touched; versioning if breaking]
-- **Product loop impact**: [System Map / Inspector / Evidence / Operations / Approvals / Audit / Knowledge / other]
-- **Evidence expectations**: [what proves linked/observed/verified/drifted state, if any]
-- **Mutation safety (VII)**: [read-only | plan-only | full plan→review→approve→apply→logs→audit]
-- **Operation audit fields**: [actor, target, scope, environment, policy, approval, correlation/operation ID]
-- **Security boundary (VI)**: [unprivileged surfaces; authz scope; secrets as references; MCP cannot bypass]
-- **Local vs cloud authority (VIII)**: [local | cloud | synchronized; offline behavior; conflict handling]
-- **Performance (IX)**: [no Main/UI blocking; queues/backpressure/timeouts/virtualization as applicable]
-- **Resilience (X)**: [timeouts, retries, idempotency, offline, recovery]
-- **Observability (XI)**: [correlation identifiers required]
-- **Test plan (XII)**: [unit / contract / integration / e2e / security / performance proportional to risk]
-- **Structure created now (XIII)**: [exact packages only if real API + consumer; none if extending existing]
-- **Single source of truth (XIV)**: [no permanent dual implementation; migration dual-path exit criteria if any]
-- **Big-bang / refactor context (XV)**: [n/a | part of authorized architecture refactor branch]
-- **Non-goals (I, XIII)**: [explicit cuts — no specialized-platform clone, no scenic scaffolds]
+- **Current scope vs direction (I)**: [implemented behavior in `docs/spec.md` |
+  product direction requiring a later scope change]
+- **Honest behavior (II)**: [live / queued / failed / preview / seeded / bounded /
+  unavailable states and claims]
+- **Runtime owner (III)**: [Electron Main / Preload / Renderer /
+  `polterware-core`; future runtime only when explicitly specified]
+- **Local project impact (IV)**: [project/environment/default-route effects]
+- **Integration boundary (V)**: [approved provider and bounded CLI behavior, or n/a]
+- **Contracts and storage (VI)**: [Protobuf, TypeScript messages, SQLite migration,
+  process authentication, compatibility]
+- **UI system (VII)**: [shared design-system, shell, table, overlay, and
+  DetailPanel primitives used]
+- **Security boundary (VIII)**: [typed IPC, validation, secret handling, and raw
+  terminal/output limitations]
+- **Structure created now (IX)**: [exact packages or modules with concrete
+  consumer; no speculative PPM, Web App, Cloud, or MCP scaffolding]
+- **Verification (X)**: [static gates and risk-proportional tests; distinguish
+  planned coverage from commands authorized in the current task]
+- **Non-goals**: [explicitly excluded adjacent features and future-direction work]
 
 ## Success Criteria *(mandatory)*
 

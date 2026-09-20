@@ -3,9 +3,15 @@
 Status: Active  
 Scope: Local SQLite-backed Desktop with Go core execution authority
 
+## Current scope versus product direction
+
+This document is the source of truth for behavior implemented in the current product. [`product-vision.md`](product-vision.md) defines the intended Polterware Project Model, agent context, structured spec-driven development, Understanding Gates, Web App, and Cloud direction. Those capabilities are not part of this specification unless they are explicitly added here by a later accepted change.
+
+Historical specifications under `docs/future/` describe earlier states or superseded plans and are not evidence of current behavior.
+
 ## Objective
 
-Deliver a maintainable first version focused on understanding and rehearsing maintenance work for local software projects. The Desktop reads and writes through `polterware-core` and may execute local operations, interactive terminals, and CLI-backed integration probes on the host machine.
+Deliver a maintainable first version focused on understanding, documenting, and performing bounded maintenance work for local software projects. The Desktop reads and writes through `polterware-core` and may execute local operations, interactive terminals, and CLI-backed integration probes on the host machine.
 
 ## Deployment boundary
 
@@ -43,7 +49,7 @@ The Electron Main process starts `polterware-core`. The renderer reads and write
 
 The provider registry stores provider id, label, executable name, authentication commands, and connection status. Allowed states are `cli-unavailable`, `ready`, `authenticating`, `connected`, and `failed`.
 
-The catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Flows may detect the CLI binary, open a provider login browser or CLI hand-off, and probe connection status. Credentials remain in the OS/CLI credential store. No flow requests, displays, or persists provider tokens in the app or SQLite.
+The catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Flows may detect the CLI binary, start a fixed provider authentication command in the core-owned PTY, optionally open the provider documentation URL through Electron Main, and probe connection status. Credentials remain in the OS/CLI credential store. No app-owned field requests or persists provider tokens in SQLite. Raw CLI output is shown as terminal output and is not guaranteed to be sanitized.
 
 Connected detail contains Overview, Resources, CLI, and Sync.
 
@@ -65,4 +71,4 @@ Operations and workflow steps are direct local models. Core requests use one tec
 - Product actions that execute locally report real status and logs.
 - Static validation passes: typecheck, design lint, Buf lint, Go vet, and `git diff --check`.
 
-Previous specifications and the broader platform direction are archived under `docs/future/` and are non-normative.
+Previous specifications are archived under `docs/future/` and are non-normative. Product direction is defined separately by `docs/product-vision.md`.

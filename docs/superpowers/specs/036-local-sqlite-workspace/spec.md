@@ -1,5 +1,11 @@
 # Local SQLite workspace
 
+Status: Superseded intermediate specification
+
+Current product spec: [`../../../spec.md`](../../../spec.md)
+
+> The out-of-scope list below records this migration's original boundary. Later accepted work added local execution, PTYs, CLI detection, and live log behavior.
+
 The Desktop reads and writes project data through the local Go core. Visual fixtures are no longer the production source of truth.
 
 ## Goal

@@ -1,6 +1,6 @@
 # ADR 0002: Single Desktop and optional Cloud connection
 
-- Status: Accepted
+- Status: Accepted; amended by [ADR 0003](0003-web-repository-boundary.md)
 - Date: 2026-08-15
 
 ## Context
@@ -25,12 +25,12 @@ the hosted control plane or making the complete Cloud platform self-hostable.
    Desktop only after authentication.
 5. Unavailable capabilities are hidden from routes, navigation, Commander, and
    commands instead of being represented by dead pages.
-6. Polterware Web is an authenticated hosted product surface. Whether it has a
-   free tier, trial, or paid-only access is commercial policy rather than an
-   architecture boundary.
+6. The future Polterware Web App is an authenticated hosted product surface.
+   Whether it has a free tier, trial, or paid-only access is commercial policy
+   rather than an architecture boundary.
 7. Administrative workflows for organizations, teams, access, usage, plans,
-   and billing belong primarily to the Web surface. The Desktop may display
-   relevant context and deep-link to Web management.
+   and billing belong primarily to the Web App. The Desktop may display
+   relevant context and deep-link to Web App management.
 8. Hosted frontend source may be public. Identity, authorization, tenants,
    entitlements, billing, metering, provisioning, production infrastructure,
    and hosted data operations remain in the private Cloud backend.
@@ -52,11 +52,12 @@ commercial and security boundary in the private control plane.
 
 Billing is not treated as a Desktop feature gate. Plans determine hosted
 entitlements on the server, and account administration can evolve on the Web
-without fragmenting the Desktop distribution.
+App without fragmenting the Desktop distribution.
 
 ## Current scope
 
 This ADR defines the intended product and deployment boundary. The active first
-version remains local and fixture-backed; authentication, Cloud connection,
-self-hosting, synchronization, managed backups, organizations, teams, and
-billing are not claimed as implemented.
+version remains local and SQLite-backed through `polterware-core`; authentication,
+Cloud connection, self-hosting, managed backups, organizations, teams, and
+billing are not claimed as implemented. Local bounded integration sync is not
+the Cloud synchronization capability described by this ADR.

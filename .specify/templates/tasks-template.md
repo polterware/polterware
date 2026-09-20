@@ -9,7 +9,7 @@ description: "Task list template for feature implementation"
 
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-**Tests**: Include tests proportional to risk per Constitution XII (unit for
+**Tests**: Include tests proportional to risk per Constitution X (unit for
 domain rules, contract for APIs/messages, integration at critical boundaries,
 e2e for critical flows, security for sensitive ops, performance when streams/
 logs/canvas/large collections change). Do not mark a task complete while
@@ -18,8 +18,9 @@ changed surface. Mocks MUST NOT replace all critical-boundary integration tests.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
-**Constitution**: Tasks MUST respect dependency direction (IV), contracts-first
-(V), security (VI), single source of truth (XIV), and real-code-only (XIII).
+**Constitution**: Tasks MUST preserve current-scope honesty (I–II), runtime
+separation (III), contracts/storage (VI), shared UI (VII), security (VIII),
+maintainability (IX), and verification gates (X).
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -29,20 +30,20 @@ changed surface. Mocks MUST NOT replace all critical-boundary integration tests.
 
 ## Path Conventions
 
-Prefer paths from `plan.md` and Constitution IV dependency direction:
+Prefer active paths from `plan.md` and Constitution III/VI/VII boundaries:
 
-- **Desktop UI**: `apps/desktop/src/renderer/features/<feature>/` (retain terminal/dock/process assets)
-- **Desktop coordination**: `apps/desktop/src/main/`, `preload/`, `shared/` (thin; no domain engine in Main)
-- **Domains / ports / compositions**: packages or crates as defined by target architecture
-- **Contracts**: shared protocol/types packages — no hand-duplicated runtime types
-- **Providers / platform**: adapters implementing domain ports only
-- **Shared browser-safe UI**: `packages/ui`, `feature-*` only with real consumers
-- **Runtimes**: polter-core, polter-server, polter-node, CLI, MCP only when in scope
+- **Desktop UI**: `packages/features/<feature>/` composed by `apps/desktop/src/renderer/`
+- **Desktop coordination**: `apps/desktop/src/main/`, `preload/`, and `shared/`
+- **Core domains/composition**: `backend/domains/` and `backend/compositions/`
+- **Contracts**: `schemas/` and generated `packages/contracts/` messages
+- **Providers/platform**: `backend/providers/` and `backend/platform/`
+- **Shared frontend**: `packages/frontend/` with real consumers
+- **Runtime**: `backend/runtimes/core/`; future runtimes only with an accepted spec
 - **Tests**: unit (domain) | contract | integration | e2e | security | performance by risk
 
 Create folders only when responsibility, public API, and concrete use exist
-(Constitution XIII). No scenic architecture. Prefer extracting shared UI over
-duplicating web/desktop. See `docs/ARCHITECTURE.md`.
+(Constitution IX). No speculative PPM, Web App, Cloud, or MCP scaffolding.
+Prefer shared design-system primitives over feature-owned interaction chrome.
 
 <!--
   ============================================================================
@@ -81,14 +82,14 @@ duplicating web/desktop. See `docs/ARCHITECTURE.md`.
 
 Examples of foundational tasks (adjust based on feature plan and constitution):
 
-- [ ] T004 Define/extend domain entities, invariants, and ports (no framework imports)
+- [ ] T004 Define or extend the current domain model in [exact path]
 - [ ] T005 [P] Add or update shared typed contracts for the feature surface
-- [ ] T006 [P] Place adapters in providers/platform; wire composition in the owning runtime
-- [ ] T007 Wire authn/authz and policy checks for org/system/environment/resource/operation
-- [ ] T008 Configure structured logging/audit with correlation IDs and secret redaction
-- [ ] T009 Ensure DESIGN.md tokens/layout and performance constraints (no Main/UI blocking)
-- [ ] T010 Create only packages this feature truly needs (API + consumer); no empty scaffolds
-- [ ] T011 Define risk-proportional test surfaces (unit/contract/integration/e2e/security)
+- [ ] T006 [P] Add the required provider or persistence adapter in [exact path]
+- [ ] T007 Wire the owning core service and typed Electron bridge in [exact path]
+- [ ] T008 Preserve current secret/output limitations without claiming redaction that does not exist
+- [ ] T009 Use DESIGN.md tokens and shared product primitives in [exact UI path]
+- [ ] T010 Create only packages this feature truly needs, with a concrete consumer
+- [ ] T011 Define risk-proportional test and static-validation commands
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -100,7 +101,7 @@ Examples of foundational tasks (adjust based on feature plan and constitution):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 1 (risk-proportional — Constitution XII) ⚠️
+### Tests for User Story 1 (risk-proportional — Constitution X) ⚠️
 
 > **NOTE: Write domain/contract tests FIRST where rules are new; ensure they FAIL before implementation**
 
@@ -110,12 +111,12 @@ Examples of foundational tasks (adjust based on feature plan and constitution):
 
 ### Implementation for User Story 1
 
-- [ ] T015 [P] [US1] Create domain entities/use cases in [domain path]
-- [ ] T016 [P] [US1] Define/extend ports in [ports path]
-- [ ] T017 [US1] Implement adapters/providers in [provider path] (depends on ports)
-- [ ] T018 [US1] Compose runtime surface (UI/CLI/MCP/core) without duplicating domain rules
+- [ ] T015 [P] [US1] Create or extend domain behavior in [domain path]
+- [ ] T016 [P] [US1] Define or extend contracts in [schema/contract path]
+- [ ] T017 [US1] Implement adapters or providers in [provider path]
+- [ ] T018 [US1] Compose the core, bridge, and UI surface without duplicate authority
 - [ ] T019 [US1] Add boundary validation, structured errors, and correlation IDs
-- [ ] T020 [US1] Add audit/policy hooks if operation is executable
+- [ ] T020 [US1] Document live, failed, partial, and unavailable behavior honestly
 
 **Checkpoint**: User Story 1 functional, independently testable, constitution gates held
 
@@ -127,14 +128,14 @@ Examples of foundational tasks (adjust based on feature plan and constitution):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 2 (risk-proportional — Constitution XII) ⚠️
+### Tests for User Story 2 (risk-proportional — Constitution X) ⚠️
 
 - [ ] T021 [P] [US2] Unit/contract tests for [rules or messages]
 - [ ] T022 [P] [US2] Integration test for [critical boundary]
 
 ### Implementation for User Story 2
 
-- [ ] T023 [P] [US2] Domain/ports changes in [path]
+- [ ] T023 [P] [US2] Domain/contract changes in [path]
 - [ ] T024 [US2] Adapter + runtime composition in [path]
 - [ ] T025 [US2] Integrate with User Story 1 without dual implementations
 
@@ -148,14 +149,14 @@ Examples of foundational tasks (adjust based on feature plan and constitution):
 
 **Independent Test**: [How to verify this story works on its own]
 
-### Tests for User Story 3 (risk-proportional — Constitution XII) ⚠️
+### Tests for User Story 3 (risk-proportional — Constitution X) ⚠️
 
 - [ ] T026 [P] [US3] Unit/contract tests for [rules or messages]
 - [ ] T027 [P] [US3] Integration or e2e test for [critical flow]
 
 ### Implementation for User Story 3
 
-- [ ] T028 [P] [US3] Domain/ports changes in [path]
+- [ ] T028 [P] [US3] Domain/contract changes in [path]
 - [ ] T029 [US3] Adapter + runtime composition in [path]
 
 **Checkpoint**: All user stories independently functional
@@ -171,11 +172,11 @@ Examples of foundational tasks (adjust based on feature plan and constitution):
 **Purpose**: Improvements that affect multiple user stories
 
 - [ ] TXXX [P] Documentation updates (contracts, boundaries, decisions)
-- [ ] TXXX Remove temporary dual paths / legacy dead code (XIV, XV)
-- [ ] TXXX Performance: bounds, backpressure, virtualization as needed (IX)
-- [ ] TXXX [P] Fill remaining risk-proportional tests (XII)
-- [ ] TXXX Security review of sensitive operations (VI, VII)
-- [ ] TXXX Convergence check: code ↔ spec ↔ plan ↔ tasks (Governance §6)
+- [ ] TXXX Remove temporary dual paths and unrelated dead code (IX)
+- [ ] TXXX Performance: bounds, backpressure, virtualization as specified
+- [ ] TXXX [P] Fill remaining risk-proportional tests (X)
+- [ ] TXXX Security review of typed boundaries and sensitive output (VIII)
+- [ ] TXXX Convergence check: code ↔ current spec ↔ product vision ↔ plan ↔ tasks
 - [ ] TXXX Run quickstart.md validation
 
 ---
@@ -200,7 +201,7 @@ Examples of foundational tasks (adjust based on feature plan and constitution):
 ### Within Each User Story
 
 - Risk-proportional tests MUST be written and FAIL before domain/contract implementation
-- Domain entities and ports before adapters
+- Domain behavior and contracts before adapters
 - Adapters before runtime composition
 - Core implementation before cross-story integration
 - Story complete only when constitution gates and required checks hold
@@ -225,7 +226,7 @@ Task: "Contract test for [API/message] in [contract test path]"
 
 # Launch domain work together:
 Task: "Create domain entities/use cases in [domain path]"
-Task: "Define/extend ports in [ports path]"
+Task: "Define/extend contracts in [schema/contract path]"
 ```
 
 ---

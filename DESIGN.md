@@ -73,8 +73,8 @@ Use only these radius roles:
 
 Use `control-field`, `.surface-panel`, `.surface-panel-float`, `.menu-panel`, and `Card` for shared edge-light chrome. Do not hand-roll border, background, and radius recipes.
 
-## Fixture honesty
+## Execution honesty
 
-Every screen must visibly communicate fixture or preview behavior where execution could be inferred. Terminal and integration CLI transcripts use the same terminal visual primitive. Their controls may move through visual states but never claim a real command, login, connection, or synchronization.
+Every screen must communicate whether an action is live, queued, completed, failed, unavailable, preview-only, or based on seeded demonstration data. Terminal and integration CLI sessions use the same terminal visual primitive but report their actual core-owned state. A bounded inventory sync must not imply a complete provider graph, and no local action may imply a remote deployment or Cloud operation.
 
 Run `pnpm design:lint` after UI changes. `tooling/check-ui-opacity.mjs` is the enforcement source; update this document and the Constitution before broadening its allowlist.

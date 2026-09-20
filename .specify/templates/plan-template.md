@@ -39,64 +39,42 @@
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
-*Critical conflicts MUST block implementation (Governance §5).*
 
-Validate against `.specify/memory/constitution.md` (Polterware Constitution v2.x):
+Validate against `.specify/memory/constitution.md` (Polterware Constitution v4.0):
 
-- **I. Operational Architecture Product**: Strengthens architecture understanding,
-  resource organization, safe execution, collaboration, auditability, or external
-  tool connection. Not a static diagram-only feature or incomplete clone of a
-  specialized platform. Domain root is System; machines are Targets.
-- **II. Domain Before Framework**: Business rules/invariants live outside Electron,
-  UI frameworks, DBs, provider SDKs, and transports. Domains define ports;
-  adapters implement them. No domain → concrete provider/UI/runtime imports.
-- **III. Strict Runtime Separation**: Owning runtime is explicit (Main / Preload /
-  Renderer / Web / polter-core / polter-server / polter-node / CLI / MCP). No
-  permanent duplication of business rules. Unimplemented runtimes not claimed live.
-  MCP cannot bypass human policies.
-- **IV. Modular Monorepo And Directed Dependencies**: Dependency direction apps →
-  features → shared frontend → contracts; backend runtimes → compositions →
-  domains → ports; providers implement ports. No cycles; no deep internal imports.
-- **V. Contracts-First**: Cross-runtime APIs/events/commands/streams use shared
-  versioned contracts. No hand-maintained duplicate types. Breaking changes have
-  migration strategy.
-- **VI. Security By Default**: Least privilege, boundary validation, authz scope,
-  secrets as references, no unrestricted renderer Node/OS, no silent policy bypass.
-- **VII. Safe And Auditable Execution**: Mutations declare plan → review → approve →
-  apply → logs → audit. Operations carry actor, target, scope, policy, approval,
-  state, timestamps, result/error, correlation/operation ID. No silent destructive
-  ops; retries are idempotent-safe.
-- **VIII. Local-First And Cloud-Capable**: Desktop remains useful offline/local.
-  Cloud adds collaboration without mandatory network for pure local capability.
-  Data authority (local/cloud/synced) is explicit; sync conflicts not silent.
-- **IX. Performance As Architecture**: No heavy work on Electron Main or UI thread.
-  Bounded queues, async IPC, backpressure, timeouts, cancellation, pagination/
-  virtualization when lists/streams apply.
-- **X. Resilience And Consistency**: Integrations define timeouts, retries, error
-  classes, offline/recovery, limits. Primary state and related events stay
-  consistent (outbox or equivalent when needed).
-- **XI. Internal Observability**: Structured logs/metrics/traces correlate actor,
-  org, system, environment, resource, operation, approval, trace. Not a product
-  replacement for external APM platforms.
-- **XII. Testability And Quality**: Domain rules testable without Electron/HTTP/
-  real providers. Risk-proportional tests planned. Task not complete if required
-  checks fail. Mocks do not replace all critical-boundary integration tests.
-- **XIII. Real Code, No Scenic Architecture**: Only packages with real API +
-  consumers. No empty scaffolds or speculative generic layers.
-- **XIV. Single Source Of Truth**: No permanent dual implementations. Temporary
-  dual paths only inside authorized migration branch and removed before done.
-- **XV. Decisive Architectural Refactors**: If this work is part of an authorized
-  big-bang refactor, target architecture is complete — not scaffolding and not
-  permanent dual systems — with continuous validation and deliberate data/behavior
-  migration.
-- **XVI. Documentation And Decisions**: Public module responsibility is clear;
-  contracts/boundaries/threats/decisions stay current.
+- **I. Local first-version scope**: `docs/spec.md` defines implemented behavior;
+  `docs/product-vision.md` defines direction. Planned PPM, agent, Web App, and
+  Cloud capabilities are not presented as shipped.
+- **II. Honest product behavior**: Live, queued, failed, preview, seeded, bounded,
+  and unavailable states match what actually occurred. Local work never implies
+  a remote deployment or complete provider graph.
+- **III. Runtime separation**: Electron Main supervises `polterware-core`; the
+  renderer uses only `window.polterware`. Local persistence, PTY, process, and
+  operation authority remain in the Go core.
+- **IV. Local project model**: Projects are local directories with environments,
+  and Architecture / Canvas remains the default entry unless `docs/spec.md`
+  explicitly changes it.
+- **V. Supported integrations only**: The catalog remains the nine approved CLI
+  providers. No placeholders, provider-token fields, or claims of complete cloud
+  discovery.
+- **VI. Contracts and storage**: Domain contracts precede adapters. Protobuf is
+  the Go/TypeScript cross-runtime contract; SQLite uses the accepted clean
+  baseline and technical bearer process authentication.
+- **VII. One product UI system**: Use `DESIGN.md` and shared frontend primitives;
+  do not create parallel control chrome, entity inspectors, or interaction
+  infrastructure.
+- **VIII. Security by boundary**: The renderer stays unprivileged. Core access is
+  typed and validated. App-owned records do not deliberately persist provider
+  tokens; raw terminal output is treated as potentially sensitive.
+- **IX. Maintainability over breadth**: Add no surface, provider, package, runtime,
+  or PPM abstraction without an accepted specification and concrete consumer.
+- **X. Verification gates**: Preserve static correctness and plan
+  risk-proportional tests, respecting the current task's authorization to run
+  them.
 
-**Hard stops (cannot approve for convenience alone):** VI Security, IV dependency
-direction, XIV single source of truth.
-
-If any gate fails, redesign or record a justified violation in Complexity
-Tracking. Critical unresolved conflicts block implementation.
+If any gate fails, redesign or record a concrete justified violation in
+Complexity Tracking. Unresolved product-boundary, runtime, security, contract,
+or UI-system conflicts block implementation.
 
 ## Project Structure
 
@@ -120,28 +98,21 @@ specs/[###-feature]/
 -->
 
 ```text
-apps/                        # compose shared capabilities; no domain reimplementation
-├── desktop/                 # Main | Preload | Renderer (retain workbench features)
-├── web/                     # only when a real web consumer is in scope
-└── presentation/            # narrative only — not product runtime
-
-# Backend runtimes / binaries — create only with real responsibility + consumers
-polter-core / polter-server / polter-node / CLI / MCP
-
-packages/ or crates/         # directed deps: domains → ports; providers implement ports
-├── domains/ ports/ compositions/
-├── contracts/ protocol-types/   # contracts-first shared types
-├── providers/ platform/         # adapters only
-└── ui/ feature-*                # browser-safe shared frontend only
-
-tests: unit (domain) | contract | integration | e2e | security | performance
-       proportional to risk (Constitution XII)
+apps/desktop/                  # Electron Main, preload, shared IPC, Solid renderer
+packages/features/<feature>/   # Product surface and feature composition
+packages/frontend/             # Shared design system, canvas, platform, and state
+packages/contracts/            # Generated TypeScript messages
+backend/domains/               # Local domain models and invariants
+backend/providers/             # Local adapters such as SQLite, PTY, CLI, and process
+backend/compositions/          # Core service composition
+backend/runtimes/core/         # The active Go runtime
+schemas/                       # Protobuf source and generation configuration
 ```
 
 **Structure Decision**: [List only paths this feature will actually create or
-modify. See `docs/ARCHITECTURE.md` and Constitution IV/XIII. State runtime owner,
-domain vs adapter placement, contracts touched, and why any new package is
-required now — no scenic scaffolds.]
+modify. State the runtime owner, contract changes, shared UI primitives, and why
+any new package is required now. Do not add Web App, Cloud, MCP, or PPM modules
+unless the accepted feature specification explicitly puts them in scope.]
 
 ## Complexity Tracking
 

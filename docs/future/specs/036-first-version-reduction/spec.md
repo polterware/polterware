@@ -1,7 +1,10 @@
 # Feature Specification: First Version Reduction
 
-**Status**: Implemented in `feature/first-version`  
-**Normative product spec**: `docs/spec.md`
+**Status**: Superseded historical implementation stage
+
+**Current product spec**: [`../../../spec.md`](../../../spec.md)
+
+> This document intentionally preserves the fixture-only reduction stage. It is not evidence of current Desktop behavior.
 
 ## User stories
 

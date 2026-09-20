@@ -2,13 +2,13 @@
 
 ## Decision
 
-Hosted-only product interface may live in the public `polterware/polterware` monorepo. The production adapters, hosted control plane, commercial services, tenant operations, and production infrastructure remain private in `polterware/cloud`.
+Hosted composition that belongs inside the Desktop may live in `polterware/polterware`. Browser-specific hosted interface belongs in the future Polterware Web App inside `polterware/polterware-web`. Production adapters, the hosted control plane, commercial services, tenant operations, and production infrastructure remain private in `polterware/cloud`.
 
 The historical `refactor/new` branch is preserved only in `polterware/product-archive`. It must not be merged wholesale into the clean repository. UI is ported as independently specified feature units after its data contracts and states are approved.
 
 ## Candidate inventory
 
-| Historical source | Public destination | Gate |
+| Historical source | Product destination | Gate |
 | --- | --- | --- |
 | `create-organization.tsx`, `organizations-index.tsx`, `organization-home.tsx`, `organization-settings.tsx` | `packages/features/organizations` | `organizations` |
 | `account-page.tsx` | `packages/features/account` | Hosted authenticated composition; ported with the Organizations unit |
@@ -19,7 +19,7 @@ The historical `refactor/new` branch is preserved only in `polterware/product-ar
 | Future managed backup surfaces | Separately approved feature package | `managedBackups` |
 | Future synchronization surfaces | Separately approved feature package | `cloudSync` |
 
-Destination paths describe ownership, not implemented packages. Empty feature packages are not created before an approved feature specification.
+Desktop destination paths describe ownership, not implemented packages. A Web App implementation may instead define browser-specific destinations in `polterware-web`; empty packages are not created before an approved feature specification.
 
 ## What may be reused
 
@@ -51,4 +51,4 @@ Visibility is composition, not authorization. A Cloud request still validates au
 3. Billing and Usage.
 4. Managed backups and synchronization only after their own specifications.
 
-Each unit is reviewed and validated independently. The active first version remains local and fixture-backed; none of these hosted surfaces is active today.
+Each unit is reviewed and validated independently. The active first version remains local and SQLite-backed through `polterware-core`; none of these hosted surfaces is active today.

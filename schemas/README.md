@@ -8,9 +8,10 @@ The active Protobuf contracts describe the reduced local core:
 - Knowledge
 - Operations and Workflows
 - Integrations
+- Terminal
 - Logs, Health, and Maintenance
 
-Generation targets Go messages and Connect-Go handlers under `backend/platform/gen`. There is no generated TypeScript client in the fixture-only Desktop.
+Generation targets Go messages and Connect-Go handlers under `backend/platform/gen` and TypeScript messages under `packages/contracts/src/gen`. Electron Main owns the Connect clients; the renderer reaches them only through the typed preload bridge.
 
 ```bash
 cd schemas

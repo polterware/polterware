@@ -11,9 +11,11 @@ The Desktop must remain useful without an account:
   require sign-in and is not a time-limited Cloud trial.
 - **Polterware Cloud** is the managed service. An optional sign-in connects the
   same Desktop installation to hosted projects and capabilities.
-- **Polterware Web** is an authenticated Cloud surface for hosted projects and
-  administration. Its availability and pricing are separate decisions: a
-  future free tier or trial does not change its Cloud deployment model.
+- **Polterware Website** is the current public, unauthenticated landing surface.
+- **Polterware Web App** is a future authenticated Cloud surface for hosted
+  projects and administration. Its availability and pricing are separate
+  decisions: a future free tier or trial does not change its Cloud deployment
+  model.
 - **Polterware Self-hosted** exposes only the public capabilities that an
   installation actually implements. It does not imply parity with Polterware
   Cloud.
@@ -47,17 +49,22 @@ subscription or authorization.
 
 ## Modes
 
-The only active first-version mode is `local`, which uses local SQLite persistence and `polterware-core` for execution (not fixture-only).
+The only active first-version mode is `local`, backed by local SQLite persistence and `polterware-core` execution.
 
-`self-hosted` exposes only the capabilities implemented by that installation.
+When implemented, `self-hosted` will expose only the capabilities provided by
+that installation.
 
-`cloud` may expose Organizations, Teams, Access, Billing, Usage, managed backups, and synchronization. Every Cloud request must validate authentication, organization membership, permission, tenant, plan, entitlement, and billing state on the server.
+When implemented, `cloud` may expose Organizations, Teams, Access, Billing,
+Usage, managed backups, and synchronization. Every Cloud request must validate
+authentication, organization membership, permission, tenant, plan,
+entitlement, and billing state on the server.
 
 These modes define a public boundary; they do not claim that self-hosted or Cloud functionality exists today.
 
-## Desktop behavior
+## Future Desktop Cloud behavior
 
-The Desktop uses progressive Cloud connection instead of separate editions:
+The intended Desktop Cloud composition uses progressive connection instead of
+separate editions. It is not implemented in the current local version:
 
 1. It starts as a local product without requiring an account.
 2. It presents one quiet entry point to connect to Polterware Cloud.
@@ -75,20 +82,25 @@ navigation to an unavailable route resolves to a safe available route.
 The Desktop may expose Cloud project selection, synchronization, managed
 backup state, and collaboration context. Organization administration, team
 administration, access management, usage, plans, and billing primarily belong
-to Polterware Web. The Desktop may deep-link to the corresponding authenticated
-Web surface instead of duplicating its management workflows.
+to the Polterware Web App. The Desktop may deep-link to the corresponding
+authenticated surface instead of duplicating its management workflows.
 
 ## Web behavior
 
-Polterware Web is always backed by the hosted control plane and therefore
-requires authentication. It is not the browser packaging of the local Desktop
-and is not promised as a standalone self-hosted application.
+The Polterware Website is public and does not require the hosted control plane.
+It explains the product and its direction but does not expose hosted project
+operations.
 
-The Web frontend and hosted-only interface packages may remain in the public
-monorepo. Public interface code does not grant access to Polterware Cloud. The
-private backend remains authoritative for identity, tenants, membership,
-permissions, plans, entitlements, billing state, metering, provisioning, and
-managed infrastructure.
+The future Polterware Web App requires authentication and a compatible hosted
+control plane. It is not the browser packaging of the local Desktop and is not
+promised as a standalone self-hosted application. The Website and Web App live
+in `polterware/polterware-web` under the boundary defined by
+[ADR 0003](../adr/0003-web-repository-boundary.md).
+
+Frontend visibility never grants access to Polterware Cloud. The private
+backend remains authoritative for identity, tenants, membership, permissions,
+plans, entitlements, billing state, metering, provisioning, and managed
+infrastructure.
 
 ## Distribution rules
 

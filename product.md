@@ -2,13 +2,13 @@
 
 ## Product statement
 
-Polterware is a local visual workbench for a developer maintaining several software projects with limited time. It should make a system easier to understand, inspect, document, and rehearse without pretending that a remote operation occurred.
+Polterware is a local-first source of truth for software projects. The current Desktop helps developers understand, document, and operate local systems; the product direction extends that foundation into one structured project model for people and AI agents.
 
 ## First-version promise
 
-A project is a local directory with one or more environments. Opening a project leads directly to its architecture canvas. The operator can browse fixture-backed resources, keep docs and runbooks, inspect visual runs and workflows, use mock terminal sessions, and walk through supported provider CLI login flows.
+A project is a local directory with one or more environments. Opening a project leads directly to its architecture canvas. Project data persists in SQLite through `polterware-core`, including architecture, resources, knowledge, operations, workflows, schedules, and integration state.
 
-All changes in the Desktop are session-only. Every mutation-like interaction must be described as a preview, fixture, or demonstrative action. The UI must never imply that a command, sync, deployment, or authentication actually ran.
+The core owns local execution. Terminal sessions use a real local PTY, operations and workflow steps run through the local runner, supported provider setup may hand off to official CLI authentication, and integration sync may import a bounded provider inventory. Every action must report its actual scope and result without implying a remote deployment or complete cloud graph.
 
 ## Supported integration catalog
 
@@ -24,10 +24,10 @@ The catalog contains exactly nine providers whose official CLI login path can be
 8. Terraform — `terraform login`
 9. Docker — `docker login`
 
-No placeholder provider belongs in the catalog. Integration flows never request, display, or persist real credentials.
+No placeholder provider belongs in the catalog. Integration flows provide no app-owned provider-token field and do not persist provider credentials in SQLite. Credentials remain in provider CLI or operating-system credential stores; raw CLI output is ordinary terminal output and may contain sensitive material.
 
-## Deliberate exclusions
+## Current boundaries
 
-This version has no remote collaboration model, shared tenancy, hosted onboarding, identity directory, delegated automation, governance workflow, real command execution, real provider login, real synchronization, or Desktop-to-core connection.
+This version has no remote collaboration model, shared tenancy, hosted onboarding, identity directory, delegated agent model, MCP server, Context Compiler, structured spec gates, or complete Polterware Project Model. Self-hosted and Cloud modes are not implemented.
 
-The complete platform direction remains archived under `docs/future/` and is not normative for the current product.
+The implemented product scope is defined by [`docs/spec.md`](docs/spec.md). The intended product direction is defined by [`docs/product-vision.md`](docs/product-vision.md). Planned capabilities in the vision must not be presented as current behavior.

@@ -18,9 +18,9 @@ The Desktop may execute on the local machine through `polterware-core` only. The
 
 - Terminal: interactive local sessions via PTY owned by Go core, with live output streams.
 - Operations / Workflows / Runbooks: local runner (`os/exec`) that transitions queued runs to running/succeeded/failed/cancelled and appends logs.
-- Integrations: detect CLI binaries, open provider login via Main `openExternal` or CLI hand-off, and probe connection status. Credentials stay in the OS/CLI credential store.
+- Integrations: detect CLI binaries, start provider authentication commands in a core-owned PTY, optionally open provider documentation through Main `openExternal`, and probe connection status. Credentials stay in the OS/CLI credential store.
 
-The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Do not add placeholders. Never request, display, or persist real provider tokens in the app or SQLite.
+The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Do not add placeholders or app-owned provider-token fields, and never persist provider credentials in SQLite. Raw PTY output is not guaranteed to be sanitized; do not describe it as redacted.
 
 ## Architecture boundaries
 
@@ -56,3 +56,4 @@ Do not hand-roll shared control chrome, menus, dialogs, operational tables, or e
 After relevant changes, use static checks allowed by the task: typecheck, `pnpm design:lint`, `buf lint`, `go vet ./...`, and `git diff --check`. Maintain risk-proportional tests, but do not run them without explicit permission.
 
 Previous specifications live under `docs/future/` and are non-normative.
+`docs/spec.md` defines implemented behavior. `docs/product-vision.md` defines product direction; never present its planned PPM, agent, spec-gate, Web App, or Cloud capabilities as already shipped.
