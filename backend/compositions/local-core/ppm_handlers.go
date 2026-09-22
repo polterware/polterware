@@ -173,9 +173,16 @@ func (core *Core) CompileContext(_ context.Context, request *connect.Request[loc
 	}
 	items := make([]*localv1.ContextItem, 0, len(pkg.Items))
 	for _, item := range pkg.Items {
+		evidence := make([]*localv1.ContextEvidenceRef, 0, len(item.Evidence))
+		for _, ev := range item.Evidence {
+			evidence = append(evidence, &localv1.ContextEvidenceRef{
+				Id: ev.ID, Kind: ev.Kind, Summary: ev.Summary, Path: ev.Path, Source: ev.Source,
+			})
+		}
 		items = append(items, &localv1.ContextItem{
 			Kind: item.Kind, Id: item.ID, Title: item.Title, Excerpt: item.Excerpt,
 			TruthClass: item.TruthClass, Source: item.Source, Path: item.Path,
+			Reasons: item.Reasons, Evidence: evidence,
 		})
 	}
 	return connect.NewResponse(&localv1.CompileContextResponse{

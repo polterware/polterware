@@ -21,6 +21,82 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ContextEvidenceRef struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Summary       string                 `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
+	Path          string                 `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	Source        string                 `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContextEvidenceRef) Reset() {
+	*x = ContextEvidenceRef{}
+	mi := &file_polterware_local_v1_context_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContextEvidenceRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContextEvidenceRef) ProtoMessage() {}
+
+func (x *ContextEvidenceRef) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_context_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContextEvidenceRef.ProtoReflect.Descriptor instead.
+func (*ContextEvidenceRef) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ContextEvidenceRef) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ContextEvidenceRef) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ContextEvidenceRef) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *ContextEvidenceRef) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ContextEvidenceRef) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
 type ContextItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
@@ -30,13 +106,15 @@ type ContextItem struct {
 	TruthClass    string                 `protobuf:"bytes,5,opt,name=truth_class,json=truthClass,proto3" json:"truth_class,omitempty"`
 	Source        string                 `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
 	Path          string                 `protobuf:"bytes,7,opt,name=path,proto3" json:"path,omitempty"`
+	Reasons       []string               `protobuf:"bytes,8,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	Evidence      []*ContextEvidenceRef  `protobuf:"bytes,9,rep,name=evidence,proto3" json:"evidence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ContextItem) Reset() {
 	*x = ContextItem{}
-	mi := &file_polterware_local_v1_context_proto_msgTypes[0]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -48,7 +126,7 @@ func (x *ContextItem) String() string {
 func (*ContextItem) ProtoMessage() {}
 
 func (x *ContextItem) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_context_proto_msgTypes[0]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,7 +139,7 @@ func (x *ContextItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContextItem.ProtoReflect.Descriptor instead.
 func (*ContextItem) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{0}
+	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ContextItem) GetKind() string {
@@ -113,6 +191,20 @@ func (x *ContextItem) GetPath() string {
 	return ""
 }
 
+func (x *ContextItem) GetReasons() []string {
+	if x != nil {
+		return x.Reasons
+	}
+	return nil
+}
+
+func (x *ContextItem) GetEvidence() []*ContextEvidenceRef {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
 type CompileContextRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
@@ -125,7 +217,7 @@ type CompileContextRequest struct {
 
 func (x *CompileContextRequest) Reset() {
 	*x = CompileContextRequest{}
-	mi := &file_polterware_local_v1_context_proto_msgTypes[1]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -137,7 +229,7 @@ func (x *CompileContextRequest) String() string {
 func (*CompileContextRequest) ProtoMessage() {}
 
 func (x *CompileContextRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_context_proto_msgTypes[1]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -150,7 +242,7 @@ func (x *CompileContextRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompileContextRequest.ProtoReflect.Descriptor instead.
 func (*CompileContextRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{1}
+	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CompileContextRequest) GetProjectId() string {
@@ -196,7 +288,7 @@ type CompileContextResponse struct {
 
 func (x *CompileContextResponse) Reset() {
 	*x = CompileContextResponse{}
-	mi := &file_polterware_local_v1_context_proto_msgTypes[2]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -208,7 +300,7 @@ func (x *CompileContextResponse) String() string {
 func (*CompileContextResponse) ProtoMessage() {}
 
 func (x *CompileContextResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_context_proto_msgTypes[2]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -221,7 +313,7 @@ func (x *CompileContextResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompileContextResponse.ProtoReflect.Descriptor instead.
 func (*CompileContextResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{2}
+	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CompileContextResponse) GetProjectId() string {
@@ -289,7 +381,7 @@ type AgentToolCall struct {
 
 func (x *AgentToolCall) Reset() {
 	*x = AgentToolCall{}
-	mi := &file_polterware_local_v1_context_proto_msgTypes[3]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -301,7 +393,7 @@ func (x *AgentToolCall) String() string {
 func (*AgentToolCall) ProtoMessage() {}
 
 func (x *AgentToolCall) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_context_proto_msgTypes[3]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -314,7 +406,7 @@ func (x *AgentToolCall) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentToolCall.ProtoReflect.Descriptor instead.
 func (*AgentToolCall) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{3}
+	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AgentToolCall) GetId() string {
@@ -382,7 +474,7 @@ type ListAgentToolCallsRequest struct {
 
 func (x *ListAgentToolCallsRequest) Reset() {
 	*x = ListAgentToolCallsRequest{}
-	mi := &file_polterware_local_v1_context_proto_msgTypes[4]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -394,7 +486,7 @@ func (x *ListAgentToolCallsRequest) String() string {
 func (*ListAgentToolCallsRequest) ProtoMessage() {}
 
 func (x *ListAgentToolCallsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_context_proto_msgTypes[4]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -407,7 +499,7 @@ func (x *ListAgentToolCallsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAgentToolCallsRequest.ProtoReflect.Descriptor instead.
 func (*ListAgentToolCallsRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{4}
+	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ListAgentToolCallsRequest) GetLimit() int32 {
@@ -426,7 +518,7 @@ type ListAgentToolCallsResponse struct {
 
 func (x *ListAgentToolCallsResponse) Reset() {
 	*x = ListAgentToolCallsResponse{}
-	mi := &file_polterware_local_v1_context_proto_msgTypes[5]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -438,7 +530,7 @@ func (x *ListAgentToolCallsResponse) String() string {
 func (*ListAgentToolCallsResponse) ProtoMessage() {}
 
 func (x *ListAgentToolCallsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_context_proto_msgTypes[5]
+	mi := &file_polterware_local_v1_context_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -451,7 +543,7 @@ func (x *ListAgentToolCallsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAgentToolCallsResponse.ProtoReflect.Descriptor instead.
 func (*ListAgentToolCallsResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{5}
+	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListAgentToolCallsResponse) GetCalls() []*AgentToolCall {
@@ -465,7 +557,13 @@ var File_polterware_local_v1_context_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_context_proto_rawDesc = "" +
 	"\n" +
-	"!polterware/local/v1/context.proto\x12\x13polterware.local.v1\"\xae\x01\n" +
+	"!polterware/local/v1/context.proto\x12\x13polterware.local.v1\"~\n" +
+	"\x12ContextEvidenceRef\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x18\n" +
+	"\asummary\x18\x03 \x01(\tR\asummary\x12\x12\n" +
+	"\x04path\x18\x04 \x01(\tR\x04path\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\"\x8d\x02\n" +
 	"\vContextItem\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x14\n" +
@@ -474,7 +572,9 @@ const file_polterware_local_v1_context_proto_rawDesc = "" +
 	"\vtruth_class\x18\x05 \x01(\tR\n" +
 	"truthClass\x12\x16\n" +
 	"\x06source\x18\x06 \x01(\tR\x06source\x12\x12\n" +
-	"\x04path\x18\a \x01(\tR\x04path\"\x8c\x01\n" +
+	"\x04path\x18\a \x01(\tR\x04path\x12\x18\n" +
+	"\areasons\x18\b \x03(\tR\areasons\x12C\n" +
+	"\bevidence\x18\t \x03(\v2'.polterware.local.v1.ContextEvidenceRefR\bevidence\"\x8c\x01\n" +
 	"\x15CompileContextRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
@@ -523,27 +623,29 @@ func file_polterware_local_v1_context_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_context_proto_rawDescData
 }
 
-var file_polterware_local_v1_context_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_polterware_local_v1_context_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_polterware_local_v1_context_proto_goTypes = []any{
-	(*ContextItem)(nil),                // 0: polterware.local.v1.ContextItem
-	(*CompileContextRequest)(nil),      // 1: polterware.local.v1.CompileContextRequest
-	(*CompileContextResponse)(nil),     // 2: polterware.local.v1.CompileContextResponse
-	(*AgentToolCall)(nil),              // 3: polterware.local.v1.AgentToolCall
-	(*ListAgentToolCallsRequest)(nil),  // 4: polterware.local.v1.ListAgentToolCallsRequest
-	(*ListAgentToolCallsResponse)(nil), // 5: polterware.local.v1.ListAgentToolCallsResponse
+	(*ContextEvidenceRef)(nil),         // 0: polterware.local.v1.ContextEvidenceRef
+	(*ContextItem)(nil),                // 1: polterware.local.v1.ContextItem
+	(*CompileContextRequest)(nil),      // 2: polterware.local.v1.CompileContextRequest
+	(*CompileContextResponse)(nil),     // 3: polterware.local.v1.CompileContextResponse
+	(*AgentToolCall)(nil),              // 4: polterware.local.v1.AgentToolCall
+	(*ListAgentToolCallsRequest)(nil),  // 5: polterware.local.v1.ListAgentToolCallsRequest
+	(*ListAgentToolCallsResponse)(nil), // 6: polterware.local.v1.ListAgentToolCallsResponse
 }
 var file_polterware_local_v1_context_proto_depIdxs = []int32{
-	0, // 0: polterware.local.v1.CompileContextResponse.items:type_name -> polterware.local.v1.ContextItem
-	3, // 1: polterware.local.v1.ListAgentToolCallsResponse.calls:type_name -> polterware.local.v1.AgentToolCall
-	1, // 2: polterware.local.v1.ContextService.CompileContext:input_type -> polterware.local.v1.CompileContextRequest
-	4, // 3: polterware.local.v1.ContextService.ListAgentToolCalls:input_type -> polterware.local.v1.ListAgentToolCallsRequest
-	2, // 4: polterware.local.v1.ContextService.CompileContext:output_type -> polterware.local.v1.CompileContextResponse
-	5, // 5: polterware.local.v1.ContextService.ListAgentToolCalls:output_type -> polterware.local.v1.ListAgentToolCallsResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // 0: polterware.local.v1.ContextItem.evidence:type_name -> polterware.local.v1.ContextEvidenceRef
+	1, // 1: polterware.local.v1.CompileContextResponse.items:type_name -> polterware.local.v1.ContextItem
+	4, // 2: polterware.local.v1.ListAgentToolCallsResponse.calls:type_name -> polterware.local.v1.AgentToolCall
+	2, // 3: polterware.local.v1.ContextService.CompileContext:input_type -> polterware.local.v1.CompileContextRequest
+	5, // 4: polterware.local.v1.ContextService.ListAgentToolCalls:input_type -> polterware.local.v1.ListAgentToolCallsRequest
+	3, // 5: polterware.local.v1.ContextService.CompileContext:output_type -> polterware.local.v1.CompileContextResponse
+	6, // 6: polterware.local.v1.ContextService.ListAgentToolCalls:output_type -> polterware.local.v1.ListAgentToolCallsResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_context_proto_init() }
@@ -557,7 +659,7 @@ func file_polterware_local_v1_context_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_context_proto_rawDesc), len(file_polterware_local_v1_context_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

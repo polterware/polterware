@@ -1,5 +1,17 @@
-import { createSignal, onMount } from "solid-js";
-import { PageContent, pushToast } from "@polterware/frontend-design-system";
+import { Match, Show, Switch, createMemo, createSignal, onMount } from "solid-js";
+import {
+  Button,
+  History,
+  Layers,
+  PageContent,
+  PageToolbar,
+  Plug,
+  RefreshCw,
+  StatusChip,
+  Tabs,
+  pushToast,
+  type TabItem,
+} from "@polterware/frontend-design-system";
 import type {
   AgentToolCallRow,
   CompilePreviewResult,
@@ -10,6 +22,41 @@ import { McpStatusCard } from "./mcp-status-card";
 import { SkillCard } from "./skill-card";
 import { ToolCallHistoryCard } from "./tool-call-history-card";
 
+const AGENTS_TABS: TabItem[] = [
+  {
+    id: "access",
+    label: "Access",
+    tooltip: {
+      title: "MCP access",
+      description:
+        "Start or stop the parked local MCP helper, copy Cursor MCP config, and copy or download the Polterware AI skill for this project.",
+      icon: Plug,
+    },
+  },
+  {
+    id: "compile",
+    label: "Compile",
+    tooltip: {
+      title: "Context compile",
+      description:
+        "Preview CompileContext for the current project: a bounded package of entities, facts with evidence, knowledge links, and search hits under a token budget.",
+      icon: Layers,
+    },
+  },
+  {
+    id: "history",
+    label: "History",
+    tooltip: {
+      title: "Tool-call log",
+      description:
+        "Lightweight local history of MCP and compile tool calls. Not a full audit trail — just recent activity on this machine.",
+      icon: History,
+    },
+  },
+];
+
+type AgentsTabId = "access" | "compile" | "history";
+
 type AgentsBridge = {
   getMcpStatus: () => Promise<unknown>;
   startMcp: () => Promise<unknown>;
@@ -17,6 +64,7 @@ type AgentsBridge = {
   compileContext: (payload: {
     projectId: string;
     query: string;
+    entityId?: string;
     tokenBudget: number;
   }) => Promise<unknown>;
   listToolCalls: (payload?: { limit?: number }) => Promise<unknown>;
@@ -35,6 +83,7 @@ function agentsBridge(): AgentsBridge | undefined {
           compile?: (payload: {
             projectId: string;
             query: string;
+            entityId?: string;
             tokenBudget: number;
           }) => Promise<unknown>;
           listToolCalls?: (payload?: { limit?: number }) => Promise<unknown>;
@@ -123,6 +172,8 @@ function mapCompileResult(raw: unknown): CompilePreviewResult {
       const row = asRecord(item);
       const id = asString(row.id);
       if (!id) return [];
+      const reasonsRaw = Array.isArray(row.reasons) ? row.reasons : [];
+      const evidenceRaw = Array.isArray(row.evidence) ? row.evidence : [];
       return [{
         kind: asString(row.kind),
         id,
@@ -131,24 +182,51 @@ function mapCompileResult(raw: unknown): CompilePreviewResult {
         truthClass: asString(row.truthClass),
         source: asString(row.source),
         path: asString(row.path),
+        reasons: reasonsRaw.flatMap((value) => {
+          const reason = asString(value);
+          return reason ? [reason] : [];
+        }),
+        evidence: evidenceRaw.flatMap((value) => {
+          const ev = asRecord(value);
+          const evidenceId = asString(ev.id);
+          if (!evidenceId) return [];
+          return [{
+            id: evidenceId,
+            kind: asString(ev.kind),
+            summary: asString(ev.summary),
+            path: asString(ev.path),
+            source: asString(ev.source),
+          }];
+        }),
       }];
     }),
   };
 }
 
-/** Settings → Agents: MCP, AI skill, compile preview, and tool-call history. */
+function normalizeAgentsTab(raw?: string): AgentsTabId {
+  if (raw === "compile" || raw === "history" || raw === "access") return raw;
+  return "access";
+}
+
+/** Agents: MCP access, compile preview, and tool-call history. */
 export function AgentsPage(props: {
   projectId: string;
+  tab?: string;
+  onTabChange?: (tab: string) => void;
 }) {
+  const tab = createMemo(() => normalizeAgentsTab(props.tab));
   const [mcpStatus, setMcpStatus] = createSignal<McpStatusView | undefined>();
   const [mcpBusy, setMcpBusy] = createSignal(false);
   const [query, setQuery] = createSignal("architecture");
+  const [entityId, setEntityId] = createSignal("");
   const [budget, setBudget] = createSignal("1200");
   const [compileBusy, setCompileBusy] = createSignal(false);
   const [compileResult, setCompileResult] = createSignal<CompilePreviewResult | undefined>();
   const [compileError, setCompileError] = createSignal<string | undefined>();
   const [historyBusy, setHistoryBusy] = createSignal(false);
   const [calls, setCalls] = createSignal<AgentToolCallRow[]>([]);
+
+  const running = () => Boolean(mcpStatus()?.running);
 
   const refreshMcp = async () => {
     const bridge = agentsBridge();
@@ -179,104 +257,154 @@ export function AgentsPage(props: {
     }
   };
 
+  const startMcp = () => {
+    const bridge = agentsBridge();
+    if (!bridge) {
+      pushToast("MCP controls are unavailable in this session.", "danger");
+      return;
+    }
+    setMcpBusy(true);
+    void bridge.startMcp()
+      .then((status) => {
+        setMcpStatus(mapMcpStatus(status));
+        pushToast("MCP helper started.", "success");
+      })
+      .catch((error: unknown) => {
+        pushToast(error instanceof Error ? error.message : "Could not start MCP.", "danger");
+      })
+      .finally(() => setMcpBusy(false));
+  };
+
+  const stopMcp = () => {
+    const bridge = agentsBridge();
+    if (!bridge) {
+      pushToast("MCP controls are unavailable in this session.", "danger");
+      return;
+    }
+    setMcpBusy(true);
+    void bridge.stopMcp()
+      .then((status) => {
+        setMcpStatus(mapMcpStatus(status));
+        pushToast("MCP helper stopped.", "success");
+      })
+      .catch((error: unknown) => {
+        pushToast(error instanceof Error ? error.message : "Could not stop MCP.", "danger");
+      })
+      .finally(() => setMcpBusy(false));
+  };
+
   onMount(() => {
     void refreshMcp();
     void refreshHistory();
   });
 
   return (
-    <PageContent class="max-w-2xl space-y-6 overflow-auto p-4 text-[12.5px]">
-      <p class="m-0 text-[11px] text-[var(--color-text-muted)]">
-        Local AI access for this Desktop. MCP and the skill teach agents how to read the Polterware
-        project model; history stays on this machine.
-      </p>
+    <div class="flex h-full min-h-0 flex-col">
+      <PageToolbar.Root>
+        <PageToolbar.Tabs>
+          <Tabs
+            items={[...AGENTS_TABS]}
+            value={tab()}
+            onChange={(value) => props.onTabChange?.(value)}
+            aria-label="Agents"
+          />
+        </PageToolbar.Tabs>
+        <PageToolbar.Actions>
+          <StatusChip tone={running() ? "ok" : "warn"} label={running() ? "Running" : "Stopped"} />
+          <Show when={tab() === "access" || tab() === "history"}>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={tab() === "history" ? historyBusy() : mcpBusy()}
+              onClick={() => {
+                if (tab() === "history") void refreshHistory();
+                else void refreshMcp();
+              }}
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </Button>
+          </Show>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={mcpBusy() || running()}
+            onClick={() => startMcp()}
+          >
+            Start
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={mcpBusy() || !running()}
+            onClick={() => stopMcp()}
+          >
+            Stop
+          </Button>
+        </PageToolbar.Actions>
+      </PageToolbar.Root>
 
-      <McpStatusCard
-        status={mcpStatus()}
-        busy={mcpBusy()}
-        onRefresh={() => void refreshMcp()}
-        onStart={() => {
-          const bridge = agentsBridge();
-          if (!bridge) {
-            pushToast("MCP controls are unavailable in this session.", "danger");
-            return;
-          }
-          setMcpBusy(true);
-          void bridge.startMcp()
-            .then((status) => {
-              setMcpStatus(mapMcpStatus(status));
-              pushToast("MCP helper started.", "success");
-            })
-            .catch((error: unknown) => {
-              pushToast(error instanceof Error ? error.message : "Could not start MCP.", "danger");
-            })
-            .finally(() => setMcpBusy(false));
-        }}
-        onStop={() => {
-          const bridge = agentsBridge();
-          if (!bridge) {
-            pushToast("MCP controls are unavailable in this session.", "danger");
-            return;
-          }
-          setMcpBusy(true);
-          void bridge.stopMcp()
-            .then((status) => {
-              setMcpStatus(mapMcpStatus(status));
-              pushToast("MCP helper stopped.", "success");
-            })
-            .catch((error: unknown) => {
-              pushToast(error instanceof Error ? error.message : "Could not stop MCP.", "danger");
-            })
-            .finally(() => setMcpBusy(false));
-        }}
-      />
+      <Switch>
+        <Match when={tab() === "access"}>
+          <PageContent class="max-w-2xl space-y-3 overflow-auto p-4 text-[12.5px]">
+            <McpStatusCard status={mcpStatus()} />
+            <SkillCard />
+          </PageContent>
+        </Match>
 
-      <SkillCard />
+        <Match when={tab() === "compile"}>
+          <PageContent class="max-w-2xl overflow-auto p-4 text-[12.5px]">
+            <CompilePreviewCard
+              query={query()}
+              entityId={entityId()}
+              budget={budget()}
+              busy={compileBusy()}
+              result={compileResult()}
+              error={compileError()}
+              onQueryChange={setQuery}
+              onEntityIdChange={setEntityId}
+              onBudgetChange={setBudget}
+              onCompile={() => {
+                const bridge = agentsBridge();
+                const projectId = props.projectId.trim();
+                if (!bridge) {
+                  setCompileError("Context compiler is unavailable in this session.");
+                  return;
+                }
+                if (!projectId) {
+                  setCompileError("Select a project before compiling context.");
+                  return;
+                }
+                setCompileBusy(true);
+                setCompileError(undefined);
+                const tokenBudget = Number.parseInt(budget(), 10);
+                const trimmedEntityId = entityId().trim();
+                void bridge.compileContext({
+                  projectId,
+                  query: query().trim(),
+                  ...(trimmedEntityId ? { entityId: trimmedEntityId } : {}),
+                  tokenBudget: Number.isFinite(tokenBudget) && tokenBudget > 0 ? tokenBudget : 1200,
+                })
+                  .then((response) => {
+                    setCompileResult(mapCompileResult(response));
+                    void refreshHistory();
+                  })
+                  .catch((error: unknown) => {
+                    setCompileResult(undefined);
+                    setCompileError(error instanceof Error ? error.message : "Compile failed.");
+                  })
+                  .finally(() => setCompileBusy(false));
+              }}
+            />
+          </PageContent>
+        </Match>
 
-      <CompilePreviewCard
-        query={query()}
-        budget={budget()}
-        busy={compileBusy()}
-        result={compileResult()}
-        error={compileError()}
-        onQueryChange={setQuery}
-        onBudgetChange={setBudget}
-        onCompile={() => {
-          const bridge = agentsBridge();
-          const projectId = props.projectId.trim();
-          if (!bridge) {
-            setCompileError("Context compiler is unavailable in this session.");
-            return;
-          }
-          if (!projectId) {
-            setCompileError("Select a project before compiling context.");
-            return;
-          }
-          setCompileBusy(true);
-          setCompileError(undefined);
-          const tokenBudget = Number.parseInt(budget(), 10);
-          void bridge.compileContext({
-            projectId,
-            query: query().trim(),
-            tokenBudget: Number.isFinite(tokenBudget) && tokenBudget > 0 ? tokenBudget : 1200,
-          })
-            .then((response) => {
-              setCompileResult(mapCompileResult(response));
-              void refreshHistory();
-            })
-            .catch((error: unknown) => {
-              setCompileResult(undefined);
-              setCompileError(error instanceof Error ? error.message : "Compile failed.");
-            })
-            .finally(() => setCompileBusy(false));
-        }}
-      />
-
-      <ToolCallHistoryCard
-        calls={calls()}
-        busy={historyBusy()}
-        onRefresh={() => void refreshHistory()}
-      />
-    </PageContent>
+        <Match when={tab() === "history"}>
+          <PageContent class="p-0">
+            <ToolCallHistoryCard calls={calls()} busy={historyBusy()} />
+          </PageContent>
+        </Match>
+      </Switch>
+    </div>
   );
 }

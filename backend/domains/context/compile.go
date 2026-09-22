@@ -8,11 +8,33 @@ import (
 const DefaultTokenBudget = 1200
 const MaxTokenBudget = 8000
 
+// Stable reason codes for why an item entered a compiled package.
+const (
+	ReasonExactEntity     = "exact_entity"
+	ReasonKnowledgeLink   = "knowledge_link"
+	ReasonRelationshipHop = "relationship_hop"
+	ReasonFTSHit          = "fts_hit"
+	ReasonTitleMatch      = "title_match"
+	ReasonProjectSample   = "project_sample"
+	ReasonFactForEntity   = "fact_for_entity"
+	ReasonFactQueryMatch  = "fact_query_match"
+	ReasonImportedFact    = "imported_fact"
+)
+
 type Request struct {
 	ProjectID   string
 	Query       string
 	EntityID    string
 	TokenBudget int
+}
+
+// EvidenceRef is a compact pointer to PPM evidence supporting a context item.
+type EvidenceRef struct {
+	ID      string
+	Kind    string
+	Summary string
+	Path    string
+	Source  string
 }
 
 type Item struct {
@@ -23,16 +45,18 @@ type Item struct {
 	TruthClass string
 	Source     string
 	Path       string
+	Reasons    []string
+	Evidence   []EvidenceRef
 }
 
 type Package struct {
-	ProjectID     string
-	Query         string
-	EntityID      string
-	TokenBudget   int
-	TokensUsed    int
-	Items         []Item
-	Truncated     bool
+	ProjectID   string
+	Query       string
+	EntityID    string
+	TokenBudget int
+	TokensUsed  int
+	Items       []Item
+	Truncated   bool
 }
 
 func NormalizeBudget(budget int) int {
@@ -70,8 +94,19 @@ func Excerpt(body string, maxRunes int) string {
 	return string(runes[:maxRunes]) + "…"
 }
 
+func itemTokenCost(item Item) int {
+	cost := EstimateTokens(item.Title) + EstimateTokens(item.Excerpt) + 8
+	for _, reason := range item.Reasons {
+		cost += EstimateTokens(reason)
+	}
+	for _, ev := range item.Evidence {
+		cost += EstimateTokens(ev.Summary) + EstimateTokens(ev.Path) + 4
+	}
+	return cost
+}
+
 // Compile packs candidates under a token budget. Exact entity matches rank first,
-// then linked knowledge, then search hits. Declared truth outranks inferred.
+// then facts, linked knowledge, then search hits. Declared truth outranks inferred.
 func Compile(req Request, candidates []Item) Package {
 	budget := NormalizeBudget(req.TokenBudget)
 	ranked := rank(candidates)
@@ -84,14 +119,17 @@ func Compile(req Request, candidates []Item) Package {
 	}
 	used := 0
 	for _, item := range ranked {
-		cost := EstimateTokens(item.Title) + EstimateTokens(item.Excerpt) + 8
+		cost := itemTokenCost(item)
 		if used+cost > budget && len(out.Items) > 0 {
 			out.Truncated = true
 			break
 		}
 		if used+cost > budget {
 			item.Excerpt = Excerpt(item.Excerpt, 80)
-			cost = EstimateTokens(item.Title) + EstimateTokens(item.Excerpt) + 8
+			if len(item.Evidence) > 2 {
+				item.Evidence = item.Evidence[:2]
+			}
+			cost = itemTokenCost(item)
 			if used+cost > budget {
 				out.Truncated = true
 				break
@@ -119,6 +157,8 @@ func rank(items []Item) []Item {
 func rankScore(item Item) int {
 	score := 0
 	switch item.TruthClass {
+	case "verified":
+		score += 45
 	case "declared":
 		score += 40
 	case "observed":
@@ -131,6 +171,8 @@ func rankScore(item Item) int {
 	switch item.Kind {
 	case "entity":
 		score += 50
+	case "fact":
+		score += 45
 	case "adr":
 		score += 35
 	case "doc":
@@ -141,4 +183,31 @@ func rankScore(item Item) int {
 		score += 25
 	}
 	return score
+}
+
+// MergeReasons appends unique reason codes in order.
+func MergeReasons(existing []string, added ...string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(existing)+len(added))
+	for _, r := range existing {
+		if r == "" {
+			continue
+		}
+		if _, ok := seen[r]; ok {
+			continue
+		}
+		seen[r] = struct{}{}
+		out = append(out, r)
+	}
+	for _, r := range added {
+		if r == "" {
+			continue
+		}
+		if _, ok := seen[r]; ok {
+			continue
+		}
+		seen[r] = struct{}{}
+		out = append(out, r)
+	}
+	return out
 }

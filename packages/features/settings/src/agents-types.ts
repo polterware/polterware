@@ -9,6 +9,14 @@ export type AgentToolCallRow = {
   createdAt: string;
 };
 
+export type CompilePreviewEvidence = {
+  id: string;
+  kind: string;
+  summary: string;
+  path: string;
+  source: string;
+};
+
 export type CompilePreviewItem = {
   kind: string;
   id: string;
@@ -17,6 +25,8 @@ export type CompilePreviewItem = {
   truthClass: string;
   source: string;
   path: string;
+  reasons: string[];
+  evidence: CompilePreviewEvidence[];
 };
 
 export type CompilePreviewResult = {

@@ -115,7 +115,7 @@ func (s *Server) dispatch(req rpcRequest) (any, error) {
 			},
 			{
 				"name":        ToolCompileContext,
-				"description": "Compile a bounded, provenance-aware project context package (experimental).",
+				"description": "Compile a bounded, provenance-aware project context package with reasons and evidence refs (experimental).",
 				"inputSchema": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
