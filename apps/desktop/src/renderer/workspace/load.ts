@@ -1,11 +1,9 @@
 import type { ArchViewCard } from "@polterware/feature-architecture";
-import type { OperationRun, OperationSchedule, OperationWorkflow } from "@polterware/feature-operations";
-import type { NodeFixture, ProcessFixture, Resource } from "@polterware/feature-resources";
+import type { Resource } from "@polterware/feature-resources";
 import type { ProjectEnvironment, ProjectGeneralSettings } from "@polterware/feature-settings";
 import type {
   EnvironmentItem,
   ProjectSwitcherItem,
-  TerminalTargetItem,
   WorkspaceCatalogProvider,
   WorkspaceDocument,
   WorkspaceAdr,
@@ -14,6 +12,7 @@ import type {
   WorkspaceIntegrationResource,
   WorkspaceIntegrationSyncRun,
   WorkspaceRunbook,
+  WorkspaceSource,
   WorkspaceSpecFeature,
   WorkspaceConstitution,
 } from "@polterware/feature-shell";
@@ -25,23 +24,18 @@ import {
   mapEnvironments,
   mapIntegrationResources,
   mapKnowledgeEntityLinks,
-  mapNodes,
   mapPpmEntities,
-  mapProcesses,
   mapProjects,
   mapProviders,
   mapResources,
   mapRunbooks,
-  mapRuns,
-  mapSchedules,
   mapSettings,
   mapSettingsEnvironments,
   mapConstitution,
+  mapSources,
   mapSpecFeatures,
   mapSyncRuns,
-  mapTerminalTargets,
   mapViews,
-  mapWorkflows,
 } from "./map-records";
 
 export type WorkspaceSnapshot = {
@@ -53,18 +47,13 @@ export type WorkspaceSnapshot = {
   settingsEnvironments: ProjectEnvironment[];
   settings: ProjectGeneralSettings;
   resources: Resource[];
-  nodes: NodeFixture[];
-  processes: ProcessFixture[];
-  terminalTargets: TerminalTargetItem[];
   documents: WorkspaceDocument[];
   adrs: WorkspaceAdr[];
   runbooks: WorkspaceRunbook[];
+  sources: WorkspaceSource[];
   specFeatures: WorkspaceSpecFeature[];
   constitution: WorkspaceConstitution | null;
   ppmEntities: WorkspacePpmEntity[];
-  runs: OperationRun[];
-  workflows: OperationWorkflow[];
-  schedules: OperationSchedule[];
   providers: WorkspaceCatalogProvider[];
   integrations: WorkspaceIntegration[];
   integrationResources: WorkspaceIntegrationResource[];
@@ -94,18 +83,13 @@ export function emptyWorkspace(): WorkspaceSnapshot {
     settingsEnvironments: [],
     settings: emptySettings,
     resources: [],
-    nodes: [],
-    processes: [],
-    terminalTargets: [],
     documents: [],
     adrs: [],
     runbooks: [],
+    sources: [],
     specFeatures: [],
     constitution: null,
     ppmEntities: [],
-    runs: [],
-    workflows: [],
-    schedules: [],
     providers: [],
     integrations: [],
     integrationResources: [],
@@ -157,18 +141,13 @@ export async function loadWorkspace(projectId: string): Promise<WorkspaceSnapsho
     return asObjectArray(listedEnvs.environments);
   }))).flat();
 
-  const [settingsRes, layoutRes, resourcesRes, nodesRes, processesRes, knowledgeRes, entitiesRes, linksRes, operationsRes, workflowsRes, schedulesRes, providersRes, connectionsRes, integrationResourcesRes, syncRunsRes, viewsRes] = await Promise.all([
+  const [settingsRes, layoutRes, resourcesRes, knowledgeRes, entitiesRes, linksRes, providersRes, connectionsRes, integrationResourcesRes, syncRunsRes, viewsRes] = await Promise.all([
     api.projects.getSettings({ projectId }),
     api.architecture.getLayout({ projectId }).catch(() => ({})),
     api.architecture.listResources({ projectId }),
-    api.nodes.list({ projectId }),
-    api.processes.list({ projectId }),
     api.knowledge.list({ projectId }),
     api.ppm.listEntities({ projectId }).catch(() => ({ entities: [] })),
     api.knowledge.listLinks({ projectId }).catch(() => ({ links: [] })),
-    api.operations.list({ projectId, pageSize: 50 }),
-    api.workflows.list({ projectId }),
-    api.operations.listSchedules({ projectId }),
     api.integrations.listProviders(),
     api.integrations.listConnections({ projectId }),
     api.integrations.listResources({ projectId }),
@@ -177,20 +156,9 @@ export async function loadWorkspace(projectId: string): Promise<WorkspaceSnapsho
   ]);
 
   const resources = mapResources(asObjectArray(asRecord(resourcesRes).resources), projectEnvironments);
-  const rawNodes = asObjectArray(asRecord(nodesRes).nodes);
-  const nodes = mapNodes(rawNodes, projectEnvironments);
-  const processes = mapProcesses(asObjectArray(asRecord(processesRes).sessions), nodes);
   const knowledgeItems = asObjectArray(asRecord(knowledgeRes).items);
   const ppmEntities = mapPpmEntities(asObjectArray(asRecord(entitiesRes).entities));
   const linksByKnowledge = mapKnowledgeEntityLinks(asObjectArray(asRecord(linksRes).links), ppmEntities);
-  const operations = asObjectArray(asRecord(operationsRes).operations);
-  const logsByOperation: Record<string, string[]> = {};
-  await Promise.all(operations.map(async (operation) => {
-    const id = asString(operation.id);
-    const logs = asRecord(await api.logs.query({ operationId: id, limit: 50 }));
-    logsByOperation[id] = asObjectArray(logs.chunks).map((chunk) => asString(chunk.body));
-  }));
-  const workflows = mapWorkflows(asObjectArray(asRecord(workflowsRes).workflows));
   const integrationResources = mapIntegrationResources(asObjectArray(asRecord(integrationResourcesRes).resources), projectEnvironments);
   const providersRaw = asObjectArray(asRecord(providersRes).providers);
   const integrations = mapConnections(asObjectArray(asRecord(connectionsRes).connections), providersRaw, projectEnvironments, integrationResources);
@@ -202,21 +170,16 @@ export async function loadWorkspace(projectId: string): Promise<WorkspaceSnapsho
     healthMessage: asString(health.message),
     projects: mapProjects(rawProjects, environments, projectId),
     environments,
-    settingsEnvironments: mapSettingsEnvironments(currentEnvRecords, resources, nodes),
+    settingsEnvironments: mapSettingsEnvironments(currentEnvRecords, resources),
     settings: mapSettings(asRecord(asRecord(settingsRes).settings), rawProjects.find((item) => asString(item.id) === projectId)),
     resources,
-    nodes,
-    processes,
-    terminalTargets: mapTerminalTargets(rawNodes),
     documents: mapDocuments(knowledgeItems, linksByKnowledge),
     adrs: mapAdrs(knowledgeItems, linksByKnowledge),
     runbooks: mapRunbooks(knowledgeItems, linksByKnowledge),
+    sources: mapSources(knowledgeItems, linksByKnowledge),
     specFeatures: mapSpecFeatures(knowledgeItems),
     constitution: mapConstitution(knowledgeItems),
     ppmEntities,
-    runs: mapRuns(operations, projectEnvironments, logsByOperation),
-    workflows,
-    schedules: mapSchedules(asObjectArray(asRecord(schedulesRes).schedules), workflows, projectEnvironments),
     providers: mapProviders(providersRaw, integrations),
     integrations,
     integrationResources,

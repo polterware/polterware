@@ -1,16 +1,28 @@
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import {
-  Book03Icon,
-  BookOpen02Icon,
-  DataTable,
+  ActiveFilterBar,
+  BookOpen,
   FileText,
+  FileUp,
+  FilterMark,
   FilterPopover,
+  Folder,
+  LibraryBig,
+  Link,
+  ListChecks,
   PageContent,
   PageToolbar,
   Plus,
+  ScrollText,
+  SearchBar,
   StatusChip,
+  StatusDot,
   Tabs,
   ToolbarIconButton,
+  type ActiveFilterPill,
+  type FilterPopoverGroup,
+  type TabItem,
+  DataTable,
 } from "@polterware/frontend-design-system";
 import {
   type WorkspaceAdr,
@@ -18,31 +30,55 @@ import {
   type WorkspaceDocument,
   type WorkspacePpmEntity,
   type WorkspaceRunbook,
+  type WorkspaceSource,
   type WorkspaceSpecArtifactKind,
   type WorkspaceSpecFeature,
 } from "@polterware/feature-shell";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
 import { ConstitutionDetail } from "./constitution-detail";
+import { KnowledgeConstitutionEmpty } from "./constitution-empty";
 import { ConstitutionRow } from "./constitution-row";
 import { CreateKnowledgeDialog, type CreateKnowledgeKind } from "./create-knowledge-dialog";
+import { CreateSourceDialog } from "./create-source-dialog";
 import type { KnowledgeCreateTemplate } from "./create-templates";
+import { createDocumentAutosave } from "./document-autosave";
 import { DocumentDetail } from "./document-detail";
 import { EntityLinksSection } from "./entity-links-section";
+import { LibraryEmpty, libraryFilterEmpty } from "./library-empty";
+import {
+  EMPTY_LIBRARY_FILTERS,
+  filterLibraryRows,
+  libraryEmptyCategory,
+  libraryFiltersActive,
+  libraryRowsFromWorkspace,
+  toggleFilterValue,
+  type LibraryCategory,
+  type LibraryFilters,
+  type LibraryRow,
+} from "./library-row";
+import {
+  EMPTY_SOURCE_LIST_FILTERS,
+  EMPTY_SPEC_LIST_FILTERS,
+  distinctSourcePathPrefixes,
+  filterSources,
+  filterSpecFeatures,
+  sourceListFiltersActive,
+  specListFiltersActive,
+  type SourceListFilters,
+  type SpecListFilters,
+} from "./list-filters";
+import { LibraryTable } from "./library-table";
 import { RunbookDetail } from "./runbook-detail";
+import { SourceDetail } from "./source-detail";
+import { SourcesEmpty, sourcesFilterEmpty } from "./sources-empty";
+import { SourcesTable } from "./sources-table";
 import { SpecFeatureDetail } from "./spec-feature-detail";
 import {
-  documentStatusTone,
+  libraryStatusTone,
   runbookSeverityTone,
   specStatusTone,
 } from "./knowledge-document-helpers";
-import {
-  KnowledgeAdrsEmpty,
-  KnowledgeConstitutionEmpty,
-  KnowledgeDocsEmpty,
-  KnowledgeRunbooksEmpty,
-  KnowledgeSpecsEmpty,
-  knowledgeFilterEmpty,
-} from "./knowledge-empty";
+import { KnowledgeSpecsEmpty, knowledgeFilterEmpty } from "./knowledge-empty";
 
 export { featureKeyFromTitle, uniqueFeatureKey } from "./feature-key";
 export type { KnowledgeCreateTemplate, KnowledgeTemplateKind } from "./create-templates";
@@ -61,24 +97,66 @@ export {
   TASKS_BODY_TEMPLATE,
 } from "./spec-templates";
 
-const TABS = [
-  { id: "docs", label: "Docs" },
-  { id: "adrs", label: "ADRs" },
-  { id: "runbooks", label: "Runbooks" },
-  { id: "specs", label: "Specs" },
-] as const;
+const TABS: TabItem[] = [
+  {
+    id: "specs",
+    label: "Specs",
+    tooltip: {
+      title: "Feature specs",
+      description:
+        "One Constitution per project, plus features as Spec · Plan · Tasks · Clarify · Checklist. Mark ready is blocked while Checklist still has unchecked - [ ] items.",
+      icon: ListChecks,
+    },
+  },
+  {
+    id: "library",
+    label: "Library",
+    tooltip: {
+      title: "Knowledge library",
+      description:
+        "Docs, ADRs, and runbooks in one list. Filter by kind, status, severity, and links.",
+      icon: LibraryBig,
+    },
+  },
+  {
+    id: "sources",
+    label: "Sources",
+    tooltip: {
+      title: "Project sources",
+      description:
+        "Register project paths that ground the model — manifests, contracts, and repo files linked to Architecture and Knowledge.",
+      icon: FileText,
+    },
+  },
+];
 
-type KnowledgeTab = (typeof TABS)[number]["id"];
+type KnowledgeTab = "specs" | "library" | "sources";
+
+type CollectionTarget = {
+  scopeId: string;
+  entityId: string;
+  entityKind: string;
+};
 
 function normalizeTab(raw?: string): KnowledgeTab {
-  if (raw === "runbooks" || raw === "specs" || raw === "adrs") return raw;
-  return "docs";
+  if (raw === "library" || raw === "sources") return raw;
+  if (raw === "docs" || raw === "adrs" || raw === "runbooks") return "library";
+  return "specs";
+}
+
+function collectionFingerprint(
+  scopeId: string,
+  status: string,
+  targets: readonly CollectionTarget[],
+): string {
+  return `${scopeId}|${status}|${targets.map((t) => `${t.entityId}:${t.entityKind}`).join(",")}`;
 }
 
 export function KnowledgeView(props: {
   documents?: WorkspaceDocument[];
   adrs?: WorkspaceAdr[];
   runbooks?: WorkspaceRunbook[];
+  sources?: WorkspaceSource[];
   specFeatures?: WorkspaceSpecFeature[];
   constitution?: WorkspaceConstitution | null;
   entities?: WorkspacePpmEntity[];
@@ -88,16 +166,19 @@ export function KnowledgeView(props: {
   onOpenDoc?: (id: string) => void;
   onOpenAdr?: (id: string) => void;
   onOpenRunbook?: (id: string) => void;
+  onOpenSource?: (id: string) => void;
   onOpenFeature?: (featureKey: string) => void;
   onOpenConstitution?: (id: string) => void;
   onOpenComponent?: (componentId: string) => void;
   onOpenEntity?: (entityId: string, refId: string, kind: string) => void;
   onLinkEntity?: (knowledgeId: string, entityId: string, kind: string) => void;
   onUnlinkEntity?: (linkId: string) => void;
-  onOpenTerminal?: () => void;
-  onOpenOperation?: (id?: string) => void;
   onSaveBody?: (id: string, body: string) => void;
+  onSaveSourcePath?: (id: string, path: string) => void;
   onCreate?: (kind: "doc" | "runbook" | "adr", title: string) => void;
+  onCreateSource?: (input: { title: string; path: string }) => void;
+  onImportProjectSources?: () => void;
+  importBusy?: boolean;
   onCreateFeature?: (title: string) => void;
   onCreateFromTemplate?: (template: KnowledgeCreateTemplate) => void;
   onEnsureConstitution?: () => void;
@@ -106,103 +187,139 @@ export function KnowledgeView(props: {
   onArchiveConstitution?: () => void;
   onSetFeatureStatus?: (featureKey: string, status: "draft" | "ready") => void;
   onDuplicate?: (id: string) => void;
-  onRun?: (id: string) => void;
 }) {
   const tab = () => normalizeTab(props.tab);
-  const [query, setQuery] = createSignal("");
-  const [filters, setFilters] = createSignal<readonly string[]>([]);
+  const [libraryFilters, setLibraryFilters] = createSignal<LibraryFilters>({
+    ...EMPTY_LIBRARY_FILTERS,
+  });
+  const [specFilters, setSpecFilters] = createSignal<SpecListFilters>({
+    ...EMPTY_SPEC_LIST_FILTERS,
+  });
+  const [sourceFilters, setSourceFilters] = createSignal<SourceListFilters>({
+    ...EMPTY_SOURCE_LIST_FILTERS,
+  });
   const [bodyOverrides, setBodyOverrides] = createSignal<Record<string, string>>({});
+  const [pathOverrides, setPathOverrides] = createSignal<Record<string, string>>({});
   const [createOpen, setCreateOpen] = createSignal(false);
+  const [sourceCreateOpen, setSourceCreateOpen] = createSignal(false);
   const [artifactByFeature, setArtifactByFeature] = createSignal<Record<string, WorkspaceSpecArtifactKind>>({});
   const scopeId = createMemo(() => `knowledge:${tab()}`);
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
 
-  const docs = createMemo(() => {
-    const needle = query().trim().toLowerCase();
-    return (props.documents ?? []).filter((document) => {
-      if (document.archived) return false;
-      if (filters().length > 0 && !filters().includes(document.status)) return false;
-      if (!needle) return true;
-      return [document.title, document.summary, ...document.tags, ...document.componentNames]
-        .some((value) => value.toLowerCase().includes(needle));
-    });
+  const bodyAutosave = createDocumentAutosave({
+    save: (id, body) => props.onSaveBody?.(id, body),
+  });
+  const pathAutosave = createDocumentAutosave({
+    save: (id, path) => props.onSaveSourcePath?.(id, path),
+  });
+  onCleanup(() => {
+    bodyAutosave.flush();
+    pathAutosave.flush();
+    bodyAutosave.dispose();
+    pathAutosave.dispose();
   });
 
-  const adrs = createMemo(() => {
-    const needle = query().trim().toLowerCase();
-    return (props.adrs ?? []).filter((adr) => {
-      if (filters().length > 0 && !filters().includes(adr.status)) return false;
-      if (!needle) return true;
-      return [adr.title, adr.summary, ...adr.tags]
-        .some((value) => value.toLowerCase().includes(needle));
-    });
-  });
+  const allLibraryRows = createMemo(() =>
+    libraryRowsFromWorkspace({
+      documents: props.documents,
+      adrs: props.adrs,
+      runbooks: props.runbooks,
+    }),
+  );
 
-  const runbooks = createMemo(() => {
-    const needle = query().trim().toLowerCase();
-    return (props.runbooks ?? []).filter((runbook) => {
-      if (filters().length > 0 && !filters().includes(runbook.severity)) return false;
-      if (!needle) return true;
-      return [runbook.title, runbook.service, runbook.owner]
-        .some((value) => value.toLowerCase().includes(needle));
-    });
-  });
+  const libraryRows = createMemo(() =>
+    filterLibraryRows(allLibraryRows(), libraryFilters()),
+  );
 
-  const features = createMemo(() => {
-    const needle = query().trim().toLowerCase();
-    return (props.specFeatures ?? []).filter((feature) => {
-      if (filters().length > 0 && !filters().includes(feature.status)) return false;
-      if (!needle) return true;
-      return [feature.title, feature.featureKey, feature.summary, feature.owner]
-        .some((value) => value.toLowerCase().includes(needle));
-    });
-  });
+  const sources = createMemo(() =>
+    filterSources(props.sources ?? [], sourceFilters()),
+  );
 
+  const features = createMemo(() =>
+    filterSpecFeatures(props.specFeatures ?? [], specFilters()),
+  );
+
+  let lastCollectionFingerprint = "";
   createEffect(() => {
     const scope = scopeId();
-    const constitutionTarget = props.constitution
-      ? [{ scopeId: scope, entityId: props.constitution.id, entityKind: "constitution" as const }]
+    const status = props.error ? "error" : "ready";
+    const constitutionTarget: CollectionTarget[] = props.constitution
+      ? [{ scopeId: scope, entityId: props.constitution.id, entityKind: "constitution" }]
       : [];
-    const targets = tab() === "runbooks"
-      ? runbooks().map((runbook) => ({ scopeId: scope, entityId: runbook.id, entityKind: "runbook" }))
+    const targets: CollectionTarget[] = tab() === "library"
+      ? libraryRows().map((row) => ({
+          scopeId: scope,
+          entityId: row.id,
+          entityKind: row.entityKind,
+        }))
+      : tab() === "sources"
+        ? sources().map((source) => ({
+            scopeId: scope,
+            entityId: source.id,
+            entityKind: "source",
+          }))
       : tab() === "specs"
         ? [
             ...constitutionTarget,
             ...features().map((feature) => ({
               scopeId: scope,
               entityId: feature.featureKey,
-              entityKind: "feature" as const,
+              entityKind: "feature",
             })),
           ]
-        : tab() === "adrs"
-          ? adrs().map((adr) => ({ scopeId: scope, entityId: adr.id, entityKind: "adr" }))
-        : docs().map((document) => ({ scopeId: scope, entityId: document.id, entityKind: "document" }));
+        : [];
+
+    const fingerprint = collectionFingerprint(scope, status, targets);
+    if (fingerprint === lastCollectionFingerprint) return;
+
+    const active = detailPanelStore.getState().activeTarget;
+    if (
+      active?.scopeId === scope
+      && !targets.some(
+        (target) => target.entityId === active.entityId && target.entityKind === active.entityKind,
+      )
+    ) {
+      // Filtered-out selection: dismiss instead of falling back to targets[0] (constitution).
+      detailPanelStore.getState().dismissTarget(scope);
+    }
+
+    lastCollectionFingerprint = fingerprint;
     detailPanelStore.getState().registerCollection({
       scopeId: scope,
-      status: props.error ? "error" : "ready",
+      status,
       targets,
     });
-    onCleanup(() => detailPanelStore.getState().unregisterCollection(scope));
+    onCleanup(() => {
+      lastCollectionFingerprint = "";
+      detailPanelStore.getState().unregisterCollection(scope);
+    });
   });
 
   const document = createMemo((): WorkspaceDocument | undefined => {
     const target = activeTarget();
-    return target?.scopeId === "knowledge:docs" && target.entityKind === "document"
+    return target?.scopeId === "knowledge:library" && target.entityKind === "document"
       ? (props.documents ?? []).find((item) => item.id === target.entityId)
       : undefined;
   });
 
   const adr = createMemo((): WorkspaceAdr | undefined => {
     const target = activeTarget();
-    return target?.scopeId === "knowledge:adrs" && target.entityKind === "adr"
+    return target?.scopeId === "knowledge:library" && target.entityKind === "adr"
       ? (props.adrs ?? []).find((item) => item.id === target.entityId)
       : undefined;
   });
 
   const runbook = createMemo((): WorkspaceRunbook | undefined => {
     const target = activeTarget();
-    return target?.scopeId === "knowledge:runbooks" && target.entityKind === "runbook"
+    return target?.scopeId === "knowledge:library" && target.entityKind === "runbook"
       ? (props.runbooks ?? []).find((item) => item.id === target.entityId)
+      : undefined;
+  });
+
+  const source = createMemo((): WorkspaceSource | undefined => {
+    const target = activeTarget();
+    return target?.scopeId === "knowledge:sources" && target.entityKind === "source"
+      ? (props.sources ?? []).find((item) => item.id === target.entityId)
       : undefined;
   });
 
@@ -238,83 +355,419 @@ export function KnowledgeView(props: {
 
   function activate(
     entityId: string,
-    entityKind: "document" | "adr" | "runbook" | "feature" | "constitution",
+    entityKind: "document" | "adr" | "runbook" | "source" | "feature" | "constitution",
   ) {
     detailPanelStore.getState().activateTarget({ scopeId: scopeId(), entityId, entityKind });
     if (entityKind === "document") props.onOpenDoc?.(entityId);
     else if (entityKind === "adr") props.onOpenAdr?.(entityId);
     else if (entityKind === "runbook") props.onOpenRunbook?.(entityId);
+    else if (entityKind === "source") props.onOpenSource?.(entityId);
     else if (entityKind === "constitution") props.onOpenConstitution?.(entityId);
     else props.onOpenFeature?.(entityId);
   }
 
+  function activateLibraryRow(row: LibraryRow) {
+    activate(row.id, row.entityKind);
+  }
+
   const createKind = createMemo((): CreateKnowledgeKind => {
-    if (tab() === "runbooks") return "runbook";
     if (tab() === "specs") return "feature";
-    if (tab() === "adrs") return "adr";
+    const kind = libraryEmptyCategory(libraryFilters().kinds);
+    if (kind === "adr") return "adr";
+    if (kind === "runbook") return "runbook";
     return "doc";
   });
 
-  const filterOptions = createMemo(() => {
-    const options = tab() === "docs"
-      ? [{ id: "published", label: "Published" }, { id: "draft", label: "Draft" }]
-      : tab() === "adrs"
-        ? [{ id: "accepted", label: "Accepted" }, { id: "proposed", label: "Proposed" }, { id: "draft", label: "Draft" }]
-      : tab() === "specs"
-        ? [{ id: "ready", label: "Ready" }, { id: "draft", label: "Draft" }]
-        : [
+  const pickLibraryKind = createMemo(
+    () => tab() === "library" && libraryFilters().kinds.length !== 1,
+  );
+
+  const listSearch = createMemo(() => {
+    if (tab() === "sources") {
+      return {
+        placeholder: "Search",
+        value: sourceFilters().query,
+        onInput: (value: string) =>
+          setSourceFilters((current) => ({ ...current, query: value })),
+      };
+    }
+    if (tab() === "specs") {
+      return {
+        placeholder: "Search",
+        value: specFilters().query,
+        onInput: (value: string) =>
+          setSpecFilters((current) => ({ ...current, query: value })),
+      };
+    }
+    return {
+      placeholder: "Search",
+      value: libraryFilters().query,
+      onInput: (value: string) =>
+        setLibraryFilters((current) => ({ ...current, query: value })),
+    };
+  });
+
+  const createLabel = createMemo(() => {
+    if (tab() === "sources") return "Add source";
+    if (tab() === "specs") return "New feature";
+    const kind = libraryEmptyCategory(libraryFilters().kinds);
+    if (kind === "runbook") return "New runbook";
+    if (kind === "adr") return "New ADR";
+    if (kind === "doc") return "New document";
+    return "New";
+  });
+
+  const libraryFilterGroups = createMemo((): FilterPopoverGroup[] => {
+    const current = libraryFilters();
+    const icon = (node: typeof FileText) => {
+      const Icon = node;
+      return <Icon size={14} aria-hidden />;
+    };
+    return [
+      {
+        id: "kind",
+        label: "Kind",
+        leading: icon(FileText),
+        options: [
+          { id: "doc", label: "Doc", leading: icon(FileText) },
+          { id: "adr", label: "ADR", leading: icon(ScrollText) },
+          { id: "runbook", label: "Runbook", leading: icon(BookOpen) },
+        ].map((option) => ({
+          ...option,
+          checked: current.kinds.includes(option.id as LibraryCategory),
+          onCheckedChange: (checked: boolean) =>
+            setLibraryFilters((prev) => ({
+              ...prev,
+              kinds: toggleFilterValue(prev.kinds, option.id as LibraryCategory, checked),
+            })),
+        })),
+      },
+      {
+        id: "status",
+        label: "Status",
+        leading: <StatusDot tone="ok" showLabel={false} />,
+        options: [
+          { id: "published", label: "Published" },
+          { id: "draft", label: "Draft" },
+          { id: "accepted", label: "Accepted" },
+          { id: "proposed", label: "Proposed" },
+        ].map((option) => ({
+          ...option,
+          leading: <StatusDot tone={libraryStatusTone(option.id)} showLabel={false} />,
+          checked: current.statuses.includes(option.id),
+          onCheckedChange: (checked: boolean) =>
+            setLibraryFilters((prev) => ({
+              ...prev,
+              statuses: toggleFilterValue(prev.statuses, option.id, checked),
+            })),
+        })),
+      },
+      {
+        id: "severity",
+        label: "Severity",
+        leading: <StatusDot tone="danger" showLabel={false} />,
+        options: (
+          [
             { id: "critical", label: "Critical" },
             { id: "high", label: "High" },
             { id: "medium", label: "Medium" },
             { id: "low", label: "Low" },
-          ];
-    return options.map((option) => ({
-      ...option,
-      checked: filters().includes(option.id),
-      onCheckedChange: (checked: boolean) => setFilters((current) =>
-        checked ? [...current, option.id] : current.filter((value) => value !== option.id),
-      ),
-    }));
+          ] as const
+        ).map((option) => ({
+          ...option,
+          leading: (
+            <StatusDot tone={runbookSeverityTone(option.id)} showLabel={false} />
+          ),
+          checked: current.severities.includes(option.id),
+          onCheckedChange: (checked: boolean) =>
+            setLibraryFilters((prev) => ({
+              ...prev,
+              severities: toggleFilterValue(prev.severities, option.id, checked),
+            })),
+        })),
+      },
+      {
+        id: "linked",
+        label: "Linked",
+        leading: icon(Link),
+        selectionMode: "single" as const,
+        options: [
+          {
+            id: "linked",
+            label: "Has links",
+            leading: icon(Link),
+          },
+          {
+            id: "unlinked",
+            label: "No links",
+            leading: <FilterMark shape="circle" tone="muted" variant="outline" />,
+          },
+        ].map((option) => ({
+          ...option,
+          checked: current.linked === option.id,
+          onCheckedChange: (checked: boolean) =>
+            setLibraryFilters((prev) => ({
+              ...prev,
+              linked: checked
+                ? (option.id as "linked" | "unlinked")
+                : "any",
+            })),
+        })),
+      },
+    ];
   });
 
-  const toolbarCopy = createMemo(() => {
-    if (tab() === "runbooks") {
+  const specFilterGroups = createMemo((): FilterPopoverGroup[] => {
+    const current = specFilters();
+    const icon = (node: typeof FileText) => {
+      const Icon = node;
+      return <Icon size={14} aria-hidden />;
+    };
+    return [
+      {
+        id: "status",
+        label: "Status",
+        leading: <StatusDot tone="ok" showLabel={false} />,
+        options: (
+          [
+            { id: "ready", label: "Ready" },
+            { id: "draft", label: "Draft" },
+          ] as const
+        ).map((option) => ({
+          ...option,
+          leading: <StatusDot tone={specStatusTone(option.id)} showLabel={false} />,
+          checked: current.statuses.includes(option.id),
+          onCheckedChange: (checked: boolean) =>
+            setSpecFilters((prev) => ({
+              ...prev,
+              statuses: toggleFilterValue(prev.statuses, option.id, checked),
+            })),
+        })),
+      },
+      {
+        id: "checklist",
+        label: "Checklist",
+        leading: icon(ListChecks),
+        selectionMode: "single" as const,
+        options: [
+          {
+            id: "open",
+            label: "Open items",
+            leading: icon(ListChecks),
+          },
+          {
+            id: "clear",
+            label: "All clear",
+            leading: <StatusDot tone="healthy" showLabel={false} />,
+          },
+        ].map((option) => ({
+          ...option,
+          checked: current.checklist === option.id,
+          onCheckedChange: (checked: boolean) =>
+            setSpecFilters((prev) => ({
+              ...prev,
+              checklist: checked
+                ? (option.id as "open" | "clear")
+                : "any",
+            })),
+        })),
+      },
+    ];
+  });
+
+  const sourceFilterGroups = createMemo((): FilterPopoverGroup[] => {
+    const current = sourceFilters();
+    const prefixes = distinctSourcePathPrefixes(props.sources ?? []);
+    const icon = (node: typeof FileText) => {
+      const Icon = node;
+      return <Icon size={14} aria-hidden />;
+    };
+    return [
+      {
+        id: "linked",
+        label: "Linked",
+        leading: icon(Link),
+        selectionMode: "single" as const,
+        options: [
+          {
+            id: "linked",
+            label: "Has links",
+            leading: icon(Link),
+          },
+          {
+            id: "unlinked",
+            label: "No links",
+            leading: <FilterMark shape="circle" tone="muted" variant="outline" />,
+          },
+        ].map((option) => ({
+          ...option,
+          checked: current.linked === option.id,
+          onCheckedChange: (checked: boolean) =>
+            setSourceFilters((prev) => ({
+              ...prev,
+              linked: checked
+                ? (option.id as "linked" | "unlinked")
+                : "any",
+            })),
+        })),
+      },
+      {
+        id: "path",
+        label: "Path prefix",
+        leading: icon(Folder),
+        options: prefixes.map((prefix) => ({
+          id: prefix,
+          label: prefix,
+          checked: current.pathPrefixes.includes(prefix),
+          onCheckedChange: (checked: boolean) =>
+            setSourceFilters((prev) => ({
+              ...prev,
+              pathPrefixes: toggleFilterValue(prev.pathPrefixes, prefix, checked),
+            })),
+        })),
+      },
+    ].filter((group) => group.id !== "path" || group.options.length > 0);
+  });
+
+  const filterPopoverProps = createMemo(() => {
+    if (tab() === "sources") {
       return {
-        ariaLabel: "Runbook filters",
-        title: "Runbook severity",
-        placeholder: "Search runbooks…",
-        groupLabel: "Severity",
-        createLabel: "New runbook",
-      };
-    }
-    if (tab() === "adrs") {
-      return {
-        ariaLabel: "ADR filters",
-        title: "ADR status",
-        placeholder: "Search ADRs…",
-        groupLabel: "Status",
-        createLabel: "New ADR",
+        ariaLabel: "Source filters",
+        title: "Filter sources",
+        active: sourceListFiltersActive(sourceFilters()),
+        onClear: () =>
+          setSourceFilters((current) => ({
+            ...EMPTY_SOURCE_LIST_FILTERS,
+            query: current.query,
+          })),
+        groups: sourceFilterGroups(),
       };
     }
     if (tab() === "specs") {
       return {
         ariaLabel: "Feature filters",
-        title: "Feature status",
-        placeholder: "Search features…",
-        groupLabel: "Status",
-        createLabel: "New feature",
+        title: "Filter features",
+        active: specListFiltersActive(specFilters()),
+        onClear: () =>
+          setSpecFilters((current) => ({
+            ...EMPTY_SPEC_LIST_FILTERS,
+            query: current.query,
+          })),
+        groups: specFilterGroups(),
       };
     }
     return {
-      ariaLabel: "Document filters",
-      title: "Document status",
-      placeholder: "Search docs…",
-      groupLabel: "Status",
-      createLabel: "New document",
+      ariaLabel: "Library filters",
+      title: "Filter library",
+      active: libraryFiltersActive(libraryFilters()),
+      onClear: () =>
+        setLibraryFilters((current) => ({
+          ...EMPTY_LIBRARY_FILTERS,
+          query: current.query,
+        })),
+      groups: libraryFilterGroups(),
     };
   });
 
-  function linksFor(knowledgeId: string, links: WorkspaceDocument["entityLinks"] | WorkspaceAdr["entityLinks"] | WorkspaceRunbook["entityLinks"]) {
+  const activeFilterPills = createMemo((): ActiveFilterPill[] => {
+    if (tab() === "library") {
+      const current = libraryFilters();
+      const pills: ActiveFilterPill[] = [];
+      for (const kind of current.kinds) {
+        pills.push({
+          id: `kind:${kind}`,
+          label: `Kind: ${kind === "doc" ? "Doc" : kind === "adr" ? "ADR" : "Runbook"}`,
+          onRemove: () =>
+            setLibraryFilters((prev) => ({
+              ...prev,
+              kinds: prev.kinds.filter((value) => value !== kind),
+            })),
+        });
+      }
+      for (const status of current.statuses) {
+        pills.push({
+          id: `status:${status}`,
+          label: `Status: ${status}`,
+          onRemove: () =>
+            setLibraryFilters((prev) => ({
+              ...prev,
+              statuses: prev.statuses.filter((value) => value !== status),
+            })),
+        });
+      }
+      for (const severity of current.severities) {
+        pills.push({
+          id: `severity:${severity}`,
+          label: `Severity: ${severity}`,
+          onRemove: () =>
+            setLibraryFilters((prev) => ({
+              ...prev,
+              severities: prev.severities.filter((value) => value !== severity),
+            })),
+        });
+      }
+      if (current.linked !== "any") {
+        pills.push({
+          id: "linked",
+          label: current.linked === "linked" ? "Linked: Has links" : "Linked: No links",
+          onRemove: () =>
+            setLibraryFilters((prev) => ({ ...prev, linked: "any" })),
+        });
+      }
+      return pills;
+    }
+    if (tab() === "specs") {
+      const current = specFilters();
+      const pills: ActiveFilterPill[] = current.statuses.map((status) => ({
+        id: `status:${status}`,
+        label: `Status: ${status}`,
+        onRemove: () =>
+          setSpecFilters((prev) => ({
+            ...prev,
+            statuses: prev.statuses.filter((value) => value !== status),
+          })),
+      }));
+      if (current.checklist !== "any") {
+        pills.push({
+          id: "checklist",
+          label:
+            current.checklist === "open"
+              ? "Checklist: Open items"
+              : "Checklist: All clear",
+          onRemove: () =>
+            setSpecFilters((prev) => ({ ...prev, checklist: "any" })),
+        });
+      }
+      return pills;
+    }
+    const current = sourceFilters();
+    const pills: ActiveFilterPill[] = [];
+    if (current.linked !== "any") {
+      pills.push({
+        id: "linked",
+        label: current.linked === "linked" ? "Linked: Has links" : "Linked: No links",
+        onRemove: () =>
+          setSourceFilters((prev) => ({ ...prev, linked: "any" })),
+      });
+    }
+    for (const prefix of current.pathPrefixes) {
+      pills.push({
+        id: `path:${prefix}`,
+        label: `Path: ${prefix}`,
+        onRemove: () =>
+          setSourceFilters((prev) => ({
+            ...prev,
+            pathPrefixes: prev.pathPrefixes.filter((value) => value !== prefix),
+          })),
+      });
+    }
+    return pills;
+  });
+
+  function linksFor(
+    knowledgeId: string,
+    links: WorkspaceDocument["entityLinks"] | WorkspaceAdr["entityLinks"] | WorkspaceRunbook["entityLinks"] | WorkspaceSource["entityLinks"],
+  ) {
     return (
       <EntityLinksSection
         links={links}
@@ -333,6 +786,18 @@ export function KnowledgeView(props: {
     );
   }
 
+  const hasLibraryItems = createMemo(() => allLibraryRows().length > 0);
+
+  const libraryEmptyKind = createMemo(() =>
+    libraryEmptyCategory(libraryFilters().kinds),
+  );
+
+  const libraryHasScopedItems = createMemo(() => {
+    const kind = libraryEmptyKind();
+    if (kind === "all") return hasLibraryItems();
+    return allLibraryRows().some((row) => row.category === kind);
+  });
+
   return (
     <>
       <div class="flex h-full min-h-0 flex-col">
@@ -342,34 +807,50 @@ export function KnowledgeView(props: {
               items={[...TABS]}
               value={tab()}
               onChange={(next) => {
-                setQuery("");
-                setFilters([]);
+                setLibraryFilters({ ...EMPTY_LIBRARY_FILTERS });
+                setSpecFilters({ ...EMPTY_SPEC_LIST_FILTERS });
+                setSourceFilters({ ...EMPTY_SOURCE_LIST_FILTERS });
                 setCreateOpen(false);
+                setSourceCreateOpen(false);
                 props.onTabChange?.(next);
               }}
               aria-label="Knowledge"
             />
           </PageToolbar.Tabs>
           <PageToolbar.Actions>
-            <FilterPopover
-              ariaLabel={toolbarCopy().ariaLabel}
-              title={toolbarCopy().title}
-              search={{
-                placeholder: toolbarCopy().placeholder,
-                value: query(),
-                onInput: setQuery,
-              }}
-              active={filters().length > 0}
-              onClear={() => setFilters([])}
-              groups={[{
-                id: "status",
-                label: toolbarCopy().groupLabel,
-                options: filterOptions(),
-              }]}
+            <SearchBar
+              placeholder={listSearch().placeholder}
+              value={listSearch().value}
+              onInput={listSearch().onInput}
+              aria-label={listSearch().placeholder}
             />
-            <Show when={props.onCreate || props.onCreateFeature}>
+            <FilterPopover
+              ariaLabel={filterPopoverProps().ariaLabel}
+              title={filterPopoverProps().title}
+              active={filterPopoverProps().active}
+              onClear={filterPopoverProps().onClear}
+              groups={filterPopoverProps().groups}
+            />
+            <Show when={tab() === "sources" && props.onImportProjectSources}>
               <ToolbarIconButton
-                label={toolbarCopy().createLabel}
+                label="Import from project root"
+                disabled={props.importBusy}
+                onClick={() => props.onImportProjectSources?.()}
+              >
+                <FileUp size={14} />
+              </ToolbarIconButton>
+            </Show>
+            <Show when={tab() === "sources" && props.onCreateSource}>
+              <ToolbarIconButton
+                label={createLabel()}
+                onClick={() => setSourceCreateOpen(true)}
+              >
+                <Plus size={14} />
+              </ToolbarIconButton>
+            </Show>
+            <Show when={tab() !== "sources" && (props.onCreate || props.onCreateFeature)}>
+              <ToolbarIconButton
+                label={createLabel()}
                 onClick={() => setCreateOpen(true)}
               >
                 <Plus size={14} />
@@ -378,130 +859,65 @@ export function KnowledgeView(props: {
           </PageToolbar.Actions>
         </PageToolbar.Root>
 
-        <Show when={tab() === "docs"}>
+        <ActiveFilterBar
+          items={activeFilterPills()}
+          onClear={filterPopoverProps().onClear}
+        />
+
+        <Show when={tab() === "library"}>
           <PageContent class="p-0">
             <Show
-              when={(props.documents ?? []).filter((document) => !document.archived).length > 0}
+              when={libraryHasScopedItems()}
               fallback={
-                <KnowledgeDocsEmpty
+                <LibraryEmpty
+                  category={libraryEmptyKind()}
                   onCreate={props.onCreate ? () => setCreateOpen(true) : undefined}
                   onCreateFromTemplate={props.onCreateFromTemplate}
                 />
               }
             >
-              <Show when={docs().length > 0} fallback={knowledgeFilterEmpty("docs")}>
-                <DataTable.Root
-                  rows={docs()}
-                  getRowId={(item) => item.id}
-                  activeRowId={activeTarget()?.scopeId === "knowledge:docs" ? activeTarget()?.entityId : null}
-                  activateFirstRow
-                  onActiveRowChange={(id) => id && activate(id, "document")}
-                >
-                  <DataTable.Table aria-label="Documents">
-                    <DataTable.Header>
-                      <DataTable.ColumnHeader<WorkspaceDocument> id="title">Document</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceDocument> id="status">Status</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceDocument> id="author">Author</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceDocument> id="updatedAt">Updated</DataTable.ColumnHeader>
-                    </DataTable.Header>
-                    <DataTable.Body<WorkspaceDocument>>
-                      {(item) => (
-                        <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "document")}>
-                          <DataTable.PrimaryCell icon={<Book03Icon size={16} />} iconTone="knowledge" title={item.title} />
-                          <DataTable.Cell><StatusChip tone={documentStatusTone(item.status)} label={item.status} /></DataTable.Cell>
-                          <DataTable.Cell>{item.author}</DataTable.Cell>
-                          <DataTable.Cell class="text-[var(--color-text-muted)]">{item.updatedAt}</DataTable.Cell>
-                        </DataTable.Row>
-                      )}
-                    </DataTable.Body>
-                  </DataTable.Table>
-                </DataTable.Root>
+              <Show when={libraryRows().length > 0} fallback={libraryFilterEmpty()}>
+                <LibraryTable
+                  rows={libraryRows()}
+                  activeRowId={
+                    activeTarget()?.scopeId === "knowledge:library"
+                      ? activeTarget()?.entityId
+                      : null
+                  }
+                  onActivate={activateLibraryRow}
+                />
               </Show>
             </Show>
           </PageContent>
         </Show>
 
-        <Show when={tab() === "adrs"}>
+        <Show when={tab() === "sources"}>
           <PageContent class="p-0">
             <Show
-              when={(props.adrs ?? []).length > 0}
+              when={(props.sources ?? []).length > 0}
               fallback={
-                <KnowledgeAdrsEmpty
-                  onCreate={props.onCreate ? () => setCreateOpen(true) : undefined}
+                <SourcesEmpty
+                  onCreate={props.onCreateSource ? () => setSourceCreateOpen(true) : undefined}
+                  onImport={
+                    props.onImportProjectSources
+                      ? () => props.onImportProjectSources?.()
+                      : undefined
+                  }
+                  importBusy={props.importBusy}
                   onCreateFromTemplate={props.onCreateFromTemplate}
                 />
               }
             >
-              <Show when={adrs().length > 0} fallback={knowledgeFilterEmpty("adrs")}>
-                <DataTable.Root
-                  rows={adrs()}
-                  getRowId={(item) => item.id}
-                  activeRowId={activeTarget()?.scopeId === "knowledge:adrs" ? activeTarget()?.entityId : null}
-                  activateFirstRow
-                  onActiveRowChange={(id) => id && activate(id, "adr")}
-                >
-                  <DataTable.Table aria-label="ADRs">
-                    <DataTable.Header>
-                      <DataTable.ColumnHeader<WorkspaceAdr> id="title">ADR</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceAdr> id="status">Status</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceAdr> id="owner">Owner</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceAdr> id="updatedAt">Updated</DataTable.ColumnHeader>
-                    </DataTable.Header>
-                    <DataTable.Body<WorkspaceAdr>>
-                      {(item) => (
-                        <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "adr")}>
-                          <DataTable.PrimaryCell icon={<FileText size={16} />} iconTone="knowledge" title={item.title} />
-                          <DataTable.Cell><StatusChip tone="ok" label={item.status} /></DataTable.Cell>
-                          <DataTable.Cell>{item.owner}</DataTable.Cell>
-                          <DataTable.Cell class="text-[var(--color-text-muted)]">{item.updatedAt}</DataTable.Cell>
-                        </DataTable.Row>
-                      )}
-                    </DataTable.Body>
-                  </DataTable.Table>
-                </DataTable.Root>
-              </Show>
-            </Show>
-          </PageContent>
-        </Show>
-
-        <Show when={tab() === "runbooks"}>
-          <PageContent class="p-0">
-            <Show
-              when={(props.runbooks ?? []).length > 0}
-              fallback={
-                <KnowledgeRunbooksEmpty
-                  onCreate={props.onCreate ? () => setCreateOpen(true) : undefined}
-                  onCreateFromTemplate={props.onCreateFromTemplate}
+              <Show when={sources().length > 0} fallback={sourcesFilterEmpty()}>
+                <SourcesTable
+                  rows={sources()}
+                  activeRowId={
+                    activeTarget()?.scopeId === "knowledge:sources"
+                      ? activeTarget()?.entityId
+                      : null
+                  }
+                  onActivate={(id) => activate(id, "source")}
                 />
-              }
-            >
-              <Show when={runbooks().length > 0} fallback={knowledgeFilterEmpty("runbooks")}>
-                <DataTable.Root
-                  rows={runbooks()}
-                  getRowId={(item) => item.id}
-                  activeRowId={activeTarget()?.scopeId === "knowledge:runbooks" ? activeTarget()?.entityId : null}
-                  activateFirstRow
-                  onActiveRowChange={(id) => id && activate(id, "runbook")}
-                >
-                  <DataTable.Table aria-label="Runbooks">
-                    <DataTable.Header>
-                      <DataTable.ColumnHeader<WorkspaceRunbook> id="title">Runbook</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceRunbook> id="service">Service</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceRunbook> id="severity">Severity</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceRunbook> id="lastValidated">Last validated</DataTable.ColumnHeader>
-                    </DataTable.Header>
-                    <DataTable.Body<WorkspaceRunbook>>
-                      {(item) => (
-                        <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "runbook")}>
-                          <DataTable.PrimaryCell icon={<BookOpen02Icon size={16} />} iconTone="knowledge" title={item.title} />
-                          <DataTable.Cell>{item.service}</DataTable.Cell>
-                          <DataTable.Cell><StatusChip tone={runbookSeverityTone(item.severity)} label={item.severity} /></DataTable.Cell>
-                          <DataTable.Cell class="text-[var(--color-text-muted)]">{item.lastValidated}</DataTable.Cell>
-                        </DataTable.Row>
-                      )}
-                    </DataTable.Body>
-                  </DataTable.Table>
-                </DataTable.Root>
               </Show>
             </Show>
           </PageContent>
@@ -587,7 +1003,7 @@ export function KnowledgeView(props: {
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
               setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
-              props.onSaveBody?.(item().id, markdown);
+              bodyAutosave.schedule(item().id, markdown);
             }}
             onOpenComponent={props.onOpenComponent}
             onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
@@ -616,7 +1032,7 @@ export function KnowledgeView(props: {
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
               setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
-              props.onSaveBody?.(item().id, markdown);
+              bodyAutosave.schedule(item().id, markdown);
             }}
             onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
             links={linksFor(item().id, item().entityLinks)}
@@ -630,14 +1046,34 @@ export function KnowledgeView(props: {
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
               setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
-              props.onSaveBody?.(item().id, markdown);
+              bodyAutosave.schedule(item().id, markdown);
             }}
-            onOpenTerminal={props.onOpenTerminal}
             onOpenComponent={props.onOpenComponent}
-            onOpenOperation={props.onOpenOperation}
-            onRun={props.onRun ? () => props.onRun?.(item().id) : undefined}
             onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
             onDuplicate={props.onDuplicate ? () => props.onDuplicate?.(item().id) : undefined}
+            links={linksFor(item().id, item().entityLinks)}
+          />
+        )}
+      </Show>
+      <Show when={source()}>
+        {(item) => (
+          <SourceDetail
+            source={item()}
+            bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
+            pathValue={pathOverrides()[item().id] ?? item().path}
+            onBodyChange={(markdown) => {
+              setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
+              bodyAutosave.schedule(item().id, markdown);
+            }}
+            onPathChange={
+              props.onSaveSourcePath
+                ? (path) => {
+                    setPathOverrides((current) => ({ ...current, [item().id]: path }));
+                    pathAutosave.schedule(item().id, path);
+                  }
+                : undefined
+            }
+            onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
             links={linksFor(item().id, item().entityLinks)}
           />
         )}
@@ -664,7 +1100,7 @@ export function KnowledgeView(props: {
               const artifactId = activeArtifactId();
               if (!artifactId) return;
               setBodyOverrides((current) => ({ ...current, [artifactId]: markdown }));
-              props.onSaveBody?.(artifactId, markdown);
+              bodyAutosave.schedule(artifactId, markdown);
             }}
             onArchive={
               props.onArchiveFeature
@@ -686,7 +1122,7 @@ export function KnowledgeView(props: {
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
               setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
-              props.onSaveBody?.(item().id, markdown);
+              bodyAutosave.schedule(item().id, markdown);
             }}
             onArchive={
               props.onArchiveConstitution
@@ -699,6 +1135,7 @@ export function KnowledgeView(props: {
       <CreateKnowledgeDialog
         open={createOpen()}
         kind={createKind()}
+        pickLibraryKind={pickLibraryKind()}
         onClose={() => setCreateOpen(false)}
         onCreateFromTemplate={
           props.onCreateFromTemplate
@@ -708,12 +1145,28 @@ export function KnowledgeView(props: {
               }
             : undefined
         }
-        onSubmit={(title) => {
-          if (createKind() === "feature") props.onCreateFeature?.(title);
-          else if (createKind() === "runbook") props.onCreate?.("runbook", title);
-          else if (createKind() === "adr") props.onCreate?.("adr", title);
+        onSubmit={(title, kind) => {
+          if (kind === "feature") props.onCreateFeature?.(title);
+          else if (kind === "runbook") props.onCreate?.("runbook", title);
+          else if (kind === "adr") props.onCreate?.("adr", title);
           else props.onCreate?.("doc", title);
           setCreateOpen(false);
+        }}
+      />
+      <CreateSourceDialog
+        open={sourceCreateOpen()}
+        onClose={() => setSourceCreateOpen(false)}
+        onCreateFromTemplate={
+          props.onCreateFromTemplate
+            ? (template) => {
+                props.onCreateFromTemplate?.(template);
+                setSourceCreateOpen(false);
+              }
+            : undefined
+        }
+        onSubmit={(input) => {
+          props.onCreateSource?.(input);
+          setSourceCreateOpen(false);
         }}
       />
     </>

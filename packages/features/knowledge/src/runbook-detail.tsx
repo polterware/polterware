@@ -4,8 +4,6 @@ import {
   Archive,
   BookOpen02Icon,
   Copy,
-  Play,
-  SquareTerminal,
 } from "@polterware/frontend-design-system";
 import type { WorkspaceRunbook } from "@polterware/feature-shell";
 import { KnowledgeDocumentNotFound, KnowledgeDocumentShell } from "./knowledge-document-shell";
@@ -15,12 +13,9 @@ export function RunbookDetail(props: {
   notFound?: boolean;
   bodyMarkdown: string;
   onBodyChange: (md: string) => void;
-  onRun?: () => void;
   onDuplicate?: () => void;
   onArchive?: () => void;
-  onOpenTerminal?: () => void;
   onOpenComponent?: (componentId: string) => void;
-  onOpenOperation?: (operationId: string) => void;
   links?: JSX.Element;
 }) {
   return (
@@ -36,11 +31,6 @@ export function RunbookDetail(props: {
         <DetailPanel.Content>
           <DetailPanel.Header icon={<BookOpen02Icon size={16} />} title={runbook().title}>
             <DetailPanel.Actions>
-              <Show when={props.onRun}>
-                <DetailPanel.Action label="Run" tone="primary" onClick={() => props.onRun?.()}>
-                  <Play />
-                </DetailPanel.Action>
-              </Show>
               <Show when={props.onDuplicate}>
                 <DetailPanel.Action label="Duplicate" onClick={() => props.onDuplicate?.()}>
                   <Copy />
@@ -51,21 +41,13 @@ export function RunbookDetail(props: {
                   <Archive />
                 </DetailPanel.Action>
               </Show>
-              <Show when={props.onOpenTerminal}>
-                <DetailPanel.Action
-                  label="Open terminal"
-                  onClick={() => props.onOpenTerminal?.()}
-                >
-                  <SquareTerminal />
-                </DetailPanel.Action>
-              </Show>
             </DetailPanel.Actions>
           </DetailPanel.Header>
-          <Show when={props.links}>{props.links}</Show>
           <KnowledgeDocumentShell
             title={runbook().title}
             bodyMarkdown={props.bodyMarkdown}
             onBodyChange={props.onBodyChange}
+            preamble={props.links}
           />
         </DetailPanel.Content>
       )}

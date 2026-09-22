@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	ProjectID         = "proj-polter"
-	EnvProductionID   = "env-polter-prod"
-	EnvStagingID      = "env-polter-staging"
-	EnvDevelopmentID  = "env-polter-dev"
+	ProjectID        = "proj-polter"
+	EnvProductionID  = "env-polter-prod"
+	EnvStagingID     = "env-polter-staging"
+	EnvDevelopmentID = "env-polter-dev"
 )
 
 func Defaults(store *storepkg.Store) error {
@@ -40,13 +40,7 @@ func Defaults(store *storepkg.Store) error {
 	if err := seedKnowledgeLinks(store); err != nil {
 		return err
 	}
-	if err := seedOperations(store); err != nil {
-		return err
-	}
-	if err := seedIntegrations(store); err != nil {
-		return err
-	}
-	return seedProcesses(store)
+	return seedIntegrations(store)
 }
 
 func seedProject(store *storepkg.Store) error {
@@ -70,7 +64,7 @@ func seedProject(store *storepkg.Store) error {
 	}
 	return store.SaveProjectSettings(projects.Settings{
 		ProjectID:            ProjectID,
-		Description:          "Developer system control plane",
+		Description:          "Local project context for AI coding",
 		DefaultEnvironmentID: EnvProductionID,
 		Repository:           "polterware/polter",
 	})

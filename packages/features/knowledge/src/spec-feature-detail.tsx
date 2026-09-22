@@ -79,27 +79,29 @@ export function SpecFeatureDetail(props: {
               </Show>
             </DetailPanel.Actions>
           </DetailPanel.Header>
-          <div class="flex flex-col gap-3 px-[var(--space-4)] pt-[var(--space-3)]">
-            <div class="flex flex-wrap items-center gap-2">
-              <StatusChip tone={specStatusTone(feature().status)} label={feature().status} />
-              <Show when={checklistIncomplete() && feature().status !== "ready"}>
-                <StatusChip tone="warn" label="checklist open" />
-              </Show>
-              <span class="text-[12px] text-[var(--color-text-muted)] font-mono">
-                {feature().featureKey}
-              </span>
-            </div>
-            <Tabs
-              items={[...ARTIFACT_TABS]}
-              value={artifact()}
-              onChange={(next) => props.onArtifactChange?.(normalizeArtifact(next))}
-              aria-label="Feature artifacts"
-            />
-          </div>
           <KnowledgeDocumentShell
             title={`${feature().title} · ${artifactLabel()}`}
             bodyMarkdown={props.bodyMarkdown}
             onBodyChange={props.onBodyChange}
+            preamble={
+              <div class="flex flex-col gap-3 px-4 py-3">
+                <div class="flex flex-wrap items-center gap-2">
+                  <StatusChip tone={specStatusTone(feature().status)} label={feature().status} />
+                  <Show when={checklistIncomplete() && feature().status !== "ready"}>
+                    <StatusChip tone="warn" label="checklist open" />
+                  </Show>
+                  <span class="text-[12px] text-[var(--color-text-muted)] font-mono">
+                    {feature().featureKey}
+                  </span>
+                </div>
+                <Tabs
+                  items={[...ARTIFACT_TABS]}
+                  value={artifact()}
+                  onChange={(next) => props.onArtifactChange?.(normalizeArtifact(next))}
+                  aria-label="Feature artifacts"
+                />
+              </div>
+            }
           />
         </DetailPanel.Content>
       )}

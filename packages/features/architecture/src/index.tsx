@@ -15,6 +15,7 @@ import {
   PageToolbar,
   Tabs,
   ToolbarIconButton,
+  pushToast,
 } from "@polterware/frontend-design-system";
 import { ArchitectureCanvas } from "./architecture-canvas";
 import type { SaveStatus } from "./architecture-canvas";
@@ -24,13 +25,6 @@ import { ArchitectureViewDetail } from "./view-detail";
 import { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
 import { type ArchitectureViewDraft, type ArchViewCard } from "./extra-fixtures";
 import { ViewsTable } from "./views-table";
-import { ComponentsTable } from "./components-table";
-import {
-  componentsDetailTarget,
-  filterComponentRows,
-  projectComponentRows,
-  typeLabelFor,
-} from "./components-list";
 import { CreateNodeDialog, type ArchNodeDraft } from "./create-node-dialog";
 import { ViewEditor } from "./view-editor";
 import { membersFromSelection, nodesFromArchitectureDocument } from "./view-editor-helpers";
@@ -54,9 +48,9 @@ import {
   orderArchitectureDetailNodes,
   resolveArchitectureDocument,
 } from "./fixture-mode";
-import { ARCHITECTURE_TABS, normalizeArchitectureTab } from "./tab";
+import { ARCHITECTURE_TAB_ITEMS, normalizeArchitectureTab } from "./tab";
 
-const ARCH_TABS = ARCHITECTURE_TABS.map((tab) => ({ id: tab.id, label: tab.label }));
+const ARCH_TABS = ARCHITECTURE_TAB_ITEMS;
 
 const SYSTEM_ID_DEFAULT = "sys-local";
 
@@ -138,11 +132,7 @@ export {
   resolveArchitectureDocument,
 } from "./fixture-mode";
 export { ARCHITECTURE_TABS, normalizeArchitectureTab } from "./tab";
-export {
-  componentsDetailTarget,
-  filterComponentRows,
-  projectComponentRows,
-} from "./components-list";
+export { typeLabelFor } from "./type-label";
 
 function mapDraftType(t: string, typeId?: string): NodeType {
   if (typeId) return typeId;
@@ -231,9 +221,6 @@ export function ArchitectureView(props: {
   const [editMemberIds, setEditMemberIds] = createSignal<string[]>([]);
   const [activeViewId, setActiveViewId] = createSignal<string | null>(null);
   const [edgeFlow, setEdgeFlow] = createSignal(readEdgeFlowPref());
-  const [componentLifecycleFilters, setComponentLifecycleFilters] = createSignal<string[]>([]);
-  const [componentTypeFilters, setComponentTypeFilters] = createSignal<string[]>([]);
-  const [componentEnvFilters, setComponentEnvFilters] = createSignal<string[]>([]);
 
   function toggleEdgeFlow() {
     const next = !edgeFlow();
@@ -343,11 +330,11 @@ export function ArchitectureView(props: {
   }
 
   function nodeScopeId() {
-    return tab() === "components" ? "architecture:components" : "architecture:canvas";
+    return "architecture:canvas";
   }
 
   function select(id: string | null) {
-    if (tab() === "canvas" || tab() === "components") {
+    if (tab() === "canvas") {
       if (id) {
         detailPanelStore.getState().activateTarget({
           scopeId: nodeScopeId(),
@@ -401,11 +388,19 @@ export function ArchitectureView(props: {
     props.onOpenNode?.(id);
   }
 
-  function saveManual() {
-    if (canPersistArchitecture(fixtureMode())) {
-      props.onSaveLayout?.(documentToLayoutBody(doc()), revision());
+  async function saveManual() {
+    const ctrl = autosave();
+    if (!ctrl) return;
+    await ctrl.flush(
+      () => documentToLayoutBody(doc()),
+      () => revision(),
+      { force: true },
+    );
+    if (ctrl.status() === "error") {
+      pushToast(ctrl.lastError() ?? "Could not save canvas layout.", "danger");
+      return;
     }
-    setSaveStatus("saved");
+    pushToast("Canvas saved locally.", "success");
   }
 
   async function submitCreate(draft: ArchNodeDraft) {
@@ -456,19 +451,13 @@ export function ArchitectureView(props: {
 
   const isArchNodeTarget = createMemo(() => {
     const target = activeTarget() ?? outgoingTarget();
-    return (
-      (target?.scopeId === "architecture:canvas" ||
-        target?.scopeId === "architecture:components") &&
-      target.entityKind === "arch-node"
-    );
+    return target?.scopeId === "architecture:canvas" && target.entityKind === "arch-node";
   });
 
   const detailNode = createMemo((): ArchitectureNodeView | undefined => {
     const target = activeTarget() ?? outgoingTarget();
     const id =
-      (target?.scopeId === "architecture:canvas" ||
-        target?.scopeId === "architecture:components") &&
-      target.entityKind === "arch-node"
+      target?.scopeId === "architecture:canvas" && target.entityKind === "arch-node"
         ? target.entityId
         : undefined;
     if (!id) return undefined;
@@ -576,46 +565,23 @@ export function ArchitectureView(props: {
     });
   }
 
-  const componentRows = createMemo(() =>
-    filterComponentRows(projectComponentRows(doc().nodes), {
-      search: props.search,
-      lifecycle: componentLifecycleFilters(),
-      type: componentTypeFilters(),
-      environment: componentEnvFilters(),
-    }),
-  );
-
-  const componentFilterActive = createMemo(
-    () =>
-      componentLifecycleFilters().length > 0 ||
-      componentTypeFilters().length > 0 ||
-      componentEnvFilters().length > 0,
-  );
-
   const detailTargets = createMemo(() => {
-    const current = tab();
-    const scope =
-      current === "components" ? "architecture:components" : "architecture:canvas";
     const query = (props.search ?? "").trim().toLowerCase();
-    const baseNodes =
-      current === "components"
-        ? componentRows().map((row) => doc().nodes.find((node) => node.id === row.id)).filter(Boolean)
-        : query
-          ? doc().nodes.filter(
-              (node) =>
-                node.name.toLowerCase().includes(query) ||
-                node.type.includes(query) ||
-                node.id.toLowerCase().includes(query) ||
-                (node.tags ?? []).some((tag) => tag.toLowerCase().includes(query)),
-            )
-          : doc().nodes;
-    const nodes = baseNodes.filter((node): node is NonNullable<typeof node> => Boolean(node));
+    const baseNodes = query
+      ? doc().nodes.filter(
+          (node) =>
+            node.name.toLowerCase().includes(query) ||
+            node.type.includes(query) ||
+            node.id.toLowerCase().includes(query) ||
+            (node.tags ?? []).some((tag) => tag.toLowerCase().includes(query)),
+        )
+      : doc().nodes;
     const orderedNodes = orderArchitectureDetailNodes(
-      nodes,
+      baseNodes,
       source() === "fixture",
     );
     return orderedNodes.map((node) => ({
-      scopeId: scope,
+      scopeId: "architecture:canvas" as const,
       entityId: node.id,
       entityKind: "arch-node" as const,
     }));
@@ -658,8 +624,7 @@ export function ArchitectureView(props: {
   createEffect(() => {
     const target = activeTarget();
     if (
-      (target?.scopeId !== "architecture:canvas" &&
-        target?.scopeId !== "architecture:components") ||
+      target?.scopeId !== "architecture:canvas" ||
       target.entityKind !== "arch-node"
     ) {
       return;
@@ -707,7 +672,9 @@ export function ArchitectureView(props: {
               onSelect={select}
               onOpenNode={openNode}
               onViewportChange={(vp) => setDoc((d) => ({ ...d, viewport: vp }))}
-              onRequestSave={() => saveManual()}
+              onRequestSave={() => {
+                void saveManual();
+              }}
               edgeFlow={edgeFlow()}
             />
           </Show>
@@ -784,80 +751,15 @@ export function ArchitectureView(props: {
                   <Zap size={14} aria-hidden />
                   <span>Flow</span>
                 </Button>
-              </Show>
-              <Show when={tab() === "components"}>
-                <FilterPopover
-                  ariaLabel="Component filters"
-                  title="Filter components"
-                  active={componentFilterActive()}
-                  onClear={() => {
-                    setComponentLifecycleFilters([]);
-                    setComponentTypeFilters([]);
-                    setComponentEnvFilters([]);
-                  }}
-                  groups={[
-                    {
-                      id: "lifecycle",
-                      label: "Lifecycle",
-                      options: Array.from(
-                        new Set(doc().nodes.map((node) => node.state)),
-                      ).map((state) => ({
-                        id: state,
-                        label: nodeStatusLabel(state),
-                        checked: componentLifecycleFilters().includes(state),
-                        onCheckedChange: (checked: boolean) =>
-                          setComponentLifecycleFilters((prev) =>
-                            checked
-                              ? [...prev, state]
-                              : prev.filter((value) => value !== state),
-                          ),
-                      })),
-                    },
-                    {
-                      id: "type",
-                      label: "Type",
-                      options: Array.from(
-                        new Set(doc().nodes.map((node) => node.type)),
-                      ).map((type) => ({
-                        id: type,
-                        label: typeLabelFor(type),
-                        checked: componentTypeFilters().includes(type),
-                        onCheckedChange: (checked: boolean) =>
-                          setComponentTypeFilters((prev) =>
-                            checked
-                              ? [...prev, type]
-                              : prev.filter((value) => value !== type),
-                          ),
-                      })),
-                    },
-                    {
-                      id: "environment",
-                      label: "Environment",
-                      options: DEFAULT_PROJECT_ENVIRONMENTS.map((env) => ({
-                        id: env.id,
-                        label: env.label,
-                        checked: componentEnvFilters().includes(env.id),
-                        onCheckedChange: (checked: boolean) =>
-                          setComponentEnvFilters((prev) =>
-                            checked
-                              ? [...prev, env.id]
-                              : prev.filter((value) => value !== env.id),
-                          ),
-                      })),
-                    },
-                  ]}
-                />
-              </Show>
-              <Show when={tab() === "views"}>
-                <ToolbarIconButton label="Create view" onClick={openCreateView}>
-                  <Plus size={14} />
-                </ToolbarIconButton>
-              </Show>
-              <Show when={tab() !== "views"}>
                 <ToolbarIconButton
                   label="Add component"
                   onClick={() => props.onCreateNode?.()}
                 >
+                  <Plus size={14} />
+                </ToolbarIconButton>
+              </Show>
+              <Show when={tab() === "views"}>
+                <ToolbarIconButton label="Create view" onClick={openCreateView}>
                   <Plus size={14} />
                 </ToolbarIconButton>
               </Show>
@@ -866,23 +768,6 @@ export function ArchitectureView(props: {
           <div class="relative flex min-h-0 flex-1 flex-col">
             <Show when={tab() === "canvas"}>
               {canvasPanel()}
-            </Show>
-            <Show when={tab() === "components"}>
-              <ComponentsTable
-                rows={componentRows()}
-                sourceCount={doc().nodes.length}
-                loading={props.loading}
-                activeRowId={
-                  activeTarget()?.scopeId === "architecture:components"
-                    ? activeTarget()?.entityId
-                    : null
-                }
-                onActivate={(id) =>
-                  detailPanelStore.getState().activateTarget(componentsDetailTarget(id))
-                }
-                onAddComponent={() => props.onCreateNode?.()}
-                onCreateFromTemplate={(template) => void submitCreate(template.draft)}
-              />
             </Show>
             <Show when={tab() === "views"}>
               <ViewsTable

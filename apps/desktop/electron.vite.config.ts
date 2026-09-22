@@ -80,10 +80,6 @@ export default defineConfig({
           rootDir,
           "../../packages/features/architecture/src/index.tsx",
         ),
-        "@polterware/feature-operations": resolve(
-          rootDir,
-          "../../packages/features/operations/src/index.tsx",
-        ),
         "@polterware/feature-knowledge": resolve(
           rootDir,
           "../../packages/features/knowledge/src/index.tsx",

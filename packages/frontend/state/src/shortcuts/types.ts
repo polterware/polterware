@@ -29,6 +29,7 @@ export type ShortcutCommandId =
   | "architecture.cut"
   | "architecture.paste"
   | "architecture.duplicate"
+  | "architecture.save"
   | "architecture.zoom_reset"
   | "architecture.zoom_in"
   | "architecture.zoom_out"

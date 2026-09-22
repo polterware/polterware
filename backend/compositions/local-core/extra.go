@@ -4,15 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"time"
 
 	"connectrpc.com/connect"
 
 	"github.com/polterware/polterware/backend/domains/architecture"
 	"github.com/polterware/polterware/backend/domains/integrations"
-	"github.com/polterware/polterware/backend/domains/operations"
 	"github.com/polterware/polterware/backend/domains/projects"
-	"github.com/polterware/polterware/backend/domains/resources"
 	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
 	cliprobe "github.com/polterware/polterware/backend/providers/cli"
 )
@@ -39,39 +36,6 @@ func (core *Core) SaveProjectSettings(_ context.Context, request *connect.Reques
 		return nil, internal(err)
 	}
 	return connect.NewResponse(&localv1.SaveProjectSettingsResponse{Settings: settingsProto(settings)}), nil
-}
-
-func (core *Core) ListNodes(_ context.Context, request *connect.Request[localv1.ListNodesRequest]) (*connect.Response[localv1.ListNodesResponse], error) {
-	items, err := core.Store.ListNodes(request.Msg.ProjectId)
-	if err != nil {
-		return nil, internal(err)
-	}
-	result := make([]*localv1.Node, 0, len(items))
-	for _, item := range items {
-		result = append(result, nodeProto(item))
-	}
-	return connect.NewResponse(&localv1.ListNodesResponse{Nodes: result}), nil
-}
-
-func (core *Core) SaveNode(_ context.Context, request *connect.Request[localv1.SaveNodeRequest]) (*connect.Response[localv1.SaveNodeResponse], error) {
-	item := request.Msg.GetNode()
-	if item == nil || item.Id == "" || item.ProjectId == "" || item.Name == "" {
-		return nil, invalid("node id, project id, and name are required")
-	}
-	node := resources.Node{
-		ID: item.Id, ProjectID: item.ProjectId, EnvironmentID: item.EnvironmentId, Name: item.Name,
-		Platform: item.Platform, Shell: item.Shell, Status: item.Status, Address: item.Address,
-		CPU: item.Cpu, Memory: item.Memory, LastSeenAt: item.LastSeenAt,
-		ConnectionKind: item.ConnectionKind, SSHUser: item.SshUser, SSHPort: int(item.SshPort), SSHIdentityFile: item.SshIdentityFile,
-	}
-	resources.NormalizeNode(&node)
-	if err := resources.ValidateNode(node); err != nil {
-		return nil, invalid(err.Error())
-	}
-	if err := core.Store.SaveNode(node); err != nil {
-		return nil, internal(err)
-	}
-	return connect.NewResponse(&localv1.SaveNodeResponse{Node: nodeProto(node)}), nil
 }
 
 func (core *Core) ListViews(_ context.Context, request *connect.Request[localv1.ListViewsRequest]) (*connect.Response[localv1.ListViewsResponse], error) {
@@ -103,63 +67,6 @@ func (core *Core) DeleteView(_ context.Context, request *connect.Request[localv1
 		return nil, internal(err)
 	}
 	return connect.NewResponse(&localv1.DeleteViewResponse{}), nil
-}
-
-func (core *Core) ListSchedules(_ context.Context, request *connect.Request[localv1.ListSchedulesRequest]) (*connect.Response[localv1.ListSchedulesResponse], error) {
-	items, err := core.Store.ListSchedules(request.Msg.ProjectId)
-	if err != nil {
-		return nil, internal(err)
-	}
-	result := make([]*localv1.OperationSchedule, 0, len(items))
-	for _, item := range items {
-		result = append(result, scheduleProto(item))
-	}
-	return connect.NewResponse(&localv1.ListSchedulesResponse{Schedules: result}), nil
-}
-
-func (core *Core) SaveSchedule(_ context.Context, request *connect.Request[localv1.SaveScheduleRequest]) (*connect.Response[localv1.SaveScheduleResponse], error) {
-	item := request.Msg.GetSchedule()
-	if item == nil || item.Id == "" || item.ProjectId == "" || item.WorkflowId == "" {
-		return nil, invalid("schedule id, project id, and workflow id are required")
-	}
-	timezone := item.Timezone
-	if timezone == "" {
-		timezone = "UTC"
-	}
-	if _, _, err := ParseScheduleCron(item.Expression, timezone); err != nil {
-		return nil, invalid(err.Error())
-	}
-	nextRunAt := item.NextRunAt
-	if nextRunAt == "" {
-		computed, err := NextRunAtString(item.Expression, timezone, time.Now().UTC())
-		if err != nil {
-			return nil, invalid(err.Error())
-		}
-		nextRunAt = computed
-	} else if _, err := ParseScheduleInstant(nextRunAt); err != nil {
-		computed, err := NextRunAtString(item.Expression, timezone, time.Now().UTC())
-		if err != nil {
-			return nil, invalid(err.Error())
-		}
-		nextRunAt = computed
-	}
-	schedule := operations.Schedule{
-		ID:            item.Id,
-		ProjectID:     item.ProjectId,
-		EnvironmentID: item.EnvironmentId,
-		Name:          item.Name,
-		Description:   item.Description,
-		Status:        item.Status,
-		WorkflowID:    item.WorkflowId,
-		Expression:    item.Expression,
-		Timezone:      timezone,
-		NextRunAt:     nextRunAt,
-		LastRunAt:     item.LastRunAt,
-	}
-	if err := core.Store.SaveSchedule(schedule); err != nil {
-		return nil, internal(err)
-	}
-	return connect.NewResponse(&localv1.SaveScheduleResponse{Schedule: scheduleProto(schedule)}), nil
 }
 
 func (core *Core) ListIntegrationResources(_ context.Context, request *connect.Request[localv1.ListIntegrationResourcesRequest]) (*connect.Response[localv1.ListIntegrationResourcesResponse], error) {
@@ -242,15 +149,6 @@ func settingsProto(item projects.Settings) *localv1.ProjectSettings {
 	return &localv1.ProjectSettings{ProjectId: item.ProjectID, Description: item.Description, DefaultEnvironmentId: item.DefaultEnvironmentID, Repository: item.Repository}
 }
 
-func nodeProto(item resources.Node) *localv1.Node {
-	return &localv1.Node{
-		Id: item.ID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Name: item.Name,
-		Platform: item.Platform, Shell: item.Shell, Status: item.Status, Address: item.Address,
-		Cpu: item.CPU, Memory: item.Memory, LastSeenAt: item.LastSeenAt,
-		ConnectionKind: item.ConnectionKind, SshUser: item.SSHUser, SshPort: int32(item.SSHPort), SshIdentityFile: item.SSHIdentityFile,
-	}
-}
-
 func viewFromProto(item *localv1.ArchitectureView) architecture.View {
 	members := make([]architecture.ViewMember, 0, len(item.Members))
 	for _, member := range item.Members {
@@ -265,10 +163,6 @@ func viewProto(item architecture.View) *localv1.ArchitectureView {
 		members = append(members, &localv1.ArchitectureViewMember{NodeId: member.NodeID, Name: member.Name, Type: member.Type, Layer: member.Layer})
 	}
 	return &localv1.ArchitectureView{Id: item.ID, ProjectId: item.ProjectID, Name: item.Name, Description: item.Description, Owner: item.Owner, Purpose: item.Purpose, Notes: item.Notes, FilterSummary: item.FilterSummary, Environments: item.Environments, Tags: item.Tags, UpdatedAt: item.UpdatedAt, Members: members}
-}
-
-func scheduleProto(item operations.Schedule) *localv1.OperationSchedule {
-	return &localv1.OperationSchedule{Id: item.ID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Name: item.Name, Description: item.Description, Status: item.Status, WorkflowId: item.WorkflowID, Expression: item.Expression, Timezone: item.Timezone, NextRunAt: item.NextRunAt, LastRunAt: item.LastRunAt}
 }
 
 func integrationResourceProto(item integrations.Resource) *localv1.IntegrationResource {

@@ -24,8 +24,8 @@ export const SEARCH_HITS: SearchHit[] = [
   { id: "h2", category: "Architecture", title: "Payment flow", subtitle: "Saved view", section: "architecture", tab: "views" },
   { id: "h3", category: "Architecture", title: "payment-service", subtitle: "Component · AWS · Healthy", section: "architecture", tab: "canvas", entityKind: "resource", entityId: "payment-service" },
   { id: "h4", category: "Resources", title: "prod-postgres", subtitle: "Database · AWS RDS · Healthy", section: "resources", tab: "inventory", entityKind: "resource", entityId: "res-rds" },
-  { id: "h5", category: "Operations", title: "Deploy payment-service", subtitle: "Run · Success", section: "operations", entityKind: "run", entityId: "run-1" },
-  { id: "h6", category: "Resources", title: "Nitro", subtitle: "Node · online", section: "resources", tab: "nodes", entityKind: "node", entityId: "node-nitro" },
+  { id: "h5", category: "Knowledge", title: "Payment flow Spec", subtitle: "spec · Feature checklist", section: "knowledge", tab: "specs", entityKind: "feature", entityId: "payment-flow" },
+  { id: "h6", category: "Knowledge", title: "ADR 0004", subtitle: "adr · Product positioning", section: "knowledge", tab: "library", entityKind: "adr", entityId: "adr-0004" },
 ];
 
 export function knowledgeHitsFromSearch(hits: Array<{
@@ -38,8 +38,24 @@ export function knowledgeHitsFromSearch(hits: Array<{
     const title = hit.item?.title;
     if (!id || !title) return [];
     const kind = hit.item?.kind ?? "doc";
-    const tab = kind === "runbook" ? "runbooks" : kind === "adr" ? "adrs" : kind === "spec" || kind === "plan" || kind === "tasks" ? "specs" : "docs";
-    const entityKind = kind === "runbook" ? "runbook" : kind === "adr" ? "adr" : kind === "spec" || kind === "plan" || kind === "tasks" ? "feature" : "document";
+    const tab = kind === "spec" || kind === "plan" || kind === "tasks" || kind === "clarify" || kind === "checklist" || kind === "constitution"
+      ? "specs"
+      : kind === "source"
+        ? "sources"
+        : kind === "doc" || kind === "adr" || kind === "runbook"
+          ? "library"
+          : "library";
+    const entityKind = kind === "runbook"
+      ? "runbook"
+      : kind === "adr"
+        ? "adr"
+        : kind === "source"
+          ? "source"
+          : kind === "spec" || kind === "plan" || kind === "tasks" || kind === "clarify" || kind === "checklist"
+            ? "feature"
+            : kind === "constitution"
+              ? "constitution"
+              : "document";
     return [{
       id: `knowledge-${id}`,
       category: "Knowledge",
@@ -89,7 +105,7 @@ export function SearchResultsPage(props: {
     for (const h of base) c.set(h.category, (c.get(h.category) ?? 0) + 1);
     return c;
   });
-  const cats = () => ["all", "Architecture", "Resources", "Operations", "Knowledge"];
+  const cats = () => ["all", "Architecture", "Resources", "Knowledge"];
 
   return (
     <div class="flex h-full min-h-0 flex-col">
@@ -115,7 +131,7 @@ export function SearchResultsPage(props: {
         {filtered().length === 0 ? (
           <p class="text-center text-[13px] text-[var(--color-text-muted)]">No results — refine your query</p>
         ) : (
-          <For each={["Architecture", "Resources", "Operations", "Knowledge"]}>
+          <For each={["Architecture", "Resources", "Knowledge"]}>
             {(cat) => {
               const items = () => filtered().filter((h) => h.category === cat);
               if (!items().length) return null;

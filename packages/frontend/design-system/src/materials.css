@@ -10,7 +10,7 @@
   --material-fade-edge-bottom: linear-gradient(to bottom, var(--color-surface) 0%, var(--color-surface) 48%, color-mix(in srgb, var(--color-surface) 45%, transparent) 68%, color-mix(in srgb, var(--color-surface) 18%, transparent) 86%, transparent 100%);
   --material-fade-edge-top: linear-gradient(to top, var(--color-surface) 0%, var(--color-surface) 48%, color-mix(in srgb, var(--color-surface) 45%, transparent) 68%, color-mix(in srgb, var(--color-surface) 18%, transparent) 86%, transparent 100%);
   --material-fade-edge-toolbar-trail: linear-gradient(to bottom, var(--color-surface) 0%, color-mix(in srgb, var(--color-surface) 52%, transparent) 30%, color-mix(in srgb, var(--color-surface) 18%, transparent) 65%, transparent 100%);
-  --material-fade-edge-top-canvas: linear-gradient(to right, var(--color-surface-subtle), transparent 40px), linear-gradient(to left, var(--color-surface-subtle), transparent 40px), linear-gradient(to top, var(--color-surface-subtle), transparent 52px);
+  --material-fade-edge-top-canvas: linear-gradient(to right, var(--color-surface), transparent 40px), linear-gradient(to left, var(--color-surface), transparent 40px), linear-gradient(to top, var(--color-surface), transparent 52px);
 }
 
 /**

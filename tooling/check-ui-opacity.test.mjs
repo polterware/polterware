@@ -52,6 +52,8 @@ test("allows modern alpha only in shared border and effect tokens", () => {
       --color-border-subtle: rgb(255 255 255 / 0.4);
       --color-overlay: rgb(0 0 0 / 0.6);
       --color-shadow: rgb(0 0 0 / 0.32);
+      --color-shell-glass: rgb(7 7 7 / 0.45);
+      --color-sidebar-glass: var(--color-shell-glass);
     }
   `;
   const materialsSource =
@@ -109,7 +111,7 @@ test("contains material transparency inside Texture Button", () => {
   assert.notDeepEqual(inspectSource(source, PRODUCT_FILE), []);
 });
 
-test("allows only the native Commander window transparency exception", () => {
+test("allows native Desktop window transparency (main vibrancy + Commander)", () => {
   const source = `transparent: true,\nbackgroundColor: "#00000000",`;
 
   assert.deepEqual(inspectSource(source, WINDOW_FILE), []);

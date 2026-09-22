@@ -637,6 +637,998 @@ func (x *SyncProjectModelResponse) GetEntityCount() int32 {
 	return 0
 }
 
+type PpmFact struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Statement     string                 `protobuf:"bytes,3,opt,name=statement,proto3" json:"statement,omitempty"`
+	TruthClass    string                 `protobuf:"bytes,4,opt,name=truth_class,json=truthClass,proto3" json:"truth_class,omitempty"`
+	Source        string                 `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	Actor         string                 `protobuf:"bytes,6,opt,name=actor,proto3" json:"actor,omitempty"`
+	ObservedAt    string                 `protobuf:"bytes,7,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	EntityId      string                 `protobuf:"bytes,8,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PpmFact) Reset() {
+	*x = PpmFact{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PpmFact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PpmFact) ProtoMessage() {}
+
+func (x *PpmFact) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PpmFact.ProtoReflect.Descriptor instead.
+func (*PpmFact) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *PpmFact) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PpmFact) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *PpmFact) GetStatement() string {
+	if x != nil {
+		return x.Statement
+	}
+	return ""
+}
+
+func (x *PpmFact) GetTruthClass() string {
+	if x != nil {
+		return x.TruthClass
+	}
+	return ""
+}
+
+func (x *PpmFact) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *PpmFact) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *PpmFact) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *PpmFact) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+func (x *PpmFact) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *PpmFact) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type PpmEvidence struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Summary       string                 `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	Source        string                 `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	Path          string                 `protobuf:"bytes,6,opt,name=path,proto3" json:"path,omitempty"`
+	Actor         string                 `protobuf:"bytes,7,opt,name=actor,proto3" json:"actor,omitempty"`
+	ObservedAt    string                 `protobuf:"bytes,8,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PpmEvidence) Reset() {
+	*x = PpmEvidence{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PpmEvidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PpmEvidence) ProtoMessage() {}
+
+func (x *PpmEvidence) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PpmEvidence.ProtoReflect.Descriptor instead.
+func (*PpmEvidence) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *PpmEvidence) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PpmEvidence) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *PpmEvidence) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *PpmEvidence) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *PpmEvidence) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *PpmEvidence) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *PpmEvidence) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *PpmEvidence) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *PpmEvidence) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *PpmEvidence) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type ListFactsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	EntityId      string                 `protobuf:"bytes,2,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFactsRequest) Reset() {
+	*x = ListFactsRequest{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFactsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFactsRequest) ProtoMessage() {}
+
+func (x *ListFactsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFactsRequest.ProtoReflect.Descriptor instead.
+func (*ListFactsRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListFactsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ListFactsRequest) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+type ListFactsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Facts         []*PpmFact             `protobuf:"bytes,1,rep,name=facts,proto3" json:"facts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFactsResponse) Reset() {
+	*x = ListFactsResponse{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFactsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFactsResponse) ProtoMessage() {}
+
+func (x *ListFactsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFactsResponse.ProtoReflect.Descriptor instead.
+func (*ListFactsResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListFactsResponse) GetFacts() []*PpmFact {
+	if x != nil {
+		return x.Facts
+	}
+	return nil
+}
+
+type GetFactRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFactRequest) Reset() {
+	*x = GetFactRequest{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFactRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFactRequest) ProtoMessage() {}
+
+func (x *GetFactRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFactRequest.ProtoReflect.Descriptor instead.
+func (*GetFactRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetFactRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetFactResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Fact          *PpmFact               `protobuf:"bytes,1,opt,name=fact,proto3" json:"fact,omitempty"`
+	Evidence      []*PpmEvidence         `protobuf:"bytes,2,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFactResponse) Reset() {
+	*x = GetFactResponse{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFactResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFactResponse) ProtoMessage() {}
+
+func (x *GetFactResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFactResponse.ProtoReflect.Descriptor instead.
+func (*GetFactResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetFactResponse) GetFact() *PpmFact {
+	if x != nil {
+		return x.Fact
+	}
+	return nil
+}
+
+func (x *GetFactResponse) GetEvidence() []*PpmEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+type UpsertFactRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Fact          *PpmFact               `protobuf:"bytes,1,opt,name=fact,proto3" json:"fact,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertFactRequest) Reset() {
+	*x = UpsertFactRequest{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertFactRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertFactRequest) ProtoMessage() {}
+
+func (x *UpsertFactRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertFactRequest.ProtoReflect.Descriptor instead.
+func (*UpsertFactRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *UpsertFactRequest) GetFact() *PpmFact {
+	if x != nil {
+		return x.Fact
+	}
+	return nil
+}
+
+type UpsertFactResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Fact          *PpmFact               `protobuf:"bytes,1,opt,name=fact,proto3" json:"fact,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertFactResponse) Reset() {
+	*x = UpsertFactResponse{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertFactResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertFactResponse) ProtoMessage() {}
+
+func (x *UpsertFactResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertFactResponse.ProtoReflect.Descriptor instead.
+func (*UpsertFactResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *UpsertFactResponse) GetFact() *PpmFact {
+	if x != nil {
+		return x.Fact
+	}
+	return nil
+}
+
+type ListEvidenceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEvidenceRequest) Reset() {
+	*x = ListEvidenceRequest{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEvidenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEvidenceRequest) ProtoMessage() {}
+
+func (x *ListEvidenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEvidenceRequest.ProtoReflect.Descriptor instead.
+func (*ListEvidenceRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ListEvidenceRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+type ListEvidenceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Evidence      []*PpmEvidence         `protobuf:"bytes,1,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEvidenceResponse) Reset() {
+	*x = ListEvidenceResponse{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEvidenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEvidenceResponse) ProtoMessage() {}
+
+func (x *ListEvidenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEvidenceResponse.ProtoReflect.Descriptor instead.
+func (*ListEvidenceResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListEvidenceResponse) GetEvidence() []*PpmEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+type GetEvidenceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEvidenceRequest) Reset() {
+	*x = GetEvidenceRequest{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEvidenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEvidenceRequest) ProtoMessage() {}
+
+func (x *GetEvidenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEvidenceRequest.ProtoReflect.Descriptor instead.
+func (*GetEvidenceRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetEvidenceRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetEvidenceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Evidence      *PpmEvidence           `protobuf:"bytes,1,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEvidenceResponse) Reset() {
+	*x = GetEvidenceResponse{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEvidenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEvidenceResponse) ProtoMessage() {}
+
+func (x *GetEvidenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEvidenceResponse.ProtoReflect.Descriptor instead.
+func (*GetEvidenceResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetEvidenceResponse) GetEvidence() *PpmEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+type UpsertEvidenceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Evidence      *PpmEvidence           `protobuf:"bytes,1,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertEvidenceRequest) Reset() {
+	*x = UpsertEvidenceRequest{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertEvidenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertEvidenceRequest) ProtoMessage() {}
+
+func (x *UpsertEvidenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertEvidenceRequest.ProtoReflect.Descriptor instead.
+func (*UpsertEvidenceRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *UpsertEvidenceRequest) GetEvidence() *PpmEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+type UpsertEvidenceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Evidence      *PpmEvidence           `protobuf:"bytes,1,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpsertEvidenceResponse) Reset() {
+	*x = UpsertEvidenceResponse{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpsertEvidenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpsertEvidenceResponse) ProtoMessage() {}
+
+func (x *UpsertEvidenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpsertEvidenceResponse.ProtoReflect.Descriptor instead.
+func (*UpsertEvidenceResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *UpsertEvidenceResponse) GetEvidence() *PpmEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+type LinkEvidenceToFactRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	FactId        string                 `protobuf:"bytes,2,opt,name=fact_id,json=factId,proto3" json:"fact_id,omitempty"`
+	EvidenceId    string                 `protobuf:"bytes,3,opt,name=evidence_id,json=evidenceId,proto3" json:"evidence_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LinkEvidenceToFactRequest) Reset() {
+	*x = LinkEvidenceToFactRequest{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LinkEvidenceToFactRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LinkEvidenceToFactRequest) ProtoMessage() {}
+
+func (x *LinkEvidenceToFactRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LinkEvidenceToFactRequest.ProtoReflect.Descriptor instead.
+func (*LinkEvidenceToFactRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *LinkEvidenceToFactRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *LinkEvidenceToFactRequest) GetFactId() string {
+	if x != nil {
+		return x.FactId
+	}
+	return ""
+}
+
+func (x *LinkEvidenceToFactRequest) GetEvidenceId() string {
+	if x != nil {
+		return x.EvidenceId
+	}
+	return ""
+}
+
+type LinkEvidenceToFactResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LinkEvidenceToFactResponse) Reset() {
+	*x = LinkEvidenceToFactResponse{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LinkEvidenceToFactResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LinkEvidenceToFactResponse) ProtoMessage() {}
+
+func (x *LinkEvidenceToFactResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LinkEvidenceToFactResponse.ProtoReflect.Descriptor instead.
+func (*LinkEvidenceToFactResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{25}
+}
+
+type ImportProjectSourcesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportProjectSourcesRequest) Reset() {
+	*x = ImportProjectSourcesRequest{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportProjectSourcesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportProjectSourcesRequest) ProtoMessage() {}
+
+func (x *ImportProjectSourcesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportProjectSourcesRequest.ProtoReflect.Descriptor instead.
+func (*ImportProjectSourcesRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *ImportProjectSourcesRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+type ImportProjectSourcesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FactCount     int32                  `protobuf:"varint,1,opt,name=fact_count,json=factCount,proto3" json:"fact_count,omitempty"`
+	EvidenceCount int32                  `protobuf:"varint,2,opt,name=evidence_count,json=evidenceCount,proto3" json:"evidence_count,omitempty"`
+	SourceCount   int32                  `protobuf:"varint,3,opt,name=source_count,json=sourceCount,proto3" json:"source_count,omitempty"`
+	SkippedCount  int32                  `protobuf:"varint,4,opt,name=skipped_count,json=skippedCount,proto3" json:"skipped_count,omitempty"`
+	Message       string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImportProjectSourcesResponse) Reset() {
+	*x = ImportProjectSourcesResponse{}
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImportProjectSourcesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImportProjectSourcesResponse) ProtoMessage() {}
+
+func (x *ImportProjectSourcesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_ppm_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImportProjectSourcesResponse.ProtoReflect.Descriptor instead.
+func (*ImportProjectSourcesResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_ppm_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ImportProjectSourcesResponse) GetFactCount() int32 {
+	if x != nil {
+		return x.FactCount
+	}
+	return 0
+}
+
+func (x *ImportProjectSourcesResponse) GetEvidenceCount() int32 {
+	if x != nil {
+		return x.EvidenceCount
+	}
+	return 0
+}
+
+func (x *ImportProjectSourcesResponse) GetSourceCount() int32 {
+	if x != nil {
+		return x.SourceCount
+	}
+	return 0
+}
+
+func (x *ImportProjectSourcesResponse) GetSkippedCount() int32 {
+	if x != nil {
+		return x.SkippedCount
+	}
+	return 0
+}
+
+func (x *ImportProjectSourcesResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_polterware_local_v1_ppm_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_ppm_proto_rawDesc = "" +
@@ -697,12 +1689,99 @@ const file_polterware_local_v1_ppm_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\"=\n" +
 	"\x18SyncProjectModelResponse\x12!\n" +
-	"\fentity_count\x18\x01 \x01(\x05R\ventityCount2\xbb\x03\n" +
+	"\fentity_count\x18\x01 \x01(\x05R\ventityCount\"\xa1\x02\n" +
+	"\aPpmFact\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x1c\n" +
+	"\tstatement\x18\x03 \x01(\tR\tstatement\x12\x1f\n" +
+	"\vtruth_class\x18\x04 \x01(\tR\n" +
+	"truthClass\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\x12\x14\n" +
+	"\x05actor\x18\x06 \x01(\tR\x05actor\x12\x1f\n" +
+	"\vobserved_at\x18\a \x01(\tR\n" +
+	"observedAt\x12\x1b\n" +
+	"\tentity_id\x18\b \x01(\tR\bentityId\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\t \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\n" +
+	" \x01(\tR\tupdatedAt\"\x8b\x02\n" +
+	"\vPpmEvidence\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x18\n" +
+	"\asummary\x18\x04 \x01(\tR\asummary\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\x12\x12\n" +
+	"\x04path\x18\x06 \x01(\tR\x04path\x12\x14\n" +
+	"\x05actor\x18\a \x01(\tR\x05actor\x12\x1f\n" +
+	"\vobserved_at\x18\b \x01(\tR\n" +
+	"observedAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\t \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\n" +
+	" \x01(\tR\tupdatedAt\"N\n" +
+	"\x10ListFactsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tentity_id\x18\x02 \x01(\tR\bentityId\"G\n" +
+	"\x11ListFactsResponse\x122\n" +
+	"\x05facts\x18\x01 \x03(\v2\x1c.polterware.local.v1.PpmFactR\x05facts\" \n" +
+	"\x0eGetFactRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x81\x01\n" +
+	"\x0fGetFactResponse\x120\n" +
+	"\x04fact\x18\x01 \x01(\v2\x1c.polterware.local.v1.PpmFactR\x04fact\x12<\n" +
+	"\bevidence\x18\x02 \x03(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"E\n" +
+	"\x11UpsertFactRequest\x120\n" +
+	"\x04fact\x18\x01 \x01(\v2\x1c.polterware.local.v1.PpmFactR\x04fact\"F\n" +
+	"\x12UpsertFactResponse\x120\n" +
+	"\x04fact\x18\x01 \x01(\v2\x1c.polterware.local.v1.PpmFactR\x04fact\"4\n" +
+	"\x13ListEvidenceRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"T\n" +
+	"\x14ListEvidenceResponse\x12<\n" +
+	"\bevidence\x18\x01 \x03(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"$\n" +
+	"\x12GetEvidenceRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"S\n" +
+	"\x13GetEvidenceResponse\x12<\n" +
+	"\bevidence\x18\x01 \x01(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"U\n" +
+	"\x15UpsertEvidenceRequest\x12<\n" +
+	"\bevidence\x18\x01 \x01(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"V\n" +
+	"\x16UpsertEvidenceResponse\x12<\n" +
+	"\bevidence\x18\x01 \x01(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"t\n" +
+	"\x19LinkEvidenceToFactRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\afact_id\x18\x02 \x01(\tR\x06factId\x12\x1f\n" +
+	"\vevidence_id\x18\x03 \x01(\tR\n" +
+	"evidenceId\"\x1c\n" +
+	"\x1aLinkEvidenceToFactResponse\"<\n" +
+	"\x1bImportProjectSourcesRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"\xc6\x01\n" +
+	"\x1cImportProjectSourcesResponse\x12\x1d\n" +
+	"\n" +
+	"fact_count\x18\x01 \x01(\x05R\tfactCount\x12%\n" +
+	"\x0eevidence_count\x18\x02 \x01(\x05R\revidenceCount\x12!\n" +
+	"\fsource_count\x18\x03 \x01(\x05R\vsourceCount\x12#\n" +
+	"\rskipped_count\x18\x04 \x01(\x05R\fskippedCount\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage2\xf2\t\n" +
 	"\x13ProjectModelService\x12c\n" +
 	"\fListEntities\x12(.polterware.local.v1.ListEntitiesRequest\x1a).polterware.local.v1.ListEntitiesResponse\x12r\n" +
 	"\x11ListRelationships\x12-.polterware.local.v1.ListRelationshipsRequest\x1a..polterware.local.v1.ListRelationshipsResponse\x12Z\n" +
 	"\tGetEntity\x12%.polterware.local.v1.GetEntityRequest\x1a&.polterware.local.v1.GetEntityResponse\x12o\n" +
-	"\x10SyncProjectModel\x12,.polterware.local.v1.SyncProjectModelRequest\x1a-.polterware.local.v1.SyncProjectModelResponseB\xe4\x01\n" +
+	"\x10SyncProjectModel\x12,.polterware.local.v1.SyncProjectModelRequest\x1a-.polterware.local.v1.SyncProjectModelResponse\x12Z\n" +
+	"\tListFacts\x12%.polterware.local.v1.ListFactsRequest\x1a&.polterware.local.v1.ListFactsResponse\x12T\n" +
+	"\aGetFact\x12#.polterware.local.v1.GetFactRequest\x1a$.polterware.local.v1.GetFactResponse\x12]\n" +
+	"\n" +
+	"UpsertFact\x12&.polterware.local.v1.UpsertFactRequest\x1a'.polterware.local.v1.UpsertFactResponse\x12c\n" +
+	"\fListEvidence\x12(.polterware.local.v1.ListEvidenceRequest\x1a).polterware.local.v1.ListEvidenceResponse\x12`\n" +
+	"\vGetEvidence\x12'.polterware.local.v1.GetEvidenceRequest\x1a(.polterware.local.v1.GetEvidenceResponse\x12i\n" +
+	"\x0eUpsertEvidence\x12*.polterware.local.v1.UpsertEvidenceRequest\x1a+.polterware.local.v1.UpsertEvidenceResponse\x12u\n" +
+	"\x12LinkEvidenceToFact\x12..polterware.local.v1.LinkEvidenceToFactRequest\x1a/.polterware.local.v1.LinkEvidenceToFactResponse\x12{\n" +
+	"\x14ImportProjectSources\x120.polterware.local.v1.ImportProjectSourcesRequest\x1a1.polterware.local.v1.ImportProjectSourcesResponseB\xe4\x01\n" +
 	"\x17com.polterware.local.v1B\bPpmProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
 
 var (
@@ -717,36 +1796,79 @@ func file_polterware_local_v1_ppm_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_ppm_proto_rawDescData
 }
 
-var file_polterware_local_v1_ppm_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_polterware_local_v1_ppm_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_polterware_local_v1_ppm_proto_goTypes = []any{
-	(*PpmEntity)(nil),                 // 0: polterware.local.v1.PpmEntity
-	(*PpmRelationship)(nil),           // 1: polterware.local.v1.PpmRelationship
-	(*ListEntitiesRequest)(nil),       // 2: polterware.local.v1.ListEntitiesRequest
-	(*ListEntitiesResponse)(nil),      // 3: polterware.local.v1.ListEntitiesResponse
-	(*ListRelationshipsRequest)(nil),  // 4: polterware.local.v1.ListRelationshipsRequest
-	(*ListRelationshipsResponse)(nil), // 5: polterware.local.v1.ListRelationshipsResponse
-	(*GetEntityRequest)(nil),          // 6: polterware.local.v1.GetEntityRequest
-	(*GetEntityResponse)(nil),         // 7: polterware.local.v1.GetEntityResponse
-	(*SyncProjectModelRequest)(nil),   // 8: polterware.local.v1.SyncProjectModelRequest
-	(*SyncProjectModelResponse)(nil),  // 9: polterware.local.v1.SyncProjectModelResponse
+	(*PpmEntity)(nil),                    // 0: polterware.local.v1.PpmEntity
+	(*PpmRelationship)(nil),              // 1: polterware.local.v1.PpmRelationship
+	(*ListEntitiesRequest)(nil),          // 2: polterware.local.v1.ListEntitiesRequest
+	(*ListEntitiesResponse)(nil),         // 3: polterware.local.v1.ListEntitiesResponse
+	(*ListRelationshipsRequest)(nil),     // 4: polterware.local.v1.ListRelationshipsRequest
+	(*ListRelationshipsResponse)(nil),    // 5: polterware.local.v1.ListRelationshipsResponse
+	(*GetEntityRequest)(nil),             // 6: polterware.local.v1.GetEntityRequest
+	(*GetEntityResponse)(nil),            // 7: polterware.local.v1.GetEntityResponse
+	(*SyncProjectModelRequest)(nil),      // 8: polterware.local.v1.SyncProjectModelRequest
+	(*SyncProjectModelResponse)(nil),     // 9: polterware.local.v1.SyncProjectModelResponse
+	(*PpmFact)(nil),                      // 10: polterware.local.v1.PpmFact
+	(*PpmEvidence)(nil),                  // 11: polterware.local.v1.PpmEvidence
+	(*ListFactsRequest)(nil),             // 12: polterware.local.v1.ListFactsRequest
+	(*ListFactsResponse)(nil),            // 13: polterware.local.v1.ListFactsResponse
+	(*GetFactRequest)(nil),               // 14: polterware.local.v1.GetFactRequest
+	(*GetFactResponse)(nil),              // 15: polterware.local.v1.GetFactResponse
+	(*UpsertFactRequest)(nil),            // 16: polterware.local.v1.UpsertFactRequest
+	(*UpsertFactResponse)(nil),           // 17: polterware.local.v1.UpsertFactResponse
+	(*ListEvidenceRequest)(nil),          // 18: polterware.local.v1.ListEvidenceRequest
+	(*ListEvidenceResponse)(nil),         // 19: polterware.local.v1.ListEvidenceResponse
+	(*GetEvidenceRequest)(nil),           // 20: polterware.local.v1.GetEvidenceRequest
+	(*GetEvidenceResponse)(nil),          // 21: polterware.local.v1.GetEvidenceResponse
+	(*UpsertEvidenceRequest)(nil),        // 22: polterware.local.v1.UpsertEvidenceRequest
+	(*UpsertEvidenceResponse)(nil),       // 23: polterware.local.v1.UpsertEvidenceResponse
+	(*LinkEvidenceToFactRequest)(nil),    // 24: polterware.local.v1.LinkEvidenceToFactRequest
+	(*LinkEvidenceToFactResponse)(nil),   // 25: polterware.local.v1.LinkEvidenceToFactResponse
+	(*ImportProjectSourcesRequest)(nil),  // 26: polterware.local.v1.ImportProjectSourcesRequest
+	(*ImportProjectSourcesResponse)(nil), // 27: polterware.local.v1.ImportProjectSourcesResponse
 }
 var file_polterware_local_v1_ppm_proto_depIdxs = []int32{
-	0, // 0: polterware.local.v1.ListEntitiesResponse.entities:type_name -> polterware.local.v1.PpmEntity
-	1, // 1: polterware.local.v1.ListRelationshipsResponse.relationships:type_name -> polterware.local.v1.PpmRelationship
-	0, // 2: polterware.local.v1.GetEntityResponse.entity:type_name -> polterware.local.v1.PpmEntity
-	2, // 3: polterware.local.v1.ProjectModelService.ListEntities:input_type -> polterware.local.v1.ListEntitiesRequest
-	4, // 4: polterware.local.v1.ProjectModelService.ListRelationships:input_type -> polterware.local.v1.ListRelationshipsRequest
-	6, // 5: polterware.local.v1.ProjectModelService.GetEntity:input_type -> polterware.local.v1.GetEntityRequest
-	8, // 6: polterware.local.v1.ProjectModelService.SyncProjectModel:input_type -> polterware.local.v1.SyncProjectModelRequest
-	3, // 7: polterware.local.v1.ProjectModelService.ListEntities:output_type -> polterware.local.v1.ListEntitiesResponse
-	5, // 8: polterware.local.v1.ProjectModelService.ListRelationships:output_type -> polterware.local.v1.ListRelationshipsResponse
-	7, // 9: polterware.local.v1.ProjectModelService.GetEntity:output_type -> polterware.local.v1.GetEntityResponse
-	9, // 10: polterware.local.v1.ProjectModelService.SyncProjectModel:output_type -> polterware.local.v1.SyncProjectModelResponse
-	7, // [7:11] is the sub-list for method output_type
-	3, // [3:7] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0,  // 0: polterware.local.v1.ListEntitiesResponse.entities:type_name -> polterware.local.v1.PpmEntity
+	1,  // 1: polterware.local.v1.ListRelationshipsResponse.relationships:type_name -> polterware.local.v1.PpmRelationship
+	0,  // 2: polterware.local.v1.GetEntityResponse.entity:type_name -> polterware.local.v1.PpmEntity
+	10, // 3: polterware.local.v1.ListFactsResponse.facts:type_name -> polterware.local.v1.PpmFact
+	10, // 4: polterware.local.v1.GetFactResponse.fact:type_name -> polterware.local.v1.PpmFact
+	11, // 5: polterware.local.v1.GetFactResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
+	10, // 6: polterware.local.v1.UpsertFactRequest.fact:type_name -> polterware.local.v1.PpmFact
+	10, // 7: polterware.local.v1.UpsertFactResponse.fact:type_name -> polterware.local.v1.PpmFact
+	11, // 8: polterware.local.v1.ListEvidenceResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
+	11, // 9: polterware.local.v1.GetEvidenceResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
+	11, // 10: polterware.local.v1.UpsertEvidenceRequest.evidence:type_name -> polterware.local.v1.PpmEvidence
+	11, // 11: polterware.local.v1.UpsertEvidenceResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
+	2,  // 12: polterware.local.v1.ProjectModelService.ListEntities:input_type -> polterware.local.v1.ListEntitiesRequest
+	4,  // 13: polterware.local.v1.ProjectModelService.ListRelationships:input_type -> polterware.local.v1.ListRelationshipsRequest
+	6,  // 14: polterware.local.v1.ProjectModelService.GetEntity:input_type -> polterware.local.v1.GetEntityRequest
+	8,  // 15: polterware.local.v1.ProjectModelService.SyncProjectModel:input_type -> polterware.local.v1.SyncProjectModelRequest
+	12, // 16: polterware.local.v1.ProjectModelService.ListFacts:input_type -> polterware.local.v1.ListFactsRequest
+	14, // 17: polterware.local.v1.ProjectModelService.GetFact:input_type -> polterware.local.v1.GetFactRequest
+	16, // 18: polterware.local.v1.ProjectModelService.UpsertFact:input_type -> polterware.local.v1.UpsertFactRequest
+	18, // 19: polterware.local.v1.ProjectModelService.ListEvidence:input_type -> polterware.local.v1.ListEvidenceRequest
+	20, // 20: polterware.local.v1.ProjectModelService.GetEvidence:input_type -> polterware.local.v1.GetEvidenceRequest
+	22, // 21: polterware.local.v1.ProjectModelService.UpsertEvidence:input_type -> polterware.local.v1.UpsertEvidenceRequest
+	24, // 22: polterware.local.v1.ProjectModelService.LinkEvidenceToFact:input_type -> polterware.local.v1.LinkEvidenceToFactRequest
+	26, // 23: polterware.local.v1.ProjectModelService.ImportProjectSources:input_type -> polterware.local.v1.ImportProjectSourcesRequest
+	3,  // 24: polterware.local.v1.ProjectModelService.ListEntities:output_type -> polterware.local.v1.ListEntitiesResponse
+	5,  // 25: polterware.local.v1.ProjectModelService.ListRelationships:output_type -> polterware.local.v1.ListRelationshipsResponse
+	7,  // 26: polterware.local.v1.ProjectModelService.GetEntity:output_type -> polterware.local.v1.GetEntityResponse
+	9,  // 27: polterware.local.v1.ProjectModelService.SyncProjectModel:output_type -> polterware.local.v1.SyncProjectModelResponse
+	13, // 28: polterware.local.v1.ProjectModelService.ListFacts:output_type -> polterware.local.v1.ListFactsResponse
+	15, // 29: polterware.local.v1.ProjectModelService.GetFact:output_type -> polterware.local.v1.GetFactResponse
+	17, // 30: polterware.local.v1.ProjectModelService.UpsertFact:output_type -> polterware.local.v1.UpsertFactResponse
+	19, // 31: polterware.local.v1.ProjectModelService.ListEvidence:output_type -> polterware.local.v1.ListEvidenceResponse
+	21, // 32: polterware.local.v1.ProjectModelService.GetEvidence:output_type -> polterware.local.v1.GetEvidenceResponse
+	23, // 33: polterware.local.v1.ProjectModelService.UpsertEvidence:output_type -> polterware.local.v1.UpsertEvidenceResponse
+	25, // 34: polterware.local.v1.ProjectModelService.LinkEvidenceToFact:output_type -> polterware.local.v1.LinkEvidenceToFactResponse
+	27, // 35: polterware.local.v1.ProjectModelService.ImportProjectSources:output_type -> polterware.local.v1.ImportProjectSourcesResponse
+	24, // [24:36] is the sub-list for method output_type
+	12, // [12:24] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_ppm_proto_init() }
@@ -760,7 +1882,7 @@ func file_polterware_local_v1_ppm_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_ppm_proto_rawDesc), len(file_polterware_local_v1_ppm_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

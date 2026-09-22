@@ -2,6 +2,11 @@
 
 .pw-shell-main-frame {
   padding: 0 8px 8px 0;
+  background: var(--color-shell-glass);
+}
+
+html[data-shell-chrome="solid"] .pw-shell-main-frame {
+  background: var(--color-app-background);
 }
 
 .pw-resizable-sidebar-layout:has(> .pw-resizable-sidebar[data-collapsed]) .pw-shell-main-frame {
@@ -108,21 +113,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1 1 auto;
-}
-
-.pw-sidebar-item-badge {
-  flex-shrink: 0;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border-subtle);
-  color: var(--color-text-secondary);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 16px;
-  text-align: center;
 }
 
 .pw-sidebar-item--footer {

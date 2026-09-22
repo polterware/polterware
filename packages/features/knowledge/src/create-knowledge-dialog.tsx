@@ -1,20 +1,47 @@
-import { createSignal } from "solid-js";
-import { A11yDialog, Button, Field, Input } from "@polterware/frontend-design-system";
+import { Show, createEffect, createSignal } from "solid-js";
+import { A11yDialog, Button, Field, Input, Select } from "@polterware/frontend-design-system";
 import type { KnowledgeCreateTemplate } from "./create-templates";
 import { KnowledgeTemplateGrid } from "./knowledge-template-grid";
 
 export type CreateKnowledgeKind = "doc" | "runbook" | "feature" | "adr";
 
+const LIBRARY_KIND_OPTIONS = [
+  { value: "doc", label: "Document" },
+  { value: "adr", label: "ADR" },
+  { value: "runbook", label: "Runbook" },
+] as const;
+
+function isLibraryKind(kind: CreateKnowledgeKind): kind is "doc" | "adr" | "runbook" {
+  return kind === "doc" || kind === "adr" || kind === "runbook";
+}
+
 export function CreateKnowledgeDialog(props: {
   open: boolean;
   kind: CreateKnowledgeKind;
+  /** When true, show a category select for doc / ADR / runbook. */
+  pickLibraryKind?: boolean;
   onClose: () => void;
-  onSubmit: (title: string) => void;
+  onSubmit: (title: string, kind: CreateKnowledgeKind) => void;
   onCreateFromTemplate?: (template: KnowledgeCreateTemplate) => void;
 }) {
   const [title, setTitle] = createSignal("");
+  const [pickedKind, setPickedKind] = createSignal<"doc" | "adr" | "runbook">("doc");
+
+  createEffect(() => {
+    if (!props.open) return;
+    if (isLibraryKind(props.kind)) setPickedKind(props.kind);
+    else setPickedKind("doc");
+  });
+
+  const activeKind = (): CreateKnowledgeKind => {
+    if (props.kind === "feature") return "feature";
+    if (props.pickLibraryKind) return pickedKind();
+    return props.kind;
+  };
+
   const copy = () => {
-    if (props.kind === "runbook") {
+    const kind = activeKind();
+    if (kind === "runbook") {
       return {
         title: "New runbook",
         description: "Pick a template or create a blank runbook stored in the local SQLite database.",
@@ -22,7 +49,7 @@ export function CreateKnowledgeDialog(props: {
         blank: "Create blank",
       };
     }
-    if (props.kind === "feature") {
+    if (kind === "feature") {
       return {
         title: "New feature",
         description: "Pick a template or create a blank Spec, Plan, and Tasks draft linked by one feature key.",
@@ -30,7 +57,7 @@ export function CreateKnowledgeDialog(props: {
         blank: "Create blank",
       };
     }
-    if (props.kind === "adr") {
+    if (kind === "adr") {
       return {
         title: "New ADR",
         description: "Pick a template or create a blank architecture decision record.",
@@ -39,8 +66,10 @@ export function CreateKnowledgeDialog(props: {
       };
     }
     return {
-      title: "New document",
-      description: "Pick a template or create a blank document stored in the local SQLite database.",
+      title: props.pickLibraryKind ? "New library item" : "New document",
+      description: props.pickLibraryKind
+        ? "Choose a category, then pick a template or create a blank item stored in the local SQLite database."
+        : "Pick a template or create a blank document stored in the local SQLite database.",
       placeholder: "Document title",
       blank: "Create blank",
     };
@@ -55,7 +84,7 @@ export function CreateKnowledgeDialog(props: {
   function submit() {
     const next = title().trim();
     if (!next) return;
-    props.onSubmit(next);
+    props.onSubmit(next, activeKind());
     setTitle("");
   }
 
@@ -83,8 +112,22 @@ export function CreateKnowledgeDialog(props: {
       }
     >
       <div class="grid gap-4">
+        <Show when={props.pickLibraryKind}>
+          <Field label="Category">
+            <Select
+              size="sm"
+              value={pickedKind()}
+              options={[...LIBRARY_KIND_OPTIONS]}
+              onChange={(value) => {
+                if (value === "doc" || value === "adr" || value === "runbook") {
+                  setPickedKind(value);
+                }
+              }}
+            />
+          </Field>
+        </Show>
         {props.onCreateFromTemplate ? (
-          <KnowledgeTemplateGrid kind={props.kind} onSelect={selectTemplate} />
+          <KnowledgeTemplateGrid kind={activeKind()} onSelect={selectTemplate} />
         ) : null}
         <Field label="Title">
           <Input

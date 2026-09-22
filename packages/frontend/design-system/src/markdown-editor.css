@@ -15,7 +15,7 @@
   flex: 1 1 auto;
 }
 
-/* Room for sticky dock only while the toolbar is shown */
+/* Room for sticky dock while editable — always reserved to avoid maximize jump */
 .pw-md-editor[data-toolbar="true"] .pw-md-editor__surface {
   padding-bottom: 64px;
 }
@@ -30,6 +30,11 @@
   width: 100%;
   margin-top: -48px;
   pointer-events: none;
+}
+
+.pw-md-editor__dock[data-visible="false"] {
+  opacity: 0;
+  visibility: hidden;
 }
 
 /*

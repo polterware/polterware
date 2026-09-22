@@ -53,7 +53,7 @@ export const SETTINGS_ENVIRONMENT_MOCKS: ProjectEnvironment[] = [
 
 export const PROJECT_GENERAL_SETTINGS_MOCK: ProjectGeneralSettings = {
   name: "Polter",
-  description: "Developer system control plane",
+  description: "Local project context for AI coding",
   defaultEnvironmentId: "env-prod",
   projectId: "polter_01H7E2K3Q8V6",
   repository: "polterware/polter",

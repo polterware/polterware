@@ -10,19 +10,17 @@
 
 ## Product positioning
 
-Polterware's category is **Project Context & Change Intelligence for AI Coding** ([`docs/product-vision.md`](docs/product-vision.md) v3, [ADR 0004](docs/adr/0004-product-positioning-and-wedge.md)). Evolution priority is the wedge: PPM facts/evidence, deterministic import, Context Compiler, stable MCP reads, Drift, AgentRun, and CLI. Do not expand Operations, Terminal-as-product, or Nodes/remote execution — they are **scheduled for removal** on a future kill branch. Integrations remain as evidence/Connect UI only. Wedge delivery order: [`docs/architecture/wedge-validation-sequence.md`](docs/architecture/wedge-validation-sequence.md) (next slice: B5 Narrow Drift Checker).
+Polterware's category is **Project Context & Change Intelligence for AI Coding** ([`docs/product-vision.md`](docs/product-vision.md) v3, [ADR 0004](docs/adr/0004-product-positioning-and-wedge.md)). Evolution priority is the wedge: PPM facts/evidence, deterministic import, Context Compiler, stable MCP reads, Drift, AgentRun, audited MCP writes, and CLI. Operations, Terminal-as-product, and Nodes/remote execution were removed on the kill branch ([`docs/architecture/kill-ops-terminal-nodes.md`](docs/architecture/kill-ops-terminal-nodes.md)). Integrations remain as evidence/Connect UI only. Wedge delivery order: [`docs/architecture/wedge-validation-sequence.md`](docs/architecture/wedge-validation-sequence.md) (next slice: B5 Narrow Drift Checker).
 
 ## Current product boundary
 
-Polterware's first version is a local SQLite-backed Desktop with seven project surfaces: Architecture, Resources, Knowledge, Operations, Terminal, Agents, and Integrations. Settings is fixed in the sidebar footer. Architecture / Canvas is the default route.
+Polterware's first version is a local SQLite-backed Desktop with five project surfaces: Architecture, Resources (Inventory), Knowledge, Agents, and Integrations. Settings is fixed in the sidebar footer. Architecture / Canvas is the default route.
 
 The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. The Electron Main process starts `polterware-core`, and the renderer reads and writes through `window.polterware` only.
 
 The Desktop may execute on the local machine through `polterware-core` only. The renderer never spawns shells or touches Node APIs; it talks through `window.polterware`.
 
-- Terminal: interactive local and SSH sessions via PTY owned by Go core, with live output streams. SSH uses saved host profiles (alias, user, host, port, optional identity file path); private keys are never stored in SQLite. **Condemned as a product surface** (scheduled removal); do not expand.
-- Operations / Workflows / Runbooks: local runner (`os/exec`) that transitions queued runs to running/succeeded/failed/cancelled and appends logs. **Condemned** (scheduled removal); do not expand.
-- Integrations: detect CLI binaries, start provider authentication commands in a core-owned PTY, optionally open provider documentation through Main `openExternal`, and probe connection status. Credentials stay in the OS/CLI credential store. **KEEP** as evidence/Connect path (not a provider console).
+- Integrations: detect CLI binaries, start provider authentication commands in a core-owned PTY, optionally open provider documentation through Main `openExternal`, and probe connection status. Credentials stay in the OS/CLI credential store. **KEEP** as evidence/Connect path (not a provider console). Residual `terminals.*` IPC and `providers/terminal` exist only for that Connect auth PTY path.
 
 The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Do not add placeholders or app-owned provider-token fields, and never persist provider credentials in SQLite. Raw PTY output is not guaranteed to be sanitized; do not describe it as redacted.
 
@@ -39,19 +37,17 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
 
 ## Product navigation
 
-- Architecture: Canvas, Components, Views
-- Resources: Inventory, Nodes, Processes (Nodes / process control: **scheduled for removal**)
+- Architecture: Canvas, Views
+- Resources: Inventory (flat page; no tab rail)
 - Knowledge: Specs, Library, Sources
   - Specs hold one Constitution per project (`constitution`) and per-feature Spec / Plan / Tasks / Clarify / Checklist items linked by `featureKey`. Mark ready is blocked while Checklist still has unchecked `- [ ]` lines.
-  - Library lists `doc`, `adr`, and `runbook` items with category filters.
-  - Sources lists registered project-relative paths (`kind = source`); automatic filesystem indexing is not shipped.
-- Operations: Runs, Workflows, Schedules (**scheduled for removal**)
-- Terminal: local and SSH interactive sessions (**scheduled for removal**)
+  - Library lists `doc`, `adr`, and `runbook` items with Kind / Status / Severity / Linked filters.
+  - Sources lists registered project-relative paths (`kind = source`); Import from project root runs `ImportProjectSources` for the MVP file set. Generic filesystem indexing beyond that set is not shipped.
 - Agents: Access, Compile, History
 - Integrations: Connected, Catalog (**KEEP** — evidence + Connect UI)
 - Settings: General, Environments, Shortcuts, Advanced
 
-Resources Nodes / Processes execution paths are **scheduled for removal** with Operations/Terminal. Keep project and environment switchers, Commander, history controls, and Settings. Do not introduce additional product surfaces without an approved specification update. Do not expand condemned surfaces.
+Keep project and environment switchers, Commander, history controls, and Settings. Do not introduce additional product surfaces without an approved specification update. Do not reintroduce removed Ops/Terminal/Nodes surfaces.
 
 ## UI law
 
@@ -79,4 +75,4 @@ Skip it when the change is already located in a known file, and when typecheck, 
 After relevant changes, use static checks allowed by the task: typecheck, `pnpm design:lint`, `buf lint`, `go vet ./...`, and `git diff --check`. Maintain risk-proportional tests, but do not run them without explicit permission.
 
 Previous specifications live under `docs/future/` and are non-normative.
-`docs/spec.md` defines implemented behavior. `docs/product-vision.md` v3 and ADR 0004 define product direction; never present planned PPM depth, drift, CLI, Web App, or Cloud capabilities as already shipped, and never treat condemned Ops/Terminal/Nodes as the product story.
+`docs/spec.md` defines implemented behavior. `docs/product-vision.md` v3 and ADR 0004 define product direction; never present planned PPM depth, drift, CLI, Web App, or Cloud capabilities as already shipped.

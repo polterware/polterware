@@ -130,6 +130,9 @@
 
 :root {
   color-scheme: dark;
+  /* macOS vibrancy chrome — one wash for title bar, sidebar, and gutters. */
+  --color-shell-glass: rgb(7 7 7 / 0.45);
+  --color-sidebar-glass: var(--color-shell-glass);
   --foreground: var(--color-text-primary);
   --primary: var(--color-text-primary);
   --primary-foreground: var(--color-primary-foreground);

@@ -9,6 +9,10 @@ import {
   type JsonValue,
 } from "../shared/ipc.js";
 import type {
+  AppearancePreferencesPatch,
+  StoredAppearancePreferences,
+} from "../shared/appearance-preferences.js";
+import type {
   StoredShortcutOverrides,
   StoredShortcutPreferences,
 } from "../shared/shortcut-preferences.js";
@@ -33,6 +37,10 @@ export interface PolterwareIpcControllers {
     getPreferences(): StoredShortcutPreferences;
     setPreferences(overrides: StoredShortcutOverrides): StoredShortcutPreferences;
   };
+  appearancePreferences?: {
+    getPreferences(): StoredAppearancePreferences;
+    setPreferences(patch: AppearancePreferencesPatch): StoredAppearancePreferences;
+  };
   mcp?: {
     getStatus(): McpServerStatus;
     start(): Promise<McpServerStatus> | McpServerStatus;
@@ -40,10 +48,12 @@ export interface PolterwareIpcControllers {
   };
   appShell?: {
     openExternal(url: string): Promise<{ ok: boolean }> | { ok: boolean };
+    selectDirectory(): Promise<{ path: string | null }> | { path: string | null };
   };
   commander?: {
     hideOverlay(): void;
     showMainWindow(): void;
+    runCommand(id: string): void;
   };
   core?: CoreDomainControllers;
 }
@@ -101,6 +111,22 @@ function parseShortcutPreferencesPayload(
   return overrides;
 }
 
+function parseAppearancePreferencesPayload(
+  payload: JsonValue | undefined,
+): AppearancePreferencesPatch {
+  if (!payload || !isJsonObject(payload)) {
+    throw new Error("Appearance preferences are required.");
+  }
+  if (!("reduceTransparency" in payload)) {
+    throw new Error("reduceTransparency is required.");
+  }
+  const value = payload.reduceTransparency;
+  if (Object.prototype.toString.call(value) !== "[object Boolean]") {
+    throw new Error("reduceTransparency must be a boolean.");
+  }
+  return { reduceTransparency: value === true };
+}
+
 function coreHandler(
   controllers: PolterwareIpcControllers,
   key: keyof CoreDomainControllers,
@@ -132,6 +158,17 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
         parseShortcutPreferencesPayload(payload),
       );
     },
+    [IPC_CHANNELS.app.getAppearancePreferences]: async () =>
+      controllers.appearancePreferences?.getPreferences()
+      ?? missing(IPC_CHANNELS.app.getAppearancePreferences),
+    [IPC_CHANNELS.app.setAppearancePreferences]: async (_event, payload) => {
+      if (!controllers.appearancePreferences) {
+        missing(IPC_CHANNELS.app.setAppearancePreferences);
+      }
+      return controllers.appearancePreferences.setPreferences(
+        parseAppearancePreferencesPayload(payload),
+      );
+    },
     [IPC_CHANNELS.app.getMcpStatus]: async () =>
       controllers.mcp?.getStatus() ?? missing(IPC_CHANNELS.app.getMcpStatus),
     [IPC_CHANNELS.app.startMcp]: async () => {
@@ -148,6 +185,10 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
       if (!url.trim()) throw new Error("External URL is required.");
       return controllers.appShell.openExternal(url);
     },
+    [IPC_CHANNELS.app.selectDirectory]: async () => {
+      if (!controllers.appShell) missing(IPC_CHANNELS.app.selectDirectory);
+      return controllers.appShell.selectDirectory();
+    },
     [IPC_CHANNELS.commander.hideOverlay]: async () => {
       if (!controllers.commander) missing(IPC_CHANNELS.commander.hideOverlay);
       controllers.commander.hideOverlay();
@@ -155,6 +196,14 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.commander.showMainWindow]: async () => {
       if (!controllers.commander) missing(IPC_CHANNELS.commander.showMainWindow);
       controllers.commander.showMainWindow();
+    },
+    [IPC_CHANNELS.commander.runCommand]: async (_event, payload) => {
+      if (!controllers.commander) missing(IPC_CHANNELS.commander.runCommand);
+      const id = typeof payload?.id === "string" ? payload.id.trim() : "";
+      if (!id) {
+        throw new Error("Commander command id is required.");
+      }
+      controllers.commander.runCommand(id);
     },
     [IPC_CHANNELS.core.healthCheck]: coreHandler(controllers, "healthCheck"),
     [IPC_CHANNELS.core.getStoreHealth]: coreHandler(controllers, "getStoreHealth"),
@@ -174,8 +223,6 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.listViews]: coreHandler(controllers, "listViews"),
     [IPC_CHANNELS.core.saveView]: coreHandler(controllers, "saveView"),
     [IPC_CHANNELS.core.deleteView]: coreHandler(controllers, "deleteView"),
-    [IPC_CHANNELS.core.listNodes]: coreHandler(controllers, "listNodes"),
-    [IPC_CHANNELS.core.saveNode]: coreHandler(controllers, "saveNode"),
     [IPC_CHANNELS.core.listKnowledge]: coreHandler(controllers, "listKnowledge"),
     [IPC_CHANNELS.core.saveKnowledge]: coreHandler(controllers, "saveKnowledge"),
     [IPC_CHANNELS.core.deleteKnowledge]: coreHandler(controllers, "deleteKnowledge"),
@@ -185,17 +232,9 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.deleteKnowledgeLink]: coreHandler(controllers, "deleteKnowledgeLink"),
     [IPC_CHANNELS.core.listPpmEntities]: coreHandler(controllers, "listPpmEntities"),
     [IPC_CHANNELS.core.syncProjectModel]: coreHandler(controllers, "syncProjectModel"),
+    [IPC_CHANNELS.core.importProjectSources]: coreHandler(controllers, "importProjectSources"),
     [IPC_CHANNELS.core.compileContext]: coreHandler(controllers, "compileContext"),
     [IPC_CHANNELS.core.listAgentToolCalls]: coreHandler(controllers, "listAgentToolCalls"),
-    [IPC_CHANNELS.core.listOperations]: coreHandler(controllers, "listOperations"),
-    [IPC_CHANNELS.core.requestOperation]: coreHandler(controllers, "requestOperation"),
-    [IPC_CHANNELS.core.getOperation]: coreHandler(controllers, "getOperation"),
-    [IPC_CHANNELS.core.cancelOperation]: coreHandler(controllers, "cancelOperation"),
-    [IPC_CHANNELS.core.listSchedules]: coreHandler(controllers, "listSchedules"),
-    [IPC_CHANNELS.core.saveSchedule]: coreHandler(controllers, "saveSchedule"),
-    [IPC_CHANNELS.core.listWorkflows]: coreHandler(controllers, "listWorkflows"),
-    [IPC_CHANNELS.core.saveWorkflow]: coreHandler(controllers, "saveWorkflow"),
-    [IPC_CHANNELS.core.runWorkflow]: coreHandler(controllers, "runWorkflow"),
     [IPC_CHANNELS.core.listCliProviders]: coreHandler(controllers, "listCliProviders"),
     [IPC_CHANNELS.core.listIntegrationConnections]: coreHandler(controllers, "listIntegrationConnections"),
     [IPC_CHANNELS.core.saveIntegrationConnection]: coreHandler(controllers, "saveIntegrationConnection"),
@@ -205,17 +244,12 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.syncIntegrationConnection]: coreHandler(controllers, "syncIntegrationConnection"),
     [IPC_CHANNELS.core.probeCliProvider]: coreHandler(controllers, "probeCliProvider"),
     [IPC_CHANNELS.core.beginCliAuth]: coreHandler(controllers, "beginCliAuth"),
-    [IPC_CHANNELS.core.listProcesses]: coreHandler(controllers, "listProcesses"),
-    [IPC_CHANNELS.core.startProcess]: coreHandler(controllers, "startProcess"),
-    [IPC_CHANNELS.core.stopProcess]: coreHandler(controllers, "stopProcess"),
-    [IPC_CHANNELS.core.getProcess]: coreHandler(controllers, "getProcess"),
     [IPC_CHANNELS.core.createTerminalSession]: coreHandler(controllers, "createTerminalSession"),
     [IPC_CHANNELS.core.writeTerminalSession]: coreHandler(controllers, "writeTerminalSession"),
     [IPC_CHANNELS.core.resizeTerminalSession]: coreHandler(controllers, "resizeTerminalSession"),
     [IPC_CHANNELS.core.closeTerminalSession]: coreHandler(controllers, "closeTerminalSession"),
     [IPC_CHANNELS.core.readTerminalOutput]: coreHandler(controllers, "readTerminalOutput"),
     [IPC_CHANNELS.core.listTerminalSessions]: coreHandler(controllers, "listTerminalSessions"),
-    [IPC_CHANNELS.core.queryLogs]: coreHandler(controllers, "queryLogs"),
   } as { [K in keyof AppIpcRequests]: Handler<K> };
 
   return handlers;

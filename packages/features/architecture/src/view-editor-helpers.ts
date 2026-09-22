@@ -1,5 +1,5 @@
 import type { ArchNode } from "@polterware/frontend-canvas";
-import { typeLabelFor } from "./components-list";
+import { typeLabelFor } from "./type-label";
 import type { ArchViewMember } from "./extra-fixtures";
 
 export type ViewEditorNode = {

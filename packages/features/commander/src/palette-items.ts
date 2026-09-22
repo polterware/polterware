@@ -1,0 +1,41 @@
+import type { PlatformCapability } from "@polterware/frontend-platform";
+import type { ShortcutCommandId } from "@polterware/frontend-state";
+
+export type PaletteItem = {
+  id: string;
+  label: string;
+  group: "Navigation" | "Actions" | "Recent";
+  shortcutId?: ShortcutCommandId;
+  requiredCapability?: PlatformCapability;
+};
+
+export const DEFAULT_PALETTE_ITEMS: PaletteItem[] = [
+  { id: "nav.architecture", label: "Architecture", group: "Navigation" },
+  { id: "nav.resources", label: "Resources", group: "Navigation" },
+  { id: "nav.knowledge", label: "Knowledge", group: "Navigation" },
+  { id: "nav.agents", label: "Agents", group: "Navigation" },
+  { id: "nav.integrations", label: "Integrations", group: "Navigation" },
+  { id: "nav.settings", label: "Project Settings", group: "Navigation" },
+  { id: "action.open-sync", label: "Sync diagnostics", group: "Actions" },
+  {
+    id: "action.create-node",
+    label: "Create architecture node",
+    group: "Actions",
+    shortcutId: "architecture.add_node",
+  },
+  {
+    id: "tool.connect",
+    label: "Connect architecture components",
+    group: "Actions",
+    shortcutId: "architecture.tool_connect",
+  },
+  {
+    id: "view.fit_document",
+    label: "Fit architecture to view",
+    group: "Actions",
+    shortcutId: "architecture.fit_document",
+  },
+  { id: "action.connect-integration", label: "Connect integration", group: "Actions" },
+  { id: "recent.payment", label: "Payment Service", group: "Recent" },
+  { id: "recent.postgres", label: "prod-postgres", group: "Recent" },
+];

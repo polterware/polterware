@@ -104,11 +104,11 @@ describe("ArchitectureNodeDetail composition contract", () => {
   });
 });
 
-describe("Architecture host wiring (Components + Views)", () => {
+describe("Architecture host wiring (Canvas + Views)", () => {
   it("still mounts ArchitectureNodeDetail and ArchitectureViewDetail", () => {
     expect(indexSource).toContain("ArchitectureNodeDetail");
     expect(indexSource).toContain("ArchitectureViewDetail");
-    expect(indexSource).toContain("architecture:components");
+    expect(indexSource).not.toContain("architecture:components");
     expect(indexSource).toContain("architecture:canvas");
     expect(indexSource).toContain("architecture:views");
     expect(indexSource).toContain('entityKind: "arch-node"');

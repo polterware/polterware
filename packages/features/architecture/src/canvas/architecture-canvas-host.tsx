@@ -463,6 +463,12 @@ export function ArchitectureCanvasHost(props: {
         return;
       }
 
+      if (matchesShortcut("architecture.save", e)) {
+        e.preventDefault();
+        props.onRequestSave?.();
+        return;
+      }
+
       const editable =
         target &&
         (target.tagName === "INPUT" ||
@@ -1458,7 +1464,7 @@ export function ArchitectureCanvasHost(props: {
     <div class="relative flex h-full min-h-0 flex-col">
       <div
         ref={rootEl}
-        class="relative min-h-0 flex-1 overflow-hidden bg-[var(--color-surface-subtle)]"
+        class="relative min-h-0 flex-1 overflow-hidden bg-[var(--color-surface)]"
         tabIndex={0}
         aria-label="Architecture canvas"
         data-detail-focus-fallback

@@ -22,6 +22,7 @@ export type FilterOptionsPanelAction = {
 export type FilterOptionsPanelGroup = {
   id: string;
   label: string;
+  leading?: JSX.Element;
   selectionMode?: "multiple" | "single";
   options: readonly FilterOptionsPanelOption[];
   action?: FilterOptionsPanelAction;

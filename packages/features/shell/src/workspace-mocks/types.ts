@@ -1,22 +1,3 @@
-/** Operator-facing fixture session lifecycle. No PTY is created. */
-export type TerminalSessionStatus = "active" | "idle" | "closed";
-
-export type TerminalSessionMock = {
-  id: string;
-  name: string;
-  nodeId: string;
-  nodeName: string;
-  cwd: string;
-  shell: string;
-  status: TerminalSessionStatus;
-  startedAt: string;
-  duration: string;
-  environment: string;
-  correlationId: string;
-  dataSource?: "fixture" | "mock";
-  lines: string[];
-};
-
 export type CliConnectionState =
   | "cli-unavailable"
   | "ready"
@@ -152,6 +133,17 @@ export type WorkspaceRunbook = {
   resourceName?: string;
   nodeId?: string;
   operationId?: string;
+  entityLinks: WorkspaceEntityLink[];
+};
+
+export type WorkspaceSource = {
+  id: string;
+  title: string;
+  path: string;
+  summary: string;
+  bodyMarkdown: string;
+  updatedAt: string;
+  owner: string;
   entityLinks: WorkspaceEntityLink[];
 };
 

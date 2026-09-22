@@ -41,4 +41,34 @@ describe("autosave", () => {
     expect(onConflict).toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  it("force flush saves when clean", async () => {
+    const save = vi.fn().mockResolvedValue({ revision: 3 });
+    const ctrl = createAutosaveController({
+      systemId: "sys",
+      port: { save },
+    });
+    expect(ctrl.status()).toBe("clean");
+    await ctrl.flush(
+      () => '{"formatVersion":1}',
+      () => 2,
+      { force: true },
+    );
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(ctrl.status()).toBe("saved");
+  });
+
+  it("flush without force skips when clean", async () => {
+    const save = vi.fn().mockResolvedValue({ revision: 3 });
+    const ctrl = createAutosaveController({
+      systemId: "sys",
+      port: { save },
+    });
+    await ctrl.flush(
+      () => '{"formatVersion":1}',
+      () => 2,
+    );
+    expect(save).not.toHaveBeenCalled();
+    expect(ctrl.status()).toBe("clean");
+  });
 });

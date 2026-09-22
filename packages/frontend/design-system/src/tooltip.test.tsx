@@ -248,8 +248,8 @@ describe("Tooltip", () => {
     expect(css).toContain("animation: none !important");
     expect(source).toContain("const DEFAULT_TOOLTIP_OPEN_DELAY = 400;");
     expect(source).toContain("const DEFAULT_TOOLTIP_CLOSE_DELAY = 100;");
-    expect(source).toContain("group?.isWarm() ? 0 : DEFAULT_TOOLTIP_OPEN_DELAY");
-    expect(source).toContain("props.openDelay ??");
+    expect(source).toContain("if (group?.isWarm()) return 0;");
+    expect(source).toContain("return props.openDelay ?? DEFAULT_TOOLTIP_OPEN_DELAY;");
     expect(source).toContain("props.closeDelay ?? DEFAULT_TOOLTIP_CLOSE_DELAY");
     expect(source).toContain("onCleanup(clearCooldown)");
   });

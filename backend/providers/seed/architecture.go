@@ -48,7 +48,7 @@ func seedArchitecture(store *storepkg.Store) error {
 		},
 		{
 			ID: "v-infra", ProjectID: ProjectID, Name: "Infrastructure",
-			Description: "Cloud, nodes and data plane components.", Owner: "SRE",
+			Description: "Cloud and data plane components.", Owner: "SRE",
 			Purpose: "Infrastructure and data plane", Notes: "Membership list is not authored for this view yet.",
 			Environments: []string{"Production"}, Tags: []string{"infra", "data"},
 			UpdatedAt: "2026-09-17T00:00:00Z",

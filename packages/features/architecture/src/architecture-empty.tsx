@@ -40,36 +40,6 @@ export function ArchitectureCanvasEmpty(props: {
   );
 }
 
-export function ArchitectureComponentsEmpty(props: {
-  onAddComponent?: () => void;
-  onCreateFromTemplate?: (template: ArchitectureComponentTemplate) => void;
-}) {
-  return (
-    <div class="flex h-full min-h-[200px] w-full items-center justify-center p-8">
-      <Show
-        when={props.onCreateFromTemplate}
-        fallback={
-          <PageEmpty
-            title="No architecture components yet."
-            action={
-              props.onAddComponent ? (
-                <Button size="sm" variant="primary" onClick={() => props.onAddComponent?.()}>
-                  Add component
-                </Button>
-              ) : undefined
-            }
-          />
-        }
-      >
-        <ArchitectureComponentTemplateGrid
-          showLabel={false}
-          onSelect={(template) => props.onCreateFromTemplate?.(template)}
-        />
-      </Show>
-    </div>
-  );
-}
-
 export function ArchitectureViewsEmpty(props: {
   onCreateView?: () => void;
   onCreateFromTemplate?: (template: ArchitectureViewTemplate) => void;
@@ -100,9 +70,6 @@ export function ArchitectureViewsEmpty(props: {
   );
 }
 
-export function architectureFilterEmpty(kind: "components" | "views"): JSX.Element {
-  if (kind === "views") {
-    return <PageEmpty title="No views match" description="Try another search." />;
-  }
-  return <PageEmpty title="No components match" description="Try another search or filter." />;
+export function architectureFilterEmpty(_kind: "views"): JSX.Element {
+  return <PageEmpty title="No views match" description="Try another search." />;
 }

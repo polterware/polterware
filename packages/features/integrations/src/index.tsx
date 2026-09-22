@@ -2,10 +2,13 @@ import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-j
 import {
   DataTable,
   FilterPopover,
+  LibraryBig,
   PageContent,
   PageToolbar,
+  ShieldCheck,
   StatusChip,
   Tabs,
+  type TabItem,
 } from "@polterware/frontend-design-system";
 import {
   type WorkspaceCatalogProvider,
@@ -27,10 +30,28 @@ import {
 export { IntegrationDetail } from "./integration-detail";
 export { SetupWizard } from "./setup-wizard";
 
-const TABS = [
-  { id: "connected", label: "Connected" },
-  { id: "catalog", label: "Catalog" },
-] as const;
+const TABS: TabItem[] = [
+  {
+    id: "connected",
+    label: "Connected",
+    tooltip: {
+      title: "Connected providers",
+      description:
+        "Providers already authenticated via their CLI. Credentials stay in the OS/CLI store, not SQLite.",
+      icon: ShieldCheck,
+    },
+  },
+  {
+    id: "catalog",
+    label: "Catalog",
+    tooltip: {
+      title: "Provider catalog",
+      description:
+        "Fixed list: GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Detect CLI, run auth in a core PTY, probe connection.",
+      icon: LibraryBig,
+    },
+  },
+];
 
 function normalizeTab(value?: string): "connected" | "catalog" {
   return value === "catalog" ? "catalog" : "connected";

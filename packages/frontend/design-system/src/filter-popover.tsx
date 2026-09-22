@@ -77,9 +77,12 @@ export function FilterPopover(props: FilterPopoverProps) {
       ? props.groups[0]
       : undefined,
   );
+  /** Dimension search: controlled `search` or internal query. Always filters groups in cascaded mode. */
+  const dimensionQuery = () =>
+    (props.search?.value ?? optionQuery()).trim().toLowerCase();
+
   const visibleGroups = createMemo(() => {
-    if (props.search) return props.groups;
-    const query = optionQuery().trim().toLowerCase();
+    const query = dimensionQuery();
     if (!query) return props.groups;
     return props.groups
       .map((group) =>
@@ -143,7 +146,7 @@ export function FilterPopover(props: FilterPopoverProps) {
         class="pw-filter-popover-search min-w-0 flex-1 border-0 bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-disabled)]"
         type="text"
         role="searchbox"
-        placeholder={props.search?.placeholder ?? "Search filters…"}
+        placeholder={props.search?.placeholder ?? "Add filter…"}
         value={props.search?.value ?? optionQuery()}
         onInput={(event) => {
           if (props.search) props.search.onInput(event.currentTarget.value);
@@ -251,6 +254,11 @@ export function FilterPopover(props: FilterPopoverProps) {
                             }
                           }}
                         >
+                          <Show when={group.leading}>
+                            <span class="inline-flex shrink-0 text-[var(--color-text-muted)] [&_svg]:size-3.5">
+                              {group.leading}
+                            </span>
+                          </Show>
                           <span class="min-w-0 flex-1 truncate">{group.label}</span>
                           <Show when={checkedCount() > 0}>
                             <span class="pw-filter-popover-count" aria-label={`${checkedCount()} selected`}>

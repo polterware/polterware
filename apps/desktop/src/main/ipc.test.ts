@@ -12,11 +12,16 @@ describe("createPolterwareIpcHandlers", () => {
     expect(handlers[IPC_CHANNELS.app.setIcon]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.app.getShortcutPreferences]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.app.setShortcutPreferences]).toBeTypeOf("function");
+    expect(handlers[IPC_CHANNELS.app.getAppearancePreferences]).toBeTypeOf("function");
+    expect(handlers[IPC_CHANNELS.app.setAppearancePreferences]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.app.getMcpStatus]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.app.startMcp]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.app.stopMcp]).toBeTypeOf("function");
+    expect(handlers[IPC_CHANNELS.app.openExternal]).toBeTypeOf("function");
+    expect(handlers[IPC_CHANNELS.app.selectDirectory]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.commander.hideOverlay]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.commander.showMainWindow]).toBeTypeOf("function");
+    expect(handlers[IPC_CHANNELS.commander.runCommand]).toBeTypeOf("function");
   });
 
   it("wires local app information when provided", async () => {
@@ -34,14 +39,17 @@ describe("createPolterwareIpcHandlers", () => {
     const commander = {
       hideOverlay: vi.fn(),
       showMainWindow: vi.fn(),
+      runCommand: vi.fn(),
     };
     const handlers = createPolterwareIpcHandlers({ commander });
 
     await handlers[IPC_CHANNELS.commander.hideOverlay]();
     await handlers[IPC_CHANNELS.commander.showMainWindow]();
+    await handlers[IPC_CHANNELS.commander.runCommand](undefined, { id: "nav.architecture" });
 
     expect(commander.hideOverlay).toHaveBeenCalledOnce();
     expect(commander.showMainWindow).toHaveBeenCalledOnce();
+    expect(commander.runCommand).toHaveBeenCalledWith("nav.architecture");
   });
 
   it("wires app icon controls when controllers are provided", async () => {
@@ -137,6 +145,19 @@ describe("createPolterwareIpcHandlers", () => {
     expect(mcp.getStatus).toHaveBeenCalledOnce();
     expect(mcp.start).toHaveBeenCalledOnce();
     expect(mcp.stop).toHaveBeenCalledOnce();
+  });
+
+  it("wires directory selection when appShell is provided", async () => {
+    const appShell = {
+      openExternal: vi.fn(),
+      selectDirectory: vi.fn().mockResolvedValue({ path: "/Users/demo/project" }),
+    };
+    const handlers = createPolterwareIpcHandlers({ appShell });
+
+    await expect(handlers[IPC_CHANNELS.app.selectDirectory]()).resolves.toEqual({
+      path: "/Users/demo/project",
+    });
+    expect(appShell.selectDirectory).toHaveBeenCalledOnce();
   });
 
   it("rejects core channels when the core controller is missing", async () => {

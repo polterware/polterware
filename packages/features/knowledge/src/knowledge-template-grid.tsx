@@ -1,5 +1,6 @@
 import {
   BookOpen02Icon,
+  FileText,
   ListChecks,
   ScrollText,
   Shield,
@@ -13,6 +14,7 @@ function templateIcon(kind: KnowledgeTemplateKind) {
   if (kind === "runbook") return <ScrollText size={16} />;
   if (kind === "adr") return <Shield size={16} />;
   if (kind === "feature") return <ListChecks size={16} />;
+  if (kind === "source") return <FileText size={16} />;
   return <BookOpen02Icon size={16} />;
 }
 

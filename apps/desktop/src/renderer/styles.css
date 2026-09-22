@@ -5,11 +5,25 @@ body,
 #root {
   height: 100%;
   margin: 0;
-  background: var(--color-app-background);
+  /* !important — Electron can lock the first opaque WebContents background and ignore later transparent. */
+  background: transparent !important;
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
+}
+
+html[data-shell-chrome="solid"],
+html[data-shell-chrome="solid"] body,
+html[data-shell-chrome="solid"] #root {
+  background: var(--color-app-background) !important;
+}
+
+html.commander-surface,
+html.commander-surface body,
+html.commander-surface #root {
+  background: transparent !important;
+  overflow: hidden;
 }
 
 /* Quiet global scrollbar — transparent rail, compact thumb, stronger only on interaction. */

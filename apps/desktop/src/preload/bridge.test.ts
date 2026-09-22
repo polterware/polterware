@@ -12,8 +12,12 @@ describe("createPolterwareBridge", () => {
     await bridge.app.setIcon("black");
     await bridge.app.getShortcutPreferences();
     await bridge.app.setShortcutPreferences({ "shell.toggle_commander": "mod+p" });
+    await bridge.app.getAppearancePreferences();
+    await bridge.app.setAppearancePreferences({ reduceTransparency: true });
+    await bridge.app.selectDirectory();
     await bridge.commander.hideOverlay();
     await bridge.commander.showMainWindow();
+    await bridge.commander.runCommand("nav.architecture");
 
     expect(invoke).toHaveBeenNthCalledWith(1, IPC_CHANNELS.app.listIcons);
     expect(invoke).toHaveBeenNthCalledWith(2, IPC_CHANNELS.app.getIcon);
@@ -24,13 +28,23 @@ describe("createPolterwareBridge", () => {
     expect(invoke).toHaveBeenNthCalledWith(5, IPC_CHANNELS.app.setShortcutPreferences, {
       overrides: { "shell.toggle_commander": "mod+p" },
     });
+    expect(invoke).toHaveBeenNthCalledWith(6, IPC_CHANNELS.app.getAppearancePreferences);
+    expect(invoke).toHaveBeenNthCalledWith(7, IPC_CHANNELS.app.setAppearancePreferences, {
+      reduceTransparency: true,
+    });
+    expect(invoke).toHaveBeenNthCalledWith(8, IPC_CHANNELS.app.selectDirectory);
     expect(invoke).toHaveBeenNthCalledWith(
-      6,
+      9,
       IPC_CHANNELS.commander.hideOverlay,
     );
     expect(invoke).toHaveBeenNthCalledWith(
-      7,
+      10,
       IPC_CHANNELS.commander.showMainWindow,
+    );
+    expect(invoke).toHaveBeenNthCalledWith(
+      11,
+      IPC_CHANNELS.commander.runCommand,
+      { id: "nav.architecture" },
     );
   });
 
@@ -65,6 +79,29 @@ describe("createPolterwareBridge", () => {
     expect(removeListener).toHaveBeenCalledWith(
       "commander:focus-search",
       listeners.get("commander:focus-search"),
+    );
+  });
+
+  it("subscribes to Commander execute events and returns an unsubscribe function", () => {
+    const invoke = vi.fn().mockResolvedValue([]);
+    const listeners = new Map<string, (...args: unknown[]) => void>();
+    const on = vi.fn(
+      (channel: string, listener: (...args: unknown[]) => void) => {
+        listeners.set(channel, listener);
+      },
+    );
+    const removeListener = vi.fn();
+    const bridge = createPolterwareBridge({ invoke, on, removeListener });
+    const callback = vi.fn();
+
+    const unsubscribe = bridge.commander.onExecuteCommand(callback);
+    listeners.get("commander:execute-command")?.(undefined, { id: "nav.architecture" });
+    unsubscribe();
+
+    expect(callback).toHaveBeenCalledWith("nav.architecture");
+    expect(removeListener).toHaveBeenCalledWith(
+      "commander:execute-command",
+      listeners.get("commander:execute-command"),
     );
   });
 });

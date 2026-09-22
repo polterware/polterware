@@ -1,12 +1,11 @@
 import { For, type JSX } from "solid-js";
 import {
   Bookshelf01Icon,
+  Bot,
   ConnectIcon,
-  Laptop,
   SchemeIcon,
   Package,
   Settings,
-  SquareTerminal,
 } from "@polterware/frontend-design-system";
 import {
   capabilityEnabled,
@@ -23,9 +22,7 @@ const icons = {
   architecture: (p) => <SchemeIcon size={p.size ?? 14} class={p.class} />,
   resources: (p) => <Package size={p.size ?? 14} class={p.class} />,
   knowledge: (p) => <Bookshelf01Icon size={p.size ?? 14} class={p.class} />,
-  operations: (p) => <Laptop size={p.size ?? 14} class={p.class} />,
-  ops: (p) => <Laptop size={p.size ?? 14} class={p.class} />,
-  terminal: (p) => <SquareTerminal size={p.size ?? 14} class={p.class} />,
+  agents: (p) => <Bot size={p.size ?? 14} class={p.class} />,
   integrations: (p) => <ConnectIcon size={p.size ?? 14} class={p.class} />,
   settings: (p) => <Settings size={p.size ?? 14} class={p.class} />,
 } satisfies Record<string, (p: { size?: number; class?: string }) => JSX.Element>;

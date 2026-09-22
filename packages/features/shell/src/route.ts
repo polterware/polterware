@@ -4,37 +4,28 @@ import {
   type PlatformContext,
 } from "@polterware/frontend-platform";
 
+/** Project surfaces after Ops / Terminal / Nodes kill (ADR 0004). */
 export type NavSectionId =
   | "architecture"
   | "resources"
   | "knowledge"
-  | "operations"
-  | "terminal"
+  | "agents"
   | "integrations"
   | "settings";
 
-export type ChromeSectionId = "create-project";
-export type SectionId = NavSectionId | ChromeSectionId;
-export type ShellLayoutMode = "project" | "neutral";
-export type ProjectSettingsTabId = "general" | "environments" | "shortcuts" | "agents" | "advanced";
-export type KnowledgeTabId = "docs" | "adrs" | "runbooks" | "specs";
+export type SectionId = NavSectionId;
+export type ProjectSettingsTabId = "general" | "environments" | "shortcuts" | "advanced";
+export type KnowledgeTabId = "specs" | "library" | "sources";
 export type IntegrationsTabId = "connected" | "catalog";
 
 export type DialogState =
   | { type: "resource-create" }
   | { type: "resource-edit"; entityId: string }
-  | { type: "node-create" }
-  | { type: "process-create" }
   | { type: "arch-node-create" }
-  | { type: "run-command" }
-  | { type: "workflow-create" }
   | { type: "integration-connect"; providerId?: string }
   | { type: "create-view" }
-  | { type: "create-schedule" }
   | { type: "confirm"; message: string }
   | null;
-
-export type DrawerState = { type: "terminal"; targetId?: string } | null;
 
 export type ClientRoute = {
   section: string;
@@ -44,10 +35,8 @@ export type ClientRoute = {
   search?: string;
   filters?: Readonly<Record<string, readonly string[]>>;
   dialog?: DialogState;
-  drawer?: DrawerState;
   selectedNodeId?: string | null;
   wizardStep?: number;
-  sessionId?: string;
 };
 
 export type ShellStatus = {
@@ -65,35 +54,28 @@ export type NavItem = {
 export const DEFAULT_TABS = {
   architecture: "canvas",
   resources: "inventory",
-  knowledge: "docs",
-  operations: "runs",
-  terminal: "sessions",
+  knowledge: "specs",
+  agents: "access",
   integrations: "connected",
   settings: "general",
-  "create-project": "index",
 } satisfies Record<SectionId, string>;
 
 export const SECTION_TABS = {
   architecture: [
     { id: "canvas", label: "Canvas" },
-    { id: "components", label: "Components" },
     { id: "views", label: "Views" },
   ],
-  resources: [
-    { id: "inventory", label: "Inventory" },
-    { id: "nodes", label: "Nodes" },
-    { id: "processes", label: "Processes" },
-  ],
+  // Route id only — Resources is a flat Inventory page (no tab rail).
+  resources: [{ id: "inventory", label: "Inventory" }],
   knowledge: [
-    { id: "docs", label: "Docs" },
-    { id: "adrs", label: "ADRs" },
-    { id: "runbooks", label: "Runbooks" },
     { id: "specs", label: "Specs" },
+    { id: "library", label: "Library" },
+    { id: "sources", label: "Sources" },
   ],
-  operations: [
-    { id: "runs", label: "Runs" },
-    { id: "workflows", label: "Workflows" },
-    { id: "schedules", label: "Schedules" },
+  agents: [
+    { id: "access", label: "Access" },
+    { id: "compile", label: "Compile" },
+    { id: "history", label: "History" },
   ],
   integrations: [
     { id: "connected", label: "Connected" },
@@ -103,7 +85,6 @@ export const SECTION_TABS = {
     { id: "general", label: "General" },
     { id: "environments", label: "Environments" },
     { id: "shortcuts", label: "Shortcuts" },
-    { id: "agents", label: "Agents" },
     { id: "advanced", label: "Advanced" },
   ],
 } satisfies Partial<Record<SectionId, { id: string; label: string }[]>>;
@@ -112,14 +93,9 @@ const NAV_SECTIONS = {
   architecture: true,
   resources: true,
   knowledge: true,
-  operations: true,
-  terminal: true,
+  agents: true,
   integrations: true,
   settings: true,
-} satisfies Record<string, boolean>;
-
-const CHROME_SECTIONS = {
-  "create-project": true,
 } satisfies Record<string, boolean>;
 
 const ROUTE_CAPABILITIES: Partial<Record<SectionId, PlatformCapability>> = {};
@@ -128,20 +104,8 @@ export function isNavSectionId(value: string): value is NavSectionId {
   return Object.prototype.hasOwnProperty.call(NAV_SECTIONS, value);
 }
 
-export function isChromeSectionId(value: string): value is ChromeSectionId {
-  return Object.prototype.hasOwnProperty.call(CHROME_SECTIONS, value);
-}
-
 export function isSectionId(value: string): value is SectionId {
-  return isNavSectionId(value) || isChromeSectionId(value);
-}
-
-export function shellLayoutMode(section: string): ShellLayoutMode {
-  return section === "create-project" ? "neutral" : "project";
-}
-
-export function isNeutralSection(section: string): boolean {
-  return shellLayoutMode(section) === "neutral";
+  return isNavSectionId(value);
 }
 
 export type ResolvedRoute = { section: SectionId; tab: string };
@@ -176,18 +140,34 @@ export function resolveRoute(
   let section = rawSection.toLowerCase();
   let tab = rawTab;
 
-  if (section === "ops") section = "operations";
+  // Legacy aliases from removed surfaces redirect to Architecture or Inventory.
+  if (
+    section === "ops" ||
+    section === "operations" ||
+    section === "terminal" ||
+    section === "search" ||
+    section === "logs"
+  ) {
+    section = "architecture";
+    tab = "canvas";
+  }
   if (section === "inventory" || section === "nodes" || section === "processes") {
-    tab = section;
+    tab = "inventory";
     section = "resources";
   }
-  if (section === "search" || section === "logs") {
-    section = "architecture";
+  // Retired Architecture Components list → Canvas.
+  if (section === "architecture" && tab === "components") {
     tab = "canvas";
   }
   if (section === "sync") {
     section = "settings";
     tab = "advanced";
+  }
+  if (
+    section === "knowledge" &&
+    (tab === "docs" || tab === "adrs" || tab === "runbooks")
+  ) {
+    tab = "library";
   }
 
   if (isSectionId(section) && sectionAvailable(section, platform)) {
@@ -215,17 +195,6 @@ export function createDefaultRoute(
     projectId: "proj-polter",
     environmentId: "env-polter-prod",
     dialog: null,
-    drawer: null,
-  };
-}
-
-export function goCreateProject(route: ClientRoute): ClientRoute {
-  return {
-    ...route,
-    section: "create-project",
-    tab: "index",
-    dialog: null,
-    drawer: null,
   };
 }
 
@@ -241,7 +210,6 @@ export function enterProject(
     projectId,
     environmentId: options?.environmentId ?? route.environmentId,
     dialog: null,
-    drawer: null,
     selectedNodeId: null,
   };
 }
@@ -293,14 +261,6 @@ export function closeDialog(route: ClientRoute): ClientRoute {
   return { ...route, dialog: null };
 }
 
-export function openDrawer(route: ClientRoute, drawer: NonNullable<DrawerState>): ClientRoute {
-  return { ...route, drawer };
-}
-
-export function closeDrawer(route: ClientRoute): ClientRoute {
-  return { ...route, drawer: null };
-}
-
 export function setSearch(route: ClientRoute, search: string): ClientRoute {
   return { ...route, search };
 }
@@ -324,12 +284,8 @@ export function setWizardStep(route: ClientRoute, wizardStep: number): ClientRou
   return { ...route, wizardStep };
 }
 
-export function setSessionId(route: ClientRoute, sessionId: string): ClientRoute {
-  return { ...route, sessionId };
-}
-
 export function historySnapshot(route: ClientRoute): ClientRoute {
-  return { ...route, dialog: null, drawer: null };
+  return { ...route, dialog: null };
 }
 
 export function routesEqual(a: ClientRoute, b: ClientRoute): boolean {

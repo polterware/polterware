@@ -19,6 +19,7 @@ EXECUTION
   Terminal
 
 MANAGEMENT
+  Agents
   Integrations
 
 FOOTER
@@ -43,7 +44,7 @@ The title bar contains history controls, one ghost project switcher, one environ
 | Compact menu | `MenuPanel` and `MenuItem` |
 | Tabs | Ark-backed `Tabs` |
 | Section toolbar | compound `PageToolbar` |
-| Filters | `FilterChip` or `FilterPopover` |
+| Filters | `FilterChip`, `FilterPopover`, or `ActiveFilterBar` |
 | Operational collection | compound `DataTable` |
 | Status | filled `StatusChip` |
 | Entity details | global compound `DetailPanel` |

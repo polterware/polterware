@@ -1,13 +1,10 @@
 import type { ArchViewCard } from "@polterware/feature-architecture";
-import type { OperationRun, OperationSchedule, OperationWorkflow, RunStatus, RunStep } from "@polterware/feature-operations";
-import type { NodeFixture, ProcessFixture, Resource, ResourceStatus } from "@polterware/feature-resources";
+import type { Resource, ResourceStatus } from "@polterware/feature-resources";
 import type { ProjectEnvironment, ProjectGeneralSettings, ProtectionLevel } from "@polterware/feature-settings";
 import type {
   EnvironmentItem,
   EnvironmentKind,
   ProjectSwitcherItem,
-  TerminalTargetItem,
-  TerminalTargetStatus,
   WorkspaceCatalogProvider,
   WorkspaceDocument,
   WorkspaceAdr,
@@ -18,6 +15,7 @@ import type {
   WorkspaceIntegrationResource,
   WorkspaceIntegrationSyncRun,
   WorkspaceRunbook,
+  WorkspaceSource,
   WorkspaceSpecArtifact,
   WorkspaceSpecArtifactKind,
   WorkspaceSpecFeature,
@@ -29,9 +27,7 @@ import {
   asRecord,
   asString,
   asStringArray,
-  formatDuration,
   formatInstant,
-  parseJsonArray,
   parseJsonObject,
 } from "./format";
 
@@ -72,7 +68,6 @@ export function mapEnvironments(items: Record<string, unknown>[]): EnvironmentIt
 export function mapSettingsEnvironments(
   items: Record<string, unknown>[],
   resources: Resource[],
-  nodes: NodeFixture[],
 ): ProjectEnvironment[] {
   return items.flatMap((item) => {
     const kind = asString(item.kind);
@@ -84,7 +79,7 @@ export function mapSettingsEnvironments(
       kind,
       protection: asProtection(asString(item.protection)),
       resourceCount: resources.filter((resource) => resource.environment === asString(item.name)).length,
-      nodeCount: nodes.filter((node) => node.environment === asString(item.name)).length,
+      nodeCount: 0,
       isDefault: asBoolean(item.isDefault),
       description: asString(item.description),
       protectionRules: protectionRules(asProtection(asString(item.protection))),
@@ -124,67 +119,6 @@ export function mapResources(
     tags: asStringArray(item.tags),
     description: asString(item.description),
     dataSource: "core",
-  }));
-}
-
-export function mapNodes(
-  items: Record<string, unknown>[],
-  environments: EnvironmentItem[],
-): NodeFixture[] {
-  const names = new Map(environments.map((item) => [item.id, item.name]));
-  return items.map((item) => ({
-    id: asString(item.id),
-    name: asString(item.name),
-    platform: asString(item.platform),
-    environment: names.get(asString(item.environmentId)) ?? "All",
-    status: asResourceStatus(asString(item.status)),
-    address: asString(item.address),
-    cpu: asString(item.cpu),
-    memory: asString(item.memory),
-    lastSeen: formatInstant(asString(item.lastSeenAt)),
-    connectionKind: asConnectionKind(asString(item.connectionKind)),
-    sshUser: asString(item.sshUser) || undefined,
-    sshPort: asNumber(item.sshPort) || undefined,
-    sshIdentityFile: asString(item.sshIdentityFile) || undefined,
-  }));
-}
-
-export function mapTerminalTargets(nodes: Record<string, unknown>[]): TerminalTargetItem[] {
-  return nodes.map((item) => {
-    const connectionKind = asConnectionKind(asString(item.connectionKind));
-    const sshUser = asString(item.sshUser);
-    const address = asString(item.address);
-    const shell =
-      connectionKind === "ssh"
-        ? sshUser && address
-          ? `ssh ${sshUser}@${address}`
-          : "ssh"
-        : asString(item.shell, "bash");
-    return {
-      id: asString(item.id),
-      name: asString(item.name),
-      shell,
-      status: asTerminalStatus(asString(item.status)),
-      environmentId: asString(item.environmentId) || undefined,
-      connectionKind,
-    };
-  });
-}
-
-export function mapProcesses(
-  items: Record<string, unknown>[],
-  nodes: NodeFixture[],
-): ProcessFixture[] {
-  const names = new Map(nodes.map((item) => [item.id, item.name]));
-  return items.map((item) => ({
-    id: asString(item.id),
-    name: asString(item.name) || asString(item.command),
-    nodeId: asString(item.nodeId),
-    nodeName: names.get(asString(item.nodeId)) ?? (asString(item.nodeId) || "—"),
-    status: asProcessStatus(asString(item.status)),
-    pid: asNumber(item.pid) || undefined,
-    command: asString(item.command),
-    startedAt: formatInstant(asString(item.startedAt)),
   }));
 }
 
@@ -312,6 +246,26 @@ export function mapRunbooks(
   });
 }
 
+export function mapSources(
+  items: Record<string, unknown>[],
+  linksByKnowledge: Map<string, WorkspaceEntityLink[]> = new Map(),
+): WorkspaceSource[] {
+  return items.filter((item) => asString(item.kind) === "source").map((item) => {
+    const extra = parseJsonObject(asString(item.extraJson));
+    const id = asString(item.id);
+    return {
+      id,
+      title: asString(item.title),
+      path: asString(extra.path),
+      summary: asString(item.summary),
+      bodyMarkdown: asString(item.body),
+      updatedAt: formatInstant(asString(item.updatedAt)),
+      owner: asString(item.owner, "Platform"),
+      entityLinks: linksByKnowledge.get(id) ?? [],
+    };
+  });
+}
+
 function asSpecStatus(value: string): "draft" | "ready" {
   return value === "ready" ? "ready" : "draft";
 }
@@ -424,79 +378,6 @@ export function mapSpecFeatures(items: Record<string, unknown>[]): WorkspaceSpec
   }
 
   return features.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-}
-
-export function mapRuns(
-  items: Record<string, unknown>[],
-  environments: EnvironmentItem[],
-  logsByOperation: Record<string, string[]>,
-): OperationRun[] {
-  const names = new Map(environments.map((item) => [item.id, item.name]));
-  return items.map((item) => {
-    const id = asString(item.id);
-    const startedAt = asString(item.startedAt) || asString(item.requestedAt);
-    const status = mapRunStatus(asString(item.status));
-    return {
-      id,
-      title: asString(item.title) || asString(item.type, "Operation"),
-      target: asString(item.target) || "local",
-      status,
-      startedAt: formatInstant(startedAt),
-      duration: formatDuration(startedAt, asString(item.finishedAt)),
-      environment: names.get(asString(item.environmentId)) ?? "All",
-      command: asString(item.command),
-      steps: parseJsonArray(asString(item.stepsJson)).map((step) => ({
-        id: asString(step.id),
-        name: asString(step.name),
-        status: asStepStatus(asString(step.status)),
-        duration: asString(step.duration) || undefined,
-      } satisfies RunStep)),
-      outputLines: logsByOperation[id] ?? [],
-      result: asString(item.resultSummary),
-      dataSource: "core",
-    };
-  });
-}
-
-export function mapWorkflows(items: Record<string, unknown>[]): OperationWorkflow[] {
-  return items.map((item) => ({
-    id: asString(item.id),
-    name: asString(item.name),
-    description: asString(item.description),
-    status: asWorkflowStatus(asString(item.status)),
-    trigger: asString(item.trigger) === "schedule" ? "schedule" : "manual",
-    steps: asObjectArray(item.steps).map((step) => ({
-      id: asString(step.id),
-      label: asString(step.name),
-      type: asWorkflowStepType(asString(step.operationType)),
-      command: asString(asRecord(step.params).command) || undefined,
-    })),
-    lastRun: formatInstant(asString(item.lastRunAt)),
-    dataSource: "core",
-  }));
-}
-
-export function mapSchedules(
-  items: Record<string, unknown>[],
-  workflows: OperationWorkflow[],
-  environments: EnvironmentItem[],
-): OperationSchedule[] {
-  const workflowNames = new Map(workflows.map((item) => [item.id, item.name]));
-  const envNames = new Map(environments.map((item) => [item.id, item.name]));
-  return items.map((item) => ({
-    id: asString(item.id),
-    name: asString(item.name),
-    description: asString(item.description),
-    status: asScheduleStatus(asString(item.status)),
-    workflowId: asString(item.workflowId),
-    workflowName: workflowNames.get(asString(item.workflowId)) ?? asString(item.workflowId),
-    expression: asString(item.expression),
-    timezone: asString(item.timezone, "UTC"),
-    nextRun: formatInstant(asString(item.nextRunAt)),
-    lastRun: formatInstant(asString(item.lastRunAt)),
-    environment: envNames.get(asString(item.environmentId)) ?? "All",
-    dataSource: "core",
-  }));
 }
 
 export function mapProviders(
@@ -628,51 +509,6 @@ function protectionRules(level: ProtectionLevel): string[] {
 function asResourceStatus(value: string): ResourceStatus {
   if (value === "healthy" || value === "degraded" || value === "offline") return value;
   return "unknown";
-}
-
-function asTerminalStatus(value: string): TerminalTargetStatus {
-  if (value === "healthy" || value === "online") return "online";
-  if (value === "degraded") return "degraded";
-  if (value === "offline") return "offline";
-  if (value === "revoked") return "revoked";
-  return "unknown";
-}
-
-function asConnectionKind(value: string): "local" | "ssh" {
-  return value === "ssh" ? "ssh" : "local";
-}
-
-function asProcessStatus(value: string): ProcessFixture["status"] {
-  if (value === "running" || value === "failed") return value;
-  return "stopped";
-}
-
-function mapRunStatus(value: string): RunStatus {
-  if (value === "succeeded" || value === "success") return "success";
-  if (value === "running" || value === "failed" || value === "cancelled" || value === "queued") return value;
-  return "queued";
-}
-
-function asStepStatus(value: string): RunStep["status"] {
-  if (value === "running" || value === "success" || value === "failed" || value === "skipped") return value;
-  return "queued";
-}
-
-function asWorkflowStatus(value: string): OperationWorkflow["status"] {
-  if (value === "draft" || value === "disabled") return value;
-  return "ready";
-}
-
-function asWorkflowStepType(value: string): OperationWorkflow["steps"][number]["type"] {
-  if (value === "validate" || value === "build" || value === "deploy" || value === "health_check" || value === "notify") {
-    return value;
-  }
-  return "command";
-}
-
-function asScheduleStatus(value: string): OperationSchedule["status"] {
-  if (value === "paused" || value === "disabled") return value;
-  return "active";
 }
 
 function asCategory(value: string): WorkspaceCatalogProvider["category"] {

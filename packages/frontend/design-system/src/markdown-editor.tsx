@@ -30,7 +30,8 @@ export type MarkdownEditorProps = {
   placeholder?: string;
   editable?: boolean;
   /**
-   * Show the floating format dock. Knowledge passes false while DetailPanel is collapsed.
+   * When false, the format dock stays mounted (padding reserved) but is visually hidden.
+   * Knowledge passes false while DetailPanel is not maximized.
    * Defaults to true when editable.
    */
   showToolbar?: boolean;
@@ -263,12 +264,16 @@ export function MarkdownEditor(props: MarkdownEditorProps): JSX.Element {
     <div
       class={`pw-md-editor ${props.class ?? ""}`}
       data-editable={isEditable() ? "true" : "false"}
-      data-toolbar={showToolbar() ? "true" : "false"}
+      data-toolbar={isEditable() ? "true" : "false"}
       data-floating="true"
     >
       <div ref={(el) => { host = el; }} class="pw-md-editor__surface" />
-      <Show when={showToolbar()}>
-        <div class="pw-md-editor__dock">
+      <Show when={isEditable()}>
+        <div
+          class="pw-md-editor__dock"
+          data-visible={showToolbar() ? "true" : "false"}
+          aria-hidden={!showToolbar()}
+        >
           <div
             class="pw-md-editor__toolbar menu-panel"
             role="toolbar"

@@ -29,19 +29,20 @@ const DETAIL_PANEL_PATH =
   "packages/frontend/design-system/src/detail-panel.css";
 const SHARED_MATERIALS_PATH =
   "packages/frontend/design-system/src/materials.css";
-const COMMANDER_WINDOW_PATH = "apps/desktop/src/main/window.ts";
+const DESKTOP_WINDOW_PATH = "apps/desktop/src/main/window.ts";
 const CANVAS_HOST_PATH =
   "packages/features/architecture/src/canvas/architecture-canvas-host.tsx";
 const ALPHA_TOKEN_DECLARATIONS = new Map([
   [
     "packages/configuration/tailwind/base.css",
-    /--(?:color-border-(?:subtle|default|strong)|color-overlay|color-shadow(?:-(?:subtle|float|outline))?|edge-light-(?:field|surface)-(?:highlight|rim))\s*:/,
+    /--(?:color-border-(?:subtle|default|strong)|color-overlay|color-shadow(?:-(?:subtle|float|outline))?|color-(?:shell|sidebar)-glass|edge-light-(?:field|surface)-(?:highlight|rim))\s*:/,
   ],
   [
     "packages/frontend/design-system/src/materials.css",
     /--edge-light-(?:field|surface)-(?:highlight|rim)\s*:/,
   ],
 ]);
+const DESKTOP_WINDOW_ALPHA_HEX = new Set(["#00000000"]);
 const PRESENCE_MOTION_PATHS = new Set([
   "packages/frontend/design-system/src/dialog.css",
   "packages/frontend/design-system/src/drawer.css",
@@ -129,8 +130,8 @@ function isAllowed(relativePath, ruleId, match, excerpt) {
   }
 
   if (
-    relativePath === COMMANDER_WINDOW_PATH &&
-    ((ruleId === "alpha-hex" && match.toLowerCase() === "#00000000") ||
+    relativePath === DESKTOP_WINDOW_PATH &&
+    ((ruleId === "alpha-hex" && DESKTOP_WINDOW_ALPHA_HEX.has(match.toLowerCase())) ||
       ruleId === "transparent-window")
   ) {
     return true;

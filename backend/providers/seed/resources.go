@@ -19,16 +19,5 @@ func seedResources(store *storepkg.Store) error {
 			return err
 		}
 	}
-	nodes := []resources.Node{
-		{ID: "node-local", ProjectID: ProjectID, EnvironmentID: EnvDevelopmentID, Name: "local", Platform: "macOS · arm64", Shell: "zsh", Status: "healthy", Address: "127.0.0.1", CPU: "8 cores", Memory: "16 GB", LastSeenAt: "2026-09-18T00:00:00Z", ConnectionKind: "local"},
-		{ID: "node-nitro", ProjectID: ProjectID, EnvironmentID: EnvProductionID, Name: "nitro", Platform: "Linux · amd64", Shell: "bash", Status: "healthy", Address: "10.0.0.12", CPU: "8 cores", Memory: "32 GB", LastSeenAt: "2026-09-18T00:00:12Z", ConnectionKind: "ssh", SSHUser: "ubuntu", SSHPort: 22},
-		{ID: "node-prod-vps", ProjectID: ProjectID, EnvironmentID: EnvProductionID, Name: "prod-vps-01", Platform: "Linux · amd64", Shell: "bash", Status: "degraded", Address: "10.0.0.20", CPU: "4 cores", Memory: "8 GB", LastSeenAt: "2026-09-17T23:59:00Z", ConnectionKind: "ssh", SSHUser: "deploy", SSHPort: 22},
-		{ID: "node-worker-01", ProjectID: ProjectID, EnvironmentID: EnvProductionID, Name: "worker-node-01", Platform: "Linux · amd64", Shell: "bash", Status: "healthy", Address: "10.0.0.22", CPU: "4 cores", Memory: "8 GB", LastSeenAt: "2026-09-18T00:00:30Z", ConnectionKind: "ssh", SSHUser: "ubuntu", SSHPort: 22},
-	}
-	for _, node := range nodes {
-		if err := store.SaveNode(node); err != nil {
-			return err
-		}
-	}
 	return nil
 }

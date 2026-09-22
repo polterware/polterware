@@ -9,7 +9,7 @@ export type NodeIconIdentity = {
   provider?: string;
 };
 
-/** Pure icon key resolution for canvas cards and Components list. */
+/** Pure icon key resolution for canvas cards and related architecture chrome. */
 export function resolveNodeIconName(node: NodeIconIdentity): string {
   const normalize = (value: string) =>
     value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "_");

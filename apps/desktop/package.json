@@ -22,7 +22,6 @@
     "@polterware/feature-commander": "workspace:*",
     "@polterware/feature-integrations": "workspace:*",
     "@polterware/feature-knowledge": "workspace:*",
-    "@polterware/feature-operations": "workspace:*",
     "@polterware/feature-resources": "workspace:*",
     "@polterware/feature-settings": "workspace:*",
     "@polterware/feature-shell": "workspace:*",

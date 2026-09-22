@@ -43,6 +43,46 @@
     var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
 }
 
+.pw-tooltip-content.pw-tooltip-content--rich {
+  max-width: min(288px, calc(100vw - 16px));
+  padding: 8px 10px;
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+}
+
+.pw-tab-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pw-tab-tooltip__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pw-tab-tooltip__icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.pw-tab-tooltip__title {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--color-text-primary);
+}
+
+.pw-tab-tooltip__description {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pw-tooltip-content {
     animation: none !important;

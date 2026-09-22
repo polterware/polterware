@@ -36,11 +36,11 @@ export function DocumentDetail(props: {
               </Show>
             </DetailPanel.Actions>
           </DetailPanel.Header>
-          <Show when={props.links}>{props.links}</Show>
           <KnowledgeDocumentShell
             title={doc().title}
             bodyMarkdown={props.bodyMarkdown}
             onBodyChange={props.onBodyChange}
+            preamble={props.links}
           />
         </DetailPanel.Content>
       )}

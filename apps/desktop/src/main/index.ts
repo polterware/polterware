@@ -1,12 +1,15 @@
-import { app, globalShortcut, shell } from "electron";
+import { app, dialog, globalShortcut, shell } from "electron";
 import log from "electron-log/main";
 import { getElectronAppIconController } from "./electron-app-icons.js";
 import { registerGlobalCommanderShortcut } from "./global-shortcuts.js";
 import {
   createMainWindow,
+  getMainWindow,
   hideCommanderWindow,
+  runCommanderCommand,
   showMainWindow,
   toggleCommanderWindow,
+  applyMainWindowAppearance,
 } from "./window.js";
 import { setupAutoUpdater } from "./updater.js";
 import { registerPolterwareIpcHandlers } from "./ipc.js";
@@ -20,6 +23,7 @@ import {
   type CoreProcessHandle,
 } from "./core/process-supervisor.js";
 import { createShortcutPreferencesController } from "./shortcut-preferences.js";
+import { createAppearancePreferencesController } from "./appearance-preferences.js";
 import { createMcpSupervisor } from "./mcp-supervisor.js";
 
 function configureLogging() {
@@ -58,6 +62,13 @@ async function bootstrap() {
     onGlobalAcceleratorChange: applyGlobalCommanderAccelerator,
   });
 
+  const appearancePreferences = createAppearancePreferencesController({
+    userDataDirectory: app.getPath("userData"),
+    onChange: (preferences) => {
+      applyMainWindowAppearance(preferences.reduceTransparency);
+    },
+  });
+
   const mcpSupervisor = createMcpSupervisor({
     log: (message) => log.debug(message),
   });
@@ -80,6 +91,11 @@ async function bootstrap() {
       setPreferences: (overrides: Record<string, string>) =>
         shortcutPreferences.setPreferences(overrides),
     },
+    appearancePreferences: {
+      getPreferences: () => appearancePreferences.getPreferences(),
+      setPreferences: (patch: { reduceTransparency?: boolean }) =>
+        appearancePreferences.setPreferences(patch),
+    },
     mcp: {
       getStatus: () => mcpSupervisor.getStatus(),
       start: () => mcpSupervisor.start(),
@@ -93,10 +109,23 @@ async function bootstrap() {
         await shell.openExternal(url);
         return { ok: true };
       },
+      selectDirectory: async () => {
+        const parent = getMainWindow();
+        const options = {
+          title: "Select project directory",
+          properties: ["openDirectory", "createDirectory"] as Array<"openDirectory" | "createDirectory">,
+        };
+        const result = parent
+          ? await dialog.showOpenDialog(parent, options)
+          : await dialog.showOpenDialog(options);
+        const path = result.canceled ? null : (result.filePaths[0] ?? null);
+        return { path };
+      },
     },
     commander: {
       hideOverlay: hideCommanderWindow,
       showMainWindow,
+      runCommand: runCommanderCommand,
     },
   };
 
@@ -121,7 +150,9 @@ async function bootstrap() {
 
   applyGlobalCommanderAccelerator(shortcutPreferences.getGlobalCommanderAccelerator());
 
-  createMainWindow();
+  createMainWindow({
+    reduceTransparency: appearancePreferences.getPreferences().reduceTransparency,
+  });
   setupAutoUpdater();
 
   app.on("before-quit", () => {

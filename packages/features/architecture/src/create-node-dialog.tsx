@@ -30,9 +30,8 @@ export function emptyArchNodeDraft(): ArchNodeDraft {
 const prefs = createLocalStorageTypePrefs();
 
 /**
- * Catalog entry for Components tab — same discover surface as canvas.
+ * Catalog entry for placing a component on the Architecture canvas.
  * Submits a draft with typeId; parent places with planned defaults.
- * Prefer Architecture canvas host configure flow for full component details.
  */
 export function CreateNodeDialog(props: {
   open: boolean;

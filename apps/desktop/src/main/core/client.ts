@@ -6,15 +6,10 @@ import {
   HealthService,
   IntegrationService,
   KnowledgeService,
-  LogService,
   MaintenanceService,
-  NodeService,
-  OperationService,
-  ProcessService,
   ProjectModelService,
   ProjectService,
   TerminalService,
-  WorkflowService,
 } from "@polterware/contracts";
 
 const authInterceptor = (token: string): Interceptor => (next) => async (request) => {
@@ -27,16 +22,11 @@ export type CoreClients = {
   maintenance: Client<typeof MaintenanceService>;
   projects: Client<typeof ProjectService>;
   architecture: Client<typeof ArchitectureService>;
-  nodes: Client<typeof NodeService>;
   knowledge: Client<typeof KnowledgeService>;
   ppm: Client<typeof ProjectModelService>;
   context: Client<typeof ContextService>;
-  operations: Client<typeof OperationService>;
-  workflows: Client<typeof WorkflowService>;
   integrations: Client<typeof IntegrationService>;
-  processes: Client<typeof ProcessService>;
   terminals: Client<typeof TerminalService>;
-  logs: Client<typeof LogService>;
 };
 
 export function createCoreTransport(endpoint: string, token: string): Transport {
@@ -54,16 +44,11 @@ export function createCoreClients(endpoint: string, token: string): CoreClients 
     maintenance: createClient(MaintenanceService, transport),
     projects: createClient(ProjectService, transport),
     architecture: createClient(ArchitectureService, transport),
-    nodes: createClient(NodeService, transport),
     knowledge: createClient(KnowledgeService, transport),
     ppm: createClient(ProjectModelService, transport),
     context: createClient(ContextService, transport),
-    operations: createClient(OperationService, transport),
-    workflows: createClient(WorkflowService, transport),
     integrations: createClient(IntegrationService, transport),
-    processes: createClient(ProcessService, transport),
     terminals: createClient(TerminalService, transport),
-    logs: createClient(LogService, transport),
   };
 }
 

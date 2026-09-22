@@ -1,3 +1,5 @@
+import type { JSX } from "solid-js";
+import { Show } from "solid-js";
 import { DetailPanel, MarkdownEditor } from "@polterware/frontend-design-system";
 import { createDetailPanelSelector } from "@polterware/frontend-state";
 import "./knowledge-document.css";
@@ -6,6 +8,8 @@ export function KnowledgeDocumentShell(props: {
   title: string;
   bodyMarkdown: string;
   onBodyChange: (md: string) => void;
+  /** Content above the editor (links, path, artifact tabs) — stays inside Body for collapsed hide. */
+  preamble?: JSX.Element;
 }) {
   // Format dock only when DetailPanel is maximized (full writing surface).
   const panelMode = createDetailPanelSelector((state) => state.mode);
@@ -14,6 +18,9 @@ export function KnowledgeDocumentShell(props: {
   return (
     <DetailPanel.Body layout="document">
       <div class="pw-knowledge-doc">
+        <Show when={props.preamble}>
+          <div class="pw-knowledge-doc__preamble">{props.preamble}</div>
+        </Show>
         <div class="pw-knowledge-doc__body">
           <div class="pw-knowledge-doc__column">
             <h2 class="pw-knowledge-doc__title">{props.title}</h2>

@@ -1,7 +1,6 @@
 import type {
   EnvironmentItem,
   ProjectSwitcherItem,
-  TerminalTargetItem,
 } from "./types";
 
 export const PROJECT_SWITCHER_FIXTURES: ProjectSwitcherItem[] = [
@@ -64,39 +63,3 @@ export const ENVIRONMENT_FIXTURES: EnvironmentItem[] = [
   { id: "env-converge-prod", name: "main", kind: "production", projectId: "proj-converge" },
   { id: "env-local", name: "local", kind: "local", projectId: "proj-local" },
 ];
-
-/** Ids/status align with Resources NODE_FIXTURES where the same target is shared. */
-export const TERMINAL_TARGET_FIXTURES: TerminalTargetItem[] = [
-  { id: "node-nitro", name: "nitro", shell: "bash", status: "online", environmentId: "env-polter-prod" },
-  { id: "node-prod-vps", name: "prod-vps-01", shell: "bash", status: "degraded", environmentId: "env-polter-prod" },
-  { id: "node-local", name: "local", shell: "zsh", status: "online", environmentId: "env-local" },
-  { id: "node-worker-01", name: "worker-node-01", shell: "bash", status: "online", environmentId: "env-polter-prod" },
-  /** Unusable fixtures — picker must block open with honest feedback. */
-  { id: "node-offline-01", name: "offline-edge-01", shell: "bash", status: "offline", environmentId: "env-polter-prod" },
-  { id: "node-revoked-01", name: "revoked-node-01", shell: "bash", status: "revoked", environmentId: "env-polter-prod" },
-];
-
-export const TERMINAL_OUTPUT_FIXTURES = {
-  "node-nitro": [
-    "nitro $ docker ps",
-    "CONTAINER ID   IMAGE            STATUS",
-    "83f1a92d       postgres:17      Up 4 hours",
-    "92ac31e8       redis:8          Up 4 hours",
-    "nitro $ _",
-  ],
-  "node-prod-vps": [
-    "prod-vps-01 $ uptime",
-    " 18:04:12 up 42 days,  3:11,  load average: 0.12, 0.18, 0.15",
-    "prod-vps-01 $ _",
-  ],
-  "node-local": [
-    "local $ git status --short",
-    " M packages/features/shell/src/fixtures.ts",
-    "local $ _",
-  ],
-  "node-worker-01": [
-    "worker-node-01 $ uptime",
-    " 14:12:40 up 18 days, 2:04, load average: 0.08, 0.12, 0.10",
-    "worker-node-01 $ _",
-  ],
-} satisfies Record<string, string[]>;

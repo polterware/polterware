@@ -1,5 +1,4 @@
 import type {
-  TerminalSessionMock,
   WorkspaceCatalogProvider,
   WorkspaceConstitution,
   WorkspaceDocument,
@@ -9,47 +8,6 @@ import type {
   WorkspaceRunbook,
   WorkspaceSpecFeature,
 } from "./types";
-
-export const TERMINAL_SESSION_MOCKS: TerminalSessionMock[] = [
-  {
-    id: "term-local",
-    name: "local",
-    nodeId: "node-local",
-    nodeName: "local",
-    cwd: "~/project",
-    shell: "zsh",
-    status: "active",
-    startedAt: "2026-08-12T10:00:00.000Z",
-    duration: "24m",
-    environment: "Development",
-    correlationId: "corr-term-local",
-    dataSource: "fixture",
-    lines: [
-      "Fixture session · local · zsh",
-      "No command will be executed in this preview.",
-      "operator@local ~/project % _",
-    ],
-  },
-  {
-    id: "term-nitro",
-    name: "nitro",
-    nodeId: "node-nitro",
-    nodeName: "nitro",
-    cwd: "/opt/project",
-    shell: "bash",
-    status: "idle",
-    startedAt: "2026-08-12T09:12:00.000Z",
-    duration: "1h 12m",
-    environment: "Production",
-    correlationId: "corr-term-nitro",
-    dataSource: "fixture",
-    lines: [
-      "Fixture session · nitro · bash",
-      "Session is visual only and cannot reach this target.",
-      "operator@nitro:/opt/project$ _",
-    ],
-  },
-];
 
 export const CATALOG_PROVIDER_MOCKS: WorkspaceCatalogProvider[] = [
   {

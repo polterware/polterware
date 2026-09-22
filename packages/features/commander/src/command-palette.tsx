@@ -1,0 +1,47 @@
+import { A11yDialog, X } from "@polterware/frontend-design-system";
+import type { PlatformContext } from "@polterware/frontend-platform";
+import { PaletteBody } from "./palette-body";
+import type { PaletteItem } from "./palette-items";
+import "./commander.css";
+
+/** In-app Commander — same chrome as the global overlay; overview cards stay global-only. */
+export function CommandPalette(props: {
+  open: boolean;
+  onClose: () => void;
+  onCommand?: (id: string) => void;
+  items?: PaletteItem[];
+  platform?: PlatformContext;
+}) {
+  return (
+    <A11yDialog
+      open={props.open}
+      onClose={props.onClose}
+      title="Command palette"
+      chrome="flush"
+      dividers={false}
+      showCloseButton={false}
+      class="commander-panel"
+      bodyClass="px-0 pb-3"
+    >
+      <PaletteBody
+        items={props.items}
+        platform={props.platform}
+        onCommand={props.onCommand}
+        onConsumed={props.onClose}
+        trailing={
+          <button
+            type="button"
+            class="commander-action"
+            aria-label="Close"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              props.onClose();
+            }}
+          >
+            <X size={16} aria-hidden />
+          </button>
+        }
+      />
+    </A11yDialog>
+  );
+}

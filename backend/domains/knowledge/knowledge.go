@@ -26,7 +26,7 @@ var ErrInvalid = errors.New("invalid knowledge item")
 
 func ValidKind(kind string) bool {
 	switch kind {
-	case "doc", "runbook", "spec", "plan", "tasks", "adr", "constitution", "clarify", "checklist":
+	case "doc", "runbook", "spec", "plan", "tasks", "adr", "constitution", "clarify", "checklist", "source":
 		return true
 	default:
 		return false

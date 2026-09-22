@@ -224,12 +224,14 @@ Do not use “Anti-Vibe” as public branding. Exact levels and UI require a sep
 
 Desktop, CLI, and MCP are interfaces over the same domain behavior. MCP is the primary programmatic interface for external coding agents.
 
-The wedge MCP contract targets:
+The wedge MCP **read** contract targets:
 
 - `context.get`
 - `entity.get`
 - `evidence.get`
 - `drift.check`
+
+After AgentRun exists, the wedge also targets **audited MCP writes**: narrow semantic mutations over PPM and Knowledge (not a mirror of every Desktop surface). Every mutation requires `summary`, `rationale`, and `agent_run_id` and is rejected if any are missing. Mutations are versioned and attributable through AgentRun.
 
 Agent access must preserve explicit project scope, minimum necessary context, actor attribution, secret filtering, bounded outputs, and durable evidence for relevant reads and resulting changes.
 
@@ -273,14 +275,14 @@ Unchanged in intent from prior vision: Website is public messaging; Web App and 
 
 ## Condemned / scheduled for removal
 
-The following are **outside the product vision** and are **scheduled for removal in a future version** on a dedicated kill branch. They may still appear in `docs/spec.md` as shipped behavior until that branch lands. Do not expand them.
+The following are **outside the product vision**. Ops / Terminal-as-product / Nodes removal **landed** on the kill branch ([`architecture/kill-ops-terminal-nodes.md`](architecture/kill-ops-terminal-nodes.md)): backend domains, IPC channels, schemas, and SQLite tables are gone; residual `terminals.*` exists only for Integrations Connect auth PTY. Do not reintroduce them.
 
 | Area | Destiny |
 | --- | --- |
-| Operations (Runs, Workflows, Schedules as product) | **KILL** |
-| Terminal as a product surface | **KILL** (residual PTY only if Connect still needs it) |
-| Nodes / remote execution / process control as product | **KILL** |
-| Operations-as-thesis / control plane | **KILL** |
+| Operations (Runs, Workflows, Schedules as product) | **REMOVED** |
+| Terminal as a product surface | **REMOVED** (residual PTY kept for Connect) |
+| Nodes / remote execution / process control as product | **REMOVED** |
+| Operations-as-thesis / control plane | **REMOVED** |
 | Personal memory as positioning | **KILL** |
 | PCTX / proprietary context DSL | **KILL** |
 | GraphRAG as a marketed feature | **KILL** |
@@ -296,14 +298,15 @@ Provider credentials remain in provider CLI or operating-system credential store
 
 ## Delivery sequence
 
-1. **Local foundation** — keep the SQLite-backed Desktop and Go core; do not expand condemned surfaces; plan their removal on a future kill branch.
+1. **Local foundation** — keep the SQLite-backed Desktop and Go core; Ops/Terminal/Nodes kill branch landed for backend/IPC/schemas.
 2. **PPM Facts / Evidence / provenance** — expand the thin registry into facts, evidence, and `declared` / `observed` / `inferred` / `verified`.
 3. **Deterministic import** — Git, filesystem, manifests, Docker/Compose, `AGENTS.md`, `CLAUDE.md`, ADRs, Markdown.
-4. **Context Compiler and stable MCP** — `context.get` and related tools with reasons and evidence.
+4. **Context Compiler and stable MCP reads** — `context.get` and related tools with reasons and evidence.
 5. **Drift Checker (narrow) and AgentRun** — dependency and decision conflicts; context → change → evidence.
-6. **CLI** — `polterware init | scan | context | drift` sharing the core.
-7. **Structured SDD and Change Gates** — later, after the wedge validates.
-8. **Web App and Cloud** — after the local model is stable.
+6. **Audited MCP writes** — narrow semantic mutations with required `summary`, `rationale`, and `agent_run_id`.
+7. **CLI** — `polterware init | scan | context | drift` sharing the core.
+8. **Structured SDD and Change Gates** — later, after the wedge validates.
+9. **Web App and Cloud** — after the local model is stable.
 
 Each phase requires its own specification and acceptance criteria. Later phases must not be represented as shipped merely because their concepts are documented here.
 
@@ -321,7 +324,7 @@ The following are explicitly not decided by this vision:
 - final MCP wire formats beyond the named tool intents;
 - Cloud pricing, packaging, or free-tier policy;
 - automatic promotion of inferred knowledge into project truth;
-- the exact schedule of the kill branch that removes condemned surfaces.
+- residual UI package cleanup for Ops/Terminal/Nodes after the kill branch backend/IPC/schemas landing.
 
 ## Canonical short definition
 

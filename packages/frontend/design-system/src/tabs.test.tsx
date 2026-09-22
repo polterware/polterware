@@ -35,4 +35,26 @@ describe("Tabs", () => {
     expect(item.count).toBe(0);
     expect(item.countAriaLabel).toBe("0 pending items");
   });
+
+  it("accepts optional rich tooltip metadata on items", () => {
+    const onChange = vi.fn();
+    const props = {
+      items: [
+        {
+          id: "canvas",
+          label: "Canvas",
+          tooltip: {
+            title: "System map",
+            description: "Draw and arrange components on a freeform canvas.",
+            icon: (() => null) as never,
+          },
+        },
+        { id: "components", label: "Components" },
+      ],
+      value: "canvas",
+      onChange,
+    };
+    expect(props.items[0]?.tooltip?.title).toBe("System map");
+    expect(props.items[1]?.tooltip).toBeUndefined();
+  });
 });

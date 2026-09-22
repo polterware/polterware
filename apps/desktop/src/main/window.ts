@@ -5,11 +5,15 @@ import { getSelectedAppIconPath } from "./electron-app-icons.js";
 import { IPC_EVENTS } from "../shared/ipc.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const COMMANDER_WINDOW_WIDTH = 704;
-const COMMANDER_WINDOW_HEIGHT = 490;
+const COMMANDER_WINDOW_WIDTH = 720;
+const COMMANDER_WINDOW_HEIGHT = 680;
 
 let mainWindow: BrowserWindow | null = null;
 let commanderWindow: BrowserWindow | null = null;
+/** Suppress blur-hide briefly while the operator drags the frameless overlay. */
+let commanderDragHideUntil = 0;
+/** Last known Reduce transparency preference for recreate paths. */
+let mainWindowReduceTransparency = false;
 
 function getAppIconWindowOptions(): Pick<BrowserWindowConstructorOptions, "icon"> {
   const icon = getSelectedAppIconPath();
@@ -92,15 +96,47 @@ function loadRenderer(window: BrowserWindow, surface?: "commander"): void {
   });
 }
 
-export function createMainWindow(): BrowserWindow {
-  const options: BrowserWindowConstructorOptions = {
+export type CreateMainWindowOptions = {
+  /** When true, skip macOS vibrancy and use an opaque window fill. */
+  reduceTransparency?: boolean;
+};
+
+function applyDarwinWindowChrome(window: BrowserWindow, reduceTransparency: boolean): void {
+  if (reduceTransparency) {
+    window.setVibrancy(null);
+    window.setBackgroundColor("#070707");
+    return;
+  }
+  // Fully clear native fill so under-window frost is visible; CSS glass wash keeps it dark.
+  window.setBackgroundColor("#00000000");
+  window.setVibrancy("under-window");
+}
+
+/** Toggle solid vs frosted chrome on the live main window (macOS). */
+export function applyMainWindowAppearance(reduceTransparency: boolean): void {
+  mainWindowReduceTransparency = reduceTransparency;
+  const window = getMainWindow();
+  if (window && process.platform === "darwin") {
+    applyDarwinWindowChrome(window, reduceTransparency);
+  }
+}
+
+export function createMainWindow(options: CreateMainWindowOptions = {}): BrowserWindow {
+  const isDarwin = process.platform === "darwin";
+  const reduceTransparency = Boolean(
+    options.reduceTransparency ?? mainWindowReduceTransparency,
+  );
+  mainWindowReduceTransparency = reduceTransparency;
+  const useVibrancy = isDarwin && !reduceTransparency;
+  const windowOptions: BrowserWindowConstructorOptions = {
     width: 1440,
     height: 920,
     minWidth: 1180,
     minHeight: 760,
     title: "Polterware Desktop",
     titleBarStyle: "hidden",
-    backgroundColor: "#070707",
+    // Clear native fill when vibrant; CSS --color-*-glass keeps the quiet dark cast.
+    backgroundColor: useVibrancy ? "#00000000" : "#070707",
     show: false,
     ...getAppIconWindowOptions(),
     webPreferences: {
@@ -112,16 +148,29 @@ export function createMainWindow(): BrowserWindow {
     },
   };
 
-  if (process.platform !== "darwin") {
-    options.titleBarOverlay = true;
+  if (isDarwin) {
+    windowOptions.transparent = true;
+    windowOptions.visualEffectState = "active";
+    if (useVibrancy) {
+      windowOptions.vibrancy = "under-window";
+    }
+  } else {
+    windowOptions.titleBarOverlay = true;
   }
 
-  const window = new BrowserWindow(options);
+  const window = new BrowserWindow(windowOptions);
 
   mainWindow = window;
   configureWindowSecurity(window);
 
+  if (isDarwin) {
+    applyDarwinWindowChrome(window, reduceTransparency);
+  }
+
   window.once("ready-to-show", () => {
+    if (isDarwin) {
+      applyDarwinWindowChrome(window, reduceTransparency);
+    }
     window.show();
   });
 
@@ -175,6 +224,7 @@ export function createCommanderWindow(): BrowserWindow {
     height: COMMANDER_WINDOW_HEIGHT,
     show: false,
     frame: false,
+    movable: true,
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -198,7 +248,15 @@ export function createCommanderWindow(): BrowserWindow {
   configureWindowSecurity(window);
   window.setAlwaysOnTop(true, "floating");
 
+  window.on("will-move", () => {
+    commanderDragHideUntil = Date.now() + 200;
+  });
+  window.on("moved", () => {
+    commanderDragHideUntil = Date.now() + 150;
+  });
+
   window.on("blur", () => {
+    if (Date.now() < commanderDragHideUntil) return;
     window.hide();
   });
 
@@ -256,4 +314,20 @@ export function showMainWindow(): BrowserWindow {
   window.show();
   window.focus();
   return window;
+}
+
+/** Hide the overlay, focus the main window, and ask it to run a palette command. */
+export function runCommanderCommand(id: string): void {
+  hideCommanderWindow();
+  const window = showMainWindow();
+  const send = () => {
+    if (!window.isDestroyed()) {
+      window.webContents.send(IPC_EVENTS.commander.executeCommand, { id });
+    }
+  };
+  if (window.webContents.isLoading()) {
+    window.webContents.once("did-finish-load", send);
+    return;
+  }
+  send();
 }

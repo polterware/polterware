@@ -45,6 +45,30 @@ const (
 	// ProjectModelServiceSyncProjectModelProcedure is the fully-qualified name of the
 	// ProjectModelService's SyncProjectModel RPC.
 	ProjectModelServiceSyncProjectModelProcedure = "/polterware.local.v1.ProjectModelService/SyncProjectModel"
+	// ProjectModelServiceListFactsProcedure is the fully-qualified name of the ProjectModelService's
+	// ListFacts RPC.
+	ProjectModelServiceListFactsProcedure = "/polterware.local.v1.ProjectModelService/ListFacts"
+	// ProjectModelServiceGetFactProcedure is the fully-qualified name of the ProjectModelService's
+	// GetFact RPC.
+	ProjectModelServiceGetFactProcedure = "/polterware.local.v1.ProjectModelService/GetFact"
+	// ProjectModelServiceUpsertFactProcedure is the fully-qualified name of the ProjectModelService's
+	// UpsertFact RPC.
+	ProjectModelServiceUpsertFactProcedure = "/polterware.local.v1.ProjectModelService/UpsertFact"
+	// ProjectModelServiceListEvidenceProcedure is the fully-qualified name of the ProjectModelService's
+	// ListEvidence RPC.
+	ProjectModelServiceListEvidenceProcedure = "/polterware.local.v1.ProjectModelService/ListEvidence"
+	// ProjectModelServiceGetEvidenceProcedure is the fully-qualified name of the ProjectModelService's
+	// GetEvidence RPC.
+	ProjectModelServiceGetEvidenceProcedure = "/polterware.local.v1.ProjectModelService/GetEvidence"
+	// ProjectModelServiceUpsertEvidenceProcedure is the fully-qualified name of the
+	// ProjectModelService's UpsertEvidence RPC.
+	ProjectModelServiceUpsertEvidenceProcedure = "/polterware.local.v1.ProjectModelService/UpsertEvidence"
+	// ProjectModelServiceLinkEvidenceToFactProcedure is the fully-qualified name of the
+	// ProjectModelService's LinkEvidenceToFact RPC.
+	ProjectModelServiceLinkEvidenceToFactProcedure = "/polterware.local.v1.ProjectModelService/LinkEvidenceToFact"
+	// ProjectModelServiceImportProjectSourcesProcedure is the fully-qualified name of the
+	// ProjectModelService's ImportProjectSources RPC.
+	ProjectModelServiceImportProjectSourcesProcedure = "/polterware.local.v1.ProjectModelService/ImportProjectSources"
 )
 
 // ProjectModelServiceClient is a client for the polterware.local.v1.ProjectModelService service.
@@ -53,6 +77,14 @@ type ProjectModelServiceClient interface {
 	ListRelationships(context.Context, *connect.Request[v1.ListRelationshipsRequest]) (*connect.Response[v1.ListRelationshipsResponse], error)
 	GetEntity(context.Context, *connect.Request[v1.GetEntityRequest]) (*connect.Response[v1.GetEntityResponse], error)
 	SyncProjectModel(context.Context, *connect.Request[v1.SyncProjectModelRequest]) (*connect.Response[v1.SyncProjectModelResponse], error)
+	ListFacts(context.Context, *connect.Request[v1.ListFactsRequest]) (*connect.Response[v1.ListFactsResponse], error)
+	GetFact(context.Context, *connect.Request[v1.GetFactRequest]) (*connect.Response[v1.GetFactResponse], error)
+	UpsertFact(context.Context, *connect.Request[v1.UpsertFactRequest]) (*connect.Response[v1.UpsertFactResponse], error)
+	ListEvidence(context.Context, *connect.Request[v1.ListEvidenceRequest]) (*connect.Response[v1.ListEvidenceResponse], error)
+	GetEvidence(context.Context, *connect.Request[v1.GetEvidenceRequest]) (*connect.Response[v1.GetEvidenceResponse], error)
+	UpsertEvidence(context.Context, *connect.Request[v1.UpsertEvidenceRequest]) (*connect.Response[v1.UpsertEvidenceResponse], error)
+	LinkEvidenceToFact(context.Context, *connect.Request[v1.LinkEvidenceToFactRequest]) (*connect.Response[v1.LinkEvidenceToFactResponse], error)
+	ImportProjectSources(context.Context, *connect.Request[v1.ImportProjectSourcesRequest]) (*connect.Response[v1.ImportProjectSourcesResponse], error)
 }
 
 // NewProjectModelServiceClient constructs a client for the polterware.local.v1.ProjectModelService
@@ -90,15 +122,71 @@ func NewProjectModelServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(projectModelServiceMethods.ByName("SyncProjectModel")),
 			connect.WithClientOptions(opts...),
 		),
+		listFacts: connect.NewClient[v1.ListFactsRequest, v1.ListFactsResponse](
+			httpClient,
+			baseURL+ProjectModelServiceListFactsProcedure,
+			connect.WithSchema(projectModelServiceMethods.ByName("ListFacts")),
+			connect.WithClientOptions(opts...),
+		),
+		getFact: connect.NewClient[v1.GetFactRequest, v1.GetFactResponse](
+			httpClient,
+			baseURL+ProjectModelServiceGetFactProcedure,
+			connect.WithSchema(projectModelServiceMethods.ByName("GetFact")),
+			connect.WithClientOptions(opts...),
+		),
+		upsertFact: connect.NewClient[v1.UpsertFactRequest, v1.UpsertFactResponse](
+			httpClient,
+			baseURL+ProjectModelServiceUpsertFactProcedure,
+			connect.WithSchema(projectModelServiceMethods.ByName("UpsertFact")),
+			connect.WithClientOptions(opts...),
+		),
+		listEvidence: connect.NewClient[v1.ListEvidenceRequest, v1.ListEvidenceResponse](
+			httpClient,
+			baseURL+ProjectModelServiceListEvidenceProcedure,
+			connect.WithSchema(projectModelServiceMethods.ByName("ListEvidence")),
+			connect.WithClientOptions(opts...),
+		),
+		getEvidence: connect.NewClient[v1.GetEvidenceRequest, v1.GetEvidenceResponse](
+			httpClient,
+			baseURL+ProjectModelServiceGetEvidenceProcedure,
+			connect.WithSchema(projectModelServiceMethods.ByName("GetEvidence")),
+			connect.WithClientOptions(opts...),
+		),
+		upsertEvidence: connect.NewClient[v1.UpsertEvidenceRequest, v1.UpsertEvidenceResponse](
+			httpClient,
+			baseURL+ProjectModelServiceUpsertEvidenceProcedure,
+			connect.WithSchema(projectModelServiceMethods.ByName("UpsertEvidence")),
+			connect.WithClientOptions(opts...),
+		),
+		linkEvidenceToFact: connect.NewClient[v1.LinkEvidenceToFactRequest, v1.LinkEvidenceToFactResponse](
+			httpClient,
+			baseURL+ProjectModelServiceLinkEvidenceToFactProcedure,
+			connect.WithSchema(projectModelServiceMethods.ByName("LinkEvidenceToFact")),
+			connect.WithClientOptions(opts...),
+		),
+		importProjectSources: connect.NewClient[v1.ImportProjectSourcesRequest, v1.ImportProjectSourcesResponse](
+			httpClient,
+			baseURL+ProjectModelServiceImportProjectSourcesProcedure,
+			connect.WithSchema(projectModelServiceMethods.ByName("ImportProjectSources")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // projectModelServiceClient implements ProjectModelServiceClient.
 type projectModelServiceClient struct {
-	listEntities      *connect.Client[v1.ListEntitiesRequest, v1.ListEntitiesResponse]
-	listRelationships *connect.Client[v1.ListRelationshipsRequest, v1.ListRelationshipsResponse]
-	getEntity         *connect.Client[v1.GetEntityRequest, v1.GetEntityResponse]
-	syncProjectModel  *connect.Client[v1.SyncProjectModelRequest, v1.SyncProjectModelResponse]
+	listEntities         *connect.Client[v1.ListEntitiesRequest, v1.ListEntitiesResponse]
+	listRelationships    *connect.Client[v1.ListRelationshipsRequest, v1.ListRelationshipsResponse]
+	getEntity            *connect.Client[v1.GetEntityRequest, v1.GetEntityResponse]
+	syncProjectModel     *connect.Client[v1.SyncProjectModelRequest, v1.SyncProjectModelResponse]
+	listFacts            *connect.Client[v1.ListFactsRequest, v1.ListFactsResponse]
+	getFact              *connect.Client[v1.GetFactRequest, v1.GetFactResponse]
+	upsertFact           *connect.Client[v1.UpsertFactRequest, v1.UpsertFactResponse]
+	listEvidence         *connect.Client[v1.ListEvidenceRequest, v1.ListEvidenceResponse]
+	getEvidence          *connect.Client[v1.GetEvidenceRequest, v1.GetEvidenceResponse]
+	upsertEvidence       *connect.Client[v1.UpsertEvidenceRequest, v1.UpsertEvidenceResponse]
+	linkEvidenceToFact   *connect.Client[v1.LinkEvidenceToFactRequest, v1.LinkEvidenceToFactResponse]
+	importProjectSources *connect.Client[v1.ImportProjectSourcesRequest, v1.ImportProjectSourcesResponse]
 }
 
 // ListEntities calls polterware.local.v1.ProjectModelService.ListEntities.
@@ -121,6 +209,46 @@ func (c *projectModelServiceClient) SyncProjectModel(ctx context.Context, req *c
 	return c.syncProjectModel.CallUnary(ctx, req)
 }
 
+// ListFacts calls polterware.local.v1.ProjectModelService.ListFacts.
+func (c *projectModelServiceClient) ListFacts(ctx context.Context, req *connect.Request[v1.ListFactsRequest]) (*connect.Response[v1.ListFactsResponse], error) {
+	return c.listFacts.CallUnary(ctx, req)
+}
+
+// GetFact calls polterware.local.v1.ProjectModelService.GetFact.
+func (c *projectModelServiceClient) GetFact(ctx context.Context, req *connect.Request[v1.GetFactRequest]) (*connect.Response[v1.GetFactResponse], error) {
+	return c.getFact.CallUnary(ctx, req)
+}
+
+// UpsertFact calls polterware.local.v1.ProjectModelService.UpsertFact.
+func (c *projectModelServiceClient) UpsertFact(ctx context.Context, req *connect.Request[v1.UpsertFactRequest]) (*connect.Response[v1.UpsertFactResponse], error) {
+	return c.upsertFact.CallUnary(ctx, req)
+}
+
+// ListEvidence calls polterware.local.v1.ProjectModelService.ListEvidence.
+func (c *projectModelServiceClient) ListEvidence(ctx context.Context, req *connect.Request[v1.ListEvidenceRequest]) (*connect.Response[v1.ListEvidenceResponse], error) {
+	return c.listEvidence.CallUnary(ctx, req)
+}
+
+// GetEvidence calls polterware.local.v1.ProjectModelService.GetEvidence.
+func (c *projectModelServiceClient) GetEvidence(ctx context.Context, req *connect.Request[v1.GetEvidenceRequest]) (*connect.Response[v1.GetEvidenceResponse], error) {
+	return c.getEvidence.CallUnary(ctx, req)
+}
+
+// UpsertEvidence calls polterware.local.v1.ProjectModelService.UpsertEvidence.
+func (c *projectModelServiceClient) UpsertEvidence(ctx context.Context, req *connect.Request[v1.UpsertEvidenceRequest]) (*connect.Response[v1.UpsertEvidenceResponse], error) {
+	return c.upsertEvidence.CallUnary(ctx, req)
+}
+
+// LinkEvidenceToFact calls polterware.local.v1.ProjectModelService.LinkEvidenceToFact.
+func (c *projectModelServiceClient) LinkEvidenceToFact(ctx context.Context, req *connect.Request[v1.LinkEvidenceToFactRequest]) (*connect.Response[v1.LinkEvidenceToFactResponse], error) {
+	return c.linkEvidenceToFact.CallUnary(ctx, req)
+}
+
+// ImportProjectSources calls polterware.local.v1.ProjectModelService.ImportProjectSources.
+func (c *projectModelServiceClient) ImportProjectSources(ctx context.Context, req *connect.Request[v1.ImportProjectSourcesRequest]) (*connect.Response[v1.ImportProjectSourcesResponse], error) {
+	return c.importProjectSources.CallUnary(ctx, req)
+}
+
 // ProjectModelServiceHandler is an implementation of the polterware.local.v1.ProjectModelService
 // service.
 type ProjectModelServiceHandler interface {
@@ -128,6 +256,14 @@ type ProjectModelServiceHandler interface {
 	ListRelationships(context.Context, *connect.Request[v1.ListRelationshipsRequest]) (*connect.Response[v1.ListRelationshipsResponse], error)
 	GetEntity(context.Context, *connect.Request[v1.GetEntityRequest]) (*connect.Response[v1.GetEntityResponse], error)
 	SyncProjectModel(context.Context, *connect.Request[v1.SyncProjectModelRequest]) (*connect.Response[v1.SyncProjectModelResponse], error)
+	ListFacts(context.Context, *connect.Request[v1.ListFactsRequest]) (*connect.Response[v1.ListFactsResponse], error)
+	GetFact(context.Context, *connect.Request[v1.GetFactRequest]) (*connect.Response[v1.GetFactResponse], error)
+	UpsertFact(context.Context, *connect.Request[v1.UpsertFactRequest]) (*connect.Response[v1.UpsertFactResponse], error)
+	ListEvidence(context.Context, *connect.Request[v1.ListEvidenceRequest]) (*connect.Response[v1.ListEvidenceResponse], error)
+	GetEvidence(context.Context, *connect.Request[v1.GetEvidenceRequest]) (*connect.Response[v1.GetEvidenceResponse], error)
+	UpsertEvidence(context.Context, *connect.Request[v1.UpsertEvidenceRequest]) (*connect.Response[v1.UpsertEvidenceResponse], error)
+	LinkEvidenceToFact(context.Context, *connect.Request[v1.LinkEvidenceToFactRequest]) (*connect.Response[v1.LinkEvidenceToFactResponse], error)
+	ImportProjectSources(context.Context, *connect.Request[v1.ImportProjectSourcesRequest]) (*connect.Response[v1.ImportProjectSourcesResponse], error)
 }
 
 // NewProjectModelServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -161,6 +297,54 @@ func NewProjectModelServiceHandler(svc ProjectModelServiceHandler, opts ...conne
 		connect.WithSchema(projectModelServiceMethods.ByName("SyncProjectModel")),
 		connect.WithHandlerOptions(opts...),
 	)
+	projectModelServiceListFactsHandler := connect.NewUnaryHandler(
+		ProjectModelServiceListFactsProcedure,
+		svc.ListFacts,
+		connect.WithSchema(projectModelServiceMethods.ByName("ListFacts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectModelServiceGetFactHandler := connect.NewUnaryHandler(
+		ProjectModelServiceGetFactProcedure,
+		svc.GetFact,
+		connect.WithSchema(projectModelServiceMethods.ByName("GetFact")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectModelServiceUpsertFactHandler := connect.NewUnaryHandler(
+		ProjectModelServiceUpsertFactProcedure,
+		svc.UpsertFact,
+		connect.WithSchema(projectModelServiceMethods.ByName("UpsertFact")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectModelServiceListEvidenceHandler := connect.NewUnaryHandler(
+		ProjectModelServiceListEvidenceProcedure,
+		svc.ListEvidence,
+		connect.WithSchema(projectModelServiceMethods.ByName("ListEvidence")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectModelServiceGetEvidenceHandler := connect.NewUnaryHandler(
+		ProjectModelServiceGetEvidenceProcedure,
+		svc.GetEvidence,
+		connect.WithSchema(projectModelServiceMethods.ByName("GetEvidence")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectModelServiceUpsertEvidenceHandler := connect.NewUnaryHandler(
+		ProjectModelServiceUpsertEvidenceProcedure,
+		svc.UpsertEvidence,
+		connect.WithSchema(projectModelServiceMethods.ByName("UpsertEvidence")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectModelServiceLinkEvidenceToFactHandler := connect.NewUnaryHandler(
+		ProjectModelServiceLinkEvidenceToFactProcedure,
+		svc.LinkEvidenceToFact,
+		connect.WithSchema(projectModelServiceMethods.ByName("LinkEvidenceToFact")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectModelServiceImportProjectSourcesHandler := connect.NewUnaryHandler(
+		ProjectModelServiceImportProjectSourcesProcedure,
+		svc.ImportProjectSources,
+		connect.WithSchema(projectModelServiceMethods.ByName("ImportProjectSources")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/polterware.local.v1.ProjectModelService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProjectModelServiceListEntitiesProcedure:
@@ -171,6 +355,22 @@ func NewProjectModelServiceHandler(svc ProjectModelServiceHandler, opts ...conne
 			projectModelServiceGetEntityHandler.ServeHTTP(w, r)
 		case ProjectModelServiceSyncProjectModelProcedure:
 			projectModelServiceSyncProjectModelHandler.ServeHTTP(w, r)
+		case ProjectModelServiceListFactsProcedure:
+			projectModelServiceListFactsHandler.ServeHTTP(w, r)
+		case ProjectModelServiceGetFactProcedure:
+			projectModelServiceGetFactHandler.ServeHTTP(w, r)
+		case ProjectModelServiceUpsertFactProcedure:
+			projectModelServiceUpsertFactHandler.ServeHTTP(w, r)
+		case ProjectModelServiceListEvidenceProcedure:
+			projectModelServiceListEvidenceHandler.ServeHTTP(w, r)
+		case ProjectModelServiceGetEvidenceProcedure:
+			projectModelServiceGetEvidenceHandler.ServeHTTP(w, r)
+		case ProjectModelServiceUpsertEvidenceProcedure:
+			projectModelServiceUpsertEvidenceHandler.ServeHTTP(w, r)
+		case ProjectModelServiceLinkEvidenceToFactProcedure:
+			projectModelServiceLinkEvidenceToFactHandler.ServeHTTP(w, r)
+		case ProjectModelServiceImportProjectSourcesProcedure:
+			projectModelServiceImportProjectSourcesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -194,4 +394,36 @@ func (UnimplementedProjectModelServiceHandler) GetEntity(context.Context, *conne
 
 func (UnimplementedProjectModelServiceHandler) SyncProjectModel(context.Context, *connect.Request[v1.SyncProjectModelRequest]) (*connect.Response[v1.SyncProjectModelResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectModelService.SyncProjectModel is not implemented"))
+}
+
+func (UnimplementedProjectModelServiceHandler) ListFacts(context.Context, *connect.Request[v1.ListFactsRequest]) (*connect.Response[v1.ListFactsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectModelService.ListFacts is not implemented"))
+}
+
+func (UnimplementedProjectModelServiceHandler) GetFact(context.Context, *connect.Request[v1.GetFactRequest]) (*connect.Response[v1.GetFactResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectModelService.GetFact is not implemented"))
+}
+
+func (UnimplementedProjectModelServiceHandler) UpsertFact(context.Context, *connect.Request[v1.UpsertFactRequest]) (*connect.Response[v1.UpsertFactResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectModelService.UpsertFact is not implemented"))
+}
+
+func (UnimplementedProjectModelServiceHandler) ListEvidence(context.Context, *connect.Request[v1.ListEvidenceRequest]) (*connect.Response[v1.ListEvidenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectModelService.ListEvidence is not implemented"))
+}
+
+func (UnimplementedProjectModelServiceHandler) GetEvidence(context.Context, *connect.Request[v1.GetEvidenceRequest]) (*connect.Response[v1.GetEvidenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectModelService.GetEvidence is not implemented"))
+}
+
+func (UnimplementedProjectModelServiceHandler) UpsertEvidence(context.Context, *connect.Request[v1.UpsertEvidenceRequest]) (*connect.Response[v1.UpsertEvidenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectModelService.UpsertEvidence is not implemented"))
+}
+
+func (UnimplementedProjectModelServiceHandler) LinkEvidenceToFact(context.Context, *connect.Request[v1.LinkEvidenceToFactRequest]) (*connect.Response[v1.LinkEvidenceToFactResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectModelService.LinkEvidenceToFact is not implemented"))
+}
+
+func (UnimplementedProjectModelServiceHandler) ImportProjectSources(context.Context, *connect.Request[v1.ImportProjectSourcesRequest]) (*connect.Response[v1.ImportProjectSourcesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectModelService.ImportProjectSources is not implemented"))
 }

@@ -19,12 +19,12 @@ describe("Runbook detail helpers", () => {
 });
 
 describe("RunbookDetail composition contract", () => {
-  it("uses document layout and mock-only Run actions", () => {
+  it("uses document layout without condemned execution actions", () => {
     expect(detailSource).toContain("KnowledgeDocumentShell");
-    expect(detailSource).toContain('label="Run"');
     expect(detailSource).toContain('label="Duplicate"');
     expect(detailSource).toContain('label="Archive"');
-    expect(detailSource).toContain('label="Open terminal"');
+    expect(detailSource).not.toContain('label="Run"');
+    expect(detailSource).not.toContain('label="Open terminal"');
     expect(detailSource).toContain("KnowledgeDocumentNotFound");
     expect(detailSource).not.toContain("live execution");
     expect(shellSource).toContain('layout="document"');
@@ -35,8 +35,10 @@ describe("RunbookDetail composition contract", () => {
   it("is wired from Knowledge index orchestration", () => {
     expect(indexSource).toContain('from "./runbook-detail"');
     expect(indexSource).toContain("<RunbookDetail");
-    expect(indexSource).toContain("onOpenTerminal");
-    expect(indexSource).toContain("onOpenOperation");
+    expect(indexSource).not.toContain("onOpenTerminal");
+    expect(indexSource).not.toContain("onOpenOperation");
+    expect(indexSource).not.toContain("onRun={");
+    expect(indexSource).not.toContain("onRun?:");
     expect(indexSource).toContain("onDuplicate");
     expect(indexSource).toContain("onArchive");
   });

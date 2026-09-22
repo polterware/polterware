@@ -127,6 +127,12 @@ export const SHORTCUT_CATALOG: readonly ShortcutCommand[] = [
     defaultChord: chord({ key: "d", mod: true }),
   },
   {
+    id: "architecture.save",
+    label: "Save canvas layout",
+    group: "architecture",
+    defaultChord: chord({ key: "s", mod: true }),
+  },
+  {
     id: "architecture.zoom_reset",
     label: "Reset zoom",
     group: "architecture",

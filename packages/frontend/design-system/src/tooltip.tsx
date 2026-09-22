@@ -105,8 +105,10 @@ function TooltipGroup(props: TooltipGroupProps) {
 function TooltipRoot(props: TooltipRootProps) {
   const group = useContext(TooltipGroupContext);
   let isOpenInGroup = false;
-  const resolvedOpenDelay = () =>
-    props.openDelay ?? (group?.isWarm() ? 0 : DEFAULT_TOOLTIP_OPEN_DELAY);
+  const resolvedOpenDelay = () => {
+    if (group?.isWarm()) return 0;
+    return props.openDelay ?? DEFAULT_TOOLTIP_OPEN_DELAY;
+  };
   const resolvedCloseDelay = () =>
     props.closeDelay ?? DEFAULT_TOOLTIP_CLOSE_DELAY;
 

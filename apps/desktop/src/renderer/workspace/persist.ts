@@ -124,18 +124,51 @@ export async function persistKnowledgeBody(
   });
 }
 
+export async function persistKnowledgeSourcePath(
+  workspace: WorkspaceSnapshot,
+  projectId: string,
+  itemId: string,
+  path: string,
+): Promise<void> {
+  const current = workspace.rawKnowledge.find((item) => asString(item.id) === itemId);
+  if (!current) return;
+  let extra: Record<string, unknown> = {};
+  try {
+    extra = JSON.parse(asString(current.extraJson, "{}")) as Record<string, unknown>;
+  } catch {
+    extra = {};
+  }
+  await core().knowledge.save({
+    item: {
+      ...current,
+      projectId,
+      extraJson: JSON.stringify({ ...extra, path }),
+    },
+  });
+}
+
 export async function persistKnowledgeCreate(input: {
   projectId: string;
-  kind: "doc" | "runbook" | "adr";
+  kind: "doc" | "runbook" | "adr" | "source";
   title: string;
   body?: string;
   extraJson?: string;
 }): Promise<string> {
-  const id = newId(input.kind === "runbook" ? "rb" : input.kind === "adr" ? "adr" : "doc");
+  const id = newId(
+    input.kind === "runbook"
+      ? "rb"
+      : input.kind === "adr"
+        ? "adr"
+        : input.kind === "source"
+          ? "src"
+          : "doc",
+  );
   const defaultBody =
     input.kind === "adr"
       ? "## Status\n\nProposed\n\n## Context\n\n\n\n## Decision\n\n\n\n## Consequences\n\n"
-      : "";
+      : input.kind === "source"
+        ? ""
+        : "";
   const defaultExtraJson =
     input.kind === "runbook"
       ? JSON.stringify({
@@ -146,12 +179,14 @@ export async function persistKnowledgeCreate(input: {
           commands: [],
           rollback: "",
         })
-      : JSON.stringify({
-          author: "Project maintainer",
-          environment: "All",
-          componentIds: [],
-          componentNames: [],
-        });
+      : input.kind === "source"
+        ? JSON.stringify({ path: "" })
+        : JSON.stringify({
+            author: "Project maintainer",
+            environment: "All",
+            componentIds: [],
+            componentNames: [],
+          });
   await core().knowledge.save({
     item: {
       id,
@@ -159,10 +194,10 @@ export async function persistKnowledgeCreate(input: {
       title: input.title,
       body: input.body ?? defaultBody,
       kind: input.kind,
-      tags: input.kind === "adr" ? ["adr"] : [],
+      tags: input.kind === "adr" ? ["adr"] : input.kind === "source" ? ["source"] : [],
       summary: "",
       owner: "Platform",
-      status: input.kind === "adr" ? "proposed" : "draft",
+      status: input.kind === "adr" ? "proposed" : input.kind === "source" ? "" : "draft",
       extraJson: input.extraJson ?? defaultExtraJson,
     },
   });
@@ -481,174 +516,6 @@ export async function persistResource(input: {
   });
 }
 
-export async function persistNode(input: {
-  projectId: string;
-  environmentId?: string;
-  name: string;
-  platform?: string;
-  shell?: string;
-  connectionKind?: "local" | "ssh";
-  address?: string;
-  sshUser?: string;
-  sshPort?: number;
-  sshIdentityFile?: string;
-}): Promise<void> {
-  const connectionKind = input.connectionKind ?? "local";
-  await core().nodes.save({
-    node: {
-      id: newId("node"),
-      projectId: input.projectId,
-      environmentId: input.environmentId ?? "",
-      name: input.name,
-      platform: input.platform ?? (connectionKind === "ssh" ? "linux" : "local"),
-      shell: input.shell ?? "bash",
-      status: "healthy",
-      address: input.address ?? "",
-      cpu: "",
-      memory: "",
-      lastSeenAt: new Date().toISOString(),
-      connectionKind,
-      sshUser: input.sshUser ?? "",
-      sshPort: input.sshPort ?? 22,
-      sshIdentityFile: input.sshIdentityFile ?? "",
-    },
-  });
-}
-
-export async function persistStartProcess(input: {
-  projectId: string;
-  environmentId?: string;
-  name?: string;
-  command: string;
-  args?: string[];
-  cwd?: string;
-  nodeId?: string;
-}): Promise<void> {
-  const parts = input.command.trim().split(/\s+/).filter(Boolean);
-  const command = parts[0] ?? "";
-  const args = input.args ?? parts.slice(1);
-  await core().processes.start({
-    projectId: input.projectId,
-    environmentId: input.environmentId ?? "",
-    name: input.name ?? "",
-    command,
-    args,
-    cwd: input.cwd ?? "",
-    nodeId: input.nodeId ?? "",
-  });
-}
-
-export async function persistStopProcess(id: string): Promise<void> {
-  await core().processes.stop({ id });
-}
-
-export async function persistOperationPreview(input: {
-  projectId: string;
-  environmentId?: string;
-  target: string;
-  command: string;
-  cwd: string;
-  environment: string;
-}): Promise<void> {
-  await core().operations.request({
-    type: "command",
-    projectId: input.projectId,
-    environmentId: input.environmentId ?? "",
-    cwd: input.cwd,
-    title: input.command,
-    target: input.target,
-    command: input.command,
-    params: { environment: input.environment, cwd: input.cwd },
-  });
-}
-
-export async function persistWorkflowRun(input: {
-  workflowId: string;
-  environmentId?: string;
-}): Promise<void> {
-  await core().workflows.run({
-    id: input.workflowId,
-    environmentId: input.environmentId ?? "",
-  });
-}
-
-export async function persistRunbookRun(input: {
-  projectId: string;
-  environmentId?: string;
-  runbookId: string;
-  title: string;
-  body: string;
-}): Promise<void> {
-  const command = extractRunbookCommand(input.body) ?? `echo "Runbook ${input.title}"`;
-  await core().operations.request({
-    type: "runbook",
-    projectId: input.projectId,
-    environmentId: input.environmentId ?? "",
-    title: `Runbook: ${input.title}`,
-    target: input.runbookId,
-    command,
-    params: { runbookId: input.runbookId },
-  });
-}
-
-function extractRunbookCommand(body: string): string | undefined {
-  const fence = body.match(/```(?:bash|sh|shell)?\n([\s\S]*?)```/);
-  if (!fence) return undefined;
-  const lines = fence[1]
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#"));
-  return lines[0];
-}
-
-export async function persistWorkflow(input: {
-  projectId: string;
-  name: string;
-  description?: string;
-}): Promise<string> {
-  const id = newId("wf");
-  await core().workflows.save({
-    workflow: {
-      id,
-      projectId: input.projectId,
-      name: input.name,
-      description: input.description ?? "",
-      status: "draft",
-      trigger: "manual",
-      steps: [],
-      lastRunAt: "",
-    },
-  });
-  return id;
-}
-
-export async function persistSchedule(input: {
-  projectId: string;
-  environmentId?: string;
-  name: string;
-  workflowId: string;
-  expression: string;
-  timezone?: string;
-}): Promise<string> {
-  const id = newId("sch");
-  await core().operations.saveSchedule({
-    schedule: {
-      id,
-      projectId: input.projectId,
-      environmentId: input.environmentId ?? "",
-      name: input.name,
-      description: "",
-      status: "active",
-      workflowId: input.workflowId,
-      expression: input.expression,
-      timezone: input.timezone ?? "UTC",
-      nextRunAt: "",
-      lastRunAt: "",
-    },
-  });
-  return id;
-}
-
 export async function persistIntegrationConnection(input: {
   projectId: string;
   environmentId?: string;
@@ -679,6 +546,27 @@ export async function persistIntegrationSync(input: {
   return {
     result: asString(run.result, "failed"),
     message: asString(run.message, "CLI inventory sync finished."),
+  };
+}
+
+export async function persistImportProjectSources(input: {
+  projectId: string;
+}): Promise<{
+  factCount: number;
+  evidenceCount: number;
+  sourceCount: number;
+  skippedCount: number;
+  message: string;
+}> {
+  const response = asRecord(
+    await core().ppm.importSources({ projectId: input.projectId }),
+  );
+  return {
+    factCount: asNumber(response.factCount, 0),
+    evidenceCount: asNumber(response.evidenceCount, 0),
+    sourceCount: asNumber(response.sourceCount, 0),
+    skippedCount: asNumber(response.skippedCount, 0),
+    message: asString(response.message, "Import finished."),
   };
 }
 

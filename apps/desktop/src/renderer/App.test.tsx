@@ -5,9 +5,11 @@ describe("Desktop core composition", () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const source = readFileSync(join(import.meta.dirname, "App.tsx"), "utf8");
-    for (const surface of ["ArchitectureView", "ResourcesView", "KnowledgeView", "OperationsView", "TerminalPage", "IntegrationsView", "SettingsView"]) {
+    for (const surface of ["ArchitectureView", "ResourcesView", "KnowledgeView", "IntegrationsView", "SettingsView"]) {
       expect(source).toContain(surface);
     }
+    expect(source).not.toContain("OperationsView");
+    expect(source).not.toContain("TerminalPage");
   });
 
   it("loads workspace data through the typed core bridge", async () => {
@@ -19,13 +21,8 @@ describe("Desktop core composition", () => {
     expect(source).toContain("persistView");
     expect(source).toContain("persistKnowledgeCreate");
     expect(source).toContain("persistResource");
-    expect(source).toContain("persistNode");
-    expect(source).toContain("persistStartProcess");
-    expect(source).toContain("persistStopProcess");
     expect(source).toContain("persistEnvironment");
     expect(source).toContain("persistEnvironmentDefault");
-    expect(source).toContain("persistWorkflow");
-    expect(source).toContain("persistSchedule");
     expect(source).toContain("persistIntegrationSync");
     expect(source).not.toContain("Integration metadata refreshed locally.");
     expect(persist).toContain("syncConnection");

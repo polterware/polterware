@@ -1,4 +1,4 @@
-import type { NodeFixture, ProcessFixture, Resource } from "./types";
+import type { Resource } from "./types";
 
 export const RESOURCE_FIXTURES: Resource[] = [
   {
@@ -31,18 +31,4 @@ export const RESOURCE_FIXTURES: Resource[] = [
     environment: "Development", status: "healthy", region: "remote",
     tags: ["database", "development"], description: "Project metadata imported from the Supabase fixture.", dataSource: "fixture",
   },
-];
-
-export const NODE_FIXTURES: NodeFixture[] = [
-  { id: "node-local", name: "local", platform: "macOS · arm64", environment: "Development", status: "healthy", address: "127.0.0.1", cpu: "8 cores", memory: "16 GB", lastSeen: "Now" },
-  { id: "node-nitro", name: "nitro", platform: "Linux · amd64", environment: "Production", status: "healthy", address: "10.0.0.12", cpu: "8 cores", memory: "32 GB", lastSeen: "12s ago" },
-  { id: "node-prod-vps", name: "prod-vps-01", platform: "Linux · amd64", environment: "Production", status: "degraded", address: "10.0.0.20", cpu: "4 cores", memory: "8 GB", lastSeen: "1m ago" },
-  { id: "node-worker-01", name: "worker-node-01", platform: "Linux · amd64", environment: "Production", status: "healthy", address: "10.0.0.22", cpu: "4 cores", memory: "8 GB", lastSeen: "30s ago" },
-];
-
-export const PROCESS_FIXTURES: ProcessFixture[] = [
-  { id: "proc-api", name: "example-api", nodeId: "node-local", nodeName: "local", status: "running", pid: 4122, command: "./example-api serve", startedAt: "2h ago" },
-  { id: "proc-postgres", name: "postgres", nodeId: "node-nitro", nodeName: "nitro", status: "running", pid: 1012, command: "postgres -D /var/lib/postgresql/data", startedAt: "4d ago" },
-  { id: "proc-worker", name: "settlement-worker", nodeId: "node-worker-01", nodeName: "worker-node-01", status: "running", pid: 2280, command: "./settlement-worker", startedAt: "6h ago" },
-  { id: "proc-cache", name: "redis", nodeId: "node-prod-vps", nodeName: "prod-vps-01", status: "failed", command: "redis-server /etc/redis.conf", startedAt: "Stopped 18m ago" },
 ];

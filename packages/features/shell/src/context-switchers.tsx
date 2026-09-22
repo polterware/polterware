@@ -10,7 +10,6 @@ export type WorkspaceContext = {
   environmentId: string;
 };
 
-export type BreadcrumbLevel = "project" | "create-project";
 type MenuId = "project" | "env" | null;
 
 function kindLabel(kind: EnvironmentKind): string {
@@ -28,7 +27,6 @@ const labelButtonClass =
 
 export function WorkspaceContextBar(props: {
   context: WorkspaceContext;
-  level?: BreadcrumbLevel;
   projects?: ProjectSwitcherItem[];
   environments?: EnvironmentItem[];
   onSelectProject?: (projectId: string) => void;
@@ -63,14 +61,6 @@ export function WorkspaceContextBar(props: {
   function close() {
     setOpenMenu(null);
     setQuery("");
-  }
-
-  if ((props.level ?? "project") === "create-project") {
-    return (
-      <span class="inline-flex h-[var(--control-height-md)] items-center px-2 text-[12px] font-medium text-[var(--color-text-primary)]">
-        New project
-      </span>
-    );
   }
 
   return (

@@ -5,15 +5,15 @@ Scope: Local SQLite-backed Desktop with Go core execution authority
 
 ## Current scope versus product direction
 
-This document is the source of truth for behavior implemented in the current product. [`product-vision.md`](product-vision.md) (v3) defines product direction: **Project Context & Change Intelligence for AI Coding**, the wedge (PPM facts/evidence, Context Compiler, MCP, Drift, AgentRun, CLI), and the kill list for surfaces outside that vision. [ADR 0004](adr/0004-product-positioning-and-wedge.md) records the positioning decision. Direction capabilities are not part of this specification unless they are explicitly added here by a later accepted change.
+This document is the source of truth for behavior implemented in the current product. [`product-vision.md`](product-vision.md) (v3) defines product direction: **Project Context & Change Intelligence for AI Coding**, the wedge (PPM facts/evidence, Context Compiler, MCP, Drift, AgentRun, CLI). [ADR 0004](adr/0004-product-positioning-and-wedge.md) records the positioning decision. Direction capabilities are not part of this specification unless they are explicitly added here by a later accepted change.
 
-**Scheduled for removal in a future version** (dedicated kill branch; still shipped today — do not expand): Operations (Runs, Workflows, Schedules), Terminal as a product surface, and Resources Nodes / remote execution / process control as product. Integrations Connect (evidence path + intermediate UI) is kept.
+Operations, Terminal-as-product, and Resources Nodes / process control were removed on the kill branch ([`architecture/kill-ops-terminal-nodes.md`](architecture/kill-ops-terminal-nodes.md)). Integrations Connect (evidence path + intermediate UI) is kept; residual local PTY exists only for Connect auth.
 
 Historical specifications under `docs/future/` describe earlier states or superseded plans and are not evidence of current behavior.
 
 ## Objective
 
-Deliver a maintainable first version focused on understanding, documenting, and performing bounded maintenance work for local software projects. The Desktop reads and writes through `polterware-core` and may execute local operations, interactive terminals, and CLI-backed integration probes on the host machine.
+Deliver a maintainable first version focused on understanding and documenting local software projects for AI coding. The Desktop reads and writes through `polterware-core` and may run CLI-backed integration probes (including Connect auth PTY) on the host machine.
 
 ## Deployment boundary
 
@@ -25,18 +25,16 @@ Architecture / Canvas is the initial route and the destination after entering or
 
 | Surface | Tabs | Direction note |
 | --- | --- | --- |
-| Architecture | Canvas, Components, Views | Human inspector; not the wedge |
-| Resources | Inventory, Nodes, Processes | Nodes / process control: **scheduled for removal** |
+| Architecture | Canvas, Views | Human inspector; not the wedge |
+| Resources | — (Inventory page, no tab rail) | Project resource registry for PPM / Architecture |
 | Knowledge | Specs, Library, Sources | Aligns with context/evidence direction |
-| Operations | Runs, Workflows, Schedules | **Scheduled for removal** |
-| Terminal | Local and SSH interactive sessions | **Scheduled for removal** (product surface) |
 | Agents | Access, Compile, History | Evolves toward stable MCP / context / drift |
 | Integrations | Connected, Catalog | **KEEP** as evidence + Connect UI |
 | Settings | General, Environments, Shortcuts, Advanced | — |
 
 Settings Advanced includes an app-level Appearance control: Reduce transparency switches the macOS title bar and sidebar from frosted vibrancy to a solid fill. The preference is stored in the Desktop userData directory and does not live in SQLite.
 
-The sidebar contains the seven product surfaces. Settings is fixed in its footer. The title bar retains local project and environment switchers, Commander, history controls, and quick Terminal access. In-app Commander opens as the shared command palette dialog with the same opaque float surface as other product dialogs. The global Commander shortcut opens a separate frameless, draggable overlay (`?surface=commander`) with the same opaque panel material as other product dialogs, search at the top, an Open Desktop control, and an overview strip (Operations, Processes, Knowledge, Integrations) that drills into in-overlay lists — not a miniature copy of the full Desktop shell. The in-app palette remains search-only.
+The sidebar contains the five product surfaces. Settings is fixed in its footer. The title bar retains local project and environment switchers, Commander, and history controls. In-app Commander opens as the shared command palette dialog with the same opaque float surface as other product dialogs. The global Commander shortcut opens a separate frameless, draggable overlay (`?surface=commander`) with the same opaque panel material, search at the top, an Open Desktop control, and an overview strip (Knowledge, Integrations) that drills into in-overlay lists — not a miniature copy of the full Desktop shell. The in-app palette remains search-only.
 
 ## Local project model
 
@@ -46,6 +44,10 @@ The application supports several local projects. A project has an identifier, na
 
 The core maintains a thin entity registry (`ppm_entities`) that projects architecture canvas nodes, inventory resources, and environments into typed refs with provenance (`truth_class`, `source`, `actor`, `observed_at`). Typed relationships (`ppm_relationships`) support predicates `DOCUMENTS`, `OPERATES`, `RELATED_TO`, and `DEFINES`. The canvas `architecture_layouts.body_json` remains the visual graph SSOT; the registry does not duplicate canvas geometry. Sync runs when layouts, resources, or environments are saved and via `SyncProjectModel`. Architecture Canvas persists layout edits with debounced autosave and an explicit save shortcut (Cmd/Ctrl+S) that flushes the current layout and shows a short success toast.
 
+The core also stores PPM **facts** (`ppm_facts`) and **evidence** (`ppm_evidence`) linked by `ppm_fact_evidence` (evidence supports a fact). Fact truth classes are `declared`, `observed`, `inferred`, and `verified`. A `verified` fact requires a non-`system` actor. Entity registry rows may still use `operational` as a truth class; facts do not. Evidence kinds are `file`, `observation`, `test`, `commit`, and `other`. RPCs cover list/get/upsert for facts and evidence plus `LinkEvidenceToFact` and `ImportProjectSources`. `CompileContext` includes matching facts with linked evidence refs and machine `reasons` on every packaged item.
+
+`ImportProjectSources` discovers a fixed MVP set under the project's `root_path` (package manifests, agent/README markdown, Docker/Compose, OpenAPI/Swagger, and shallow Terraform `*.tf`), upserts observed facts and file evidence with stable import IDs, and registers matching Knowledge `source` rows. Generic recursive filesystem indexing is not shipped. Details: [`docs/architecture/deterministic-import.md`](architecture/deterministic-import.md).
+
 ## Knowledge Specs
 
 Knowledge Specs store product features as five linked knowledge items (`spec`, `plan`, `tasks`, `clarify`, `checklist`) that share a `featureKey` in `extra_json`. Creating a feature writes all five bodies from English templates. The Specs table lists one row per feature. The detail panel switches among Spec, Plan, Tasks, Clarify, and Checklist for that feature. Allowed feature statuses are `draft` and `ready`. Marking a feature ready is blocked while the Checklist body still contains unchecked Markdown items (`- [ ]`). Clarify holds open questions and does not block ready.
@@ -54,9 +56,9 @@ Each project may also store one Constitution knowledge item (`kind = constitutio
 
 ## Knowledge Library, Sources, links, and search
 
-Knowledge Library lists Documents, ADRs, and Runbooks (`kind` = `doc`, `adr`, `runbook`) in one table with category filters. Detail panels remain kind-specific; runbooks keep severity and Run behavior. Items may link to PPM entities through `knowledge_entity_links` with the same predicates as relationships. Architecture node detail shows knowledge linked to the matching component entity.
+Knowledge Library lists Documents, ADRs, and Runbooks (`kind` = `doc`, `adr`, `runbook`) in one table. Kind, status, severity, and linked-entity filters live in the shared Filter popover with removable active chips under the toolbar; list search is a separate toolbar field. Detail panels remain kind-specific; runbooks keep severity metadata (Run-as-operation is retired with Operations). Items may link to PPM entities through `knowledge_entity_links` with the same predicates as relationships. Architecture node detail shows knowledge linked to the matching component entity.
 
-Knowledge Sources lists registered project paths (`kind = source`) that ground the model — manifests, contracts, and repo files. Create adds a title and a path relative to the project root (`extra_json.path`). Automatic filesystem indexing is not shipped.
+Knowledge Sources lists registered project paths (`kind = source`) that ground the model — manifests, contracts, and repo files. Create adds a title and a path relative to the project root (`extra_json.path`). Knowledge → Sources also offers **Import from project root**, which calls `ImportProjectSources` for the MVP file set and upserts Source rows for discovered paths. Generic automatic filesystem indexing beyond that MVP set is not shipped.
 
 Knowledge kinds include `doc`, `adr`, `runbook`, `source`, `spec`, `plan`, `tasks`, `clarify`, `checklist`, and `constitution`. Library does not introduce a new storage kind beyond the existing document kinds.
 
@@ -66,15 +68,13 @@ Knowledge kinds include `doc`, `adr`, `runbook`, `source`, `spec`, `plan`, `task
 
 When a Knowledge Specs, Library, or Sources list is empty, the Desktop shows local inspiration template cards. The matching create dialog also offers those templates. Choosing a template creates the item immediately with a suggested title and, for Library docs, ADRs, and runbooks, a suggested body or runbook `extra_json`; for Sources, a suggested path in `extra_json`. Spec feature templates only supply a title; Spec, Plan, Tasks, Clarify, and Checklist bodies still come from the English Spec templates. Blank create remains available from the toolbar and create dialog form.
 
-When a Resources Inventory, Nodes, or Processes list is empty, the Desktop shows local inspiration template cards. The matching dialog also offers those templates. Choosing a template creates the resource or node, or starts the process, immediately with suggested fields. Nodes templates create SSH host profiles (alias, user, host, port, optional identity file path). Process templates use short local commands (`sleep`, `echo`, `git status`). Blank create remains available from the toolbar and dialog form.
+When a Resources Inventory list is empty, the Desktop shows local inspiration template cards. The matching dialog also offers those templates. Choosing a template creates the resource immediately with suggested fields. Blank create remains available from the toolbar and dialog form.
 
-When Architecture Canvas or Components is empty, the Desktop shows featured component templates (API, Service, PostgreSQL, Redis, Worker). Choosing one places the component immediately. Architecture Views empty shows Overview, Applications, and Data plane templates that create a saved view immediately. The existing Architecture catalog dialog remains the full blank/browse path.
-
-When Operations Runs, Workflows, or Schedules is empty, the Desktop shows inspiration templates. Run templates start a safe local command immediately. Workflow templates create a named draft immediately. Schedule templates create a cadence against the first available workflow when workflows exist; otherwise the empty state asks for a workflow first. Matching create dialogs also offer those templates.
+When Architecture Canvas is empty, the Desktop shows featured component templates (API, Service, PostgreSQL, Redis, Worker). Choosing one places the component immediately. Architecture Views empty shows Overview, Applications, and Data plane templates that create a saved view immediately. The existing Architecture catalog dialog remains the full blank/browse path.
 
 When Settings Environments is empty, the Desktop shows Development, Staging, and Production templates that create the environment immediately. The create dialog also offers those templates.
 
-Integrations do not use content templates; they use the fixed provider catalog. Terminal empty offers action cards to open a local session on this machine or add an SSH host profile.
+Integrations do not use content templates; they use the fixed provider catalog.
 
 ## Context Compiler and stable MCP reads
 
@@ -89,10 +89,7 @@ Agents is the Desktop operator surface for this access: start/stop a parked loca
 The Electron Main process starts `polterware-core`. The renderer reads and writes through `window.polterware` only. Go core owns local execution:
 
 - Project creation picks the project directory through Electron Main's native folder dialog (`app.selectDirectory`); the renderer never browses the filesystem directly.
-- Terminal sessions create a core-owned PTY child process and stream live output. A session may be local (shell on this machine) or remote (system `ssh` to a saved host profile). They must not contain real secrets in persisted transcripts.
-- Resources Nodes may store SSH host profiles (`connection_kind = ssh`): alias, user, hostname/address, port, and optional identity file path. Private key material is never persisted in SQLite; authentication uses the OS `ssh-agent`, default keys, or an interactive prompt inside the PTY. A `polterware-node` daemon / mTLS agent is not implemented.
-- Operations and workflow steps run locally via `os/exec`, transitioning queued runs through running to terminal states while appending logs.
-- Runbook Run creates local operations through the same runner.
+- Integrations Connect may open a core-owned local PTY for provider authentication commands (`auth-*` / local synthetic targets). Product Terminal sessions and SSH host profiles (Nodes) are not shipped.
 
 ## Integration CLI auth
 
@@ -104,31 +101,28 @@ Connected detail contains Overview, Resources, CLI, and Sync.
 
 ## Reduced core
 
-The repository retains one Go runtime, `polterware-core`. Its active domains are Projects, Architecture, Resources, Knowledge, Project Model (PPM), Context, Operations, Workflows, Integrations, Process, Terminal, Logs, Health, and Maintenance.
+The repository retains one Go runtime, `polterware-core`. Its active domains are Projects, Architecture, Resources (inventory), Knowledge, Project Model (PPM), Context, Integrations, Terminal (Connect PTY only), Health, and Maintenance.
 
-Operations and workflow steps are direct local models. Core requests use one technical bearer session token without an account directory. The database is initialized from a clean SQLite baseline with no compatibility guarantee for earlier databases.
+Core requests use one technical bearer session token without an account directory. The database is initialized from a clean SQLite baseline with no compatibility guarantee for earlier databases.
 
 ## Acceptance
 
 - The initial route is Architecture / Canvas.
-- The sidebar exposes exactly seven surfaces plus footer Settings.
+- The sidebar exposes exactly five surfaces plus footer Settings.
 - Knowledge exposes Specs, Library, and Sources.
 - Specs store one feature as five local knowledge items (`spec`, `plan`, `tasks`, `clarify`, `checklist`) linked by `featureKey` in `extra_json`.
 - Specs also support one project Constitution (`kind = constitution`) without a `featureKey`.
 - Marking a feature ready requires the Checklist body to have no unchecked `- [ ]` items; Clarify does not gate ready.
-- Library lists `doc`, `adr`, and `runbook` items with category filters; those kinds can link to PPM entities and Architecture shows linked knowledge for the selected component.
-- Sources lists `source` items with a project-relative path; blank create and templates are available. Automatic filesystem indexing is not shipped.
+- Library lists `doc`, `adr`, and `runbook` items with Kind / Status / Severity / Linked filters via the Filter popover and active chips; those kinds can link to PPM entities and Architecture shows linked knowledge for the selected component.
+- Sources lists `source` items with a project-relative path; blank create, templates, and Import from project root (`ImportProjectSources` MVP set) are available. Generic filesystem indexing beyond that MVP set is not shipped.
 - `SearchKnowledge` returns exact and FTS hits with provenance fields.
-- Knowledge Specs, Library, and Sources, Resources, Architecture, Operations, and Settings Environments empty states show inspiration template cards that create the item immediately where applicable; create dialogs also offer templates, and blank create remains on the toolbar and form.
-- `CompileContext` returns a bounded package with provenance fields.
+- PPM facts and evidence persist with provenance; `verified` facts require a non-`system` actor; evidence can link to facts via `LinkEvidenceToFact`. `ImportProjectSources` upserts observed facts/evidence from MVP project files. `CompileContext` includes facts with `reasons` and `evidence` refs.
+- Knowledge Specs, Library, and Sources, Resources Inventory, Architecture, and Settings Environments empty states show inspiration template cards that create the item immediately where applicable; create dialogs also offer templates, and blank create remains on the toolbar and form.
+- `CompileContext` returns a bounded package with provenance fields, machine reasons, and evidence refs.
 - `polterware-core mcp` exposes stable reads `context.get`, `entity.get`, `evidence.get`, and `drift.check` over stdio (`drift.check` findings empty until B5).
 - Agents exposes MCP helper start/stop, Cursor config copy, the Polterware AI skill, CompileContext preview, and local tool-call history.
-- Operations exposes Runs, Workflows, and Schedules with local execution states.
-- Terminal opens interactive local sessions and SSH sessions to saved host profiles through core-owned PTY.
-- Nodes may be SSH connection profiles; private keys are not stored in SQLite.
 - The provider catalog contains exactly the nine specified providers.
 - Provider connect may probe CLI availability and authentication status without storing tokens.
-- Product actions that execute locally report real status and logs.
 - Static validation passes: typecheck, design lint, Buf lint, Go vet, and `git diff --check`.
 
 Previous specifications are archived under `docs/future/` and are non-normative. Product direction is defined separately by `docs/product-vision.md` v3 and [ADR 0004](adr/0004-product-positioning-and-wedge.md).

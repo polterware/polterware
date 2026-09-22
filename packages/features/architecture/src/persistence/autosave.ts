@@ -8,11 +8,20 @@ export type LayoutSavePort = {
   ) => Promise<{ revision: number }>;
 };
 
+export type AutosaveFlushOptions = {
+  /** Persist even when status is clean (e.g. Cmd+S including viewport-only changes). */
+  force?: boolean;
+};
+
 export type AutosaveController = {
   status: () => SaveStatus;
   markDirty: () => void;
   schedule: (getBody: () => string, getRevision: () => number) => void;
-  flush: (getBody: () => string, getRevision: () => number) => Promise<void>;
+  flush: (
+    getBody: () => string,
+    getRevision: () => number,
+    opts?: AutosaveFlushOptions,
+  ) => Promise<void>;
   setStatusListener: (fn: (s: SaveStatus) => void) => void;
   lastError: () => string | null;
 };
@@ -66,12 +75,17 @@ export function createAutosaveController(opts: {
         void runSave(getBody, getRevision);
       }, docDebounceMs);
     },
-    flush: async (getBody, getRevision) => {
+    flush: async (getBody, getRevision, opts) => {
       if (timer) {
         clearTimeout(timer);
         timer = null;
       }
-      if (status === "dirty" || status === "error" || status === "saved") {
+      if (
+        opts?.force ||
+        status === "dirty" ||
+        status === "error" ||
+        status === "saved"
+      ) {
         await runSave(getBody, getRevision);
       }
     },

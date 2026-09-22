@@ -1,6 +1,6 @@
 import type { DitherIconTone } from "@polterware/frontend-design-system";
 
-export type KnowledgeTemplateKind = "doc" | "runbook" | "adr" | "feature";
+export type KnowledgeTemplateKind = "doc" | "runbook" | "adr" | "feature" | "source";
 
 export type KnowledgeCreateTemplate = {
   id: string;
@@ -349,11 +349,42 @@ const FEATURE_TEMPLATES: KnowledgeCreateTemplate[] = [
   },
 ];
 
+const SOURCE_TEMPLATES: KnowledgeCreateTemplate[] = [
+  {
+    id: "source-readme",
+    kind: "source",
+    title: "README",
+    description: "Project root README path.",
+    tone: "knowledge",
+    body: "Project overview and setup entry point.",
+    extraJson: JSON.stringify({ path: "README.md" }),
+  },
+  {
+    id: "source-openapi",
+    kind: "source",
+    title: "OpenAPI contract",
+    description: "HTTP API contract under the repo.",
+    tone: "architecture",
+    body: "OpenAPI or Swagger document that declares the HTTP surface.",
+    extraJson: JSON.stringify({ path: "openapi.yaml" }),
+  },
+  {
+    id: "source-compose",
+    kind: "source",
+    title: "Docker Compose",
+    description: "Local compose stack definition.",
+    tone: "execution",
+    body: "Compose file that describes local multi-service runtime.",
+    extraJson: JSON.stringify({ path: "docker-compose.yml" }),
+  },
+];
+
 export const KNOWLEDGE_CREATE_TEMPLATES: KnowledgeCreateTemplate[] = [
   ...DOC_TEMPLATES,
   ...ADR_TEMPLATES,
   ...RUNBOOK_TEMPLATES,
   ...FEATURE_TEMPLATES,
+  ...SOURCE_TEMPLATES,
 ];
 
 export function knowledgeTemplatesForKind(kind: KnowledgeTemplateKind): KnowledgeCreateTemplate[] {

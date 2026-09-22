@@ -13,6 +13,8 @@ export { Card, Surface } from "./card";
 export { Separator } from "./separator";
 export { StatusDot, StatusChip } from "./status";
 export type { StatusChipAppearance, StatusTone } from "./status";
+export { FilterMark } from "./filter-mark";
+export type { FilterMarkProps, FilterMarkShape } from "./filter-mark";
 export {
   DitherIconTile,
   DITHER_BRAND_ACCENTS,
@@ -39,7 +41,7 @@ export type { ToolbarIconButtonProps } from "./toolbar-icon-button";
 export { SearchBar } from "./search-bar";
 export type { SearchBarProps } from "./search-bar";
 export { Tabs, TabPanel } from "./tabs";
-export type { TabItem } from "./tabs";
+export type { TabItem, TabTooltip } from "./tabs";
 export { Drawer } from "./drawer";
 export { Popover } from "./popover";
 export { Tooltip } from "./tooltip";
@@ -114,4 +116,6 @@ export { ContextMenu } from "./context-menu";
 export type { ContextMenuRootProps } from "./context-menu";
 export { FilterChip, FilterChipGroup } from "./filter-chip";
 export type { FilterChipItem } from "./filter-chip";
+export { ActiveFilterBar } from "./active-filter-bar";
+export type { ActiveFilterPill } from "./active-filter-bar";
 export * from "./hugeicons";

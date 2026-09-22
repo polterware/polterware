@@ -16,6 +16,7 @@ describe("knowledge create templates", () => {
     expect(knowledgeTemplatesForKind("adr")).toHaveLength(3);
     expect(knowledgeTemplatesForKind("runbook")).toHaveLength(3);
     expect(knowledgeTemplatesForKind("feature")).toHaveLength(3);
+    expect(knowledgeTemplatesForKind("source")).toHaveLength(3);
   });
 
   it("resolves a template by id", () => {

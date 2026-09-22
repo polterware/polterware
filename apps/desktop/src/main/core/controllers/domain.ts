@@ -47,8 +47,6 @@ export function createCoreDomainControllers(clients: CoreClients) {
     listViews: async (input?: JsonObject) => toJsonObject(await clients.architecture.listViews(requestMessage(input))),
     saveView: async (input?: JsonObject) => toJsonObject(await clients.architecture.saveView(requestMessage(input))),
     deleteView: async (input?: JsonObject) => toJsonObject(await clients.architecture.deleteView(requestMessage(input))),
-    listNodes: async (input?: JsonObject) => toJsonObject(await clients.nodes.listNodes(requestMessage(input))),
-    saveNode: async (input?: JsonObject) => toJsonObject(await clients.nodes.saveNode(requestMessage(input))),
     listKnowledge: async (input?: JsonObject) => toJsonObject(await clients.knowledge.listKnowledge(requestMessage(input))),
     saveKnowledge: async (input?: JsonObject) => toJsonObject(await clients.knowledge.saveKnowledge(requestMessage(input))),
     deleteKnowledge: async (input?: JsonObject) => toJsonObject(await clients.knowledge.deleteKnowledge(requestMessage(input))),
@@ -58,17 +56,10 @@ export function createCoreDomainControllers(clients: CoreClients) {
     deleteKnowledgeLink: async (input?: JsonObject) => toJsonObject(await clients.knowledge.deleteKnowledgeLink(requestMessage(input))),
     listPpmEntities: async (input?: JsonObject) => toJsonObject(await clients.ppm.listEntities(requestMessage(input))),
     syncProjectModel: async (input?: JsonObject) => toJsonObject(await clients.ppm.syncProjectModel(requestMessage(input))),
+    importProjectSources: async (input?: JsonObject) =>
+      toJsonObject(await clients.ppm.importProjectSources(requestMessage(input))),
     compileContext: async (input?: JsonObject) => toJsonObject(await clients.context.compileContext(requestMessage(input))),
     listAgentToolCalls: async (input?: JsonObject) => toJsonObject(await clients.context.listAgentToolCalls(requestMessage(input))),
-    listOperations: async (input?: JsonObject) => toJsonObject(await clients.operations.listOperations(requestMessage(input))),
-    requestOperation: async (input?: JsonObject) => toJsonObject(await clients.operations.requestOperation(requestMessage(input))),
-    getOperation: async (input?: JsonObject) => toJsonObject(await clients.operations.getOperation(requestMessage(input))),
-    cancelOperation: async (input?: JsonObject) => toJsonObject(await clients.operations.cancelOperation(requestMessage(input))),
-    listSchedules: async (input?: JsonObject) => toJsonObject(await clients.operations.listSchedules(requestMessage(input))),
-    saveSchedule: async (input?: JsonObject) => toJsonObject(await clients.operations.saveSchedule(requestMessage(input))),
-    listWorkflows: async (input?: JsonObject) => toJsonObject(await clients.workflows.listWorkflows(requestMessage(input))),
-    saveWorkflow: async (input?: JsonObject) => toJsonObject(await clients.workflows.saveWorkflow(requestMessage(input))),
-    runWorkflow: async (input?: JsonObject) => toJsonObject(await clients.workflows.runWorkflow(requestMessage(input))),
     listCliProviders: async () => toJsonObject(await clients.integrations.listCliProviders({})),
     listIntegrationConnections: async (input?: JsonObject) => toJsonObject(await clients.integrations.listIntegrationConnections(requestMessage(input))),
     saveIntegrationConnection: async (input?: JsonObject) => toJsonObject(await clients.integrations.saveIntegrationConnection(requestMessage(input))),
@@ -78,10 +69,6 @@ export function createCoreDomainControllers(clients: CoreClients) {
     syncIntegrationConnection: async (input?: JsonObject) => toJsonObject(await clients.integrations.syncIntegrationConnection(requestMessage(input))),
     probeCliProvider: async (input?: JsonObject) => toJsonObject(await clients.integrations.probeCliProvider(requestMessage(input))),
     beginCliAuth: async (input?: JsonObject) => toJsonObject(await clients.integrations.beginCliAuth(requestMessage(input))),
-    listProcesses: async (input?: JsonObject) => toJsonObject(await clients.processes.listProcesses(requestMessage(input))),
-    startProcess: async (input?: JsonObject) => toJsonObject(await clients.processes.startProcess(requestMessage(input))),
-    stopProcess: async (input?: JsonObject) => toJsonObject(await clients.processes.stopProcess(requestMessage(input))),
-    getProcess: async (input?: JsonObject) => toJsonObject(await clients.processes.getProcess(requestMessage(input))),
     createTerminalSession: async (input?: JsonObject) => toJsonObject(await clients.terminals.createTerminalSession(requestMessage(input))),
     writeTerminalSession: async (input?: JsonObject) => {
       try {
@@ -119,7 +106,6 @@ export function createCoreDomainControllers(clients: CoreClients) {
       }
     },
     listTerminalSessions: async (input?: JsonObject) => toJsonObject(await clients.terminals.listTerminalSessions(requestMessage(input))),
-    queryLogs: async (input?: JsonObject) => toJsonObject(await clients.logs.queryLogs(requestMessage(input))),
   };
 }
 

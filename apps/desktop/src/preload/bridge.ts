@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { IPC_CHANNELS, IPC_EVENTS, type AppIpcRequests, type AppIpcResponses, type JsonObject } from "../shared/ipc.js";
 
-type BridgeListener = () => void;
+type BridgeListener = (...args: unknown[]) => void;
 type BridgeIpc = {
   invoke<K extends keyof AppIpcRequests>(channel: K, payload?: AppIpcRequests[K]): Promise<AppIpcResponses[K]>;
   on?(channel: string, listener: BridgeListener): void;
@@ -22,18 +22,34 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
       getShortcutPreferences: () => ipc.invoke(IPC_CHANNELS.app.getShortcutPreferences),
       setShortcutPreferences: (overrides: Record<string, string>) =>
         ipc.invoke(IPC_CHANNELS.app.setShortcutPreferences, { overrides }),
+      getAppearancePreferences: () => ipc.invoke(IPC_CHANNELS.app.getAppearancePreferences),
+      setAppearancePreferences: (preferences: { reduceTransparency: boolean }) =>
+        ipc.invoke(IPC_CHANNELS.app.setAppearancePreferences, preferences),
       getMcpStatus: () => ipc.invoke(IPC_CHANNELS.app.getMcpStatus),
       startMcp: () => ipc.invoke(IPC_CHANNELS.app.startMcp),
       stopMcp: () => ipc.invoke(IPC_CHANNELS.app.stopMcp),
       openExternal: (url: string) => ipc.invoke(IPC_CHANNELS.app.openExternal, { url }),
+      selectDirectory: () => ipc.invoke(IPC_CHANNELS.app.selectDirectory),
     },
     commander: {
       hideOverlay: () => ipc.invoke(IPC_CHANNELS.commander.hideOverlay),
       showMainWindow: () => ipc.invoke(IPC_CHANNELS.commander.showMainWindow),
+      runCommand: (id: string) => ipc.invoke(IPC_CHANNELS.commander.runCommand, { id }),
       onFocusSearch: (callback: () => void) => {
         const listener = () => callback();
         ipc.on?.(IPC_EVENTS.commander.focusSearch, listener);
         return () => ipc.removeListener?.(IPC_EVENTS.commander.focusSearch, listener);
+      },
+      onExecuteCommand: (callback: (id: string) => void) => {
+        const listener: BridgeListener = (_event, payload) => {
+          const id =
+            payload && typeof payload === "object" && payload !== null && "id" in payload
+              ? String((payload as { id: unknown }).id ?? "").trim()
+              : "";
+          if (id) callback(id);
+        };
+        ipc.on?.(IPC_EVENTS.commander.executeCommand, listener);
+        return () => ipc.removeListener?.(IPC_EVENTS.commander.executeCommand, listener);
       },
     },
     core: {
@@ -61,10 +77,6 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
         saveView: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveView, payload),
         deleteView: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.deleteView, payload),
       },
-      nodes: {
-        list: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listNodes, payload),
-        save: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveNode, payload),
-      },
       knowledge: {
         list: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listKnowledge, payload),
         save: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveKnowledge, payload),
@@ -77,24 +89,13 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
       ppm: {
         listEntities: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listPpmEntities, payload),
         sync: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.syncProjectModel, payload),
+        importSources: (payload: JsonObject) =>
+          coreCall(ipc, IPC_CHANNELS.core.importProjectSources, payload),
       },
       context: {
         compile: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.compileContext, payload),
         listToolCalls: (payload?: JsonObject) =>
           coreCall(ipc, IPC_CHANNELS.core.listAgentToolCalls, payload),
-      },
-      operations: {
-        list: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listOperations, payload),
-        request: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.requestOperation, payload),
-        get: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.getOperation, payload),
-        cancel: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.cancelOperation, payload),
-        listSchedules: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listSchedules, payload),
-        saveSchedule: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveSchedule, payload),
-      },
-      workflows: {
-        list: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listWorkflows, payload),
-        save: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveWorkflow, payload),
-        run: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.runWorkflow, payload),
       },
       integrations: {
         listProviders: () => coreCall(ipc, IPC_CHANNELS.core.listCliProviders),
@@ -107,12 +108,6 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
         probeProvider: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.probeCliProvider, payload),
         beginAuth: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.beginCliAuth, payload),
       },
-      processes: {
-        list: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listProcesses, payload),
-        start: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.startProcess, payload),
-        stop: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.stopProcess, payload),
-        get: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.getProcess, payload),
-      },
       terminals: {
         create: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.createTerminalSession, payload),
         write: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.writeTerminalSession, payload),
@@ -120,9 +115,6 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
         close: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.closeTerminalSession, payload),
         read: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.readTerminalOutput, payload),
         list: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listTerminalSessions, payload),
-      },
-      logs: {
-        query: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.queryLogs, payload),
       },
     },
   } as const;

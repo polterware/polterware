@@ -44,7 +44,6 @@ func seedKnowledge(store *storepkg.Store) error {
 				"commands": []string{"systemctl status example-api", "systemctl restart example-api"},
 				"rollback": "Restore the previous service version if the health check remains degraded.",
 				"lastValidated": "2026-09-14T12:00:00Z", "componentId": "n-gw", "componentName": "API Gateway",
-				"operationId": "run-restart-api",
 			}),
 			CreatedAt: runbookUpdated, UpdatedAt: runbookUpdated,
 		},

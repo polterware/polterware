@@ -6,9 +6,7 @@ import (
 
 	"github.com/polterware/polterware/backend/domains/architecture"
 	"github.com/polterware/polterware/backend/domains/integrations"
-	"github.com/polterware/polterware/backend/domains/operations"
 	"github.com/polterware/polterware/backend/domains/projects"
-	"github.com/polterware/polterware/backend/domains/resources"
 )
 
 func (s *Store) SaveProjectSettings(settings projects.Settings) error {
@@ -25,55 +23,6 @@ func (s *Store) GetProjectSettings(projectID string) (projects.Settings, error) 
 		Scan(&item.ProjectID, &item.Description, &defaultEnv, &item.Repository)
 	item.DefaultEnvironmentID = defaultEnv
 	return item, err
-}
-
-func (s *Store) SaveNode(node resources.Node) error {
-	if node.Shell == "" {
-		node.Shell = "bash"
-	}
-	if node.Status == "" {
-		node.Status = "unknown"
-	}
-	if node.ConnectionKind == "" {
-		node.ConnectionKind = "local"
-	}
-	if node.SSHPort == 0 {
-		node.SSHPort = 22
-	}
-	_, err := s.DB.Exec(`INSERT INTO nodes(id,project_id,environment_id,name,platform,shell,status,address,cpu,memory,last_seen_at,connection_kind,ssh_user,ssh_port,ssh_identity_file) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-		ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,environment_id=excluded.environment_id,name=excluded.name,platform=excluded.platform,shell=excluded.shell,status=excluded.status,address=excluded.address,cpu=excluded.cpu,memory=excluded.memory,last_seen_at=excluded.last_seen_at,connection_kind=excluded.connection_kind,ssh_user=excluded.ssh_user,ssh_port=excluded.ssh_port,ssh_identity_file=excluded.ssh_identity_file`,
-		node.ID, node.ProjectID, nullable(node.EnvironmentID), node.Name, node.Platform, node.Shell, node.Status, node.Address, node.CPU, node.Memory, node.LastSeenAt, node.ConnectionKind, node.SSHUser, node.SSHPort, node.SSHIdentityFile)
-	return err
-}
-
-func (s *Store) GetNode(id string) (resources.Node, error) {
-	var item resources.Node
-	err := s.DB.QueryRow(
-		`SELECT id,project_id,COALESCE(environment_id,''),name,platform,shell,status,address,cpu,memory,last_seen_at,COALESCE(connection_kind,'local'),COALESCE(ssh_user,''),COALESCE(ssh_port,22),COALESCE(ssh_identity_file,'') FROM nodes WHERE id=?`,
-		id,
-	).Scan(
-		&item.ID, &item.ProjectID, &item.EnvironmentID, &item.Name, &item.Platform, &item.Shell,
-		&item.Status, &item.Address, &item.CPU, &item.Memory, &item.LastSeenAt,
-		&item.ConnectionKind, &item.SSHUser, &item.SSHPort, &item.SSHIdentityFile,
-	)
-	return item, err
-}
-
-func (s *Store) ListNodes(projectID string) ([]resources.Node, error) {
-	rows, err := s.DB.Query(`SELECT id,project_id,COALESCE(environment_id,''),name,platform,shell,status,address,cpu,memory,last_seen_at,COALESCE(connection_kind,'local'),COALESCE(ssh_user,''),COALESCE(ssh_port,22),COALESCE(ssh_identity_file,'') FROM nodes WHERE project_id=? ORDER BY name`, projectID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var result []resources.Node
-	for rows.Next() {
-		var item resources.Node
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.EnvironmentID, &item.Name, &item.Platform, &item.Shell, &item.Status, &item.Address, &item.CPU, &item.Memory, &item.LastSeenAt, &item.ConnectionKind, &item.SSHUser, &item.SSHPort, &item.SSHIdentityFile); err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
 }
 
 func (s *Store) SaveView(view architecture.View) error {
@@ -145,50 +94,6 @@ func (s *Store) listViewMembers(viewID string) ([]architecture.ViewMember, error
 	for rows.Next() {
 		var item architecture.ViewMember
 		if err := rows.Scan(&item.NodeID, &item.Name, &item.Type, &item.Layer); err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
-}
-
-func (s *Store) SaveSchedule(schedule operations.Schedule) error {
-	if schedule.Timezone == "" {
-		schedule.Timezone = "UTC"
-	}
-	_, err := s.DB.Exec(`INSERT INTO operation_schedules(id,project_id,environment_id,name,description,status,workflow_id,expression,timezone,next_run_at,last_run_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)
-		ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,environment_id=excluded.environment_id,name=excluded.name,description=excluded.description,status=excluded.status,workflow_id=excluded.workflow_id,expression=excluded.expression,timezone=excluded.timezone,next_run_at=excluded.next_run_at,last_run_at=excluded.last_run_at`,
-		schedule.ID, schedule.ProjectID, nullable(schedule.EnvironmentID), schedule.Name, schedule.Description, schedule.Status, schedule.WorkflowID, schedule.Expression, schedule.Timezone, schedule.NextRunAt, schedule.LastRunAt)
-	return err
-}
-
-func (s *Store) ListSchedules(projectID string) ([]operations.Schedule, error) {
-	rows, err := s.DB.Query(`SELECT id,project_id,COALESCE(environment_id,''),name,description,status,workflow_id,expression,timezone,next_run_at,last_run_at FROM operation_schedules WHERE project_id=? ORDER BY name`, projectID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var result []operations.Schedule
-	for rows.Next() {
-		var item operations.Schedule
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.EnvironmentID, &item.Name, &item.Description, &item.Status, &item.WorkflowID, &item.Expression, &item.Timezone, &item.NextRunAt, &item.LastRunAt); err != nil {
-			return nil, err
-		}
-		result = append(result, item)
-	}
-	return result, rows.Err()
-}
-
-func (s *Store) ListActiveSchedules() ([]operations.Schedule, error) {
-	rows, err := s.DB.Query(`SELECT id,project_id,COALESCE(environment_id,''),name,description,status,workflow_id,expression,timezone,next_run_at,last_run_at FROM operation_schedules WHERE status='active' ORDER BY next_run_at, name`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var result []operations.Schedule
-	for rows.Next() {
-		var item operations.Schedule
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.EnvironmentID, &item.Name, &item.Description, &item.Status, &item.WorkflowID, &item.Expression, &item.Timezone, &item.NextRunAt, &item.LastRunAt); err != nil {
 			return nil, err
 		}
 		result = append(result, item)

@@ -34,7 +34,7 @@ import {
   SETTINGS_TABS,
 } from "./settings-helpers";
 import { ShortcutsPage } from "./shortcuts-page";
-import { AgentsPage } from "./agents-page";
+import { AppearanceCard } from "./appearance-card";
 
 export type { EnvironmentKind, ProjectEnvironment, ProjectGeneralSettings, ProtectionLevel, SettingsTabId } from "./types";
 export type { CreateEnvironmentDraft } from "./create-environment-dialog";
@@ -51,6 +51,8 @@ export { CreateEnvironmentDialog } from "./create-environment-dialog";
 export { ShortcutsPage } from "./shortcuts-page";
 export { AgentsPage } from "./agents-page";
 export { hydrateShortcutPreferences, persistShortcutOverrides } from "./shortcut-persist";
+export { hydrateAppearancePreferences, persistReduceTransparency } from "./appearance-persist";
+export { AppearanceCard } from "./appearance-card";
 
 /** Project-scoped settings persisted in the local store. */
 export function SettingsView(props: {
@@ -339,12 +341,11 @@ export function SettingsView(props: {
           <ShortcutsPage />
         </Show>
 
-        <Show when={tab() === "agents"}>
-          <AgentsPage projectId={props.projectId ?? props.general?.projectId ?? ""} />
-        </Show>
-
         <Show when={tab() === "advanced"}>
           <PageContent class="max-w-xl space-y-6 overflow-auto p-4 text-[12.5px]">
+            <Card>
+              <AppearanceCard />
+            </Card>
             <Card>
               <p class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">
                 Danger zone

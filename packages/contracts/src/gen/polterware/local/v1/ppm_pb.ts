@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/ppm.proto.
  */
 export const file_polterware_local_v1_ppm: GenFile = /*@__PURE__*/
-  fileDesc("Ch1wb2x0ZXJ3YXJlL2xvY2FsL3YxL3BwbS5wcm90bxITcG9sdGVyd2FyZS5sb2NhbC52MSLbAQoJUHBtRW50aXR5EgoKAmlkGAEgASgJEhIKCnByb2plY3RfaWQYAiABKAkSDAoEa2luZBgDIAEoCRIQCghyZWZfa2luZBgEIAEoCRIOCgZyZWZfaWQYBSABKAkSDQoFdGl0bGUYBiABKAkSEwoLdHJ1dGhfY2xhc3MYByABKAkSDgoGc291cmNlGAggASgJEg0KBWFjdG9yGAkgASgJEhMKC29ic2VydmVkX2F0GAogASgJEhIKCmNyZWF0ZWRfYXQYCyABKAkSEgoKdXBkYXRlZF9hdBgMIAEoCSLWAQoPUHBtUmVsYXRpb25zaGlwEgoKAmlkGAEgASgJEhIKCnByb2plY3RfaWQYAiABKAkSGQoRc3ViamVjdF9lbnRpdHlfaWQYAyABKAkSEQoJcHJlZGljYXRlGAQgASgJEhgKEG9iamVjdF9lbnRpdHlfaWQYBSABKAkSEwoLdHJ1dGhfY2xhc3MYBiABKAkSDgoGc291cmNlGAcgASgJEg0KBWFjdG9yGAggASgJEhMKC29ic2VydmVkX2F0GAkgASgJEhIKCmNyZWF0ZWRfYXQYCiABKAkiNwoTTGlzdEVudGl0aWVzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEgwKBGtpbmQYAiABKAkiSAoUTGlzdEVudGl0aWVzUmVzcG9uc2USMAoIZW50aXRpZXMYASADKAsyHi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBwbUVudGl0eSJBChhMaXN0UmVsYXRpb25zaGlwc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIRCgllbnRpdHlfaWQYAiABKAkiWAoZTGlzdFJlbGF0aW9uc2hpcHNSZXNwb25zZRI7Cg1yZWxhdGlvbnNoaXBzGAEgAygLMiQucG9sdGVyd2FyZS5sb2NhbC52MS5QcG1SZWxhdGlvbnNoaXAiHgoQR2V0RW50aXR5UmVxdWVzdBIKCgJpZBgBIAEoCSJDChFHZXRFbnRpdHlSZXNwb25zZRIuCgZlbnRpdHkYASABKAsyHi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBwbUVudGl0eSItChdTeW5jUHJvamVjdE1vZGVsUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJIjAKGFN5bmNQcm9qZWN0TW9kZWxSZXNwb25zZRIUCgxlbnRpdHlfY291bnQYASABKAUyuwMKE1Byb2plY3RNb2RlbFNlcnZpY2USYwoMTGlzdEVudGl0aWVzEigucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0RW50aXRpZXNSZXF1ZXN0GikucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0RW50aXRpZXNSZXNwb25zZRJyChFMaXN0UmVsYXRpb25zaGlwcxItLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdFJlbGF0aW9uc2hpcHNSZXF1ZXN0Gi4ucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0UmVsYXRpb25zaGlwc1Jlc3BvbnNlEloKCUdldEVudGl0eRIlLnBvbHRlcndhcmUubG9jYWwudjEuR2V0RW50aXR5UmVxdWVzdBomLnBvbHRlcndhcmUubG9jYWwudjEuR2V0RW50aXR5UmVzcG9uc2USbwoQU3luY1Byb2plY3RNb2RlbBIsLnBvbHRlcndhcmUubG9jYWwudjEuU3luY1Byb2plY3RNb2RlbFJlcXVlc3QaLS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlN5bmNQcm9qZWN0TW9kZWxSZXNwb25zZULkAQoXY29tLnBvbHRlcndhcmUubG9jYWwudjFCCFBwbVByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
+  fileDesc("Ch1wb2x0ZXJ3YXJlL2xvY2FsL3YxL3BwbS5wcm90bxITcG9sdGVyd2FyZS5sb2NhbC52MSLbAQoJUHBtRW50aXR5EgoKAmlkGAEgASgJEhIKCnByb2plY3RfaWQYAiABKAkSDAoEa2luZBgDIAEoCRIQCghyZWZfa2luZBgEIAEoCRIOCgZyZWZfaWQYBSABKAkSDQoFdGl0bGUYBiABKAkSEwoLdHJ1dGhfY2xhc3MYByABKAkSDgoGc291cmNlGAggASgJEg0KBWFjdG9yGAkgASgJEhMKC29ic2VydmVkX2F0GAogASgJEhIKCmNyZWF0ZWRfYXQYCyABKAkSEgoKdXBkYXRlZF9hdBgMIAEoCSLWAQoPUHBtUmVsYXRpb25zaGlwEgoKAmlkGAEgASgJEhIKCnByb2plY3RfaWQYAiABKAkSGQoRc3ViamVjdF9lbnRpdHlfaWQYAyABKAkSEQoJcHJlZGljYXRlGAQgASgJEhgKEG9iamVjdF9lbnRpdHlfaWQYBSABKAkSEwoLdHJ1dGhfY2xhc3MYBiABKAkSDgoGc291cmNlGAcgASgJEg0KBWFjdG9yGAggASgJEhMKC29ic2VydmVkX2F0GAkgASgJEhIKCmNyZWF0ZWRfYXQYCiABKAkiNwoTTGlzdEVudGl0aWVzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEgwKBGtpbmQYAiABKAkiSAoUTGlzdEVudGl0aWVzUmVzcG9uc2USMAoIZW50aXRpZXMYASADKAsyHi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBwbUVudGl0eSJBChhMaXN0UmVsYXRpb25zaGlwc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIRCgllbnRpdHlfaWQYAiABKAkiWAoZTGlzdFJlbGF0aW9uc2hpcHNSZXNwb25zZRI7Cg1yZWxhdGlvbnNoaXBzGAEgAygLMiQucG9sdGVyd2FyZS5sb2NhbC52MS5QcG1SZWxhdGlvbnNoaXAiHgoQR2V0RW50aXR5UmVxdWVzdBIKCgJpZBgBIAEoCSJDChFHZXRFbnRpdHlSZXNwb25zZRIuCgZlbnRpdHkYASABKAsyHi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBwbUVudGl0eSItChdTeW5jUHJvamVjdE1vZGVsUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJIjAKGFN5bmNQcm9qZWN0TW9kZWxSZXNwb25zZRIUCgxlbnRpdHlfY291bnQYASABKAUiwAEKB1BwbUZhY3QSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIRCglzdGF0ZW1lbnQYAyABKAkSEwoLdHJ1dGhfY2xhc3MYBCABKAkSDgoGc291cmNlGAUgASgJEg0KBWFjdG9yGAYgASgJEhMKC29ic2VydmVkX2F0GAcgASgJEhEKCWVudGl0eV9pZBgIIAEoCRISCgpjcmVhdGVkX2F0GAkgASgJEhIKCnVwZGF0ZWRfYXQYCiABKAkitgEKC1BwbUV2aWRlbmNlEgoKAmlkGAEgASgJEhIKCnByb2plY3RfaWQYAiABKAkSDAoEa2luZBgDIAEoCRIPCgdzdW1tYXJ5GAQgASgJEg4KBnNvdXJjZRgFIAEoCRIMCgRwYXRoGAYgASgJEg0KBWFjdG9yGAcgASgJEhMKC29ic2VydmVkX2F0GAggASgJEhIKCmNyZWF0ZWRfYXQYCSABKAkSEgoKdXBkYXRlZF9hdBgKIAEoCSI5ChBMaXN0RmFjdHNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJZW50aXR5X2lkGAIgASgJIkAKEUxpc3RGYWN0c1Jlc3BvbnNlEisKBWZhY3RzGAEgAygLMhwucG9sdGVyd2FyZS5sb2NhbC52MS5QcG1GYWN0IhwKDkdldEZhY3RSZXF1ZXN0EgoKAmlkGAEgASgJInEKD0dldEZhY3RSZXNwb25zZRIqCgRmYWN0GAEgASgLMhwucG9sdGVyd2FyZS5sb2NhbC52MS5QcG1GYWN0EjIKCGV2aWRlbmNlGAIgAygLMiAucG9sdGVyd2FyZS5sb2NhbC52MS5QcG1FdmlkZW5jZSI/ChFVcHNlcnRGYWN0UmVxdWVzdBIqCgRmYWN0GAEgASgLMhwucG9sdGVyd2FyZS5sb2NhbC52MS5QcG1GYWN0IkAKElVwc2VydEZhY3RSZXNwb25zZRIqCgRmYWN0GAEgASgLMhwucG9sdGVyd2FyZS5sb2NhbC52MS5QcG1GYWN0IikKE0xpc3RFdmlkZW5jZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSJKChRMaXN0RXZpZGVuY2VSZXNwb25zZRIyCghldmlkZW5jZRgBIAMoCzIgLnBvbHRlcndhcmUubG9jYWwudjEuUHBtRXZpZGVuY2UiIAoSR2V0RXZpZGVuY2VSZXF1ZXN0EgoKAmlkGAEgASgJIkkKE0dldEV2aWRlbmNlUmVzcG9uc2USMgoIZXZpZGVuY2UYASABKAsyIC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBwbUV2aWRlbmNlIksKFVVwc2VydEV2aWRlbmNlUmVxdWVzdBIyCghldmlkZW5jZRgBIAEoCzIgLnBvbHRlcndhcmUubG9jYWwudjEuUHBtRXZpZGVuY2UiTAoWVXBzZXJ0RXZpZGVuY2VSZXNwb25zZRIyCghldmlkZW5jZRgBIAEoCzIgLnBvbHRlcndhcmUubG9jYWwudjEuUHBtRXZpZGVuY2UiVQoZTGlua0V2aWRlbmNlVG9GYWN0UmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB2ZhY3RfaWQYAiABKAkSEwoLZXZpZGVuY2VfaWQYAyABKAkiHAoaTGlua0V2aWRlbmNlVG9GYWN0UmVzcG9uc2UiMQobSW1wb3J0UHJvamVjdFNvdXJjZXNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkiiAEKHEltcG9ydFByb2plY3RTb3VyY2VzUmVzcG9uc2USEgoKZmFjdF9jb3VudBgBIAEoBRIWCg5ldmlkZW5jZV9jb3VudBgCIAEoBRIUCgxzb3VyY2VfY291bnQYAyABKAUSFQoNc2tpcHBlZF9jb3VudBgEIAEoBRIPCgdtZXNzYWdlGAUgASgJMvIJChNQcm9qZWN0TW9kZWxTZXJ2aWNlEmMKDExpc3RFbnRpdGllcxIoLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEVudGl0aWVzUmVxdWVzdBopLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEVudGl0aWVzUmVzcG9uc2UScgoRTGlzdFJlbGF0aW9uc2hpcHMSLS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RSZWxhdGlvbnNoaXBzUmVxdWVzdBouLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdFJlbGF0aW9uc2hpcHNSZXNwb25zZRJaCglHZXRFbnRpdHkSJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkdldEVudGl0eVJlcXVlc3QaJi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkdldEVudGl0eVJlc3BvbnNlEm8KEFN5bmNQcm9qZWN0TW9kZWwSLC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlN5bmNQcm9qZWN0TW9kZWxSZXF1ZXN0Gi0ucG9sdGVyd2FyZS5sb2NhbC52MS5TeW5jUHJvamVjdE1vZGVsUmVzcG9uc2USWgoJTGlzdEZhY3RzEiUucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0RmFjdHNSZXF1ZXN0GiYucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0RmFjdHNSZXNwb25zZRJUCgdHZXRGYWN0EiMucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRGYWN0UmVxdWVzdBokLnBvbHRlcndhcmUubG9jYWwudjEuR2V0RmFjdFJlc3BvbnNlEl0KClVwc2VydEZhY3QSJi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlVwc2VydEZhY3RSZXF1ZXN0GicucG9sdGVyd2FyZS5sb2NhbC52MS5VcHNlcnRGYWN0UmVzcG9uc2USYwoMTGlzdEV2aWRlbmNlEigucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0RXZpZGVuY2VSZXF1ZXN0GikucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0RXZpZGVuY2VSZXNwb25zZRJgCgtHZXRFdmlkZW5jZRInLnBvbHRlcndhcmUubG9jYWwudjEuR2V0RXZpZGVuY2VSZXF1ZXN0GigucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRFdmlkZW5jZVJlc3BvbnNlEmkKDlVwc2VydEV2aWRlbmNlEioucG9sdGVyd2FyZS5sb2NhbC52MS5VcHNlcnRFdmlkZW5jZVJlcXVlc3QaKy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlVwc2VydEV2aWRlbmNlUmVzcG9uc2USdQoSTGlua0V2aWRlbmNlVG9GYWN0Ei4ucG9sdGVyd2FyZS5sb2NhbC52MS5MaW5rRXZpZGVuY2VUb0ZhY3RSZXF1ZXN0Gi8ucG9sdGVyd2FyZS5sb2NhbC52MS5MaW5rRXZpZGVuY2VUb0ZhY3RSZXNwb25zZRJ7ChRJbXBvcnRQcm9qZWN0U291cmNlcxIwLnBvbHRlcndhcmUubG9jYWwudjEuSW1wb3J0UHJvamVjdFNvdXJjZXNSZXF1ZXN0GjEucG9sdGVyd2FyZS5sb2NhbC52MS5JbXBvcnRQcm9qZWN0U291cmNlc1Jlc3BvbnNlQuQBChdjb20ucG9sdGVyd2FyZS5sb2NhbC52MUIIUHBtUHJvdG9QAVpRZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvYmFja2VuZC9wbGF0Zm9ybS9nZW4vcG9sdGVyd2FyZS9sb2NhbC92MTtsb2NhbHYxogIDUExYqgITUG9sdGVyd2FyZS5Mb2NhbC5WMcoCE1BvbHRlcndhcmVcTG9jYWxcVjHiAh9Qb2x0ZXJ3YXJlXExvY2FsXFYxXEdQQk1ldGFkYXRh6gIVUG9sdGVyd2FyZTo6TG9jYWw6OlYxYgZwcm90bzM");
 
 /**
  * @generated from message polterware.local.v1.PpmEntity
@@ -293,6 +293,438 @@ export const SyncProjectModelResponseSchema: GenMessage<SyncProjectModelResponse
   messageDesc(file_polterware_local_v1_ppm, 9);
 
 /**
+ * @generated from message polterware.local.v1.PpmFact
+ */
+export type PpmFact = Message<"polterware.local.v1.PpmFact"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string project_id = 2;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string statement = 3;
+   */
+  statement: string;
+
+  /**
+   * @generated from field: string truth_class = 4;
+   */
+  truthClass: string;
+
+  /**
+   * @generated from field: string source = 5;
+   */
+  source: string;
+
+  /**
+   * @generated from field: string actor = 6;
+   */
+  actor: string;
+
+  /**
+   * @generated from field: string observed_at = 7;
+   */
+  observedAt: string;
+
+  /**
+   * @generated from field: string entity_id = 8;
+   */
+  entityId: string;
+
+  /**
+   * @generated from field: string created_at = 9;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string updated_at = 10;
+   */
+  updatedAt: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.PpmFact.
+ * Use `create(PpmFactSchema)` to create a new message.
+ */
+export const PpmFactSchema: GenMessage<PpmFact> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 10);
+
+/**
+ * @generated from message polterware.local.v1.PpmEvidence
+ */
+export type PpmEvidence = Message<"polterware.local.v1.PpmEvidence"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string project_id = 2;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string summary = 4;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string source = 5;
+   */
+  source: string;
+
+  /**
+   * @generated from field: string path = 6;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string actor = 7;
+   */
+  actor: string;
+
+  /**
+   * @generated from field: string observed_at = 8;
+   */
+  observedAt: string;
+
+  /**
+   * @generated from field: string created_at = 9;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string updated_at = 10;
+   */
+  updatedAt: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.PpmEvidence.
+ * Use `create(PpmEvidenceSchema)` to create a new message.
+ */
+export const PpmEvidenceSchema: GenMessage<PpmEvidence> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 11);
+
+/**
+ * @generated from message polterware.local.v1.ListFactsRequest
+ */
+export type ListFactsRequest = Message<"polterware.local.v1.ListFactsRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string entity_id = 2;
+   */
+  entityId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListFactsRequest.
+ * Use `create(ListFactsRequestSchema)` to create a new message.
+ */
+export const ListFactsRequestSchema: GenMessage<ListFactsRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 12);
+
+/**
+ * @generated from message polterware.local.v1.ListFactsResponse
+ */
+export type ListFactsResponse = Message<"polterware.local.v1.ListFactsResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.PpmFact facts = 1;
+   */
+  facts: PpmFact[];
+};
+
+/**
+ * Describes the message polterware.local.v1.ListFactsResponse.
+ * Use `create(ListFactsResponseSchema)` to create a new message.
+ */
+export const ListFactsResponseSchema: GenMessage<ListFactsResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 13);
+
+/**
+ * @generated from message polterware.local.v1.GetFactRequest
+ */
+export type GetFactRequest = Message<"polterware.local.v1.GetFactRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.GetFactRequest.
+ * Use `create(GetFactRequestSchema)` to create a new message.
+ */
+export const GetFactRequestSchema: GenMessage<GetFactRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 14);
+
+/**
+ * @generated from message polterware.local.v1.GetFactResponse
+ */
+export type GetFactResponse = Message<"polterware.local.v1.GetFactResponse"> & {
+  /**
+   * @generated from field: polterware.local.v1.PpmFact fact = 1;
+   */
+  fact?: PpmFact | undefined;
+
+  /**
+   * @generated from field: repeated polterware.local.v1.PpmEvidence evidence = 2;
+   */
+  evidence: PpmEvidence[];
+};
+
+/**
+ * Describes the message polterware.local.v1.GetFactResponse.
+ * Use `create(GetFactResponseSchema)` to create a new message.
+ */
+export const GetFactResponseSchema: GenMessage<GetFactResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 15);
+
+/**
+ * @generated from message polterware.local.v1.UpsertFactRequest
+ */
+export type UpsertFactRequest = Message<"polterware.local.v1.UpsertFactRequest"> & {
+  /**
+   * @generated from field: polterware.local.v1.PpmFact fact = 1;
+   */
+  fact?: PpmFact | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.UpsertFactRequest.
+ * Use `create(UpsertFactRequestSchema)` to create a new message.
+ */
+export const UpsertFactRequestSchema: GenMessage<UpsertFactRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 16);
+
+/**
+ * @generated from message polterware.local.v1.UpsertFactResponse
+ */
+export type UpsertFactResponse = Message<"polterware.local.v1.UpsertFactResponse"> & {
+  /**
+   * @generated from field: polterware.local.v1.PpmFact fact = 1;
+   */
+  fact?: PpmFact | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.UpsertFactResponse.
+ * Use `create(UpsertFactResponseSchema)` to create a new message.
+ */
+export const UpsertFactResponseSchema: GenMessage<UpsertFactResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 17);
+
+/**
+ * @generated from message polterware.local.v1.ListEvidenceRequest
+ */
+export type ListEvidenceRequest = Message<"polterware.local.v1.ListEvidenceRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListEvidenceRequest.
+ * Use `create(ListEvidenceRequestSchema)` to create a new message.
+ */
+export const ListEvidenceRequestSchema: GenMessage<ListEvidenceRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 18);
+
+/**
+ * @generated from message polterware.local.v1.ListEvidenceResponse
+ */
+export type ListEvidenceResponse = Message<"polterware.local.v1.ListEvidenceResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.PpmEvidence evidence = 1;
+   */
+  evidence: PpmEvidence[];
+};
+
+/**
+ * Describes the message polterware.local.v1.ListEvidenceResponse.
+ * Use `create(ListEvidenceResponseSchema)` to create a new message.
+ */
+export const ListEvidenceResponseSchema: GenMessage<ListEvidenceResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 19);
+
+/**
+ * @generated from message polterware.local.v1.GetEvidenceRequest
+ */
+export type GetEvidenceRequest = Message<"polterware.local.v1.GetEvidenceRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.GetEvidenceRequest.
+ * Use `create(GetEvidenceRequestSchema)` to create a new message.
+ */
+export const GetEvidenceRequestSchema: GenMessage<GetEvidenceRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 20);
+
+/**
+ * @generated from message polterware.local.v1.GetEvidenceResponse
+ */
+export type GetEvidenceResponse = Message<"polterware.local.v1.GetEvidenceResponse"> & {
+  /**
+   * @generated from field: polterware.local.v1.PpmEvidence evidence = 1;
+   */
+  evidence?: PpmEvidence | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.GetEvidenceResponse.
+ * Use `create(GetEvidenceResponseSchema)` to create a new message.
+ */
+export const GetEvidenceResponseSchema: GenMessage<GetEvidenceResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 21);
+
+/**
+ * @generated from message polterware.local.v1.UpsertEvidenceRequest
+ */
+export type UpsertEvidenceRequest = Message<"polterware.local.v1.UpsertEvidenceRequest"> & {
+  /**
+   * @generated from field: polterware.local.v1.PpmEvidence evidence = 1;
+   */
+  evidence?: PpmEvidence | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.UpsertEvidenceRequest.
+ * Use `create(UpsertEvidenceRequestSchema)` to create a new message.
+ */
+export const UpsertEvidenceRequestSchema: GenMessage<UpsertEvidenceRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 22);
+
+/**
+ * @generated from message polterware.local.v1.UpsertEvidenceResponse
+ */
+export type UpsertEvidenceResponse = Message<"polterware.local.v1.UpsertEvidenceResponse"> & {
+  /**
+   * @generated from field: polterware.local.v1.PpmEvidence evidence = 1;
+   */
+  evidence?: PpmEvidence | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.UpsertEvidenceResponse.
+ * Use `create(UpsertEvidenceResponseSchema)` to create a new message.
+ */
+export const UpsertEvidenceResponseSchema: GenMessage<UpsertEvidenceResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 23);
+
+/**
+ * @generated from message polterware.local.v1.LinkEvidenceToFactRequest
+ */
+export type LinkEvidenceToFactRequest = Message<"polterware.local.v1.LinkEvidenceToFactRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string fact_id = 2;
+   */
+  factId: string;
+
+  /**
+   * @generated from field: string evidence_id = 3;
+   */
+  evidenceId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.LinkEvidenceToFactRequest.
+ * Use `create(LinkEvidenceToFactRequestSchema)` to create a new message.
+ */
+export const LinkEvidenceToFactRequestSchema: GenMessage<LinkEvidenceToFactRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 24);
+
+/**
+ * @generated from message polterware.local.v1.LinkEvidenceToFactResponse
+ */
+export type LinkEvidenceToFactResponse = Message<"polterware.local.v1.LinkEvidenceToFactResponse"> & {
+};
+
+/**
+ * Describes the message polterware.local.v1.LinkEvidenceToFactResponse.
+ * Use `create(LinkEvidenceToFactResponseSchema)` to create a new message.
+ */
+export const LinkEvidenceToFactResponseSchema: GenMessage<LinkEvidenceToFactResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 25);
+
+/**
+ * @generated from message polterware.local.v1.ImportProjectSourcesRequest
+ */
+export type ImportProjectSourcesRequest = Message<"polterware.local.v1.ImportProjectSourcesRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ImportProjectSourcesRequest.
+ * Use `create(ImportProjectSourcesRequestSchema)` to create a new message.
+ */
+export const ImportProjectSourcesRequestSchema: GenMessage<ImportProjectSourcesRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 26);
+
+/**
+ * @generated from message polterware.local.v1.ImportProjectSourcesResponse
+ */
+export type ImportProjectSourcesResponse = Message<"polterware.local.v1.ImportProjectSourcesResponse"> & {
+  /**
+   * @generated from field: int32 fact_count = 1;
+   */
+  factCount: number;
+
+  /**
+   * @generated from field: int32 evidence_count = 2;
+   */
+  evidenceCount: number;
+
+  /**
+   * @generated from field: int32 source_count = 3;
+   */
+  sourceCount: number;
+
+  /**
+   * @generated from field: int32 skipped_count = 4;
+   */
+  skippedCount: number;
+
+  /**
+   * @generated from field: string message = 5;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ImportProjectSourcesResponse.
+ * Use `create(ImportProjectSourcesResponseSchema)` to create a new message.
+ */
+export const ImportProjectSourcesResponseSchema: GenMessage<ImportProjectSourcesResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_ppm, 27);
+
+/**
  * @generated from service polterware.local.v1.ProjectModelService
  */
 export const ProjectModelService: GenService<{
@@ -327,6 +759,70 @@ export const ProjectModelService: GenService<{
     methodKind: "unary";
     input: typeof SyncProjectModelRequestSchema;
     output: typeof SyncProjectModelResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.ProjectModelService.ListFacts
+   */
+  listFacts: {
+    methodKind: "unary";
+    input: typeof ListFactsRequestSchema;
+    output: typeof ListFactsResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.ProjectModelService.GetFact
+   */
+  getFact: {
+    methodKind: "unary";
+    input: typeof GetFactRequestSchema;
+    output: typeof GetFactResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.ProjectModelService.UpsertFact
+   */
+  upsertFact: {
+    methodKind: "unary";
+    input: typeof UpsertFactRequestSchema;
+    output: typeof UpsertFactResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.ProjectModelService.ListEvidence
+   */
+  listEvidence: {
+    methodKind: "unary";
+    input: typeof ListEvidenceRequestSchema;
+    output: typeof ListEvidenceResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.ProjectModelService.GetEvidence
+   */
+  getEvidence: {
+    methodKind: "unary";
+    input: typeof GetEvidenceRequestSchema;
+    output: typeof GetEvidenceResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.ProjectModelService.UpsertEvidence
+   */
+  upsertEvidence: {
+    methodKind: "unary";
+    input: typeof UpsertEvidenceRequestSchema;
+    output: typeof UpsertEvidenceResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.ProjectModelService.LinkEvidenceToFact
+   */
+  linkEvidenceToFact: {
+    methodKind: "unary";
+    input: typeof LinkEvidenceToFactRequestSchema;
+    output: typeof LinkEvidenceToFactResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.ProjectModelService.ImportProjectSources
+   */
+  importProjectSources: {
+    methodKind: "unary";
+    input: typeof ImportProjectSourcesRequestSchema;
+    output: typeof ImportProjectSourcesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_polterware_local_v1_ppm, 0);

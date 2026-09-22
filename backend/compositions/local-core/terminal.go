@@ -3,11 +3,11 @@ package localcore
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 
-	"github.com/polterware/polterware/backend/domains/resources"
 	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
 	"github.com/polterware/polterware/backend/platform/observability"
 	terminalpkg "github.com/polterware/polterware/backend/providers/terminal"
@@ -31,39 +31,30 @@ func (core *Core) CreateTerminalSession(_ context.Context, request *connect.Requ
 	shell := request.Msg.Shell
 	cwd := request.Msg.Cwd
 
-	var session *terminalpkg.Session
-	var err error
-
-	if isSyntheticLocalTarget(targetID) {
-		session, err = core.terminalManager().Create(id, request.Msg.ProjectId, "local", shell, cwd, cols, rows)
-	} else {
-		node, nodeErr := core.Store.GetNode(targetID)
-		if nodeErr != nil {
-			return nil, invalid("terminal target not found")
-		}
-		resources.NormalizeNode(&node)
-		if node.ConnectionKind == "ssh" {
-			session, err = core.terminalManager().CreateSSH(id, request.Msg.ProjectId, targetID, cwd, cols, rows, terminalpkg.SSHProfile{
-				User:         node.SSHUser,
-				Host:         node.Address,
-				Port:         node.SSHPort,
-				IdentityFile: node.SSHIdentityFile,
-			})
-		} else {
-			if shell == "" {
-				shell = node.Shell
-			}
-			session, err = core.terminalManager().Create(id, request.Msg.ProjectId, targetID, shell, cwd, cols, rows)
-		}
+	if !isSyntheticLocalTarget(targetID) {
+		return nil, invalid("terminal target not found")
 	}
+
+	session, err := core.terminalManager().Create(id, request.Msg.ProjectId, syntheticTargetLabel(targetID), shell, cwd, cols, rows)
 	if err != nil {
 		return nil, internal(fmt.Errorf("create terminal: %w", err))
 	}
 	return connect.NewResponse(&localv1.CreateTerminalSessionResponse{Session: terminalProto(session)}), nil
 }
 
+// isSyntheticLocalTarget treats empty, "local", and Connect auth-* targets as local PTYs
+// without consulting a nodes table.
 func isSyntheticLocalTarget(targetID string) bool {
-	return targetID == "" || targetID == "local"
+	trimmed := strings.TrimSpace(targetID)
+	return trimmed == "" || trimmed == "local" || strings.HasPrefix(trimmed, "auth-")
+}
+
+func syntheticTargetLabel(targetID string) string {
+	trimmed := strings.TrimSpace(targetID)
+	if trimmed == "" {
+		return "local"
+	}
+	return trimmed
 }
 
 func (core *Core) WriteTerminalSession(_ context.Context, request *connect.Request[localv1.WriteTerminalSessionRequest]) (*connect.Response[localv1.WriteTerminalSessionResponse], error) {
