@@ -11,6 +11,9 @@ importers:
       '@oxlint/plugins':
         specifier: 1.78.0
         version: 1.78.0
+      '@typesafe-ai/sdk':
+        specifier: ^0.6.0
+        version: 0.6.0
       oxlint:
         specifier: 1.78.0
         version: 1.78.0
@@ -1634,6 +1637,10 @@ packages:
 
   '@types/yauzl@2.10.3':
     resolution: {integrity: sha512-oJoftv0LSuaDZE3Le4DbKX+KS9G36NzOeSap90UIK0yMA/NhKJhqlSGtNDORNRaIbQfzjXDrQa0ytJ6mNRGz/Q==}
+
+  '@typesafe-ai/sdk@0.6.0':
+    resolution: {integrity: sha512-IddX+Q0XM+VagOUZFeP7wZjaO4SHMdvnh2zEBdrZZnXedWI3BNK1lKhMx3ayrkFWvVLbVcUHJy6AVZlY+e6Jaw==}
+    engines: {node: '>=20'}
 
   '@vitest/expect@4.1.5':
     resolution: {integrity: sha512-PWBaRY5JoKuRnHlUHfpV/KohFylaDZTupcXN1H9vYryNLOnitSw60Mw9IAE2r67NbwwzBw/Cc/8q9BK3kIX8Kw==}
@@ -4735,6 +4742,8 @@ snapshots:
     dependencies:
       '@types/node': 24.12.2
     optional: true
+
+  '@typesafe-ai/sdk@0.6.0': {}
 
   '@vitest/expect@4.1.5':
     dependencies:

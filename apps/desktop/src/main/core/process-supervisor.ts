@@ -54,6 +54,7 @@ export async function startCoreProcess(options: {
     ...process.env,
     POLTERWARE_SESSION_TOKEN: options.token,
   };
+  delete env.TYPESAFE_API_KEY;
   const args = ["-listen", "127.0.0.1:0", "-db", options.dbPath];
   const child = binary
     ? spawn(binary, args, { env, stdio: ["ignore", "ignore", "pipe"] })
