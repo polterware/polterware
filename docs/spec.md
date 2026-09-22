@@ -36,7 +36,7 @@ Architecture / Canvas is the initial route and the destination after entering or
 
 Settings Advanced includes an app-level Appearance control: Reduce transparency switches the macOS title bar and sidebar from frosted vibrancy to a solid fill. The preference is stored in the Desktop userData directory and does not live in SQLite.
 
-The sidebar contains the seven product surfaces. Settings is fixed in its footer. The title bar retains local project and environment switchers, Commander, history controls, and quick Terminal access. In-app Commander opens as the shared command palette dialog. The global Commander shortcut opens a separate frameless, draggable overlay (`?surface=commander`) with macOS vibrancy / shell-glass wash matching the main window, search at the top, an Open Desktop control, and an overview strip (Operations, Processes, Knowledge, Integrations) that drills into in-overlay lists — not a miniature copy of the full Desktop shell. The in-app palette remains search-only.
+The sidebar contains the seven product surfaces. Settings is fixed in its footer. The title bar retains local project and environment switchers, Commander, history controls, and quick Terminal access. In-app Commander opens as the shared command palette dialog with the same opaque float surface as other product dialogs. The global Commander shortcut opens a separate frameless, draggable overlay (`?surface=commander`) with the same opaque panel material as other product dialogs, search at the top, an Open Desktop control, and an overview strip (Operations, Processes, Knowledge, Integrations) that drills into in-overlay lists — not a miniature copy of the full Desktop shell. The in-app palette remains search-only.
 
 ## Local project model
 

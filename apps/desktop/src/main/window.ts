@@ -181,9 +181,9 @@ export function createCommanderWindow(): BrowserWindow {
     fullscreenable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    transparent: true,
-    hasShadow: false,
-    backgroundColor: "#00000000",
+    transparent: false,
+    hasShadow: true,
+    backgroundColor: "#0f0f0f",
     ...getAppIconWindowOptions(),
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),

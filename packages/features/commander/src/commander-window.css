@@ -1,0 +1,36 @@
+/* Frameless global Commander: opaque host matching product dialog surface. */
+html.commander-surface,
+html.commander-surface body,
+html.commander-surface #root {
+  background: var(--color-surface) !important;
+  overflow: hidden;
+}
+
+.commander-window-root {
+  box-sizing: border-box;
+  display: flex;
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  background: var(--color-surface);
+}
+
+.commander-window-panel.surface-panel-float {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  outline: none;
+  /* Full-bleed in frameless window — no outer float halo. */
+  box-shadow: none;
+  border-radius: 0;
+}
+
+/* Search row is the drag chrome; interactive children are no-drag in commander.css. */
+.commander-window-search {
+  -webkit-app-region: drag;
+  user-select: none;
+}

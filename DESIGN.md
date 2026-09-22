@@ -63,6 +63,8 @@ Knowledge documents use document layout and the shared Markdown editor. Operatio
 
 Structural fills are opaque shared neutral tokens. Text and labeled icons use opaque semantic colors, with icons inheriting `currentColor`. Do not add ad-hoc `rgba`, alpha hex, Tailwind opacity modifiers, `color-mix(... transparent)`, glass, blur, or translucent product chrome.
 
+Exception — macOS Desktop window chrome only: the main window title bar and sidebar may use shared `--color-shell-glass` / `--color-sidebar-glass` washes so frosted Electron vibrancy shows through while keeping the quiet dark cast. Commander (in-app palette and global overlay) uses the same opaque `surface-panel-float` material as other product dialogs — no glass, blur, or vibrancy. All other product surfaces, text, dialogs, and cards stay opaque. Settings Advanced → Reduce transparency disables main-window vibrancy / frost and restores opaque title bar and sidebar. Do not extend this exception to Commander, other in-app dialogs, cards, or other platforms.
+
 Use only these radius roles:
 
 - controls: `--radius-control`
