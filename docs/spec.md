@@ -76,13 +76,13 @@ When Settings Environments is empty, the Desktop shows Development, Staging, and
 
 Integrations do not use content templates; they use the fixed provider catalog. Terminal empty offers action cards to open a local session on this machine or add an SSH host profile.
 
-## Context Compiler and experimental MCP
+## Context Compiler and stable MCP reads
 
-`CompileContext` assembles a bounded context package from entity resolution, knowledge links, one-hop relationships, and full-text hits under a token budget. Items include `kind`, `id`, `title`, `excerpt`, `truth_class`, `source`, and `path`. There is no embedding model, GraphRAG, or fixed PCTX serialization.
+`CompileContext` assembles a bounded context package from entity resolution, knowledge links, one-hop relationships, PPM facts with linked evidence, and full-text hits under a token budget. Items include `kind`, `id`, `title`, `excerpt`, `truth_class`, `source`, `path`, machine `reasons`, and `evidence` refs. There is no embedding model, GraphRAG, or fixed PCTX serialization. See [`architecture/context-compiler.md`](architecture/context-compiler.md).
 
-`polterware-core mcp` serves an experimental MCP stdio server over the same local SQLite store. Provisional tool names (`search`, `compile_context`, `get_entity`) are exploration only and are not a product API contract.
+`polterware-core mcp` serves a stable MCP stdio read contract over the same local SQLite store: `context.get`, `entity.get`, `evidence.get`, and `drift.check`. `context.get` returns the Context Compiler package. `drift.check` returns empty findings with `checker: "none"` until the Narrow Drift Checker (B5). See [`architecture/stable-mcp-reads.md`](architecture/stable-mcp-reads.md).
 
-Agents is the Desktop operator surface for this access: start/stop a parked local MCP helper, copy Cursor MCP config, copy or download the Polterware AI skill (markdown that teaches agents how to use those tools), preview `CompileContext` for the current project, and inspect a light local tool-call history (`agent_tool_calls`). History is not a full agent audit trail.
+Agents is the Desktop operator surface for this access: start/stop a parked local MCP helper, copy Cursor MCP config, copy or download the Polterware AI skill (markdown that teaches agents how to use those tools), preview `CompileContext` for the current project (optional query and entity id), and inspect a light local tool-call history (`agent_tool_calls`). History is not a full agent audit trail.
 
 ## Execution authority
 
@@ -121,7 +121,7 @@ Operations and workflow steps are direct local models. Core requests use one tec
 - `SearchKnowledge` returns exact and FTS hits with provenance fields.
 - Knowledge Specs, Library, and Sources, Resources, Architecture, Operations, and Settings Environments empty states show inspiration template cards that create the item immediately where applicable; create dialogs also offer templates, and blank create remains on the toolbar and form.
 - `CompileContext` returns a bounded package with provenance fields.
-- `polterware-core mcp` exposes experimental search/compile/get_entity tools over stdio.
+- `polterware-core mcp` exposes stable reads `context.get`, `entity.get`, `evidence.get`, and `drift.check` over stdio (`drift.check` findings empty until B5).
 - Agents exposes MCP helper start/stop, Cursor config copy, the Polterware AI skill, CompileContext preview, and local tool-call history.
 - Operations exposes Runs, Workflows, and Schedules with local execution states.
 - Terminal opens interactive local sessions and SSH sessions to saved host profiles through core-owned PTY.

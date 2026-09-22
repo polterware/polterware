@@ -10,7 +10,7 @@
 
 ## Product positioning
 
-Polterware's category is **Project Context & Change Intelligence for AI Coding** ([`docs/product-vision.md`](docs/product-vision.md) v3, [ADR 0004](docs/adr/0004-product-positioning-and-wedge.md)). Evolution priority is the wedge: PPM facts/evidence, deterministic import, Context Compiler, stable MCP, Drift, AgentRun, and CLI. Do not expand Operations, Terminal-as-product, or Nodes/remote execution — they are **scheduled for removal** on a future kill branch. Integrations remain as evidence/Connect UI only.
+Polterware's category is **Project Context & Change Intelligence for AI Coding** ([`docs/product-vision.md`](docs/product-vision.md) v3, [ADR 0004](docs/adr/0004-product-positioning-and-wedge.md)). Evolution priority is the wedge: PPM facts/evidence, deterministic import, Context Compiler, stable MCP reads, Drift, AgentRun, and CLI. Do not expand Operations, Terminal-as-product, or Nodes/remote execution — they are **scheduled for removal** on a future kill branch. Integrations remain as evidence/Connect UI only. Wedge delivery order: [`docs/architecture/wedge-validation-sequence.md`](docs/architecture/wedge-validation-sequence.md) (next slice: B5 Narrow Drift Checker).
 
 ## Current product boundary
 

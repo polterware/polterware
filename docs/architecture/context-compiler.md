@@ -13,7 +13,7 @@ Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`wedge-val
 3. PPM facts (entity-scoped, query statement match, or project sample) with linked evidence
 4. Provenance-aware ranking and token-budget packing
 
-This is the package shape that B4 will stabilize as MCP `context.get`. The RPC and experimental MCP tool remain named `CompileContext` / `compile_context` until B4.
+This package shape is exposed to agents as MCP `context.get` (B4). The Connect RPC remains `CompileContext` for Desktop Agents → Compile. See [`stable-mcp-reads.md`](stable-mcp-reads.md).
 
 ## Item shape
 
@@ -50,6 +50,6 @@ Agents → Compile previews the package (optional query, optional entity id, bud
 
 ## Limitations
 
-- MCP tool rename to `context.get` and sibling reads (`entity.get`, `evidence.get`, `drift.check`) are B4.
 - Semantic / embedding retrieval is out of scope.
 - Evidence on non-fact items is not required in this slice.
+- Narrow Drift Checker findings for MCP `drift.check` are B5.

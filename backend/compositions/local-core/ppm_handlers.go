@@ -162,7 +162,7 @@ func (core *Core) CompileContext(_ context.Context, request *connect.Request[loc
 	}
 	_ = core.Store.AppendAgentToolCall(agentaccess.ToolCall{
 		ProjectID:     request.Msg.ProjectId,
-		ToolName:      "compile_context",
+		ToolName:      "context.get",
 		ArgumentsJSON: fmt.Sprintf(`{"query":%q,"entity_id":%q,"token_budget":%d}`, request.Msg.Query, request.Msg.EntityId, request.Msg.TokenBudget),
 		ResultSummary: summary,
 		OK:            ok,
