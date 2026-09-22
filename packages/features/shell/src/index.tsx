@@ -87,6 +87,7 @@ export { TerminalPage, LOCAL_TERMINAL_TARGET } from "./terminal-page";
 export { TerminalEmulator } from "./terminal-emulator";
 export { TerminalTranscript } from "./terminal-transcript";
 export { CreateProjectPage } from "./create-project";
+export { CreateProjectDialog } from "./create-project-dialog";
 export { ProjectSwitcher } from "./project-switcher";
 export { WorkspaceContextBar } from "./context-switchers";
 export { TargetPicker } from "./target-picker";

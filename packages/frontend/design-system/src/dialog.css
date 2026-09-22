@@ -5,8 +5,8 @@
  * Tokens: --duration-enter / --duration-control, --ease-enter / --ease-standard.
  * No bounce (DESIGN.md). prefers-reduced-motion handled in base.css.
  *
- * Product dialogs: ONE size only (Add to Architecture catalog surface).
- * Size is locked here so it cannot drift via Tailwind tree-shaking / size props.
+ * Default frame = catalog surface (.pw-product-frame).
+ * data-size="sm" = compact form dialogs (create project, short forms).
  */
 
 /* Canonical product dialog frame — same box as .pw-product-frame / command palette */
@@ -16,6 +16,15 @@
   height: min(78vh, 760px);
   max-height: min(92vh, 900px);
   min-height: min(78vh, 760px);
+}
+
+/* Compact form dialogs — hug content, moderate width */
+.pw-dialog-content[data-size="sm"] {
+  width: min(30rem, calc(100vw - 2.5rem));
+  max-width: min(30rem, calc(100vw - 2.5rem));
+  height: auto;
+  min-height: 0;
+  max-height: min(90vh, 640px);
 }
 
 @keyframes pw-dialog-overlay-in {

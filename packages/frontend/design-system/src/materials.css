@@ -66,6 +66,12 @@
     border-color var(--duration-control) var(--ease-standard);
 }
 
+/* Form fields stay quiet on focus — no outline ring (caret / value change is enough). */
+.control-field:focus,
+.control-field:focus-visible {
+  outline: none;
+}
+
 .control-field::placeholder {
   color: var(--color-text-disabled);
 }

@@ -219,6 +219,12 @@
     border-color var(--duration-control) var(--ease-standard);
 }
 
+/* Form fields stay quiet on focus — no outline ring (caret / value change is enough). */
+.control-field:focus,
+.control-field:focus-visible {
+  outline: none;
+}
+
 .control-field::placeholder {
   color: var(--color-text-disabled);
 }
@@ -306,8 +312,8 @@
   }
 }
 
-/* Focus ring — quiet, never brand glow */
-:where(button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+/* Focus ring — quiet, never brand glow. Inputs/textareas use .control-field (no ring). */
+:where(button, a, [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: 2px solid var(--color-border-strong);
   outline-offset: 2px;
 }

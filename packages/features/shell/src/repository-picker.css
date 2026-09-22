@@ -1,0 +1,82 @@
+/* Create-project repository surface — tall empty invite; filled path row. */
+
+.pw-repository-picker {
+  appearance: none;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+  font-family: inherit;
+  color: inherit;
+}
+
+.pw-repository-picker[data-empty="true"] {
+  min-height: 8.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem 1rem;
+}
+
+.pw-repository-picker[data-empty="false"] {
+  min-height: var(--control-height-md);
+  align-items: center;
+  padding-inline: 0.625rem;
+}
+
+.pw-repository-picker:disabled {
+  cursor: not-allowed;
+}
+
+.pw-repository-picker:focus,
+.pw-repository-picker:focus-visible {
+  outline: none;
+}
+
+.pw-repository-picker__empty {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.pw-repository-picker__plus-icon {
+  color: var(--color-text-muted);
+}
+
+.pw-repository-picker__title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+}
+
+.pw-repository-picker__filled {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pw-repository-picker__path {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+}
+
+.pw-repository-picker__action {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}

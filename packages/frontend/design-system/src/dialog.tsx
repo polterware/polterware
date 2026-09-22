@@ -10,8 +10,9 @@ import { Dialog as ArkDialog } from "@ark-ui/solid/dialog";
 import "./dialog.css";
 
 /**
- * Product dialog size API — kept for call-site compatibility only.
- * Layout ignores this: every product dialog uses the same frame in dialog.css.
+ * Product dialog size:
+ * - default / md / lg / xl — catalog frame (Add to Architecture)
+ * - sm — compact form dialogs (hug content)
  */
 export type DialogSize = "sm" | "md" | "lg" | "xl";
 
@@ -22,8 +23,10 @@ export type A11yDialogProps = {
   children: JSX.Element;
   onClose: () => void;
   class?: string;
+  /** Extra classes on the backdrop (e.g. lighter Commander scrim). */
+  overlayClass?: string;
   footer?: JSX.Element;
-  /** No effect on dimensions — all dialogs share one catalog size. */
+  /** `sm` for compact forms; other values use the catalog frame. */
   size?: DialogSize;
   description?: string;
   /** @deprecated Body always fills the fixed dialog frame. */
@@ -39,35 +42,57 @@ export type A11yDialogProps = {
    * between header/body/footer. Prefer spacing-only separation in catalogs.
    */
   dividers?: boolean;
+  /**
+   * When false, Escape, outside click, and the close (X) control are disabled.
+   * Defaults to true.
+   */
+  dismissible?: boolean;
+  /**
+   * When false, hide the built-in Close (X) control. Escape / outside click still
+   * follow `dismissible`. Use when the consumer owns close chrome (e.g. Commander).
+   * Defaults to true.
+   */
+  showCloseButton?: boolean;
+  /** Extra classes on the body wrapper (overrides default padding when provided). */
+  bodyClass?: string;
 };
 
 /**
  * Product dialog: Ark Dialog + Polter surface.
  *
- * **One size only** (Add to Architecture catalog frame) — locked in `dialog.css`.
+ * Default frame = catalog (Add to Architecture). Pass `size="sm"` for compact forms.
  * Catalogs: `chrome="flush"`, `dividers={false}` — space separates regions, not lines.
  */
 export function A11yDialog(props: A11yDialogProps) {
   const flush = () => props.chrome === "flush";
   const dividers = () => props.dividers ?? !flush();
+  const dismissible = () => props.dismissible !== false;
+  const showCloseButton = () => props.showCloseButton !== false;
+  const frameSize = () => (props.size === "sm" ? "sm" : undefined);
 
   return (
     <ArkDialog.Root
       open={props.open}
       onOpenChange={(details) => {
-        if (!details.open) props.onClose();
+        if (!details.open && dismissible()) props.onClose();
       }}
       lazyMount
       unmountOnExit
-      closeOnEscape
-      closeOnInteractOutside
+      closeOnEscape={dismissible()}
+      closeOnInteractOutside={dismissible()}
     >
       <Portal>
-        <ArkDialog.Backdrop class="pw-dialog-overlay fixed inset-0 z-[100] bg-[var(--color-overlay)]" />
+        <ArkDialog.Backdrop
+          class={[
+            "pw-dialog-overlay fixed inset-0 z-[100] bg-[var(--color-overlay)]",
+            props.overlayClass ?? "",
+          ].join(" ")}
+        />
         <ArkDialog.Positioner class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 pointer-events-none">
           <ArkDialog.Content
+            data-size={frameSize()}
             class={[
-              /* Size comes from dialog.css .pw-dialog-content — do not pass max-w-* here. */
+              /* Size comes from dialog.css .pw-dialog-content / [data-size=sm]. */
               "pw-dialog-content surface-panel-float pointer-events-auto relative flex flex-col overflow-hidden outline-none",
               props.class ?? "",
             ].join(" ")}
@@ -80,12 +105,14 @@ export function A11yDialog(props: A11yDialogProps) {
                 <Show when={props.description}>
                   <ArkDialog.Description class="sr-only">{props.description}</ArkDialog.Description>
                 </Show>
-                <ArkDialog.CloseTrigger
-                  class="absolute top-2.5 right-3 z-10 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-                  aria-label="Close"
-                >
-                  <X size={16} aria-hidden />
-                </ArkDialog.CloseTrigger>
+                <Show when={dismissible() && showCloseButton()}>
+                  <ArkDialog.CloseTrigger
+                    class="absolute top-2.5 right-3 z-10 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                    aria-label="Close"
+                  >
+                    <X size={16} aria-hidden />
+                  </ArkDialog.CloseTrigger>
+                </Show>
               </>
             }
           >
@@ -104,19 +131,22 @@ export function A11yDialog(props: A11yDialogProps) {
                   </ArkDialog.Description>
                 </Show>
               </div>
-              <ArkDialog.CloseTrigger
-                class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]"
-                aria-label="Close"
-              >
-                <X size={16} aria-hidden />
-              </ArkDialog.CloseTrigger>
+              <Show when={dismissible() && showCloseButton()}>
+                <ArkDialog.CloseTrigger
+                  class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]"
+                  aria-label="Close"
+                >
+                  <X size={16} aria-hidden />
+                </ArkDialog.CloseTrigger>
+              </Show>
             </header>
           </Show>
 
           <div
-            class={`flex min-h-0 flex-1 flex-col overflow-auto text-[13px] text-[var(--color-text-secondary)] ${
-              flush() ? "px-5 pt-4 pb-3" : "px-5 py-4"
-            }`}
+            class={[
+              "flex min-h-0 flex-1 flex-col overflow-auto text-[13px] text-[var(--color-text-secondary)]",
+              props.bodyClass ?? (flush() ? "px-5 pt-4 pb-3" : "px-5 py-4"),
+            ].join(" ")}
           >
             {props.children}
           </div>
