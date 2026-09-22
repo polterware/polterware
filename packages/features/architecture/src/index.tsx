@@ -35,6 +35,7 @@ import { nodeStatusLabel } from "./domain/node-lifecycle";
 import type { ArchitectureNodeView } from "./types";
 import { loadDocumentFromLayoutBody, documentToLayoutBody } from "./document/load";
 import { createAutosaveController } from "./persistence/autosave";
+import { shouldApplyExternalLayout } from "./persistence/layout-reload";
 import { getSessionSnapshot, setSessionSnapshot } from "./canvas/session-viewport";
 import { assignLayer } from "./layers";
 import { filterNodes, groupNodesByLayer } from "./map-view";
@@ -241,23 +242,41 @@ export function ArchitectureView(props: {
   const [envId, setEnvId] = createSignal<string | "all">("all");
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
   const outgoingTarget = createDetailPanelSelector((state) => state.outgoingTarget);
+  /** Revision we last persisted successfully — used to ignore autosave echo reloads. */
+  let lastLocalSaveRevision: number | null = null;
+  /** Set before persist so workspace revision bumps cannot reload mid-save. */
+  let suppressLayoutEcho = false;
 
   const autosave = createMemo(() => {
     if (!props.onSaveLayout || !canPersistArchitecture(fixtureMode())) return null;
-    return createAutosaveController({
+    const ctrl = createAutosaveController({
       systemId: systemId(),
       port: {
         save: async (_sid, expectedRevision, bodyJson) => {
-          const result = await props.onSaveLayout?.(bodyJson, expectedRevision);
-          if (!result) {
-            throw new Error("Layout save did not return a revision.");
+          suppressLayoutEcho = true;
+          try {
+            const result = await props.onSaveLayout?.(bodyJson, expectedRevision);
+            if (!result) {
+              throw new Error("Layout save did not return a revision.");
+            }
+            lastLocalSaveRevision = result.revision;
+            return result;
+          } catch (error) {
+            suppressLayoutEcho = false;
+            throw error;
           }
-          return result;
         },
       },
-      onRevision: (rev) => setRevision(rev),
+      onRevision: (rev) => {
+        lastLocalSaveRevision = rev;
+        setRevision(rev);
+        // Workspace may already hold this revision; lastLocalSaveRevision covers the echo.
+        suppressLayoutEcho = false;
+      },
       onConflict: () => setSaveStatus("error"),
     });
+    onCleanup(() => ctrl.dispose());
+    return ctrl;
   });
 
   createEffect(() => {
@@ -268,10 +287,26 @@ export function ArchitectureView(props: {
   const [loadKey, setLoadKey] = createSignal("");
 
   createEffect(() => {
-    const key = `${systemId()}::${props.layoutRevision ?? 0}::${props.layoutBody?.length ?? 0}::${fixtureMode()}`;
-    // Reload only when the source layout changes — avoid wiping local edits mid-session.
-    if (key === loadKey() && loadKey() !== "") return;
-    setLoadKey(key);
+    const sourceKey = `${systemId()}::${fixtureMode()}`;
+    const remoteRevision = props.layoutRevision ?? 0;
+    // Subscribe to body changes so external refreshes still re-enter this effect.
+    void props.layoutBody;
+
+    const apply = shouldApplyExternalLayout({
+      sourceKey,
+      previousSourceKey: loadKey(),
+      remoteRevision,
+      localRevision: untrack(() => revision()),
+      lastLocalSaveRevision,
+      suppressLayoutEcho,
+    });
+    if (!apply) {
+      // Keep loadKey aligned with system/fixture even when we skip setDoc.
+      if (loadKey() !== sourceKey) setLoadKey(sourceKey);
+      return;
+    }
+    setLoadKey(sourceKey);
+    suppressLayoutEcho = false;
 
     const systems = props.systems ?? [];
     const resources = props.resources ?? [];
@@ -299,7 +334,7 @@ export function ArchitectureView(props: {
 
     setDoc(nextDoc);
     setSource(nextSource);
-    setRevision(fixtureMode() === "force" ? 0 : (props.layoutRevision ?? 0));
+    setRevision(fixtureMode() === "force" ? 0 : remoteRevision);
 
     if (session?.selection?.nodeIds?.length) {
       const existing = session.selection.nodeIds.filter((id) =>

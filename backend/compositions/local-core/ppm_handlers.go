@@ -473,6 +473,7 @@ func (core *Core) ListAgentToolCalls(_ context.Context, request *connect.Request
 			Id: call.ID, ProjectId: call.ProjectID, ToolName: call.ToolName,
 			ArgumentsJson: call.ArgumentsJSON, ResultSummary: call.ResultSummary,
 			Ok: call.OK, Source: call.Source, CreatedAt: call.CreatedAt.Format(time.RFC3339),
+			AgentRunId: call.AgentRunID,
 		})
 	}
 	return connect.NewResponse(&localv1.ListAgentToolCallsResponse{Calls: out}), nil

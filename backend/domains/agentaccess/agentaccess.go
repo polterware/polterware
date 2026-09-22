@@ -9,6 +9,7 @@ import (
 type ToolCall struct {
 	ID            string
 	ProjectID     string
+	AgentRunID    string
 	ToolName      string
 	ArgumentsJSON string
 	ResultSummary string

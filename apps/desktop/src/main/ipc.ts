@@ -235,6 +235,8 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.importProjectSources]: coreHandler(controllers, "importProjectSources"),
     [IPC_CHANNELS.core.compileContext]: coreHandler(controllers, "compileContext"),
     [IPC_CHANNELS.core.listAgentToolCalls]: coreHandler(controllers, "listAgentToolCalls"),
+    [IPC_CHANNELS.core.listAgentRuns]: coreHandler(controllers, "listAgentRuns"),
+    [IPC_CHANNELS.core.getAgentRun]: coreHandler(controllers, "getAgentRun"),
     [IPC_CHANNELS.core.listCliProviders]: coreHandler(controllers, "listCliProviders"),
     [IPC_CHANNELS.core.listIntegrationConnections]: coreHandler(controllers, "listIntegrationConnections"),
     [IPC_CHANNELS.core.saveIntegrationConnection]: coreHandler(controllers, "saveIntegrationConnection"),

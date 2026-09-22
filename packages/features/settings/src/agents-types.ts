@@ -1,12 +1,37 @@
 export type AgentToolCallRow = {
   id: string;
   projectId: string;
+  agentRunId: string;
   toolName: string;
   argumentsJson: string;
   resultSummary: string;
   ok: boolean;
   source: string;
   createdAt: string;
+};
+
+export type AgentRunRow = {
+  id: string;
+  projectId: string;
+  task: string;
+  agentLabel: string;
+  status: string;
+  createdAt: string;
+  completedAt: string;
+};
+
+export type AgentRunStepRow = {
+  id: string;
+  agentRunId: string;
+  kind: string;
+  summary: string;
+  payloadJson: string;
+  createdAt: string;
+};
+
+export type AgentRunDetail = {
+  run: AgentRunRow;
+  steps: AgentRunStepRow[];
 };
 
 export type CompilePreviewEvidence = {

@@ -6,9 +6,9 @@ Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`docs/prod
 
 ## Next implementation slice
 
-**B5 — Narrow Drift Checker**
+**B7 — Audited MCP writes**
 
-B4 (Stable MCP reads) is implemented: `context.get`, `entity.get`, `evidence.get`, and `drift.check` are the stdio MCP read contract. `drift.check` currently returns empty findings with `checker: "none"`. See [`stable-mcp-reads.md`](stable-mcp-reads.md). This slice implements the narrow checker that fills findings (new/removed dependency edges, edges incompatible with an active decision, simple declared-versus-observed conflicts).
+B6 (Minimal AgentRun audit) is implemented: MCP `agent_run.*` tools record `context → task → change → evidence → drift`; `context.get` / `drift.check` accept optional `agent_run_id`; Desktop Agents → History lists runs. See [`minimal-agent-run-audit.md`](minimal-agent-run-audit.md). This slice adds narrow semantic MCP write tools that require `summary`, `rationale`, and `agent_run_id`.
 
 ## Full order (do not skip foundations)
 
@@ -16,8 +16,8 @@ B4 (Stable MCP reads) is implemented: `context.get`, `entity.get`, `evidence.get
 2. B2 Deterministic import (MVP sources) — **done (core + Desktop)**
 3. B3 Context Compiler → `context.get` shape (reasons + evidence) — **done (core + Desktop preview)**
 4. B4 Stable MCP reads (`context.get`, `entity.get`, `evidence.get`, `drift.check`) — **done (core + skill)**
-5. B5 Narrow Drift Checker
-6. B6 Minimal AgentRun audit
+5. B5 Narrow Drift Checker — **done (core + skill)**
+6. B6 Minimal AgentRun audit — **done (core + Desktop History + skill)**
 7. B7 Audited MCP writes (narrow semantic mutations + required change envelope)
 8. B8 CLI `polterware init | scan | context | drift`
 

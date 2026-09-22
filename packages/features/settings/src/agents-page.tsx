@@ -13,14 +13,15 @@ import {
   type TabItem,
 } from "@polterware/frontend-design-system";
 import type {
-  AgentToolCallRow,
+  AgentRunDetail,
+  AgentRunRow,
   CompilePreviewResult,
   McpStatusView,
 } from "./agents-types";
+import { AgentRunHistoryCard } from "./agent-run-history-card";
 import { CompilePreviewCard } from "./compile-preview-card";
 import { McpStatusCard } from "./mcp-status-card";
 import { SkillCard } from "./skill-card";
-import { ToolCallHistoryCard } from "./tool-call-history-card";
 
 const AGENTS_TABS: TabItem[] = [
   {
@@ -47,9 +48,9 @@ const AGENTS_TABS: TabItem[] = [
     id: "history",
     label: "History",
     tooltip: {
-      title: "Tool-call log",
+      title: "AgentRun audit",
       description:
-        "Lightweight local history of MCP and compile tool calls. Not a full audit trail — just recent activity on this machine.",
+        "Minimal AgentRun audit trail: context delivered, task, declared change, evidence, and drift findings for this project.",
       icon: History,
     },
   },
@@ -67,7 +68,8 @@ type AgentsBridge = {
     entityId?: string;
     tokenBudget: number;
   }) => Promise<unknown>;
-  listToolCalls: (payload?: { limit?: number }) => Promise<unknown>;
+  listAgentRuns: (payload: { projectId: string; limit?: number }) => Promise<unknown>;
+  getAgentRun: (payload: { id: string }) => Promise<unknown>;
 };
 
 function agentsBridge(): AgentsBridge | undefined {
@@ -86,7 +88,8 @@ function agentsBridge(): AgentsBridge | undefined {
             entityId?: string;
             tokenBudget: number;
           }) => Promise<unknown>;
-          listToolCalls?: (payload?: { limit?: number }) => Promise<unknown>;
+          listAgentRuns?: (payload: { projectId: string; limit?: number }) => Promise<unknown>;
+          getAgentRun?: (payload: { id: string }) => Promise<unknown>;
         };
       };
     };
@@ -98,7 +101,8 @@ function agentsBridge(): AgentsBridge | undefined {
     || !app.startMcp
     || !app.stopMcp
     || !context?.compile
-    || !context.listToolCalls
+    || !context.listAgentRuns
+    || !context.getAgentRun
   ) {
     return undefined;
   }
@@ -107,7 +111,8 @@ function agentsBridge(): AgentsBridge | undefined {
     startMcp: app.startMcp,
     stopMcp: app.stopMcp,
     compileContext: context.compile,
-    listToolCalls: context.listToolCalls,
+    listAgentRuns: context.listAgentRuns,
+    getAgentRun: context.getAgentRun,
   };
 }
 
@@ -141,24 +146,55 @@ function mapMcpStatus(raw: unknown): McpStatusView {
   };
 }
 
-function mapToolCalls(raw: unknown): AgentToolCallRow[] {
+function mapAgentRuns(raw: unknown): AgentRunRow[] {
   const record = asRecord(raw);
-  const calls = Array.isArray(record.calls) ? record.calls : [];
-  return calls.flatMap((item) => {
-    const call = asRecord(item);
-    const id = asString(call.id);
+  const runs = Array.isArray(record.runs) ? record.runs : [];
+  return runs.flatMap((item) => {
+    const run = asRecord(item);
+    const id = asString(run.id);
     if (!id) return [];
     return [{
       id,
-      projectId: asString(call.projectId),
-      toolName: asString(call.toolName),
-      argumentsJson: asString(call.argumentsJson),
-      resultSummary: asString(call.resultSummary),
-      ok: asBoolean(call.ok),
-      source: asString(call.source),
-      createdAt: asString(call.createdAt),
+      projectId: asString(run.projectId),
+      task: asString(run.task),
+      agentLabel: asString(run.agentLabel),
+      status: asString(run.status),
+      createdAt: asString(run.createdAt),
+      completedAt: asString(run.completedAt),
     }];
   });
+}
+
+function mapAgentRunDetail(raw: unknown): AgentRunDetail | undefined {
+  const record = asRecord(raw);
+  const runRaw = asRecord(record.run);
+  const id = asString(runRaw.id);
+  if (!id) return undefined;
+  const stepsRaw = Array.isArray(record.steps) ? record.steps : [];
+  return {
+    run: {
+      id,
+      projectId: asString(runRaw.projectId),
+      task: asString(runRaw.task),
+      agentLabel: asString(runRaw.agentLabel),
+      status: asString(runRaw.status),
+      createdAt: asString(runRaw.createdAt),
+      completedAt: asString(runRaw.completedAt),
+    },
+    steps: stepsRaw.flatMap((item) => {
+      const step = asRecord(item);
+      const stepId = asString(step.id);
+      if (!stepId) return [];
+      return [{
+        id: stepId,
+        agentRunId: asString(step.agentRunId),
+        kind: asString(step.kind),
+        summary: asString(step.summary),
+        payloadJson: asString(step.payloadJson),
+        createdAt: asString(step.createdAt),
+      }];
+    }),
+  };
 }
 
 function mapCompileResult(raw: unknown): CompilePreviewResult {
@@ -208,7 +244,7 @@ function normalizeAgentsTab(raw?: string): AgentsTabId {
   return "access";
 }
 
-/** Agents: MCP access, compile preview, and tool-call history. */
+/** Agents: MCP access, compile preview, and AgentRun audit history. */
 export function AgentsPage(props: {
   projectId: string;
   tab?: string;
@@ -224,7 +260,9 @@ export function AgentsPage(props: {
   const [compileResult, setCompileResult] = createSignal<CompilePreviewResult | undefined>();
   const [compileError, setCompileError] = createSignal<string | undefined>();
   const [historyBusy, setHistoryBusy] = createSignal(false);
-  const [calls, setCalls] = createSignal<AgentToolCallRow[]>([]);
+  const [runs, setRuns] = createSignal<AgentRunRow[]>([]);
+  const [selectedRunId, setSelectedRunId] = createSignal("");
+  const [runDetail, setRunDetail] = createSignal<AgentRunDetail | undefined>();
 
   const running = () => Boolean(mcpStatus()?.running);
 
@@ -244,14 +282,42 @@ export function AgentsPage(props: {
     }
   };
 
+  const loadRunDetail = async (id: string) => {
+    const bridge = agentsBridge();
+    if (!bridge || !id) {
+      setRunDetail(undefined);
+      return;
+    }
+    try {
+      setRunDetail(mapAgentRunDetail(await bridge.getAgentRun({ id })));
+    } catch (error: unknown) {
+      setRunDetail(undefined);
+      pushToast(error instanceof Error ? error.message : "Could not load agent run.", "danger");
+    }
+  };
+
   const refreshHistory = async () => {
     const bridge = agentsBridge();
-    if (!bridge) return;
+    const projectId = props.projectId.trim();
+    if (!bridge || !projectId) {
+      setRuns([]);
+      setRunDetail(undefined);
+      setSelectedRunId("");
+      return;
+    }
     setHistoryBusy(true);
     try {
-      setCalls(mapToolCalls(await bridge.listToolCalls({ limit: 50 })));
+      const nextRuns = mapAgentRuns(await bridge.listAgentRuns({ projectId, limit: 50 }));
+      setRuns(nextRuns);
+      const current = selectedRunId();
+      const nextId = nextRuns.some((run) => run.id === current)
+        ? current
+        : (nextRuns[0]?.id ?? "");
+      setSelectedRunId(nextId);
+      if (nextId) await loadRunDetail(nextId);
+      else setRunDetail(undefined);
     } catch (error: unknown) {
-      pushToast(error instanceof Error ? error.message : "Could not load tool history.", "danger");
+      pushToast(error instanceof Error ? error.message : "Could not load agent runs.", "danger");
     } finally {
       setHistoryBusy(false);
     }
@@ -387,7 +453,6 @@ export function AgentsPage(props: {
                 })
                   .then((response) => {
                     setCompileResult(mapCompileResult(response));
-                    void refreshHistory();
                   })
                   .catch((error: unknown) => {
                     setCompileResult(undefined);
@@ -400,8 +465,17 @@ export function AgentsPage(props: {
         </Match>
 
         <Match when={tab() === "history"}>
-          <PageContent class="p-0">
-            <ToolCallHistoryCard calls={calls()} busy={historyBusy()} />
+          <PageContent class="flex min-h-0 flex-1 flex-col p-0">
+            <AgentRunHistoryCard
+              runs={runs()}
+              selectedId={selectedRunId()}
+              detail={runDetail()}
+              busy={historyBusy()}
+              onSelect={(id) => {
+                setSelectedRunId(id);
+                void loadRunDetail(id);
+              }}
+            />
           </PageContent>
         </Match>
       </Switch>

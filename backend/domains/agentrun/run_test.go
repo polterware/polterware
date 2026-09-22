@@ -1,0 +1,82 @@
+package agentrun
+
+import (
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	contextpkg "github.com/polterware/polterware/backend/domains/context"
+	"github.com/polterware/polterware/backend/domains/drift"
+)
+
+func TestStartAndComplete(t *testing.T) {
+	now := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+	run, err := Start("proj-1", "Fix import drift", "cursor", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.Status != StatusOpen || run.ID == "" || run.Task != "Fix import drift" {
+		t.Fatalf("unexpected run: %+v", run)
+	}
+	done, err := Complete(run, now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done.Status != StatusCompleted || done.CompletedAt == nil {
+		t.Fatalf("expected completed: %+v", done)
+	}
+	if _, err := Complete(done, now); !errors.Is(err, ErrRunNotOpen) {
+		t.Fatalf("expected ErrRunNotOpen, got %v", err)
+	}
+}
+
+func TestStartValidation(t *testing.T) {
+	if _, err := Start("", "task", "", time.Time{}); !errors.Is(err, ErrEmptyProject) {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := Start("p", "  ", "", time.Time{}); !errors.Is(err, ErrEmptyTask) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestChangeStepRequiresEnvelope(t *testing.T) {
+	if _, err := NewChangeStep("arun-1", "", "why", nil, time.Time{}); !errors.Is(err, ErrChangeIncomplete) {
+		t.Fatalf("got %v", err)
+	}
+	step, err := NewChangeStep("arun-1", "Add DEPENDS_ON", "Matches ADR", []string{"docs/adr/0004.md"}, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if step.Kind != KindChange || !strings.Contains(step.PayloadJSON, "rationale") {
+		t.Fatalf("unexpected step: %+v", step)
+	}
+}
+
+func TestContextAndDriftPayloads(t *testing.T) {
+	pkg := contextpkg.Package{
+		Query: "sqlite", EntityID: "ent-1", TokensUsed: 40,
+		Items: []contextpkg.Item{
+			{ID: "item-1", Evidence: []contextpkg.EvidenceRef{{ID: "ev-1"}, {ID: "ev-1"}}},
+			{ID: "item-2"},
+		},
+	}
+	step, err := NewContextStep("arun-1", pkg, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if step.Kind != KindContext || !strings.Contains(step.PayloadJSON, "item-1") {
+		t.Fatalf("unexpected context step: %+v", step)
+	}
+
+	result := drift.Result{
+		Findings: []drift.Finding{{Type: drift.TypeDependencyAdded, Severity: drift.SeverityInfo, Summary: "new dep"}},
+	}
+	driftStep, err := NewDriftStep("arun-1", result, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if driftStep.Kind != KindDrift || !strings.Contains(driftStep.Summary, "1 finding") {
+		t.Fatalf("unexpected drift step: %+v", driftStep)
+	}
+}

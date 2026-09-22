@@ -31,3 +31,31 @@ func intFrom(value any, fallback int) int {
 	}
 	return fallback
 }
+
+func stringSliceFrom(value any) []string {
+	switch typed := value.(type) {
+	case []string:
+		return typed
+	case []any:
+		out := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if text, ok := item.(string); ok && text != "" {
+				out = append(out, text)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func jsonRawOrObject(raw string) any {
+	if raw == "" {
+		return map[string]any{}
+	}
+	var value any
+	if err := json.Unmarshal([]byte(raw), &value); err != nil {
+		return raw
+	}
+	return value
+}

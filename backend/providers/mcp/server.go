@@ -86,8 +86,8 @@ func (s *Server) dispatch(req rpcRequest) (any, error) {
 		return map[string]any{
 			"protocolVersion": "2024-11-05",
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "polterware-core-mcp", "version": "0.2.0"},
-			"instructions":    "Polterware MCP read contract: context.get, entity.get, evidence.get, drift.check. Prefer context.get for bounded project context with reasons and evidence.",
+			"serverInfo":      map[string]any{"name": "polterware-core-mcp", "version": "0.3.0"},
+			"instructions":    "Polterware MCP: context.get, entity.get, evidence.get, drift.check, and AgentRun audit (agent_run.start|append|complete|get|list). Prefer context.get for bounded project context. Pass agent_run_id on context.get and drift.check to attribute steps.",
 		}, nil
 	case "tools/list":
 		return map[string]any{"tools": toolDefinitions()}, nil
@@ -121,6 +121,10 @@ func (s *Server) callTool(name string, args map[string]any) (string, error) {
 		args = map[string]any{}
 	}
 	projectID := stringFrom(args["project_id"])
+	agentRunID := stringFrom(args["agent_run_id"])
+	if agentRunID == "" && name == ToolAgentRunGet {
+		agentRunID = stringFrom(args["id"])
+	}
 	argsJSON, _ := json.Marshal(args)
 	text, err := s.invokeTool(name, args)
 	summary := agentaccess.SummarizeResult(text, 240)
@@ -128,8 +132,15 @@ func (s *Server) callTool(name string, args map[string]any) (string, error) {
 	if err != nil {
 		summary = agentaccess.SummarizeResult(err.Error(), 240)
 	}
+	if name == ToolAgentRunStart && ok {
+		var started map[string]any
+		if json.Unmarshal([]byte(text), &started) == nil {
+			agentRunID = stringFrom(started["id"])
+		}
+	}
 	_ = s.Store.AppendAgentToolCall(agentaccess.ToolCall{
 		ProjectID:     projectID,
+		AgentRunID:    agentRunID,
 		ToolName:      name,
 		ArgumentsJSON: string(argsJSON),
 		ResultSummary: summary,

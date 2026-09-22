@@ -28,7 +28,7 @@ Architecture / Canvas is the initial route and the destination after entering or
 | Architecture | Canvas, Views | Human inspector; not the wedge |
 | Resources | — (Inventory page, no tab rail) | Project resource registry for PPM / Architecture |
 | Knowledge | Specs, Library, Sources | Aligns with context/evidence direction |
-| Agents | Access, Compile, History | Evolves toward stable MCP / context / drift |
+| Agents | Access, Compile, History | MCP access, compile preview, AgentRun audit |
 | Integrations | Connected, Catalog | **KEEP** as evidence + Connect UI |
 | Settings | General, Environments, Shortcuts, Advanced | — |
 
@@ -80,9 +80,9 @@ Integrations do not use content templates; they use the fixed provider catalog.
 
 `CompileContext` assembles a bounded context package from entity resolution, knowledge links, one-hop relationships, PPM facts with linked evidence, and full-text hits under a token budget. Items include `kind`, `id`, `title`, `excerpt`, `truth_class`, `source`, `path`, machine `reasons`, and `evidence` refs. There is no embedding model, GraphRAG, or fixed PCTX serialization. See [`architecture/context-compiler.md`](architecture/context-compiler.md).
 
-`polterware-core mcp` serves a stable MCP stdio read contract over the same local SQLite store: `context.get`, `entity.get`, `evidence.get`, and `drift.check`. `context.get` returns the Context Compiler package. `drift.check` returns empty findings with `checker: "none"` until the Narrow Drift Checker (B5). See [`architecture/stable-mcp-reads.md`](architecture/stable-mcp-reads.md).
+`polterware-core mcp` serves a stable MCP stdio contract over the same local SQLite store: reads `context.get`, `entity.get`, `evidence.get`, and `drift.check`, plus AgentRun audit tools `agent_run.start`, `agent_run.append`, `agent_run.complete`, `agent_run.get`, and `agent_run.list`. `context.get` returns the Context Compiler package. `drift.check` runs the Narrow Drift Checker (`checker: "narrow"`) and may return findings for import dependency diffs, edges under accepted ADRs without evidence, and declared-versus-observed fact conflicts. Optional `agent_run_id` on `context.get` / `drift.check` appends steps to an open AgentRun. See [`architecture/stable-mcp-reads.md`](architecture/stable-mcp-reads.md), [`architecture/narrow-drift-checker.md`](architecture/narrow-drift-checker.md), and [`architecture/minimal-agent-run-audit.md`](architecture/minimal-agent-run-audit.md).
 
-Agents is the Desktop operator surface for this access: start/stop a parked local MCP helper, copy Cursor MCP config, copy or download the Polterware AI skill (markdown that teaches agents how to use those tools), preview `CompileContext` for the current project (optional query and entity id), and inspect a light local tool-call history (`agent_tool_calls`). History is not a full agent audit trail.
+Agents is the Desktop operator surface for this access: start/stop a parked local MCP helper, copy Cursor MCP config, copy or download the Polterware AI skill (markdown that teaches agents how to use those tools), preview `CompileContext` for the current project (optional query and entity id), and inspect AgentRun history (context → task → change → evidence → drift) for the current project.
 
 ## Execution authority
 
@@ -101,7 +101,7 @@ Connected detail contains Overview, Resources, CLI, and Sync.
 
 ## Reduced core
 
-The repository retains one Go runtime, `polterware-core`. Its active domains are Projects, Architecture, Resources (inventory), Knowledge, Project Model (PPM), Context, Integrations, Terminal (Connect PTY only), Health, and Maintenance.
+The repository retains one Go runtime, `polterware-core`. Its active domains are Projects, Architecture, Resources (inventory), Knowledge, Project Model (PPM), Context, AgentRun, Integrations, Terminal (Connect PTY only), Health, and Maintenance.
 
 Core requests use one technical bearer session token without an account directory. The database is initialized from a clean SQLite baseline with no compatibility guarantee for earlier databases.
 
@@ -119,8 +119,9 @@ Core requests use one technical bearer session token without an account director
 - PPM facts and evidence persist with provenance; `verified` facts require a non-`system` actor; evidence can link to facts via `LinkEvidenceToFact`. `ImportProjectSources` upserts observed facts/evidence from MVP project files. `CompileContext` includes facts with `reasons` and `evidence` refs.
 - Knowledge Specs, Library, and Sources, Resources Inventory, Architecture, and Settings Environments empty states show inspiration template cards that create the item immediately where applicable; create dialogs also offer templates, and blank create remains on the toolbar and form.
 - `CompileContext` returns a bounded package with provenance fields, machine reasons, and evidence refs.
-- `polterware-core mcp` exposes stable reads `context.get`, `entity.get`, `evidence.get`, and `drift.check` over stdio (`drift.check` findings empty until B5).
-- Agents exposes MCP helper start/stop, Cursor config copy, the Polterware AI skill, CompileContext preview, and local tool-call history.
+- `polterware-core mcp` exposes stable reads `context.get`, `entity.get`, `evidence.get`, and `drift.check` over stdio (`drift.check` uses checker `narrow` with typed findings), plus AgentRun audit tools `agent_run.start` / `append` / `complete` / `get` / `list`.
+- `SyncProjectModel` projects canvas nodes and edges into PPM entities and relationships (`DEPENDS_ON` / `CALLS` / `RELATED_TO`).
+- Agents exposes MCP helper start/stop, Cursor config copy, the Polterware AI skill, CompileContext preview, and AgentRun history (audit chain reconstruction).
 - The provider catalog contains exactly the nine specified providers.
 - Provider connect may probe CLI availability and authentication status without storing tokens.
 - Static validation passes: typecheck, design lint, Buf lint, Go vet, and `git diff --check`.

@@ -375,6 +375,7 @@ type AgentToolCall struct {
 	Ok            bool                   `protobuf:"varint,6,opt,name=ok,proto3" json:"ok,omitempty"`
 	Source        string                 `protobuf:"bytes,7,opt,name=source,proto3" json:"source,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	AgentRunId    string                 `protobuf:"bytes,9,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -461,6 +462,13 @@ func (x *AgentToolCall) GetSource() string {
 func (x *AgentToolCall) GetCreatedAt() string {
 	if x != nil {
 		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *AgentToolCall) GetAgentRunId() string {
+	if x != nil {
+		return x.AgentRunId
 	}
 	return ""
 }
@@ -590,7 +598,7 @@ const file_polterware_local_v1_context_proto_rawDesc = "" +
 	"\vtokens_used\x18\x05 \x01(\x05R\n" +
 	"tokensUsed\x12\x1c\n" +
 	"\ttruncated\x18\x06 \x01(\bR\ttruncated\x126\n" +
-	"\x05items\x18\a \x03(\v2 .polterware.local.v1.ContextItemR\x05items\"\xf0\x01\n" +
+	"\x05items\x18\a \x03(\v2 .polterware.local.v1.ContextItemR\x05items\"\x92\x02\n" +
 	"\rAgentToolCall\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -601,7 +609,9 @@ const file_polterware_local_v1_context_proto_rawDesc = "" +
 	"\x02ok\x18\x06 \x01(\bR\x02ok\x12\x16\n" +
 	"\x06source\x18\a \x01(\tR\x06source\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\b \x01(\tR\tcreatedAt\"1\n" +
+	"created_at\x18\b \x01(\tR\tcreatedAt\x12 \n" +
+	"\fagent_run_id\x18\t \x01(\tR\n" +
+	"agentRunId\"1\n" +
 	"\x19ListAgentToolCallsRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\"V\n" +
 	"\x1aListAgentToolCallsResponse\x128\n" +

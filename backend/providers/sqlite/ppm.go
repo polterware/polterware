@@ -123,7 +123,24 @@ func (s *Store) ListPpmRelationships(projectID, entityID string) ([]ppm.Relation
 	return result, rows.Err()
 }
 
-// SyncProjectModel projects architecture nodes, resources, and environments into ppm_entities.
+func (s *Store) DeletePpmRelationshipsMissing(projectID, source string, keepIDs []string) error {
+	if len(keepIDs) == 0 {
+		_, err := s.DB.Exec(`DELETE FROM ppm_relationships WHERE project_id=? AND source=?`, projectID, source)
+		return err
+	}
+	placeholders := make([]string, len(keepIDs))
+	args := make([]any, 0, len(keepIDs)+2)
+	args = append(args, projectID, source)
+	for i, id := range keepIDs {
+		placeholders[i] = "?"
+		args = append(args, id)
+	}
+	query := `DELETE FROM ppm_relationships WHERE project_id=? AND source=? AND id NOT IN (` + strings.Join(placeholders, ",") + `)`
+	_, err := s.DB.Exec(query, args...)
+	return err
+}
+
+// SyncProjectModel projects architecture nodes, resources, environments, and canvas edges into PPM.
 func (s *Store) SyncProjectModel(projectID string) (int, error) {
 	now := time.Now().UTC()
 	count := 0
@@ -135,7 +152,7 @@ func (s *Store) SyncProjectModel(projectID string) (int, error) {
 	var keepNodes []string
 	if err == nil {
 		for _, node := range ppm.ParseLayoutNodes(layout.BodyJSON) {
-			entity, err := ppm.NewEntity(projectID, ppm.KindComponent, ppm.RefArchitectureNode, node.ID, node.Title, ppm.TruthDeclared, "architecture_layout", "system")
+			entity, err := ppm.NewEntity(projectID, ppm.KindComponent, ppm.RefArchitectureNode, node.ID, node.Title, ppm.TruthDeclared, ppm.SourceArchitectureLayout, "system")
 			if err != nil {
 				return 0, err
 			}
@@ -149,6 +166,41 @@ func (s *Store) SyncProjectModel(projectID string) (int, error) {
 		}
 	}
 	if err := s.DeletePpmEntitiesMissingRefs(projectID, ppm.RefArchitectureNode, keepNodes); err != nil {
+		return 0, err
+	}
+
+	keepRelIDs := []string{}
+	if err == nil {
+		nodeSet := make(map[string]struct{}, len(keepNodes))
+		for _, id := range keepNodes {
+			nodeSet[id] = struct{}{}
+		}
+		for _, edge := range ppm.ParseLayoutEdges(layout.BodyJSON) {
+			if _, ok := nodeSet[edge.SourceNodeID]; !ok {
+				continue
+			}
+			if _, ok := nodeSet[edge.TargetNodeID]; !ok {
+				continue
+			}
+			subjectID := ppm.EntityID(projectID, ppm.RefArchitectureNode, edge.SourceNodeID)
+			objectID := ppm.EntityID(projectID, ppm.RefArchitectureNode, edge.TargetNodeID)
+			truth := ppm.TruthDeclared
+			if !edge.Evidence {
+				truth = ppm.TruthInferred
+			}
+			rel, err := ppm.NewRelationship(projectID, subjectID, edge.Predicate, objectID, truth, ppm.SourceArchitectureLayout, "system")
+			if err != nil {
+				return 0, err
+			}
+			rel.ObservedAt = now
+			if err := s.UpsertPpmRelationship(rel); err != nil {
+				return 0, err
+			}
+			keepRelIDs = append(keepRelIDs, rel.ID)
+			count++
+		}
+	}
+	if err := s.DeletePpmRelationshipsMissing(projectID, ppm.SourceArchitectureLayout, keepRelIDs); err != nil {
 		return 0, err
 	}
 

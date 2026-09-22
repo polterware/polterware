@@ -24,9 +24,9 @@ func (s *Store) AppendAgentToolCall(call agentaccess.ToolCall) error {
 		ok = 1
 	}
 	_, err := s.DB.Exec(
-		`INSERT INTO agent_tool_calls(id,project_id,tool_name,arguments_json,result_summary,ok,source,created_at)
-		 VALUES(?,?,?,?,?,?,?,?)`,
-		call.ID, call.ProjectID, call.ToolName, call.ArgumentsJSON, call.ResultSummary, ok, call.Source,
+		`INSERT INTO agent_tool_calls(id,project_id,agent_run_id,tool_name,arguments_json,result_summary,ok,source,created_at)
+		 VALUES(?,?,?,?,?,?,?,?,?)`,
+		call.ID, call.ProjectID, call.AgentRunID, call.ToolName, call.ArgumentsJSON, call.ResultSummary, ok, call.Source,
 		call.CreatedAt.Format(time.RFC3339),
 	)
 	return err
@@ -37,7 +37,7 @@ func (s *Store) ListAgentToolCalls(limit int) ([]agentaccess.ToolCall, error) {
 		limit = 50
 	}
 	rows, err := s.DB.Query(
-		`SELECT id,project_id,tool_name,arguments_json,result_summary,ok,source,created_at
+		`SELECT id,project_id,COALESCE(agent_run_id,''),tool_name,arguments_json,result_summary,ok,source,created_at
 		 FROM agent_tool_calls ORDER BY created_at DESC LIMIT ?`, limit,
 	)
 	if err != nil {
@@ -50,7 +50,7 @@ func (s *Store) ListAgentToolCalls(limit int) ([]agentaccess.ToolCall, error) {
 		var okFlag int
 		var created string
 		if err := rows.Scan(
-			&call.ID, &call.ProjectID, &call.ToolName, &call.ArgumentsJSON, &call.ResultSummary,
+			&call.ID, &call.ProjectID, &call.AgentRunID, &call.ToolName, &call.ArgumentsJSON, &call.ResultSummary,
 			&okFlag, &call.Source, &created,
 		); err != nil {
 			return nil, err

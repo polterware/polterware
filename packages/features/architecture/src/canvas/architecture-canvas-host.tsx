@@ -113,6 +113,7 @@ import { setSessionSnapshot } from "./session-viewport";
 import { createLocalStorageTypePrefs } from "./type-prefs-local";
 import { AddToArchitectureDialog } from "./add-to-architecture-dialog";
 import { ConfigureComponentDialog } from "./configure-component-dialog";
+import { nextEdgeFlowDistance } from "./edge-flow-distance";
 import type { ToolId } from "./tools";
 import "./architecture-canvas-host.css";
 
@@ -253,11 +254,15 @@ export function ArchitectureCanvasHost(props: {
 
   /**
    * Edge flow dots are driven by one shared rAF loop storing absolute distance
-   * (px) along each route — never a percentage — so dots keep their exact travel
-   * position while the path morphs (node/edge drags) instead of teleporting.
+   * (px) along each route. When the path length morphs (node drag), distance is
+   * rescaled by fraction so dots do not teleport. Relationship scopes are keyed
+   * by id so document identity churn does not remount dots or wipe phases.
    */
   const flowPhases = new Map<string, number>();
-  const flowDots = new Map<string, { el: HTMLElement; length: () => number }>();
+  const flowDots = new Map<
+    string,
+    { el: HTMLElement; length: () => number; lastLength: number }
+  >();
   let flowRaf = 0;
   let flowLast = 0;
 
@@ -351,8 +356,14 @@ export function ArchitectureCanvasHost(props: {
       const len = d.length();
       if (len <= 0) continue;
 
-      const currentDist = flowPhases.get(id) ?? (edgeFlowPhase(id) * len);
-      const nextDist = (currentDist + EDGE_FLOW_SPEED * dt) % len;
+      const currentDist = flowPhases.get(id) ?? edgeFlowPhase(id) * len;
+      const nextDist = nextEdgeFlowDistance(
+        currentDist,
+        d.lastLength,
+        len,
+        EDGE_FLOW_SPEED * dt,
+      );
+      d.lastLength = len;
       flowPhases.set(id, nextDist);
 
       d.el.style.setProperty("offset-distance", `${nextDist}px`);
@@ -368,6 +379,20 @@ export function ArchitectureCanvasHost(props: {
     edgeFlowOn();
     checkFlowLoop();
   });
+
+  // Drop phases for relationships that no longer exist — do not wipe on For remount.
+  createEffect(() => {
+    const ids = new Set(props.document.relationships.map((r) => r.id));
+    for (const id of [...flowPhases.keys()]) {
+      if (!ids.has(id)) flowPhases.delete(id);
+    }
+  });
+
+  const relationshipIds = createMemo(() =>
+    props.document.relationships.map((r) => r.id),
+  );
+  const relationshipById = (id: string) =>
+    props.document.relationships.find((r) => r.id === id);
 
   onMount(() => {
     const onVisibilityChange = () => checkFlowLoop();
@@ -900,6 +925,8 @@ export function ArchitectureCanvasHost(props: {
       rectsIntersect(vis, { x: n.x, y: n.y, width: n.width, height: n.height }),
     );
   });
+  const visibleNodeIds = createMemo(() => visibleNodes().map((n) => n.id));
+  const nodeById = (id: string) => props.document.nodes.find((n) => n.id === id);
 
   // Pointer interaction state
   let dragMode:
@@ -1555,21 +1582,36 @@ export function ArchitectureCanvasHost(props: {
               "pointer-events": "none",
             }}
           >
-            <For each={props.document.relationships}>
-              {(r) => {
-                const a = () => props.document.nodes.find((n) => n.id === r.sourceNodeId);
-                const b = () => props.document.nodes.find((n) => n.id === r.targetNodeId);
+            <For each={relationshipIds()}>
+              {(id) => {
+                const rel = createMemo(() => relationshipById(id));
+                const a = () => {
+                  const r = rel();
+                  return r
+                    ? props.document.nodes.find((n) => n.id === r.sourceNodeId)
+                    : undefined;
+                };
+                const b = () => {
+                  const r = rel();
+                  return r
+                    ? props.document.nodes.find((n) => n.id === r.targetNodeId)
+                    : undefined;
+                };
                 const route = createMemo(() => {
+                  const r = rel();
                   const A = effectiveNode(a());
                   const B = effectiveNode(b());
-                  if (!A || !B) return null;
+                  if (!r || !A || !B) return null;
                   const pts = resolveRelationshipRoute(A, B, r.manualPoints);
                   return pointsToRoundedSvgPath(pts);
                 });
-                const selected = () => sel().relationshipIds.includes(r.id);
-                const isHovered = () => hoveredId() === r.id;
-                const appearance = () => resolveRelationshipAppearance(r);
-                const markers = () => relationshipMarkers(r.direction);
+                const selected = () => sel().relationshipIds.includes(id);
+                const isHovered = () => hoveredId() === id;
+                const appearance = () => {
+                  const r = rel();
+                  return r ? resolveRelationshipAppearance(r) : { dim: true as const };
+                };
+                const markers = () => relationshipMarkers(rel()?.direction ?? "forward");
                 return (
                   <Show when={route()}>
                     {(d) => (
@@ -1651,15 +1693,26 @@ export function ArchitectureCanvasHost(props: {
           </svg>
 
           {/* Edge flow dots — CSS motion path, composited, desynced per edge */}
-          <For each={props.document.relationships}>
-            {(r) => {
-              onCleanup(() => flowPhases.delete(r.id));
-              const a = () => props.document.nodes.find((n) => n.id === r.sourceNodeId);
-              const b = () => props.document.nodes.find((n) => n.id === r.targetNodeId);
+          <For each={relationshipIds()}>
+            {(id) => {
+              const rel = createMemo(() => relationshipById(id));
+              const a = () => {
+                const r = rel();
+                return r
+                  ? props.document.nodes.find((n) => n.id === r.sourceNodeId)
+                  : undefined;
+              };
+              const b = () => {
+                const r = rel();
+                return r
+                  ? props.document.nodes.find((n) => n.id === r.targetNodeId)
+                  : undefined;
+              };
               const route = createMemo(() => {
+                const r = rel();
                 const A = effectiveNode(a());
                 const B = effectiveNode(b());
-                if (!A || !B) return null;
+                if (!r || !A || !B) return null;
                 const pts = resolveRelationshipRoute(A, B, r.manualPoints);
                 let length = 0;
                 for (let i = 1; i < pts.length; i++) {
@@ -1669,22 +1722,27 @@ export function ArchitectureCanvasHost(props: {
                 }
                 return { d: pointsToRoundedSvgPath(pts), length };
               });
-              const appearance = () => resolveRelationshipAppearance(r);
+              const appearance = () => {
+                const r = rel();
+                return r ? resolveRelationshipAppearance(r) : { dim: true as const };
+              };
               const accent = () => {
                 const A = a();
                 return A ? nodeAccentColor(A) : "var(--color-chart-blue)";
               };
               onCleanup(() => {
-                flowDots.delete(r.id);
+                flowDots.delete(id);
                 checkFlowLoop();
               });
               return (
                 <Show when={route() && !appearance().dim && edgeFlowOn()}>
                   <div
                         ref={(el) => {
-                          flowDots.set(r.id, {
+                          const prev = flowDots.get(id);
+                          flowDots.set(id, {
                             el,
                             length: () => route()?.length ?? 0,
+                            lastLength: prev?.lastLength ?? 0,
                           });
                           checkFlowLoop();
                         }}
@@ -1693,7 +1751,7 @@ export function ArchitectureCanvasHost(props: {
                         style={{
                           "offset-path": `path("${route()?.d ?? ""}")`,
                           "offset-distance": `${(
-                            flowPhases.get(r.id) ?? (edgeFlowPhase(r.id) * (untrack(route)?.length ?? 0))
+                            flowPhases.get(id) ?? (edgeFlowPhase(id) * (untrack(route)?.length ?? 0))
                           ).toFixed(1)}px`,
                           "--edge-flow-color": accent(),
                         }}
@@ -1721,55 +1779,56 @@ export function ArchitectureCanvasHost(props: {
             )}
           </Show>
 
-          {/* Nodes */}
-          <For each={visibleNodes()}>
-            {(n) => {
-              const selected = () => sel().nodeIds.includes(n.id);
+          {/* Nodes — iterate ids so document identity churn does not remount cards */}
+          <For each={visibleNodeIds()}>
+            {(id) => {
+              const n = () => nodeById(id)!;
+              const selected = () => sel().nodeIds.includes(id);
               const dim = () => {
-                if (envDimmed(n.environmentIds)) return true;
+                if (envDimmed(n().environmentIds)) return true;
                 const h = highlightIds();
-                if (h && !h.has(n.id)) return true;
+                if (h && !h.has(id)) return true;
                 return false;
               };
               const lodFar = () => vp().zoom < 0.45;
               const showHandles = () =>
                 shouldShowConnectionHandles(
-                  n,
-                  hoveredNodeId() === n.id ||
-                    (connectTargets()?.has(n.id) ?? false) ||
+                  n(),
+                  hoveredNodeId() === id ||
+                    (connectTargets()?.has(id) ?? false) ||
                     (connectFrom() === null && effectiveTool() === "connect"),
                 );
               const isConnectTarget = () =>
                 connectFrom() !== null &&
-                connectFrom()?.nodeId !== n.id &&
-                hoveredNodeId() === n.id;
+                connectFrom()?.nodeId !== id &&
+                hoveredNodeId() === id;
               const selectForAction = () => {
-                setSel({ nodeIds: [n.id], relationshipIds: [], boundaryIds: [] });
-                props.onSelect(n.id);
+                setSel({ nodeIds: [id], relationshipIds: [], boundaryIds: [] });
+                props.onSelect(id);
               };
 
               return (
                 <>
                   <ArchitectureNodeCard
-                    name={n.name}
-                    type={n.type}
-                    subtype={n.subtype}
-                    provider={n.provider}
-                    state={n.state}
-                    x={n.x}
-                    y={n.y}
-                    width={n.width}
-                    height={n.height}
+                    name={n().name}
+                    type={n().type}
+                    subtype={n().subtype}
+                    provider={n().provider}
+                    state={n().state}
+                    x={n().x}
+                    y={n().y}
+                    width={n().width}
+                    height={n().height}
                     selected={selected()}
                     dimmed={dim()}
                     lodFar={lodFar()}
-                    editing={editingId() === n.id}
-                    entering={enteringNodes().has(n.id)}
-                    onEnterEnd={() => completeNodeEntry(n.id)}
-                    dragOffset={dragOffsetForNode(n.id)}
+                    editing={editingId() === id}
+                    entering={enteringNodes().has(id)}
+                    onEnterEnd={() => completeNodeEntry(id)}
+                    dragOffset={dragOffsetForNode(id)}
                     onRenameEnd={(newName) => {
                       applyDoc(
-                        updateNode(props.document, n.id, { name: newName }),
+                        updateNode(props.document, id, { name: newName }),
                         "immediately"
                       );
                       setEditingId(null);
@@ -1778,19 +1837,19 @@ export function ArchitectureCanvasHost(props: {
                     onActionOpenDetails={() => {
                       selectForAction();
                       snapshotSession();
-                      props.onOpenNode(n.id);
+                      props.onOpenNode(id);
                     }}
                     onActionRename={() => {
                       selectForAction();
-                      setEditingId(n.id);
+                      setEditingId(id);
                     }}
                     onActionConnect={() => {
                       selectForAction();
-                      startConnectFromCard(n.id);
+                      startConnectFromCard(id);
                     }}
                     onActionHighlight={() => {
                       selectForAction();
-                      setHighlightFromNode(n.id);
+                      setHighlightFromNode(id);
                     }}
                     onActionDuplicate={() => {
                       selectForAction();
@@ -1811,12 +1870,12 @@ export function ArchitectureCanvasHost(props: {
                     <div
                       class="pointer-events-none absolute z-[3]"
                       style={{
-                        left: `${n.x}px`,
-                        top: `${n.y}px`,
-                        width: `${n.width}px`,
-                        height: `${n.height}px`,
-                        transform: dragOffsetForNode(n.id)
-                          ? `translate3d(${dragOffsetForNode(n.id)?.dx ?? 0}px, ${dragOffsetForNode(n.id)?.dy ?? 0}px, 0)`
+                        left: `${n().x}px`,
+                        top: `${n().y}px`,
+                        width: `${n().width}px`,
+                        height: `${n().height}px`,
+                        transform: dragOffsetForNode(id)
+                          ? `translate3d(${dragOffsetForNode(id)?.dx ?? 0}px, ${dragOffsetForNode(id)?.dy ?? 0}px, 0)`
                           : undefined,
                       }}
                       aria-hidden
@@ -1825,7 +1884,7 @@ export function ArchitectureCanvasHost(props: {
                         {(side: HandleSide) => {
                           const state = () =>
                             resolveHandleState({
-                              nodeId: n.id,
+                              nodeId: id,
                               side,
                               hoveredPort: hoveredPort(),
                               isConnectTarget: isConnectTarget(),

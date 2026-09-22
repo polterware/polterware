@@ -65,6 +65,8 @@ export const IPC_CHANNELS = {
     importProjectSources: "core:import-project-sources",
     compileContext: "core:compile-context",
     listAgentToolCalls: "core:list-agent-tool-calls",
+    listAgentRuns: "core:list-agent-runs",
+    getAgentRun: "core:get-agent-run",
     listCliProviders: "core:list-cli-providers",
     listIntegrationConnections: "core:list-integration-connections",
     saveIntegrationConnection: "core:save-integration-connection",

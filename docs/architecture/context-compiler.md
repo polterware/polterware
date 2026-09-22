@@ -52,4 +52,4 @@ Agents → Compile previews the package (optional query, optional entity id, bud
 
 - Semantic / embedding retrieval is out of scope.
 - Evidence on non-fact items is not required in this slice.
-- Narrow Drift Checker findings for MCP `drift.check` are B5.
+- Narrow Drift Checker findings for MCP `drift.check` are implemented; see [`narrow-drift-checker.md`](narrow-drift-checker.md).

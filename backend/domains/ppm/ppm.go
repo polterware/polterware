@@ -26,6 +26,10 @@ const (
 	PredOperates  = "OPERATES"
 	PredRelatedTo = "RELATED_TO"
 	PredDefines   = "DEFINES"
+	PredDependsOn = "DEPENDS_ON"
+	PredCalls     = "CALLS"
+
+	SourceArchitectureLayout = "architecture_layout"
 )
 
 type Entity struct {
@@ -95,11 +99,20 @@ func ValidTruthClass(value string) bool {
 
 func ValidPredicate(value string) bool {
 	switch value {
-	case PredDocuments, PredOperates, PredRelatedTo, PredDefines:
+	case PredDocuments, PredOperates, PredRelatedTo, PredDefines, PredDependsOn, PredCalls:
 		return true
 	default:
 		return false
 	}
+}
+
+// DependencyPredicates are edge types checked against active decisions.
+func DependencyPredicates() []string {
+	return []string{PredDependsOn, PredCalls}
+}
+
+func IsDependencyPredicate(value string) bool {
+	return value == PredDependsOn || value == PredCalls
 }
 
 func EntityID(projectID, refKind, refID string) string {

@@ -2,44 +2,53 @@
 
 Status: Shipped for `polterware-core mcp` stdio read contract
 
-Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`wedge-validation-sequence.md`](wedge-validation-sequence.md), [`docs/product-vision.md`](../product-vision.md) v3, [`context-compiler.md`](context-compiler.md).
+Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`wedge-validation-sequence.md`](wedge-validation-sequence.md), [`docs/product-vision.md`](../product-vision.md) v3, [`context-compiler.md`](context-compiler.md), [`narrow-drift-checker.md`](narrow-drift-checker.md), [`minimal-agent-run-audit.md`](minimal-agent-run-audit.md).
 
 ## Tools
 
 | Tool | Input | Output |
 |------|-------|--------|
-| `context.get` | `project_id`, optional `query`, `entity_id`, `token_budget` | Context Compiler package (reasons + evidence refs) |
+| `context.get` | `project_id`, optional `query`, `entity_id`, `token_budget`, `agent_run_id` | Context Compiler package (reasons + evidence refs); optional context step on open AgentRun |
 | `entity.get` | `id` | One PPM entity |
 | `evidence.get` | `id` | One PPM evidence record |
-| `drift.check` | `project_id`, optional `entity_id` | Drift result stub (see below) |
+| `drift.check` | `project_id`, optional `entity_id`, `agent_run_id` | Narrow Drift Checker result (`checker: "narrow"`); optional drift step on open AgentRun |
 
 Former experimental names (`search`, `compile_context`, `get_entity`) are removed. Retrieval uses `context.get` (`query` / FTS inside the compiler).
 
-## `drift.check` stub
+AgentRun lifecycle tools (`agent_run.start` / `append` / `complete` / `get` / `list`) are documented in [`minimal-agent-run-audit.md`](minimal-agent-run-audit.md).
 
-Until B5 (Narrow Drift Checker):
+## `drift.check` shape
 
 ```json
 {
   "project_id": "...",
   "entity_id": "...",
   "status": "ok",
-  "checker": "none",
-  "findings": []
+  "checker": "narrow",
+  "findings": [
+    {
+      "type": "dependency_added|dependency_removed|edge_decision_conflict|declared_observed_conflict",
+      "summary": "...",
+      "severity": "info|warning|conflict",
+      "subject_ids": [],
+      "evidence_ids": [],
+      "details": {}
+    }
+  ]
 }
 ```
 
-Empty `findings` with `checker: "none"` means no checker yet, not a permanent “no drift” claim. B5 fills findings without renaming the tool.
+Empty `findings` with `checker: "narrow"` means the checker ran and found no disagreements under its rules — not “no checker yet”. Rules and limits: [`narrow-drift-checker.md`](narrow-drift-checker.md).
 
 ## Desktop vs MCP
 
-- MCP stdio exposes the four stable tool names above.
+- MCP stdio exposes the read tools above plus AgentRun audit tools.
 - Desktop Agents → Compile still calls Connect RPC `ContextService.CompileContext` (same package shape; RPC name unchanged).
+- Desktop Agents → History lists AgentRuns via `AgentRunService`.
 - Agents skill markdown documents the stable MCP names.
 
 ## Out of scope
 
-- Narrow Drift Checker logic (B5)
-- AgentRun audit (B6)
 - Audited MCP writes (B7)
 - CLI surface (B8)
+- Desktop Drift UI

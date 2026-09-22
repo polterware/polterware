@@ -60,6 +60,8 @@ export function createCoreDomainControllers(clients: CoreClients) {
       toJsonObject(await clients.ppm.importProjectSources(requestMessage(input))),
     compileContext: async (input?: JsonObject) => toJsonObject(await clients.context.compileContext(requestMessage(input))),
     listAgentToolCalls: async (input?: JsonObject) => toJsonObject(await clients.context.listAgentToolCalls(requestMessage(input))),
+    listAgentRuns: async (input?: JsonObject) => toJsonObject(await clients.agentRuns.listAgentRuns(requestMessage(input))),
+    getAgentRun: async (input?: JsonObject) => toJsonObject(await clients.agentRuns.getAgentRun(requestMessage(input))),
     listCliProviders: async () => toJsonObject(await clients.integrations.listCliProviders({})),
     listIntegrationConnections: async (input?: JsonObject) => toJsonObject(await clients.integrations.listIntegrationConnections(requestMessage(input))),
     saveIntegrationConnection: async (input?: JsonObject) => toJsonObject(await clients.integrations.saveIntegrationConnection(requestMessage(input))),

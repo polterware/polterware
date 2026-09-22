@@ -85,6 +85,8 @@ func ServeConnect(listener net.Listener, core *Core) *http.Server {
 	register(path, handler)
 	path, handler = localv1connect.NewContextServiceHandler(core, options...)
 	register(path, handler)
+	path, handler = localv1connect.NewAgentRunServiceHandler(core, options...)
+	register(path, handler)
 	path, handler = localv1connect.NewIntegrationServiceHandler(core, options...)
 	register(path, handler)
 	path, handler = localv1connect.NewTerminalServiceHandler(core, options...)

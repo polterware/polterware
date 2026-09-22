@@ -71,4 +71,58 @@ describe("autosave", () => {
     expect(save).not.toHaveBeenCalled();
     expect(ctrl.status()).toBe("clean");
   });
+
+  it("queues the latest body while a save is in flight", async () => {
+    vi.useFakeTimers();
+    let resolveFirst!: (value: { revision: number }) => void;
+    const save = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ revision: number }>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({ revision: 3 });
+
+    const ctrl = createAutosaveController({
+      systemId: "sys",
+      port: { save },
+      docDebounceMs: 50,
+    });
+
+    ctrl.schedule(() => '{"v":1}', () => 1);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save.mock.calls[0]?.[2]).toBe('{"v":1}');
+
+    // Second edit while first save is still in flight — queued, not started yet.
+    ctrl.schedule(() => '{"v":2}', () => 2);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(save).toHaveBeenCalledTimes(1);
+
+    resolveFirst({ revision: 2 });
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1]?.[2]).toBe('{"v":2}');
+    vi.useRealTimers();
+  });
+
+  it("dispose cancels a pending debounce timer", async () => {
+    vi.useFakeTimers();
+    const save = vi.fn().mockResolvedValue({ revision: 2 });
+    const ctrl = createAutosaveController({
+      systemId: "sys",
+      port: { save },
+      docDebounceMs: 800,
+    });
+    ctrl.schedule(() => "{}", () => 1);
+    ctrl.dispose();
+    await vi.advanceTimersByTimeAsync(800);
+    expect(save).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
 });

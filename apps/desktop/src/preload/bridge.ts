@@ -96,6 +96,10 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
         compile: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.compileContext, payload),
         listToolCalls: (payload?: JsonObject) =>
           coreCall(ipc, IPC_CHANNELS.core.listAgentToolCalls, payload),
+        listAgentRuns: (payload: JsonObject) =>
+          coreCall(ipc, IPC_CHANNELS.core.listAgentRuns, payload),
+        getAgentRun: (payload: JsonObject) =>
+          coreCall(ipc, IPC_CHANNELS.core.getAgentRun, payload),
       },
       integrations: {
         listProviders: () => coreCall(ipc, IPC_CHANNELS.core.listCliProviders),

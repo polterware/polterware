@@ -1,5 +1,6 @@
 export * from "./gen/polterware/common/v1/error_pb.js";
 export * from "./gen/polterware/events/v1/events_pb.js";
+export * from "./gen/polterware/local/v1/agentrun_pb.js";
 export * from "./gen/polterware/local/v1/architecture_pb.js";
 export * from "./gen/polterware/local/v1/context_pb.js";
 export * from "./gen/polterware/local/v1/health_pb.js";

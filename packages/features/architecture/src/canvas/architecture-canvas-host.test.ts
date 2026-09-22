@@ -86,6 +86,9 @@ describe("ArchitectureCanvasHost", () => {
     expect(source).toContain("flowPhases.get(id)");
     expect(source).toContain("flowPhases.set(id, nextDist)");
     expect(source).toContain("cancelAnimationFrame(flowRaf)");
+    expect(source).toContain("nextEdgeFlowDistance");
+    expect(source).toContain("relationshipIds()");
+    expect(source).not.toContain("onCleanup(() => flowPhases.delete");
   });
 
   it("computes modular grid phase and overscan", () => {

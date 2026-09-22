@@ -24,6 +24,13 @@ export type AutosaveController = {
   ) => Promise<void>;
   setStatusListener: (fn: (s: SaveStatus) => void) => void;
   lastError: () => string | null;
+  /** Cancel pending timer; in-flight save still completes but queued follow-ups are dropped. */
+  dispose: () => void;
+};
+
+type SaveRequest = {
+  getBody: () => string;
+  getRevision: () => number;
 };
 
 export function createAutosaveController(opts: {
@@ -38,6 +45,10 @@ export function createAutosaveController(opts: {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let lastError: string | null = null;
   let listener: ((s: SaveStatus) => void) | null = null;
+  let inFlight = false;
+  let queued: SaveRequest | null = null;
+  let disposed = false;
+  let savedResetTimer: ReturnType<typeof setTimeout> | null = null;
 
   const setStatus = (s: SaveStatus) => {
     status = s;
@@ -45,21 +56,37 @@ export function createAutosaveController(opts: {
   };
 
   const runSave = async (getBody: () => string, getRevision: () => number) => {
+    if (disposed) return;
+    if (inFlight) {
+      queued = { getBody, getRevision };
+      return;
+    }
+    inFlight = true;
     setStatus("saving");
     lastError = null;
     try {
       const res = await opts.port.save(opts.systemId, getRevision(), getBody());
+      if (disposed) return;
       opts.onRevision?.(res.revision);
       setStatus("saved");
-      // return to clean after brief saved
-      setTimeout(() => {
+      if (savedResetTimer) clearTimeout(savedResetTimer);
+      savedResetTimer = setTimeout(() => {
+        savedResetTimer = null;
         if (status === "saved") setStatus("clean");
       }, 1200);
     } catch (e) {
+      if (disposed) return;
       lastError = String(e);
       setStatus("error");
       if (/revision|conflict/i.test(lastError)) {
         opts.onConflict?.(lastError);
+      }
+    } finally {
+      inFlight = false;
+      if (!disposed && queued) {
+        const next = queued;
+        queued = null;
+        await runSave(next.getBody, next.getRevision);
       }
     }
   };
@@ -68,6 +95,7 @@ export function createAutosaveController(opts: {
     status: () => status,
     markDirty: () => setStatus("dirty"),
     schedule: (getBody, getRevision) => {
+      if (disposed) return;
       setStatus("dirty");
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
@@ -75,13 +103,14 @@ export function createAutosaveController(opts: {
         void runSave(getBody, getRevision);
       }, docDebounceMs);
     },
-    flush: async (getBody, getRevision, opts) => {
+    flush: async (getBody, getRevision, flushOpts) => {
+      if (disposed) return;
       if (timer) {
         clearTimeout(timer);
         timer = null;
       }
       if (
-        opts?.force ||
+        flushOpts?.force ||
         status === "dirty" ||
         status === "error" ||
         status === "saved"
@@ -93,5 +122,17 @@ export function createAutosaveController(opts: {
       listener = fn;
     },
     lastError: () => lastError,
+    dispose: () => {
+      disposed = true;
+      queued = null;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      if (savedResetTimer) {
+        clearTimeout(savedResetTimer);
+        savedResetTimer = null;
+      }
+    },
   };
 }

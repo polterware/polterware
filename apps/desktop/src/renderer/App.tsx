@@ -364,11 +364,19 @@ export function App() {
             }}
             onSaveLayout={async (bodyJson, expectedRevision) => {
               const result = await persistLayout(currentProjectId(), bodyJson, expectedRevision);
-              setWorkspace((current) => ({
-                ...current,
-                layoutBody: bodyJson,
-                layoutRevision: result.revision,
-              }));
+              setWorkspace((current) => {
+                if (
+                  current.layoutBody === bodyJson &&
+                  current.layoutRevision === result.revision
+                ) {
+                  return current;
+                }
+                return {
+                  ...current,
+                  layoutBody: bodyJson,
+                  layoutRevision: result.revision,
+                };
+              });
               return result;
             }}
             onSaveView={(draft) =>
