@@ -2,9 +2,9 @@
 
 Status: Active product direction
 
-Version: 2.0
+Version: 3.0
 
-Last revised: 2026-09-19
+Last revised: 2026-09-22
 
 ## Authority and scope
 
@@ -13,37 +13,47 @@ This document defines the intended direction and the product principles that fut
 The documentation hierarchy is:
 
 1. `docs/spec.md` is authoritative for currently implemented product behavior.
-2. Accepted ADRs are authoritative for architecture decisions within their stated scope.
+2. Accepted ADRs are authoritative for architecture decisions within their stated scope ([ADR 0004](adr/0004-product-positioning-and-wedge.md) records this positioning).
 3. This document is authoritative for product direction and the invariants that new specifications must respect.
 4. `docs/future/specs/` is a historical archive and is not normative.
 
-When current behavior and product direction differ, documentation and UI copy must label that difference explicitly. Planned behavior must never be presented as shipped behavior.
+When current behavior and product direction differ, documentation and UI copy must label that difference explicitly. Planned behavior must never be presented as shipped behavior. Condemned surfaces still listed in `docs/spec.md` remain shipped until a future kill branch removes them; they must not be expanded.
+
+## Category and positioning
+
+**Category:** Project Context & Change Intelligence for AI Coding.
+
+**One-liner:** Polterware gives every coding agent the same evidence-backed understanding of your project — and flags when their changes drift from your architecture, decisions or specs.
+
+**Headline:** Stop re-explaining your project to every coding agent.
+
+**Supporting line:** Agents read less and know more.
+
+Polterware is not positioned as a generic “source of truth” headline, an Internal Developer Platform, a software catalog, Mem0 for developers, a documentation editor, a GraphRAG product, an architecture diagrammer, or an Operations/control plane.
 
 ## Product thesis
 
-Polterware is the local-first source of truth for software projects, designed for people and AI agents.
+Coding agents reconstruct different pictures of the same project. Shared memory and retrieval alone are commoditizing. The durable thesis is:
 
-Software knowledge is usually divided among specifications, diagrams, source code, infrastructure definitions, provider state, runbooks, operations, and chat history. The result is fast implementation without durable context: people lose the reason behind a change, and agents repeatedly reconstruct an incomplete version of the project.
+> Maintain a local, verifiable model of declared intent and observed software state; give each coding agent only the context it needs, with provenance; detect when resulting changes diverge from that intent.
 
-Polterware brings those sources into one structured model. The canvas, documentation, search, spec-driven workflows, command-line tools, and agent interfaces are different ways to inspect or change that model; none of them is a separate source of truth.
-
-The product is not a generic documentation editor with AI added to it. Its central value is the relationship between intent, architecture, implementation, infrastructure, runtime evidence, and the actors who changed them.
+The central value is the relationship between intent (ADRs, specs, decisions), architecture and dependencies, observed implementation, evidence, and the actors (people and agents) who changed them.
 
 ## Product principles
 
 ### One project model
 
-Every product surface reads from or contributes to the same Polterware Project Model. The product must not create parallel architecture, documentation, agent, or operations models that silently diverge.
+Every product surface reads from or contributes to the same Polterware Project Model. The product must not create parallel architecture, documentation, or agent models that silently diverge.
 
 ### Structured before inferred
 
 Polterware should import deterministic structure directly from source systems whenever possible. Package manifests, OpenAPI documents, Terraform, Docker, Git, and provider APIs already express facts that do not need an LLM to rediscover them.
 
-AI inference may enrich the model, but it must remain distinguishable from declared and observed facts.
+AI inference may enrich the model, but it must remain distinguishable as `inferred`.
 
 ### Provenance before confidence
 
-A statement is not useful as project truth unless Polterware can explain where it came from, when it was observed, what revision or environment it describes, and whether a person approved it.
+A statement is not useful as project context unless Polterware can explain where it came from, when it was observed, what revision or environment it describes, and whether a person verified or approved it.
 
 ### Local value without Cloud
 
@@ -51,11 +61,15 @@ The Desktop must remain useful without an account or hosted service. Cloud adds 
 
 ### People and agents use the same model
 
-Agents must not receive a hidden or privileged project representation. Human and agent interfaces use the same domain contracts, provenance rules, policies, and audit semantics, with each mutation attributed to the correct actor.
+Agents must not receive a hidden or privileged project representation. Human and agent interfaces use the same domain contracts, provenance rules, and audit semantics, with each mutation attributed to the correct actor.
 
-### Deliberate friction for durable decisions
+### Verification over ceremony
 
-AI can accelerate production, but decisions that become project truth require explicit intent. Polterware may introduce small, configurable understanding and approval gates before durable specifications or architecture changes are accepted.
+Drift findings and optional Change Gates introduce friction only where blast radius or confidence require it. Drift is a finding, never an automatic overwrite.
+
+### Observe providers; do not operate them
+
+Integrations and importers may read provider and infrastructure state as evidence. The product thesis does not include operating those systems as a control plane.
 
 ## Polterware Project Model
 
@@ -72,9 +86,9 @@ Sources
         |                     |                     |
         v                     v                     v
     Desktop/UI          Context Compiler       CLI and MCP
-        |                     |                     |
-        +---------- documentation and operations --+
 ```
+
+The graph is internal structure that improves context, provenance, and verification. It is not the visible product.
 
 ### Core entities
 
@@ -83,32 +97,33 @@ The model is expected to represent entities such as:
 - projects, environments, repositories, branches, and revisions;
 - components, services, APIs, databases, queues, and infrastructure resources;
 - specifications, requirements, plans, tasks, decisions, and ADRs;
-- documents, runbooks, operations, deployments, incidents, and evidence;
+- documents, runbooks, and evidence;
 - commits, code symbols, tests, build results, and provider observations;
-- people, agents, agent runs, approvals, and overrides.
+- facts, dependencies, people, agents, agent runs, approvals, and overrides.
 
 This list describes the conceptual model. Each entity requires an accepted feature specification and contract before implementation.
 
 ### Relationships
 
-Relationships give the model its operational meaning. Examples include:
+Relationships give the model its meaning. Examples include:
 
 ```text
 Component DEPENDS_ON Component
 Service USES Database
-Component RUNS_ON InfrastructureResource
+Component GOVERNED_BY Decision
 Spec DEFINES Requirement
 Requirement SATISFIED_BY CodeSymbol
 Task IMPLEMENTS Requirement
 Test VERIFIES Requirement
 ADR EXPLAINS Decision
-Runbook OPERATES Service
-Deployment DEPLOYS Commit
-AgentRun PRODUCED Evidence
+Fact OBSERVED_IN File
+Evidence SUPPORTS Fact
+AgentRun PRODUCED Commit
 Human APPROVED Decision
+Decision SUPERSEDES Decision
 ```
 
-Relationships must be typed, queryable, and attributable to their source. The graph is a product model, not an artifact generated after semantic search.
+Relationships must be typed, queryable, attributable, and evidence-backed. The graph is a product model, not an artifact generated after semantic search.
 
 ### Provenance
 
@@ -119,31 +134,31 @@ Entities, relationships, and claims should carry enough provenance to answer:
 - When was it observed or last confirmed?
 - Was it imported, entered by a person, produced by an agent, or inferred?
 - What evidence supports it?
-- Has a person approved or overridden it?
-
-The exact storage schema is deferred to dedicated specifications. Provenance is not optional even when the initial persistence is simple.
+- Has a person verified, approved, or overridden it?
 
 ## Classes of truth
 
-Polterware distinguishes four classes of project knowledge.
+Polterware distinguishes four status classes for project knowledge:
 
-### Declared Truth
+### Declared
 
 Intentional statements owned by the project: specifications, requirements, architecture decisions, ownership, policies, and human-approved architecture.
 
-### Observed Truth
+### Observed
 
 Facts imported from authoritative sources: code, Git, manifests, infrastructure definitions, provider inventories, and environment-specific state.
 
-### Operational Truth
+### Inferred
 
-Evidence produced while the system is built or operated: deployments, runs, logs, incidents, verification results, and runbook execution.
+Summaries, semantic relationships, classifications, and other conclusions produced by AI or heuristic analysis. Inferred knowledge must never silently replace declared or observed facts.
 
-### Inferred Knowledge
+### Verified
 
-Summaries, semantic relationships, classifications, and other conclusions produced by AI or heuristic analysis.
+A declared or observed fact sustained by sufficient evidence and, when required, human acknowledgement.
 
-Inferred Knowledge must never silently replace Declared Truth or Observed Truth. Promotion of an inference into project truth requires a recorded human decision, including the actor, reason, affected claim, and supporting evidence.
+Runtime outcomes (deployments, runs, logs, incidents, verification results) are stored as **evidence** that supports facts — not as a parallel “truth class” that competes with the four statuses above.
+
+Promotion of an inference into project truth requires a recorded human decision, including the actor, reason, affected claim, and supporting evidence.
 
 ## Import, export, and Architecture as Code
 
@@ -154,39 +169,35 @@ Initial source families include:
 - Git and filesystem structure;
 - package and build manifests;
 - Docker and container definitions;
+- `AGENTS.md`, `CLAUDE.md`, ADRs, and existing Markdown;
 - Terraform and other supported infrastructure declarations;
 - OpenAPI and supported interface definitions;
-- authenticated provider CLI or API observations;
-- Polterware-authored specifications, decisions, and canvas changes.
+- authenticated provider CLI or API observations (read path);
+- Polterware-authored specifications, decisions, and canvas edits that update the same model.
 
-Architecture as Code provides a versionable, human-readable representation that can create or update relevant parts of the PPM. The canvas is another editor for the same data, not a disconnected diagram.
+Architecture as Code provides a versionable, human-readable projection of relevant parts of the PPM. Markdown, JSON, or YAML are sufficient initially. Proprietary DSLs (including PCTX) are not part of the wedge.
 
-The exact file name, serialization format, merge semantics, and schema versioning are intentionally not fixed in this vision. They require a dedicated contract specification with round-trip and conflict behavior.
-
-Importers must report their source, scope, revision, environment, and limitations. A bounded inventory import must not be described as a complete cloud graph.
+Importers must report their source, scope, revision, environment, and limitations.
 
 ## Context Compiler
 
 The Context Compiler produces the smallest sufficient project context for a person or agent under an explicit token budget.
 
-Its target pipeline is:
+Target shape:
 
 ```text
-request
-  -> intent and entity resolution
+context.get(target, intent, budget)
+  -> entity resolution
   -> exact and full-text retrieval
   -> graph expansion
-  -> optional semantic retrieval
   -> provenance-aware ranking
   -> deduplication and compression
-  -> token-budgeted context package
+  -> token-budgeted context package with reasons and evidence
 ```
 
-Exact identifiers and declared relationships take precedence over semantic similarity when they directly answer the request. Semantic retrieval is an enrichment path, not the authority for project structure.
+Exact identifiers and declared relationships take precedence over semantic similarity. Semantic retrieval is an enrichment path only when measured need justifies it.
 
-The local product may perform indexing, graph traversal, retrieval, ranking, and context assembly without running a local generative model. Agents can consume the compiled context through supported interfaces while project data remains local unless the user chooses otherwise.
-
-No embedding model, vector extension, reranker, or GraphRAG implementation is selected by this document. Those choices must be justified by measured project needs and replaceable behind domain contracts.
+No embedding model, vector extension, reranker, or GraphRAG implementation is selected by this document. GraphRAG is an implementation detail, not a marketing feature.
 
 ## Spec-driven development
 
@@ -201,118 +212,117 @@ Feature
               -> Evidence
 ```
 
-Markdown import and export may remain available for interoperability, but the PPM retains relationships, versions, provenance, approvals, and evidence that flat files cannot express reliably.
+Markdown import and export may remain available for interoperability. A full spec-authoring suite is not the wedge; structured specs linked to the PPM are a secondary capability after context and drift prove value.
 
-Changes to a specification must preserve history. A newer requirement may supersede an earlier one, but it must not erase which implementation, test, deployment, or decision was associated with the earlier version.
+### Change Gates (Assurance Gates)
 
-### Understanding Gates
+A Change Gate introduces optional human review before an artifact becomes durable project truth. Gates may address ambiguous intent, architectural conflicts, high blast radius, security implications, and explicit overrides.
 
-An Understanding Gate introduces optional human review before an artifact becomes durable project truth. Gates may address:
-
-- clarification of ambiguous intent;
-- understanding of specified behavior;
-- architectural trade-offs and conflicts;
-- failure scenarios and operational consequences;
-- security and data-integrity implications;
-- approval, override, and implementation evidence.
-
-The gate is not a quiz whose only result is right or wrong. When an answer conflicts with a requirement or decision, the person may revise the answer, revise the source artifact, request an explanation, or record an explicit override.
-
-### Anti-Vibe Mode
-
-Anti-Vibe Mode is the product experience built from configurable Understanding Gates. Its purpose is to prevent unexamined approval, not to prevent AI-assisted development.
-
-The mode may be applied selectively to constitution, spec, plan, task, architecture, or verification stages. Exact levels, question counts, blocking rules, and UI controls require a separate specification.
-
-Every accepted override becomes part of the PPM with its actor, reason, timestamp, affected artifact, and prior decision.
+Do not use “Anti-Vibe” as public branding. Exact levels and UI require a separate later specification.
 
 ## Agent access
 
-Desktop, CLI, and MCP are interfaces over the same domain behavior. MCP is the intended programmatic interface for external agents, but this vision does not define final tool names or wire formats.
+Desktop, CLI, and MCP are interfaces over the same domain behavior. MCP is the primary programmatic interface for external coding agents.
 
-Interactive hosts may support native multi-round input. Polterware must also provide a universal stateful fallback so an agent can begin a session, present questions to the person, submit answers, inspect status, and finalize without relying on host-specific interactive capabilities.
+The wedge MCP contract targets:
 
-Agent access must preserve:
+- `context.get`
+- `entity.get`
+- `evidence.get`
+- `drift.check`
 
-- explicit project and environment scope;
-- minimum necessary context;
-- actor attribution and delegated authority;
-- the same policy and approval path used for equivalent human actions;
-- secret filtering and bounded outputs;
-- durable evidence for relevant reads, proposals, mutations, and overrides.
+Agent access must preserve explicit project scope, minimum necessary context, actor attribution, secret filtering, bounded outputs, and durable evidence for relevant reads and resulting changes.
 
 ## Drift and verification
 
-The PPM makes disagreement visible across project truth:
+The PPM makes disagreement visible:
 
 - specification versus implementation;
 - declared architecture versus code relationships;
 - infrastructure declarations versus provider observations;
-- canvas state versus imported structure;
 - requirements versus tests or other evidence;
-- documented operations versus runtime outcomes.
+- dependency edges versus active decisions.
 
-Drift is a finding, not an automatic overwrite. Polterware must show the conflicting sources, provenance, environment, revision, and confidence before a person accepts a reconciliation.
+The first Drift Checker is narrow: new or removed dependency edges, edges incompatible with an active decision, and simple declared-versus-observed conflicts. Drift is a finding, not an automatic overwrite.
+
+## AgentRun
+
+Polterware must reconstruct: context delivered → agent/task → change → evidence → drift findings. A minimal AgentRun is part of the wedge. Enterprise audit dashboards are later.
 
 ## Product surfaces
 
 ### Desktop
 
-The Desktop is the primary local product. Its current implementation is defined by `docs/spec.md`. Future PPM capabilities should extend the existing local architecture rather than create a second desktop product.
+The Desktop (Electron + Solid) is the primary local human product and remains the shipped shell. Future PPM, context, and drift capabilities extend this architecture rather than creating a second desktop product. Architecture Canvas may act as a visual inspector of the model; it is not the category or the wedge.
 
-### Polterware Website
+### CLI
 
-The Website is the public, unauthenticated product surface. It explains the product without implying that planned capabilities are already available.
+A local Go CLI (`init`, `scan`, `context`, `drift`) is part of the wedge validation path and shares `polterware-core`.
 
-### Polterware Web App
+### MCP
 
-The Web App is a future authenticated surface for hosted projects, collaboration, continuity, and administration. It will live in the `polterware-web` repository alongside the Website and will depend on the private Cloud control plane for hosted authority.
+MCP is the primary agent interface over the same core.
 
-### Cloud
+### Integrations (KEEP)
 
-Polterware Cloud is the managed service. It owns identity, tenants, permissions, synchronization authority, billing, metering, managed infrastructure, and private operational material.
+Integrations are sources of context and evidence: detect CLIs, Connect with intermediate UI, probe status, and later import observations. They are not provider consoles and not an operations control plane. PTY use is limited to Connect flows.
 
-### Self-hosted
+### Polterware Website / Web App / Cloud / Self-hosted
 
-Self-hosted deployments expose only capabilities implemented by their public backend. Self-hosting does not imply parity with the managed Cloud service.
+Unchanged in intent from prior vision: Website is public messaging; Web App and Cloud are later hosted continuity; self-hosted exposes only implemented public capabilities. None of these redefine the wedge.
+
+## Condemned / scheduled for removal
+
+The following are **outside the product vision** and are **scheduled for removal in a future version** on a dedicated kill branch. They may still appear in `docs/spec.md` as shipped behavior until that branch lands. Do not expand them.
+
+| Area | Destiny |
+| --- | --- |
+| Operations (Runs, Workflows, Schedules as product) | **KILL** |
+| Terminal as a product surface | **KILL** (residual PTY only if Connect still needs it) |
+| Nodes / remote execution / process control as product | **KILL** |
+| Operations-as-thesis / control plane | **KILL** |
+| Personal memory as positioning | **KILL** |
+| PCTX / proprietary context DSL | **KILL** |
+| GraphRAG as a marketed feature | **KILL** |
+| “Anti-Vibe” public branding | **KILL** |
 
 ## Target technical direction
 
-The current local foundation remains Electron, Solid, a Go core, and SQLite. The renderer remains unprivileged and accesses local authority only through the typed preload bridge and Electron Main.
+The local foundation remains Electron, Solid, Go `polterware-core`, and SQLite. The renderer remains unprivileged and accesses local authority only through the typed preload bridge and Electron Main.
 
-The PPM should begin with embedded storage and ordinary relational representations of entities and relationships. A separate graph database, vector service, or Python sidecar is not a prerequisite. More specialized storage is justified only by measured scale or capability requirements.
+The PPM begins with embedded storage and ordinary relational representations. A separate graph database, vector service, or Python sidecar is not a prerequisite.
 
-Provider credentials remain in provider CLI or operating-system credential stores. Project knowledge stores references and safe metadata, not reusable secrets.
+Provider credentials remain in provider CLI or operating-system credential stores.
 
 ## Delivery sequence
 
-1. **Local foundation** — maintain the current SQLite-backed Desktop, execution authority, and honest provider boundaries.
-2. **Project Model** — define canonical entities, relationships, provenance, truth classes, and migrations.
-3. **Discovery** — import Git, filesystem, manifests, containers, infrastructure, and supported provider observations.
-4. **Knowledge and search** — connect documents, ADRs, and runbooks to the PPM with exact and full-text retrieval.
-5. **Context Compiler and MCP** — expose bounded, provenance-aware context to external agents.
-6. **Structured SDD** — model specifications, requirements, plans, tasks, decisions, and evidence.
-7. **Understanding Gates** — add Anti-Vibe workflows, conflict handling, approvals, and overrides.
-8. **Drift and verification** — compare intent, architecture, code, infrastructure, operations, and evidence.
-9. **Web App and Cloud** — add hosted continuity, collaboration, administration, and synchronization after the local model is stable.
+1. **Local foundation** — keep the SQLite-backed Desktop and Go core; do not expand condemned surfaces; plan their removal on a future kill branch.
+2. **PPM Facts / Evidence / provenance** — expand the thin registry into facts, evidence, and `declared` / `observed` / `inferred` / `verified`.
+3. **Deterministic import** — Git, filesystem, manifests, Docker/Compose, `AGENTS.md`, `CLAUDE.md`, ADRs, Markdown.
+4. **Context Compiler and stable MCP** — `context.get` and related tools with reasons and evidence.
+5. **Drift Checker (narrow) and AgentRun** — dependency and decision conflicts; context → change → evidence.
+6. **CLI** — `polterware init | scan | context | drift` sharing the core.
+7. **Structured SDD and Change Gates** — later, after the wedge validates.
+8. **Web App and Cloud** — after the local model is stable.
 
 Each phase requires its own specification and acceptance criteria. Later phases must not be represented as shipped merely because their concepts are documented here.
 
 ## Non-goals
 
-Polterware does not aim to replace source control, cloud providers, Terraform, Kubernetes, CI/CD systems, observability platforms, database administration tools, or general-purpose documentation editors.
+Polterware does not aim to replace source control, cloud providers, Terraform, Kubernetes, CI/CD systems, observability platforms, database administration tools, general-purpose documentation editors, coding agent IDEs, or enterprise ops platforms (Port, Harness, and similar).
 
-It connects their relevant project facts, preserves intent and provenance, compiles context, and makes disagreement inspectable.
+It connects relevant project facts, preserves intent and provenance, compiles context, and makes disagreement inspectable.
 
 The following are explicitly not decided by this vision:
 
 - a final Architecture as Code file format;
 - a required embedding or generative model;
 - a required vector or graph database;
-- final MCP tool names and transport details;
+- final MCP wire formats beyond the named tool intents;
 - Cloud pricing, packaging, or free-tier policy;
-- automatic promotion of inferred knowledge into project truth.
+- automatic promotion of inferred knowledge into project truth;
+- the exact schedule of the kill branch that removes condemned surfaces.
 
 ## Canonical short definition
 
-> Polterware is a local-first source of truth that connects software intent, architecture, implementation, infrastructure, operations, and evidence in one structured project model for people and AI agents.
+> Polterware is local-first project context and change intelligence for AI coding: a verifiable model of intent and observed software, a budgeted context compiler for any MCP-compatible agent, and drift checks when changes diverge from decisions and specs.

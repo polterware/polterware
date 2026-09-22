@@ -8,17 +8,21 @@
 - Do not create branches or commits unless explicitly requested.
 - Do not run browsers, automated tests, builds, previews, distributions, or development servers unless explicitly requested in the current task.
 
+## Product positioning
+
+Polterware's category is **Project Context & Change Intelligence for AI Coding** ([`docs/product-vision.md`](docs/product-vision.md) v3, [ADR 0004](docs/adr/0004-product-positioning-and-wedge.md)). Evolution priority is the wedge: PPM facts/evidence, deterministic import, Context Compiler, stable MCP, Drift, AgentRun, and CLI. Do not expand Operations, Terminal-as-product, or Nodes/remote execution — they are **scheduled for removal** on a future kill branch. Integrations remain as evidence/Connect UI only.
+
 ## Current product boundary
 
-Polterware's first version is a local SQLite-backed Desktop with six project surfaces: Architecture, Resources, Knowledge, Operations, Terminal, and Integrations. Settings is fixed in the sidebar footer. Architecture / Canvas is the default route.
+Polterware's first version is a local SQLite-backed Desktop with seven project surfaces: Architecture, Resources, Knowledge, Operations, Terminal, Agents, and Integrations. Settings is fixed in the sidebar footer. Architecture / Canvas is the default route.
 
 The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. The Electron Main process starts `polterware-core`, and the renderer reads and writes through `window.polterware` only.
 
 The Desktop may execute on the local machine through `polterware-core` only. The renderer never spawns shells or touches Node APIs; it talks through `window.polterware`.
 
-- Terminal: interactive local and SSH sessions via PTY owned by Go core, with live output streams. SSH uses saved host profiles (alias, user, host, port, optional identity file path); private keys are never stored in SQLite.
-- Operations / Workflows / Runbooks: local runner (`os/exec`) that transitions queued runs to running/succeeded/failed/cancelled and appends logs.
-- Integrations: detect CLI binaries, start provider authentication commands in a core-owned PTY, optionally open provider documentation through Main `openExternal`, and probe connection status. Credentials stay in the OS/CLI credential store.
+- Terminal: interactive local and SSH sessions via PTY owned by Go core, with live output streams. SSH uses saved host profiles (alias, user, host, port, optional identity file path); private keys are never stored in SQLite. **Condemned as a product surface** (scheduled removal); do not expand.
+- Operations / Workflows / Runbooks: local runner (`os/exec`) that transitions queued runs to running/succeeded/failed/cancelled and appends logs. **Condemned** (scheduled removal); do not expand.
+- Integrations: detect CLI binaries, start provider authentication commands in a core-owned PTY, optionally open provider documentation through Main `openExternal`, and probe connection status. Credentials stay in the OS/CLI credential store. **KEEP** as evidence/Connect path (not a provider console).
 
 The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Do not add placeholders or app-owned provider-token fields, and never persist provider credentials in SQLite. Raw PTY output is not guaranteed to be sanitized; do not describe it as redacted.
 
@@ -36,21 +40,24 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
 ## Product navigation
 
 - Architecture: Canvas, Components, Views
-- Resources: Inventory, Nodes, Processes
-- Knowledge: Docs, ADRs, Runbooks, Specs
+- Resources: Inventory, Nodes, Processes (Nodes / process control: **scheduled for removal**)
+- Knowledge: Specs, Library, Sources
   - Specs hold one Constitution per project (`constitution`) and per-feature Spec / Plan / Tasks / Clarify / Checklist items linked by `featureKey`. Mark ready is blocked while Checklist still has unchecked `- [ ]` lines.
-- Operations: Runs, Workflows, Schedules
-- Terminal: local and SSH interactive sessions
-- Integrations: Connected, Catalog
-- Settings: General, Environments, Shortcuts, Agents, Advanced
+  - Library lists `doc`, `adr`, and `runbook` items with category filters.
+  - Sources lists registered project-relative paths (`kind = source`); automatic filesystem indexing is not shipped.
+- Operations: Runs, Workflows, Schedules (**scheduled for removal**)
+- Terminal: local and SSH interactive sessions (**scheduled for removal**)
+- Agents: Access, Compile, History
+- Integrations: Connected, Catalog (**KEEP** — evidence + Connect UI)
+- Settings: General, Environments, Shortcuts, Advanced
 
-Keep project and environment switchers, Commander, history controls, Settings, and quick Terminal access. Do not introduce additional product surfaces without an approved specification update.
+Resources Nodes / Processes execution paths are **scheduled for removal** with Operations/Terminal. Keep project and environment switchers, Commander, history controls, and Settings. Do not introduce additional product surfaces without an approved specification update. Do not expand condemned surfaces.
 
 ## UI law
 
 `DESIGN.md` and `@polterware/frontend-design-system` are the visual source of truth. Product features must use shared `Input`, `Textarea`, `Select`, `Field`, `Button`, `Card`, `Surface`, Ark-backed overlays, `PageToolbar`, `FilterChip`, `DataTable`, `DitherIconTile`, `StatusChip`, and the global `DetailPanel` where applicable.
 
-Do not hand-roll shared control chrome, menus, dialogs, operational tables, or entity panels. Use only radius and color tokens. Structural surfaces and text are opaque; alpha is limited to shared border, shadow, scrim, and transition tokens. Hugeicons Free Stroke Rounded is the only product icon set.
+Do not hand-roll shared control chrome, menus, dialogs, operational tables, or entity panels. Use only radius and color tokens. Structural surfaces and text are opaque; alpha is limited to shared border, shadow, scrim, and transition tokens. Exception: on macOS the main window and global Commander overlay may use Electron vibrancy with transparent shell chrome; `MainSurface` and product chrome stay opaque. Hugeicons Free Stroke Rounded is the only product icon set.
 
 ## Development judgments
 
@@ -72,4 +79,4 @@ Skip it when the change is already located in a known file, and when typecheck, 
 After relevant changes, use static checks allowed by the task: typecheck, `pnpm design:lint`, `buf lint`, `go vet ./...`, and `git diff --check`. Maintain risk-proportional tests, but do not run them without explicit permission.
 
 Previous specifications live under `docs/future/` and are non-normative.
-`docs/spec.md` defines implemented behavior. `docs/product-vision.md` defines product direction; never present its planned PPM, agent, spec-gate, Web App, or Cloud capabilities as already shipped.
+`docs/spec.md` defines implemented behavior. `docs/product-vision.md` v3 and ADR 0004 define product direction; never present planned PPM depth, drift, CLI, Web App, or Cloud capabilities as already shipped, and never treat condemned Ops/Terminal/Nodes as the product story.
