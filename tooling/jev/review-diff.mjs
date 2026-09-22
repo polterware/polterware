@@ -18,7 +18,7 @@ export function reviewQuestions() {
       "Does `diff` hand-roll a button, input, dialog, menu, table, or entity panel instead of using the shared controls named in `scope`?",
     ),
     knowledgeScope: noul(
-      "Does `diff` make Knowledge expose something other than Docs and Runbooks?",
+      "Does `diff` make Knowledge expose something other than Docs, ADRs, Runbooks, and Specs?",
     ),
   };
 }

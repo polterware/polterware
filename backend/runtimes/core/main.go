@@ -11,6 +11,7 @@ import (
 	"time"
 
 	localcore "github.com/polterware/polterware/backend/compositions/local-core"
+	"github.com/polterware/polterware/backend/providers/mcp"
 	sqlstore "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
@@ -20,12 +21,33 @@ func main() {
 	sessionToken := flag.String("token", os.Getenv("POLTERWARE_SESSION_TOKEN"), "session bearer token")
 	flag.Parse()
 
+	args := flag.Args()
+	mode := "serve"
+	if len(args) > 0 {
+		mode = args[0]
+	}
+
 	store, err := sqlstore.New(*dbPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "db open: %v\n", err)
 		os.Exit(1)
 	}
 	defer store.Close()
+
+	switch mode {
+	case "mcp":
+		fmt.Fprintf(os.Stderr, "polterware-core mcp (experimental tools; not a product API contract)\n")
+		if err := mcp.Run(store); err != nil {
+			fmt.Fprintf(os.Stderr, "mcp: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	case "serve", "":
+		// default Connect server below
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command %q (use serve or mcp)\n", mode)
+		os.Exit(2)
+	}
 
 	token := *sessionToken
 	if token == "" {

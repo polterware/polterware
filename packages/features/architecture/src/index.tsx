@@ -14,9 +14,11 @@ import {
   PageLoading,
   PageToolbar,
   Tabs,
+  ToolbarIconButton,
 } from "@polterware/frontend-design-system";
 import { ArchitectureCanvas } from "./architecture-canvas";
 import type { SaveStatus } from "./architecture-canvas";
+import { ArchitectureCanvasEmpty } from "./architecture-empty";
 import { ArchitectureNodeDetail } from "./node-detail";
 import { ArchitectureViewDetail } from "./view-detail";
 import { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
@@ -682,23 +684,33 @@ export function ArchitectureView(props: {
           </div>
         </Show>
         <div class="min-h-0 flex-1">
-          <ArchitectureCanvas
-            document={doc()}
-            systemId={systemId()}
-            revision={revision()}
-            selectedNodeId={props.selectedNodeId}
-            search={props.search}
-            environmentId={envId()}
-            projectEnvironments={DEFAULT_PROJECT_ENVIRONMENTS}
-            resourceLinkPort={createFixtureResourceLinkPort()}
-            saveStatus={saveStatus()}
-            onDocumentChange={onDocumentChange}
-            onSelect={select}
-            onOpenNode={openNode}
-            onViewportChange={(vp) => setDoc((d) => ({ ...d, viewport: vp }))}
-            onRequestSave={() => saveManual()}
-            edgeFlow={edgeFlow()}
-          />
+          <Show
+            when={doc().nodes.length > 0}
+            fallback={
+              <ArchitectureCanvasEmpty
+                onAddComponent={() => props.onCreateNode?.()}
+                onCreateFromTemplate={(template) => void submitCreate(template.draft)}
+              />
+            }
+          >
+            <ArchitectureCanvas
+              document={doc()}
+              systemId={systemId()}
+              revision={revision()}
+              selectedNodeId={props.selectedNodeId}
+              search={props.search}
+              environmentId={envId()}
+              projectEnvironments={DEFAULT_PROJECT_ENVIRONMENTS}
+              resourceLinkPort={createFixtureResourceLinkPort()}
+              saveStatus={saveStatus()}
+              onDocumentChange={onDocumentChange}
+              onSelect={select}
+              onOpenNode={openNode}
+              onViewportChange={(vp) => setDoc((d) => ({ ...d, viewport: vp }))}
+              onRequestSave={() => saveManual()}
+              edgeFlow={edgeFlow()}
+            />
+          </Show>
         </div>
       </Show>
     </div>
@@ -837,28 +849,17 @@ export function ArchitectureView(props: {
                 />
               </Show>
               <Show when={tab() === "views"}>
-                <Button
-                  size="icon"
-                  variant="primary"
-                  class="!rounded-full"
-                  aria-label="Create view"
-                  title="Create view"
-                  onClick={openCreateView}
-                >
+                <ToolbarIconButton label="Create view" onClick={openCreateView}>
                   <Plus size={14} />
-                </Button>
+                </ToolbarIconButton>
               </Show>
               <Show when={tab() !== "views"}>
-                <Button
-                  size="icon"
-                  variant="primary"
-                  class="!rounded-full"
+                <ToolbarIconButton
+                  label="Add component"
                   onClick={() => props.onCreateNode?.()}
-                  aria-label="Add component"
-                  title="Add component"
                 >
                   <Plus size={14} />
-                </Button>
+                </ToolbarIconButton>
               </Show>
             </PageToolbar.Actions>
           </PageToolbar.Root>
@@ -869,6 +870,7 @@ export function ArchitectureView(props: {
             <Show when={tab() === "components"}>
               <ComponentsTable
                 rows={componentRows()}
+                sourceCount={doc().nodes.length}
                 loading={props.loading}
                 activeRowId={
                   activeTarget()?.scopeId === "architecture:components"
@@ -878,11 +880,14 @@ export function ArchitectureView(props: {
                 onActivate={(id) =>
                   detailPanelStore.getState().activateTarget(componentsDetailTarget(id))
                 }
+                onAddComponent={() => props.onCreateNode?.()}
+                onCreateFromTemplate={(template) => void submitCreate(template.draft)}
               />
             </Show>
             <Show when={tab() === "views"}>
               <ViewsTable
                 views={views()}
+                sourceCount={(props.views ?? []).length}
                 dataSource="core"
                 activeRowId={
                   activeTarget()?.scopeId === "architecture:views"
@@ -896,6 +901,20 @@ export function ArchitectureView(props: {
                     entityKind: "arch-view",
                   })
                 }
+                onCreateView={openCreateView}
+                onCreateFromTemplate={(template) => {
+                  const nodes = availableViewNodes();
+                  const memberIds =
+                    template.id === "view-applications"
+                      ? nodes.filter((node) => node.layer === "Application" || node.layer === "Edge").map((node) => node.id)
+                      : template.id === "view-data-plane"
+                        ? nodes.filter((node) => node.layer === "Data").map((node) => node.id)
+                        : nodes.map((node) => node.id);
+                  void saveEditedView({
+                    name: template.name,
+                    memberIds,
+                  });
+                }}
               />
             </Show>
             <Show when={deepMode() === "view-edit"}>

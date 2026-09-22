@@ -10,6 +10,8 @@ describe("createPolterwareBridge", () => {
     await bridge.app.listIcons();
     await bridge.app.getIcon();
     await bridge.app.setIcon("black");
+    await bridge.app.getShortcutPreferences();
+    await bridge.app.setShortcutPreferences({ "shell.toggle_commander": "mod+p" });
     await bridge.commander.hideOverlay();
     await bridge.commander.showMainWindow();
 
@@ -18,12 +20,16 @@ describe("createPolterwareBridge", () => {
     expect(invoke).toHaveBeenNthCalledWith(3, IPC_CHANNELS.app.setIcon, {
       id: "black",
     });
+    expect(invoke).toHaveBeenNthCalledWith(4, IPC_CHANNELS.app.getShortcutPreferences);
+    expect(invoke).toHaveBeenNthCalledWith(5, IPC_CHANNELS.app.setShortcutPreferences, {
+      overrides: { "shell.toggle_commander": "mod+p" },
+    });
     expect(invoke).toHaveBeenNthCalledWith(
-      4,
+      6,
       IPC_CHANNELS.commander.hideOverlay,
     );
     expect(invoke).toHaveBeenNthCalledWith(
-      5,
+      7,
       IPC_CHANNELS.commander.showMainWindow,
     );
   });

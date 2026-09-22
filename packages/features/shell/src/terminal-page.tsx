@@ -1,10 +1,10 @@
 import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import { Plus } from "@polterware/frontend-design-system";
 import {
-  Button,
   PageToolbar,
   StatusChip,
   Tabs,
+  ToolbarIconButton,
   pushToast,
 } from "@polterware/frontend-design-system";
 import type { TerminalSessionMock } from "./workspace-mocks";
@@ -20,8 +20,18 @@ import {
   terminalSessionStatusTone,
   unusableTerminalTargetFeedback,
 } from "./terminal-session-model";
+import { TerminalNoSessionsEmpty, TerminalNoTargetsEmpty } from "./terminal-empty";
 
 export type { LiveTerminalSession } from "./live-terminal-session";
+
+/** Synthetic local target — always available without a saved node. */
+export const LOCAL_TERMINAL_TARGET: TerminalTargetItem = {
+  id: "local",
+  name: "This machine",
+  shell: "local shell",
+  status: "online",
+  connectionKind: "local",
+};
 
 export function TerminalPage(props: {
   sessionId?: string;
@@ -29,6 +39,7 @@ export function TerminalPage(props: {
   targets?: TerminalTargetItem[];
   initialSession?: LiveTerminalSession | null;
   onSelectSession?: (id: string) => void;
+  onAddSshHost?: () => void;
   onCreateSession?: (input: {
     projectId: string;
     targetId: string;
@@ -69,8 +80,12 @@ export function TerminalPage(props: {
   });
 
   const active = createMemo(() => sessions().find((s) => s.id === activeId()) ?? null);
-  const targets = () => props.targets ?? TERMINAL_TARGET_FIXTURES;
-  const hasTargets = createMemo(() => targets().length > 0);
+  const savedTargets = () => props.targets ?? TERMINAL_TARGET_FIXTURES;
+  const hasSavedTargets = createMemo(() => savedTargets().length > 0);
+  const targets = createMemo((): TerminalTargetItem[] => {
+    const saved = savedTargets().filter((target) => target.id !== LOCAL_TERMINAL_TARGET.id);
+    return [LOCAL_TERMINAL_TARGET, ...saved];
+  });
   const openSessions = createMemo(() => sessions().filter((s) => s.status !== "closed"));
   const availableTargets = createMemo(() =>
     targets().filter(
@@ -117,7 +132,7 @@ export function TerminalPage(props: {
     }
 
     if (!props.onCreateSession || !props.projectId) {
-      pushToast("Local terminal is unavailable.", "danger");
+      pushToast("Terminal is unavailable.", "danger");
       return;
     }
 
@@ -131,7 +146,8 @@ export function TerminalPage(props: {
       });
       setSessions((list) => [...list, session]);
       selectSession(session.id);
-      pushToast(`Opened local session on ${target.name}.`, "success");
+      const kind = target.connectionKind === "ssh" ? "SSH" : "local";
+      pushToast(`Opened ${kind} session on ${target.name}.`, "success");
     } catch (error: unknown) {
       pushToast(error instanceof Error ? error.message : "Could not open terminal session.", "danger");
     } finally {
@@ -166,27 +182,17 @@ export function TerminalPage(props: {
           </Show>
         </PageToolbar.Tabs>
         <PageToolbar.Actions>
-          <Button
+          <ToolbarIconButton
             ref={(el) => {
               addTargetButtonEl = el;
             }}
-            size="icon"
-            variant="primary"
-            class="!rounded-full"
-            aria-label="New terminal session"
+            label="New session"
             aria-expanded={targetPickerOpen()}
-            title={hasTargets() ? "New session" : "No targets available"}
-            disabled={!hasTargets() || opening()}
-            onClick={() => {
-              if (!hasTargets()) {
-                pushToast("No targets available in this project.", "danger");
-                return;
-              }
-              setTargetPickerOpen((open) => !open);
-            }}
+            disabled={opening()}
+            onClick={() => setTargetPickerOpen((open) => !open)}
           >
             <Plus size={14} />
-          </Button>
+          </ToolbarIconButton>
           <TargetPicker
             open={targetPickerOpen()}
             onClose={() => setTargetPickerOpen(false)}
@@ -194,6 +200,7 @@ export function TerminalPage(props: {
             onSelect={(targetId) => {
               void openTargetSession(targetId);
             }}
+            onAddSshHost={() => props.onAddSshHost?.()}
             onUnusableSelect={(target) => {
               pushToast(unusableTerminalTargetFeedback(target), "danger");
             }}
@@ -205,31 +212,22 @@ export function TerminalPage(props: {
       <Show
         when={active()}
         fallback={
-          <div class="flex flex-1 items-center justify-center p-8">
-            <div class="max-w-sm text-center">
-              <Show
-                when={hasTargets()}
-                fallback={
-                  <>
-                    <p class="m-0 text-[14px] text-[var(--color-text-primary)]">No targets available</p>
-                    <p class="m-0 mt-1 text-[12px] text-[var(--color-text-muted)]">
-                      Register or select a project target before opening a terminal session.
-                    </p>
-                  </>
-                }
-              >
-                <p class="m-0 text-[14px] text-[var(--color-text-primary)]">No terminal sessions</p>
-                <p class="m-0 mt-1 text-[12px] text-[var(--color-text-muted)]">
-                  Open a new interactive local session from a usable target.
-                </p>
-                <Show when={openSessions().length === 0 && sessions().length > 0}>
-                  <p class="m-0 mt-2 text-[11px] text-[var(--color-text-disabled)]">
-                    Closed sessions were removed from the switcher.
-                  </p>
-                </Show>
-              </Show>
-            </div>
-          </div>
+          <Show
+            when={hasSavedTargets()}
+            fallback={
+              <TerminalNoTargetsEmpty
+                onOpenLocal={() => {
+                  void openTargetSession(LOCAL_TERMINAL_TARGET.id);
+                }}
+                onAddSshHost={() => props.onAddSshHost?.()}
+              />
+            }
+          >
+            <TerminalNoSessionsEmpty
+              showClosedHint={openSessions().length === 0 && sessions().length > 0}
+              onNewSession={() => setTargetPickerOpen(true)}
+            />
+          </Show>
         }
       >
         {(s) => (

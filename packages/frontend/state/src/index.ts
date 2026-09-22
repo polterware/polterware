@@ -297,3 +297,5 @@ export function createDetailPanelSelector<T>(
 
   return selected;
 }
+
+export * from "./shortcuts";

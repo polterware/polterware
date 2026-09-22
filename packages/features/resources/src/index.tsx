@@ -10,18 +10,38 @@ import {
   Laptop,
   Package,
   PageContent,
-  PageEmpty,
   PageToolbar,
   Play,
+  Plus,
   Select,
   SquareTerminal,
   StatusChip,
   Tabs,
+  ToolbarIconButton,
 } from "@polterware/frontend-design-system";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
 import type { NodeFixture, ProcessFixture, Resource, ResourceStatus } from "./types";
-import { CreateHostNodeDialog, type HostNodeDraft } from "./create-host-node-dialog";
+import { CreateHostNodeDialog, emptyHostNodeDraft, type HostNodeDraft } from "./create-host-node-dialog";
 import { CreateProcessDialog, type ProcessDraft } from "./create-process-dialog";
+import {
+  ResourcesInventoryEmpty,
+  ResourcesNodesEmpty,
+  ResourcesProcessesEmpty,
+  resourcesFilterEmpty,
+} from "./resources-empty";
+import type { ResourceNodeTemplate } from "./create-templates";
+import { ResourceInventoryTemplateGrid } from "./resources-template-grid";
+export type {
+  ResourceInventoryDraft,
+  ResourceInventoryTemplate,
+  ResourceNodeTemplate,
+  ResourceProcessTemplate,
+} from "./create-templates";
+export {
+  RESOURCE_INVENTORY_TEMPLATES,
+  RESOURCE_NODE_TEMPLATES,
+  RESOURCE_PROCESS_TEMPLATES,
+} from "./create-templates";
 
 export type * from "./types";
 export type { HostNodeDraft } from "./create-host-node-dialog";
@@ -93,6 +113,7 @@ export function ResourcesView(props: {
   const [statuses, setStatuses] = createSignal<string[]>(props.filters ?? []);
   const [name, setName] = createSignal("");
   const [type, setType] = createSignal("Service");
+  const [nodeSeed, setNodeSeed] = createSignal<HostNodeDraft | null>(null);
   const scopeId = createMemo(() => `resources:${tab()}`);
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
 
@@ -101,6 +122,16 @@ export function ResourcesView(props: {
     setName("");
     setType("Service");
   });
+
+  createEffect(() => {
+    if (props.nodeDialogOpen) return;
+    setNodeSeed(null);
+  });
+
+  function openNodeDialog(seed?: HostNodeDraft | ResourceNodeTemplate["draft"] | null) {
+    setNodeSeed(seed ? { ...emptyHostNodeDraft(), ...seed, connectionKind: "ssh" } : null);
+    props.onCreateNode?.();
+  }
 
   const resources = createMemo(() => catalog().filter((resource) => {
     const needle = query().trim().toLowerCase();
@@ -148,49 +179,82 @@ export function ResourcesView(props: {
           <PageToolbar.Actions>
             <FilterPopover ariaLabel="Resource filters" title="Filter resources" search={{ placeholder: `Search ${tab()}…`, value: query(), onInput: (value) => { setQuery(value); props.onSearch?.(value); } }} active={statuses().length > 0} onClear={() => { setStatuses([]); props.onFiltersChange?.([]); }} groups={[{ id: "status", label: "Status", options: (tab() === "processes" ? ["running", "stopped", "failed"] : ["healthy", "degraded", "offline", "unknown"]).map((status) => ({ id: status, label: status, checked: statuses().includes(status), onCheckedChange: (checked: boolean) => { const next = checked ? [...statuses(), status] : statuses().filter((value) => value !== status); setStatuses(next); props.onFiltersChange?.(next); } })) }]} />
             <Show when={tab() === "inventory"}>
-              <Button size="sm" variant="primary" onClick={() => props.onCreate?.()}>Add resource</Button>
+              <ToolbarIconButton label="Add resource" onClick={() => props.onCreate?.()}>
+                <Plus size={14} />
+              </ToolbarIconButton>
             </Show>
             <Show when={tab() === "nodes"}>
-              <Button size="sm" variant="primary" onClick={() => props.onCreateNode?.()}>Add node</Button>
+              <ToolbarIconButton label="Add SSH host" onClick={() => openNodeDialog()}>
+                <Plus size={14} />
+              </ToolbarIconButton>
             </Show>
             <Show when={tab() === "processes"}>
-              <Button size="sm" variant="primary" onClick={() => props.onCreateProcess?.()}>Start process</Button>
+              <ToolbarIconButton label="Start process" onClick={() => props.onCreateProcess?.()}>
+                <Plus size={14} />
+              </ToolbarIconButton>
             </Show>
           </PageToolbar.Actions>
         </PageToolbar.Root>
         <PageContent class="p-0">
           <Show when={tab() === "inventory"}>
-            <Show when={resources().length > 0} fallback={<PageEmpty title="No resources match" description="Try another search or status filter." />}>
-              <DataTable.Root rows={resources()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "resources:inventory" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "resource")}>
-                <DataTable.Table aria-label="Resource inventory"><DataTable.Header><DataTable.ColumnHeader<Resource> id="name">Resource</DataTable.ColumnHeader><DataTable.ColumnHeader<Resource> id="type">Type</DataTable.ColumnHeader><DataTable.ColumnHeader<Resource> id="provider">Provider</DataTable.ColumnHeader><DataTable.ColumnHeader<Resource> id="status">Status</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<Resource>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "resource")}><DataTable.PrimaryCell icon={<Package size={16} />} iconTone="data" title={item.name} /><DataTable.Cell>{item.type}</DataTable.Cell><DataTable.Cell>{item.provider}</DataTable.Cell><DataTable.Cell><StatusChip tone={healthTone(item.status)} label={item.status} /></DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
-              </DataTable.Root>
-            </Show>
-          </Show>
-          <Show when={tab() === "nodes"}>
-            <DataTable.Root rows={nodes()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "resources:nodes" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "node")}>
-              <DataTable.Table aria-label="Nodes"><DataTable.Header><DataTable.ColumnHeader<NodeFixture> id="name">Node</DataTable.ColumnHeader><DataTable.ColumnHeader<NodeFixture> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<NodeFixture> id="platform">Platform</DataTable.ColumnHeader><DataTable.ColumnHeader<NodeFixture> id="lastSeen">Last seen</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<NodeFixture>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "node")}><DataTable.PrimaryCell icon={<Laptop size={16} />} iconTone="infrastructure" title={item.name} /><DataTable.Cell><StatusChip tone={healthTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell>{item.platform}</DataTable.Cell><DataTable.Cell>{item.lastSeen}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
-            </DataTable.Root>
-          </Show>
-          <Show when={tab() === "processes"}>
             <Show
-              when={processes().length > 0}
+              when={catalog().length > 0}
               fallback={
-                <PageEmpty
-                  title="No local processes"
-                  description="Start a process on this machine through polterware-core. Remote nodes are not supported."
+                <ResourcesInventoryEmpty
+                  onCreate={() => props.onCreate?.()}
+                  onCreateFromTemplate={(template) => props.onSubmitDialog?.(template.draft)}
                 />
               }
             >
-              <DataTable.Root rows={processes()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "resources:processes" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "process")}>
-                <DataTable.Table aria-label="Processes"><DataTable.Header><DataTable.ColumnHeader<ProcessFixture> id="name">Process</DataTable.ColumnHeader><DataTable.ColumnHeader<ProcessFixture> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<ProcessFixture> id="nodeName">Node</DataTable.ColumnHeader><DataTable.ColumnHeader<ProcessFixture> id="startedAt">Started</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<ProcessFixture>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "process")}><DataTable.PrimaryCell icon={<SquareTerminal size={16} />} iconTone="execution" title={item.name} /><DataTable.Cell><StatusChip tone={processTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell>{item.nodeName}</DataTable.Cell><DataTable.Cell>{item.startedAt}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
-              </DataTable.Root>
+              <Show
+                when={resources().length > 0}
+                fallback={resourcesFilterEmpty("inventory")}
+              >
+                <DataTable.Root rows={resources()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "resources:inventory" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "resource")}>
+                  <DataTable.Table aria-label="Resource inventory"><DataTable.Header><DataTable.ColumnHeader<Resource> id="name">Resource</DataTable.ColumnHeader><DataTable.ColumnHeader<Resource> id="type">Type</DataTable.ColumnHeader><DataTable.ColumnHeader<Resource> id="provider">Provider</DataTable.ColumnHeader><DataTable.ColumnHeader<Resource> id="status">Status</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<Resource>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "resource")}><DataTable.PrimaryCell icon={<Package size={16} />} iconTone="data" title={item.name} /><DataTable.Cell>{item.type}</DataTable.Cell><DataTable.Cell>{item.provider}</DataTable.Cell><DataTable.Cell><StatusChip tone={healthTone(item.status)} label={item.status} /></DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
+                </DataTable.Root>
+              </Show>
+            </Show>
+          </Show>
+          <Show when={tab() === "nodes"}>
+            <Show
+              when={nodeRows().length > 0}
+              fallback={
+                <ResourcesNodesEmpty
+                  onCreateNode={() => openNodeDialog()}
+                  onCreateFromTemplate={(template) => openNodeDialog(template.draft)}
+                />
+              }
+            >
+              <Show when={nodes().length > 0} fallback={resourcesFilterEmpty("nodes")}>
+                <DataTable.Root rows={nodes()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "resources:nodes" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "node")}>
+                  <DataTable.Table aria-label="Nodes"><DataTable.Header><DataTable.ColumnHeader<NodeFixture> id="name">Node</DataTable.ColumnHeader><DataTable.ColumnHeader<NodeFixture> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<NodeFixture> id="platform">Platform</DataTable.ColumnHeader><DataTable.ColumnHeader<NodeFixture> id="lastSeen">Last seen</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<NodeFixture>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "node")}><DataTable.PrimaryCell icon={<Laptop size={16} />} iconTone="infrastructure" title={item.name} /><DataTable.Cell><StatusChip tone={healthTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell>{item.platform}</DataTable.Cell><DataTable.Cell>{item.lastSeen}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
+                </DataTable.Root>
+              </Show>
+            </Show>
+          </Show>
+          <Show when={tab() === "processes"}>
+            <Show
+              when={processRows().length > 0}
+              fallback={
+                <ResourcesProcessesEmpty
+                  onCreateProcess={() => props.onCreateProcess?.()}
+                  onCreateFromTemplate={(template) => props.onSubmitProcessDialog?.(template.draft)}
+                />
+              }
+            >
+              <Show when={processes().length > 0} fallback={resourcesFilterEmpty("processes")}>
+                <DataTable.Root rows={processes()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "resources:processes" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "process")}>
+                  <DataTable.Table aria-label="Processes"><DataTable.Header><DataTable.ColumnHeader<ProcessFixture> id="name">Process</DataTable.ColumnHeader><DataTable.ColumnHeader<ProcessFixture> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<ProcessFixture> id="nodeName">Node</DataTable.ColumnHeader><DataTable.ColumnHeader<ProcessFixture> id="startedAt">Started</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<ProcessFixture>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "process")}><DataTable.PrimaryCell icon={<SquareTerminal size={16} />} iconTone="execution" title={item.name} /><DataTable.Cell><StatusChip tone={processTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell>{item.nodeName}</DataTable.Cell><DataTable.Cell>{item.startedAt}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
+                </DataTable.Root>
+              </Show>
             </Show>
           </Show>
         </PageContent>
       </div>
 
       <Show when={activeResource()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<Package size={16} />} title={item().name}><DetailPanel.Actions><DetailPanel.Action label="Open architecture" onClick={() => props.onOpenArchitecture?.(item().id)}><Package /></DetailPanel.Action></DetailPanel.Actions></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Resource"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={healthTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Type" value={item().type} /><DetailPanel.MetadataItem label="Provider" value={item().provider} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /><DetailPanel.MetadataItem label="Region" value={item().region} /><DetailPanel.MetadataItem label="Source" value="Local store" /></DetailPanel.Metadata><p class="mb-0 mt-3 text-[12px] text-[var(--color-text-secondary)]">{item().description}</p></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
-      <Show when={activeNode()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<Laptop size={16} />} title={item().name}><DetailPanel.Actions><DetailPanel.Action label="Open visual terminal" onClick={() => props.onTerminal?.()}><SquareTerminal /></DetailPanel.Action></DetailPanel.Actions></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Node"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={healthTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Platform" value={item().platform} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /><DetailPanel.MetadataItem label="Address" value={item().address} /><DetailPanel.MetadataItem label="CPU" value={item().cpu} /><DetailPanel.MetadataItem label="Memory" value={item().memory} /></DetailPanel.Metadata></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
+      <Show when={activeNode()}>{(item) => <DetailPanel.Content><DetailPanel.Header icon={<Laptop size={16} />} title={item().name}><DetailPanel.Actions><DetailPanel.Action label="Open visual terminal" onClick={() => props.onTerminal?.()}><SquareTerminal /></DetailPanel.Action></DetailPanel.Actions></DetailPanel.Header><DetailPanel.Body layout="sections"><DetailPanel.Grid><DetailPanel.Section title="Node"><DetailPanel.Metadata><DetailPanel.MetadataItem label="Status" value={<StatusChip tone={healthTone(item().status)} label={item().status} />} /><DetailPanel.MetadataItem label="Connection" value={item().connectionKind === "ssh" ? "SSH" : "Local"} /><DetailPanel.MetadataItem label="Platform" value={item().platform} /><DetailPanel.MetadataItem label="Environment" value={item().environment} /><DetailPanel.MetadataItem label="Address" value={item().connectionKind === "ssh" && item().sshUser ? `${item().sshUser}@${item().address}` : item().address} /><DetailPanel.MetadataItem label="CPU" value={item().cpu} /><DetailPanel.MetadataItem label="Memory" value={item().memory} /></DetailPanel.Metadata></DetailPanel.Section></DetailPanel.Grid></DetailPanel.Body></DetailPanel.Content>}</Show>
       <Show when={activeProcess()}>{(item) => (
         <DetailPanel.Content>
           <DetailPanel.Header icon={<SquareTerminal size={16} />} title={item().name}>
@@ -239,12 +303,15 @@ export function ResourcesView(props: {
               disabled={!name().trim()}
               onClick={() => props.onSubmitDialog?.({ name: name().trim(), type: type() })}
             >
-              Save
+              Save blank
             </Button>
           </>
         )}
       >
-        <div class="grid gap-3">
+        <div class="grid gap-4">
+          <ResourceInventoryTemplateGrid
+            onSelect={(template) => props.onSubmitDialog?.(template.draft)}
+          />
           <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
             This resource is stored in the local SQLite database.
           </p>
@@ -271,7 +338,11 @@ export function ResourcesView(props: {
 
       <CreateHostNodeDialog
         open={Boolean(props.nodeDialogOpen)}
-        onClose={() => props.onCloseNodeDialog?.()}
+        initialDraft={nodeSeed()}
+        onClose={() => {
+          setNodeSeed(null);
+          props.onCloseNodeDialog?.();
+        }}
         onSubmit={(draft) => props.onSubmitNodeDialog?.(draft)}
       />
 
@@ -279,6 +350,7 @@ export function ResourcesView(props: {
         open={Boolean(props.processDialogOpen)}
         onClose={() => props.onCloseProcessDialog?.()}
         onSubmit={(draft) => props.onSubmitProcessDialog?.(draft)}
+        onCreateFromTemplate={(template) => props.onSubmitProcessDialog?.(template.draft)}
       />
     </>
   );

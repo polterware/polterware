@@ -8,8 +8,15 @@ describe("first version routes", () => {
 
   it("exposes only retained project surfaces", () => {
     expect(["architecture", "resources", "knowledge", "operations", "terminal", "integrations", "settings"].every(isNavSectionId)).toBe(true);
-    expect(SECTION_TABS.knowledge?.map((tab) => tab.id)).toEqual(["docs", "runbooks"]);
+    expect(SECTION_TABS.knowledge?.map((tab) => tab.id)).toEqual(["docs", "adrs", "runbooks", "specs"]);
     expect(SECTION_TABS.operations?.map((tab) => tab.id)).toEqual(["runs", "workflows", "schedules"]);
+    expect(SECTION_TABS.settings?.map((tab) => tab.id)).toEqual([
+      "general",
+      "environments",
+      "shortcuts",
+      "agents",
+      "advanced",
+    ]);
   });
 
   it("switches local projects back to Architecture", () => {

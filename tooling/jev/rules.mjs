@@ -3,7 +3,7 @@ export const CURRENT_SCOPE = [
   "The renderer reads and writes only through window.polterware. It never spawns shells or uses Node APIs.",
   "Go core owns local execution: terminal PTY sessions, operations, workflows, and integration CLI probes.",
   "Product surfaces are Architecture, Resources, Knowledge, Operations, Terminal, and Integrations. Settings stays in the sidebar footer.",
-  "Knowledge exposes only Docs and Runbooks.",
+  "Knowledge exposes Docs, ADRs, Runbooks, and Specs (including one project Constitution and per-feature Spec, Plan, Tasks, Clarify, and Checklist).",
   "The integration catalog is exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker.",
   "Provider credentials stay in the OS or CLI credential store. SQLite must not store provider tokens.",
   "Web App, Cloud, the Polterware Project Model, and in-product agents are product direction. They are not current behavior.",

@@ -83,7 +83,7 @@ export {
 export { MainSurface, PageHeader, PageContent } from "./main-surface";
 export { SidebarNav, SidebarSettingsItem } from "./sidebar";
 export { TitleBar } from "./title-bar";
-export { TerminalPage } from "./terminal-page";
+export { TerminalPage, LOCAL_TERMINAL_TARGET } from "./terminal-page";
 export { TerminalEmulator } from "./terminal-emulator";
 export { TerminalTranscript } from "./terminal-transcript";
 export { CreateProjectPage } from "./create-project";
@@ -119,6 +119,8 @@ export {
   CATALOG_PROVIDER_MOCKS,
   DOCUMENT_MOCKS,
   RUNBOOK_MOCKS,
+  SPEC_FEATURE_MOCKS,
+  CONSTITUTION_MOCK,
 } from "./workspace-mocks";
 
 export const DEFAULT_NAV: NavItem[] = [

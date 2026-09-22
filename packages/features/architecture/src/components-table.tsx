@@ -5,18 +5,35 @@ import {
   nodeLifecycleTone,
 } from "./domain/node-lifecycle";
 import type { ArchitectureComponentRow } from "./components-list";
+import type { ArchitectureComponentTemplate } from "./create-templates";
+import {
+  ArchitectureComponentsEmpty,
+  architectureFilterEmpty,
+} from "./architecture-empty";
 
 export function ComponentsTable(props: {
   rows: ArchitectureComponentRow[];
+  sourceCount?: number;
   loading?: boolean;
   activeRowId?: string | null;
   onActivate?: (id: string) => void;
+  onAddComponent?: () => void;
+  onCreateFromTemplate?: (template: ArchitectureComponentTemplate) => void;
 }) {
+  const sourceCount = () => props.sourceCount ?? props.rows.length;
+
   return (
     <div class="flex h-full min-h-0 flex-col">
       <PageContent class="p-0">
         {props.loading ? (
           <PageLoading label="Loading components…" />
+        ) : sourceCount() === 0 ? (
+          <ArchitectureComponentsEmpty
+            onAddComponent={props.onAddComponent}
+            onCreateFromTemplate={props.onCreateFromTemplate}
+          />
+        ) : props.rows.length === 0 ? (
+          architectureFilterEmpty("components")
         ) : (
           <DataTable.Root
             rows={props.rows}
@@ -92,7 +109,6 @@ export function ComponentsTable(props: {
                   </DataTable.Row>
                 )}
               </DataTable.Body>
-              <DataTable.Empty>No architecture components yet.</DataTable.Empty>
             </DataTable.Table>
             <DataTable.Footer>
               <span>

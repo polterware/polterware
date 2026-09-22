@@ -2,6 +2,7 @@ import Resizable, { type Size } from "@corvu/resizable";
 import type { JSX } from "solid-js";
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { isServer } from "solid-js/web";
+import { matchesShortcut } from "@polterware/frontend-state";
 import "./resizable.css";
 
 /** Simple resizable split (Corvu behavior with product-owned layout). */
@@ -274,9 +275,21 @@ export function ResizableSidebar(props: ResizableSidebarProps) {
 
   onMount(() => {
     syncPanelSizes();
-    if (!rootElement || !("ResizeObserver" in globalThis)) return;
-    rootResizeObserver = new ResizeObserver(syncPanelSizes);
-    rootResizeObserver.observe(rootElement);
+    if (rootElement && "ResizeObserver" in globalThis) {
+      rootResizeObserver = new ResizeObserver(syncPanelSizes);
+      rootResizeObserver.observe(rootElement);
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat || !matchesShortcut("shell.toggle_sidebar", event)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      toggle();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    onCleanup(() => window.removeEventListener("keydown", onKeyDown, true));
   });
 
   function sidebarPanel(initialSize: Size) {

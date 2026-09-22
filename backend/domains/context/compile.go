@@ -1,0 +1,144 @@
+package contextpkg
+
+import (
+	"strings"
+	"unicode/utf8"
+)
+
+const DefaultTokenBudget = 1200
+const MaxTokenBudget = 8000
+
+type Request struct {
+	ProjectID   string
+	Query       string
+	EntityID    string
+	TokenBudget int
+}
+
+type Item struct {
+	Kind       string
+	ID         string
+	Title      string
+	Excerpt    string
+	TruthClass string
+	Source     string
+	Path       string
+}
+
+type Package struct {
+	ProjectID     string
+	Query         string
+	EntityID      string
+	TokenBudget   int
+	TokensUsed    int
+	Items         []Item
+	Truncated     bool
+}
+
+func NormalizeBudget(budget int) int {
+	if budget <= 0 {
+		return DefaultTokenBudget
+	}
+	if budget > MaxTokenBudget {
+		return MaxTokenBudget
+	}
+	return budget
+}
+
+func EstimateTokens(text string) int {
+	n := utf8.RuneCountInString(text)
+	if n == 0 {
+		return 0
+	}
+	// Rough English heuristic: ~4 characters per token.
+	tokens := (n + 3) / 4
+	if tokens < 1 {
+		return 1
+	}
+	return tokens
+}
+
+func Excerpt(body string, maxRunes int) string {
+	body = strings.TrimSpace(body)
+	if maxRunes <= 0 {
+		maxRunes = 240
+	}
+	runes := []rune(body)
+	if len(runes) <= maxRunes {
+		return body
+	}
+	return string(runes[:maxRunes]) + "…"
+}
+
+// Compile packs candidates under a token budget. Exact entity matches rank first,
+// then linked knowledge, then search hits. Declared truth outranks inferred.
+func Compile(req Request, candidates []Item) Package {
+	budget := NormalizeBudget(req.TokenBudget)
+	ranked := rank(candidates)
+	out := Package{
+		ProjectID:   req.ProjectID,
+		Query:       req.Query,
+		EntityID:    req.EntityID,
+		TokenBudget: budget,
+		Items:       make([]Item, 0, len(ranked)),
+	}
+	used := 0
+	for _, item := range ranked {
+		cost := EstimateTokens(item.Title) + EstimateTokens(item.Excerpt) + 8
+		if used+cost > budget && len(out.Items) > 0 {
+			out.Truncated = true
+			break
+		}
+		if used+cost > budget {
+			item.Excerpt = Excerpt(item.Excerpt, 80)
+			cost = EstimateTokens(item.Title) + EstimateTokens(item.Excerpt) + 8
+			if used+cost > budget {
+				out.Truncated = true
+				break
+			}
+		}
+		out.Items = append(out.Items, item)
+		used += cost
+	}
+	out.TokensUsed = used
+	return out
+}
+
+func rank(items []Item) []Item {
+	out := append([]Item(nil), items...)
+	for i := 0; i < len(out); i++ {
+		for j := i + 1; j < len(out); j++ {
+			if rankScore(out[j]) > rankScore(out[i]) {
+				out[i], out[j] = out[j], out[i]
+			}
+		}
+	}
+	return out
+}
+
+func rankScore(item Item) int {
+	score := 0
+	switch item.TruthClass {
+	case "declared":
+		score += 40
+	case "observed":
+		score += 30
+	case "operational":
+		score += 20
+	case "inferred":
+		score += 10
+	}
+	switch item.Kind {
+	case "entity":
+		score += 50
+	case "adr":
+		score += 35
+	case "doc":
+		score += 30
+	case "runbook":
+		score += 28
+	case "spec", "plan", "tasks", "clarify", "checklist", "constitution":
+		score += 25
+	}
+	return score
+}

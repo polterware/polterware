@@ -8,18 +8,25 @@ import type {
   TerminalTargetItem,
   WorkspaceCatalogProvider,
   WorkspaceDocument,
+  WorkspaceAdr,
+  WorkspacePpmEntity,
   WorkspaceIntegration,
   WorkspaceIntegrationResource,
   WorkspaceIntegrationSyncRun,
   WorkspaceRunbook,
+  WorkspaceSpecFeature,
+  WorkspaceConstitution,
 } from "@polterware/feature-shell";
 import { asNumber, asObjectArray, asRecord, asString } from "./format";
 import {
+  mapAdrs,
   mapConnections,
   mapDocuments,
   mapEnvironments,
   mapIntegrationResources,
+  mapKnowledgeEntityLinks,
   mapNodes,
+  mapPpmEntities,
   mapProcesses,
   mapProjects,
   mapProviders,
@@ -29,6 +36,8 @@ import {
   mapSchedules,
   mapSettings,
   mapSettingsEnvironments,
+  mapConstitution,
+  mapSpecFeatures,
   mapSyncRuns,
   mapTerminalTargets,
   mapViews,
@@ -48,7 +57,11 @@ export type WorkspaceSnapshot = {
   processes: ProcessFixture[];
   terminalTargets: TerminalTargetItem[];
   documents: WorkspaceDocument[];
+  adrs: WorkspaceAdr[];
   runbooks: WorkspaceRunbook[];
+  specFeatures: WorkspaceSpecFeature[];
+  constitution: WorkspaceConstitution | null;
+  ppmEntities: WorkspacePpmEntity[];
   runs: OperationRun[];
   workflows: OperationWorkflow[];
   schedules: OperationSchedule[];
@@ -85,7 +98,11 @@ export function emptyWorkspace(): WorkspaceSnapshot {
     processes: [],
     terminalTargets: [],
     documents: [],
+    adrs: [],
     runbooks: [],
+    specFeatures: [],
+    constitution: null,
+    ppmEntities: [],
     runs: [],
     workflows: [],
     schedules: [],
@@ -140,13 +157,15 @@ export async function loadWorkspace(projectId: string): Promise<WorkspaceSnapsho
     return asObjectArray(listedEnvs.environments);
   }))).flat();
 
-  const [settingsRes, layoutRes, resourcesRes, nodesRes, processesRes, knowledgeRes, operationsRes, workflowsRes, schedulesRes, providersRes, connectionsRes, integrationResourcesRes, syncRunsRes, viewsRes] = await Promise.all([
+  const [settingsRes, layoutRes, resourcesRes, nodesRes, processesRes, knowledgeRes, entitiesRes, linksRes, operationsRes, workflowsRes, schedulesRes, providersRes, connectionsRes, integrationResourcesRes, syncRunsRes, viewsRes] = await Promise.all([
     api.projects.getSettings({ projectId }),
     api.architecture.getLayout({ projectId }).catch(() => ({})),
     api.architecture.listResources({ projectId }),
     api.nodes.list({ projectId }),
     api.processes.list({ projectId }),
     api.knowledge.list({ projectId }),
+    api.ppm.listEntities({ projectId }).catch(() => ({ entities: [] })),
+    api.knowledge.listLinks({ projectId }).catch(() => ({ links: [] })),
     api.operations.list({ projectId, pageSize: 50 }),
     api.workflows.list({ projectId }),
     api.operations.listSchedules({ projectId }),
@@ -162,6 +181,8 @@ export async function loadWorkspace(projectId: string): Promise<WorkspaceSnapsho
   const nodes = mapNodes(rawNodes, projectEnvironments);
   const processes = mapProcesses(asObjectArray(asRecord(processesRes).sessions), nodes);
   const knowledgeItems = asObjectArray(asRecord(knowledgeRes).items);
+  const ppmEntities = mapPpmEntities(asObjectArray(asRecord(entitiesRes).entities));
+  const linksByKnowledge = mapKnowledgeEntityLinks(asObjectArray(asRecord(linksRes).links), ppmEntities);
   const operations = asObjectArray(asRecord(operationsRes).operations);
   const logsByOperation: Record<string, string[]> = {};
   await Promise.all(operations.map(async (operation) => {
@@ -187,8 +208,12 @@ export async function loadWorkspace(projectId: string): Promise<WorkspaceSnapsho
     nodes,
     processes,
     terminalTargets: mapTerminalTargets(rawNodes),
-    documents: mapDocuments(knowledgeItems),
-    runbooks: mapRunbooks(knowledgeItems),
+    documents: mapDocuments(knowledgeItems, linksByKnowledge),
+    adrs: mapAdrs(knowledgeItems, linksByKnowledge),
+    runbooks: mapRunbooks(knowledgeItems, linksByKnowledge),
+    specFeatures: mapSpecFeatures(knowledgeItems),
+    constitution: mapConstitution(knowledgeItems),
+    ppmEntities,
     runs: mapRuns(operations, projectEnvironments, logsByOperation),
     workflows,
     schedules: mapSchedules(asObjectArray(asRecord(schedulesRes).schedules), workflows, projectEnvironments),

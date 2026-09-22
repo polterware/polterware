@@ -402,6 +402,17 @@
   gap: 4px;
 }
 
+.pw-detail-panel__action-tooltip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.pw-detail-panel__action-tooltip-label {
+  min-width: 0;
+}
+
 .pw-detail-panel__actions {
   max-width: 100%;
   flex-wrap: wrap;

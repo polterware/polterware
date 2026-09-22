@@ -20,10 +20,12 @@ func Migrate(db *sql.DB) error {
 	)`); err != nil {
 		return err
 	}
-	if err := applyPendingMigrations(db); err != nil {
+	// Rebuild an incompatible legacy baseline before applying pending SQL.
+	// Pending migrations may assume the current first-version tables exist.
+	if err := ensureBaselineCompatible(db); err != nil {
 		return err
 	}
-	return ensureBaselineCompatible(db)
+	return applyPendingMigrations(db)
 }
 
 func applyPendingMigrations(db *sql.DB) error {

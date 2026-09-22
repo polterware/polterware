@@ -29,7 +29,8 @@ describe("Environments table composition contract", () => {
     expect(source).toContain("registerCollection");
     expect(source).toContain("activateTarget");
     expect(source).toContain("SETTINGS_TABS");
-    expect(source).toContain("Add environment");
+    expect(source).toContain('label="Add environment"');
+    expect(source).toContain("ToolbarIconButton");
     expect(source).toContain("<CreateEnvironmentDialog");
     expect(source).toContain("onCreateEnvironment");
     expect(source).toContain("onSetDefaultEnvironment");

@@ -34,8 +34,14 @@ type Node struct {
 	Cpu           string                 `protobuf:"bytes,9,opt,name=cpu,proto3" json:"cpu,omitempty"`
 	Memory        string                 `protobuf:"bytes,10,opt,name=memory,proto3" json:"memory,omitempty"`
 	LastSeenAt    string                 `protobuf:"bytes,11,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// connection_kind is "local" or "ssh" (agent reserved for later).
+	ConnectionKind string `protobuf:"bytes,12,opt,name=connection_kind,json=connectionKind,proto3" json:"connection_kind,omitempty"`
+	SshUser        string `protobuf:"bytes,13,opt,name=ssh_user,json=sshUser,proto3" json:"ssh_user,omitempty"`
+	SshPort        int32  `protobuf:"varint,14,opt,name=ssh_port,json=sshPort,proto3" json:"ssh_port,omitempty"`
+	// ssh_identity_file is a filesystem path only; never private key material.
+	SshIdentityFile string `protobuf:"bytes,15,opt,name=ssh_identity_file,json=sshIdentityFile,proto3" json:"ssh_identity_file,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Node) Reset() {
@@ -141,6 +147,34 @@ func (x *Node) GetMemory() string {
 func (x *Node) GetLastSeenAt() string {
 	if x != nil {
 		return x.LastSeenAt
+	}
+	return ""
+}
+
+func (x *Node) GetConnectionKind() string {
+	if x != nil {
+		return x.ConnectionKind
+	}
+	return ""
+}
+
+func (x *Node) GetSshUser() string {
+	if x != nil {
+		return x.SshUser
+	}
+	return ""
+}
+
+func (x *Node) GetSshPort() int32 {
+	if x != nil {
+		return x.SshPort
+	}
+	return 0
+}
+
+func (x *Node) GetSshIdentityFile() string {
+	if x != nil {
+		return x.SshIdentityFile
 	}
 	return ""
 }
@@ -325,7 +359,7 @@ var File_polterware_local_v1_node_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_node_proto_rawDesc = "" +
 	"\n" +
-	"\x1epolterware/local/v1/node.proto\x12\x13polterware.local.v1\"\xa0\x02\n" +
+	"\x1epolterware/local/v1/node.proto\x12\x13polterware.local.v1\"\xab\x03\n" +
 	"\x04Node\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -340,7 +374,11 @@ const file_polterware_local_v1_node_proto_rawDesc = "" +
 	"\x06memory\x18\n" +
 	" \x01(\tR\x06memory\x12 \n" +
 	"\flast_seen_at\x18\v \x01(\tR\n" +
-	"lastSeenAt\"1\n" +
+	"lastSeenAt\x12'\n" +
+	"\x0fconnection_kind\x18\f \x01(\tR\x0econnectionKind\x12\x19\n" +
+	"\bssh_user\x18\r \x01(\tR\asshUser\x12\x19\n" +
+	"\bssh_port\x18\x0e \x01(\x05R\asshPort\x12*\n" +
+	"\x11ssh_identity_file\x18\x0f \x01(\tR\x0fsshIdentityFile\"1\n" +
 	"\x10ListNodesRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\"D\n" +

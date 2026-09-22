@@ -17,6 +17,27 @@ message KnowledgeItem {
   string updated_at = 12;
 }
 
+message KnowledgeEntityLink {
+  string id = 1;
+  string project_id = 2;
+  string knowledge_id = 3;
+  string entity_id = 4;
+  string predicate = 5;
+  string truth_class = 6;
+  string source = 7;
+  string actor = 8;
+  string observed_at = 9;
+  string created_at = 10;
+}
+
+message KnowledgeSearchHit {
+  KnowledgeItem item = 1;
+  double score = 2;
+  string snippet = 3;
+  string truth_class = 4;
+  string source = 5;
+}
+
 message SaveKnowledgeRequest { KnowledgeItem item = 1; }
 message SaveKnowledgeResponse { KnowledgeItem item = 1; }
 message ListKnowledgeRequest { string project_id = 1; string kind = 2; }
@@ -24,8 +45,43 @@ message ListKnowledgeResponse { repeated KnowledgeItem items = 1; }
 message DeleteKnowledgeRequest { string id = 1; }
 message DeleteKnowledgeResponse {}
 
+message SearchKnowledgeRequest {
+  string project_id = 1;
+  string query = 2;
+  string kind = 3;
+  int32 limit = 4;
+}
+message SearchKnowledgeResponse {
+  repeated KnowledgeSearchHit hits = 1;
+}
+
+message ListKnowledgeLinksRequest {
+  string project_id = 1;
+  string knowledge_id = 2;
+  string entity_id = 3;
+}
+message ListKnowledgeLinksResponse {
+  repeated KnowledgeEntityLink links = 1;
+}
+
+message SaveKnowledgeLinkRequest {
+  KnowledgeEntityLink link = 1;
+}
+message SaveKnowledgeLinkResponse {
+  KnowledgeEntityLink link = 1;
+}
+
+message DeleteKnowledgeLinkRequest {
+  string id = 1;
+}
+message DeleteKnowledgeLinkResponse {}
+
 service KnowledgeService {
   rpc SaveKnowledge(SaveKnowledgeRequest) returns (SaveKnowledgeResponse);
   rpc ListKnowledge(ListKnowledgeRequest) returns (ListKnowledgeResponse);
   rpc DeleteKnowledge(DeleteKnowledgeRequest) returns (DeleteKnowledgeResponse);
+  rpc SearchKnowledge(SearchKnowledgeRequest) returns (SearchKnowledgeResponse);
+  rpc ListKnowledgeLinks(ListKnowledgeLinksRequest) returns (ListKnowledgeLinksResponse);
+  rpc SaveKnowledgeLink(SaveKnowledgeLinkRequest) returns (SaveKnowledgeLinkResponse);
+  rpc DeleteKnowledgeLink(DeleteKnowledgeLinkRequest) returns (DeleteKnowledgeLinkResponse);
 }

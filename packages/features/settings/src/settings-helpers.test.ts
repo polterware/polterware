@@ -9,10 +9,12 @@ import {
 } from "./settings-helpers";
 
 describe("settings helpers", () => {
-  it("exposes only General · Environments · Advanced tabs", () => {
+  it("exposes General · Environments · Shortcuts · Agents · Advanced tabs", () => {
     expect(SETTINGS_TABS.map((tab) => tab.id)).toEqual([
       "general",
       "environments",
+      "shortcuts",
+      "agents",
       "advanced",
     ]);
     const labels = SETTINGS_TABS.map((tab) => tab.label).join(" ");
@@ -22,6 +24,8 @@ describe("settings helpers", () => {
   it("normalizes legacy Access/Integrations tab ids to general", () => {
     expect(normalizeSettingsTab("unknown")).toBe("general");
     expect(normalizeSettingsTab("environments")).toBe("environments");
+    expect(normalizeSettingsTab("shortcuts")).toBe("shortcuts");
+    expect(normalizeSettingsTab("agents")).toBe("agents");
     expect(normalizeSettingsTab(undefined)).toBe("general");
   });
 

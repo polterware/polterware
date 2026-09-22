@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@polterware/frontend-design-system": "workspace:*",
-    "@polterware/frontend-platform": "workspace:*"
+    "@polterware/frontend-platform": "workspace:*",
+    "@polterware/frontend-state": "workspace:*"
   }
 }

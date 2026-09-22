@@ -18,8 +18,8 @@ func TestOpenMigrateVersions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(vers) != 1 || vers[0] != 1 {
-		t.Fatalf("want [1] got %v", vers)
+	if len(vers) != 5 || vers[0] != 1 || vers[1] != 2 || vers[2] != 3 || vers[3] != 4 || vers[4] != 5 {
+		t.Fatalf("want [1 2 3 4 5] got %v", vers)
 	}
 	// idempotent
 	if err := Migrate(db); err != nil {

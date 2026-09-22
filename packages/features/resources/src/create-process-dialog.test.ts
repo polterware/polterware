@@ -15,10 +15,12 @@ describe("Resources process start/stop contract", () => {
 
   it("wires Start process, Stop, and empty state on the Processes tab", () => {
     const index = readFileSync(resolve(root, "index.tsx"), "utf8");
+    const empty = readFileSync(resolve(root, "resources-empty.tsx"), "utf8");
     expect(index).toContain(">Start process<");
     expect(index).toContain("onStopProcess");
     expect(index).toContain('label="Stop"');
-    expect(index).toContain("No local processes");
+    expect(index).toContain("ResourcesProcessesEmpty");
+    expect(empty).toContain("No local processes");
     expect(index).toContain("Local core");
     expect(index).not.toContain('label="Preview command"');
     expect(index).toContain("CreateProcessDialog");

@@ -1,5 +1,7 @@
 import { createEffect, createSignal } from "solid-js";
 import { A11yDialog, Button, Field, Input, Textarea } from "@polterware/frontend-design-system";
+import type { OperationsWorkflowTemplate } from "./create-templates";
+import { OperationsWorkflowTemplateGrid } from "./operations-template-grid";
 
 export type CreateWorkflowDraft = {
   name: string;
@@ -10,6 +12,7 @@ export function CreateWorkflowDialog(props: {
   open: boolean;
   onClose: () => void;
   onSubmit: (draft: CreateWorkflowDraft) => void;
+  onCreateFromTemplate?: (template: OperationsWorkflowTemplate) => void;
 }) {
   const [name, setName] = createSignal("");
   const [description, setDescription] = createSignal("");
@@ -38,7 +41,8 @@ export function CreateWorkflowDialog(props: {
     <A11yDialog
       open={props.open}
       title="Add workflow"
-      description="This workflow is stored in the local SQLite database and can run locally through polterware-core."
+      description="Pick a template or create a blank workflow stored in the local SQLite database."
+      size="xl"
       onClose={close}
       footer={
         <>
@@ -46,12 +50,17 @@ export function CreateWorkflowDialog(props: {
             Cancel
           </Button>
           <Button size="sm" variant="primary" disabled={!canSubmit()} onClick={submit}>
-            Create
+            Create blank
           </Button>
         </>
       }
     >
-      <div class="grid gap-3">
+      <div class="grid gap-4">
+        {props.onCreateFromTemplate ? (
+          <OperationsWorkflowTemplateGrid
+            onSelect={(template) => props.onCreateFromTemplate?.(template)}
+          />
+        ) : null}
         <Field label="Name">
           <Input
             size="sm"

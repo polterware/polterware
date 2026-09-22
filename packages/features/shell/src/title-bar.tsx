@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight, Search, Terminal } from "@polterware/frontend-design-system";
+import { createShortcutLabel } from "@polterware/frontend-state";
 import {
   WorkspaceContextBar,
   type BreadcrumbLevel,
@@ -25,6 +26,7 @@ export type TitleBarProps = {
 };
 
 export function TitleBar(props: TitleBarProps) {
+  const commanderShortcut = createShortcutLabel("shell.toggle_commander");
   return (
     <header
       class="window-title-bar"
@@ -81,7 +83,7 @@ export function TitleBar(props: TitleBarProps) {
         <button
           type="button"
           aria-label="Search or run a command"
-          title="Commander (⌘K)"
+          title={`Commander (${commanderShortcut()})`}
           onClick={() => props.onOpenCommander?.()}
           class={headerIconControlClass}
         >

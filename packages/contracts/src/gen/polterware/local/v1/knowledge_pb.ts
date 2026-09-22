@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/knowledge.proto.
  */
 export const file_polterware_local_v1_knowledge: GenFile = /*@__PURE__*/
-  fileDesc("CiNwb2x0ZXJ3YXJlL2xvY2FsL3YxL2tub3dsZWRnZS5wcm90bxITcG9sdGVyd2FyZS5sb2NhbC52MSLUAQoNS25vd2xlZGdlSXRlbRIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEg0KBXRpdGxlGAMgASgJEgwKBGJvZHkYBCABKAkSDAoEa2luZBgFIAEoCRIMCgR0YWdzGAYgAygJEg8KB3N1bW1hcnkYByABKAkSDQoFb3duZXIYCCABKAkSDgoGc3RhdHVzGAkgASgJEhIKCmV4dHJhX2pzb24YCiABKAkSEgoKY3JlYXRlZF9hdBgLIAEoCRISCgp1cGRhdGVkX2F0GAwgASgJIkgKFFNhdmVLbm93bGVkZ2VSZXF1ZXN0EjAKBGl0ZW0YASABKAsyIi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLktub3dsZWRnZUl0ZW0iSQoVU2F2ZUtub3dsZWRnZVJlc3BvbnNlEjAKBGl0ZW0YASABKAsyIi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLktub3dsZWRnZUl0ZW0iOAoUTGlzdEtub3dsZWRnZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIMCgRraW5kGAIgASgJIkoKFUxpc3RLbm93bGVkZ2VSZXNwb25zZRIxCgVpdGVtcxgBIAMoCzIiLnBvbHRlcndhcmUubG9jYWwudjEuS25vd2xlZGdlSXRlbSIkChZEZWxldGVLbm93bGVkZ2VSZXF1ZXN0EgoKAmlkGAEgASgJIhkKF0RlbGV0ZUtub3dsZWRnZVJlc3BvbnNlMtACChBLbm93bGVkZ2VTZXJ2aWNlEmYKDVNhdmVLbm93bGVkZ2USKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVLbm93bGVkZ2VSZXF1ZXN0GioucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlS25vd2xlZGdlUmVzcG9uc2USZgoNTGlzdEtub3dsZWRnZRIpLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEtub3dsZWRnZVJlcXVlc3QaKi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RLbm93bGVkZ2VSZXNwb25zZRJsCg9EZWxldGVLbm93bGVkZ2USKy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkRlbGV0ZUtub3dsZWRnZVJlcXVlc3QaLC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkRlbGV0ZUtub3dsZWRnZVJlc3BvbnNlQuoBChdjb20ucG9sdGVyd2FyZS5sb2NhbC52MUIOS25vd2xlZGdlUHJvdG9QAVpRZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvYmFja2VuZC9wbGF0Zm9ybS9nZW4vcG9sdGVyd2FyZS9sb2NhbC92MTtsb2NhbHYxogIDUExYqgITUG9sdGVyd2FyZS5Mb2NhbC5WMcoCE1BvbHRlcndhcmVcTG9jYWxcVjHiAh9Qb2x0ZXJ3YXJlXExvY2FsXFYxXEdQQk1ldGFkYXRh6gIVUG9sdGVyd2FyZTo6TG9jYWw6OlYxYgZwcm90bzM");
+  fileDesc("CiNwb2x0ZXJ3YXJlL2xvY2FsL3YxL2tub3dsZWRnZS5wcm90bxITcG9sdGVyd2FyZS5sb2NhbC52MSLUAQoNS25vd2xlZGdlSXRlbRIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEg0KBXRpdGxlGAMgASgJEgwKBGJvZHkYBCABKAkSDAoEa2luZBgFIAEoCRIMCgR0YWdzGAYgAygJEg8KB3N1bW1hcnkYByABKAkSDQoFb3duZXIYCCABKAkSDgoGc3RhdHVzGAkgASgJEhIKCmV4dHJhX2pzb24YCiABKAkSEgoKY3JlYXRlZF9hdBgLIAEoCRISCgp1cGRhdGVkX2F0GAwgASgJIs4BChNLbm93bGVkZ2VFbnRpdHlMaW5rEgoKAmlkGAEgASgJEhIKCnByb2plY3RfaWQYAiABKAkSFAoMa25vd2xlZGdlX2lkGAMgASgJEhEKCWVudGl0eV9pZBgEIAEoCRIRCglwcmVkaWNhdGUYBSABKAkSEwoLdHJ1dGhfY2xhc3MYBiABKAkSDgoGc291cmNlGAcgASgJEg0KBWFjdG9yGAggASgJEhMKC29ic2VydmVkX2F0GAkgASgJEhIKCmNyZWF0ZWRfYXQYCiABKAkiiwEKEktub3dsZWRnZVNlYXJjaEhpdBIwCgRpdGVtGAEgASgLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5Lbm93bGVkZ2VJdGVtEg0KBXNjb3JlGAIgASgBEg8KB3NuaXBwZXQYAyABKAkSEwoLdHJ1dGhfY2xhc3MYBCABKAkSDgoGc291cmNlGAUgASgJIkgKFFNhdmVLbm93bGVkZ2VSZXF1ZXN0EjAKBGl0ZW0YASABKAsyIi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLktub3dsZWRnZUl0ZW0iSQoVU2F2ZUtub3dsZWRnZVJlc3BvbnNlEjAKBGl0ZW0YASABKAsyIi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLktub3dsZWRnZUl0ZW0iOAoUTGlzdEtub3dsZWRnZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIMCgRraW5kGAIgASgJIkoKFUxpc3RLbm93bGVkZ2VSZXNwb25zZRIxCgVpdGVtcxgBIAMoCzIiLnBvbHRlcndhcmUubG9jYWwudjEuS25vd2xlZGdlSXRlbSIkChZEZWxldGVLbm93bGVkZ2VSZXF1ZXN0EgoKAmlkGAEgASgJIhkKF0RlbGV0ZUtub3dsZWRnZVJlc3BvbnNlIlgKFlNlYXJjaEtub3dsZWRnZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRINCgVxdWVyeRgCIAEoCRIMCgRraW5kGAMgASgJEg0KBWxpbWl0GAQgASgFIlAKF1NlYXJjaEtub3dsZWRnZVJlc3BvbnNlEjUKBGhpdHMYASADKAsyJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLktub3dsZWRnZVNlYXJjaEhpdCJYChlMaXN0S25vd2xlZGdlTGlua3NSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSFAoMa25vd2xlZGdlX2lkGAIgASgJEhEKCWVudGl0eV9pZBgDIAEoCSJVChpMaXN0S25vd2xlZGdlTGlua3NSZXNwb25zZRI3CgVsaW5rcxgBIAMoCzIoLnBvbHRlcndhcmUubG9jYWwudjEuS25vd2xlZGdlRW50aXR5TGluayJSChhTYXZlS25vd2xlZGdlTGlua1JlcXVlc3QSNgoEbGluaxgBIAEoCzIoLnBvbHRlcndhcmUubG9jYWwudjEuS25vd2xlZGdlRW50aXR5TGluayJTChlTYXZlS25vd2xlZGdlTGlua1Jlc3BvbnNlEjYKBGxpbmsYASABKAsyKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLktub3dsZWRnZUVudGl0eUxpbmsiKAoaRGVsZXRlS25vd2xlZGdlTGlua1JlcXVlc3QSCgoCaWQYASABKAkiHQobRGVsZXRlS25vd2xlZGdlTGlua1Jlc3BvbnNlMqMGChBLbm93bGVkZ2VTZXJ2aWNlEmYKDVNhdmVLbm93bGVkZ2USKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVLbm93bGVkZ2VSZXF1ZXN0GioucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlS25vd2xlZGdlUmVzcG9uc2USZgoNTGlzdEtub3dsZWRnZRIpLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEtub3dsZWRnZVJlcXVlc3QaKi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RLbm93bGVkZ2VSZXNwb25zZRJsCg9EZWxldGVLbm93bGVkZ2USKy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkRlbGV0ZUtub3dsZWRnZVJlcXVlc3QaLC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkRlbGV0ZUtub3dsZWRnZVJlc3BvbnNlEmwKD1NlYXJjaEtub3dsZWRnZRIrLnBvbHRlcndhcmUubG9jYWwudjEuU2VhcmNoS25vd2xlZGdlUmVxdWVzdBosLnBvbHRlcndhcmUubG9jYWwudjEuU2VhcmNoS25vd2xlZGdlUmVzcG9uc2USdQoSTGlzdEtub3dsZWRnZUxpbmtzEi4ucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0S25vd2xlZGdlTGlua3NSZXF1ZXN0Gi8ucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0S25vd2xlZGdlTGlua3NSZXNwb25zZRJyChFTYXZlS25vd2xlZGdlTGluaxItLnBvbHRlcndhcmUubG9jYWwudjEuU2F2ZUtub3dsZWRnZUxpbmtSZXF1ZXN0Gi4ucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlS25vd2xlZGdlTGlua1Jlc3BvbnNlEngKE0RlbGV0ZUtub3dsZWRnZUxpbmsSLy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkRlbGV0ZUtub3dsZWRnZUxpbmtSZXF1ZXN0GjAucG9sdGVyd2FyZS5sb2NhbC52MS5EZWxldGVLbm93bGVkZ2VMaW5rUmVzcG9uc2VC6gEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQg5Lbm93bGVkZ2VQcm90b1ABWlFnaXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9iYWNrZW5kL3BsYXRmb3JtL2dlbi9wb2x0ZXJ3YXJlL2xvY2FsL3YxO2xvY2FsdjGiAgNQTFiqAhNQb2x0ZXJ3YXJlLkxvY2FsLlYxygITUG9sdGVyd2FyZVxMb2NhbFxWMeICH1BvbHRlcndhcmVcTG9jYWxcVjFcR1BCTWV0YWRhdGHqAhVQb2x0ZXJ3YXJlOjpMb2NhbDo6VjFiBnByb3RvMw");
 
 /**
  * @generated from message polterware.local.v1.KnowledgeItem
@@ -85,6 +85,105 @@ export const KnowledgeItemSchema: GenMessage<KnowledgeItem> = /*@__PURE__*/
   messageDesc(file_polterware_local_v1_knowledge, 0);
 
 /**
+ * @generated from message polterware.local.v1.KnowledgeEntityLink
+ */
+export type KnowledgeEntityLink = Message<"polterware.local.v1.KnowledgeEntityLink"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string project_id = 2;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string knowledge_id = 3;
+   */
+  knowledgeId: string;
+
+  /**
+   * @generated from field: string entity_id = 4;
+   */
+  entityId: string;
+
+  /**
+   * @generated from field: string predicate = 5;
+   */
+  predicate: string;
+
+  /**
+   * @generated from field: string truth_class = 6;
+   */
+  truthClass: string;
+
+  /**
+   * @generated from field: string source = 7;
+   */
+  source: string;
+
+  /**
+   * @generated from field: string actor = 8;
+   */
+  actor: string;
+
+  /**
+   * @generated from field: string observed_at = 9;
+   */
+  observedAt: string;
+
+  /**
+   * @generated from field: string created_at = 10;
+   */
+  createdAt: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.KnowledgeEntityLink.
+ * Use `create(KnowledgeEntityLinkSchema)` to create a new message.
+ */
+export const KnowledgeEntityLinkSchema: GenMessage<KnowledgeEntityLink> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_knowledge, 1);
+
+/**
+ * @generated from message polterware.local.v1.KnowledgeSearchHit
+ */
+export type KnowledgeSearchHit = Message<"polterware.local.v1.KnowledgeSearchHit"> & {
+  /**
+   * @generated from field: polterware.local.v1.KnowledgeItem item = 1;
+   */
+  item?: KnowledgeItem | undefined;
+
+  /**
+   * @generated from field: double score = 2;
+   */
+  score: number;
+
+  /**
+   * @generated from field: string snippet = 3;
+   */
+  snippet: string;
+
+  /**
+   * @generated from field: string truth_class = 4;
+   */
+  truthClass: string;
+
+  /**
+   * @generated from field: string source = 5;
+   */
+  source: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.KnowledgeSearchHit.
+ * Use `create(KnowledgeSearchHitSchema)` to create a new message.
+ */
+export const KnowledgeSearchHitSchema: GenMessage<KnowledgeSearchHit> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_knowledge, 2);
+
+/**
  * @generated from message polterware.local.v1.SaveKnowledgeRequest
  */
 export type SaveKnowledgeRequest = Message<"polterware.local.v1.SaveKnowledgeRequest"> & {
@@ -99,7 +198,7 @@ export type SaveKnowledgeRequest = Message<"polterware.local.v1.SaveKnowledgeReq
  * Use `create(SaveKnowledgeRequestSchema)` to create a new message.
  */
 export const SaveKnowledgeRequestSchema: GenMessage<SaveKnowledgeRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_knowledge, 1);
+  messageDesc(file_polterware_local_v1_knowledge, 3);
 
 /**
  * @generated from message polterware.local.v1.SaveKnowledgeResponse
@@ -116,7 +215,7 @@ export type SaveKnowledgeResponse = Message<"polterware.local.v1.SaveKnowledgeRe
  * Use `create(SaveKnowledgeResponseSchema)` to create a new message.
  */
 export const SaveKnowledgeResponseSchema: GenMessage<SaveKnowledgeResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_knowledge, 2);
+  messageDesc(file_polterware_local_v1_knowledge, 4);
 
 /**
  * @generated from message polterware.local.v1.ListKnowledgeRequest
@@ -138,7 +237,7 @@ export type ListKnowledgeRequest = Message<"polterware.local.v1.ListKnowledgeReq
  * Use `create(ListKnowledgeRequestSchema)` to create a new message.
  */
 export const ListKnowledgeRequestSchema: GenMessage<ListKnowledgeRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_knowledge, 3);
+  messageDesc(file_polterware_local_v1_knowledge, 5);
 
 /**
  * @generated from message polterware.local.v1.ListKnowledgeResponse
@@ -155,7 +254,7 @@ export type ListKnowledgeResponse = Message<"polterware.local.v1.ListKnowledgeRe
  * Use `create(ListKnowledgeResponseSchema)` to create a new message.
  */
 export const ListKnowledgeResponseSchema: GenMessage<ListKnowledgeResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_knowledge, 4);
+  messageDesc(file_polterware_local_v1_knowledge, 6);
 
 /**
  * @generated from message polterware.local.v1.DeleteKnowledgeRequest
@@ -172,7 +271,7 @@ export type DeleteKnowledgeRequest = Message<"polterware.local.v1.DeleteKnowledg
  * Use `create(DeleteKnowledgeRequestSchema)` to create a new message.
  */
 export const DeleteKnowledgeRequestSchema: GenMessage<DeleteKnowledgeRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_knowledge, 5);
+  messageDesc(file_polterware_local_v1_knowledge, 7);
 
 /**
  * @generated from message polterware.local.v1.DeleteKnowledgeResponse
@@ -185,7 +284,164 @@ export type DeleteKnowledgeResponse = Message<"polterware.local.v1.DeleteKnowled
  * Use `create(DeleteKnowledgeResponseSchema)` to create a new message.
  */
 export const DeleteKnowledgeResponseSchema: GenMessage<DeleteKnowledgeResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_knowledge, 6);
+  messageDesc(file_polterware_local_v1_knowledge, 8);
+
+/**
+ * @generated from message polterware.local.v1.SearchKnowledgeRequest
+ */
+export type SearchKnowledgeRequest = Message<"polterware.local.v1.SearchKnowledgeRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string query = 2;
+   */
+  query: string;
+
+  /**
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: int32 limit = 4;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message polterware.local.v1.SearchKnowledgeRequest.
+ * Use `create(SearchKnowledgeRequestSchema)` to create a new message.
+ */
+export const SearchKnowledgeRequestSchema: GenMessage<SearchKnowledgeRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_knowledge, 9);
+
+/**
+ * @generated from message polterware.local.v1.SearchKnowledgeResponse
+ */
+export type SearchKnowledgeResponse = Message<"polterware.local.v1.SearchKnowledgeResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.KnowledgeSearchHit hits = 1;
+   */
+  hits: KnowledgeSearchHit[];
+};
+
+/**
+ * Describes the message polterware.local.v1.SearchKnowledgeResponse.
+ * Use `create(SearchKnowledgeResponseSchema)` to create a new message.
+ */
+export const SearchKnowledgeResponseSchema: GenMessage<SearchKnowledgeResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_knowledge, 10);
+
+/**
+ * @generated from message polterware.local.v1.ListKnowledgeLinksRequest
+ */
+export type ListKnowledgeLinksRequest = Message<"polterware.local.v1.ListKnowledgeLinksRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string knowledge_id = 2;
+   */
+  knowledgeId: string;
+
+  /**
+   * @generated from field: string entity_id = 3;
+   */
+  entityId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListKnowledgeLinksRequest.
+ * Use `create(ListKnowledgeLinksRequestSchema)` to create a new message.
+ */
+export const ListKnowledgeLinksRequestSchema: GenMessage<ListKnowledgeLinksRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_knowledge, 11);
+
+/**
+ * @generated from message polterware.local.v1.ListKnowledgeLinksResponse
+ */
+export type ListKnowledgeLinksResponse = Message<"polterware.local.v1.ListKnowledgeLinksResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.KnowledgeEntityLink links = 1;
+   */
+  links: KnowledgeEntityLink[];
+};
+
+/**
+ * Describes the message polterware.local.v1.ListKnowledgeLinksResponse.
+ * Use `create(ListKnowledgeLinksResponseSchema)` to create a new message.
+ */
+export const ListKnowledgeLinksResponseSchema: GenMessage<ListKnowledgeLinksResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_knowledge, 12);
+
+/**
+ * @generated from message polterware.local.v1.SaveKnowledgeLinkRequest
+ */
+export type SaveKnowledgeLinkRequest = Message<"polterware.local.v1.SaveKnowledgeLinkRequest"> & {
+  /**
+   * @generated from field: polterware.local.v1.KnowledgeEntityLink link = 1;
+   */
+  link?: KnowledgeEntityLink | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.SaveKnowledgeLinkRequest.
+ * Use `create(SaveKnowledgeLinkRequestSchema)` to create a new message.
+ */
+export const SaveKnowledgeLinkRequestSchema: GenMessage<SaveKnowledgeLinkRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_knowledge, 13);
+
+/**
+ * @generated from message polterware.local.v1.SaveKnowledgeLinkResponse
+ */
+export type SaveKnowledgeLinkResponse = Message<"polterware.local.v1.SaveKnowledgeLinkResponse"> & {
+  /**
+   * @generated from field: polterware.local.v1.KnowledgeEntityLink link = 1;
+   */
+  link?: KnowledgeEntityLink | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.SaveKnowledgeLinkResponse.
+ * Use `create(SaveKnowledgeLinkResponseSchema)` to create a new message.
+ */
+export const SaveKnowledgeLinkResponseSchema: GenMessage<SaveKnowledgeLinkResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_knowledge, 14);
+
+/**
+ * @generated from message polterware.local.v1.DeleteKnowledgeLinkRequest
+ */
+export type DeleteKnowledgeLinkRequest = Message<"polterware.local.v1.DeleteKnowledgeLinkRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.DeleteKnowledgeLinkRequest.
+ * Use `create(DeleteKnowledgeLinkRequestSchema)` to create a new message.
+ */
+export const DeleteKnowledgeLinkRequestSchema: GenMessage<DeleteKnowledgeLinkRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_knowledge, 15);
+
+/**
+ * @generated from message polterware.local.v1.DeleteKnowledgeLinkResponse
+ */
+export type DeleteKnowledgeLinkResponse = Message<"polterware.local.v1.DeleteKnowledgeLinkResponse"> & {
+};
+
+/**
+ * Describes the message polterware.local.v1.DeleteKnowledgeLinkResponse.
+ * Use `create(DeleteKnowledgeLinkResponseSchema)` to create a new message.
+ */
+export const DeleteKnowledgeLinkResponseSchema: GenMessage<DeleteKnowledgeLinkResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_knowledge, 16);
 
 /**
  * @generated from service polterware.local.v1.KnowledgeService
@@ -214,6 +470,38 @@ export const KnowledgeService: GenService<{
     methodKind: "unary";
     input: typeof DeleteKnowledgeRequestSchema;
     output: typeof DeleteKnowledgeResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.KnowledgeService.SearchKnowledge
+   */
+  searchKnowledge: {
+    methodKind: "unary";
+    input: typeof SearchKnowledgeRequestSchema;
+    output: typeof SearchKnowledgeResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.KnowledgeService.ListKnowledgeLinks
+   */
+  listKnowledgeLinks: {
+    methodKind: "unary";
+    input: typeof ListKnowledgeLinksRequestSchema;
+    output: typeof ListKnowledgeLinksResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.KnowledgeService.SaveKnowledgeLink
+   */
+  saveKnowledgeLink: {
+    methodKind: "unary";
+    input: typeof SaveKnowledgeLinkRequestSchema;
+    output: typeof SaveKnowledgeLinkResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.KnowledgeService.DeleteKnowledgeLink
+   */
+  deleteKnowledgeLink: {
+    methodKind: "unary";
+    input: typeof DeleteKnowledgeLinkRequestSchema;
+    output: typeof DeleteKnowledgeLinkResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_polterware_local_v1_knowledge, 0);

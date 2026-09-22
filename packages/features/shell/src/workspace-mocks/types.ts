@@ -83,6 +83,27 @@ export type WorkspaceIntegrationSyncRun = {
   message: string;
 };
 
+export type WorkspaceEntityLink = {
+  id: string;
+  entityId: string;
+  entityTitle: string;
+  entityKind: string;
+  entityRefId: string;
+  predicate: string;
+  truthClass: string;
+  source: string;
+};
+
+export type WorkspacePpmEntity = {
+  id: string;
+  kind: string;
+  refKind: string;
+  refId: string;
+  title: string;
+  truthClass: string;
+  source: string;
+};
+
 export type WorkspaceDocument = {
   id: string;
   title: string;
@@ -97,6 +118,19 @@ export type WorkspaceDocument = {
   status: "draft" | "published";
   archived?: boolean;
   owner: string;
+  entityLinks: WorkspaceEntityLink[];
+};
+
+export type WorkspaceAdr = {
+  id: string;
+  title: string;
+  summary: string;
+  bodyMarkdown: string;
+  updatedAt: string;
+  tags: string[];
+  status: string;
+  owner: string;
+  entityLinks: WorkspaceEntityLink[];
 };
 
 export type WorkspaceRunbook = {
@@ -118,4 +152,41 @@ export type WorkspaceRunbook = {
   resourceName?: string;
   nodeId?: string;
   operationId?: string;
+  entityLinks: WorkspaceEntityLink[];
+};
+
+export type WorkspaceSpecArtifactKind = "spec" | "plan" | "tasks" | "clarify" | "checklist";
+
+export type WorkspaceSpecArtifact = {
+  id: string;
+  kind: WorkspaceSpecArtifactKind;
+  title: string;
+  bodyMarkdown: string;
+  status: "draft" | "ready";
+  updatedAt: string;
+  owner: string;
+  featureKey: string;
+};
+
+export type WorkspaceSpecFeature = {
+  featureKey: string;
+  title: string;
+  status: "draft" | "ready";
+  updatedAt: string;
+  owner: string;
+  summary: string;
+  spec: WorkspaceSpecArtifact;
+  plan: WorkspaceSpecArtifact;
+  tasks: WorkspaceSpecArtifact;
+  clarify: WorkspaceSpecArtifact;
+  checklist: WorkspaceSpecArtifact;
+};
+
+export type WorkspaceConstitution = {
+  id: string;
+  title: string;
+  bodyMarkdown: string;
+  updatedAt: string;
+  owner: string;
+  status: string;
 };

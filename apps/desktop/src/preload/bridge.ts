@@ -19,6 +19,12 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
       listIcons: () => ipc.invoke(IPC_CHANNELS.app.listIcons),
       getIcon: () => ipc.invoke(IPC_CHANNELS.app.getIcon),
       setIcon: (id: string) => ipc.invoke(IPC_CHANNELS.app.setIcon, { id }),
+      getShortcutPreferences: () => ipc.invoke(IPC_CHANNELS.app.getShortcutPreferences),
+      setShortcutPreferences: (overrides: Record<string, string>) =>
+        ipc.invoke(IPC_CHANNELS.app.setShortcutPreferences, { overrides }),
+      getMcpStatus: () => ipc.invoke(IPC_CHANNELS.app.getMcpStatus),
+      startMcp: () => ipc.invoke(IPC_CHANNELS.app.startMcp),
+      stopMcp: () => ipc.invoke(IPC_CHANNELS.app.stopMcp),
       openExternal: (url: string) => ipc.invoke(IPC_CHANNELS.app.openExternal, { url }),
     },
     commander: {
@@ -63,6 +69,19 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
         list: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listKnowledge, payload),
         save: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveKnowledge, payload),
         delete: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.deleteKnowledge, payload),
+        search: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.searchKnowledge, payload),
+        listLinks: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listKnowledgeLinks, payload),
+        saveLink: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveKnowledgeLink, payload),
+        deleteLink: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.deleteKnowledgeLink, payload),
+      },
+      ppm: {
+        listEntities: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listPpmEntities, payload),
+        sync: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.syncProjectModel, payload),
+      },
+      context: {
+        compile: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.compileContext, payload),
+        listToolCalls: (payload?: JsonObject) =>
+          coreCall(ipc, IPC_CHANNELS.core.listAgentToolCalls, payload),
       },
       operations: {
         list: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listOperations, payload),

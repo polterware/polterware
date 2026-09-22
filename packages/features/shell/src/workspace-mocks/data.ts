@@ -1,11 +1,13 @@
 import type {
   TerminalSessionMock,
   WorkspaceCatalogProvider,
+  WorkspaceConstitution,
   WorkspaceDocument,
   WorkspaceIntegration,
   WorkspaceIntegrationResource,
   WorkspaceIntegrationSyncRun,
   WorkspaceRunbook,
+  WorkspaceSpecFeature,
 } from "./types";
 
 export const TERMINAL_SESSION_MOCKS: TerminalSessionMock[] = [
@@ -198,7 +200,7 @@ export const DOCUMENT_MOCKS: WorkspaceDocument[] = [
     bodyMarkdown: "This document describes the local project topology represented on the Architecture canvas.\n\n## Boundaries\n\nComponents, resources, and operational workflows stay scoped to this project.",
     author: "Project maintainer", updatedAt: "2h ago", tags: ["architecture", "local"],
     componentIds: ["cmp-api", "cmp-database"], componentNames: ["API", "Database"],
-    environment: "All", status: "published", owner: "Platform",
+    environment: "All", status: "published", owner: "Platform", entityLinks: [],
   },
   {
     id: "doc-database", title: "Database conventions",
@@ -206,15 +208,15 @@ export const DOCUMENT_MOCKS: WorkspaceDocument[] = [
     bodyMarkdown: "Use expand-and-contract migrations and validate backups before maintenance.\n\n## Naming\n\n- Tables: `snake_case` plural\n- Indexes: `idx_<table>_<columns>`",
     author: "Project maintainer", updatedAt: "4d ago", tags: ["database", "conventions"],
     componentIds: ["cmp-database"], componentNames: ["Database"],
-    environment: "All", status: "draft", owner: "Platform",
+    environment: "All", status: "draft", owner: "Platform", entityLinks: [],
   },
 ];
 
-function runbookMarkdown(input: Omit<WorkspaceRunbook, "bodyMarkdown">): string {
+function runbookMarkdown(input: Omit<WorkspaceRunbook, "bodyMarkdown" | "entityLinks">): string {
   return `## Objective\n\n${input.objective}\n\n## Prerequisites\n\n${input.prerequisites.map((item) => `- ${item}`).join("\n")}\n\n## Steps\n\n${input.steps.map((item, index) => `${index + 1}. ${item}`).join("\n")}\n\n## Commands\n\n\`\`\`bash\n${input.commands.join("\n")}\n\`\`\`\n\n## Rollback\n\n${input.rollback}`;
 }
 
-const RUNBOOK_SEEDS: Omit<WorkspaceRunbook, "bodyMarkdown">[] = [
+const RUNBOOK_SEEDS: Omit<WorkspaceRunbook, "bodyMarkdown" | "entityLinks">[] = [
   {
     id: "rb-service", title: "Service recovery",
     objective: "Restore a local service after a failed health check.", service: "API", severity: "high",
@@ -237,5 +239,84 @@ const RUNBOOK_SEEDS: Omit<WorkspaceRunbook, "bodyMarkdown">[] = [
 
 export const RUNBOOK_MOCKS: WorkspaceRunbook[] = RUNBOOK_SEEDS.map((runbook) => ({
   ...runbook,
+  entityLinks: [],
   bodyMarkdown: runbookMarkdown(runbook),
 }));
+
+const SPEC_FEATURE_KEY = "local-health-checks";
+
+export const SPEC_FEATURE_MOCKS: WorkspaceSpecFeature[] = [
+  {
+    featureKey: SPEC_FEATURE_KEY,
+    title: "Local health checks",
+    status: "ready",
+    updatedAt: "1 day ago",
+    owner: "Platform",
+    summary: "Specify honest local health reporting for the desktop.",
+    spec: {
+      id: "spec-local-health",
+      kind: "spec",
+      title: "Local health checks",
+      bodyMarkdown:
+        "## User stories\n\n### User story 1 - Inspect health (Priority: P1)\n\nAs an operator, I want to see local core health so that I know whether the project store is available.\n\n**Acceptance**\n\n1. **Given** a local project is open, **When** health is loaded, **Then** the desktop shows an honest available or quarantined state.\n\n## Requirements\n\n- **FR-001**: System MUST report local store availability through polterware-core.\n\n## Success criteria\n\n- **SC-001**: Operators can distinguish available and quarantined states without leaving the desktop.\n\n## Assumptions\n\n- Health remains a local-only signal in the first version.",
+      status: "ready",
+      updatedAt: "1 day ago",
+      owner: "Platform",
+      featureKey: SPEC_FEATURE_KEY,
+    },
+    plan: {
+      id: "plan-local-health",
+      kind: "plan",
+      title: "Local health checks",
+      bodyMarkdown:
+        "## Approach\n\nKeep health as a core probe over the local SQLite store and surface the result in the desktop shell.\n\n## Technical plan\n\n- Reuse the existing Health service.\n- Map quarantined and available states into the workspace snapshot.",
+      status: "ready",
+      updatedAt: "1 day ago",
+      owner: "Platform",
+      featureKey: SPEC_FEATURE_KEY,
+    },
+    tasks: {
+      id: "tasks-local-health",
+      kind: "tasks",
+      title: "Local health checks",
+      bodyMarkdown:
+        "## Tasks\n\n- [x] T001 Wire Health into the workspace snapshot\n- [x] T002 Show honest quarantine messaging in the shell\n- [ ] T003 Add Specs coverage for health acceptance language",
+      status: "ready",
+      updatedAt: "1 day ago",
+      owner: "Platform",
+      featureKey: SPEC_FEATURE_KEY,
+    },
+    clarify: {
+      id: "clarify-local-health",
+      kind: "clarify",
+      title: "Local health checks",
+      bodyMarkdown:
+        "## Open questions\n\n- [x] Is health a local-only signal?\n- [ ] Should quarantine block Specs editing?\n\n## Resolved\n\n- Health remains local-only in the first version.",
+      status: "ready",
+      updatedAt: "1 day ago",
+      owner: "Platform",
+      featureKey: SPEC_FEATURE_KEY,
+    },
+    checklist: {
+      id: "checklist-local-health",
+      kind: "checklist",
+      title: "Local health checks",
+      bodyMarkdown:
+        "## Specification quality\n\n- [x] User stories and acceptance scenarios are testable\n- [x] Functional requirements are unambiguous\n- [x] Success criteria are measurable\n- [x] Assumptions and out-of-scope items are explicit\n- [x] Clarify open questions are answered or accepted as deferred",
+      status: "ready",
+      updatedAt: "1 day ago",
+      owner: "Platform",
+      featureKey: SPEC_FEATURE_KEY,
+    },
+  },
+];
+
+export const CONSTITUTION_MOCK: WorkspaceConstitution = {
+  id: "constitution-project",
+  title: "Project constitution",
+  bodyMarkdown:
+    "# Project constitution\n\n## Core principles\n\n### Local-first truth\nProject state must remain useful on one machine without requiring a hosted account.\n\n### Honest product boundaries\nDo not describe planned capabilities as shipped.",
+  updatedAt: "2 days ago",
+  owner: "Platform",
+  status: "active",
+};

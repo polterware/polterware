@@ -19,7 +19,6 @@
 .pw-page-toolbar--fade-edge {
   position: relative;
   z-index: 1;
-  padding-bottom: 12px;
   background: var(--color-surface);
 }
 
@@ -29,9 +28,9 @@
   top: 100%;
   right: 0;
   left: 0;
-  height: 24px;
+  height: 32px;
   pointer-events: none;
-  background: var(--material-fade-edge-bottom);
+  background: var(--material-fade-edge-toolbar-trail);
 }
 
 .pw-page-toolbar-tabs,
@@ -67,7 +66,7 @@
   border-bottom: none;
 }
 
-/** Soft handoff into full-bleed content (e.g. Architecture canvas) — no hard rule. */
+/** Soft handoff into full-bleed content — owned by PageToolbar, not standalone tabs. */
 .pw-tabs.pw-tabs--fade-edge {
   border-bottom: none;
   padding-bottom: 8px;

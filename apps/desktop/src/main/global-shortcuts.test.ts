@@ -13,12 +13,13 @@ function createRegistry(registerResult: boolean): GlobalShortcutRegistry {
 }
 
 describe("registerGlobalCommanderShortcut", () => {
-  it("registers Cmd/Ctrl Shift K and unregisters it on cleanup", () => {
+  it("registers the provided accelerator and unregisters it on cleanup", () => {
     const shortcuts = createRegistry(true);
     const log = { info: vi.fn(), warn: vi.fn() };
     const onToggleCommander = vi.fn();
 
     const unregister = registerGlobalCommanderShortcut({
+      accelerator: GLOBAL_COMMANDER_SHORTCUT,
       log,
       onToggleCommander,
       shortcuts,
@@ -39,6 +40,7 @@ describe("registerGlobalCommanderShortcut", () => {
     const log = { info: vi.fn(), warn: vi.fn() };
 
     const unregister = registerGlobalCommanderShortcut({
+      accelerator: GLOBAL_COMMANDER_SHORTCUT,
       log,
       onToggleCommander: vi.fn(),
       shortcuts,

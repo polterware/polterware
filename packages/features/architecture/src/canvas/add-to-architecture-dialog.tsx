@@ -1,6 +1,6 @@
 import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import { Search } from "@polterware/frontend-design-system";
-import { A11yDialog, FadeEdgeBar, Tabs } from "@polterware/frontend-design-system";
+import { A11yDialog, Tabs } from "@polterware/frontend-design-system";
 import {
   CATEGORY_LABELS,
   type ComponentCategory,
@@ -136,7 +136,7 @@ export function AddToArchitectureDialog(props: {
 
         <div class="relative -mx-5 flex min-h-0 flex-1 flex-col">
           <Show when={!searching()}>
-            <FadeEdgeBar class="architecture-catalog-tabs-fade">
+            <div class="architecture-catalog-tabs-fade">
               <Tabs
                 items={TAB_ITEMS}
                 value={activeTab()}
@@ -147,7 +147,7 @@ export function AddToArchitectureDialog(props: {
                 aria-label="Component categories"
                 class="architecture-catalog-tabs pw-tabs--flush shrink-0"
               />
-            </FadeEdgeBar>
+            </div>
           </Show>
           <Show when={searching()}>
             <p class="m-0 shrink-0 px-5 py-2 text-[11px] text-[var(--color-text-muted)]">

@@ -10,6 +10,11 @@ describe("createPolterwareIpcHandlers", () => {
     expect(handlers[IPC_CHANNELS.app.listIcons]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.app.getIcon]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.app.setIcon]).toBeTypeOf("function");
+    expect(handlers[IPC_CHANNELS.app.getShortcutPreferences]).toBeTypeOf("function");
+    expect(handlers[IPC_CHANNELS.app.setShortcutPreferences]).toBeTypeOf("function");
+    expect(handlers[IPC_CHANNELS.app.getMcpStatus]).toBeTypeOf("function");
+    expect(handlers[IPC_CHANNELS.app.startMcp]).toBeTypeOf("function");
+    expect(handlers[IPC_CHANNELS.app.stopMcp]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.commander.hideOverlay]).toBeTypeOf("function");
     expect(handlers[IPC_CHANNELS.commander.showMainWindow]).toBeTypeOf("function");
   });
@@ -76,6 +81,62 @@ describe("createPolterwareIpcHandlers", () => {
     expect(appIcons.listIcons).toHaveBeenCalledOnce();
     expect(appIcons.getIcon).toHaveBeenCalledOnce();
     expect(appIcons.setIcon).toHaveBeenCalledWith("white");
+  });
+
+  it("wires shortcut preference controls when controllers are provided", async () => {
+    const shortcutPreferences = {
+      getPreferences: vi.fn().mockReturnValue({ version: 1, overrides: {} }),
+      setPreferences: vi.fn().mockReturnValue({
+        version: 1,
+        overrides: { "shell.toggle_commander": "mod+p" },
+      }),
+    };
+    const handlers = createPolterwareIpcHandlers({ shortcutPreferences });
+
+    await handlers[IPC_CHANNELS.app.getShortcutPreferences]();
+    await handlers[IPC_CHANNELS.app.setShortcutPreferences](undefined, {
+      overrides: { "shell.toggle_commander": "mod+p" },
+    });
+
+    expect(shortcutPreferences.getPreferences).toHaveBeenCalledOnce();
+    expect(shortcutPreferences.setPreferences).toHaveBeenCalledWith({
+      "shell.toggle_commander": "mod+p",
+    });
+  });
+
+  it("wires MCP helper controls when controllers are provided", async () => {
+    const mcp = {
+      getStatus: vi.fn().mockReturnValue({
+        running: false,
+        pid: null,
+        dbPath: "/tmp/local.db",
+        command: "polterware-core mcp",
+        cursorConfig: "{}",
+      }),
+      start: vi.fn().mockResolvedValue({
+        running: true,
+        pid: 42,
+        dbPath: "/tmp/local.db",
+        command: "polterware-core mcp",
+        cursorConfig: "{}",
+      }),
+      stop: vi.fn().mockResolvedValue({
+        running: false,
+        pid: null,
+        dbPath: "/tmp/local.db",
+        command: "polterware-core mcp",
+        cursorConfig: "{}",
+      }),
+    };
+    const handlers = createPolterwareIpcHandlers({ mcp });
+
+    await handlers[IPC_CHANNELS.app.getMcpStatus]();
+    await handlers[IPC_CHANNELS.app.startMcp]();
+    await handlers[IPC_CHANNELS.app.stopMcp]();
+
+    expect(mcp.getStatus).toHaveBeenCalledOnce();
+    expect(mcp.start).toHaveBeenCalledOnce();
+    expect(mcp.stop).toHaveBeenCalledOnce();
   });
 
   it("rejects core channels when the core controller is missing", async () => {

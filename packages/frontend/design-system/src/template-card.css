@@ -1,0 +1,101 @@
+@keyframes pw-template-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pw-template-card-grid {
+  display: grid;
+  width: 100%;
+  max-width: 44rem;
+  margin-inline: auto;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  text-align: left;
+}
+
+.pw-template-card-grid__label {
+  grid-column: 1 / -1;
+  margin: 0.25rem 0 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pw-template-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.625rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.875rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-subtle);
+  box-shadow: 0 1px 2px var(--color-shadow-subtle);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(6px);
+  animation: pw-template-card-enter var(--duration-enter, 200ms)
+    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+  transition:
+    border-color var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
+    box-shadow var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
+    transform var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
+    background-color var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+}
+
+.pw-template-card:hover {
+  border-color: var(--color-border-strong, var(--color-border-subtle));
+  box-shadow: 0 4px 12px var(--color-shadow-subtle);
+  transform: translateY(-2px);
+}
+
+.pw-template-card:focus-visible {
+  outline: 2px solid var(--color-focus-ring, var(--color-chart-blue));
+  outline-offset: 2px;
+}
+
+.pw-template-card:active {
+  transform: translateY(0);
+}
+
+.pw-template-card__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+}
+
+.pw-template-card__description {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-template-card {
+    opacity: 1;
+    transform: none;
+    animation: none;
+    transition: border-color var(--duration-fast, 120ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
+      background-color var(--duration-fast, 120ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+  }
+
+  .pw-template-card:hover,
+  .pw-template-card:active {
+    transform: none;
+  }
+}

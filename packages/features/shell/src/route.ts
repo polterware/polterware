@@ -16,8 +16,8 @@ export type NavSectionId =
 export type ChromeSectionId = "create-project";
 export type SectionId = NavSectionId | ChromeSectionId;
 export type ShellLayoutMode = "project" | "neutral";
-export type ProjectSettingsTabId = "general" | "environments" | "advanced";
-export type KnowledgeTabId = "docs" | "runbooks";
+export type ProjectSettingsTabId = "general" | "environments" | "shortcuts" | "agents" | "advanced";
+export type KnowledgeTabId = "docs" | "adrs" | "runbooks" | "specs";
 export type IntegrationsTabId = "connected" | "catalog";
 
 export type DialogState =
@@ -86,7 +86,9 @@ export const SECTION_TABS = {
   ],
   knowledge: [
     { id: "docs", label: "Docs" },
+    { id: "adrs", label: "ADRs" },
     { id: "runbooks", label: "Runbooks" },
+    { id: "specs", label: "Specs" },
   ],
   operations: [
     { id: "runs", label: "Runs" },
@@ -100,6 +102,8 @@ export const SECTION_TABS = {
   settings: [
     { id: "general", label: "General" },
     { id: "environments", label: "Environments" },
+    { id: "shortcuts", label: "Shortcuts" },
+    { id: "agents", label: "Agents" },
     { id: "advanced", label: "Advanced" },
   ],
 } satisfies Partial<Record<SectionId, { id: string; label: string }[]>>;

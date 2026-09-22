@@ -19,6 +19,8 @@ import {
   stopCoreProcess,
   type CoreProcessHandle,
 } from "./core/process-supervisor.js";
+import { createShortcutPreferencesController } from "./shortcut-preferences.js";
+import { createMcpSupervisor } from "./mcp-supervisor.js";
 
 function configureLogging() {
   log.initialize();
@@ -37,6 +39,67 @@ async function bootstrap() {
   const appIcons = getElectronAppIconController();
   appIcons.applySelectedIcon();
 
+  let unregisterCommanderShortcut = () => {};
+
+  const applyGlobalCommanderAccelerator = (accelerator: string) => {
+    unregisterCommanderShortcut();
+    unregisterCommanderShortcut = registerGlobalCommanderShortcut({
+      accelerator,
+      log,
+      onToggleCommander: () => {
+        toggleCommanderWindow();
+      },
+      shortcuts: globalShortcut,
+    });
+  };
+
+  const shortcutPreferences = createShortcutPreferencesController({
+    userDataDirectory: app.getPath("userData"),
+    onGlobalAcceleratorChange: applyGlobalCommanderAccelerator,
+  });
+
+  const mcpSupervisor = createMcpSupervisor({
+    log: (message) => log.debug(message),
+  });
+
+  const shellControllers = {
+    appInfo: {
+      getInfo: () => ({ name: app.getName(), version: app.getVersion() }),
+    },
+    appIcons: {
+      getIcon: () => appIcons.getIcon(),
+      listIcons: () => appIcons.listIcons(),
+      setIcon: (id: string) => {
+        const selection = appIcons.setIcon(id);
+        appIcons.applySelectedIcon();
+        return selection;
+      },
+    },
+    shortcutPreferences: {
+      getPreferences: () => shortcutPreferences.getPreferences(),
+      setPreferences: (overrides: Record<string, string>) =>
+        shortcutPreferences.setPreferences(overrides),
+    },
+    mcp: {
+      getStatus: () => mcpSupervisor.getStatus(),
+      start: () => mcpSupervisor.start(),
+      stop: () => mcpSupervisor.stop(),
+    },
+    appShell: {
+      openExternal: async (url: string) => {
+        if (!/^https?:\/\//i.test(url)) {
+          throw new Error("Only http(s) URLs can be opened.");
+        }
+        await shell.openExternal(url);
+        return { ok: true };
+      },
+    },
+    commander: {
+      hideOverlay: hideCommanderWindow,
+      showMainWindow,
+    },
+  };
+
   let coreHandle: CoreProcessHandle | undefined;
   try {
     const token = mintSessionToken();
@@ -48,77 +111,22 @@ async function bootstrap() {
     const clients = createCoreClients(coreHandle.endpoint, coreHandle.token);
     await waitForHealth(clients);
     registerPolterwareIpcHandlers({
-      appInfo: {
-        getInfo: () => ({ name: app.getName(), version: app.getVersion() }),
-      },
-      appIcons: {
-        getIcon: () => appIcons.getIcon(),
-        listIcons: () => appIcons.listIcons(),
-        setIcon: (id) => {
-          const selection = appIcons.setIcon(id);
-          appIcons.applySelectedIcon();
-          return selection;
-        },
-      },
-      appShell: {
-        openExternal: async (url) => {
-          if (!/^https?:\/\//i.test(url)) {
-            throw new Error("Only http(s) URLs can be opened.");
-          }
-          await shell.openExternal(url);
-          return { ok: true };
-        },
-      },
-      commander: {
-        hideOverlay: hideCommanderWindow,
-        showMainWindow,
-      },
+      ...shellControllers,
       core: createCoreDomainControllers(clients),
     });
   } catch (error) {
     log.error("Failed to start Polterware core.", error);
-    registerPolterwareIpcHandlers({
-      appInfo: {
-        getInfo: () => ({ name: app.getName(), version: app.getVersion() }),
-      },
-      appIcons: {
-        getIcon: () => appIcons.getIcon(),
-        listIcons: () => appIcons.listIcons(),
-        setIcon: (id) => {
-          const selection = appIcons.setIcon(id);
-          appIcons.applySelectedIcon();
-          return selection;
-        },
-      },
-      appShell: {
-        openExternal: async (url) => {
-          if (!/^https?:\/\//i.test(url)) {
-            throw new Error("Only http(s) URLs can be opened.");
-          }
-          await shell.openExternal(url);
-          return { ok: true };
-        },
-      },
-      commander: {
-        hideOverlay: hideCommanderWindow,
-        showMainWindow,
-      },
-    });
+    registerPolterwareIpcHandlers(shellControllers);
   }
 
-  const unregisterCommanderShortcut = registerGlobalCommanderShortcut({
-    log,
-    onToggleCommander: () => {
-      toggleCommanderWindow();
-    },
-    shortcuts: globalShortcut,
-  });
+  applyGlobalCommanderAccelerator(shortcutPreferences.getGlobalCommanderAccelerator());
 
   createMainWindow();
   setupAutoUpdater();
 
   app.on("before-quit", () => {
     unregisterCommanderShortcut();
+    void mcpSupervisor.stop();
     void stopCoreProcess(coreHandle);
   });
 }

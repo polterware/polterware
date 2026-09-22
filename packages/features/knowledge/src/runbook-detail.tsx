@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { Show, type JSX } from "solid-js";
 import {
   DetailPanel,
   Archive,
@@ -21,6 +21,7 @@ export function RunbookDetail(props: {
   onOpenTerminal?: () => void;
   onOpenComponent?: (componentId: string) => void;
   onOpenOperation?: (operationId: string) => void;
+  links?: JSX.Element;
 }) {
   return (
     <Show
@@ -60,6 +61,7 @@ export function RunbookDetail(props: {
               </Show>
             </DetailPanel.Actions>
           </DetailPanel.Header>
+          <Show when={props.links}>{props.links}</Show>
           <KnowledgeDocumentShell
             title={runbook().title}
             bodyMarkdown={props.bodyMarkdown}

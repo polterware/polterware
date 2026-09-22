@@ -68,6 +68,7 @@ import {
   pushToast,
   Tooltip,
 } from "@polterware/frontend-design-system";
+import { matchesShortcut } from "@polterware/frontend-state";
 import { ArchitectureNodeCard } from "./architecture-node-card";
 import {
   HANDLE_SIDES,
@@ -436,6 +437,8 @@ export function ArchitectureCanvasHost(props: {
       motionQuery.removeEventListener("change", onMotionPreference),
     );
 
+    let tempHandCode: string | null = null;
+
     const onKey = (e: KeyboardEvent) => {
       const target = e.target instanceof HTMLElement ? e.target : null;
       // Catalog / dialog Escape must work even when search input is focused.
@@ -469,8 +472,11 @@ export function ArchitectureCanvasHost(props: {
       const interactive = target?.closest("button, a, [role='menu'], [role='menuitem']");
       if (editable || interactive) return;
 
-      if (e.code === "Space") {
-        if (!e.repeat) setSpaceHand(true);
+      if (matchesShortcut("architecture.temp_hand", e)) {
+        if (!e.repeat) {
+          tempHandCode = e.code;
+          setSpaceHand(true);
+        }
         e.preventDefault();
         return;
       }
@@ -509,104 +515,111 @@ export function ArchitectureCanvasHost(props: {
         return;
       }
 
-      const meta = e.metaKey || e.ctrlKey;
-      if (meta && e.key.toLowerCase() === "z" && !e.shiftKey) {
+      if (matchesShortcut("architecture.undo", e)) {
         e.preventDefault();
         doUndo();
         return;
       }
-      if (meta && e.key.toLowerCase() === "z" && e.shiftKey) {
+      if (matchesShortcut("architecture.redo", e)) {
         e.preventDefault();
         doRedo();
         return;
       }
-      if (meta && e.key.toLowerCase() === "a") {
+      if (matchesShortcut("architecture.select_all", e)) {
         e.preventDefault();
         setSel(selectAll(props.document));
         return;
       }
-      if (meta && e.key.toLowerCase() === "c") {
+      if (matchesShortcut("architecture.copy", e)) {
         e.preventDefault();
         doCopy();
         return;
       }
-      if (meta && e.key.toLowerCase() === "x") {
+      if (matchesShortcut("architecture.cut", e)) {
         e.preventDefault();
         doCopy();
         doDelete();
         return;
       }
-      if (meta && e.key.toLowerCase() === "v") {
+      if (matchesShortcut("architecture.paste", e)) {
         e.preventDefault();
         void doPaste();
         return;
       }
-      if (meta && e.key.toLowerCase() === "d") {
+      if (matchesShortcut("architecture.duplicate", e)) {
         e.preventDefault();
         doCopy();
         void doPaste();
         return;
       }
-      if (e.key === "Delete" || e.key === "Backspace") {
+      if (matchesShortcut("architecture.delete", e)) {
         e.preventDefault();
         doDelete();
         return;
       }
-      if (e.key === "Enter" && sel().nodeIds[0]) {
+      if (matchesShortcut("architecture.open_node", e) && sel().nodeIds[0]) {
         e.preventDefault();
         snapshotSession();
         const id = sel().nodeIds[0];
         if (id) props.onOpenNode(id);
         return;
       }
-      if (!meta && !e.altKey) {
-        const k = e.key.toLowerCase();
-        if (k === "v") setTool("select");
-        if (k === "h") setTool("hand");
-        if (k === "c") {
-          // Connect only from a selected card
-          const id = sel().nodeIds[0];
-          const node = props.document.nodes.find((candidate) => candidate.id === id);
-          if (node && sel().nodeIds.length === 1 && isNodeConnectable(node)) {
-            setTool("connect");
-            setConnectFrom({ nodeId: node.id });
-          }
+      if (matchesShortcut("architecture.tool_select", e)) {
+        setTool("select");
+        return;
+      }
+      if (matchesShortcut("architecture.tool_hand", e)) {
+        setTool("hand");
+        return;
+      }
+      if (matchesShortcut("architecture.tool_connect", e)) {
+        const id = sel().nodeIds[0];
+        const node = props.document.nodes.find((candidate) => candidate.id === id);
+        if (node && sel().nodeIds.length === 1 && isNodeConnectable(node)) {
+          setTool("connect");
+          setConnectFrom({ nodeId: node.id });
         }
-        if (k === "n") {
-          e.preventDefault();
-          openCatalog(null);
-        }
-        if (e.key === "0") {
-          cancelTween();
-          setVp((v) => ({ ...v, zoom: 1 }));
-        }
-        if (e.key === "=" || e.key === "+") {
-          cancelTween();
-          setVp((v) =>
-            zoomAt(v, { x: viewSize().w / 2, y: viewSize().h / 2 }, v.zoom * ZOOM_STEP),
-          );
-        }
-        if (e.key === "-") {
-          cancelTween();
-          setVp((v) =>
-            zoomAt(v, { x: viewSize().w / 2, y: viewSize().h / 2 }, v.zoom / ZOOM_STEP),
-          );
-        }
-        if (e.shiftKey && e.key === "!") {
-          /* shift+1 may be ! */
-        }
-        if (e.shiftKey && e.key === "1") {
-          e.preventDefault();
-          fitDoc(false);
-        }
-        if (e.shiftKey && e.key === "2") {
-          e.preventDefault();
-          fitSel();
-        }
+        return;
+      }
+      if (matchesShortcut("architecture.add_node", e)) {
+        e.preventDefault();
+        openCatalog(null);
+        return;
+      }
+      if (matchesShortcut("architecture.zoom_reset", e)) {
+        cancelTween();
+        setVp((v) => ({ ...v, zoom: 1 }));
+        return;
+      }
+      if (matchesShortcut("architecture.zoom_in", e)) {
+        cancelTween();
+        setVp((v) =>
+          zoomAt(v, { x: viewSize().w / 2, y: viewSize().h / 2 }, v.zoom * ZOOM_STEP),
+        );
+        return;
+      }
+      if (matchesShortcut("architecture.zoom_out", e)) {
+        cancelTween();
+        setVp((v) =>
+          zoomAt(v, { x: viewSize().w / 2, y: viewSize().h / 2 }, v.zoom / ZOOM_STEP),
+        );
+        return;
+      }
+      if (matchesShortcut("architecture.fit_document", e)) {
+        e.preventDefault();
+        fitDoc(false);
+        return;
+      }
+      if (matchesShortcut("architecture.fit_selection", e)) {
+        e.preventDefault();
+        fitSel();
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "Space") setSpaceHand(false);
+      if (tempHandCode && e.code === tempHandCode) {
+        tempHandCode = null;
+        setSpaceHand(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("keyup", onKeyUp);

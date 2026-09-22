@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS knowledge_items (
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   body TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('doc', 'runbook')),
+  kind TEXT NOT NULL CHECK (kind IN ('doc', 'runbook', 'spec', 'plan', 'tasks')),
   tags_json TEXT NOT NULL DEFAULT '[]',
   summary TEXT NOT NULL DEFAULT '',
   owner TEXT NOT NULL DEFAULT '',

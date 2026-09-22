@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { Show, createSignal } from "solid-js";
 import { Button, CheckboxRow, Input, Surface } from "@polterware/frontend-design-system";
 
 /**
@@ -6,6 +6,8 @@ import { Button, CheckboxRow, Input, Surface } from "@polterware/frontend-design
  * Persists a local project through the Desktop core.
  */
 export function CreateProjectPage(props: {
+  /** When false, Cancel is hidden so a store with no projects cannot leave the form. */
+  canCancel?: boolean;
   onCancel?: () => void;
   onCreate?: (input: {
     name: string;
@@ -13,6 +15,7 @@ export function CreateProjectPage(props: {
     environments: string[];
   }) => void;
 }) {
+  const canCancel = () => props.canCancel !== false;
   const [name, setName] = createSignal("");
   const [directory, setDirectory] = createSignal("");
   const [envs, setEnvs] = createSignal({ development: true, staging: true, production: true });
@@ -27,7 +30,7 @@ export function CreateProjectPage(props: {
 
   return (
     <div class="flex h-full min-h-0 items-center justify-center overflow-auto p-6">
-      <Surface class="w-full max-w-lg p-0" float>
+      <Surface class="w-full max-w-lg p-0">
         <div class="border-b border-[var(--color-border-subtle)] px-6 py-5">
           <h1 class="m-0 text-[16px] font-semibold text-[var(--color-text-primary)]">
             Create a new project
@@ -77,10 +80,16 @@ export function CreateProjectPage(props: {
             />
           </fieldset>
         </div>
-        <div class="flex items-center justify-between border-t border-[var(--color-border-subtle)] px-6 py-4">
-          <Button size="md" variant="ghost" onClick={() => props.onCancel?.()}>
-            Cancel
-          </Button>
+        <div
+          class={`flex items-center border-t border-[var(--color-border-subtle)] px-6 py-4 ${
+            canCancel() ? "justify-between" : "justify-end"
+          }`}
+        >
+          <Show when={canCancel()}>
+            <Button size="md" variant="ghost" onClick={() => props.onCancel?.()}>
+              Cancel
+            </Button>
+          </Show>
           <Button
             size="md"
             variant="brand"

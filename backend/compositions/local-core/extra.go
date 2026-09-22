@@ -58,7 +58,16 @@ func (core *Core) SaveNode(_ context.Context, request *connect.Request[localv1.S
 	if item == nil || item.Id == "" || item.ProjectId == "" || item.Name == "" {
 		return nil, invalid("node id, project id, and name are required")
 	}
-	node := resources.Node{ID: item.Id, ProjectID: item.ProjectId, EnvironmentID: item.EnvironmentId, Name: item.Name, Platform: item.Platform, Shell: item.Shell, Status: item.Status, Address: item.Address, CPU: item.Cpu, Memory: item.Memory, LastSeenAt: item.LastSeenAt}
+	node := resources.Node{
+		ID: item.Id, ProjectID: item.ProjectId, EnvironmentID: item.EnvironmentId, Name: item.Name,
+		Platform: item.Platform, Shell: item.Shell, Status: item.Status, Address: item.Address,
+		CPU: item.Cpu, Memory: item.Memory, LastSeenAt: item.LastSeenAt,
+		ConnectionKind: item.ConnectionKind, SSHUser: item.SshUser, SSHPort: int(item.SshPort), SSHIdentityFile: item.SshIdentityFile,
+	}
+	resources.NormalizeNode(&node)
+	if err := resources.ValidateNode(node); err != nil {
+		return nil, invalid(err.Error())
+	}
 	if err := core.Store.SaveNode(node); err != nil {
 		return nil, internal(err)
 	}
@@ -234,7 +243,12 @@ func settingsProto(item projects.Settings) *localv1.ProjectSettings {
 }
 
 func nodeProto(item resources.Node) *localv1.Node {
-	return &localv1.Node{Id: item.ID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Name: item.Name, Platform: item.Platform, Shell: item.Shell, Status: item.Status, Address: item.Address, Cpu: item.CPU, Memory: item.Memory, LastSeenAt: item.LastSeenAt}
+	return &localv1.Node{
+		Id: item.ID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Name: item.Name,
+		Platform: item.Platform, Shell: item.Shell, Status: item.Status, Address: item.Address,
+		Cpu: item.CPU, Memory: item.Memory, LastSeenAt: item.LastSeenAt,
+		ConnectionKind: item.ConnectionKind, SshUser: item.SSHUser, SshPort: int32(item.SSHPort), SshIdentityFile: item.SSHIdentityFile,
+	}
 }
 
 func viewFromProto(item *localv1.ArchitectureView) architecture.View {

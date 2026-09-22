@@ -6,29 +6,45 @@ import {
   type PlatformCapability,
   type PlatformContext,
 } from "@polterware/frontend-platform";
+import { formatShortcut, type ShortcutCommandId } from "@polterware/frontend-state";
 import "./commander.css";
 
 export type PaletteItem = {
   id: string;
   label: string;
   group: "Navigation" | "Actions" | "Recent";
-  shortcut?: string;
+  shortcutId?: ShortcutCommandId;
   requiredCapability?: PlatformCapability;
 };
 
 const DEFAULT_ITEMS: PaletteItem[] = [
-  { id: "nav.architecture", label: "Architecture", group: "Navigation", shortcut: "⌘ 1" },
+  { id: "nav.architecture", label: "Architecture", group: "Navigation" },
   { id: "nav.resources", label: "Resources", group: "Navigation" },
   { id: "nav.knowledge", label: "Knowledge", group: "Navigation" },
-  { id: "nav.operations", label: "Operations", group: "Navigation", shortcut: "⌘ 2" },
+  { id: "nav.operations", label: "Operations", group: "Navigation" },
   { id: "nav.terminal", label: "Terminal", group: "Navigation" },
   { id: "nav.integrations", label: "Integrations", group: "Navigation" },
-  { id: "nav.settings", label: "Project Settings", group: "Navigation", shortcut: "⌘ ," },
+  { id: "nav.settings", label: "Project Settings", group: "Navigation" },
   { id: "action.open-sync", label: "Sync diagnostics", group: "Actions" },
-  { id: "action.create-node", label: "Create architecture node", group: "Actions", shortcut: "N" },
-  { id: "tool.connect", label: "Connect architecture components", group: "Actions", shortcut: "C" },
-  { id: "view.fit_document", label: "Fit architecture to view", group: "Actions", shortcut: "⇧1" },
-  { id: "action.run-command", label: "Run command", group: "Actions", shortcut: "⌘ Enter" },
+  {
+    id: "action.create-node",
+    label: "Create architecture node",
+    group: "Actions",
+    shortcutId: "architecture.add_node",
+  },
+  {
+    id: "tool.connect",
+    label: "Connect architecture components",
+    group: "Actions",
+    shortcutId: "architecture.tool_connect",
+  },
+  {
+    id: "view.fit_document",
+    label: "Fit architecture to view",
+    group: "Actions",
+    shortcutId: "architecture.fit_document",
+  },
+  { id: "action.run-command", label: "Run command", group: "Actions" },
   { id: "action.connect-integration", label: "Connect integration", group: "Actions" },
   { id: "recent.payment", label: "Payment Service", group: "Recent" },
   { id: "recent.postgres", label: "prod-postgres", group: "Recent" },
@@ -100,22 +116,25 @@ export function CommandPalette(props: {
                   {group}
                 </p>
                 <For each={list}>
-                  {(c) => (
-                    <button
-                      type="button"
-                      class="flex w-full items-center justify-between rounded-[var(--radius-item)] px-2 py-2 text-left text-[13px] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-                      onClick={() => {
-                        props.onCommand?.(c.id);
-                        setQ("");
-                        props.onClose();
-                      }}
-                    >
-                      <span>{c.label}</span>
-                      {c.shortcut ? (
-                        <span class="text-[11px] text-[var(--color-text-disabled)]">{c.shortcut}</span>
-                      ) : null}
-                    </button>
-                  )}
+                  {(c) => {
+                    const hint = c.shortcutId ? formatShortcut(c.shortcutId) : "";
+                    return (
+                      <button
+                        type="button"
+                        class="flex w-full items-center justify-between rounded-[var(--radius-item)] px-2 py-2 text-left text-[13px] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                        onClick={() => {
+                          props.onCommand?.(c.id);
+                          setQ("");
+                          props.onClose();
+                        }}
+                      >
+                        <span>{c.label}</span>
+                        {hint ? (
+                          <span class="text-[11px] text-[var(--color-text-disabled)]">{hint}</span>
+                        ) : null}
+                      </button>
+                    );
+                  }}
                 </For>
               </div>
             )}
@@ -146,8 +165,8 @@ export function CommandPalette(props: {
 export function CommanderView(props: { onCommand?: (id: string) => void }) {
   return (
     <section class="p-4">
-      <p class="text-[13px] text-[var(--color-text-muted)]">
-        Commander is available via ⌘K / Ctrl+K as a command palette.
+      <p class="m-0 text-[13px] text-[var(--color-text-muted)]">
+        Commander is available via the configured Commander shortcut as a command palette.
       </p>
       <Button size="sm" class="mt-2" onClick={() => props.onCommand?.("nav.architecture")}>
         Open Architecture

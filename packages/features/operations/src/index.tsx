@@ -8,13 +8,13 @@ import {
   FilterPopover,
   Input,
   PageContent,
-  PageEmpty,
   PageToolbar,
   Play,
   Plus,
   Select,
   StatusChip,
   Tabs,
+  ToolbarIconButton,
   Workflow,
   CalendarClock,
   SquareTerminal,
@@ -22,13 +22,30 @@ import {
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
 import { CreateScheduleDialog, type CreateScheduleDraft } from "./create-schedule-dialog";
 import { CreateWorkflowDialog, type CreateWorkflowDraft } from "./create-workflow-dialog";
+import { scheduleDraftFromTemplate } from "./create-templates";
 import type { OperationRun, OperationSchedule, OperationWorkflow, RunStatus } from "./types";
+import {
+  OperationsRunsEmpty,
+  OperationsSchedulesEmpty,
+  OperationsWorkflowsEmpty,
+  operationsFilterEmpty,
+} from "./operations-empty";
+import {
+  OperationsRunTemplateGrid,
+  OperationsScheduleTemplateGrid,
+  OperationsWorkflowTemplateGrid,
+} from "./operations-template-grid";
 
 export type * from "./types";
 export type { CreateScheduleDraft } from "./create-schedule-dialog";
 export type { CreateWorkflowDraft } from "./create-workflow-dialog";
 export { CreateScheduleDialog } from "./create-schedule-dialog";
 export { CreateWorkflowDialog } from "./create-workflow-dialog";
+export {
+  OPERATIONS_RUN_TEMPLATES,
+  OPERATIONS_SCHEDULE_TEMPLATES,
+  OPERATIONS_WORKFLOW_TEMPLATES,
+} from "./create-templates";
 
 const TABS = [
   { id: "runs", label: "Runs" },
@@ -158,50 +175,92 @@ export function OperationsView(props: {
               }] : []}
             />
             <Show when={tab() === "runs"}>
-              <Button
-                size="icon"
-                variant="primary"
-                class="!rounded-full"
-                aria-label="Preview command"
-                title="Preview command"
-                onClick={() => props.onRunCommand?.()}
-              >
+              <ToolbarIconButton label="Preview command" onClick={() => props.onRunCommand?.()}>
                 <Play size={14} />
-              </Button>
+              </ToolbarIconButton>
             </Show>
             <Show when={tab() === "workflows"}>
-              <Button size="sm" variant="primary" onClick={() => setCreateWorkflowOpen(true)}>
-                <Plus size={16} />
-                Add workflow
-              </Button>
+              <ToolbarIconButton label="Add workflow" onClick={() => setCreateWorkflowOpen(true)}>
+                <Plus size={14} />
+              </ToolbarIconButton>
             </Show>
             <Show when={tab() === "schedules"}>
-              <Button size="sm" variant="primary" onClick={() => setCreateScheduleOpen(true)}>
-                <Plus size={16} />
-                Add schedule
-              </Button>
+              <ToolbarIconButton label="Add schedule" onClick={() => setCreateScheduleOpen(true)}>
+                <Plus size={14} />
+              </ToolbarIconButton>
             </Show>
           </PageToolbar.Actions>
         </PageToolbar.Root>
         <PageContent class="p-0">
           <Show when={tab() === "runs"}>
-            <Show when={runs().length > 0} fallback={<PageEmpty title="No runs match" description="Try another search or status filter." />}>
-              <DataTable.Root rows={runs()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "operations:runs" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "run")}>
-                <DataTable.Table aria-label="Runs"><DataTable.Header>
-                  <DataTable.ColumnHeader<OperationRun> id="title">Run</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationRun> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationRun> id="target">Target</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationRun> id="startedAt">Started</DataTable.ColumnHeader>
-                </DataTable.Header><DataTable.Body<OperationRun>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "run")}><DataTable.PrimaryCell icon={<SquareTerminal size={16} />} iconTone="execution" title={item.title} /><DataTable.Cell><StatusChip tone={runTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell>{item.target}</DataTable.Cell><DataTable.Cell>{item.startedAt}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
-              </DataTable.Root>
+            <Show
+              when={runRows().length > 0}
+              fallback={
+                <OperationsRunsEmpty
+                  onRunCommand={() => props.onRunCommand?.()}
+                  onCreateFromTemplate={
+                    props.onSubmitRunCommand
+                      ? (template) => props.onSubmitRunCommand?.(template.draft)
+                      : undefined
+                  }
+                />
+              }
+            >
+              <Show when={runs().length > 0} fallback={operationsFilterEmpty("runs")}>
+                <DataTable.Root rows={runs()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "operations:runs" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "run")}>
+                  <DataTable.Table aria-label="Runs"><DataTable.Header>
+                    <DataTable.ColumnHeader<OperationRun> id="title">Run</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationRun> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationRun> id="target">Target</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationRun> id="startedAt">Started</DataTable.ColumnHeader>
+                  </DataTable.Header><DataTable.Body<OperationRun>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "run")}><DataTable.PrimaryCell icon={<SquareTerminal size={16} />} iconTone="execution" title={item.title} /><DataTable.Cell><StatusChip tone={runTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell>{item.target}</DataTable.Cell><DataTable.Cell>{item.startedAt}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
+                </DataTable.Root>
+              </Show>
             </Show>
           </Show>
           <Show when={tab() === "workflows"}>
-            <DataTable.Root rows={workflows()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "operations:workflows" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "workflow")}>
-              <DataTable.Table aria-label="Workflows"><DataTable.Header><DataTable.ColumnHeader<OperationWorkflow> id="name">Workflow</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationWorkflow> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationWorkflow> id="trigger">Trigger</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationWorkflow> id="lastRun">Last run</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<OperationWorkflow>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "workflow")}><DataTable.PrimaryCell icon={<Workflow size={16} />} iconTone="execution" title={item.name} /><DataTable.Cell><StatusChip tone={workflowTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell>{item.trigger}</DataTable.Cell><DataTable.Cell>{item.lastRun}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
-            </DataTable.Root>
+            <Show
+              when={workflowRows().length > 0}
+              fallback={
+                <OperationsWorkflowsEmpty
+                  onCreateWorkflow={() => setCreateWorkflowOpen(true)}
+                  onCreateFromTemplate={
+                    props.onCreateWorkflow
+                      ? (template) => props.onCreateWorkflow?.(template.draft)
+                      : undefined
+                  }
+                />
+              }
+            >
+              <Show when={workflows().length > 0} fallback={operationsFilterEmpty("workflows")}>
+                <DataTable.Root rows={workflows()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "operations:workflows" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "workflow")}>
+                  <DataTable.Table aria-label="Workflows"><DataTable.Header><DataTable.ColumnHeader<OperationWorkflow> id="name">Workflow</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationWorkflow> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationWorkflow> id="trigger">Trigger</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationWorkflow> id="lastRun">Last run</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<OperationWorkflow>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "workflow")}><DataTable.PrimaryCell icon={<Workflow size={16} />} iconTone="execution" title={item.name} /><DataTable.Cell><StatusChip tone={workflowTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell>{item.trigger}</DataTable.Cell><DataTable.Cell>{item.lastRun}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
+                </DataTable.Root>
+              </Show>
+            </Show>
           </Show>
           <Show when={tab() === "schedules"}>
-            <DataTable.Root rows={schedules()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "operations:schedules" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "schedule")}>
-              <DataTable.Table aria-label="Schedules"><DataTable.Header><DataTable.ColumnHeader<OperationSchedule> id="name">Schedule</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationSchedule> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationSchedule> id="expression">Expression</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationSchedule> id="nextRun">Next run</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<OperationSchedule>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "schedule")}><DataTable.PrimaryCell icon={<CalendarClock size={16} />} iconTone="execution" title={item.name} /><DataTable.Cell><StatusChip tone={scheduleTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell><code>{item.expression}</code></DataTable.Cell><DataTable.Cell>{item.nextRun}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
-            </DataTable.Root>
+            <Show
+              when={scheduleRows().length > 0}
+              fallback={
+                <OperationsSchedulesEmpty
+                  hasWorkflows={workflowRows().length > 0}
+                  onCreateSchedule={() => setCreateScheduleOpen(true)}
+                  onCreateFromTemplate={
+                    props.onCreateSchedule && workflowRows().length > 0
+                      ? (template) => {
+                          const workflowId = workflowRows()[0]?.id;
+                          if (!workflowId) return;
+                          props.onCreateSchedule?.(scheduleDraftFromTemplate(template, workflowId));
+                        }
+                      : undefined
+                  }
+                />
+              }
+            >
+              <Show when={schedules().length > 0} fallback={operationsFilterEmpty("schedules")}>
+                <DataTable.Root rows={schedules()} getRowId={(item) => item.id} activeRowId={activeTarget()?.scopeId === "operations:schedules" ? activeTarget()?.entityId : null} activateFirstRow onActiveRowChange={(id) => id && activate(id, "schedule")}>
+                  <DataTable.Table aria-label="Schedules"><DataTable.Header><DataTable.ColumnHeader<OperationSchedule> id="name">Schedule</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationSchedule> id="status">Status</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationSchedule> id="expression">Expression</DataTable.ColumnHeader><DataTable.ColumnHeader<OperationSchedule> id="nextRun">Next run</DataTable.ColumnHeader></DataTable.Header><DataTable.Body<OperationSchedule>>{(item) => <DataTable.Row row={item} rowId={item.id} onActivate={() => activate(item.id, "schedule")}><DataTable.PrimaryCell icon={<CalendarClock size={16} />} iconTone="execution" title={item.name} /><DataTable.Cell><StatusChip tone={scheduleTone(item.status)} label={item.status} /></DataTable.Cell><DataTable.Cell><code>{item.expression}</code></DataTable.Cell><DataTable.Cell>{item.nextRun}</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table>
+                </DataTable.Root>
+              </Show>
+            </Show>
           </Show>
         </PageContent>
       </div>
@@ -213,6 +272,10 @@ export function OperationsView(props: {
       <CreateWorkflowDialog
         open={createWorkflowOpen()}
         onClose={() => setCreateWorkflowOpen(false)}
+        onCreateFromTemplate={(template) => {
+          setCreateWorkflowOpen(false);
+          props.onCreateWorkflow?.(template.draft);
+        }}
         onSubmit={(draft) => {
           setCreateWorkflowOpen(false);
           props.onCreateWorkflow?.(draft);
@@ -223,14 +286,27 @@ export function OperationsView(props: {
         open={createScheduleOpen()}
         workflows={workflowRows().map((workflow) => ({ id: workflow.id, name: workflow.name }))}
         onClose={() => setCreateScheduleOpen(false)}
+        onCreateFromTemplate={(draft) => {
+          setCreateScheduleOpen(false);
+          props.onCreateSchedule?.(draft);
+        }}
         onSubmit={(draft) => {
           setCreateScheduleOpen(false);
           props.onCreateSchedule?.(draft);
         }}
       />
 
-      <A11yDialog open={Boolean(props.runCommandOpen)} title="Run command" size="xl" onClose={() => props.onCloseRunCommand?.()} footer={<><Button variant="ghost" size="sm" onClick={() => props.onCloseRunCommand?.()}>Cancel</Button><Button variant="primary" size="sm" disabled={!command().trim()} onClick={() => props.onSubmitRunCommand?.({ target: target(), command: command(), cwd: cwd(), environment: environment() })}>Run</Button></>}>
-        <div class="grid gap-3"><p class="m-0 text-[12px] text-[var(--color-text-muted)]">The command runs locally through polterware-core and appends logs to the operation.</p><Field label="Target"><Input size="sm" value={target()} onInput={(event) => setTarget(event.currentTarget.value)} /></Field><Field label="Command"><Input size="sm" class="font-mono" value={command()} onInput={(event) => setCommand(event.currentTarget.value)} placeholder="systemctl status example-api" /></Field><Field label="Working directory"><Input size="sm" value={cwd()} onInput={(event) => setCwd(event.currentTarget.value)} /></Field><Field label="Environment"><Select size="sm" value={environment()} options={[{ value: "Development", label: "Development" }, { value: "Staging", label: "Staging" }, { value: "Production", label: "Production" }]} onChange={setEnvironment} /></Field></div>
+      <A11yDialog open={Boolean(props.runCommandOpen)} title="Run command" size="xl" onClose={() => props.onCloseRunCommand?.()} footer={<><Button variant="ghost" size="sm" onClick={() => props.onCloseRunCommand?.()}>Cancel</Button><Button variant="primary" size="sm" disabled={!command().trim()} onClick={() => props.onSubmitRunCommand?.({ target: target(), command: command(), cwd: cwd(), environment: environment() })}>Run blank</Button></>}>
+        <div class="grid gap-4">
+          <OperationsRunTemplateGrid
+            onSelect={(template) => props.onSubmitRunCommand?.(template.draft)}
+          />
+          <p class="m-0 text-[12px] text-[var(--color-text-muted)]">The command runs locally through polterware-core and appends logs to the operation.</p>
+          <Field label="Target"><Input size="sm" value={target()} onInput={(event) => setTarget(event.currentTarget.value)} /></Field>
+          <Field label="Command"><Input size="sm" class="font-mono" value={command()} onInput={(event) => setCommand(event.currentTarget.value)} placeholder="systemctl status example-api" /></Field>
+          <Field label="Working directory"><Input size="sm" value={cwd()} onInput={(event) => setCwd(event.currentTarget.value)} /></Field>
+          <Field label="Environment"><Select size="sm" value={environment()} options={[{ value: "Development", label: "Development" }, { value: "Staging", label: "Staging" }, { value: "Production", label: "Production" }]} onChange={setEnvironment} /></Field>
+        </div>
       </A11yDialog>
     </>
   );

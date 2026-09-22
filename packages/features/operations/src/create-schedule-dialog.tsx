@@ -1,5 +1,7 @@
 import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import { A11yDialog, Button, Field, Input, Select } from "@polterware/frontend-design-system";
+import { scheduleDraftFromTemplate } from "./create-templates";
+import { OperationsScheduleTemplateGrid } from "./operations-template-grid";
 
 export type CreateScheduleDraft = {
   name: string;
@@ -25,6 +27,7 @@ export function CreateScheduleDialog(props: {
   workflows: CreateScheduleWorkflowOption[];
   onClose: () => void;
   onSubmit: (draft: CreateScheduleDraft) => void;
+  onCreateFromTemplate?: (draft: CreateScheduleDraft) => void;
 }) {
   const [name, setName] = createSignal("");
   const [workflowId, setWorkflowId] = createSignal("");
@@ -79,7 +82,8 @@ export function CreateScheduleDialog(props: {
     <A11yDialog
       open={props.open}
       title="Add schedule"
-      description="This schedule is stored locally and runs its workflow when due while the Desktop core is open. Missed times while offline are skipped."
+      description="Pick a cadence template or create a blank schedule. Runs locally when due while the Desktop core is open."
+      size="xl"
       onClose={close}
       footer={
         <>
@@ -87,12 +91,21 @@ export function CreateScheduleDialog(props: {
             Cancel
           </Button>
           <Button size="sm" variant="primary" disabled={!canSubmit()} onClick={submit}>
-            Create
+            Create blank
           </Button>
         </>
       }
     >
-      <div class="grid gap-3">
+      <div class="grid gap-4">
+        <Show when={hasWorkflows() && props.onCreateFromTemplate}>
+          <OperationsScheduleTemplateGrid
+            onSelect={(template) => {
+              const id = workflowId();
+              if (!id) return;
+              props.onCreateFromTemplate?.(scheduleDraftFromTemplate(template, id));
+            }}
+          />
+        </Show>
         <Show
           when={hasWorkflows()}
           fallback={

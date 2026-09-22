@@ -302,11 +302,13 @@ describe("DetailPanel", () => {
     expect(source).toMatch(
       /<Tooltip\.Group>\s*{props\.children}\s*<div class="pw-detail-panel__global-actions">/,
     );
+    expect(source).toContain('openDelay={DETAIL_PANEL_ACTION_TOOLTIP_DELAY}');
+    expect(source).toContain('shortcut={DETAIL_PANEL_TOGGLE_SHORTCUT}');
+    expect(source).toContain('shortcut={DETAIL_PANEL_MAXIMIZE_SHORTCUT}');
+    expect(source).toContain("<Kbd>{local.shortcut}</Kbd>");
+    expect(css).toContain(".pw-detail-panel__action-tooltip");
     expect(materials).toContain("--material-fade-edge-bottom: linear-gradient(");
     expect(materials).toContain("--material-fade-edge-top: linear-gradient(to top");
-    expect(materials).toContain(
-      "background: var(--material-fade-edge-bottom);",
-    );
   });
 
   it("sequences viewport geometry around transform settlement and retargeting", async () => {
@@ -800,6 +802,67 @@ describe("DetailPanel", () => {
     host.querySelector<HTMLButtonElement>("[aria-label='Collapse details']")!.click();
     await vi.waitFor(() => expect(mode()).toBe("collapsed"));
     host.querySelector<HTMLButtonElement>("[data-detail-panel-collapsed-trigger]")!.click();
+    await vi.waitFor(() => expect(mode()).toBe("open"));
+
+    dispose();
+    host.remove();
+  });
+
+  it("toggles and maximizes with Command+J shortcuts", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const [mode, setMode] = createSignal<DetailPanelMode>("open");
+    const dispose = render(
+      () => (
+        <DetailPanel.Root
+          mode={mode()}
+          activeEntityId="alpha"
+          onCollapse={() => setMode("collapsed")}
+          onMaximize={() => setMode("maximized")}
+          onRestore={() => setMode("open")}
+        >
+          <DetailPanel.Collection>
+            <button data-detail-target-id="alpha">Alpha row</button>
+          </DetailPanel.Collection>
+          <DetailPanel.Content>
+            <DetailPanel.Header title="Alpha detail" />
+            <DetailPanel.Body>Body</DetailPanel.Body>
+          </DetailPanel.Content>
+        </DetailPanel.Root>
+      ),
+      host,
+    );
+
+    await vi.waitFor(() => expect(host.querySelector("[aria-label='Collapse details']")).not.toBeNull());
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "j", metaKey: true, bubbles: true }),
+    );
+    await vi.waitFor(() => expect(mode()).toBe("collapsed"));
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "j", metaKey: true, bubbles: true }),
+    );
+    await vi.waitFor(() => expect(mode()).toBe("open"));
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "j",
+        metaKey: true,
+        shiftKey: true,
+        bubbles: true,
+      }),
+    );
+    await vi.waitFor(() => expect(mode()).toBe("maximized"));
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "j",
+        metaKey: true,
+        shiftKey: true,
+        bubbles: true,
+      }),
+    );
     await vi.waitFor(() => expect(mode()).toBe("open"));
 
     dispose();

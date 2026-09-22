@@ -23,13 +23,19 @@ export type {
   DitherIconTileProps,
   DitherIconTone,
 } from "./dither-icon";
+export { TemplateCard, TemplateCardGrid } from "./template-card";
+export type {
+  TemplateCardGridItem,
+  TemplateCardGridProps,
+  TemplateCardProps,
+} from "./template-card";
 export { PageLoading, PageEmpty, PageError, FixtureBanner, PageOffline, PageForbidden } from "./feedback";
 export { ToastRegion, pushToast } from "./toast";
 export type { ToastItem } from "./toast";
 export { PageHeader, PageContent, PageToolbar } from "./page";
 export type { PageToolbarRootProps, PageToolbarSlotProps } from "./page";
-export { FadeEdgeBar } from "./fade-edge";
-export type { FadeEdgeBarProps } from "./fade-edge";
+export { ToolbarIconButton } from "./toolbar-icon-button";
+export type { ToolbarIconButtonProps } from "./toolbar-icon-button";
 export { SearchBar } from "./search-bar";
 export type { SearchBarProps } from "./search-bar";
 export { Tabs, TabPanel } from "./tabs";
@@ -44,6 +50,8 @@ export type {
   TooltipRootProps,
   TooltipTriggerProps,
 } from "./tooltip";
+export { Kbd } from "./kbd";
+export type { KbdProps } from "./kbd";
 export { CheckboxRow } from "./checkbox-row";
 export type { CheckboxRowProps } from "./checkbox-row";
 export { FilterPopover, FilterCategoryPopover } from "./filter-popover";

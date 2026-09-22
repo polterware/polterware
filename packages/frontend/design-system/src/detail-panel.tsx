@@ -19,8 +19,12 @@ import {
   ExpandIcon,
   XIcon,
 } from "./hugeicons";
+import { Kbd } from "./kbd";
 import { Tooltip } from "./tooltip";
+import { createShortcutLabel, matchesShortcut } from "@polterware/frontend-state";
 import "./detail-panel.css";
+
+const DETAIL_PANEL_ACTION_TOOLTIP_DELAY = 900;
 
 export type DetailPanelMode = "open" | "collapsed" | "maximized";
 
@@ -72,6 +76,8 @@ export type DetailPanelActionProps = Omit<
   "aria-label" | "children" | "size" | "title" | "variant"
 > & {
   label: string;
+  /** Optional keyboard shortcut shown in the hover tooltip. */
+  shortcut?: string;
   tone?: DetailPanelActionTone;
   children: JSX.Element;
 };
@@ -235,9 +241,34 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
   }
 
   function onWindowKeyDown(event: KeyboardEvent) {
-    if (event.key !== "Escape" || mode() !== "maximized") return;
-    event.preventDefault();
-    props.onRestore();
+    if (event.key === "Escape" && mode() === "maximized") {
+      event.preventDefault();
+      props.onRestore();
+      return;
+    }
+
+    if (event.repeat) return;
+
+    if (matchesShortcut("shell.maximize_detail", event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (mode() === "maximized") {
+        props.onRestore();
+      } else {
+        props.onMaximize();
+      }
+      return;
+    }
+
+    if (matchesShortcut("shell.toggle_detail", event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (mode() === "collapsed") {
+        props.onRestore();
+      } else {
+        collapseAndRestoreFocus();
+      }
+    }
   }
 
   function onMotionPreferenceChange(event: MediaQueryListEvent) {
@@ -416,6 +447,8 @@ function DetailPanelHeader(props: {
   class?: string;
 }) {
   const context = useDetailPanel("Header");
+  const toggleShortcut = createShortcutLabel("shell.toggle_detail");
+  const maximizeShortcut = createShortcutLabel("shell.maximize_detail");
   return (
     <header class={`pw-detail-panel__header ${props.class ?? ""}`}>
       <div class="pw-detail-panel__identity">
@@ -441,26 +474,50 @@ function DetailPanelHeader(props: {
         {props.children}
         <div class="pw-detail-panel__global-actions">
           <Show when={context.mode() === "collapsed"}>
-            <DetailPanelAction label="Maximize details" onClick={context.maximize}>
+            <DetailPanelAction
+              label="Maximize details"
+              shortcut={maximizeShortcut()}
+              onClick={context.maximize}
+            >
               <ExpandIcon size={14} aria-hidden />
             </DetailPanelAction>
-            <DetailPanelAction label="Open details" onClick={context.restore}>
+            <DetailPanelAction
+              label="Open details"
+              shortcut={toggleShortcut()}
+              onClick={context.restore}
+            >
               <ArrowUp size={14} aria-hidden />
             </DetailPanelAction>
           </Show>
           <Show when={context.mode() === "open"}>
-            <DetailPanelAction label="Maximize details" onClick={context.maximize}>
+            <DetailPanelAction
+              label="Maximize details"
+              shortcut={maximizeShortcut()}
+              onClick={context.maximize}
+            >
               <ExpandIcon size={14} aria-hidden />
             </DetailPanelAction>
-            <DetailPanelAction label="Collapse details" onClick={context.collapse}>
+            <DetailPanelAction
+              label="Collapse details"
+              shortcut={toggleShortcut()}
+              onClick={context.collapse}
+            >
               <XIcon size={14} aria-hidden />
             </DetailPanelAction>
           </Show>
           <Show when={context.mode() === "maximized"}>
-            <DetailPanelAction label="Restore details" onClick={context.restore}>
+            <DetailPanelAction
+              label="Restore details"
+              shortcut={maximizeShortcut()}
+              onClick={context.restore}
+            >
               <CollapseIcon size={14} aria-hidden />
             </DetailPanelAction>
-            <DetailPanelAction label="Collapse details" onClick={context.collapse}>
+            <DetailPanelAction
+              label="Collapse details"
+              shortcut={toggleShortcut()}
+              onClick={context.collapse}
+            >
               <XIcon size={14} aria-hidden />
             </DetailPanelAction>
           </Show>
@@ -477,6 +534,7 @@ function DetailPanelAction(props: DetailPanelActionProps) {
   useDetailPanel("Action");
   const [local, buttonProps] = splitProps(props, [
     "label",
+    "shortcut",
     "tone",
     "children",
     "class",
@@ -487,7 +545,7 @@ function DetailPanelAction(props: DetailPanelActionProps) {
   ].filter(Boolean).join(" ");
 
   return (
-    <Tooltip.Root disabled={buttonProps.disabled}>
+    <Tooltip.Root disabled={buttonProps.disabled} openDelay={DETAIL_PANEL_ACTION_TOOLTIP_DELAY}>
       <Tooltip.Trigger
         asChild={(triggerProps) => (
           <Button
@@ -504,7 +562,12 @@ function DetailPanelAction(props: DetailPanelActionProps) {
           </Button>
         )}
       />
-      <Tooltip.Content>{local.label}</Tooltip.Content>
+      <Tooltip.Content class="pw-detail-panel__action-tooltip">
+        <span class="pw-detail-panel__action-tooltip-label">{local.label}</span>
+        <Show when={local.shortcut}>
+          <Kbd>{local.shortcut}</Kbd>
+        </Show>
+      </Tooltip.Content>
     </Tooltip.Root>
   );
 }

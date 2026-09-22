@@ -1,4 +1,6 @@
 import type { AppIconOption, AppIconSelection } from "./app-icons.js";
+import type { McpServerStatus } from "./mcp-status.js";
+import type { StoredShortcutPreferences } from "./shortcut-preferences.js";
 
 export interface AppInfo {
   name: string;
@@ -16,6 +18,11 @@ export const IPC_CHANNELS = {
     listIcons: "app:list-icons",
     getIcon: "app:get-icon",
     setIcon: "app:set-icon",
+    getShortcutPreferences: "app:get-shortcut-preferences",
+    setShortcutPreferences: "app:set-shortcut-preferences",
+    getMcpStatus: "app:get-mcp-status",
+    startMcp: "app:start-mcp",
+    stopMcp: "app:stop-mcp",
     openExternal: "app:open-external",
   },
   commander: {
@@ -46,6 +53,14 @@ export const IPC_CHANNELS = {
     listKnowledge: "core:list-knowledge",
     saveKnowledge: "core:save-knowledge",
     deleteKnowledge: "core:delete-knowledge",
+    searchKnowledge: "core:search-knowledge",
+    listKnowledgeLinks: "core:list-knowledge-links",
+    saveKnowledgeLink: "core:save-knowledge-link",
+    deleteKnowledgeLink: "core:delete-knowledge-link",
+    listPpmEntities: "core:list-ppm-entities",
+    syncProjectModel: "core:sync-project-model",
+    compileContext: "core:compile-context",
+    listAgentToolCalls: "core:list-agent-tool-calls",
     listOperations: "core:list-operations",
     requestOperation: "core:request-operation",
     getOperation: "core:get-operation",
@@ -95,6 +110,11 @@ export type AppIpcRequests = {
   [IPC_CHANNELS.app.listIcons]: undefined;
   [IPC_CHANNELS.app.getIcon]: undefined;
   [IPC_CHANNELS.app.setIcon]: JsonValue;
+  [IPC_CHANNELS.app.getShortcutPreferences]: undefined;
+  [IPC_CHANNELS.app.setShortcutPreferences]: JsonValue;
+  [IPC_CHANNELS.app.getMcpStatus]: undefined;
+  [IPC_CHANNELS.app.startMcp]: undefined;
+  [IPC_CHANNELS.app.stopMcp]: undefined;
   [IPC_CHANNELS.app.openExternal]: { url: string };
   [IPC_CHANNELS.commander.hideOverlay]: undefined;
   [IPC_CHANNELS.commander.showMainWindow]: undefined;
@@ -105,6 +125,11 @@ export type AppIpcResponses = {
   [IPC_CHANNELS.app.listIcons]: AppIconOption[];
   [IPC_CHANNELS.app.getIcon]: AppIconSelection;
   [IPC_CHANNELS.app.setIcon]: AppIconSelection;
+  [IPC_CHANNELS.app.getShortcutPreferences]: StoredShortcutPreferences;
+  [IPC_CHANNELS.app.setShortcutPreferences]: StoredShortcutPreferences;
+  [IPC_CHANNELS.app.getMcpStatus]: McpServerStatus;
+  [IPC_CHANNELS.app.startMcp]: McpServerStatus;
+  [IPC_CHANNELS.app.stopMcp]: McpServerStatus;
   [IPC_CHANNELS.app.openExternal]: { ok: boolean };
   [IPC_CHANNELS.commander.hideOverlay]: void;
   [IPC_CHANNELS.commander.showMainWindow]: void;

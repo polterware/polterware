@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/node.proto.
  */
 export const file_polterware_local_v1_node: GenFile = /*@__PURE__*/
-  fileDesc("Ch5wb2x0ZXJ3YXJlL2xvY2FsL3YxL25vZGUucHJvdG8SE3BvbHRlcndhcmUubG9jYWwudjEiwQEKBE5vZGUSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIWCg5lbnZpcm9ubWVudF9pZBgDIAEoCRIMCgRuYW1lGAQgASgJEhAKCHBsYXRmb3JtGAUgASgJEg0KBXNoZWxsGAYgASgJEg4KBnN0YXR1cxgHIAEoCRIPCgdhZGRyZXNzGAggASgJEgsKA2NwdRgJIAEoCRIOCgZtZW1vcnkYCiABKAkSFAoMbGFzdF9zZWVuX2F0GAsgASgJIiYKEExpc3ROb2Rlc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSI9ChFMaXN0Tm9kZXNSZXNwb25zZRIoCgVub2RlcxgBIAMoCzIZLnBvbHRlcndhcmUubG9jYWwudjEuTm9kZSI6Cg9TYXZlTm9kZVJlcXVlc3QSJwoEbm9kZRgBIAEoCzIZLnBvbHRlcndhcmUubG9jYWwudjEuTm9kZSI7ChBTYXZlTm9kZVJlc3BvbnNlEicKBG5vZGUYASABKAsyGS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLk5vZGUywgEKC05vZGVTZXJ2aWNlEloKCUxpc3ROb2RlcxIlLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdE5vZGVzUmVxdWVzdBomLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdE5vZGVzUmVzcG9uc2USVwoIU2F2ZU5vZGUSJC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVOb2RlUmVxdWVzdBolLnBvbHRlcndhcmUubG9jYWwudjEuU2F2ZU5vZGVSZXNwb25zZULlAQoXY29tLnBvbHRlcndhcmUubG9jYWwudjFCCU5vZGVQcm90b1ABWlFnaXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9iYWNrZW5kL3BsYXRmb3JtL2dlbi9wb2x0ZXJ3YXJlL2xvY2FsL3YxO2xvY2FsdjGiAgNQTFiqAhNQb2x0ZXJ3YXJlLkxvY2FsLlYxygITUG9sdGVyd2FyZVxMb2NhbFxWMeICH1BvbHRlcndhcmVcTG9jYWxcVjFcR1BCTWV0YWRhdGHqAhVQb2x0ZXJ3YXJlOjpMb2NhbDo6VjFiBnByb3RvMw");
+  fileDesc("Ch5wb2x0ZXJ3YXJlL2xvY2FsL3YxL25vZGUucHJvdG8SE3BvbHRlcndhcmUubG9jYWwudjEimQIKBE5vZGUSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIWCg5lbnZpcm9ubWVudF9pZBgDIAEoCRIMCgRuYW1lGAQgASgJEhAKCHBsYXRmb3JtGAUgASgJEg0KBXNoZWxsGAYgASgJEg4KBnN0YXR1cxgHIAEoCRIPCgdhZGRyZXNzGAggASgJEgsKA2NwdRgJIAEoCRIOCgZtZW1vcnkYCiABKAkSFAoMbGFzdF9zZWVuX2F0GAsgASgJEhcKD2Nvbm5lY3Rpb25fa2luZBgMIAEoCRIQCghzc2hfdXNlchgNIAEoCRIQCghzc2hfcG9ydBgOIAEoBRIZChFzc2hfaWRlbnRpdHlfZmlsZRgPIAEoCSImChBMaXN0Tm9kZXNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkiPQoRTGlzdE5vZGVzUmVzcG9uc2USKAoFbm9kZXMYASADKAsyGS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLk5vZGUiOgoPU2F2ZU5vZGVSZXF1ZXN0EicKBG5vZGUYASABKAsyGS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLk5vZGUiOwoQU2F2ZU5vZGVSZXNwb25zZRInCgRub2RlGAEgASgLMhkucG9sdGVyd2FyZS5sb2NhbC52MS5Ob2RlMsIBCgtOb2RlU2VydmljZRJaCglMaXN0Tm9kZXMSJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3ROb2Rlc1JlcXVlc3QaJi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3ROb2Rlc1Jlc3BvbnNlElcKCFNhdmVOb2RlEiQucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlTm9kZVJlcXVlc3QaJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVOb2RlUmVzcG9uc2VC5QEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQglOb2RlUHJvdG9QAVpRZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvYmFja2VuZC9wbGF0Zm9ybS9nZW4vcG9sdGVyd2FyZS9sb2NhbC92MTtsb2NhbHYxogIDUExYqgITUG9sdGVyd2FyZS5Mb2NhbC5WMcoCE1BvbHRlcndhcmVcTG9jYWxcVjHiAh9Qb2x0ZXJ3YXJlXExvY2FsXFYxXEdQQk1ldGFkYXRh6gIVUG9sdGVyd2FyZTo6TG9jYWw6OlYxYgZwcm90bzM");
 
 /**
  * @generated from message polterware.local.v1.Node
@@ -70,6 +70,30 @@ export type Node = Message<"polterware.local.v1.Node"> & {
    * @generated from field: string last_seen_at = 11;
    */
   lastSeenAt: string;
+
+  /**
+   * connection_kind is "local" or "ssh" (agent reserved for later).
+   *
+   * @generated from field: string connection_kind = 12;
+   */
+  connectionKind: string;
+
+  /**
+   * @generated from field: string ssh_user = 13;
+   */
+  sshUser: string;
+
+  /**
+   * @generated from field: int32 ssh_port = 14;
+   */
+  sshPort: number;
+
+  /**
+   * ssh_identity_file is a filesystem path only; never private key material.
+   *
+   * @generated from field: string ssh_identity_file = 15;
+   */
+  sshIdentityFile: string;
 };
 
 /**

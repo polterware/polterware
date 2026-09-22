@@ -8,6 +8,11 @@ import {
   type JsonObject,
   type JsonValue,
 } from "../shared/ipc.js";
+import type {
+  StoredShortcutOverrides,
+  StoredShortcutPreferences,
+} from "../shared/shortcut-preferences.js";
+import type { McpServerStatus } from "../shared/mcp-status.js";
 import type { CoreDomainControllers } from "./core/controllers/domain.js";
 
 type Handler<K extends keyof AppIpcRequests> = (
@@ -23,6 +28,15 @@ export interface PolterwareIpcControllers {
     getIcon(): AppIconSelection;
     listIcons(): AppIconOption[];
     setIcon(id: string): AppIconSelection;
+  };
+  shortcutPreferences?: {
+    getPreferences(): StoredShortcutPreferences;
+    setPreferences(overrides: StoredShortcutOverrides): StoredShortcutPreferences;
+  };
+  mcp?: {
+    getStatus(): McpServerStatus;
+    start(): Promise<McpServerStatus> | McpServerStatus;
+    stop(): Promise<McpServerStatus> | McpServerStatus;
   };
   appShell?: {
     openExternal(url: string): Promise<{ ok: boolean }> | { ok: boolean };
@@ -57,6 +71,36 @@ function parseAppIconSelectionPayload(payload: JsonValue | undefined): string {
   return parsedId;
 }
 
+function parseShortcutPreferencesPayload(
+  payload: JsonValue | undefined,
+): StoredShortcutOverrides {
+  if (!payload || !isJsonObject(payload)) {
+    throw new Error("Shortcut preferences are required.");
+  }
+  const overridesValue = payload.overrides;
+  if (
+    overridesValue === null
+    || overridesValue === undefined
+    || Array.isArray(overridesValue)
+    || Object(overridesValue) !== overridesValue
+  ) {
+    throw new Error("Shortcut overrides are required.");
+  }
+
+  const overrides: StoredShortcutOverrides = {};
+  for (const [id, chord] of Object.entries(overridesValue as JsonObject)) {
+    if (Object.prototype.toString.call(chord) !== "[object String]") {
+      throw new Error(`Shortcut override for ${id} must be a string.`);
+    }
+    const trimmed = String(chord).trim();
+    if (!trimmed) {
+      throw new Error(`Shortcut override for ${id} is empty.`);
+    }
+    overrides[id] = trimmed.toLowerCase();
+  }
+  return overrides;
+}
+
 function coreHandler(
   controllers: PolterwareIpcControllers,
   key: keyof CoreDomainControllers,
@@ -76,6 +120,27 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.app.setIcon]: async (_event, payload) => {
       if (!controllers.appIcons) missing(IPC_CHANNELS.app.setIcon);
       return controllers.appIcons.setIcon(parseAppIconSelectionPayload(payload));
+    },
+    [IPC_CHANNELS.app.getShortcutPreferences]: async () =>
+      controllers.shortcutPreferences?.getPreferences()
+      ?? missing(IPC_CHANNELS.app.getShortcutPreferences),
+    [IPC_CHANNELS.app.setShortcutPreferences]: async (_event, payload) => {
+      if (!controllers.shortcutPreferences) {
+        missing(IPC_CHANNELS.app.setShortcutPreferences);
+      }
+      return controllers.shortcutPreferences.setPreferences(
+        parseShortcutPreferencesPayload(payload),
+      );
+    },
+    [IPC_CHANNELS.app.getMcpStatus]: async () =>
+      controllers.mcp?.getStatus() ?? missing(IPC_CHANNELS.app.getMcpStatus),
+    [IPC_CHANNELS.app.startMcp]: async () => {
+      if (!controllers.mcp) missing(IPC_CHANNELS.app.startMcp);
+      return controllers.mcp.start();
+    },
+    [IPC_CHANNELS.app.stopMcp]: async () => {
+      if (!controllers.mcp) missing(IPC_CHANNELS.app.stopMcp);
+      return controllers.mcp.stop();
     },
     [IPC_CHANNELS.app.openExternal]: async (_event, payload) => {
       if (!controllers.appShell) missing(IPC_CHANNELS.app.openExternal);
@@ -114,6 +179,14 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.listKnowledge]: coreHandler(controllers, "listKnowledge"),
     [IPC_CHANNELS.core.saveKnowledge]: coreHandler(controllers, "saveKnowledge"),
     [IPC_CHANNELS.core.deleteKnowledge]: coreHandler(controllers, "deleteKnowledge"),
+    [IPC_CHANNELS.core.searchKnowledge]: coreHandler(controllers, "searchKnowledge"),
+    [IPC_CHANNELS.core.listKnowledgeLinks]: coreHandler(controllers, "listKnowledgeLinks"),
+    [IPC_CHANNELS.core.saveKnowledgeLink]: coreHandler(controllers, "saveKnowledgeLink"),
+    [IPC_CHANNELS.core.deleteKnowledgeLink]: coreHandler(controllers, "deleteKnowledgeLink"),
+    [IPC_CHANNELS.core.listPpmEntities]: coreHandler(controllers, "listPpmEntities"),
+    [IPC_CHANNELS.core.syncProjectModel]: coreHandler(controllers, "syncProjectModel"),
+    [IPC_CHANNELS.core.compileContext]: coreHandler(controllers, "compileContext"),
+    [IPC_CHANNELS.core.listAgentToolCalls]: coreHandler(controllers, "listAgentToolCalls"),
     [IPC_CHANNELS.core.listOperations]: coreHandler(controllers, "listOperations"),
     [IPC_CHANNELS.core.requestOperation]: coreHandler(controllers, "requestOperation"),
     [IPC_CHANNELS.core.getOperation]: coreHandler(controllers, "getOperation"),

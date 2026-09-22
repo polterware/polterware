@@ -27,4 +27,4 @@ export type ProjectGeneralSettings = {
   dataSource: DataSource;
 };
 
-export type SettingsTabId = "general" | "environments" | "advanced";
+export type SettingsTabId = "general" | "environments" | "shortcuts" | "agents" | "advanced";

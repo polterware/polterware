@@ -75,7 +75,7 @@ export type PageToolbarSlotProps = {
   class?: string;
 };
 
-/** First row inside MainSurface. Fade is part of the toolbar contract. */
+/** First row inside MainSurface. Solid fill with a soft fade trail under the bar. */
 function PageToolbarRoot(props: PageToolbarRootProps) {
   return (
     <div

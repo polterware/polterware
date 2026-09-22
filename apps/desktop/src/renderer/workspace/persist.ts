@@ -7,6 +7,16 @@ import type {
 import type { WorkspaceCatalogProvider } from "@polterware/feature-shell";
 import { asNumber, asObjectArray, asRecord, asString } from "./format";
 import type { WorkspaceSnapshot } from "./load";
+import {
+  checklistHasOpenItems,
+  uniqueFeatureKey as nextFeatureKey,
+  CHECKLIST_BODY_TEMPLATE,
+  CLARIFY_BODY_TEMPLATE,
+  CONSTITUTION_BODY_TEMPLATE,
+  PLAN_BODY_TEMPLATE,
+  SPEC_BODY_TEMPLATE,
+  TASKS_BODY_TEMPLATE,
+} from "@polterware/feature-knowledge";
 
 function core() {
   return window.polterware.core;
@@ -116,43 +126,175 @@ export async function persistKnowledgeBody(
 
 export async function persistKnowledgeCreate(input: {
   projectId: string;
-  kind: "doc" | "runbook";
+  kind: "doc" | "runbook" | "adr";
   title: string;
+  body?: string;
+  extraJson?: string;
 }): Promise<string> {
-  const id = newId(input.kind === "runbook" ? "rb" : "doc");
+  const id = newId(input.kind === "runbook" ? "rb" : input.kind === "adr" ? "adr" : "doc");
+  const defaultBody =
+    input.kind === "adr"
+      ? "## Status\n\nProposed\n\n## Context\n\n\n\n## Decision\n\n\n\n## Consequences\n\n"
+      : "";
+  const defaultExtraJson =
+    input.kind === "runbook"
+      ? JSON.stringify({
+          service: "Service",
+          severity: "medium",
+          prerequisites: [],
+          steps: [],
+          commands: [],
+          rollback: "",
+        })
+      : JSON.stringify({
+          author: "Project maintainer",
+          environment: "All",
+          componentIds: [],
+          componentNames: [],
+        });
   await core().knowledge.save({
     item: {
       id,
       projectId: input.projectId,
       title: input.title,
-      body: "",
+      body: input.body ?? defaultBody,
       kind: input.kind,
-      tags: [],
+      tags: input.kind === "adr" ? ["adr"] : [],
       summary: "",
       owner: "Platform",
-      status: "draft",
-      extraJson: input.kind === "runbook"
-        ? JSON.stringify({
-            service: "Service",
-            severity: "medium",
-            prerequisites: [],
-            steps: [],
-            commands: [],
-            rollback: "",
-          })
-        : JSON.stringify({
-            author: "Project maintainer",
-            environment: "All",
-            componentIds: [],
-            componentNames: [],
-          }),
+      status: input.kind === "adr" ? "proposed" : "draft",
+      extraJson: input.extraJson ?? defaultExtraJson,
     },
   });
   return id;
 }
 
+export async function persistKnowledgeCreateFeature(input: {
+  workspace: WorkspaceSnapshot;
+  projectId: string;
+  title: string;
+}): Promise<string> {
+  const featureKey = nextFeatureKey(
+    input.workspace.specFeatures.map((feature) => feature.featureKey),
+    input.title,
+  );
+  const extraJson = JSON.stringify({ featureKey });
+  const artifacts: Array<{
+    kind: "spec" | "plan" | "tasks" | "clarify" | "checklist";
+    body: string;
+    prefix: string;
+  }> = [
+    { kind: "spec", body: SPEC_BODY_TEMPLATE, prefix: "spec" },
+    { kind: "plan", body: PLAN_BODY_TEMPLATE, prefix: "plan" },
+    { kind: "tasks", body: TASKS_BODY_TEMPLATE, prefix: "tasks" },
+    { kind: "clarify", body: CLARIFY_BODY_TEMPLATE, prefix: "clarify" },
+    { kind: "checklist", body: CHECKLIST_BODY_TEMPLATE, prefix: "checklist" },
+  ];
+  for (const artifact of artifacts) {
+    await core().knowledge.save({
+      item: {
+        id: newId(artifact.prefix),
+        projectId: input.projectId,
+        title: input.title,
+        body: artifact.body,
+        kind: artifact.kind,
+        tags: [],
+        summary: "",
+        owner: "Platform",
+        status: "draft",
+        extraJson,
+      },
+    });
+  }
+  return featureKey;
+}
+
 export async function persistKnowledgeDelete(id: string): Promise<void> {
   await core().knowledge.delete({ id });
+}
+
+export async function persistKnowledgeArchiveFeature(
+  workspace: WorkspaceSnapshot,
+  featureKey: string,
+): Promise<void> {
+  const feature = workspace.specFeatures.find((item) => item.featureKey === featureKey);
+  if (!feature) return;
+  await Promise.all([
+    persistKnowledgeDelete(feature.spec.id),
+    persistKnowledgeDelete(feature.plan.id),
+    persistKnowledgeDelete(feature.tasks.id),
+    persistKnowledgeDelete(feature.clarify.id),
+    persistKnowledgeDelete(feature.checklist.id),
+  ]);
+}
+
+export class ChecklistIncompleteError extends Error {
+  constructor() {
+    super("Complete the checklist before marking ready.");
+    this.name = "ChecklistIncompleteError";
+  }
+}
+
+export async function persistKnowledgeSetFeatureStatus(
+  workspace: WorkspaceSnapshot,
+  projectId: string,
+  featureKey: string,
+  status: "draft" | "ready",
+): Promise<void> {
+  const feature = workspace.specFeatures.find((item) => item.featureKey === featureKey);
+  if (!feature) return;
+  if (status === "ready" && checklistHasOpenItems(feature.checklist.bodyMarkdown)) {
+    throw new ChecklistIncompleteError();
+  }
+  for (const artifact of [
+    feature.spec,
+    feature.plan,
+    feature.tasks,
+    feature.clarify,
+    feature.checklist,
+  ]) {
+    const current = workspace.rawKnowledge.find((item) => asString(item.id) === artifact.id);
+    if (!current) continue;
+    await core().knowledge.save({
+      item: {
+        ...current,
+        projectId,
+        status,
+      },
+    });
+  }
+}
+
+export async function persistConstitutionEnsure(input: {
+  workspace: WorkspaceSnapshot;
+  projectId: string;
+}): Promise<string> {
+  const existing = input.workspace.constitution;
+  if (existing) return existing.id;
+  const id = newId("constitution");
+  await core().knowledge.save({
+    item: {
+      id,
+      projectId: input.projectId,
+      title: "Project constitution",
+      body: CONSTITUTION_BODY_TEMPLATE,
+      kind: "constitution",
+      tags: [],
+      summary: "",
+      owner: "Platform",
+      status: "active",
+      extraJson: "{}",
+    },
+  });
+  return id;
+}
+
+export async function persistConstitutionArchive(
+  workspace: WorkspaceSnapshot,
+): Promise<void> {
+  const constitution = workspace.constitution;
+  if (!constitution) return;
+  await persistKnowledgeDelete(constitution.id);
 }
 
 export async function persistKnowledgeDuplicate(
@@ -345,20 +487,30 @@ export async function persistNode(input: {
   name: string;
   platform?: string;
   shell?: string;
+  connectionKind?: "local" | "ssh";
+  address?: string;
+  sshUser?: string;
+  sshPort?: number;
+  sshIdentityFile?: string;
 }): Promise<void> {
+  const connectionKind = input.connectionKind ?? "local";
   await core().nodes.save({
     node: {
       id: newId("node"),
       projectId: input.projectId,
       environmentId: input.environmentId ?? "",
       name: input.name,
-      platform: input.platform ?? "local",
+      platform: input.platform ?? (connectionKind === "ssh" ? "linux" : "local"),
       shell: input.shell ?? "bash",
       status: "healthy",
-      address: "",
+      address: input.address ?? "",
       cpu: "",
       memory: "",
       lastSeenAt: new Date().toISOString(),
+      connectionKind,
+      sshUser: input.sshUser ?? "",
+      sshPort: input.sshPort ?? 22,
+      sshIdentityFile: input.sshIdentityFile ?? "",
     },
   });
 }

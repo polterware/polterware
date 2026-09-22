@@ -7,8 +7,9 @@
   --edge-light-field-rim: rgb(255 255 255 / 0.032);
   --edge-light-surface-highlight: rgb(255 255 255 / 0.055);
   --edge-light-surface-rim: rgb(255 255 255 / 0.04);
-  --material-fade-edge-bottom: linear-gradient(to bottom, var(--color-surface) 0%, var(--color-surface) 52%, transparent 100%);
-  --material-fade-edge-top: linear-gradient(to top, var(--color-surface) 0%, var(--color-surface) 52%, transparent 100%);
+  --material-fade-edge-bottom: linear-gradient(to bottom, var(--color-surface) 0%, var(--color-surface) 48%, color-mix(in srgb, var(--color-surface) 45%, transparent) 68%, color-mix(in srgb, var(--color-surface) 18%, transparent) 86%, transparent 100%);
+  --material-fade-edge-top: linear-gradient(to top, var(--color-surface) 0%, var(--color-surface) 48%, color-mix(in srgb, var(--color-surface) 45%, transparent) 68%, color-mix(in srgb, var(--color-surface) 18%, transparent) 86%, transparent 100%);
+  --material-fade-edge-toolbar-trail: linear-gradient(to bottom, var(--color-surface) 0%, color-mix(in srgb, var(--color-surface) 52%, transparent) 30%, color-mix(in srgb, var(--color-surface) 18%, transparent) 65%, transparent 100%);
   --material-fade-edge-top-canvas: linear-gradient(to right, var(--color-surface-subtle), transparent 40px), linear-gradient(to left, var(--color-surface-subtle), transparent 40px), linear-gradient(to top, var(--color-surface-subtle), transparent 52px);
 }
 
@@ -52,18 +53,8 @@
 }
 
 /**
- * Reusable surface-to-transparent handoff for toolbars layered over scrolling content.
- * Consumers own positioning, spacing, and overlap depth.
+ * Form controls + compact menus — mirrored from base.css (DESIGN.md Control field / Menu).
  */
-.pw-fade-edge-bar {
-  background: var(--material-fade-edge-bottom);
-}
-
-.pw-fade-edge-bar--inset-edges {
-  margin-inline: 1px;
-}
-
-/* Form controls + compact menus — mirrored from base.css (DESIGN.md Control field / Menu). */
 .control-field {
   border: 1px solid var(--edge-light-field-rim);
   border-top-color: var(--edge-light-field-highlight);

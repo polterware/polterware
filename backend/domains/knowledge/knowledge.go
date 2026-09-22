@@ -24,8 +24,17 @@ const MaxBody = 64 * 1024
 
 var ErrInvalid = errors.New("invalid knowledge item")
 
+func ValidKind(kind string) bool {
+	switch kind {
+	case "doc", "runbook", "spec", "plan", "tasks", "adr", "constitution", "clarify", "checklist":
+		return true
+	default:
+		return false
+	}
+}
+
 func NewItem(id, projectID, title, body, kind string, tags []string) (Item, error) {
-	if id == "" || projectID == "" || title == "" || (kind != "doc" && kind != "runbook") || len(body) > MaxBody {
+	if id == "" || projectID == "" || title == "" || !ValidKind(kind) || len(body) > MaxBody {
 		return Item{}, ErrInvalid
 	}
 	now := time.Now().UTC()

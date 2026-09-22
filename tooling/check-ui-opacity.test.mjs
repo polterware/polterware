@@ -127,12 +127,15 @@ test("allows the crisp opaque canvas grid but rejects transparent fades", () => 
 
 test("allows only the named shared fade-edge material gradient", () => {
   const sharedBottomFade =
-    "--material-fade-edge-bottom: linear-gradient(to bottom, var(--color-surface), transparent);";
+    "--material-fade-edge-bottom: linear-gradient(to bottom, color-mix(in srgb, var(--color-surface) 50%, transparent), transparent);";
   const sharedTopFade =
-    "--material-fade-edge-top: linear-gradient(to top, var(--color-surface), transparent);";
+    "--material-fade-edge-top: linear-gradient(to top, color-mix(in srgb, var(--color-surface) 50%, transparent), transparent);";
+  const sharedToolbarFill =
+    "--material-fade-edge-toolbar-trail: linear-gradient(to bottom, var(--color-surface), transparent);";
 
   assert.deepEqual(inspectSource(sharedBottomFade, MATERIALS_FILE), []);
   assert.deepEqual(inspectSource(sharedTopFade, MATERIALS_FILE), []);
+  assert.deepEqual(inspectSource(sharedToolbarFill, MATERIALS_FILE), []);
   assert.notDeepEqual(inspectSource(sharedTopFade, PRODUCT_FILE), []);
   assert.notDeepEqual(
     inspectSource(

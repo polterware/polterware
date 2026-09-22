@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,6 +37,14 @@ type Manager struct {
 	sessions map[string]*Session
 }
 
+// SSHProfile is the metadata needed to spawn system ssh inside a PTY.
+type SSHProfile struct {
+	User         string
+	Host         string
+	Port         int
+	IdentityFile string
+}
+
 func NewManager() *Manager {
 	return &Manager{sessions: map[string]*Session{}}
 }
@@ -50,17 +59,64 @@ func defaultShell() string {
 	return "/bin/zsh"
 }
 
+func sshBinary() string {
+	if runtime.GOOS == "windows" {
+		return "ssh.exe"
+	}
+	return "ssh"
+}
+
+// BuildSSHCommand returns argv for an interactive SSH session.
+func BuildSSHCommand(profile SSHProfile) (name string, args []string, err error) {
+	user := strings.TrimSpace(profile.User)
+	host := strings.TrimSpace(profile.Host)
+	if user == "" || host == "" {
+		return "", nil, fmt.Errorf("ssh user and host are required")
+	}
+	port := profile.Port
+	if port == 0 {
+		port = 22
+	}
+	if port < 1 || port > 65535 {
+		return "", nil, fmt.Errorf("ssh port must be between 1 and 65535")
+	}
+	bin := sshBinary()
+	if path, lookErr := exec.LookPath(bin); lookErr != nil {
+		return "", nil, fmt.Errorf("ssh binary not found (%s): install OpenSSH client", bin)
+	} else {
+		bin = path
+	}
+	args = []string{"-tt", "-p", fmt.Sprintf("%d", port)}
+	if identity := strings.TrimSpace(profile.IdentityFile); identity != "" {
+		args = append(args, "-i", identity)
+	}
+	args = append(args, fmt.Sprintf("%s@%s", user, host))
+	return bin, args, nil
+}
+
 func (m *Manager) Create(id, projectID, targetID, shell, cwd string, cols, rows uint16) (*Session, error) {
 	if shell == "" {
 		shell = defaultShell()
 	}
+	return m.createCmd(id, projectID, targetID, shell, cwd, cols, rows, exec.Command(shell))
+}
+
+// CreateSSH opens an interactive remote session via system ssh inside a PTY.
+func (m *Manager) CreateSSH(id, projectID, targetID, cwd string, cols, rows uint16, profile SSHProfile) (*Session, error) {
+	name, args, err := BuildSSHCommand(profile)
+	if err != nil {
+		return nil, err
+	}
+	return m.createCmd(id, projectID, targetID, "ssh", cwd, cols, rows, exec.Command(name, args...))
+}
+
+func (m *Manager) createCmd(id, projectID, targetID, shellLabel, cwd string, cols, rows uint16, cmd *exec.Cmd) (*Session, error) {
 	if cols == 0 {
 		cols = 120
 	}
 	if rows == 0 {
 		rows = 32
 	}
-	cmd := exec.Command(shell)
 	if cwd != "" {
 		cmd.Dir = cwd
 	}
@@ -74,7 +130,7 @@ func (m *Manager) Create(id, projectID, targetID, shell, cwd string, cols, rows 
 		ProjectID: projectID,
 		TargetID:  targetID,
 		Status:    "active",
-		Shell:     shell,
+		Shell:     shellLabel,
 		Cwd:       cwd,
 		StartedAt: time.Now().UTC(),
 		Cols:      cols,

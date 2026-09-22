@@ -32,6 +32,7 @@ export type TerminalTargetItem = {
   shell: string;
   status: TerminalTargetStatus;
   environmentId?: string;
+  connectionKind?: "local" | "ssh";
 };
 
 /** Degraded still accepts interactive sessions; lifecycle/offline states do not. */

@@ -34,6 +34,12 @@ func Defaults(store *storepkg.Store) error {
 	if err := seedKnowledge(store); err != nil {
 		return err
 	}
+	if _, err := store.SyncProjectModel(ProjectID); err != nil {
+		return err
+	}
+	if err := seedKnowledgeLinks(store); err != nil {
+		return err
+	}
 	if err := seedOperations(store); err != nil {
 		return err
 	}

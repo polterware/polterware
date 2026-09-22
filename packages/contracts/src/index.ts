@@ -1,6 +1,7 @@
 export * from "./gen/polterware/common/v1/error_pb.js";
 export * from "./gen/polterware/events/v1/events_pb.js";
 export * from "./gen/polterware/local/v1/architecture_pb.js";
+export * from "./gen/polterware/local/v1/context_pb.js";
 export * from "./gen/polterware/local/v1/health_pb.js";
 export * from "./gen/polterware/local/v1/integration_pb.js";
 export * from "./gen/polterware/local/v1/knowledge_pb.js";
@@ -8,6 +9,7 @@ export * from "./gen/polterware/local/v1/log_pb.js";
 export * from "./gen/polterware/local/v1/maintenance_pb.js";
 export * from "./gen/polterware/local/v1/node_pb.js";
 export * from "./gen/polterware/local/v1/operation_pb.js";
+export * from "./gen/polterware/local/v1/ppm_pb.js";
 export * from "./gen/polterware/local/v1/process_pb.js";
 export * from "./gen/polterware/local/v1/project_pb.js";
 export * from "./gen/polterware/local/v1/terminal_pb.js";

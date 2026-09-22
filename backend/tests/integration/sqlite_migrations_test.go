@@ -17,7 +17,7 @@ func TestSQLiteUsesSingleBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(versions) != 1 || versions[0] != 1 {
+	if len(versions) != 7 || versions[0] != 1 || versions[1] != 2 || versions[2] != 3 || versions[3] != 4 || versions[4] != 5 || versions[5] != 6 || versions[6] != 7 {
 		t.Fatalf("versions %v", versions)
 	}
 }

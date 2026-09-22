@@ -1,6 +1,8 @@
 import { createEffect, createSignal } from "solid-js";
 import { A11yDialog, Button, Field, Input, Select } from "@polterware/frontend-design-system";
+import type { EnvironmentCreateTemplate } from "./create-templates";
 import { defaultProtectionForKind } from "./environment-status";
+import { EnvironmentTemplateGrid } from "./environment-template-grid";
 import type { EnvironmentKind, ProtectionLevel } from "./types";
 
 export type CreateEnvironmentDraft = {
@@ -26,6 +28,7 @@ export function CreateEnvironmentDialog(props: {
   open: boolean;
   onClose: () => void;
   onSubmit: (draft: CreateEnvironmentDraft) => void;
+  onCreateFromTemplate?: (template: EnvironmentCreateTemplate) => void;
 }) {
   const [name, setName] = createSignal("");
   const [kind, setKind] = createSignal<EnvironmentKind>("development");
@@ -57,7 +60,8 @@ export function CreateEnvironmentDialog(props: {
     <A11yDialog
       open={props.open}
       title="Add environment"
-      description="This environment is stored in the local SQLite database."
+      description="Pick a template or create a blank environment stored in the local SQLite database."
+      size="xl"
       onClose={close}
       footer={
         <>
@@ -65,12 +69,17 @@ export function CreateEnvironmentDialog(props: {
             Cancel
           </Button>
           <Button size="sm" variant="primary" disabled={!canSubmit()} onClick={submit}>
-            Create
+            Create blank
           </Button>
         </>
       }
     >
-      <div class="grid gap-3">
+      <div class="grid gap-4">
+        {props.onCreateFromTemplate ? (
+          <EnvironmentTemplateGrid
+            onSelect={(template) => props.onCreateFromTemplate?.(template)}
+          />
+        ) : null}
         <Field label="Name">
           <Input
             size="sm"

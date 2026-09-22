@@ -28,6 +28,31 @@ export const SEARCH_HITS: SearchHit[] = [
   { id: "h6", category: "Resources", title: "Nitro", subtitle: "Node · online", section: "resources", tab: "nodes", entityKind: "node", entityId: "node-nitro" },
 ];
 
+export function knowledgeHitsFromSearch(hits: Array<{
+  item?: { id?: string; title?: string; kind?: string; summary?: string };
+  snippet?: string;
+  source?: string;
+}>): SearchHit[] {
+  return hits.flatMap((hit) => {
+    const id = hit.item?.id;
+    const title = hit.item?.title;
+    if (!id || !title) return [];
+    const kind = hit.item?.kind ?? "doc";
+    const tab = kind === "runbook" ? "runbooks" : kind === "adr" ? "adrs" : kind === "spec" || kind === "plan" || kind === "tasks" ? "specs" : "docs";
+    const entityKind = kind === "runbook" ? "runbook" : kind === "adr" ? "adr" : kind === "spec" || kind === "plan" || kind === "tasks" ? "feature" : "document";
+    return [{
+      id: `knowledge-${id}`,
+      category: "Knowledge",
+      title,
+      subtitle: `${kind} · ${hit.snippet || hit.item?.summary || hit.source || "knowledge"}`,
+      section: "knowledge",
+      tab,
+      entityKind,
+      entityId: id,
+    }];
+  });
+}
+
 export function SearchResultsPage(props: {
   query?: string;
   category?: string;

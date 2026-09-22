@@ -1,5 +1,7 @@
 import { createEffect, createSignal } from "solid-js";
 import { A11yDialog, Button, Field, Input } from "@polterware/frontend-design-system";
+import type { ResourceProcessTemplate } from "./create-templates";
+import { ResourceProcessTemplateGrid } from "./resources-template-grid";
 
 export type ProcessDraft = {
   name: string;
@@ -15,6 +17,7 @@ export function CreateProcessDialog(props: {
   open: boolean;
   onClose: () => void;
   onSubmit?: (draft: ProcessDraft) => void;
+  onCreateFromTemplate?: (template: ResourceProcessTemplate) => void;
 }) {
   const [name, setName] = createSignal("");
   const [command, setCommand] = createSignal("");
@@ -48,12 +51,17 @@ export function CreateProcessDialog(props: {
               })
             }
           >
-            Start
+            Start blank
           </Button>
         </>
       )}
     >
-      <div class="grid gap-3">
+      <div class="grid gap-4">
+        {props.onCreateFromTemplate ? (
+          <ResourceProcessTemplateGrid
+            onSelect={(template) => props.onCreateFromTemplate?.(template)}
+          />
+        ) : null}
         <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
           Runs on the local machine through polterware-core. Remote nodes are not supported.
         </p>

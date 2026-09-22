@@ -13,6 +13,7 @@ export function PageEmpty(props: {
   title: string;
   description?: string;
   action?: JSX.Element;
+  children?: JSX.Element;
 }) {
   return (
     <div class="flex h-full min-h-[200px] flex-col items-center justify-center gap-2 p-8 text-center">
@@ -21,6 +22,7 @@ export function PageEmpty(props: {
         <p class="max-w-sm text-[13px] text-[var(--color-text-muted)]">{props.description}</p>
       ) : null}
       {props.action}
+      {props.children ? <div class="mt-4 w-full max-w-3xl">{props.children}</div> : null}
     </div>
   );
 }

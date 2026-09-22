@@ -10,10 +10,17 @@ import type {
   TerminalTargetStatus,
   WorkspaceCatalogProvider,
   WorkspaceDocument,
+  WorkspaceAdr,
+  WorkspaceConstitution,
+  WorkspaceEntityLink,
+  WorkspacePpmEntity,
   WorkspaceIntegration,
   WorkspaceIntegrationResource,
   WorkspaceIntegrationSyncRun,
   WorkspaceRunbook,
+  WorkspaceSpecArtifact,
+  WorkspaceSpecArtifactKind,
+  WorkspaceSpecFeature,
 } from "@polterware/feature-shell";
 import {
   asBoolean,
@@ -135,17 +142,33 @@ export function mapNodes(
     cpu: asString(item.cpu),
     memory: asString(item.memory),
     lastSeen: formatInstant(asString(item.lastSeenAt)),
+    connectionKind: asConnectionKind(asString(item.connectionKind)),
+    sshUser: asString(item.sshUser) || undefined,
+    sshPort: asNumber(item.sshPort) || undefined,
+    sshIdentityFile: asString(item.sshIdentityFile) || undefined,
   }));
 }
 
 export function mapTerminalTargets(nodes: Record<string, unknown>[]): TerminalTargetItem[] {
-  return nodes.map((item) => ({
-    id: asString(item.id),
-    name: asString(item.name),
-    shell: asString(item.shell, "bash"),
-    status: asTerminalStatus(asString(item.status)),
-    environmentId: asString(item.environmentId) || undefined,
-  }));
+  return nodes.map((item) => {
+    const connectionKind = asConnectionKind(asString(item.connectionKind));
+    const sshUser = asString(item.sshUser);
+    const address = asString(item.address);
+    const shell =
+      connectionKind === "ssh"
+        ? sshUser && address
+          ? `ssh ${sshUser}@${address}`
+          : "ssh"
+        : asString(item.shell, "bash");
+    return {
+      id: asString(item.id),
+      name: asString(item.name),
+      shell,
+      status: asTerminalStatus(asString(item.status)),
+      environmentId: asString(item.environmentId) || undefined,
+      connectionKind,
+    };
+  });
 }
 
 export function mapProcesses(
@@ -165,31 +188,109 @@ export function mapProcesses(
   }));
 }
 
-export function mapDocuments(items: Record<string, unknown>[]): WorkspaceDocument[] {
+export function mapPpmEntities(items: Record<string, unknown>[]): WorkspacePpmEntity[] {
+  return items.map((item) => ({
+    id: asString(item.id),
+    kind: asString(item.kind),
+    refKind: asString(item.refKind),
+    refId: asString(item.refId),
+    title: asString(item.title),
+    truthClass: asString(item.truthClass, "declared"),
+    source: asString(item.source, "polterware"),
+  }));
+}
+
+export function mapKnowledgeEntityLinks(
+  links: Record<string, unknown>[],
+  entities: WorkspacePpmEntity[],
+): Map<string, WorkspaceEntityLink[]> {
+  const byId = new Map(entities.map((entity) => [entity.id, entity]));
+  const grouped = new Map<string, WorkspaceEntityLink[]>();
+  for (const item of links) {
+    const knowledgeId = asString(item.knowledgeId);
+    const entityId = asString(item.entityId);
+    const entity = byId.get(entityId);
+    const link: WorkspaceEntityLink = {
+      id: asString(item.id),
+      entityId,
+      entityTitle: entity?.title ?? entityId,
+      entityKind: entity?.kind ?? "",
+      entityRefId: entity?.refId ?? "",
+      predicate: asString(item.predicate),
+      truthClass: asString(item.truthClass, "declared"),
+      source: asString(item.source, "polterware"),
+    };
+    const current = grouped.get(knowledgeId) ?? [];
+    current.push(link);
+    grouped.set(knowledgeId, current);
+  }
+  return grouped;
+}
+
+export function mapDocuments(
+  items: Record<string, unknown>[],
+  linksByKnowledge: Map<string, WorkspaceEntityLink[]> = new Map(),
+): WorkspaceDocument[] {
   return items.filter((item) => asString(item.kind) === "doc").map((item) => {
     const extra = parseJsonObject(asString(item.extraJson));
+    const id = asString(item.id);
+    const entityLinks = linksByKnowledge.get(id) ?? [];
+    const componentIds = entityLinks
+      .filter((link) => link.entityKind === "component")
+      .map((link) => link.entityRefId);
+    const componentNames = entityLinks
+      .filter((link) => link.entityKind === "component")
+      .map((link) => link.entityTitle);
     return {
-      id: asString(item.id),
+      id,
       title: asString(item.title),
       summary: asString(item.summary),
       bodyMarkdown: asString(item.body),
       author: asString(extra.author, asString(item.owner, "Project maintainer")),
       updatedAt: formatInstant(asString(item.updatedAt)),
       tags: asStringArray(item.tags),
-      componentIds: asStringArray(extra.componentIds),
-      componentNames: asStringArray(extra.componentNames),
+      componentIds: componentIds.length > 0 ? componentIds : asStringArray(extra.componentIds),
+      componentNames: componentNames.length > 0 ? componentNames : asStringArray(extra.componentNames),
       environment: asString(extra.environment, "All"),
       status: asString(item.status) === "draft" ? "draft" : "published",
       owner: asString(item.owner, "Platform"),
+      entityLinks,
     };
   });
 }
 
-export function mapRunbooks(items: Record<string, unknown>[]): WorkspaceRunbook[] {
+export function mapAdrs(
+  items: Record<string, unknown>[],
+  linksByKnowledge: Map<string, WorkspaceEntityLink[]> = new Map(),
+): WorkspaceAdr[] {
+  return items.filter((item) => asString(item.kind) === "adr").map((item) => {
+    const id = asString(item.id);
+    return {
+      id,
+      title: asString(item.title),
+      summary: asString(item.summary),
+      bodyMarkdown: asString(item.body),
+      updatedAt: formatInstant(asString(item.updatedAt)),
+      tags: asStringArray(item.tags),
+      status: asString(item.status, "accepted"),
+      owner: asString(item.owner, "Platform"),
+      entityLinks: linksByKnowledge.get(id) ?? [],
+    };
+  });
+}
+
+export function mapRunbooks(
+  items: Record<string, unknown>[],
+  linksByKnowledge: Map<string, WorkspaceEntityLink[]> = new Map(),
+): WorkspaceRunbook[] {
   return items.filter((item) => asString(item.kind) === "runbook").map((item) => {
     const extra = parseJsonObject(asString(item.extraJson));
+    const id = asString(item.id);
+    const entityLinks = linksByKnowledge.get(id) ?? [];
+    const componentLink = entityLinks.find((link) => link.entityKind === "component");
+    const resourceLink = entityLinks.find((link) => link.entityKind === "resource");
     return {
-      id: asString(item.id),
+      id,
       title: asString(item.title),
       objective: asString(item.summary),
       bodyMarkdown: asString(item.body),
@@ -201,13 +302,128 @@ export function mapRunbooks(items: Record<string, unknown>[]): WorkspaceRunbook[
       rollback: asString(extra.rollback),
       owner: asString(item.owner, "Platform"),
       lastValidated: formatInstant(asString(extra.lastValidated) || asString(item.updatedAt)),
-      componentId: asString(extra.componentId) || undefined,
-      componentName: asString(extra.componentName) || undefined,
-      resourceId: asString(extra.resourceId) || undefined,
-      resourceName: asString(extra.resourceName) || undefined,
+      componentId: componentLink?.entityRefId || asString(extra.componentId) || undefined,
+      componentName: componentLink?.entityTitle || asString(extra.componentName) || undefined,
+      resourceId: resourceLink?.entityRefId || asString(extra.resourceId) || undefined,
+      resourceName: resourceLink?.entityTitle || asString(extra.resourceName) || undefined,
       operationId: asString(extra.operationId) || undefined,
+      entityLinks,
     };
   });
+}
+
+function asSpecStatus(value: string): "draft" | "ready" {
+  return value === "ready" ? "ready" : "draft";
+}
+
+function asSpecArtifactKind(value: string): WorkspaceSpecArtifactKind | null {
+  if (
+    value === "spec"
+    || value === "plan"
+    || value === "tasks"
+    || value === "clarify"
+    || value === "checklist"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function mapSpecArtifact(item: Record<string, unknown>, featureKey: string): WorkspaceSpecArtifact | null {
+  const kind = asSpecArtifactKind(asString(item.kind));
+  if (!kind) return null;
+  return {
+    id: asString(item.id),
+    kind,
+    title: asString(item.title),
+    bodyMarkdown: asString(item.body),
+    status: asSpecStatus(asString(item.status)),
+    updatedAt: formatInstant(asString(item.updatedAt)),
+    owner: asString(item.owner, "Platform"),
+    featureKey,
+  };
+}
+
+export function mapConstitution(items: Record<string, unknown>[]): WorkspaceConstitution | null {
+  const item = items.find((entry) => asString(entry.kind) === "constitution");
+  if (!item) return null;
+  return {
+    id: asString(item.id),
+    title: asString(item.title, "Project constitution"),
+    bodyMarkdown: asString(item.body),
+    updatedAt: formatInstant(asString(item.updatedAt)),
+    owner: asString(item.owner, "Platform"),
+    status: asString(item.status, "active"),
+  };
+}
+
+export function mapSpecFeatures(items: Record<string, unknown>[]): WorkspaceSpecFeature[] {
+  const byFeature = new Map<string, {
+    title: string;
+    status: "draft" | "ready";
+    updatedAt: string;
+    updatedAtRaw: string;
+    owner: string;
+    summary: string;
+    artifacts: Partial<Record<WorkspaceSpecArtifactKind, WorkspaceSpecArtifact>>;
+  }>();
+
+  for (const item of items) {
+    const kind = asSpecArtifactKind(asString(item.kind));
+    if (!kind) continue;
+    const extra = parseJsonObject(asString(item.extraJson));
+    const featureKey = asString(extra.featureKey);
+    if (!featureKey) continue;
+    const artifact = mapSpecArtifact(item, featureKey);
+    if (!artifact) continue;
+
+    const current = byFeature.get(featureKey) ?? {
+      title: asString(item.title),
+      status: asSpecStatus(asString(item.status)),
+      updatedAt: formatInstant(asString(item.updatedAt)),
+      updatedAtRaw: asString(item.updatedAt),
+      owner: asString(item.owner, "Platform"),
+      summary: asString(item.summary),
+      artifacts: {},
+    };
+    current.artifacts[kind] = artifact;
+    if (kind === "spec") {
+      current.title = artifact.title;
+      current.status = artifact.status;
+      current.owner = artifact.owner;
+      current.summary = asString(item.summary);
+    }
+    if (asString(item.updatedAt) > current.updatedAtRaw) {
+      current.updatedAtRaw = asString(item.updatedAt);
+      current.updatedAt = artifact.updatedAt;
+    }
+    byFeature.set(featureKey, current);
+  }
+
+  const features: WorkspaceSpecFeature[] = [];
+  for (const [featureKey, group] of byFeature) {
+    const spec = group.artifacts.spec;
+    const plan = group.artifacts.plan;
+    const tasks = group.artifacts.tasks;
+    const clarify = group.artifacts.clarify;
+    const checklist = group.artifacts.checklist;
+    if (!spec || !plan || !tasks || !clarify || !checklist) continue;
+    features.push({
+      featureKey,
+      title: group.title || spec.title,
+      status: group.status,
+      updatedAt: group.updatedAt,
+      owner: group.owner,
+      summary: group.summary,
+      spec,
+      plan,
+      tasks,
+      clarify,
+      checklist,
+    });
+  }
+
+  return features.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 }
 
 export function mapRuns(
@@ -420,6 +636,10 @@ function asTerminalStatus(value: string): TerminalTargetStatus {
   if (value === "offline") return "offline";
   if (value === "revoked") return "revoked";
   return "unknown";
+}
+
+function asConnectionKind(value: string): "local" | "ssh" {
+  return value === "ssh" ? "ssh" : "local";
 }
 
 function asProcessStatus(value: string): ProcessFixture["status"] {

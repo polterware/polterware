@@ -138,7 +138,9 @@ describe("UI contract source", () => {
     expect(page).toContain("initialSession");
     expect(page).toContain("unusableTerminalTargetFeedback");
     expect(page).toContain("No terminal sessions");
-    expect(page).toContain("No targets available");
+    expect(page).toContain("LOCAL_TERMINAL_TARGET");
+    expect(page).toContain("onAddSshHost");
+    expect(page).toContain("This machine");
     expect(page.toLowerCase()).not.toContain("connected to real host");
   });
 
@@ -148,6 +150,8 @@ describe("UI contract source", () => {
     expect(picker).toContain("terminalTargetStatusTone");
     expect(picker).toContain("isTerminalTargetUsable");
     expect(picker).toContain("onUnusableSelect");
+    expect(picker).toContain("onAddSshHost");
+    expect(picker).toContain("Add SSH host");
     expect(picker).toContain("No targets available");
   });
 

@@ -1,5 +1,5 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { HardDrive } from "@polterware/frontend-design-system";
+import { HardDrive, Plus, Server } from "@polterware/frontend-design-system";
 import { MenuItem, Popover, StatusChip } from "@polterware/frontend-design-system";
 import type { TerminalTargetItem } from "./types";
 import {
@@ -16,6 +16,8 @@ export function TargetPicker(props: {
   targets?: TerminalTargetItem[];
   environmentId?: string;
   onSelect: (targetId: string) => void;
+  /** Opens the SSH host create flow from the picker. */
+  onAddSshHost?: () => void;
   /** Called when operator activates an unusable target (honest feedback path). */
   onUnusableSelect?: (target: TerminalTargetItem) => void;
   /** Terminal header button — required for Ark placement after portal. */
@@ -44,6 +46,12 @@ export function TargetPicker(props: {
     props.onSelect(target.id);
     setQuery("");
     props.onClose();
+  }
+
+  function addSshHost() {
+    setQuery("");
+    props.onClose();
+    props.onAddSshHost?.();
   }
 
   return (
@@ -78,6 +86,7 @@ export function TargetPicker(props: {
           <For each={filtered()}>
             {(t) => {
               const usable = () => isTerminalTargetUsable(t.status);
+              const isSsh = () => t.connectionKind === "ssh";
               return (
                 <MenuItem
                   class="py-2"
@@ -90,15 +99,30 @@ export function TargetPicker(props: {
                   }
                   onClick={() => choose(t)}
                 >
-                  <HardDrive
-                    size={14}
-                    class="shrink-0"
-                    style={{
-                      color: usable()
-                        ? "var(--color-text-muted)"
-                        : "var(--color-text-disabled)",
-                    }}
-                  />
+                  <Show
+                    when={isSsh()}
+                    fallback={
+                      <HardDrive
+                        size={14}
+                        class="shrink-0"
+                        style={{
+                          color: usable()
+                            ? "var(--color-text-muted)"
+                            : "var(--color-text-disabled)",
+                        }}
+                      />
+                    }
+                  >
+                    <Server
+                      size={14}
+                      class="shrink-0"
+                      style={{
+                        color: usable()
+                          ? "var(--color-text-muted)"
+                          : "var(--color-text-disabled)",
+                      }}
+                    />
+                  </Show>
                   <div class="min-w-0 flex-1">
                     <p
                       class={`m-0 truncate text-[13px] ${
@@ -126,6 +150,24 @@ export function TargetPicker(props: {
               No targets match
             </p>
           </Show>
+        </Show>
+
+        <Show when={props.onAddSshHost}>
+          <div class="mt-1 border-t border-[var(--color-border-subtle)] pt-1">
+            <MenuItem class="py-2" title="Add SSH host" onClick={() => addSshHost()}>
+              <Plus
+                size={14}
+                class="shrink-0"
+                style={{ color: "var(--color-text-muted)" }}
+              />
+              <div class="min-w-0 flex-1">
+                <p class="m-0 truncate text-[13px] text-[var(--color-text-primary)]">Add SSH host</p>
+                <p class="m-0 truncate text-[11px] text-[var(--color-text-muted)]">
+                  Save a remote connection profile
+                </p>
+              </div>
+            </MenuItem>
+          </div>
         </Show>
       </div>
     </Popover>

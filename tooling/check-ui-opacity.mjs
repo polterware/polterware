@@ -118,8 +118,8 @@ function isAllowed(relativePath, ruleId, match, excerpt) {
 
   if (
     relativePath === SHARED_MATERIALS_PATH
-    && ruleId === "transparent-gradient"
-    && /--material-fade-edge-(?:bottom|top)/.test(excerpt)
+    && (ruleId === "transparent-gradient" || ruleId === "transparent-color-mix")
+    && /--material-fade-edge-(?:bottom|top|toolbar-trail)/.test(excerpt)
   ) {
     return true;
   }

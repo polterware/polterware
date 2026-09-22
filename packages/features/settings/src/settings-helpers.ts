@@ -3,13 +3,23 @@ import type { ProjectEnvironment, SettingsTabId } from "./types";
 export const SETTINGS_TABS: ReadonlyArray<{ id: SettingsTabId; label: string }> = [
   { id: "general", label: "General" },
   { id: "environments", label: "Environments" },
+  { id: "shortcuts", label: "Shortcuts" },
+  { id: "agents", label: "Agents" },
   { id: "advanced", label: "Advanced" },
 ] as const;
 
 /** Normalize route tab ids to the retained Settings IA. */
 export function normalizeSettingsTab(raw?: string): SettingsTabId {
   const tab = raw ?? "general";
-  if (tab === "general" || tab === "environments" || tab === "advanced") return tab;
+  if (
+    tab === "general"
+    || tab === "environments"
+    || tab === "shortcuts"
+    || tab === "agents"
+    || tab === "advanced"
+  ) {
+    return tab;
+  }
   return "general";
 }
 

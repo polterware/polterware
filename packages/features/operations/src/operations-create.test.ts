@@ -37,8 +37,9 @@ describe("Operations create dialog contracts", () => {
     const root = dirname(fileURLToPath(import.meta.url));
     const source = readFileSync(resolve(root, "index.tsx"), "utf8");
 
-    expect(source).toContain("Add workflow");
-    expect(source).toContain("Add schedule");
+    expect(source).toContain('label="Add workflow"');
+    expect(source).toContain('label="Add schedule"');
+    expect(source).toContain("ToolbarIconButton");
     expect(source).toContain("<CreateWorkflowDialog");
     expect(source).toContain("<CreateScheduleDialog");
     expect(source).toContain("onCreateWorkflow");

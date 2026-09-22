@@ -135,7 +135,11 @@ func (s *Store) SaveEnvironment(environment projects.Environment) error {
 	_, err := s.DB.Exec(`INSERT INTO environments(id,project_id,name,kind,protection,is_default,description) VALUES(?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,name=excluded.name,kind=excluded.kind,protection=excluded.protection,is_default=excluded.is_default,description=excluded.description`,
 		environment.ID, environment.ProjectID, environment.Name, environment.Kind, environment.Protection, defaultFlag, environment.Description)
-	return err
+	if err != nil {
+		return err
+	}
+	_, _ = s.SyncProjectModel(environment.ProjectID)
+	return nil
 }
 
 func (s *Store) ListEnvironments(projectID string) ([]projects.Environment, error) {
@@ -234,7 +238,11 @@ func (s *Store) UpdateLayout(projectID string, expectedRevision int64, body stri
 	}
 	_, err = s.DB.Exec(`INSERT INTO architecture_layouts(id,project_id,revision,body_json) VALUES(?,?,?,?)
 		ON CONFLICT(project_id) DO UPDATE SET revision=excluded.revision,body_json=excluded.body_json`, updated.ID, updated.ProjectID, updated.Revision, updated.BodyJSON)
-	return updated, err
+	if err != nil {
+		return updated, err
+	}
+	_, _ = s.SyncProjectModel(projectID)
+	return updated, nil
 }
 
 func (s *Store) SaveResource(resource resources.Resource) error {
@@ -252,7 +260,11 @@ func (s *Store) SaveResource(resource resources.Resource) error {
 	_, err = s.DB.Exec(`INSERT INTO resources(id,project_id,environment_id,name,type,external_key,source,provider,status,region,address,tags_json,description) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,environment_id=excluded.environment_id,name=excluded.name,type=excluded.type,external_key=excluded.external_key,source=excluded.source,provider=excluded.provider,status=excluded.status,region=excluded.region,address=excluded.address,tags_json=excluded.tags_json,description=excluded.description`,
 		resource.ID, resource.ProjectID, nullable(resource.EnvironmentID), resource.Name, resource.Type, nullable(resource.ExternalKey), resource.Source, resource.Provider, resource.Status, resource.Region, resource.Address, string(tags), resource.Description)
-	return err
+	if err != nil {
+		return err
+	}
+	_, _ = s.SyncProjectModel(resource.ProjectID)
+	return nil
 }
 
 func (s *Store) ListResources(projectID string) ([]resources.Resource, error) {
@@ -282,7 +294,10 @@ func (s *Store) SaveKnowledge(item knowledge.Item) error {
 	_, err := s.DB.Exec(`INSERT INTO knowledge_items(id,project_id,title,body,kind,tags_json,summary,owner,status,extra_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,title=excluded.title,body=excluded.body,kind=excluded.kind,tags_json=excluded.tags_json,summary=excluded.summary,owner=excluded.owner,status=excluded.status,extra_json=excluded.extra_json,updated_at=excluded.updated_at`,
 		item.ID, item.ProjectID, item.Title, item.Body, item.Kind, string(tags), item.Summary, item.Owner, item.Status, item.ExtraJSON, item.CreatedAt.Format(time.RFC3339), item.UpdatedAt.Format(time.RFC3339))
-	return err
+	if err != nil {
+		return err
+	}
+	return s.indexKnowledgeFTS(item)
 }
 
 func (s *Store) ListKnowledge(projectID, kind string) ([]knowledge.Item, error) {
@@ -314,6 +329,9 @@ func (s *Store) ListKnowledge(projectID, kind string) ([]knowledge.Item, error) 
 }
 
 func (s *Store) DeleteKnowledge(id string) error {
+	if _, err := s.DB.Exec(`DELETE FROM knowledge_fts WHERE knowledge_id=?`, id); err != nil {
+		return err
+	}
 	_, err := s.DB.Exec(`DELETE FROM knowledge_items WHERE id=?`, id)
 	return err
 }

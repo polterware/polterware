@@ -24,6 +24,10 @@ export type NodeFixture = {
   cpu: string;
   memory: string;
   lastSeen: string;
+  connectionKind?: "local" | "ssh";
+  sshUser?: string;
+  sshPort?: number;
+  sshIdentityFile?: string;
 };
 
 export type ProcessFixture = {

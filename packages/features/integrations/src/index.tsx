@@ -3,7 +3,6 @@ import {
   DataTable,
   FilterPopover,
   PageContent,
-  PageEmpty,
   PageToolbar,
   StatusChip,
   Tabs,
@@ -20,6 +19,10 @@ import { IntegrationDetail } from "./integration-detail";
 import { providerIconKey } from "./provider-icon";
 import { SetupWizard } from "./setup-wizard";
 import { cliStateLabel, cliStateTone, matchConnectedIntegrationId } from "./setup-wizard-helpers";
+import {
+  IntegrationsCatalogFilterEmpty,
+  IntegrationsConnectedEmpty,
+} from "./integrations-empty";
 
 export { IntegrationDetail } from "./integration-detail";
 export { SetupWizard } from "./setup-wizard";
@@ -150,39 +153,48 @@ export function IntegrationsView(props: {
 
           <PageContent class="p-0">
             <Show when={tab() === "connected"}>
-              <DataTable.Root
-                rows={props.integrations ?? []}
-                getRowId={(item) => item.id}
-                activeRowId={activeTarget()?.scopeId === "integrations:connected" ? activeTarget()?.entityId : null}
-                activateFirstRow
-                onActiveRowChange={(id) => id && activateIntegration(id)}
+              <Show
+                when={(props.integrations ?? []).length > 0}
+                fallback={
+                  <IntegrationsConnectedEmpty
+                    onOpenCatalog={() => props.onTabChange?.("catalog")}
+                  />
+                }
               >
-                <DataTable.Table aria-label="Connected integrations">
-                  <DataTable.Header>
-                    <DataTable.ColumnHeader<WorkspaceIntegration> id="name">Integration</DataTable.ColumnHeader>
-                    <DataTable.ColumnHeader<WorkspaceIntegration> id="status">Status</DataTable.ColumnHeader>
-                    <DataTable.ColumnHeader<WorkspaceIntegration> id="environment">Environment</DataTable.ColumnHeader>
-                    <DataTable.ColumnHeader<WorkspaceIntegration> id="lastSync">Last refresh</DataTable.ColumnHeader>
-                  </DataTable.Header>
-                  <DataTable.Body<WorkspaceIntegration>>
-                    {(integration) => {
-                      const status = () => statusOverrides()[integration.id] ?? integration.status;
-                      return (
-                        <DataTable.Row row={integration} rowId={integration.id} onActivate={() => activateIntegration(integration.id)}>
-                          <DataTable.PrimaryCell icon={<NodeIcon name={providerIconKey(integration)} size={16} />} iconTone="integration" title={integration.name} />
-                          <DataTable.Cell><StatusChip tone={integrationTone(status())} label={status()} /></DataTable.Cell>
-                          <DataTable.Cell>{integration.environment}</DataTable.Cell>
-                          <DataTable.Cell class="text-[var(--color-text-muted)]">{integration.lastSync}</DataTable.Cell>
-                        </DataTable.Row>
-                      );
-                    }}
-                  </DataTable.Body>
-                </DataTable.Table>
-              </DataTable.Root>
+                <DataTable.Root
+                  rows={props.integrations ?? []}
+                  getRowId={(item) => item.id}
+                  activeRowId={activeTarget()?.scopeId === "integrations:connected" ? activeTarget()?.entityId : null}
+                  activateFirstRow
+                  onActiveRowChange={(id) => id && activateIntegration(id)}
+                >
+                  <DataTable.Table aria-label="Connected integrations">
+                    <DataTable.Header>
+                      <DataTable.ColumnHeader<WorkspaceIntegration> id="name">Integration</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<WorkspaceIntegration> id="status">Status</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<WorkspaceIntegration> id="environment">Environment</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<WorkspaceIntegration> id="lastSync">Last refresh</DataTable.ColumnHeader>
+                    </DataTable.Header>
+                    <DataTable.Body<WorkspaceIntegration>>
+                      {(integration) => {
+                        const status = () => statusOverrides()[integration.id] ?? integration.status;
+                        return (
+                          <DataTable.Row row={integration} rowId={integration.id} onActivate={() => activateIntegration(integration.id)}>
+                            <DataTable.PrimaryCell icon={<NodeIcon name={providerIconKey(integration)} size={16} />} iconTone="integration" title={integration.name} />
+                            <DataTable.Cell><StatusChip tone={integrationTone(status())} label={status()} /></DataTable.Cell>
+                            <DataTable.Cell>{integration.environment}</DataTable.Cell>
+                            <DataTable.Cell class="text-[var(--color-text-muted)]">{integration.lastSync}</DataTable.Cell>
+                          </DataTable.Row>
+                        );
+                      }}
+                    </DataTable.Body>
+                  </DataTable.Table>
+                </DataTable.Root>
+              </Show>
             </Show>
 
             <Show when={tab() === "catalog"}>
-              <Show when={catalog().length > 0} fallback={<PageEmpty title="No providers match" description="Try another name or category." />}>
+              <Show when={catalog().length > 0} fallback={<IntegrationsCatalogFilterEmpty />}>
                 <DataTable.Root rows={catalog()} getRowId={(item) => item.id}>
                   <DataTable.Table aria-label="CLI integration catalog">
                     <DataTable.Header>

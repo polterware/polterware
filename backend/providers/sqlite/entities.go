@@ -34,26 +34,33 @@ func (s *Store) SaveNode(node resources.Node) error {
 	if node.Status == "" {
 		node.Status = "unknown"
 	}
-	_, err := s.DB.Exec(`INSERT INTO nodes(id,project_id,environment_id,name,platform,shell,status,address,cpu,memory,last_seen_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)
-		ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,environment_id=excluded.environment_id,name=excluded.name,platform=excluded.platform,shell=excluded.shell,status=excluded.status,address=excluded.address,cpu=excluded.cpu,memory=excluded.memory,last_seen_at=excluded.last_seen_at`,
-		node.ID, node.ProjectID, nullable(node.EnvironmentID), node.Name, node.Platform, node.Shell, node.Status, node.Address, node.CPU, node.Memory, node.LastSeenAt)
+	if node.ConnectionKind == "" {
+		node.ConnectionKind = "local"
+	}
+	if node.SSHPort == 0 {
+		node.SSHPort = 22
+	}
+	_, err := s.DB.Exec(`INSERT INTO nodes(id,project_id,environment_id,name,platform,shell,status,address,cpu,memory,last_seen_at,connection_kind,ssh_user,ssh_port,ssh_identity_file) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+		ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,environment_id=excluded.environment_id,name=excluded.name,platform=excluded.platform,shell=excluded.shell,status=excluded.status,address=excluded.address,cpu=excluded.cpu,memory=excluded.memory,last_seen_at=excluded.last_seen_at,connection_kind=excluded.connection_kind,ssh_user=excluded.ssh_user,ssh_port=excluded.ssh_port,ssh_identity_file=excluded.ssh_identity_file`,
+		node.ID, node.ProjectID, nullable(node.EnvironmentID), node.Name, node.Platform, node.Shell, node.Status, node.Address, node.CPU, node.Memory, node.LastSeenAt, node.ConnectionKind, node.SSHUser, node.SSHPort, node.SSHIdentityFile)
 	return err
 }
 
 func (s *Store) GetNode(id string) (resources.Node, error) {
 	var item resources.Node
 	err := s.DB.QueryRow(
-		`SELECT id,project_id,COALESCE(environment_id,''),name,platform,shell,status,address,cpu,memory,last_seen_at FROM nodes WHERE id=?`,
+		`SELECT id,project_id,COALESCE(environment_id,''),name,platform,shell,status,address,cpu,memory,last_seen_at,COALESCE(connection_kind,'local'),COALESCE(ssh_user,''),COALESCE(ssh_port,22),COALESCE(ssh_identity_file,'') FROM nodes WHERE id=?`,
 		id,
 	).Scan(
 		&item.ID, &item.ProjectID, &item.EnvironmentID, &item.Name, &item.Platform, &item.Shell,
 		&item.Status, &item.Address, &item.CPU, &item.Memory, &item.LastSeenAt,
+		&item.ConnectionKind, &item.SSHUser, &item.SSHPort, &item.SSHIdentityFile,
 	)
 	return item, err
 }
 
 func (s *Store) ListNodes(projectID string) ([]resources.Node, error) {
-	rows, err := s.DB.Query(`SELECT id,project_id,COALESCE(environment_id,''),name,platform,shell,status,address,cpu,memory,last_seen_at FROM nodes WHERE project_id=? ORDER BY name`, projectID)
+	rows, err := s.DB.Query(`SELECT id,project_id,COALESCE(environment_id,''),name,platform,shell,status,address,cpu,memory,last_seen_at,COALESCE(connection_kind,'local'),COALESCE(ssh_user,''),COALESCE(ssh_port,22),COALESCE(ssh_identity_file,'') FROM nodes WHERE project_id=? ORDER BY name`, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +68,7 @@ func (s *Store) ListNodes(projectID string) ([]resources.Node, error) {
 	var result []resources.Node
 	for rows.Next() {
 		var item resources.Node
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.EnvironmentID, &item.Name, &item.Platform, &item.Shell, &item.Status, &item.Address, &item.CPU, &item.Memory, &item.LastSeenAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.EnvironmentID, &item.Name, &item.Platform, &item.Shell, &item.Status, &item.Address, &item.CPU, &item.Memory, &item.LastSeenAt, &item.ConnectionKind, &item.SSHUser, &item.SSHPort, &item.SSHIdentityFile); err != nil {
 			return nil, err
 		}
 		result = append(result, item)

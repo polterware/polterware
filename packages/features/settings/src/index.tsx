@@ -7,7 +7,6 @@ import {
   Field,
   Input,
   PageContent,
-  PageEmpty,
   PageToolbar,
   Plus,
   Select,
@@ -15,10 +14,12 @@ import {
   StatusChip,
   Tabs,
   Textarea,
+  ToolbarIconButton,
   pushToast,
 } from "@polterware/frontend-design-system";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
 import { CreateEnvironmentDialog, type CreateEnvironmentDraft } from "./create-environment-dialog";
+import { EnvironmentsEmpty } from "./environments-empty";
 import { EnvironmentDetail } from "./environment-detail";
 import { environmentKindLabel, environmentKindTone, protectionLabel, protectionTone, archiveProjectToast, saveGeneralSettingsToast } from "./environment-status";
 import type { ProjectEnvironment, ProjectGeneralSettings } from "./types";
@@ -32,6 +33,8 @@ import {
   normalizeSettingsTab,
   SETTINGS_TABS,
 } from "./settings-helpers";
+import { ShortcutsPage } from "./shortcuts-page";
+import { AgentsPage } from "./agents-page";
 
 export type { EnvironmentKind, ProjectEnvironment, ProjectGeneralSettings, ProtectionLevel, SettingsTabId } from "./types";
 export type { CreateEnvironmentDraft } from "./create-environment-dialog";
@@ -45,10 +48,14 @@ export {
 export { normalizeSettingsTab, SETTINGS_TABS } from "./settings-helpers";
 export { EnvironmentDetail } from "./environment-detail";
 export { CreateEnvironmentDialog } from "./create-environment-dialog";
+export { ShortcutsPage } from "./shortcuts-page";
+export { AgentsPage } from "./agents-page";
+export { hydrateShortcutPreferences, persistShortcutOverrides } from "./shortcut-persist";
 
 /** Project-scoped settings persisted in the local store. */
 export function SettingsView(props: {
   tab?: string;
+  projectId?: string;
   general?: ProjectGeneralSettings;
   environments?: ProjectEnvironment[];
   onTabChange?: (t: string) => void;
@@ -162,10 +169,9 @@ export function SettingsView(props: {
           </PageToolbar.Tabs>
           <Show when={tab() === "environments"}>
             <PageToolbar.Actions>
-              <Button size="sm" variant="primary" onClick={() => setCreateOpen(true)}>
-                <Plus size={16} />
-                Add environment
-              </Button>
+              <ToolbarIconButton label="Add environment" onClick={() => setCreateOpen(true)}>
+                <Plus size={14} />
+              </ToolbarIconButton>
             </PageToolbar.Actions>
           </Show>
         </PageToolbar.Root>
@@ -314,15 +320,27 @@ export function SettingsView(props: {
                     )}
                   </DataTable.Body>
                   <DataTable.Empty>
-                    <PageEmpty
-                      title="No environments"
-                      description="This project has no environments yet."
+                    <EnvironmentsEmpty
+                      onCreate={() => setCreateOpen(true)}
+                      onCreateFromTemplate={
+                        props.onCreateEnvironment
+                          ? (template) => props.onCreateEnvironment?.(template.draft)
+                          : undefined
+                      }
                     />
                   </DataTable.Empty>
                 </DataTable.Table>
               </DataTable.Root>
             </PageContent>
           </div>
+        </Show>
+
+        <Show when={tab() === "shortcuts"}>
+          <ShortcutsPage />
+        </Show>
+
+        <Show when={tab() === "agents"}>
+          <AgentsPage projectId={props.projectId ?? props.general?.projectId ?? ""} />
         </Show>
 
         <Show when={tab() === "advanced"}>
@@ -374,6 +392,10 @@ export function SettingsView(props: {
       <CreateEnvironmentDialog
         open={createOpen()}
         onClose={() => setCreateOpen(false)}
+        onCreateFromTemplate={(template) => {
+          setCreateOpen(false);
+          props.onCreateEnvironment?.(template.draft);
+        }}
         onSubmit={(draft) => {
           setCreateOpen(false);
           props.onCreateEnvironment?.(draft);

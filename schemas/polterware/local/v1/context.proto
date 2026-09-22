@@ -1,0 +1,54 @@
+syntax = "proto3";
+package polterware.local.v1;
+option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
+
+message ContextItem {
+  string kind = 1;
+  string id = 2;
+  string title = 3;
+  string excerpt = 4;
+  string truth_class = 5;
+  string source = 6;
+  string path = 7;
+}
+
+message CompileContextRequest {
+  string project_id = 1;
+  string query = 2;
+  string entity_id = 3;
+  int32 token_budget = 4;
+}
+
+message CompileContextResponse {
+  string project_id = 1;
+  string query = 2;
+  string entity_id = 3;
+  int32 token_budget = 4;
+  int32 tokens_used = 5;
+  bool truncated = 6;
+  repeated ContextItem items = 7;
+}
+
+message AgentToolCall {
+  string id = 1;
+  string project_id = 2;
+  string tool_name = 3;
+  string arguments_json = 4;
+  string result_summary = 5;
+  bool ok = 6;
+  string source = 7;
+  string created_at = 8;
+}
+
+message ListAgentToolCallsRequest {
+  int32 limit = 1;
+}
+
+message ListAgentToolCallsResponse {
+  repeated AgentToolCall calls = 1;
+}
+
+service ContextService {
+  rpc CompileContext(CompileContextRequest) returns (CompileContextResponse);
+  rpc ListAgentToolCalls(ListAgentToolCallsRequest) returns (ListAgentToolCallsResponse);
+}
