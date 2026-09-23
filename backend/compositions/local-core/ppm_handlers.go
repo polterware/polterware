@@ -3,21 +3,19 @@ package localcore
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"connectrpc.com/connect"
 
+	"github.com/polterware/polterware/backend/compositions/wedge"
 	"github.com/polterware/polterware/backend/domains/agentaccess"
+	"github.com/polterware/polterware/backend/domains/agentrun"
 	contextpkg "github.com/polterware/polterware/backend/domains/context"
 	"github.com/polterware/polterware/backend/domains/knowledge"
 	"github.com/polterware/polterware/backend/domains/ppm"
 	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
-	"github.com/polterware/polterware/backend/providers/importer"
 )
 
 func (core *Core) ListEntities(_ context.Context, request *connect.Request[localv1.ListEntitiesRequest]) (*connect.Response[localv1.ListEntitiesResponse], error) {
@@ -118,17 +116,37 @@ func (core *Core) UpsertFact(_ context.Context, request *connect.Request[localv1
 	if msg == nil {
 		return nil, invalid("fact is required")
 	}
+	env, err := changeEnvelopeFromProto(request.Msg.GetChange())
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
 	fact, err := ppmFactFromProto(msg)
 	if err != nil {
 		return nil, invalid(err.Error())
 	}
+	env.ProjectID = fact.ProjectID
+	fact.Actor = agentrun.ActorHuman
+	fact.Source = agentrun.SourceDesktop
 	if fact.EntityID != "" {
 		if _, err := core.Store.GetPpmEntity(fact.EntityID); err != nil {
 			return nil, invalid("entity not found")
 		}
 	}
-	if err := core.Store.UpsertPpmFact(fact); err != nil {
-		return nil, internal(err)
+	_, err = wedge.ExecuteAuditedWrite(
+		core.Store,
+		env,
+		agentrun.ActorKindHuman,
+		"desktop.fact.upsert",
+		func(run agentrun.Run) ([]string, any, error) {
+			_ = run
+			if err := core.Store.UpsertPpmFact(fact); err != nil {
+				return nil, nil, err
+			}
+			return []string{fact.ID}, fact, nil
+		},
+	)
+	if err != nil {
+		return nil, mapAuditedErr(err)
 	}
 	return connect.NewResponse(&localv1.UpsertFactResponse{Fact: ppmFactProto(fact)}), nil
 }
@@ -167,12 +185,32 @@ func (core *Core) UpsertEvidence(_ context.Context, request *connect.Request[loc
 	if msg == nil {
 		return nil, invalid("evidence is required")
 	}
+	env, err := changeEnvelopeFromProto(request.Msg.GetChange())
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
 	evidence, err := ppmEvidenceFromProto(msg)
 	if err != nil {
 		return nil, invalid(err.Error())
 	}
-	if err := core.Store.UpsertPpmEvidence(evidence); err != nil {
-		return nil, internal(err)
+	env.ProjectID = evidence.ProjectID
+	evidence.Actor = agentrun.ActorHuman
+	evidence.Source = agentrun.SourceDesktop
+	_, err = wedge.ExecuteAuditedWrite(
+		core.Store,
+		env,
+		agentrun.ActorKindHuman,
+		"desktop.evidence.upsert",
+		func(run agentrun.Run) ([]string, any, error) {
+			_ = run
+			if err := core.Store.UpsertPpmEvidence(evidence); err != nil {
+				return nil, nil, err
+			}
+			return []string{evidence.ID}, evidence, nil
+		},
+	)
+	if err != nil {
+		return nil, mapAuditedErr(err)
 	}
 	return connect.NewResponse(&localv1.UpsertEvidenceResponse{Evidence: ppmEvidenceProto(evidence)}), nil
 }
@@ -181,165 +219,56 @@ func (core *Core) LinkEvidenceToFact(_ context.Context, request *connect.Request
 	if request.Msg.ProjectId == "" || request.Msg.FactId == "" || request.Msg.EvidenceId == "" {
 		return nil, invalid("project id, fact id, and evidence id are required")
 	}
-	err := core.Store.LinkPpmEvidenceToFact(request.Msg.ProjectId, request.Msg.FactId, request.Msg.EvidenceId)
-	if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ppm.ErrUnknownFact) || errors.Is(err, ppm.ErrUnknownEvidence) {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
+	env, err := changeEnvelopeFromProto(request.Msg.GetChange())
 	if err != nil {
-		return nil, internal(err)
+		return nil, mapAuditedErr(err)
+	}
+	env.ProjectID = request.Msg.ProjectId
+	_, err = wedge.ExecuteAuditedWrite(
+		core.Store,
+		env,
+		agentrun.ActorKindHuman,
+		"desktop.evidence.link",
+		func(run agentrun.Run) ([]string, any, error) {
+			_ = run
+			linkErr := core.Store.LinkPpmEvidenceToFact(request.Msg.ProjectId, request.Msg.FactId, request.Msg.EvidenceId)
+			if linkErr != nil {
+				return nil, nil, linkErr
+			}
+			return []string{request.Msg.FactId, request.Msg.EvidenceId}, nil, nil
+		},
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ppm.ErrUnknownFact) || errors.Is(err, ppm.ErrUnknownEvidence) {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		return nil, mapAuditedErr(err)
 	}
 	return connect.NewResponse(&localv1.LinkEvidenceToFactResponse{}), nil
 }
 
 func (core *Core) ImportProjectSources(_ context.Context, request *connect.Request[localv1.ImportProjectSourcesRequest]) (*connect.Response[localv1.ImportProjectSourcesResponse], error) {
-	projectID := request.Msg.ProjectId
-	if projectID == "" {
-		return nil, invalid("project id is required")
-	}
-	project, err := core.Store.GetProject(projectID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("unknown project"))
-	}
+	result, err := wedge.ScanProject(core.Store, request.Msg.ProjectId)
 	if err != nil {
-		return nil, internal(err)
-	}
-	rootPath := expandHome(project.RootPath)
-	if rootPath == "" {
-		return nil, invalid("project root path is empty")
-	}
-	discovered, err := importer.Discover(rootPath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, invalid("project root path does not exist")
-		}
-		return nil, internal(err)
-	}
-
-	now := time.Now().UTC()
-	var factCount, evidenceCount, sourceCount int32
-	skipped := int32(discovered.Skipped)
-	importedFiles := 0
-
-	existingSources, err := core.Store.ListKnowledge(projectID, "source")
-	if err != nil {
-		return nil, internal(err)
-	}
-	sourceByPath := map[string]knowledge.Item{}
-	for _, item := range existingSources {
-		if path := knowledgeSourcePath(item.ExtraJSON); path != "" {
-			sourceByPath[path] = item
-		}
-	}
-
-	for _, file := range discovered.Files {
-		if file.Skipped {
-			continue
-		}
-		evidence, facts, err := importer.Materialize(projectID, file, now)
-		if err != nil {
-			skipped++
-			continue
-		}
-		if existing, err := core.Store.GetPpmEvidence(evidence.ID); err == nil {
-			evidence.CreatedAt = existing.CreatedAt
-		}
-		if err := core.Store.UpsertPpmEvidence(evidence); err != nil {
+		msg := err.Error()
+		switch {
+		case msg == "project id is required",
+			msg == "project root path is empty",
+			msg == "project root path does not exist":
+			return nil, invalid(msg)
+		case msg == "unknown project":
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		default:
 			return nil, internal(err)
 		}
-		evidenceCount++
-		for _, fact := range facts {
-			if existing, err := core.Store.GetPpmFact(fact.ID); err == nil {
-				fact.CreatedAt = existing.CreatedAt
-			}
-			if err := core.Store.UpsertPpmFact(fact); err != nil {
-				return nil, internal(err)
-			}
-			if err := core.Store.LinkPpmEvidenceToFact(projectID, fact.ID, evidence.ID); err != nil {
-				return nil, internal(err)
-			}
-			factCount++
-		}
-		if err := core.upsertImportedKnowledgeSource(projectID, file, sourceByPath, now); err != nil {
-			return nil, internal(err)
-		}
-		sourceCount++
-		importedFiles++
 	}
-
-	message := "No matching MVP sources found under project root."
-	if importedFiles > 0 {
-		message = fmt.Sprintf("Imported %d facts from %d files.", factCount, importedFiles)
-	}
-
 	return connect.NewResponse(&localv1.ImportProjectSourcesResponse{
-		FactCount:     factCount,
-		EvidenceCount: evidenceCount,
-		SourceCount:   sourceCount,
-		SkippedCount:  skipped,
-		Message:       message,
+		FactCount:     result.FactCount,
+		EvidenceCount: result.EvidenceCount,
+		SourceCount:   result.SourceCount,
+		SkippedCount:  result.SkippedCount,
+		Message:       result.Message,
 	}), nil
-}
-
-func (core *Core) upsertImportedKnowledgeSource(projectID string, file importer.FileResult, sourceByPath map[string]knowledge.Item, now time.Time) error {
-	path := filepath.ToSlash(file.Path)
-	title := file.Title
-	if title == "" {
-		title = filepath.Base(path)
-	}
-	extra, _ := json.Marshal(map[string]string{"path": path})
-	if existing, ok := sourceByPath[path]; ok {
-		existing.Title = title
-		existing.ExtraJSON = string(extra)
-		existing.UpdatedAt = now
-		if existing.Summary == "" {
-			existing.Summary = file.Evidence.Summary
-		}
-		return core.Store.SaveKnowledge(existing)
-	}
-	item, err := knowledge.NewItem(importer.StableSourceID(projectID, path), projectID, title, "", "source", nil)
-	if err != nil {
-		return err
-	}
-	item.Summary = file.Evidence.Summary
-	item.ExtraJSON = string(extra)
-	item.CreatedAt = now
-	item.UpdatedAt = now
-	sourceByPath[path] = item
-	return core.Store.SaveKnowledge(item)
-}
-
-func knowledgeSourcePath(extraJSON string) string {
-	if extraJSON == "" {
-		return ""
-	}
-	var payload struct {
-		Path string `json:"path"`
-	}
-	if err := json.Unmarshal([]byte(extraJSON), &payload); err != nil {
-		return ""
-	}
-	return filepath.ToSlash(payload.Path)
-}
-
-func expandHome(path string) string {
-	if path == "" {
-		return ""
-	}
-	if path == "~" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
-		return home
-	}
-	if len(path) >= 2 && path[0] == '~' && (path[1] == '/' || path[1] == filepath.Separator) {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return path
-		}
-		return filepath.Join(home, path[2:])
-	}
-	return path
 }
 
 func (core *Core) SearchKnowledge(_ context.Context, request *connect.Request[localv1.SearchKnowledgeRequest]) (*connect.Response[localv1.SearchKnowledgeResponse], error) {
@@ -380,21 +309,47 @@ func (core *Core) SaveKnowledgeLink(_ context.Context, request *connect.Request[
 	if msg == nil {
 		return nil, invalid("link is required")
 	}
+	env, err := changeEnvelopeFromProto(request.Msg.GetChange())
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
 	if !ppm.ValidPredicate(msg.Predicate) {
 		return nil, invalid("invalid predicate")
 	}
-	link, err := knowledge.NewEntityLink(msg.ProjectId, msg.KnowledgeId, msg.EntityId, msg.Predicate, msg.TruthClass, msg.Source, msg.Actor)
+	actor := msg.Actor
+	if actor == "" {
+		actor = agentrun.ActorHuman
+	}
+	source := msg.Source
+	if source == "" {
+		source = agentrun.SourceDesktop
+	}
+	link, err := knowledge.NewEntityLink(msg.ProjectId, msg.KnowledgeId, msg.EntityId, msg.Predicate, msg.TruthClass, source, actor)
 	if err != nil {
 		return nil, invalid(err.Error())
 	}
 	if msg.Id != "" {
 		link.ID = msg.Id
 	}
+	env.ProjectID = link.ProjectID
 	if _, err := core.Store.GetPpmEntity(link.EntityID); err != nil {
 		return nil, invalid("entity not found")
 	}
-	if err := core.Store.SaveKnowledgeLink(link); err != nil {
-		return nil, internal(err)
+	_, err = wedge.ExecuteAuditedWrite(
+		core.Store,
+		env,
+		agentrun.ActorKindHuman,
+		"desktop.knowledge.link",
+		func(run agentrun.Run) ([]string, any, error) {
+			_ = run
+			if err := core.Store.SaveKnowledgeLink(link); err != nil {
+				return nil, nil, err
+			}
+			return []string{link.ID}, link, nil
+		},
+	)
+	if err != nil {
+		return nil, mapAuditedErr(err)
 	}
 	return connect.NewResponse(&localv1.SaveKnowledgeLinkResponse{Link: knowledgeLinkProto(link)}), nil
 }
@@ -403,8 +358,33 @@ func (core *Core) DeleteKnowledgeLink(_ context.Context, request *connect.Reques
 	if request.Msg.Id == "" {
 		return nil, invalid("link id is required")
 	}
-	if err := core.Store.DeleteKnowledgeLink(request.Msg.Id); err != nil {
+	env, err := changeEnvelopeFromProto(request.Msg.GetChange())
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
+	existing, err := core.Store.GetKnowledgeLink(request.Msg.Id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("unknown knowledge link"))
+	}
+	if err != nil {
 		return nil, internal(err)
+	}
+	env.ProjectID = existing.ProjectID
+	_, err = wedge.ExecuteAuditedWrite(
+		core.Store,
+		env,
+		agentrun.ActorKindHuman,
+		"desktop.knowledge.unlink",
+		func(run agentrun.Run) ([]string, any, error) {
+			_ = run
+			if err := core.Store.DeleteKnowledgeLink(request.Msg.Id); err != nil {
+				return nil, nil, err
+			}
+			return []string{request.Msg.Id}, nil, nil
+		},
+	)
+	if err != nil {
+		return nil, mapAuditedErr(err)
 	}
 	return connect.NewResponse(&localv1.DeleteKnowledgeLinkResponse{}), nil
 }
@@ -477,6 +457,65 @@ func (core *Core) ListAgentToolCalls(_ context.Context, request *connect.Request
 		})
 	}
 	return connect.NewResponse(&localv1.ListAgentToolCallsResponse{Calls: out}), nil
+}
+
+func (core *Core) CheckDrift(_ context.Context, request *connect.Request[localv1.CheckDriftRequest]) (*connect.Response[localv1.CheckDriftResponse], error) {
+	if request.Msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	result, err := wedge.CheckDrift(core.Store, wedge.DriftInput{
+		ProjectID: request.Msg.ProjectId,
+		EntityID:  request.Msg.EntityId,
+	})
+	summary := "drift check failed"
+	ok := err == nil
+	if err == nil {
+		summary = agentaccess.SummarizeResult(
+			fmt.Sprintf("checker=%s findings=%d", result.Checker, len(result.Findings)),
+			240,
+		)
+	} else {
+		summary = agentaccess.SummarizeResult(err.Error(), 240)
+	}
+	_ = core.Store.AppendAgentToolCall(agentaccess.ToolCall{
+		ProjectID:     request.Msg.ProjectId,
+		ToolName:      "drift.check",
+		ArgumentsJSON: fmt.Sprintf(`{"entity_id":%q}`, request.Msg.EntityId),
+		ResultSummary: summary,
+		OK:            ok,
+		Source:        "desktop",
+	})
+	if err != nil {
+		return nil, mapDriftErr(err)
+	}
+	findings := make([]*localv1.DriftFinding, 0, len(result.Findings))
+	for _, finding := range result.Findings {
+		findings = append(findings, &localv1.DriftFinding{
+			Type:        finding.Type,
+			Severity:    finding.Severity,
+			Summary:     finding.Summary,
+			SubjectIds:  finding.SubjectIDs,
+			EvidenceIds: finding.EvidenceIDs,
+		})
+	}
+	return connect.NewResponse(&localv1.CheckDriftResponse{
+		ProjectId: result.ProjectID,
+		EntityId:  result.EntityID,
+		Status:    result.Status,
+		Checker:   result.Checker,
+		Findings:  findings,
+	}), nil
+}
+
+func mapDriftErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	if msg == "unknown project" || msg == "project_id is required" {
+		return invalid(msg)
+	}
+	return internal(err)
 }
 
 func ppmEntityProto(item ppm.Entity) *localv1.PpmEntity {

@@ -285,6 +285,25 @@ func (s *Store) SaveKnowledge(item knowledge.Item) error {
 	return s.indexKnowledgeFTS(item)
 }
 
+func (s *Store) GetKnowledge(id string) (knowledge.Item, error) {
+	var item knowledge.Item
+	var tags, created, updated string
+	err := s.DB.QueryRow(
+		`SELECT id,project_id,title,body,kind,tags_json,summary,owner,status,extra_json,created_at,updated_at
+		 FROM knowledge_items WHERE id=?`, id,
+	).Scan(
+		&item.ID, &item.ProjectID, &item.Title, &item.Body, &item.Kind, &tags,
+		&item.Summary, &item.Owner, &item.Status, &item.ExtraJSON, &created, &updated,
+	)
+	if err != nil {
+		return knowledge.Item{}, err
+	}
+	_ = json.Unmarshal([]byte(tags), &item.Tags)
+	item.CreatedAt, _ = time.Parse(time.RFC3339, created)
+	item.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
+	return item, nil
+}
+
 func (s *Store) ListKnowledge(projectID, kind string) ([]knowledge.Item, error) {
 	query := `SELECT id,project_id,title,body,kind,tags_json,summary,owner,status,extra_json,created_at,updated_at FROM knowledge_items WHERE project_id=?`
 	args := []any{projectID}

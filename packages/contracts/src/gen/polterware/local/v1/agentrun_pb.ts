@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/agentrun.proto.
  */
 export const file_polterware_local_v1_agentrun: GenFile = /*@__PURE__*/
-  fileDesc("CiJwb2x0ZXJ3YXJlL2xvY2FsL3YxL2FnZW50cnVuLnByb3RvEhNwb2x0ZXJ3YXJlLmxvY2FsLnYxIocBCghBZ2VudFJ1bhIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBHRhc2sYAyABKAkSEwoLYWdlbnRfbGFiZWwYBCABKAkSDgoGc3RhdHVzGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSFAoMY29tcGxldGVkX2F0GAcgASgJInkKDEFnZW50UnVuU3RlcBIKCgJpZBgBIAEoCRIUCgxhZ2VudF9ydW5faWQYAiABKAkSDAoEa2luZBgDIAEoCRIPCgdzdW1tYXJ5GAQgASgJEhQKDHBheWxvYWRfanNvbhgFIAEoCRISCgpjcmVhdGVkX2F0GAYgASgJIjkKFExpc3RBZ2VudFJ1bnNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFbGltaXQYAiABKAUiRAoVTGlzdEFnZW50UnVuc1Jlc3BvbnNlEisKBHJ1bnMYASADKAsyHS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuIiAKEkdldEFnZW50UnVuUmVxdWVzdBIKCgJpZBgBIAEoCSJzChNHZXRBZ2VudFJ1blJlc3BvbnNlEioKA3J1bhgBIAEoCzIdLnBvbHRlcndhcmUubG9jYWwudjEuQWdlbnRSdW4SMAoFc3RlcHMYAiADKAsyIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuU3RlcDLbAQoPQWdlbnRSdW5TZXJ2aWNlEmYKDUxpc3RBZ2VudFJ1bnMSKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RBZ2VudFJ1bnNSZXF1ZXN0GioucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0QWdlbnRSdW5zUmVzcG9uc2USYAoLR2V0QWdlbnRSdW4SJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkdldEFnZW50UnVuUmVxdWVzdBooLnBvbHRlcndhcmUubG9jYWwudjEuR2V0QWdlbnRSdW5SZXNwb25zZULpAQoXY29tLnBvbHRlcndhcmUubG9jYWwudjFCDUFnZW50cnVuUHJvdG9QAVpRZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvYmFja2VuZC9wbGF0Zm9ybS9nZW4vcG9sdGVyd2FyZS9sb2NhbC92MTtsb2NhbHYxogIDUExYqgITUG9sdGVyd2FyZS5Mb2NhbC5WMcoCE1BvbHRlcndhcmVcTG9jYWxcVjHiAh9Qb2x0ZXJ3YXJlXExvY2FsXFYxXEdQQk1ldGFkYXRh6gIVUG9sdGVyd2FyZTo6TG9jYWw6OlYxYgZwcm90bzM");
+  fileDesc("CiJwb2x0ZXJ3YXJlL2xvY2FsL3YxL2FnZW50cnVuLnByb3RvEhNwb2x0ZXJ3YXJlLmxvY2FsLnYxIpsBCghBZ2VudFJ1bhIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBHRhc2sYAyABKAkSEwoLYWdlbnRfbGFiZWwYBCABKAkSDgoGc3RhdHVzGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSFAoMY29tcGxldGVkX2F0GAcgASgJEhIKCmFjdG9yX2tpbmQYCCABKAkieQoMQWdlbnRSdW5TdGVwEgoKAmlkGAEgASgJEhQKDGFnZW50X3J1bl9pZBgCIAEoCRIMCgRraW5kGAMgASgJEg8KB3N1bW1hcnkYBCABKAkSFAoMcGF5bG9hZF9qc29uGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkiSgoOQ2hhbmdlRW52ZWxvcGUSDwoHc3VtbWFyeRgBIAEoCRIRCglyYXRpb25hbGUYAiABKAkSFAoMYWdlbnRfcnVuX2lkGAMgASgJIjkKFExpc3RBZ2VudFJ1bnNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFbGltaXQYAiABKAUiRAoVTGlzdEFnZW50UnVuc1Jlc3BvbnNlEisKBHJ1bnMYASADKAsyHS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuIiAKEkdldEFnZW50UnVuUmVxdWVzdBIKCgJpZBgBIAEoCSJzChNHZXRBZ2VudFJ1blJlc3BvbnNlEioKA3J1bhgBIAEoCzIdLnBvbHRlcndhcmUubG9jYWwudjEuQWdlbnRSdW4SMAoFc3RlcHMYAiADKAsyIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuU3RlcCLUAQoNUHJvamVjdENoYW5nZRIPCgdzdGVwX2lkGAEgASgJEhQKDGFnZW50X3J1bl9pZBgCIAEoCRISCgpwcm9qZWN0X2lkGAMgASgJEhIKCmFjdG9yX2tpbmQYBCABKAkSEwoLYWdlbnRfbGFiZWwYBSABKAkSEgoKcnVuX3N0YXR1cxgGIAEoCRIQCghydW5fdGFzaxgHIAEoCRIPCgdzdW1tYXJ5GAggASgJEhQKDHBheWxvYWRfanNvbhgJIAEoCRISCgpjcmVhdGVkX2F0GAogASgJIksKEkxpc3RDaGFuZ2VzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhIKCmFjdG9yX2tpbmQYAiABKAkSDQoFbGltaXQYAyABKAUiSgoTTGlzdENoYW5nZXNSZXNwb25zZRIzCgdjaGFuZ2VzGAEgAygLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5Qcm9qZWN0Q2hhbmdlMr0CCg9BZ2VudFJ1blNlcnZpY2USZgoNTGlzdEFnZW50UnVucxIpLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEFnZW50UnVuc1JlcXVlc3QaKi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RBZ2VudFJ1bnNSZXNwb25zZRJgCgtHZXRBZ2VudFJ1bhInLnBvbHRlcndhcmUubG9jYWwudjEuR2V0QWdlbnRSdW5SZXF1ZXN0GigucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRBZ2VudFJ1blJlc3BvbnNlEmAKC0xpc3RDaGFuZ2VzEicucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0Q2hhbmdlc1JlcXVlc3QaKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RDaGFuZ2VzUmVzcG9uc2VC6QEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQg1BZ2VudHJ1blByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
 
 /**
  * @generated from message polterware.local.v1.AgentRun
@@ -50,6 +50,13 @@ export type AgentRun = Message<"polterware.local.v1.AgentRun"> & {
    * @generated from field: string completed_at = 7;
    */
   completedAt: string;
+
+  /**
+   * actor_kind is "human" or "agent" (B9 Unified Change History).
+   *
+   * @generated from field: string actor_kind = 8;
+   */
+  actorKind: string;
 };
 
 /**
@@ -102,6 +109,36 @@ export const AgentRunStepSchema: GenMessage<AgentRunStep> = /*@__PURE__*/
   messageDesc(file_polterware_local_v1_agentrun, 1);
 
 /**
+ * ChangeEnvelope is required on semantic Desktop mutations (same fields as MCP audited writes).
+ * agent_run_id is optional for human Desktop writes: the core starts and completes a human run.
+ *
+ * @generated from message polterware.local.v1.ChangeEnvelope
+ */
+export type ChangeEnvelope = Message<"polterware.local.v1.ChangeEnvelope"> & {
+  /**
+   * @generated from field: string summary = 1;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string rationale = 2;
+   */
+  rationale: string;
+
+  /**
+   * @generated from field: string agent_run_id = 3;
+   */
+  agentRunId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ChangeEnvelope.
+ * Use `create(ChangeEnvelopeSchema)` to create a new message.
+ */
+export const ChangeEnvelopeSchema: GenMessage<ChangeEnvelope> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 2);
+
+/**
  * @generated from message polterware.local.v1.ListAgentRunsRequest
  */
 export type ListAgentRunsRequest = Message<"polterware.local.v1.ListAgentRunsRequest"> & {
@@ -121,7 +158,7 @@ export type ListAgentRunsRequest = Message<"polterware.local.v1.ListAgentRunsReq
  * Use `create(ListAgentRunsRequestSchema)` to create a new message.
  */
 export const ListAgentRunsRequestSchema: GenMessage<ListAgentRunsRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_agentrun, 2);
+  messageDesc(file_polterware_local_v1_agentrun, 3);
 
 /**
  * @generated from message polterware.local.v1.ListAgentRunsResponse
@@ -138,7 +175,7 @@ export type ListAgentRunsResponse = Message<"polterware.local.v1.ListAgentRunsRe
  * Use `create(ListAgentRunsResponseSchema)` to create a new message.
  */
 export const ListAgentRunsResponseSchema: GenMessage<ListAgentRunsResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_agentrun, 3);
+  messageDesc(file_polterware_local_v1_agentrun, 4);
 
 /**
  * @generated from message polterware.local.v1.GetAgentRunRequest
@@ -155,7 +192,7 @@ export type GetAgentRunRequest = Message<"polterware.local.v1.GetAgentRunRequest
  * Use `create(GetAgentRunRequestSchema)` to create a new message.
  */
 export const GetAgentRunRequestSchema: GenMessage<GetAgentRunRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_agentrun, 4);
+  messageDesc(file_polterware_local_v1_agentrun, 5);
 
 /**
  * @generated from message polterware.local.v1.GetAgentRunResponse
@@ -177,7 +214,115 @@ export type GetAgentRunResponse = Message<"polterware.local.v1.GetAgentRunRespon
  * Use `create(GetAgentRunResponseSchema)` to create a new message.
  */
 export const GetAgentRunResponseSchema: GenMessage<GetAgentRunResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_agentrun, 5);
+  messageDesc(file_polterware_local_v1_agentrun, 6);
+
+/**
+ * @generated from message polterware.local.v1.ProjectChange
+ */
+export type ProjectChange = Message<"polterware.local.v1.ProjectChange"> & {
+  /**
+   * @generated from field: string step_id = 1;
+   */
+  stepId: string;
+
+  /**
+   * @generated from field: string agent_run_id = 2;
+   */
+  agentRunId: string;
+
+  /**
+   * @generated from field: string project_id = 3;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string actor_kind = 4;
+   */
+  actorKind: string;
+
+  /**
+   * @generated from field: string agent_label = 5;
+   */
+  agentLabel: string;
+
+  /**
+   * @generated from field: string run_status = 6;
+   */
+  runStatus: string;
+
+  /**
+   * @generated from field: string run_task = 7;
+   */
+  runTask: string;
+
+  /**
+   * @generated from field: string summary = 8;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string payload_json = 9;
+   */
+  payloadJson: string;
+
+  /**
+   * @generated from field: string created_at = 10;
+   */
+  createdAt: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ProjectChange.
+ * Use `create(ProjectChangeSchema)` to create a new message.
+ */
+export const ProjectChangeSchema: GenMessage<ProjectChange> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 7);
+
+/**
+ * @generated from message polterware.local.v1.ListChangesRequest
+ */
+export type ListChangesRequest = Message<"polterware.local.v1.ListChangesRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * Optional filter: "human" | "agent". Empty lists both.
+   *
+   * @generated from field: string actor_kind = 2;
+   */
+  actorKind: string;
+
+  /**
+   * @generated from field: int32 limit = 3;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListChangesRequest.
+ * Use `create(ListChangesRequestSchema)` to create a new message.
+ */
+export const ListChangesRequestSchema: GenMessage<ListChangesRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 8);
+
+/**
+ * @generated from message polterware.local.v1.ListChangesResponse
+ */
+export type ListChangesResponse = Message<"polterware.local.v1.ListChangesResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.ProjectChange changes = 1;
+   */
+  changes: ProjectChange[];
+};
+
+/**
+ * Describes the message polterware.local.v1.ListChangesResponse.
+ * Use `create(ListChangesResponseSchema)` to create a new message.
+ */
+export const ListChangesResponseSchema: GenMessage<ListChangesResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 9);
 
 /**
  * @generated from service polterware.local.v1.AgentRunService
@@ -198,6 +343,14 @@ export const AgentRunService: GenService<{
     methodKind: "unary";
     input: typeof GetAgentRunRequestSchema;
     output: typeof GetAgentRunResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.AgentRunService.ListChanges
+   */
+  listChanges: {
+    methodKind: "unary";
+    input: typeof ListChangesRequestSchema;
+    output: typeof ListChangesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_polterware_local_v1_agentrun, 0);

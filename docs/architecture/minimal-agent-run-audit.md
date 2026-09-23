@@ -6,7 +6,7 @@ Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`wedge-val
 
 ## Purpose
 
-Reconstruct **context → task → change → evidence → drift** for one agent task. Enterprise audit dashboards and audited PPM mutations (B7) are out of scope.
+Reconstruct **context → task → change → evidence → drift** for one agent task. Enterprise audit dashboards are out of scope. Audited PPM/Knowledge mutations are documented in [`audited-mcp-writes.md`](audited-mcp-writes.md).
 
 ## Persistence
 
@@ -21,7 +21,7 @@ Task lives on the run header, not as a step.
 | Kind | Payload |
 |------|---------|
 | `context` | `{ query, entity_id, item_ids, evidence_ids }` (light snapshot) |
-| `change` | `{ summary, rationale, paths }` (declared envelope; no PPM write) |
+| `change` | `{ summary, rationale, paths, tool?, subject_ids? }` (declared envelope via `agent_run.append`; audited writes also set `tool` + `subject_ids`) |
 | `evidence` | `{ evidence_ids }` |
 | `drift` | `{ findings: [{ type, severity, summary, subject_ids }] }` |
 
@@ -43,9 +43,10 @@ Agents → History lists AgentRuns for the current project and shows the audit c
 
 ## Limits
 
-- Change steps do not mutate PPM (B7 writes).
+- `agent_run.append` change steps remain declared-only; real PPM/Knowledge mutations use audited write tools (B7).
+- History is agent-run inspection only; unified human + agent Change History is B9 ([`unified-change-history.md`](unified-change-history.md)).
 - No enterprise audit dashboard.
-- No CLI `polterware` surface (B8).
+- CLI `polterware` surface is B8 ([`cli.md`](cli.md)).
 
 ## Code
 

@@ -249,7 +249,7 @@ The first Drift Checker is narrow: new or removed dependency edges, edges incomp
 
 ## AgentRun
 
-Polterware must reconstruct: context delivered → agent/task → change → evidence → drift findings. A minimal AgentRun is part of the wedge. Enterprise audit dashboards are later.
+Polterware must reconstruct: context delivered → agent/task → change → evidence → drift findings. A minimal AgentRun is part of the wedge. After audited writes, **Unified Change History** (Agents → History) lists justified project-model changes for both human and agent actors under the same envelope. Enterprise audit dashboards remain later and are not the wedge UI.
 
 ## Product surfaces
 
@@ -305,8 +305,9 @@ Provider credentials remain in provider CLI or operating-system credential store
 5. **Drift Checker (narrow) and AgentRun** — dependency and decision conflicts; context → change → evidence.
 6. **Audited MCP writes** — narrow semantic mutations with required `summary`, `rationale`, and `agent_run_id`.
 7. **CLI** — `polterware init | scan | context | drift` sharing the core.
-8. **Structured SDD and Change Gates** — later, after the wedge validates.
-9. **Web App and Cloud** — after the local model is stable.
+8. **Unified Change History** — Agents → History as one feed of justified human + agent model changes (filters, envelope detail). See [`architecture/unified-change-history.md`](architecture/unified-change-history.md).
+9. **Structured SDD and Change Gates** — later, after the wedge validates.
+10. **Web App and Cloud** — after the local model is stable.
 
 Each phase requires its own specification and acceptance criteria. Later phases must not be represented as shipped merely because their concepts are documented here.
 

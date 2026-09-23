@@ -10,6 +10,8 @@ message AgentRun {
   string status = 5;
   string created_at = 6;
   string completed_at = 7;
+  // actor_kind is "human" or "agent" (B9 Unified Change History).
+  string actor_kind = 8;
 }
 
 message AgentRunStep {
@@ -19,6 +21,14 @@ message AgentRunStep {
   string summary = 4;
   string payload_json = 5;
   string created_at = 6;
+}
+
+// ChangeEnvelope is required on semantic Desktop mutations (same fields as MCP audited writes).
+// agent_run_id is optional for human Desktop writes: the core starts and completes a human run.
+message ChangeEnvelope {
+  string summary = 1;
+  string rationale = 2;
+  string agent_run_id = 3;
 }
 
 message ListAgentRunsRequest {
@@ -39,7 +49,32 @@ message GetAgentRunResponse {
   repeated AgentRunStep steps = 2;
 }
 
+message ProjectChange {
+  string step_id = 1;
+  string agent_run_id = 2;
+  string project_id = 3;
+  string actor_kind = 4;
+  string agent_label = 5;
+  string run_status = 6;
+  string run_task = 7;
+  string summary = 8;
+  string payload_json = 9;
+  string created_at = 10;
+}
+
+message ListChangesRequest {
+  string project_id = 1;
+  // Optional filter: "human" | "agent". Empty lists both.
+  string actor_kind = 2;
+  int32 limit = 3;
+}
+
+message ListChangesResponse {
+  repeated ProjectChange changes = 1;
+}
+
 service AgentRunService {
   rpc ListAgentRuns(ListAgentRunsRequest) returns (ListAgentRunsResponse);
   rpc GetAgentRun(GetAgentRunRequest) returns (GetAgentRunResponse);
+  rpc ListChanges(ListChangesRequest) returns (ListChangesResponse);
 }

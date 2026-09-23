@@ -561,6 +561,210 @@ func (x *ListAgentToolCallsResponse) GetCalls() []*AgentToolCall {
 	return nil
 }
 
+type DriftFinding struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Severity      string                 `protobuf:"bytes,2,opt,name=severity,proto3" json:"severity,omitempty"`
+	Summary       string                 `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
+	SubjectIds    []string               `protobuf:"bytes,4,rep,name=subject_ids,json=subjectIds,proto3" json:"subject_ids,omitempty"`
+	EvidenceIds   []string               `protobuf:"bytes,5,rep,name=evidence_ids,json=evidenceIds,proto3" json:"evidence_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DriftFinding) Reset() {
+	*x = DriftFinding{}
+	mi := &file_polterware_local_v1_context_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DriftFinding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DriftFinding) ProtoMessage() {}
+
+func (x *DriftFinding) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_context_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DriftFinding.ProtoReflect.Descriptor instead.
+func (*DriftFinding) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DriftFinding) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *DriftFinding) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *DriftFinding) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *DriftFinding) GetSubjectIds() []string {
+	if x != nil {
+		return x.SubjectIds
+	}
+	return nil
+}
+
+func (x *DriftFinding) GetEvidenceIds() []string {
+	if x != nil {
+		return x.EvidenceIds
+	}
+	return nil
+}
+
+type CheckDriftRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	EntityId      string                 `protobuf:"bytes,2,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckDriftRequest) Reset() {
+	*x = CheckDriftRequest{}
+	mi := &file_polterware_local_v1_context_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckDriftRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckDriftRequest) ProtoMessage() {}
+
+func (x *CheckDriftRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_context_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckDriftRequest.ProtoReflect.Descriptor instead.
+func (*CheckDriftRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CheckDriftRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *CheckDriftRequest) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+type CheckDriftResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	EntityId      string                 `protobuf:"bytes,2,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Checker       string                 `protobuf:"bytes,4,opt,name=checker,proto3" json:"checker,omitempty"`
+	Findings      []*DriftFinding        `protobuf:"bytes,5,rep,name=findings,proto3" json:"findings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CheckDriftResponse) Reset() {
+	*x = CheckDriftResponse{}
+	mi := &file_polterware_local_v1_context_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CheckDriftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CheckDriftResponse) ProtoMessage() {}
+
+func (x *CheckDriftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_context_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CheckDriftResponse.ProtoReflect.Descriptor instead.
+func (*CheckDriftResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_context_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CheckDriftResponse) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *CheckDriftResponse) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+func (x *CheckDriftResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *CheckDriftResponse) GetChecker() string {
+	if x != nil {
+		return x.Checker
+	}
+	return ""
+}
+
+func (x *CheckDriftResponse) GetFindings() []*DriftFinding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
 var File_polterware_local_v1_context_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_context_proto_rawDesc = "" +
@@ -615,10 +819,30 @@ const file_polterware_local_v1_context_proto_rawDesc = "" +
 	"\x19ListAgentToolCallsRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\"V\n" +
 	"\x1aListAgentToolCallsResponse\x128\n" +
-	"\x05calls\x18\x01 \x03(\v2\".polterware.local.v1.AgentToolCallR\x05calls2\xf2\x01\n" +
+	"\x05calls\x18\x01 \x03(\v2\".polterware.local.v1.AgentToolCallR\x05calls\"\x9c\x01\n" +
+	"\fDriftFinding\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1a\n" +
+	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x18\n" +
+	"\asummary\x18\x03 \x01(\tR\asummary\x12\x1f\n" +
+	"\vsubject_ids\x18\x04 \x03(\tR\n" +
+	"subjectIds\x12!\n" +
+	"\fevidence_ids\x18\x05 \x03(\tR\vevidenceIds\"O\n" +
+	"\x11CheckDriftRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tentity_id\x18\x02 \x01(\tR\bentityId\"\xc1\x01\n" +
+	"\x12CheckDriftResponse\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tentity_id\x18\x02 \x01(\tR\bentityId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x18\n" +
+	"\achecker\x18\x04 \x01(\tR\achecker\x12=\n" +
+	"\bfindings\x18\x05 \x03(\v2!.polterware.local.v1.DriftFindingR\bfindings2\xd1\x02\n" +
 	"\x0eContextService\x12i\n" +
 	"\x0eCompileContext\x12*.polterware.local.v1.CompileContextRequest\x1a+.polterware.local.v1.CompileContextResponse\x12u\n" +
-	"\x12ListAgentToolCalls\x12..polterware.local.v1.ListAgentToolCallsRequest\x1a/.polterware.local.v1.ListAgentToolCallsResponseB\xe8\x01\n" +
+	"\x12ListAgentToolCalls\x12..polterware.local.v1.ListAgentToolCallsRequest\x1a/.polterware.local.v1.ListAgentToolCallsResponse\x12]\n" +
+	"\n" +
+	"CheckDrift\x12&.polterware.local.v1.CheckDriftRequest\x1a'.polterware.local.v1.CheckDriftResponseB\xe8\x01\n" +
 	"\x17com.polterware.local.v1B\fContextProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
 
 var (
@@ -633,7 +857,7 @@ func file_polterware_local_v1_context_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_context_proto_rawDescData
 }
 
-var file_polterware_local_v1_context_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_polterware_local_v1_context_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_polterware_local_v1_context_proto_goTypes = []any{
 	(*ContextEvidenceRef)(nil),         // 0: polterware.local.v1.ContextEvidenceRef
 	(*ContextItem)(nil),                // 1: polterware.local.v1.ContextItem
@@ -642,20 +866,26 @@ var file_polterware_local_v1_context_proto_goTypes = []any{
 	(*AgentToolCall)(nil),              // 4: polterware.local.v1.AgentToolCall
 	(*ListAgentToolCallsRequest)(nil),  // 5: polterware.local.v1.ListAgentToolCallsRequest
 	(*ListAgentToolCallsResponse)(nil), // 6: polterware.local.v1.ListAgentToolCallsResponse
+	(*DriftFinding)(nil),               // 7: polterware.local.v1.DriftFinding
+	(*CheckDriftRequest)(nil),          // 8: polterware.local.v1.CheckDriftRequest
+	(*CheckDriftResponse)(nil),         // 9: polterware.local.v1.CheckDriftResponse
 }
 var file_polterware_local_v1_context_proto_depIdxs = []int32{
 	0, // 0: polterware.local.v1.ContextItem.evidence:type_name -> polterware.local.v1.ContextEvidenceRef
 	1, // 1: polterware.local.v1.CompileContextResponse.items:type_name -> polterware.local.v1.ContextItem
 	4, // 2: polterware.local.v1.ListAgentToolCallsResponse.calls:type_name -> polterware.local.v1.AgentToolCall
-	2, // 3: polterware.local.v1.ContextService.CompileContext:input_type -> polterware.local.v1.CompileContextRequest
-	5, // 4: polterware.local.v1.ContextService.ListAgentToolCalls:input_type -> polterware.local.v1.ListAgentToolCallsRequest
-	3, // 5: polterware.local.v1.ContextService.CompileContext:output_type -> polterware.local.v1.CompileContextResponse
-	6, // 6: polterware.local.v1.ContextService.ListAgentToolCalls:output_type -> polterware.local.v1.ListAgentToolCallsResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	7, // 3: polterware.local.v1.CheckDriftResponse.findings:type_name -> polterware.local.v1.DriftFinding
+	2, // 4: polterware.local.v1.ContextService.CompileContext:input_type -> polterware.local.v1.CompileContextRequest
+	5, // 5: polterware.local.v1.ContextService.ListAgentToolCalls:input_type -> polterware.local.v1.ListAgentToolCallsRequest
+	8, // 6: polterware.local.v1.ContextService.CheckDrift:input_type -> polterware.local.v1.CheckDriftRequest
+	3, // 7: polterware.local.v1.ContextService.CompileContext:output_type -> polterware.local.v1.CompileContextResponse
+	6, // 8: polterware.local.v1.ContextService.ListAgentToolCalls:output_type -> polterware.local.v1.ListAgentToolCallsResponse
+	9, // 9: polterware.local.v1.ContextService.CheckDrift:output_type -> polterware.local.v1.CheckDriftResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_context_proto_init() }
@@ -669,7 +899,7 @@ func file_polterware_local_v1_context_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_context_proto_rawDesc), len(file_polterware_local_v1_context_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

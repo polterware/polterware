@@ -132,7 +132,6 @@ export type WorkspaceRunbook = {
   resourceId?: string;
   resourceName?: string;
   nodeId?: string;
-  operationId?: string;
   entityLinks: WorkspaceEntityLink[];
 };
 

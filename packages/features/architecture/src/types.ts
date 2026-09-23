@@ -7,13 +7,6 @@ export type ConnectionRef = {
   evidence: boolean;
 };
 
-export type ActivityItem = {
-  id: string;
-  at: string;
-  title: string;
-  detail?: string;
-};
-
 export type DocLink = {
   id: string;
   title: string;
@@ -38,7 +31,6 @@ export type ArchitectureNodeView = {
   /** True when operator can link an inventory resource from detail. */
   canLinkResource?: boolean;
   connected: ConnectionRef[];
-  activity: ActivityItem[];
   notes?: string;
   docs: DocLink[];
   x: number;

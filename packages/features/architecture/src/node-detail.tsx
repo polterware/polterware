@@ -6,7 +6,7 @@ import {
   PageLoading,
   StatusChip,
 } from "@polterware/frontend-design-system";
-import { Activity, FileText, Link2, Network } from "@polterware/frontend-design-system";
+import { FileText, Link2, Network } from "@polterware/frontend-design-system";
 import { NodeIcon } from "./domain/node-icon";
 import {
   architectureLifecycleLabel,
@@ -219,39 +219,6 @@ export function ArchitectureNodeDetail(props: {
                           )}
                         </DataTable.Body>
                         <DataTable.Empty>No docs linked.</DataTable.Empty>
-                      </DataTable.Table>
-                    </DataTable.Root>
-                    </DetailPanel.Section>
-                  </Show>
-
-                  <Show when={n().activity.length > 0}>
-                    <DetailPanel.Section title="Activity">
-                    <DataTable.Root rows={n().activity} getRowId={(event) => event.id}>
-                      <DataTable.Table aria-label="Architecture node activity">
-                        <DataTable.Header>
-                          <DataTable.ColumnHeader
-                            id="title"
-                            sortBy={(event) => event.title}
-                          >
-                            Event
-                          </DataTable.ColumnHeader>
-                          <DataTable.ColumnHeader id="at" sortBy={(event) => event.at}>
-                            When
-                          </DataTable.ColumnHeader>
-                        </DataTable.Header>
-                        <DataTable.Body>
-                          {(event) => (
-                            <DataTable.Row row={event}>
-                              <DataTable.PrimaryCell
-                                icon={<Activity size={16} />}
-                                iconTone="observability"
-                                title={event.title}
-                              />
-                              <DataTable.Cell>{event.at}</DataTable.Cell>
-                            </DataTable.Row>
-                          )}
-                        </DataTable.Body>
-                        <DataTable.Empty>No activity.</DataTable.Empty>
                       </DataTable.Table>
                     </DataTable.Root>
                     </DetailPanel.Section>

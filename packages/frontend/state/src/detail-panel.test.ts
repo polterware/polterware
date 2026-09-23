@@ -33,7 +33,7 @@ describe("detailPanelStore", () => {
     });
   });
 
-  it("reopens a closed panel when the tab scope changes", () => {
+  it("preserves a collapsed panel when the tab scope changes", () => {
     const nextScopeId = "project-beta";
     const nextTarget: DetailTarget = { scopeId: nextScopeId, entityId: "database-primary", entityKind: "resource" };
     detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
@@ -45,8 +45,59 @@ describe("detailPanelStore", () => {
     expect(detailPanelStore.getState()).toMatchObject({
       activeScope: nextScopeId,
       activeTarget: nextTarget,
+      mode: "collapsed",
+      restoreMode: "collapsed",
+    });
+  });
+
+  it("preserves an open panel when the tab scope changes", () => {
+    const nextScopeId = "project-beta";
+    const nextTarget: DetailTarget = { scopeId: nextScopeId, entityId: "database-primary", entityKind: "resource" };
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+
+    detailPanelStore.getState().unregisterCollection(scopeId);
+    detailPanelStore.getState().registerCollection({ scopeId: nextScopeId, status: "ready", targets: [nextTarget] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeScope: nextScopeId,
+      activeTarget: nextTarget,
       mode: "open",
       restoreMode: "open",
+    });
+  });
+
+  it("exits maximized to open on scope change when maximized from open", () => {
+    const nextScopeId = "project-beta";
+    const nextTarget: DetailTarget = { scopeId: nextScopeId, entityId: "database-primary", entityKind: "resource" };
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    detailPanelStore.getState().maximize();
+
+    detailPanelStore.getState().unregisterCollection(scopeId);
+    detailPanelStore.getState().registerCollection({ scopeId: nextScopeId, status: "ready", targets: [nextTarget] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeScope: nextScopeId,
+      activeTarget: nextTarget,
+      mode: "open",
+      restoreMode: "open",
+    });
+  });
+
+  it("exits maximized to collapsed on scope change when maximized from collapsed", () => {
+    const nextScopeId = "project-beta";
+    const nextTarget: DetailTarget = { scopeId: nextScopeId, entityId: "database-primary", entityKind: "resource" };
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    detailPanelStore.getState().collapse();
+    detailPanelStore.getState().maximize();
+
+    detailPanelStore.getState().unregisterCollection(scopeId);
+    detailPanelStore.getState().registerCollection({ scopeId: nextScopeId, status: "ready", targets: [nextTarget] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeScope: nextScopeId,
+      activeTarget: nextTarget,
+      mode: "collapsed",
+      restoreMode: "collapsed",
     });
   });
 
@@ -105,14 +156,26 @@ describe("detailPanelStore", () => {
     expect(detailPanelStore.getState()).toMatchObject({ activeTarget: secondTarget, mode: "collapsed" });
   });
 
-  it("keeps the panel collapsed when activating another target", () => {
+  it("opens a collapsed panel when activating another target", () => {
     detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget, secondTarget] });
     detailPanelStore.getState().collapse();
     detailPanelStore.getState().activateTarget(secondTarget);
 
     expect(detailPanelStore.getState()).toMatchObject({
       activeTarget: secondTarget,
-      mode: "collapsed",
+      mode: "open",
+      restoreMode: "open",
+    });
+  });
+
+  it("keeps maximized when activating another target", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget, secondTarget] });
+    detailPanelStore.getState().maximize();
+    detailPanelStore.getState().activateTarget(secondTarget);
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: secondTarget,
+      mode: "maximized",
     });
   });
 
@@ -207,7 +270,7 @@ describe("detailPanelStore", () => {
       activeTarget: secondTarget,
       outgoingTarget: null,
       presence: "visible",
-      mode: "collapsed",
+      mode: "open",
     });
   });
 
@@ -232,13 +295,14 @@ describe("detailPanelStore", () => {
       activeTarget: null,
       pendingTarget: null,
       collectionStatus: "idle",
-      mode: "collapsed",
+      mode: "open",
+      restoreMode: "open",
     });
   });
 
-  it("maximizes only an active collection and restores it open", () => {
+  it("maximizes only an active collection and restores to the recorded restoreMode", () => {
     detailPanelStore.getState().maximize();
-    expect(detailPanelStore.getState().mode).toBe("collapsed");
+    expect(detailPanelStore.getState().mode).toBe("open");
 
     detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
     detailPanelStore.getState().collapse();
@@ -247,7 +311,7 @@ describe("detailPanelStore", () => {
     expect(detailPanelStore.getState()).toMatchObject({ mode: "maximized", restoreMode: "collapsed" });
 
     detailPanelStore.getState().restore();
-    expect(detailPanelStore.getState()).toMatchObject({ mode: "open", restoreMode: "open" });
+    expect(detailPanelStore.getState()).toMatchObject({ mode: "collapsed", restoreMode: "collapsed" });
   });
 
   it("keeps snap geometry out of global and persisted state", () => {

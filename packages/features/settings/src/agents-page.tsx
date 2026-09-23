@@ -1,6 +1,8 @@
 import { Match, Show, Switch, createMemo, createSignal, onMount } from "solid-js";
 import {
   Button,
+  Boxes,
+  GitCompare,
   History,
   Layers,
   PageContent,
@@ -14,13 +16,16 @@ import {
 } from "@polterware/frontend-design-system";
 import type {
   AgentRunDetail,
-  AgentRunRow,
   CompilePreviewResult,
+  DriftPreviewResult,
   McpStatusView,
+  ProjectChangeRow,
 } from "./agents-types";
-import { AgentRunHistoryCard } from "./agent-run-history-card";
+import { AgentRunHistoryCard, type ChangeActorFilter } from "./agent-run-history-card";
 import { CompilePreviewCard } from "./compile-preview-card";
+import { DriftPreviewCard } from "./drift-preview-card";
 import { McpStatusCard } from "./mcp-status-card";
+import { PpmFactsPanel, type PpmJustifyChange } from "./ppm-facts-panel";
 import { SkillCard } from "./skill-card";
 
 const AGENTS_TABS: TabItem[] = [
@@ -45,18 +50,38 @@ const AGENTS_TABS: TabItem[] = [
     },
   },
   {
+    id: "drift",
+    label: "Drift",
+    tooltip: {
+      title: "Narrow drift",
+      description:
+        "Run the Narrow Drift Checker for the current project. Findings are advisory; empty means no disagreement under the narrow rules.",
+      icon: GitCompare,
+    },
+  },
+  {
+    id: "facts",
+    label: "Facts",
+    tooltip: {
+      title: "PPM facts",
+      description:
+        "Inspect and justify PPM facts and evidence for the current project. Mutations require a change envelope and appear in History.",
+      icon: Boxes,
+    },
+  },
+  {
     id: "history",
     label: "History",
     tooltip: {
-      title: "AgentRun audit",
+      title: "Unified Change History",
       description:
-        "Minimal AgentRun audit trail: context delivered, task, declared change, evidence, and drift findings for this project.",
+        "Justified project-model changes from humans and agents: summary, rationale, and the audit chain for each mutation.",
       icon: History,
     },
   },
 ];
 
-type AgentsTabId = "access" | "compile" | "history";
+type AgentsTabId = "access" | "compile" | "drift" | "facts" | "history";
 
 type AgentsBridge = {
   getMcpStatus: () => Promise<unknown>;
@@ -68,7 +93,15 @@ type AgentsBridge = {
     entityId?: string;
     tokenBudget: number;
   }) => Promise<unknown>;
-  listAgentRuns: (payload: { projectId: string; limit?: number }) => Promise<unknown>;
+  checkDrift: (payload: {
+    projectId: string;
+    entityId?: string;
+  }) => Promise<unknown>;
+  listChanges: (payload: {
+    projectId: string;
+    actorKind?: string;
+    limit?: number;
+  }) => Promise<unknown>;
   getAgentRun: (payload: { id: string }) => Promise<unknown>;
 };
 
@@ -88,7 +121,15 @@ function agentsBridge(): AgentsBridge | undefined {
             entityId?: string;
             tokenBudget: number;
           }) => Promise<unknown>;
-          listAgentRuns?: (payload: { projectId: string; limit?: number }) => Promise<unknown>;
+          checkDrift?: (payload: {
+            projectId: string;
+            entityId?: string;
+          }) => Promise<unknown>;
+          listChanges?: (payload: {
+            projectId: string;
+            actorKind?: string;
+            limit?: number;
+          }) => Promise<unknown>;
           getAgentRun?: (payload: { id: string }) => Promise<unknown>;
         };
       };
@@ -101,7 +142,8 @@ function agentsBridge(): AgentsBridge | undefined {
     || !app.startMcp
     || !app.stopMcp
     || !context?.compile
-    || !context.listAgentRuns
+    || !context.checkDrift
+    || !context.listChanges
     || !context.getAgentRun
   ) {
     return undefined;
@@ -111,7 +153,8 @@ function agentsBridge(): AgentsBridge | undefined {
     startMcp: app.startMcp,
     stopMcp: app.stopMcp,
     compileContext: context.compile,
-    listAgentRuns: context.listAgentRuns,
+    checkDrift: context.checkDrift,
+    listChanges: context.listChanges,
     getAgentRun: context.getAgentRun,
   };
 }
@@ -146,25 +189,6 @@ function mapMcpStatus(raw: unknown): McpStatusView {
   };
 }
 
-function mapAgentRuns(raw: unknown): AgentRunRow[] {
-  const record = asRecord(raw);
-  const runs = Array.isArray(record.runs) ? record.runs : [];
-  return runs.flatMap((item) => {
-    const run = asRecord(item);
-    const id = asString(run.id);
-    if (!id) return [];
-    return [{
-      id,
-      projectId: asString(run.projectId),
-      task: asString(run.task),
-      agentLabel: asString(run.agentLabel),
-      status: asString(run.status),
-      createdAt: asString(run.createdAt),
-      completedAt: asString(run.completedAt),
-    }];
-  });
-}
-
 function mapAgentRunDetail(raw: unknown): AgentRunDetail | undefined {
   const record = asRecord(raw);
   const runRaw = asRecord(record.run);
@@ -177,6 +201,7 @@ function mapAgentRunDetail(raw: unknown): AgentRunDetail | undefined {
       projectId: asString(runRaw.projectId),
       task: asString(runRaw.task),
       agentLabel: asString(runRaw.agentLabel),
+      actorKind: asString(runRaw.actorKind) || "agent",
       status: asString(runRaw.status),
       createdAt: asString(runRaw.createdAt),
       completedAt: asString(runRaw.completedAt),
@@ -195,6 +220,28 @@ function mapAgentRunDetail(raw: unknown): AgentRunDetail | undefined {
       }];
     }),
   };
+}
+
+function mapProjectChanges(raw: unknown): ProjectChangeRow[] {
+  const record = asRecord(raw);
+  const changes = Array.isArray(record.changes) ? record.changes : [];
+  return changes.flatMap((item) => {
+    const row = asRecord(item);
+    const stepId = asString(row.stepId);
+    if (!stepId) return [];
+    return [{
+      stepId,
+      agentRunId: asString(row.agentRunId),
+      projectId: asString(row.projectId),
+      actorKind: asString(row.actorKind) || "agent",
+      agentLabel: asString(row.agentLabel),
+      runStatus: asString(row.runStatus),
+      runTask: asString(row.runTask),
+      summary: asString(row.summary),
+      payloadJson: asString(row.payloadJson),
+      createdAt: asString(row.createdAt),
+    }];
+  });
 }
 
 function mapCompileResult(raw: unknown): CompilePreviewResult {
@@ -239,16 +286,58 @@ function mapCompileResult(raw: unknown): CompilePreviewResult {
   };
 }
 
+function mapDriftResult(value: unknown): DriftPreviewResult {
+  const raw = asRecord(value);
+  const findingsRaw = Array.isArray(raw.findings) ? raw.findings : [];
+  return {
+    projectId: asString(raw.projectId),
+    entityId: asString(raw.entityId),
+    status: asString(raw.status),
+    checker: asString(raw.checker) || "narrow",
+    findings: findingsRaw.flatMap((item) => {
+      const row = asRecord(item);
+      const subjectIds = Array.isArray(row.subjectIds)
+        ? row.subjectIds.flatMap((value) => {
+            const id = asString(value);
+            return id ? [id] : [];
+          })
+        : [];
+      const evidenceIds = Array.isArray(row.evidenceIds)
+        ? row.evidenceIds.flatMap((value) => {
+            const id = asString(value);
+            return id ? [id] : [];
+          })
+        : [];
+      return [{
+        type: asString(row.type),
+        severity: asString(row.severity),
+        summary: asString(row.summary),
+        subjectIds,
+        evidenceIds,
+      }];
+    }),
+  };
+}
+
 function normalizeAgentsTab(raw?: string): AgentsTabId {
-  if (raw === "compile" || raw === "history" || raw === "access") return raw;
+  if (
+    raw === "compile"
+    || raw === "drift"
+    || raw === "facts"
+    || raw === "history"
+    || raw === "access"
+  ) {
+    return raw;
+  }
   return "access";
 }
 
-/** Agents: MCP access, compile preview, and AgentRun audit history. */
+/** Agents: MCP access, compile preview, drift preview, PPM facts, and Unified Change History. */
 export function AgentsPage(props: {
   projectId: string;
   tab?: string;
   onTabChange?: (tab: string) => void;
+  justifyChange: PpmJustifyChange;
 }) {
   const tab = createMemo(() => normalizeAgentsTab(props.tab));
   const [mcpStatus, setMcpStatus] = createSignal<McpStatusView | undefined>();
@@ -259,9 +348,15 @@ export function AgentsPage(props: {
   const [compileBusy, setCompileBusy] = createSignal(false);
   const [compileResult, setCompileResult] = createSignal<CompilePreviewResult | undefined>();
   const [compileError, setCompileError] = createSignal<string | undefined>();
+  const [driftBusy, setDriftBusy] = createSignal(false);
+  const [driftResult, setDriftResult] = createSignal<DriftPreviewResult | undefined>();
+  const [driftError, setDriftError] = createSignal<string | undefined>();
+  const [factsBusy, setFactsBusy] = createSignal(false);
+  const [factsRefreshToken, setFactsRefreshToken] = createSignal(0);
   const [historyBusy, setHistoryBusy] = createSignal(false);
-  const [runs, setRuns] = createSignal<AgentRunRow[]>([]);
-  const [selectedRunId, setSelectedRunId] = createSignal("");
+  const [changes, setChanges] = createSignal<ProjectChangeRow[]>([]);
+  const [actorFilter, setActorFilter] = createSignal<ChangeActorFilter>("all");
+  const [selectedStepId, setSelectedStepId] = createSignal("");
   const [runDetail, setRunDetail] = createSignal<AgentRunDetail | undefined>();
 
   const running = () => Boolean(mcpStatus()?.running);
@@ -296,28 +391,31 @@ export function AgentsPage(props: {
     }
   };
 
-  const refreshHistory = async () => {
+  const refreshHistory = async (filterOverride?: ChangeActorFilter) => {
     const bridge = agentsBridge();
     const projectId = props.projectId.trim();
     if (!bridge || !projectId) {
-      setRuns([]);
+      setChanges([]);
       setRunDetail(undefined);
-      setSelectedRunId("");
+      setSelectedStepId("");
       return;
     }
     setHistoryBusy(true);
     try {
-      const nextRuns = mapAgentRuns(await bridge.listAgentRuns({ projectId, limit: 50 }));
-      setRuns(nextRuns);
-      const current = selectedRunId();
-      const nextId = nextRuns.some((run) => run.id === current)
-        ? current
-        : (nextRuns[0]?.id ?? "");
-      setSelectedRunId(nextId);
-      if (nextId) await loadRunDetail(nextId);
+      const filter = filterOverride ?? actorFilter();
+      const nextChanges = mapProjectChanges(await bridge.listChanges({
+        projectId,
+        limit: 50,
+        ...(filter === "all" ? {} : { actorKind: filter }),
+      }));
+      setChanges(nextChanges);
+      const current = selectedStepId();
+      const selected = nextChanges.find((change) => change.stepId === current) ?? nextChanges[0];
+      setSelectedStepId(selected?.stepId ?? "");
+      if (selected?.agentRunId) await loadRunDetail(selected.agentRunId);
       else setRunDetail(undefined);
     } catch (error: unknown) {
-      pushToast(error instanceof Error ? error.message : "Could not load agent runs.", "danger");
+      pushToast(error instanceof Error ? error.message : "Could not load change history.", "danger");
     } finally {
       setHistoryBusy(false);
     }
@@ -359,6 +457,65 @@ export function AgentsPage(props: {
       .finally(() => setMcpBusy(false));
   };
 
+  const runCompile = () => {
+    const bridge = agentsBridge();
+    const projectId = props.projectId.trim();
+    if (!bridge) {
+      setCompileError("Context compiler is unavailable in this session.");
+      return;
+    }
+    if (!projectId) {
+      setCompileError("Select a project before compiling context.");
+      return;
+    }
+    setCompileBusy(true);
+    setCompileError(undefined);
+    const tokenBudget = Number.parseInt(budget(), 10);
+    const trimmedEntityId = entityId().trim();
+    void bridge.compileContext({
+      projectId,
+      query: query().trim(),
+      ...(trimmedEntityId ? { entityId: trimmedEntityId } : {}),
+      tokenBudget: Number.isFinite(tokenBudget) && tokenBudget > 0 ? tokenBudget : 1200,
+    })
+      .then((response) => {
+        setCompileResult(mapCompileResult(response));
+      })
+      .catch((error: unknown) => {
+        setCompileResult(undefined);
+        setCompileError(error instanceof Error ? error.message : "Compile failed.");
+      })
+      .finally(() => setCompileBusy(false));
+  };
+
+  const runDrift = () => {
+    const bridge = agentsBridge();
+    const projectId = props.projectId.trim();
+    if (!bridge) {
+      setDriftError("Drift checker is unavailable in this session.");
+      return;
+    }
+    if (!projectId) {
+      setDriftError("Select a project before checking drift.");
+      return;
+    }
+    setDriftBusy(true);
+    setDriftError(undefined);
+    const trimmedEntityId = entityId().trim();
+    void bridge.checkDrift({
+      projectId,
+      ...(trimmedEntityId ? { entityId: trimmedEntityId } : {}),
+    })
+      .then((response) => {
+        setDriftResult(mapDriftResult(response));
+      })
+      .catch((error: unknown) => {
+        setDriftResult(undefined);
+        setDriftError(error instanceof Error ? error.message : "Drift check failed.");
+      })
+      .finally(() => setDriftBusy(false));
+  };
+
   onMount(() => {
     void refreshMcp();
     void refreshHistory();
@@ -376,37 +533,78 @@ export function AgentsPage(props: {
           />
         </PageToolbar.Tabs>
         <PageToolbar.Actions>
-          <StatusChip tone={running() ? "ok" : "warn"} label={running() ? "Running" : "Stopped"} />
-          <Show when={tab() === "access" || tab() === "history"}>
+          <Show when={tab() === "access"}>
+            <StatusChip tone={running() ? "ok" : "warn"} label={running() ? "Running" : "Stopped"} />
             <Button
               size="sm"
               variant="ghost"
-              disabled={tab() === "history" ? historyBusy() : mcpBusy()}
-              onClick={() => {
-                if (tab() === "history") void refreshHistory();
-                else void refreshMcp();
-              }}
+              disabled={mcpBusy()}
+              onClick={() => void refreshMcp()}
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={mcpBusy() || running()}
+              onClick={() => startMcp()}
+            >
+              Start
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={mcpBusy() || !running()}
+              onClick={() => stopMcp()}
+            >
+              Stop
+            </Button>
+          </Show>
+          <Show when={tab() === "compile"}>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={compileBusy()}
+              onClick={() => runCompile()}
             >
               <RefreshCw size={14} />
               Refresh
             </Button>
           </Show>
-          <Button
-            size="sm"
-            variant="primary"
-            disabled={mcpBusy() || running()}
-            onClick={() => startMcp()}
-          >
-            Start
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={mcpBusy() || !running()}
-            onClick={() => stopMcp()}
-          >
-            Stop
-          </Button>
+          <Show when={tab() === "drift"}>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={driftBusy()}
+              onClick={() => runDrift()}
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </Button>
+          </Show>
+          <Show when={tab() === "facts"}>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={factsBusy()}
+              onClick={() => setFactsRefreshToken((value) => value + 1)}
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </Button>
+          </Show>
+          <Show when={tab() === "history"}>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={historyBusy()}
+              onClick={() => void refreshHistory()}
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </Button>
+          </Show>
         </PageToolbar.Actions>
       </PageToolbar.Root>
 
@@ -430,36 +628,34 @@ export function AgentsPage(props: {
               onQueryChange={setQuery}
               onEntityIdChange={setEntityId}
               onBudgetChange={setBudget}
-              onCompile={() => {
-                const bridge = agentsBridge();
-                const projectId = props.projectId.trim();
-                if (!bridge) {
-                  setCompileError("Context compiler is unavailable in this session.");
-                  return;
-                }
-                if (!projectId) {
-                  setCompileError("Select a project before compiling context.");
-                  return;
-                }
-                setCompileBusy(true);
-                setCompileError(undefined);
-                const tokenBudget = Number.parseInt(budget(), 10);
-                const trimmedEntityId = entityId().trim();
-                void bridge.compileContext({
-                  projectId,
-                  query: query().trim(),
-                  ...(trimmedEntityId ? { entityId: trimmedEntityId } : {}),
-                  tokenBudget: Number.isFinite(tokenBudget) && tokenBudget > 0 ? tokenBudget : 1200,
-                })
-                  .then((response) => {
-                    setCompileResult(mapCompileResult(response));
-                  })
-                  .catch((error: unknown) => {
-                    setCompileResult(undefined);
-                    setCompileError(error instanceof Error ? error.message : "Compile failed.");
-                  })
-                  .finally(() => setCompileBusy(false));
-              }}
+              onCompile={() => runCompile()}
+            />
+          </PageContent>
+        </Match>
+
+        <Match when={tab() === "drift"}>
+          <PageContent class="max-w-2xl overflow-auto p-4 text-[12.5px]">
+            <DriftPreviewCard
+              entityId={entityId()}
+              busy={driftBusy()}
+              result={driftResult()}
+              error={driftError()}
+              onEntityIdChange={setEntityId}
+              onCheck={() => runDrift()}
+            />
+          </PageContent>
+        </Match>
+
+        <Match when={tab() === "facts"}>
+          <PageContent class="flex min-h-0 flex-1 flex-col p-0">
+            <PpmFactsPanel
+              projectId={props.projectId}
+              entityFilter={entityId()}
+              busy={factsBusy()}
+              refreshToken={factsRefreshToken()}
+              justifyChange={props.justifyChange}
+              onEntityFilterChange={setEntityId}
+              onBusyChange={setFactsBusy}
             />
           </PageContent>
         </Match>
@@ -467,13 +663,18 @@ export function AgentsPage(props: {
         <Match when={tab() === "history"}>
           <PageContent class="flex min-h-0 flex-1 flex-col p-0">
             <AgentRunHistoryCard
-              runs={runs()}
-              selectedId={selectedRunId()}
+              changes={changes()}
+              selectedStepId={selectedStepId()}
               detail={runDetail()}
+              actorFilter={actorFilter()}
               busy={historyBusy()}
-              onSelect={(id) => {
-                setSelectedRunId(id);
-                void loadRunDetail(id);
+              onActorFilter={(filter) => {
+                setActorFilter(filter);
+                void refreshHistory(filter);
+              }}
+              onSelect={(stepId, agentRunId) => {
+                setSelectedStepId(stepId);
+                void loadRunDetail(agentRunId);
               }}
             />
           </PageContent>

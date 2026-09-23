@@ -644,8 +644,8 @@ describe("DetailPanel", () => {
       "packages/features/architecture/src/index.tsx",
       "packages/features/integrations/src/index.tsx",
       "packages/features/knowledge/src/index.tsx",
-      "packages/features/operations/src/index.tsx",
       "packages/features/resources/src/index.tsx",
+      "packages/features/settings/src/environment-detail.tsx",
     ];
 
     for (const file of featureFiles) {

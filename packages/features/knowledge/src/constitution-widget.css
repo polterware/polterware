@@ -1,0 +1,24 @@
+/* Shared Specs constitution pill (empty + created). */
+
+.pw-constitution-widget {
+  transition:
+    background-color var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
+    border-color var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
+    box-shadow var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+}
+
+/* Beat `.card-panel` fill — same tone as DataTable active row. */
+.card-panel.pw-constitution-widget--active {
+  background: var(--color-surface-raised);
+  border-color: var(--color-border-subtle);
+  box-shadow: 0 1px 2px var(--color-shadow-subtle);
+}
+
+.card-panel.pw-constitution-widget--interactive:hover:not(.pw-constitution-widget--active) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-default);
+}
+
+.pw-constitution-widget--active .pw-constitution-widget__title {
+  color: var(--color-text-primary);
+}

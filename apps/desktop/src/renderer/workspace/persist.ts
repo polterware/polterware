@@ -5,6 +5,7 @@ import type {
   ProtectionLevel,
 } from "@polterware/feature-settings";
 import type { WorkspaceCatalogProvider } from "@polterware/feature-shell";
+import type { ChangeEnvelope } from "@polterware/feature-knowledge";
 import { asNumber, asObjectArray, asRecord, asString } from "./format";
 import type { WorkspaceSnapshot } from "./load";
 import {
@@ -20,6 +21,14 @@ import {
 
 function core() {
   return window.polterware.core;
+}
+
+function changePayload(change: ChangeEnvelope) {
+  return {
+    summary: change.summary,
+    rationale: change.rationale,
+    agentRunId: change.agentRunId ?? "",
+  };
 }
 
 function newId(prefix: string): string {
@@ -112,6 +121,7 @@ export async function persistKnowledgeBody(
   projectId: string,
   itemId: string,
   body: string,
+  change: ChangeEnvelope,
 ): Promise<void> {
   const current = workspace.rawKnowledge.find((item) => asString(item.id) === itemId);
   if (!current) return;
@@ -121,6 +131,7 @@ export async function persistKnowledgeBody(
       projectId,
       body,
     },
+    change: changePayload(change),
   });
 }
 
@@ -129,6 +140,7 @@ export async function persistKnowledgeSourcePath(
   projectId: string,
   itemId: string,
   path: string,
+  change: ChangeEnvelope,
 ): Promise<void> {
   const current = workspace.rawKnowledge.find((item) => asString(item.id) === itemId);
   if (!current) return;
@@ -144,6 +156,7 @@ export async function persistKnowledgeSourcePath(
       projectId,
       extraJson: JSON.stringify({ ...extra, path }),
     },
+    change: changePayload(change),
   });
 }
 
@@ -153,6 +166,7 @@ export async function persistKnowledgeCreate(input: {
   title: string;
   body?: string;
   extraJson?: string;
+  change: ChangeEnvelope;
 }): Promise<string> {
   const id = newId(
     input.kind === "runbook"
@@ -196,10 +210,11 @@ export async function persistKnowledgeCreate(input: {
       kind: input.kind,
       tags: input.kind === "adr" ? ["adr"] : input.kind === "source" ? ["source"] : [],
       summary: "",
-      owner: "Platform",
+      owner: "human",
       status: input.kind === "adr" ? "proposed" : input.kind === "source" ? "" : "draft",
       extraJson: input.extraJson ?? defaultExtraJson,
     },
+    change: changePayload(input.change),
   });
   return id;
 }
@@ -208,6 +223,7 @@ export async function persistKnowledgeCreateFeature(input: {
   workspace: WorkspaceSnapshot;
   projectId: string;
   title: string;
+  change: ChangeEnvelope;
 }): Promise<string> {
   const featureKey = nextFeatureKey(
     input.workspace.specFeatures.map((feature) => feature.featureKey),
@@ -235,31 +251,36 @@ export async function persistKnowledgeCreateFeature(input: {
         kind: artifact.kind,
         tags: [],
         summary: "",
-        owner: "Platform",
+        owner: "human",
         status: "draft",
         extraJson,
       },
+      change: changePayload(input.change),
     });
   }
   return featureKey;
 }
 
-export async function persistKnowledgeDelete(id: string): Promise<void> {
-  await core().knowledge.delete({ id });
+export async function persistKnowledgeDelete(
+  id: string,
+  change: ChangeEnvelope,
+): Promise<void> {
+  await core().knowledge.delete({ id, change: changePayload(change) });
 }
 
 export async function persistKnowledgeArchiveFeature(
   workspace: WorkspaceSnapshot,
   featureKey: string,
+  change: ChangeEnvelope,
 ): Promise<void> {
   const feature = workspace.specFeatures.find((item) => item.featureKey === featureKey);
   if (!feature) return;
   await Promise.all([
-    persistKnowledgeDelete(feature.spec.id),
-    persistKnowledgeDelete(feature.plan.id),
-    persistKnowledgeDelete(feature.tasks.id),
-    persistKnowledgeDelete(feature.clarify.id),
-    persistKnowledgeDelete(feature.checklist.id),
+    persistKnowledgeDelete(feature.spec.id, change),
+    persistKnowledgeDelete(feature.plan.id, change),
+    persistKnowledgeDelete(feature.tasks.id, change),
+    persistKnowledgeDelete(feature.clarify.id, change),
+    persistKnowledgeDelete(feature.checklist.id, change),
   ]);
 }
 
@@ -275,6 +296,7 @@ export async function persistKnowledgeSetFeatureStatus(
   projectId: string,
   featureKey: string,
   status: "draft" | "ready",
+  change: ChangeEnvelope,
 ): Promise<void> {
   const feature = workspace.specFeatures.find((item) => item.featureKey === featureKey);
   if (!feature) return;
@@ -296,6 +318,7 @@ export async function persistKnowledgeSetFeatureStatus(
         projectId,
         status,
       },
+      change: changePayload(change),
     });
   }
 }
@@ -303,6 +326,7 @@ export async function persistKnowledgeSetFeatureStatus(
 export async function persistConstitutionEnsure(input: {
   workspace: WorkspaceSnapshot;
   projectId: string;
+  change: ChangeEnvelope;
 }): Promise<string> {
   const existing = input.workspace.constitution;
   if (existing) return existing.id;
@@ -316,26 +340,29 @@ export async function persistConstitutionEnsure(input: {
       kind: "constitution",
       tags: [],
       summary: "",
-      owner: "Platform",
+      owner: "human",
       status: "active",
       extraJson: "{}",
     },
+    change: changePayload(input.change),
   });
   return id;
 }
 
 export async function persistConstitutionArchive(
   workspace: WorkspaceSnapshot,
+  change: ChangeEnvelope,
 ): Promise<void> {
   const constitution = workspace.constitution;
   if (!constitution) return;
-  await persistKnowledgeDelete(constitution.id);
+  await persistKnowledgeDelete(constitution.id, change);
 }
 
 export async function persistKnowledgeDuplicate(
   workspace: WorkspaceSnapshot,
   projectId: string,
   itemId: string,
+  change: ChangeEnvelope,
 ): Promise<string | undefined> {
   const current = workspace.rawKnowledge.find((item) => asString(item.id) === itemId);
   if (!current) return undefined;
@@ -348,6 +375,7 @@ export async function persistKnowledgeDuplicate(
       projectId,
       title,
     },
+    change: changePayload(change),
   });
   return id;
 }
@@ -568,6 +596,76 @@ export async function persistImportProjectSources(input: {
     skippedCount: asNumber(response.skippedCount, 0),
     message: asString(response.message, "Import finished."),
   };
+}
+
+export async function persistPpmFact(input: {
+  fact: {
+    id?: string;
+    projectId: string;
+    statement: string;
+    truthClass: string;
+    entityId?: string;
+  };
+  change: ChangeEnvelope;
+}): Promise<void> {
+  await core().ppm.upsertFact({
+    fact: {
+      id: input.fact.id ?? "",
+      projectId: input.fact.projectId,
+      statement: input.fact.statement,
+      truthClass: input.fact.truthClass,
+      entityId: input.fact.entityId ?? "",
+      source: "",
+      actor: "",
+      observedAt: "",
+      createdAt: "",
+      updatedAt: "",
+    },
+    change: changePayload(input.change),
+  });
+}
+
+export async function persistPpmEvidence(input: {
+  evidence: {
+    id?: string;
+    projectId: string;
+    kind: string;
+    summary: string;
+    path?: string;
+  };
+  change: ChangeEnvelope;
+}): Promise<{ id: string }> {
+  const id = input.evidence.id?.trim() || newId("ev");
+  await core().ppm.upsertEvidence({
+    evidence: {
+      id,
+      projectId: input.evidence.projectId,
+      kind: input.evidence.kind,
+      summary: input.evidence.summary,
+      path: input.evidence.path ?? "",
+      source: "",
+      actor: "",
+      observedAt: "",
+      createdAt: "",
+      updatedAt: "",
+    },
+    change: changePayload(input.change),
+  });
+  return { id };
+}
+
+export async function persistLinkEvidenceToFact(input: {
+  projectId: string;
+  factId: string;
+  evidenceId: string;
+  change: ChangeEnvelope;
+}): Promise<void> {
+  await core().ppm.linkEvidenceToFact({
+    projectId: input.projectId,
+    factId: input.factId,
+    evidenceId: input.evidenceId,
+    change: changePayload(input.change),
+  });
 }
 
 export async function resetLocalStore(): Promise<void> {

@@ -671,7 +671,7 @@ function DetailPanelMetadataItem(props: {
   return (
     <div class={`pw-detail-panel__metadata-item ${props.class ?? ""}`}>
       <dt>{props.label}</dt>
-      <dd classList={{ "font-mono": props.mono }}>{props.value}</dd>
+      <dd classList={{ "font-mono": props.mono, "pw-selectable": props.mono }}>{props.value}</dd>
     </div>
   );
 }

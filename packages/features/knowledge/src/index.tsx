@@ -96,6 +96,12 @@ export {
   SPEC_BODY_TEMPLATE,
   TASKS_BODY_TEMPLATE,
 } from "./spec-templates";
+export { ChangeEnvelopeDialogHost } from "./change-envelope-dialog";
+export {
+  requestChangeEnvelope,
+  type ChangeEnvelope,
+  type ChangeEnvelopeRequest,
+} from "./change-envelope-request";
 
 const TABS: TabItem[] = [
   {
@@ -218,6 +224,35 @@ export function KnowledgeView(props: {
     bodyAutosave.dispose();
     pathAutosave.dispose();
   });
+
+  /** Persist only when the editor value differs from the stored baseline. */
+  function noteBodyChange(id: string, markdown: string, baseline: string) {
+    if (markdown === baseline) {
+      setBodyOverrides((current) => {
+        if (!(id in current)) return current;
+        const { [id]: _removed, ...rest } = current;
+        return rest;
+      });
+      bodyAutosave.cancel(id);
+      return;
+    }
+    setBodyOverrides((current) => ({ ...current, [id]: markdown }));
+    bodyAutosave.schedule(id, markdown);
+  }
+
+  function notePathChange(id: string, path: string, baseline: string) {
+    if (path === baseline) {
+      setPathOverrides((current) => {
+        if (!(id in current)) return current;
+        const { [id]: _removed, ...rest } = current;
+        return rest;
+      });
+      pathAutosave.cancel(id);
+      return;
+    }
+    setPathOverrides((current) => ({ ...current, [id]: path }));
+    pathAutosave.schedule(id, path);
+  }
 
   const allLibraryRows = createMemo(() =>
     libraryRowsFromWorkspace({
@@ -982,7 +1017,7 @@ export function KnowledgeView(props: {
                           onActivate={() => activate(item.featureKey, "feature")}
                         >
                           <DataTable.PrimaryCell icon={<FileText size={16} />} iconTone="knowledge" title={item.title} />
-                          <DataTable.Cell class="font-mono text-[12px]">{item.featureKey}</DataTable.Cell>
+                          <DataTable.Cell class="font-mono pw-selectable text-[12px]">{item.featureKey}</DataTable.Cell>
                           <DataTable.Cell><StatusChip tone={specStatusTone(item.status)} label={item.status} /></DataTable.Cell>
                           <DataTable.Cell class="text-[var(--color-text-muted)]">{item.updatedAt}</DataTable.Cell>
                         </DataTable.Row>
@@ -1002,8 +1037,7 @@ export function KnowledgeView(props: {
             document={item()}
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
-              setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
-              bodyAutosave.schedule(item().id, markdown);
+              noteBodyChange(item().id, markdown, item().bodyMarkdown);
             }}
             onOpenComponent={props.onOpenComponent}
             onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
@@ -1031,8 +1065,7 @@ export function KnowledgeView(props: {
             }}
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
-              setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
-              bodyAutosave.schedule(item().id, markdown);
+              noteBodyChange(item().id, markdown, item().bodyMarkdown);
             }}
             onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
             links={linksFor(item().id, item().entityLinks)}
@@ -1045,8 +1078,7 @@ export function KnowledgeView(props: {
             runbook={item()}
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
-              setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
-              bodyAutosave.schedule(item().id, markdown);
+              noteBodyChange(item().id, markdown, item().bodyMarkdown);
             }}
             onOpenComponent={props.onOpenComponent}
             onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
@@ -1062,14 +1094,12 @@ export function KnowledgeView(props: {
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             pathValue={pathOverrides()[item().id] ?? item().path}
             onBodyChange={(markdown) => {
-              setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
-              bodyAutosave.schedule(item().id, markdown);
+              noteBodyChange(item().id, markdown, item().bodyMarkdown);
             }}
             onPathChange={
               props.onSaveSourcePath
                 ? (path) => {
-                    setPathOverrides((current) => ({ ...current, [item().id]: path }));
-                    pathAutosave.schedule(item().id, path);
+                    notePathChange(item().id, path, item().path);
                   }
                 : undefined
             }
@@ -1099,8 +1129,8 @@ export function KnowledgeView(props: {
             onBodyChange={(markdown) => {
               const artifactId = activeArtifactId();
               if (!artifactId) return;
-              setBodyOverrides((current) => ({ ...current, [artifactId]: markdown }));
-              bodyAutosave.schedule(artifactId, markdown);
+              const baseline = item()[activeArtifact()].bodyMarkdown;
+              noteBodyChange(artifactId, markdown, baseline);
             }}
             onArchive={
               props.onArchiveFeature
@@ -1121,8 +1151,7 @@ export function KnowledgeView(props: {
             constitution={item()}
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
-              setBodyOverrides((current) => ({ ...current, [item().id]: markdown }));
-              bodyAutosave.schedule(item().id, markdown);
+              noteBodyChange(item().id, markdown, item().bodyMarkdown);
             }}
             onArchive={
               props.onArchiveConstitution

@@ -1,9 +1,17 @@
 package knowledge
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"time"
 )
+
+func NewItemID() string {
+	var buf [12]byte
+	_, _ = rand.Read(buf[:])
+	return "know-" + hex.EncodeToString(buf[:])
+}
 
 type Item struct {
 	ID        string

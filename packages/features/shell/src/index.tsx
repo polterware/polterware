@@ -26,18 +26,11 @@ export type {
   ProjectSwitcherItem,
   EnvironmentItem,
   EnvironmentKind,
-  TerminalTargetItem,
-  TerminalTargetStatus,
   DataSource,
   DeploymentMode,
   PlatformCapability,
   PlatformCapabilities,
   PlatformContext,
-} from "./types";
-export {
-  isTerminalTargetUsable,
-  terminalTargetStatusTone,
-  terminalTargetStatusLabel,
 } from "./types";
 export type { WorkspaceContext } from "./context-switchers";
 export {

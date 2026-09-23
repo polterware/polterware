@@ -4,12 +4,12 @@ The active Protobuf contracts describe the reduced local core:
 
 - Project and Environment
 - Architecture
-- Resources and Process
+- Resources (Inventory)
 - Knowledge
-- Operations and Workflows
+- Project Model (PPM), Context, and AgentRun
 - Integrations
-- Terminal
-- Logs, Health, and Maintenance
+- Terminal (Connect auth PTY only)
+- Health and Maintenance
 
 Generation targets Go messages and Connect-Go handlers under `backend/platform/gen` and TypeScript messages under `packages/contracts/src/gen`. Electron Main owns the Connect clients; the renderer reaches them only through the typed preload bridge.
 

@@ -174,6 +174,29 @@
   --edge-light-surface-rim: rgb(255 255 255 / 0.04);
 }
 
+/*
+ * Desktop text selection — chrome is not selectable; editable and copyable
+ * values opt in. Do not put user-select: text on .control-field (Select
+ * triggers and action buttons share that chrome).
+ */
+html,
+body,
+#root {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+textarea,
+[contenteditable="true"],
+.ProseMirror,
+code,
+pre,
+.pw-selectable {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 /* Edge light utilities (also in design-system materials.css; mirrored so shell tokens always exist) */
 .edge-light-surface {
   border: 1px solid var(--edge-light-surface-rim);

@@ -54,10 +54,6 @@ export const NODE_DETAIL_FIXTURES = {
       { nodeId: "n-pg", label: "PostgreSQL", relation: "Database", evidence: true },
       { nodeId: "n-redis", label: "Redis", relation: "Cache", evidence: true },
     ],
-    activity: [
-      { id: "1", at: "14m ago", title: "Config synced", detail: "Configuration was synchronized successfully" },
-      { id: "2", at: "17m ago", title: "Health check passed", detail: "All readiness and liveness checks are healthy" },
-    ],
     notes: "Handles payment creation, capture, and settlement orchestration.",
     docs: [
       { id: "d1", title: "Runbook" },
@@ -81,7 +77,6 @@ export const NODE_DETAIL_FIXTURES = {
     y: 100,
     dataSource: "fixture",
     connected: [],
-    activity: [],
     docs: [],
     notes: "Placed on the map; not linked to inventory yet.",
   },
@@ -101,7 +96,6 @@ export function fixtureNodeDetail(id: string, label?: string): ArchitectureNodeV
     status: "unknown",
     environment: "Production",
     connected: [],
-    activity: [],
     docs: [],
     x: 0,
     y: 0,

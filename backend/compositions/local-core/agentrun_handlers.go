@@ -47,10 +47,48 @@ func (core *Core) GetAgentRun(_ context.Context, request *connect.Request[localv
 	}), nil
 }
 
+func (core *Core) ListChanges(_ context.Context, request *connect.Request[localv1.ListChangesRequest]) (*connect.Response[localv1.ListChangesResponse], error) {
+	if request.Msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	actorKind := request.Msg.ActorKind
+	if actorKind != "" {
+		normalized, err := agentrun.NormalizeActorKind(actorKind)
+		if err != nil {
+			return nil, invalid(err.Error())
+		}
+		actorKind = normalized
+	}
+	rows, err := core.Store.ListChanges(request.Msg.ProjectId, actorKind, int(request.Msg.Limit))
+	if err != nil {
+		return nil, internal(err)
+	}
+	out := make([]*localv1.ProjectChange, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &localv1.ProjectChange{
+			StepId:      row.StepID,
+			AgentRunId:  row.AgentRunID,
+			ProjectId:   row.ProjectID,
+			ActorKind:   row.ActorKind,
+			AgentLabel:  row.AgentLabel,
+			RunStatus:   row.RunStatus,
+			RunTask:     row.RunTask,
+			Summary:     row.Summary,
+			PayloadJson: row.PayloadJSON,
+			CreatedAt:   row.CreatedAt.UTC().Format(time.RFC3339),
+		})
+	}
+	return connect.NewResponse(&localv1.ListChangesResponse{Changes: out}), nil
+}
+
 func agentRunProto(run agentrun.Run) *localv1.AgentRun {
+	actorKind := run.ActorKind
+	if actorKind == "" {
+		actorKind = agentrun.ActorKindAgent
+	}
 	out := &localv1.AgentRun{
 		Id: run.ID, ProjectId: run.ProjectID, Task: run.Task, AgentLabel: run.AgentLabel,
-		Status: run.Status, CreatedAt: run.CreatedAt.UTC().Format(time.RFC3339),
+		Status: run.Status, ActorKind: actorKind, CreatedAt: run.CreatedAt.UTC().Format(time.RFC3339),
 	}
 	if run.CompletedAt != nil {
 		out.CompletedAt = run.CompletedAt.UTC().Format(time.RFC3339)

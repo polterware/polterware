@@ -178,11 +178,11 @@ const RUNBOOK_SEEDS: Omit<WorkspaceRunbook, "bodyMarkdown" | "entityLinks">[] = 
   {
     id: "rb-service", title: "Service recovery",
     objective: "Restore a local service after a failed health check.", service: "API", severity: "high",
-    prerequisites: ["Confirm the affected environment", "Open a visual terminal session"],
-    steps: ["Inspect the process fixture", "Review the restart command", "Record the expected result"],
+    prerequisites: ["Confirm the affected environment", "Confirm the service entry in Resources Inventory"],
+    steps: ["Inspect the service fixture", "Review the restart command", "Record the expected result"],
     commands: ["systemctl status example-api", "systemctl restart example-api"],
     rollback: "Restore the previous service version if the health check remains degraded.",
-    owner: "Platform", lastValidated: "4 days ago", componentId: "cmp-api", componentName: "API", operationId: "run-restart-api",
+    owner: "Platform", lastValidated: "4 days ago", componentId: "cmp-api", componentName: "API",
   },
   {
     id: "rb-database", title: "Database failover",

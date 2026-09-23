@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,6 +18,8 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
+	"github.com/polterware/polterware/backend/compositions/wedge"
+	"github.com/polterware/polterware/backend/domains/agentrun"
 	"github.com/polterware/polterware/backend/domains/integrations"
 	"github.com/polterware/polterware/backend/domains/knowledge"
 	"github.com/polterware/polterware/backend/domains/projects"
@@ -239,17 +243,39 @@ func (core *Core) SaveKnowledge(_ context.Context, request *connect.Request[loca
 	if item == nil {
 		return nil, invalid("knowledge item is required")
 	}
+	env, err := changeEnvelopeFromProto(request.Msg.GetChange())
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
+	env.ProjectID = item.ProjectId
 	created, err := knowledge.NewItem(item.Id, item.ProjectId, item.Title, item.Body, item.Kind, item.Tags)
 	if err != nil {
 		return nil, invalid(err.Error())
 	}
 	created.Summary = item.Summary
 	created.Owner = item.Owner
+	if created.Owner == "" {
+		created.Owner = agentrun.ActorHuman
+	}
 	created.Status = item.Status
 	created.ExtraJSON = item.ExtraJson
-	if err := core.Store.SaveKnowledge(created); err != nil {
-		return nil, internal(err)
+	result, err := wedge.ExecuteAuditedWrite(
+		core.Store,
+		env,
+		agentrun.ActorKindHuman,
+		"desktop.knowledge.save",
+		func(run agentrun.Run) ([]string, any, error) {
+			_ = run
+			if err := core.Store.SaveKnowledge(created); err != nil {
+				return nil, nil, err
+			}
+			return []string{created.ID}, created, nil
+		},
+	)
+	if err != nil {
+		return nil, mapAuditedErr(err)
 	}
+	_ = result
 	return connect.NewResponse(&localv1.SaveKnowledgeResponse{Item: knowledgeProto(created)}), nil
 }
 
@@ -266,8 +292,36 @@ func (core *Core) ListKnowledge(_ context.Context, request *connect.Request[loca
 }
 
 func (core *Core) DeleteKnowledge(_ context.Context, request *connect.Request[localv1.DeleteKnowledgeRequest]) (*connect.Response[localv1.DeleteKnowledgeResponse], error) {
-	if err := core.Store.DeleteKnowledge(request.Msg.Id); err != nil {
+	if request.Msg.Id == "" {
+		return nil, invalid("knowledge id is required")
+	}
+	env, err := changeEnvelopeFromProto(request.Msg.GetChange())
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
+	existing, err := core.Store.GetKnowledge(request.Msg.Id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("unknown knowledge item"))
+	}
+	if err != nil {
 		return nil, internal(err)
+	}
+	env.ProjectID = existing.ProjectID
+	_, err = wedge.ExecuteAuditedWrite(
+		core.Store,
+		env,
+		agentrun.ActorKindHuman,
+		"desktop.knowledge.delete",
+		func(run agentrun.Run) ([]string, any, error) {
+			_ = run
+			if err := core.Store.DeleteKnowledge(request.Msg.Id); err != nil {
+				return nil, nil, err
+			}
+			return []string{request.Msg.Id}, nil, nil
+		},
+	)
+	if err != nil {
+		return nil, mapAuditedErr(err)
 	}
 	return connect.NewResponse(&localv1.DeleteKnowledgeResponse{}), nil
 }

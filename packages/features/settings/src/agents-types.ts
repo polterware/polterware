@@ -1,20 +1,9 @@
-export type AgentToolCallRow = {
-  id: string;
-  projectId: string;
-  agentRunId: string;
-  toolName: string;
-  argumentsJson: string;
-  resultSummary: string;
-  ok: boolean;
-  source: string;
-  createdAt: string;
-};
-
 export type AgentRunRow = {
   id: string;
   projectId: string;
   task: string;
   agentLabel: string;
+  actorKind: string;
   status: string;
   createdAt: string;
   completedAt: string;
@@ -32,6 +21,27 @@ export type AgentRunStepRow = {
 export type AgentRunDetail = {
   run: AgentRunRow;
   steps: AgentRunStepRow[];
+};
+
+export type ProjectChangeRow = {
+  stepId: string;
+  agentRunId: string;
+  projectId: string;
+  actorKind: string;
+  agentLabel: string;
+  runStatus: string;
+  runTask: string;
+  summary: string;
+  payloadJson: string;
+  createdAt: string;
+};
+
+export type ChangeEnvelopeView = {
+  summary: string;
+  rationale: string;
+  tool: string;
+  subjectIds: string[];
+  paths: string[];
 };
 
 export type CompilePreviewEvidence = {
@@ -59,6 +69,22 @@ export type CompilePreviewResult = {
   tokenBudget: number;
   truncated: boolean;
   items: CompilePreviewItem[];
+};
+
+export type DriftPreviewFinding = {
+  type: string;
+  severity: string;
+  summary: string;
+  subjectIds: string[];
+  evidenceIds: string[];
+};
+
+export type DriftPreviewResult = {
+  projectId: string;
+  entityId: string;
+  status: string;
+  checker: string;
+  findings: DriftPreviewFinding[];
 };
 
 export type McpStatusView = {

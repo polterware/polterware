@@ -28,7 +28,7 @@ export function SourcesTable(props: {
                 iconTone="knowledge"
                 title={item.title}
               />
-              <DataTable.Cell class="font-mono text-[12px] text-[var(--color-text-muted)]">
+              <DataTable.Cell class="font-mono pw-selectable text-[12px] text-[var(--color-text-muted)]">
                 {item.path || "—"}
               </DataTable.Cell>
               <DataTable.Cell class="text-[var(--color-text-muted)]">{item.updatedAt}</DataTable.Cell>

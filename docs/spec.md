@@ -28,7 +28,7 @@ Architecture / Canvas is the initial route and the destination after entering or
 | Architecture | Canvas, Views | Human inspector; not the wedge |
 | Resources | — (Inventory page, no tab rail) | Project resource registry for PPM / Architecture |
 | Knowledge | Specs, Library, Sources | Aligns with context/evidence direction |
-| Agents | Access, Compile, History | MCP access, compile preview, AgentRun audit |
+| Agents | Access, Compile, Drift, Facts, History | MCP access, compile preview, narrow drift preview, PPM facts/evidence, Unified Change History |
 | Integrations | Connected, Catalog | **KEEP** as evidence + Connect UI |
 | Settings | General, Environments, Shortcuts, Advanced | — |
 
@@ -80,9 +80,20 @@ Integrations do not use content templates; they use the fixed provider catalog.
 
 `CompileContext` assembles a bounded context package from entity resolution, knowledge links, one-hop relationships, PPM facts with linked evidence, and full-text hits under a token budget. Items include `kind`, `id`, `title`, `excerpt`, `truth_class`, `source`, `path`, machine `reasons`, and `evidence` refs. There is no embedding model, GraphRAG, or fixed PCTX serialization. See [`architecture/context-compiler.md`](architecture/context-compiler.md).
 
-`polterware-core mcp` serves a stable MCP stdio contract over the same local SQLite store: reads `context.get`, `entity.get`, `evidence.get`, and `drift.check`, plus AgentRun audit tools `agent_run.start`, `agent_run.append`, `agent_run.complete`, `agent_run.get`, and `agent_run.list`. `context.get` returns the Context Compiler package. `drift.check` runs the Narrow Drift Checker (`checker: "narrow"`) and may return findings for import dependency diffs, edges under accepted ADRs without evidence, and declared-versus-observed fact conflicts. Optional `agent_run_id` on `context.get` / `drift.check` appends steps to an open AgentRun. See [`architecture/stable-mcp-reads.md`](architecture/stable-mcp-reads.md), [`architecture/narrow-drift-checker.md`](architecture/narrow-drift-checker.md), and [`architecture/minimal-agent-run-audit.md`](architecture/minimal-agent-run-audit.md).
+`polterware-core mcp` serves a stable MCP stdio contract over the same local SQLite store: reads `context.get`, `entity.get`, `evidence.get`, and `drift.check`; AgentRun audit tools `agent_run.start`, `agent_run.append`, `agent_run.complete`, `agent_run.get`, and `agent_run.list`; and audited write tools `fact.upsert`, `evidence.upsert`, `evidence.link`, `knowledge.upsert`, and `knowledge.link`. Write tools require `summary`, `rationale`, and an open `agent_run_id`; they persist PPM/Knowledge mutations and append attributable change steps. `context.get` returns the Context Compiler package. `drift.check` runs the Narrow Drift Checker (`checker: "narrow"`) and may return findings for import dependency diffs, edges under accepted ADRs without evidence, and declared-versus-observed fact conflicts. Optional `agent_run_id` on `context.get` / `drift.check` appends steps to an open AgentRun. See [`architecture/stable-mcp-reads.md`](architecture/stable-mcp-reads.md), [`architecture/narrow-drift-checker.md`](architecture/narrow-drift-checker.md), [`architecture/minimal-agent-run-audit.md`](architecture/minimal-agent-run-audit.md), and [`architecture/audited-mcp-writes.md`](architecture/audited-mcp-writes.md).
 
-Agents is the Desktop operator surface for this access: start/stop a parked local MCP helper, copy Cursor MCP config, copy or download the Polterware AI skill (markdown that teaches agents how to use those tools), preview `CompileContext` for the current project (optional query and entity id), and inspect AgentRun history (context → task → change → evidence → drift) for the current project.
+Agents is the Desktop operator surface for this access: start/stop a parked local MCP helper, copy Cursor MCP config, copy or download the Polterware AI skill (markdown that teaches agents how to use those tools), preview `CompileContext` for the current project (optional query and entity id), preview the Narrow Drift Checker via Connect `CheckDrift` (optional entity id; inspection only, no `agent_run_id`), inspect and justify PPM facts and evidence (`ListFacts` / `UpsertFact` / `UpsertEvidence` / `LinkEvidenceToFact` with change envelope), and Unified Change History — a feed of justified `human` and `agent` project-model changes (summary, rationale, audit chain) for the current project. Desktop Knowledge and PPM semantic mutations require the same change envelope (`summary`, `rationale`); the core records them on human AgentRuns. See [`architecture/unified-change-history.md`](architecture/unified-change-history.md).
+
+## Local CLI
+
+The `polterware` binary (`pnpm build:cli` → `dist/polterware`) opens the same SQLite store in-process (flag `-db`, same default path as `polterware-core`) and exposes:
+
+- `init` — register a project and a default `local` environment
+- `scan` — deterministic MVP import (`ImportProjectSources`)
+- `context` — Context Compiler package (optional `--query`, `--entity`, `--budget`, `--agent-run-id`, `--json`)
+- `drift` — Narrow Drift Checker (optional `--entity`, `--agent-run-id`, `--json`)
+
+It does not use a session file or Connect HTTP in this version. See [`architecture/cli.md`](architecture/cli.md).
 
 ## Execution authority
 
@@ -101,7 +112,7 @@ Connected detail contains Overview, Resources, CLI, and Sync.
 
 ## Reduced core
 
-The repository retains one Go runtime, `polterware-core`. Its active domains are Projects, Architecture, Resources (inventory), Knowledge, Project Model (PPM), Context, AgentRun, Integrations, Terminal (Connect PTY only), Health, and Maintenance.
+The repository retains Go runtimes `polterware-core` and `polterware` (CLI). Active domains are Projects, Architecture, Resources (inventory), Knowledge, Project Model (PPM), Context, AgentRun, Integrations, Terminal (Connect PTY only), Health, and Maintenance.
 
 Core requests use one technical bearer session token without an account directory. The database is initialized from a clean SQLite baseline with no compatibility guarantee for earlier databases.
 
@@ -119,9 +130,12 @@ Core requests use one technical bearer session token without an account director
 - PPM facts and evidence persist with provenance; `verified` facts require a non-`system` actor; evidence can link to facts via `LinkEvidenceToFact`. `ImportProjectSources` upserts observed facts/evidence from MVP project files. `CompileContext` includes facts with `reasons` and `evidence` refs.
 - Knowledge Specs, Library, and Sources, Resources Inventory, Architecture, and Settings Environments empty states show inspiration template cards that create the item immediately where applicable; create dialogs also offer templates, and blank create remains on the toolbar and form.
 - `CompileContext` returns a bounded package with provenance fields, machine reasons, and evidence refs.
-- `polterware-core mcp` exposes stable reads `context.get`, `entity.get`, `evidence.get`, and `drift.check` over stdio (`drift.check` uses checker `narrow` with typed findings), plus AgentRun audit tools `agent_run.start` / `append` / `complete` / `get` / `list`.
+- `ContextService.CheckDrift` returns the Narrow Drift Checker result (`checker: "narrow"`) for Desktop Agents → Drift preview.
+- `polterware-core mcp` exposes stable reads `context.get`, `entity.get`, `evidence.get`, and `drift.check` over stdio (`drift.check` uses checker `narrow` with typed findings), AgentRun audit tools `agent_run.start` / `append` / `complete` / `get` / `list`, and audited writes `fact.upsert` / `evidence.upsert` / `evidence.link` / `knowledge.upsert` / `knowledge.link` (required `summary`, `rationale`, open `agent_run_id`).
 - `SyncProjectModel` projects canvas nodes and edges into PPM entities and relationships (`DEPENDS_ON` / `CALLS` / `RELATED_TO`).
-- Agents exposes MCP helper start/stop, Cursor config copy, the Polterware AI skill, CompileContext preview, and AgentRun history (audit chain reconstruction).
+- Agents exposes MCP helper start/stop, Cursor config copy, the Polterware AI skill, CompileContext preview, Narrow Drift Checker preview (`CheckDrift`), PPM Facts (list/inspect facts and evidence; upsert/link with change envelope), and Unified Change History (justified human + agent mutations with envelope and audit chain). Desktop Knowledge/PPM semantic writes require `summary` and `rationale`.
+- `AgentRunService.ListChanges` lists change steps for the project with optional `actor_kind` filter (`human` | `agent`).
+- `polterware` CLI supports `init`, `scan`, `context`, and `drift` against the local SQLite store (`-db`).
 - The provider catalog contains exactly the nine specified providers.
 - Provider connect may probe CLI availability and authentication status without storing tokens.
 - Static validation passes: typecheck, design lint, Buf lint, Go vet, and `git diff --check`.

@@ -70,7 +70,7 @@ Describe why this system exists and who it serves.
 ## Verify
 
 - [ ] Architecture canvas loads
-- [ ] Terminal can start a session
+- [ ] Agents MCP config copies against the local database
 - [ ] Knowledge docs are readable
 
 ## Common pitfalls
@@ -208,11 +208,11 @@ Proposed
 
 ## Context
 
-Operators need to run commands, terminals, and workflows. Hosted runners would add accounts and network dependency.
+Operators need project context, agent access, and provider Connect without a hosted control plane. Hosted runners would add accounts and network dependency.
 
 ## Decision
 
-Keep Terminal, Operations runs, and Integrations auth local through polterware-core for the first version.
+Keep Desktop, Integrations Connect auth, and polterware-core MCP/CLI local for the first version.
 
 ## Consequences
 
@@ -227,7 +227,7 @@ Negative:
 
 Follow-ups:
 
-- [ ] Document local node assumptions in Resources
+- [ ] Document local project-root assumptions in Resources
 `,
   },
 ];
@@ -250,13 +250,13 @@ The service is unhealthy, stuck, or needs a config reload that requires a restar
     extraJson: JSON.stringify({
       service: "Service",
       severity: "medium",
-      prerequisites: ["Confirm the target process in Resources / Processes", "Note the working directory"],
+      prerequisites: ["Confirm the service entry in Resources Inventory", "Note the working directory"],
       steps: [
-        "Identify the running process",
-        "Stop the process from Resources",
+        "Identify the running service",
+        "Stop the service outside Polterware using the known command",
         "Confirm it is no longer running",
-        "Start the process with the known command",
-        "Verify health in Resources or logs",
+        "Start the service with the known command",
+        "Verify health against the Resources Inventory entry",
       ],
       commands: ["ps aux | grep <service>", "<start-command>"],
       rollback: "If the restart fails, restore the previous command and working directory, then start again.",

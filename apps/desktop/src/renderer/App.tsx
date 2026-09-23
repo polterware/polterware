@@ -20,7 +20,7 @@ import {
 } from "@polterware/feature-shell";
 import { ArchitectureView } from "@polterware/feature-architecture";
 import { ResourcesView } from "@polterware/feature-resources";
-import { KnowledgeView } from "@polterware/feature-knowledge";
+import { KnowledgeView, ChangeEnvelopeDialogHost, requestChangeEnvelope, type ChangeEnvelope } from "@polterware/feature-knowledge";
 import { IntegrationsView } from "@polterware/feature-integrations";
 import { SettingsView, AgentsPage, hydrateShortcutPreferences, hydrateAppearancePreferences } from "@polterware/feature-settings";
 import { CommandPalette } from "@polterware/feature-commander";
@@ -58,6 +58,30 @@ import {
 
 const SYSTEM_ID = "sys-local";
 const PLATFORM_CONTEXT = bootstrapPlatform();
+
+/** Session-scoped body/path justifications so autosave does not re-prompt every debounce. */
+const bodyChangeSessions = new Map<string, ChangeEnvelope>();
+
+async function justifyChange(input: {
+  title: string;
+  description?: string;
+  defaultSummary?: string;
+  sessionKey?: string;
+}): Promise<ChangeEnvelope | null> {
+  if (input.sessionKey) {
+    const cached = bodyChangeSessions.get(input.sessionKey);
+    if (cached) return cached;
+  }
+  const envelope = await requestChangeEnvelope({
+    title: input.title,
+    description: input.description,
+    defaultSummary: input.defaultSummary,
+  });
+  if (envelope && input.sessionKey) {
+    bodyChangeSessions.set(input.sessionKey, envelope);
+  }
+  return envelope;
+}
 
 function integrationSetupProvider(route: ClientRoute) {
   return route.dialog?.type === "integration-connect"
@@ -339,8 +363,6 @@ export function App() {
                 );
                 return linked;
               })(),
-              ops: [],
-              logs: [],
             }}
             tab={route().tab}
             search={route().search}
@@ -473,73 +495,125 @@ export function App() {
               const predicate = kind === "resource" || kind === "component"
                 ? (workspace().runbooks.some((item) => item.id === knowledgeId) ? "OPERATES" : "DOCUMENTS")
                 : "RELATED_TO";
-              void window.polterware.core.knowledge.saveLink({
-                link: {
-                  projectId: currentProjectId(),
-                  knowledgeId,
-                  entityId,
-                  predicate,
-                  truthClass: "declared",
-                  source: "desktop",
-                  actor: "human",
-                },
-              }).then(async () => {
-                await refreshWorkspace(currentProjectId());
-                pushToast("Entity linked.", "success");
+              void justifyChange({
+                title: "Justify entity link",
+                defaultSummary: `Link knowledge to ${kind}`,
+              }).then((change) => {
+                if (!change) return;
+                return window.polterware.core.knowledge.saveLink({
+                  link: {
+                    projectId: currentProjectId(),
+                    knowledgeId,
+                    entityId,
+                    predicate,
+                    truthClass: "declared",
+                    source: "desktop",
+                    actor: "human",
+                  },
+                  change: {
+                    summary: change.summary,
+                    rationale: change.rationale,
+                    agentRunId: change.agentRunId ?? "",
+                  },
+                }).then(async () => {
+                  await refreshWorkspace(currentProjectId());
+                  pushToast("Entity linked.", "success");
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not link entity.", "danger");
               });
             }}
             onUnlinkEntity={(linkId) => {
-              void window.polterware.core.knowledge.deleteLink({ id: linkId }).then(async () => {
-                await refreshWorkspace(currentProjectId());
-                pushToast("Entity unlinked.", "success");
+              void justifyChange({
+                title: "Justify unlink",
+                defaultSummary: "Unlink knowledge entity",
+              }).then((change) => {
+                if (!change) return;
+                return window.polterware.core.knowledge.deleteLink({
+                  id: linkId,
+                  change: {
+                    summary: change.summary,
+                    rationale: change.rationale,
+                    agentRunId: change.agentRunId ?? "",
+                  },
+                }).then(async () => {
+                  await refreshWorkspace(currentProjectId());
+                  pushToast("Entity unlinked.", "success");
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not unlink entity.", "danger");
               });
             }}
             onSaveBody={(id, body) => {
               // Persist without refreshWorkspace — full reload per keystroke freezes Knowledge + TipTap.
-              void persistKnowledgeBody(workspace(), currentProjectId(), id, body).catch((error: unknown) => {
+              void justifyChange({
+                title: "Justify document edit",
+                defaultSummary: "Update knowledge body",
+                sessionKey: `body:${id}`,
+              }).then((change) => {
+                if (!change) return;
+                return persistKnowledgeBody(workspace(), currentProjectId(), id, body, change);
+              }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not save knowledge.", "danger");
               });
             }}
             onSaveSourcePath={(id, path) => {
-              void persistKnowledgeSourcePath(workspace(), currentProjectId(), id, path).catch((error: unknown) => {
+              void justifyChange({
+                title: "Justify source path",
+                defaultSummary: "Update source path",
+                sessionKey: `source-path:${id}`,
+              }).then((change) => {
+                if (!change) return;
+                return persistKnowledgeSourcePath(workspace(), currentProjectId(), id, path, change);
+              }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not save source path.", "danger");
               });
             }}
             onCreate={(kind, title) => {
-              void persistKnowledgeCreate({
-                projectId: currentProjectId(),
-                kind,
-                title,
-              }).then(async (id) => {
-                await refreshWorkspace(currentProjectId());
-                if (kind === "runbook") {
-                  activateDetail("knowledge:library", id, "runbook");
-                  pushToast("Runbook saved locally.", "success");
-                } else if (kind === "adr") {
-                  activateDetail("knowledge:library", id, "adr");
-                  pushToast("ADR saved locally.", "success");
-                } else {
-                  activateDetail("knowledge:library", id, "document");
-                  pushToast("Document saved locally.", "success");
-                }
+              void justifyChange({
+                title: "Justify create",
+                defaultSummary: `Create ${kind}: ${title}`,
+              }).then((change) => {
+                if (!change) return;
+                return persistKnowledgeCreate({
+                  projectId: currentProjectId(),
+                  kind,
+                  title,
+                  change,
+                }).then(async (id) => {
+                  await refreshWorkspace(currentProjectId());
+                  if (kind === "runbook") {
+                    activateDetail("knowledge:library", id, "runbook");
+                    pushToast("Runbook saved locally.", "success");
+                  } else if (kind === "adr") {
+                    activateDetail("knowledge:library", id, "adr");
+                    pushToast("ADR saved locally.", "success");
+                  } else {
+                    activateDetail("knowledge:library", id, "document");
+                    pushToast("Document saved locally.", "success");
+                  }
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not create knowledge.", "danger");
               });
             }}
             onCreateSource={({ title, path }) => {
-              void persistKnowledgeCreate({
-                projectId: currentProjectId(),
-                kind: "source",
-                title,
-                extraJson: JSON.stringify({ path }),
-              }).then(async (id) => {
-                await refreshWorkspace(currentProjectId());
-                activateDetail("knowledge:sources", id, "source");
-                pushToast("Source saved locally.", "success");
+              void justifyChange({
+                title: "Justify create source",
+                defaultSummary: `Create source: ${title}`,
+              }).then((change) => {
+                if (!change) return;
+                return persistKnowledgeCreate({
+                  projectId: currentProjectId(),
+                  kind: "source",
+                  title,
+                  extraJson: JSON.stringify({ path }),
+                  change,
+                }).then(async (id) => {
+                  await refreshWorkspace(currentProjectId());
+                  activateDetail("knowledge:sources", id, "source");
+                  pushToast("Source saved locally.", "success");
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not create source.", "danger");
               });
@@ -563,111 +637,173 @@ export function App() {
             importBusy={importSourcesBusy()}
             onCreateFromTemplate={(template) => {
               if (template.kind === "feature") {
-                void persistKnowledgeCreateFeature({
-                  workspace: workspace(),
-                  projectId: currentProjectId(),
-                  title: template.title,
-                }).then(async (featureKey) => {
-                  await refreshWorkspace(currentProjectId());
-                  activateDetail("knowledge:specs", featureKey, "feature");
-                  pushToast("Feature saved locally.", "success");
+                void justifyChange({
+                  title: "Justify create feature",
+                  defaultSummary: `Create feature: ${template.title}`,
+                }).then((change) => {
+                  if (!change) return;
+                  return persistKnowledgeCreateFeature({
+                    workspace: workspace(),
+                    projectId: currentProjectId(),
+                    title: template.title,
+                    change,
+                  }).then(async (featureKey) => {
+                    await refreshWorkspace(currentProjectId());
+                    activateDetail("knowledge:specs", featureKey, "feature");
+                    pushToast("Feature saved locally.", "success");
+                  });
                 }).catch((error: unknown) => {
                   pushToast(error instanceof Error ? error.message : "Could not create feature.", "danger");
                 });
                 return;
               }
-              void persistKnowledgeCreate({
-                projectId: currentProjectId(),
-                kind: template.kind,
-                title: template.title,
-                body: template.body,
-                extraJson: template.extraJson,
-              }).then(async (id) => {
-                await refreshWorkspace(currentProjectId());
-                if (template.kind === "runbook") {
-                  activateDetail("knowledge:library", id, "runbook");
-                  pushToast("Runbook saved locally.", "success");
-                } else if (template.kind === "adr") {
-                  activateDetail("knowledge:library", id, "adr");
-                  pushToast("ADR saved locally.", "success");
-                } else if (template.kind === "source") {
-                  activateDetail("knowledge:sources", id, "source");
-                  pushToast("Source saved locally.", "success");
-                } else {
-                  activateDetail("knowledge:library", id, "document");
-                  pushToast("Document saved locally.", "success");
-                }
+              void justifyChange({
+                title: "Justify create",
+                defaultSummary: `Create ${template.kind}: ${template.title}`,
+              }).then((change) => {
+                if (!change) return;
+                return persistKnowledgeCreate({
+                  projectId: currentProjectId(),
+                  kind: template.kind,
+                  title: template.title,
+                  body: template.body,
+                  extraJson: template.extraJson,
+                  change,
+                }).then(async (id) => {
+                  await refreshWorkspace(currentProjectId());
+                  if (template.kind === "runbook") {
+                    activateDetail("knowledge:library", id, "runbook");
+                    pushToast("Runbook saved locally.", "success");
+                  } else if (template.kind === "adr") {
+                    activateDetail("knowledge:library", id, "adr");
+                    pushToast("ADR saved locally.", "success");
+                  } else if (template.kind === "source") {
+                    activateDetail("knowledge:sources", id, "source");
+                    pushToast("Source saved locally.", "success");
+                  } else {
+                    activateDetail("knowledge:library", id, "document");
+                    pushToast("Document saved locally.", "success");
+                  }
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not create knowledge.", "danger");
               });
             }}
             onCreateFeature={(title) => {
-              void persistKnowledgeCreateFeature({
-                workspace: workspace(),
-                projectId: currentProjectId(),
-                title,
-              }).then(async (featureKey) => {
-                await refreshWorkspace(currentProjectId());
-                activateDetail("knowledge:specs", featureKey, "feature");
-                pushToast("Feature saved locally.", "success");
+              void justifyChange({
+                title: "Justify create feature",
+                defaultSummary: `Create feature: ${title}`,
+              }).then((change) => {
+                if (!change) return;
+                return persistKnowledgeCreateFeature({
+                  workspace: workspace(),
+                  projectId: currentProjectId(),
+                  title,
+                  change,
+                }).then(async (featureKey) => {
+                  await refreshWorkspace(currentProjectId());
+                  activateDetail("knowledge:specs", featureKey, "feature");
+                  pushToast("Feature saved locally.", "success");
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not create feature.", "danger");
               });
             }}
             onEnsureConstitution={() => {
-              void persistConstitutionEnsure({
-                workspace: workspace(),
-                projectId: currentProjectId(),
-              }).then(async (id) => {
-                await refreshWorkspace(currentProjectId());
-                activateDetail("knowledge:specs", id, "constitution");
-                pushToast("Constitution saved locally.", "success");
+              void justifyChange({
+                title: "Justify constitution",
+                defaultSummary: "Create project constitution",
+              }).then((change) => {
+                if (!change) return;
+                return persistConstitutionEnsure({
+                  workspace: workspace(),
+                  projectId: currentProjectId(),
+                  change,
+                }).then(async (id) => {
+                  await refreshWorkspace(currentProjectId());
+                  activateDetail("knowledge:specs", id, "constitution");
+                  pushToast("Constitution saved locally.", "success");
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not create constitution.", "danger");
               });
             }}
             onArchive={(id) => {
-              void persistKnowledgeDelete(id).then(async () => {
-                pushToast("Knowledge archived.", "success");
-                await refreshWorkspace(currentProjectId());
+              void justifyChange({
+                title: "Justify archive",
+                defaultSummary: "Archive knowledge item",
+              }).then((change) => {
+                if (!change) return;
+                return persistKnowledgeDelete(id, change).then(async () => {
+                  bodyChangeSessions.delete(`body:${id}`);
+                  pushToast("Knowledge archived.", "success");
+                  await refreshWorkspace(currentProjectId());
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not archive knowledge.", "danger");
               });
             }}
             onArchiveFeature={(featureKey) => {
-              void persistKnowledgeArchiveFeature(workspace(), featureKey).then(async () => {
-                pushToast("Feature archived.", "success");
-                await refreshWorkspace(currentProjectId());
+              void justifyChange({
+                title: "Justify archive feature",
+                defaultSummary: `Archive feature: ${featureKey}`,
+              }).then((change) => {
+                if (!change) return;
+                return persistKnowledgeArchiveFeature(workspace(), featureKey, change).then(async () => {
+                  pushToast("Feature archived.", "success");
+                  await refreshWorkspace(currentProjectId());
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not archive feature.", "danger");
               });
             }}
             onArchiveConstitution={() => {
-              void persistConstitutionArchive(workspace()).then(async () => {
-                pushToast("Constitution archived.", "success");
-                await refreshWorkspace(currentProjectId());
+              void justifyChange({
+                title: "Justify archive constitution",
+                defaultSummary: "Archive project constitution",
+              }).then((change) => {
+                if (!change) return;
+                return persistConstitutionArchive(workspace(), change).then(async () => {
+                  pushToast("Constitution archived.", "success");
+                  await refreshWorkspace(currentProjectId());
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not archive constitution.", "danger");
               });
             }}
             onSetFeatureStatus={(featureKey, status) => {
-              void persistKnowledgeSetFeatureStatus(
-                workspace(),
-                currentProjectId(),
-                featureKey,
-                status,
-              ).then(async () => {
-                await refreshWorkspace(currentProjectId());
-                pushToast(status === "ready" ? "Feature marked ready." : "Feature marked draft.", "success");
+              void justifyChange({
+                title: "Justify feature status",
+                defaultSummary: status === "ready"
+                  ? `Mark feature ready: ${featureKey}`
+                  : `Mark feature draft: ${featureKey}`,
+              }).then((change) => {
+                if (!change) return;
+                return persistKnowledgeSetFeatureStatus(
+                  workspace(),
+                  currentProjectId(),
+                  featureKey,
+                  status,
+                  change,
+                ).then(async () => {
+                  await refreshWorkspace(currentProjectId());
+                  pushToast(status === "ready" ? "Feature marked ready." : "Feature marked draft.", "success");
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not update feature status.", "danger");
               });
             }}
             onDuplicate={(id) => {
-              void persistKnowledgeDuplicate(workspace(), currentProjectId(), id).then(async (nextId) => {
-                await refreshWorkspace(currentProjectId());
-                if (nextId) activateDetail("knowledge:library", nextId, "runbook");
-                pushToast("Runbook duplicated.", "success");
+              void justifyChange({
+                title: "Justify duplicate",
+                defaultSummary: "Duplicate knowledge item",
+              }).then((change) => {
+                if (!change) return;
+                return persistKnowledgeDuplicate(workspace(), currentProjectId(), id, change).then(async (nextId) => {
+                  await refreshWorkspace(currentProjectId());
+                  if (nextId) activateDetail("knowledge:library", nextId, "runbook");
+                  pushToast("Runbook duplicated.", "success");
+                });
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not duplicate runbook.", "danger");
               });
@@ -688,6 +824,7 @@ export function App() {
             projectId={currentProjectId()}
             tab={route().tab}
             onTabChange={(tab) => applyRoute(setTab(route(), tab))}
+            justifyChange={justifyChange}
           />
         </Match>
 
@@ -872,6 +1009,8 @@ export function App() {
           });
         }}
       />
+
+      <ChangeEnvelopeDialogHost />
 
       <CommandPalette
         open={paletteOpen()}

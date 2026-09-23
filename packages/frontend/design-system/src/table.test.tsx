@@ -3,6 +3,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "solid-js/web";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { detailPanelDefaultState, detailPanelStore } from "@polterware/frontend-state";
 
 import {
   DataTable,
@@ -21,6 +24,8 @@ import {
   sortDataTableRows,
   type DataTableSortState,
 } from "./table";
+
+const tableSource = readFileSync(fileURLToPath(new URL("./table.tsx", import.meta.url)), "utf8");
 
 describe("DataTable", () => {
   it("exports the complete compound component contract", () => {
@@ -386,6 +391,101 @@ describe("DataTable", () => {
 
     expect(host.querySelectorAll(".pw-data-table-selection-header input")).toHaveLength(0);
     expect(host.querySelectorAll(".pw-data-table-selection-cell input")).toHaveLength(2);
+    dispose();
+    host.remove();
+  });
+
+  it("wires collection background collapse and row double-click maximize", () => {
+    expect(tableSource).toContain("collapseDetailPanelFromCollectionBackground");
+    expect(tableSource).toContain("target.closest(\"tr\")");
+    expect(tableSource).toContain("onDblClick");
+    expect(tableSource).toContain("detailPanelStore.getState().maximize()");
+  });
+
+  it("collapses the detail panel when clicking empty table scroll background", () => {
+    detailPanelStore.setState({
+      ...detailPanelDefaultState,
+      activeScope: "resources:inventory",
+      activeTarget: {
+        scopeId: "resources:inventory",
+        entityId: "a",
+        entityKind: "resource",
+      },
+      mode: "open",
+      presence: "visible",
+    });
+
+    const host = document.createElement("div");
+    document.body.append(host);
+    const dispose = render(
+      () => (
+        <DataTable.Root rows={[{ id: "a" }]} activeRowId="a">
+          <DataTable.Table aria-label="Background collapse fixture">
+            <DataTable.Body>
+              {(row) => (
+                <DataTable.Row row={row} rowId={row.id}>
+                  <DataTable.Cell>{row.id}</DataTable.Cell>
+                </DataTable.Row>
+              )}
+            </DataTable.Body>
+          </DataTable.Table>
+        </DataTable.Root>
+      ),
+      host,
+    );
+
+    const scroll = host.querySelector<HTMLElement>(".pw-data-table-scroll")!;
+    scroll.click();
+    expect(detailPanelStore.getState().mode).toBe("collapsed");
+    expect(detailPanelStore.getState().activeTarget?.entityId).toBe("a");
+
+    scroll.click();
+    expect(detailPanelStore.getState().mode).toBe("collapsed");
+
+    dispose();
+    host.remove();
+  });
+
+  it("maximizes the detail panel when double-clicking an interactive row", () => {
+    detailPanelStore.setState({
+      ...detailPanelDefaultState,
+      activeScope: "resources:inventory",
+      activeTarget: {
+        scopeId: "resources:inventory",
+        entityId: "a",
+        entityKind: "resource",
+      },
+      mode: "open",
+      presence: "visible",
+    });
+
+    const host = document.createElement("div");
+    document.body.append(host);
+    const dispose = render(
+      () => (
+        <DataTable.Root
+          rows={[{ id: "a" }]}
+          activeRowId="a"
+          onActiveRowChange={() => undefined}
+        >
+          <DataTable.Table aria-label="Double-click maximize fixture">
+            <DataTable.Body>
+              {(row) => (
+                <DataTable.Row row={row} rowId={row.id}>
+                  <DataTable.Cell>{row.id}</DataTable.Cell>
+                </DataTable.Row>
+              )}
+            </DataTable.Body>
+          </DataTable.Table>
+        </DataTable.Root>
+      ),
+      host,
+    );
+
+    const row = host.querySelector<HTMLElement>("[data-row-id='a']")!;
+    row.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect(detailPanelStore.getState().mode).toBe("maximized");
+
     dispose();
     host.remove();
   });

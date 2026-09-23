@@ -206,9 +206,11 @@ export function MarkdownEditor(props: MarkdownEditorProps): JSX.Element {
       editable: isEditable(),
       onUpdate: ({ editor: ed }) => {
         const md = htmlToMarkdown(ed.getHTML());
+        setTick((n) => n + 1);
+        // Ignore no-op updates (e.g. setEditable emitting update, or identical round-trips).
+        if (md === lastEmitted) return;
         lastEmitted = md;
         props.onChange?.(md);
-        setTick((n) => n + 1);
       },
       onSelectionUpdate: () => setTick((n) => n + 1),
       editorProps: {
@@ -218,6 +220,9 @@ export function MarkdownEditor(props: MarkdownEditorProps): JSX.Element {
         },
       },
     });
+    // TipTap HTML round-trip may differ from the Markdown prop; adopt that baseline
+    // without notifying the parent (avoids autosave / change-envelope on open).
+    lastEmitted = htmlToMarkdown(instance.getHTML());
     setEditor(instance);
     setTick(1);
   });
@@ -233,11 +238,12 @@ export function MarkdownEditor(props: MarkdownEditorProps): JSX.Element {
       return;
     }
     ed.commands.setContent(markdownToHtml(next), false);
-    lastEmitted = next;
+    lastEmitted = htmlToMarkdown(ed.getHTML());
   });
 
   createEffect(() => {
-    editor()?.setEditable(isEditable());
+    // TipTap setEditable defaults to emitUpdate: true, which would fire onChange on mount.
+    editor()?.setEditable(isEditable(), false);
   });
 
   onCleanup(() => {

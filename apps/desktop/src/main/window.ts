@@ -1,7 +1,13 @@
-import { app, BrowserWindow, screen, shell, type BrowserWindowConstructorOptions } from "electron";
+import { app, BrowserWindow, Menu, screen, shell, type BrowserWindowConstructorOptions } from "electron";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { getSelectedAppIconPath } from "./electron-app-icons.js";
+import { attachDesktopContextMenu } from "./desktop-context-menu.js";
+import { attachDesktopInputGuards } from "./desktop-input-guards.js";
+import {
+  canOpenExternalUrl,
+  isAllowedRendererUrl,
+} from "./desktop-navigation-policy.js";
 import { IPC_EVENTS } from "../shared/ipc.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -20,36 +26,27 @@ function getAppIconWindowOptions(): Pick<BrowserWindowConstructorOptions, "icon"
   return icon ? { icon } : {};
 }
 
-function canOpenExternalUrl(rawUrl: string): boolean {
-  try {
-    const url = new URL(rawUrl);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
-  }
-}
-
 function getPackagedRendererUrl(): URL {
   return pathToFileURL(join(__dirname, "../renderer/index.html"));
 }
 
-function isAllowedRendererUrl(rawUrl: string): boolean {
-  try {
-    const currentUrl = new URL(rawUrl);
-    const rendererUrl = process.env["ELECTRON_RENDERER_URL"];
+function rendererUrlAllowed(rawUrl: string): boolean {
+  return isAllowedRendererUrl(rawUrl, {
+    isPackaged: app.isPackaged,
+    rendererDevUrl: process.env["ELECTRON_RENDERER_URL"] ?? null,
+    packagedRendererPathname: getPackagedRendererUrl().pathname,
+  });
+}
 
-    if (!app.isPackaged && rendererUrl) {
-      const expectedUrl = new URL(rendererUrl);
-      return currentUrl.origin === expectedUrl.origin && currentUrl.pathname === expectedUrl.pathname;
-    }
+function denyForeignNavigation(event: { preventDefault: () => void }, url: string): void {
+  if (rendererUrlAllowed(url)) {
+    return;
+  }
 
-    const packagedRendererUrl = getPackagedRendererUrl();
-    return (
-      currentUrl.protocol === packagedRendererUrl.protocol &&
-      currentUrl.pathname === packagedRendererUrl.pathname
-    );
-  } catch {
-    return false;
+  event.preventDefault();
+
+  if (canOpenExternalUrl(url)) {
+    void shell.openExternal(url);
   }
 }
 
@@ -67,16 +64,18 @@ function configureWindowSecurity(window: BrowserWindow): void {
   });
 
   window.webContents.on("will-navigate", (event, url) => {
-    if (isAllowedRendererUrl(url)) {
-      return;
-    }
-
-    event.preventDefault();
-
-    if (canOpenExternalUrl(url)) {
-      void shell.openExternal(url);
-    }
+    denyForeignNavigation(event, url);
   });
+
+  window.webContents.on("will-redirect", (event, url) => {
+    denyForeignNavigation(event, url);
+  });
+
+  attachDesktopInputGuards(window.webContents, {
+    allowReload: !app.isPackaged,
+  });
+
+  attachDesktopContextMenu(window.webContents, Menu, () => window);
 }
 
 function loadRenderer(window: BrowserWindow, surface?: "commander"): void {

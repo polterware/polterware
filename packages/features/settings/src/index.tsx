@@ -221,7 +221,7 @@ export function SettingsView(props: {
                 <p class="m-0 text-[11px] font-medium tracking-wide text-[var(--color-text-muted)]">
                   Project ID (System)
                 </p>
-                <p class="m-0 mt-1 font-mono text-[12px] text-[var(--color-text-primary)]">
+                <p class="m-0 mt-1 font-mono pw-selectable text-[12px] text-[var(--color-text-primary)]">
                   {general()?.projectId ?? "—"}{" "}
                   <Button size="sm" variant="ghost" onClick={() => void handleCopyProjectId()}>
                     Copy

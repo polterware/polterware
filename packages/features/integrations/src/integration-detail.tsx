@@ -81,7 +81,7 @@ export function IntegrationDetail(props: {
       {(integration) => (
         <DetailPanel.Content>
           <DetailPanel.Header
-            icon={<NodeIcon name={providerIconKey(integration())} size={16} />}
+            icon={<NodeIcon name={providerIconKey(integration())} size={16} brand={false} />}
             title={integration().name}
           >
             <DetailPanel.Actions>

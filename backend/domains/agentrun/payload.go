@@ -18,11 +18,14 @@ type ContextPayload struct {
 	EvidenceIDs []string `json:"evidence_ids,omitempty"`
 }
 
-// ChangePayload is a declared change envelope (no PPM mutation in B6).
+// ChangePayload is a change envelope. Declared-only appends omit Tool/SubjectIDs;
+// audited MCP writes (B7) set Tool and SubjectIDs after a real mutation.
 type ChangePayload struct {
-	Summary   string   `json:"summary"`
-	Rationale string   `json:"rationale"`
-	Paths     []string `json:"paths,omitempty"`
+	Summary    string   `json:"summary"`
+	Rationale  string   `json:"rationale"`
+	Paths      []string `json:"paths,omitempty"`
+	Tool       string   `json:"tool,omitempty"`
+	SubjectIDs []string `json:"subject_ids,omitempty"`
 }
 
 // EvidencePayload lists evidence ids attributed to the run.
@@ -104,13 +107,20 @@ func DriftStepSummary(result drift.Result) string {
 }
 
 func NewChangeStep(runID, summary, rationale string, paths []string, now time.Time) (Step, error) {
+	return NewMutationChangeStep(runID, summary, rationale, "", nil, paths, now)
+}
+
+// NewMutationChangeStep builds a change step, optionally attributing a write tool and subject ids.
+func NewMutationChangeStep(runID, summary, rationale, tool string, subjectIDs, paths []string, now time.Time) (Step, error) {
 	if err := ValidateChange(summary, rationale); err != nil {
 		return Step{}, err
 	}
 	payload, err := MarshalPayload(ChangePayload{
-		Summary:   strings.TrimSpace(summary),
-		Rationale: strings.TrimSpace(rationale),
-		Paths:     paths,
+		Summary:    strings.TrimSpace(summary),
+		Rationale:  strings.TrimSpace(rationale),
+		Paths:      paths,
+		Tool:       strings.TrimSpace(tool),
+		SubjectIDs: subjectIDs,
 	})
 	if err != nil {
 		return Step{}, err

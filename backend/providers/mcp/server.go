@@ -86,8 +86,8 @@ func (s *Server) dispatch(req rpcRequest) (any, error) {
 		return map[string]any{
 			"protocolVersion": "2024-11-05",
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "polterware-core-mcp", "version": "0.3.0"},
-			"instructions":    "Polterware MCP: context.get, entity.get, evidence.get, drift.check, and AgentRun audit (agent_run.start|append|complete|get|list). Prefer context.get for bounded project context. Pass agent_run_id on context.get and drift.check to attribute steps.",
+			"serverInfo":      map[string]any{"name": "polterware-core-mcp", "version": "0.4.0"},
+			"instructions":    "Polterware MCP: context.get, entity.get, evidence.get, drift.check; AgentRun audit (agent_run.start|append|complete|get|list); audited writes (fact.upsert, evidence.upsert, evidence.link, knowledge.upsert, knowledge.link) requiring summary, rationale, and open agent_run_id. Prefer context.get for bounded project context.",
 		}, nil
 	case "tools/list":
 		return map[string]any{"tools": toolDefinitions()}, nil

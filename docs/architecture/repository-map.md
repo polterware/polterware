@@ -18,7 +18,7 @@ Repository visibility and commercial packaging are separate policy decisions fro
 | Area | Ownership |
 | --- | --- |
 | Desktop | Electron Main, typed preload bridge, Solid renderer, and current product surfaces |
-| Local runtime | `polterware-core`, SQLite persistence, local execution, and provider CLI adapters |
+| Local runtime | `polterware-core`, `polterware` CLI, SQLite persistence, local execution, and provider CLI adapters |
 | Shared packages | Product features, frontend design system, platform utilities, state, and contracts |
 | Documentation | Current product specification, product vision, ADRs, architecture, security, and contribution guidance |
 | Public contracts | Protobuf schemas, generated clients, SDK boundaries, and future import/export contracts |

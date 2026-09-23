@@ -1,4 +1,4 @@
-import { app, dialog, globalShortcut, shell } from "electron";
+import { app, dialog, globalShortcut, shell, Menu } from "electron";
 import log from "electron-log/main";
 import { getElectronAppIconController } from "./electron-app-icons.js";
 import { registerGlobalCommanderShortcut } from "./global-shortcuts.js";
@@ -25,6 +25,7 @@ import {
 import { createShortcutPreferencesController } from "./shortcut-preferences.js";
 import { createAppearancePreferencesController } from "./appearance-preferences.js";
 import { createMcpSupervisor } from "./mcp-supervisor.js";
+import { installApplicationMenu } from "./application-menu.js";
 
 function configureLogging() {
   log.initialize();
@@ -40,6 +41,13 @@ function configureLogging() {
 
 async function bootstrap() {
   configureLogging();
+  installApplicationMenu(
+    {
+      isPackaged: app.isPackaged,
+      platform: process.platform,
+    },
+    Menu,
+  );
   const appIcons = getElectronAppIconController();
   appIcons.applySelectedIcon();
 

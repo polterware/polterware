@@ -346,8 +346,10 @@ func (x *KnowledgeSearchHit) GetSource() string {
 }
 
 type SaveKnowledgeRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Item          *KnowledgeItem         `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Item  *KnowledgeItem         `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	// Required for Desktop semantic writes (B9): summary + rationale.
+	Change        *ChangeEnvelope `protobuf:"bytes,2,opt,name=change,proto3" json:"change,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -385,6 +387,13 @@ func (*SaveKnowledgeRequest) Descriptor() ([]byte, []int) {
 func (x *SaveKnowledgeRequest) GetItem() *KnowledgeItem {
 	if x != nil {
 		return x.Item
+	}
+	return nil
+}
+
+func (x *SaveKnowledgeRequest) GetChange() *ChangeEnvelope {
+	if x != nil {
+		return x.Change
 	}
 	return nil
 }
@@ -532,6 +541,7 @@ func (x *ListKnowledgeResponse) GetItems() []*KnowledgeItem {
 type DeleteKnowledgeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Change        *ChangeEnvelope        `protobuf:"bytes,2,opt,name=change,proto3" json:"change,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -571,6 +581,13 @@ func (x *DeleteKnowledgeRequest) GetId() string {
 		return x.Id
 	}
 	return ""
+}
+
+func (x *DeleteKnowledgeRequest) GetChange() *ChangeEnvelope {
+	if x != nil {
+		return x.Change
+	}
+	return nil
 }
 
 type DeleteKnowledgeResponse struct {
@@ -828,6 +845,7 @@ func (x *ListKnowledgeLinksResponse) GetLinks() []*KnowledgeEntityLink {
 type SaveKnowledgeLinkRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Link          *KnowledgeEntityLink   `protobuf:"bytes,1,opt,name=link,proto3" json:"link,omitempty"`
+	Change        *ChangeEnvelope        `protobuf:"bytes,2,opt,name=change,proto3" json:"change,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -865,6 +883,13 @@ func (*SaveKnowledgeLinkRequest) Descriptor() ([]byte, []int) {
 func (x *SaveKnowledgeLinkRequest) GetLink() *KnowledgeEntityLink {
 	if x != nil {
 		return x.Link
+	}
+	return nil
+}
+
+func (x *SaveKnowledgeLinkRequest) GetChange() *ChangeEnvelope {
+	if x != nil {
+		return x.Change
 	}
 	return nil
 }
@@ -916,6 +941,7 @@ func (x *SaveKnowledgeLinkResponse) GetLink() *KnowledgeEntityLink {
 type DeleteKnowledgeLinkRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Change        *ChangeEnvelope        `protobuf:"bytes,2,opt,name=change,proto3" json:"change,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -955,6 +981,13 @@ func (x *DeleteKnowledgeLinkRequest) GetId() string {
 		return x.Id
 	}
 	return ""
+}
+
+func (x *DeleteKnowledgeLinkRequest) GetChange() *ChangeEnvelope {
+	if x != nil {
+		return x.Change
+	}
+	return nil
 }
 
 type DeleteKnowledgeLinkResponse struct {
@@ -997,7 +1030,7 @@ var File_polterware_local_v1_knowledge_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_knowledge_proto_rawDesc = "" +
 	"\n" +
-	"#polterware/local/v1/knowledge.proto\x12\x13polterware.local.v1\"\xb5\x02\n" +
+	"#polterware/local/v1/knowledge.proto\x12\x13polterware.local.v1\x1a\"polterware/local/v1/agentrun.proto\"\xb5\x02\n" +
 	"\rKnowledgeItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1038,9 +1071,10 @@ const file_polterware_local_v1_knowledge_proto_rawDesc = "" +
 	"\asnippet\x18\x03 \x01(\tR\asnippet\x12\x1f\n" +
 	"\vtruth_class\x18\x04 \x01(\tR\n" +
 	"truthClass\x12\x16\n" +
-	"\x06source\x18\x05 \x01(\tR\x06source\"N\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\"\x8b\x01\n" +
 	"\x14SaveKnowledgeRequest\x126\n" +
-	"\x04item\x18\x01 \x01(\v2\".polterware.local.v1.KnowledgeItemR\x04item\"O\n" +
+	"\x04item\x18\x01 \x01(\v2\".polterware.local.v1.KnowledgeItemR\x04item\x12;\n" +
+	"\x06change\x18\x02 \x01(\v2#.polterware.local.v1.ChangeEnvelopeR\x06change\"O\n" +
 	"\x15SaveKnowledgeResponse\x126\n" +
 	"\x04item\x18\x01 \x01(\v2\".polterware.local.v1.KnowledgeItemR\x04item\"I\n" +
 	"\x14ListKnowledgeRequest\x12\x1d\n" +
@@ -1048,9 +1082,10 @@ const file_polterware_local_v1_knowledge_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\"Q\n" +
 	"\x15ListKnowledgeResponse\x128\n" +
-	"\x05items\x18\x01 \x03(\v2\".polterware.local.v1.KnowledgeItemR\x05items\"(\n" +
+	"\x05items\x18\x01 \x03(\v2\".polterware.local.v1.KnowledgeItemR\x05items\"e\n" +
 	"\x16DeleteKnowledgeRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x19\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12;\n" +
+	"\x06change\x18\x02 \x01(\v2#.polterware.local.v1.ChangeEnvelopeR\x06change\"\x19\n" +
 	"\x17DeleteKnowledgeResponse\"w\n" +
 	"\x16SearchKnowledgeRequest\x12\x1d\n" +
 	"\n" +
@@ -1066,13 +1101,15 @@ const file_polterware_local_v1_knowledge_proto_rawDesc = "" +
 	"\fknowledge_id\x18\x02 \x01(\tR\vknowledgeId\x12\x1b\n" +
 	"\tentity_id\x18\x03 \x01(\tR\bentityId\"\\\n" +
 	"\x1aListKnowledgeLinksResponse\x12>\n" +
-	"\x05links\x18\x01 \x03(\v2(.polterware.local.v1.KnowledgeEntityLinkR\x05links\"X\n" +
+	"\x05links\x18\x01 \x03(\v2(.polterware.local.v1.KnowledgeEntityLinkR\x05links\"\x95\x01\n" +
 	"\x18SaveKnowledgeLinkRequest\x12<\n" +
-	"\x04link\x18\x01 \x01(\v2(.polterware.local.v1.KnowledgeEntityLinkR\x04link\"Y\n" +
+	"\x04link\x18\x01 \x01(\v2(.polterware.local.v1.KnowledgeEntityLinkR\x04link\x12;\n" +
+	"\x06change\x18\x02 \x01(\v2#.polterware.local.v1.ChangeEnvelopeR\x06change\"Y\n" +
 	"\x19SaveKnowledgeLinkResponse\x12<\n" +
-	"\x04link\x18\x01 \x01(\v2(.polterware.local.v1.KnowledgeEntityLinkR\x04link\",\n" +
+	"\x04link\x18\x01 \x01(\v2(.polterware.local.v1.KnowledgeEntityLinkR\x04link\"i\n" +
 	"\x1aDeleteKnowledgeLinkRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x1d\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12;\n" +
+	"\x06change\x18\x02 \x01(\v2#.polterware.local.v1.ChangeEnvelopeR\x06change\"\x1d\n" +
 	"\x1bDeleteKnowledgeLinkResponse2\xa3\x06\n" +
 	"\x10KnowledgeService\x12f\n" +
 	"\rSaveKnowledge\x12).polterware.local.v1.SaveKnowledgeRequest\x1a*.polterware.local.v1.SaveKnowledgeResponse\x12f\n" +
@@ -1115,35 +1152,40 @@ var file_polterware_local_v1_knowledge_proto_goTypes = []any{
 	(*SaveKnowledgeLinkResponse)(nil),   // 14: polterware.local.v1.SaveKnowledgeLinkResponse
 	(*DeleteKnowledgeLinkRequest)(nil),  // 15: polterware.local.v1.DeleteKnowledgeLinkRequest
 	(*DeleteKnowledgeLinkResponse)(nil), // 16: polterware.local.v1.DeleteKnowledgeLinkResponse
+	(*ChangeEnvelope)(nil),              // 17: polterware.local.v1.ChangeEnvelope
 }
 var file_polterware_local_v1_knowledge_proto_depIdxs = []int32{
 	0,  // 0: polterware.local.v1.KnowledgeSearchHit.item:type_name -> polterware.local.v1.KnowledgeItem
 	0,  // 1: polterware.local.v1.SaveKnowledgeRequest.item:type_name -> polterware.local.v1.KnowledgeItem
-	0,  // 2: polterware.local.v1.SaveKnowledgeResponse.item:type_name -> polterware.local.v1.KnowledgeItem
-	0,  // 3: polterware.local.v1.ListKnowledgeResponse.items:type_name -> polterware.local.v1.KnowledgeItem
-	2,  // 4: polterware.local.v1.SearchKnowledgeResponse.hits:type_name -> polterware.local.v1.KnowledgeSearchHit
-	1,  // 5: polterware.local.v1.ListKnowledgeLinksResponse.links:type_name -> polterware.local.v1.KnowledgeEntityLink
-	1,  // 6: polterware.local.v1.SaveKnowledgeLinkRequest.link:type_name -> polterware.local.v1.KnowledgeEntityLink
-	1,  // 7: polterware.local.v1.SaveKnowledgeLinkResponse.link:type_name -> polterware.local.v1.KnowledgeEntityLink
-	3,  // 8: polterware.local.v1.KnowledgeService.SaveKnowledge:input_type -> polterware.local.v1.SaveKnowledgeRequest
-	5,  // 9: polterware.local.v1.KnowledgeService.ListKnowledge:input_type -> polterware.local.v1.ListKnowledgeRequest
-	7,  // 10: polterware.local.v1.KnowledgeService.DeleteKnowledge:input_type -> polterware.local.v1.DeleteKnowledgeRequest
-	9,  // 11: polterware.local.v1.KnowledgeService.SearchKnowledge:input_type -> polterware.local.v1.SearchKnowledgeRequest
-	11, // 12: polterware.local.v1.KnowledgeService.ListKnowledgeLinks:input_type -> polterware.local.v1.ListKnowledgeLinksRequest
-	13, // 13: polterware.local.v1.KnowledgeService.SaveKnowledgeLink:input_type -> polterware.local.v1.SaveKnowledgeLinkRequest
-	15, // 14: polterware.local.v1.KnowledgeService.DeleteKnowledgeLink:input_type -> polterware.local.v1.DeleteKnowledgeLinkRequest
-	4,  // 15: polterware.local.v1.KnowledgeService.SaveKnowledge:output_type -> polterware.local.v1.SaveKnowledgeResponse
-	6,  // 16: polterware.local.v1.KnowledgeService.ListKnowledge:output_type -> polterware.local.v1.ListKnowledgeResponse
-	8,  // 17: polterware.local.v1.KnowledgeService.DeleteKnowledge:output_type -> polterware.local.v1.DeleteKnowledgeResponse
-	10, // 18: polterware.local.v1.KnowledgeService.SearchKnowledge:output_type -> polterware.local.v1.SearchKnowledgeResponse
-	12, // 19: polterware.local.v1.KnowledgeService.ListKnowledgeLinks:output_type -> polterware.local.v1.ListKnowledgeLinksResponse
-	14, // 20: polterware.local.v1.KnowledgeService.SaveKnowledgeLink:output_type -> polterware.local.v1.SaveKnowledgeLinkResponse
-	16, // 21: polterware.local.v1.KnowledgeService.DeleteKnowledgeLink:output_type -> polterware.local.v1.DeleteKnowledgeLinkResponse
-	15, // [15:22] is the sub-list for method output_type
-	8,  // [8:15] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	17, // 2: polterware.local.v1.SaveKnowledgeRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	0,  // 3: polterware.local.v1.SaveKnowledgeResponse.item:type_name -> polterware.local.v1.KnowledgeItem
+	0,  // 4: polterware.local.v1.ListKnowledgeResponse.items:type_name -> polterware.local.v1.KnowledgeItem
+	17, // 5: polterware.local.v1.DeleteKnowledgeRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	2,  // 6: polterware.local.v1.SearchKnowledgeResponse.hits:type_name -> polterware.local.v1.KnowledgeSearchHit
+	1,  // 7: polterware.local.v1.ListKnowledgeLinksResponse.links:type_name -> polterware.local.v1.KnowledgeEntityLink
+	1,  // 8: polterware.local.v1.SaveKnowledgeLinkRequest.link:type_name -> polterware.local.v1.KnowledgeEntityLink
+	17, // 9: polterware.local.v1.SaveKnowledgeLinkRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	1,  // 10: polterware.local.v1.SaveKnowledgeLinkResponse.link:type_name -> polterware.local.v1.KnowledgeEntityLink
+	17, // 11: polterware.local.v1.DeleteKnowledgeLinkRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	3,  // 12: polterware.local.v1.KnowledgeService.SaveKnowledge:input_type -> polterware.local.v1.SaveKnowledgeRequest
+	5,  // 13: polterware.local.v1.KnowledgeService.ListKnowledge:input_type -> polterware.local.v1.ListKnowledgeRequest
+	7,  // 14: polterware.local.v1.KnowledgeService.DeleteKnowledge:input_type -> polterware.local.v1.DeleteKnowledgeRequest
+	9,  // 15: polterware.local.v1.KnowledgeService.SearchKnowledge:input_type -> polterware.local.v1.SearchKnowledgeRequest
+	11, // 16: polterware.local.v1.KnowledgeService.ListKnowledgeLinks:input_type -> polterware.local.v1.ListKnowledgeLinksRequest
+	13, // 17: polterware.local.v1.KnowledgeService.SaveKnowledgeLink:input_type -> polterware.local.v1.SaveKnowledgeLinkRequest
+	15, // 18: polterware.local.v1.KnowledgeService.DeleteKnowledgeLink:input_type -> polterware.local.v1.DeleteKnowledgeLinkRequest
+	4,  // 19: polterware.local.v1.KnowledgeService.SaveKnowledge:output_type -> polterware.local.v1.SaveKnowledgeResponse
+	6,  // 20: polterware.local.v1.KnowledgeService.ListKnowledge:output_type -> polterware.local.v1.ListKnowledgeResponse
+	8,  // 21: polterware.local.v1.KnowledgeService.DeleteKnowledge:output_type -> polterware.local.v1.DeleteKnowledgeResponse
+	10, // 22: polterware.local.v1.KnowledgeService.SearchKnowledge:output_type -> polterware.local.v1.SearchKnowledgeResponse
+	12, // 23: polterware.local.v1.KnowledgeService.ListKnowledgeLinks:output_type -> polterware.local.v1.ListKnowledgeLinksResponse
+	14, // 24: polterware.local.v1.KnowledgeService.SaveKnowledgeLink:output_type -> polterware.local.v1.SaveKnowledgeLinkResponse
+	16, // 25: polterware.local.v1.KnowledgeService.DeleteKnowledgeLink:output_type -> polterware.local.v1.DeleteKnowledgeLinkResponse
+	19, // [19:26] is the sub-list for method output_type
+	12, // [12:19] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_knowledge_proto_init() }
@@ -1151,6 +1193,7 @@ func file_polterware_local_v1_knowledge_proto_init() {
 	if File_polterware_local_v1_knowledge_proto != nil {
 		return
 	}
+	file_polterware_local_v1_agentrun_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

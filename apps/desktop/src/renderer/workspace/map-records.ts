@@ -240,7 +240,6 @@ export function mapRunbooks(
       componentName: componentLink?.entityTitle || asString(extra.componentName) || undefined,
       resourceId: resourceLink?.entityRefId || asString(extra.resourceId) || undefined,
       resourceName: resourceLink?.entityTitle || asString(extra.resourceName) || undefined,
-      operationId: asString(extra.operationId) || undefined,
       entityLinks,
     };
   });

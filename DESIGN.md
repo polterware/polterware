@@ -56,7 +56,7 @@ Product features must not reproduce focus management, Escape behavior, outside d
 
 Operational collections use `DataTable`, sortable data columns, no actions column, and one explicit Hugeicons domain icon in the primary cell. Long descriptions and secondary metadata belong in the detail panel.
 
-Entity detail uses the single bottom `DetailPanel` hosted by `MainSurface`. It has exactly three modes: collapsed strip, half-height open, and maximized. Features do not create a second inspector, detail route, drawer, or modal for entity content.
+Entity detail uses the single bottom `DetailPanel` hosted by `MainSurface`. It has exactly three modes: collapsed strip, half-height open, and maximized. Features do not create a second inspector, detail route, drawer, or modal for entity content. Open and collapsed layout persist across collection scope changes in the session; maximized does not (a scope change exits to the prior open or collapsed preference). Selection and target activation are independent of layout mode, except that activating a target opens a collapsed panel (maximized stays maximized). On DataTable collections, clicking empty scroll background collapses the panel; clicking a row opens it; double-clicking a row maximizes it.
 
 Knowledge documents use document layout and the shared Markdown editor. Operational details use section layout and the shared grid. Feature-owned rounded section cards are not structural detail chrome.
 

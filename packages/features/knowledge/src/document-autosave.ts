@@ -2,6 +2,8 @@
 
 export type DocumentAutosave = {
   schedule: (id: string, value: string) => void;
+  /** Drop a pending save without persisting (e.g. content reverted to baseline). */
+  cancel: (id: string) => void;
   flush: (id?: string) => void;
   dispose: () => void;
 };
@@ -22,6 +24,13 @@ export function createDocumentAutosave(opts: {
     void opts.save(id, value);
   }
 
+  function cancel(id: string) {
+    const existing = timers.get(id);
+    if (existing) clearTimeout(existing);
+    timers.delete(id);
+    pending.delete(id);
+  }
+
   return {
     schedule(id, value) {
       pending.set(id, value);
@@ -32,6 +41,7 @@ export function createDocumentAutosave(opts: {
         setTimeout(() => run(id), debounceMs),
       );
     },
+    cancel,
     flush(id) {
       if (id !== undefined) {
         const existing = timers.get(id);

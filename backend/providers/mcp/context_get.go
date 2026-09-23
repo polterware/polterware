@@ -1,35 +1,20 @@
 package mcp
 
 import (
-	"fmt"
-	"time"
-
-	"github.com/polterware/polterware/backend/domains/agentrun"
+	"github.com/polterware/polterware/backend/compositions/wedge"
 	contextpkg "github.com/polterware/polterware/backend/domains/context"
 )
 
 func (s *Server) contextGet(args map[string]any) (string, error) {
-	projectID := stringFrom(args["project_id"])
-	if projectID == "" {
-		return "", fmt.Errorf("project_id is required")
-	}
-	_, _ = s.Store.SyncProjectModel(projectID)
-	pkg, err := s.Store.CompileContext(contextpkg.Request{
-		ProjectID:   projectID,
+	pkg, err := wedge.CompileContext(s.Store, wedge.ContextInput{
+		ProjectID:   stringFrom(args["project_id"]),
 		Query:       stringFrom(args["query"]),
 		EntityID:    stringFrom(args["entity_id"]),
 		TokenBudget: intFrom(args["token_budget"], contextpkg.DefaultTokenBudget),
+		AgentRunID:  stringFrom(args["agent_run_id"]),
 	})
 	if err != nil {
 		return "", err
-	}
-	if runID := stringFrom(args["agent_run_id"]); runID != "" {
-		now := time.Now().UTC()
-		if err := s.Store.AppendAgentRunStepIfOpen(runID, func(run agentrun.Run) (agentrun.Step, error) {
-			return agentrun.NewContextStep(run.ID, pkg, now)
-		}); err != nil {
-			return "", err
-		}
 	}
 	return marshalPretty(pkg)
 }

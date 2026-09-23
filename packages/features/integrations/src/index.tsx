@@ -201,7 +201,12 @@ export function IntegrationsView(props: {
                         const status = () => statusOverrides()[integration.id] ?? integration.status;
                         return (
                           <DataTable.Row row={integration} rowId={integration.id} onActivate={() => activateIntegration(integration.id)}>
-                            <DataTable.PrimaryCell icon={<NodeIcon name={providerIconKey(integration)} size={16} />} iconTone="integration" title={integration.name} />
+                            <DataTable.PrimaryCell
+                              icon={<NodeIcon name={providerIconKey(integration)} size={16} brand={false} />}
+                              iconTone="integration"
+                              iconBrand={[integration.name, providerIconKey(integration)]}
+                              title={integration.name}
+                            />
                             <DataTable.Cell><StatusChip tone={integrationTone(status())} label={status()} /></DataTable.Cell>
                             <DataTable.Cell>{integration.environment}</DataTable.Cell>
                             <DataTable.Cell class="text-[var(--color-text-muted)]">{integration.lastSync}</DataTable.Cell>
@@ -227,7 +232,12 @@ export function IntegrationsView(props: {
                     <DataTable.Body<WorkspaceCatalogProvider>>
                       {(provider) => (
                         <DataTable.Row row={provider} rowId={provider.id} onActivate={() => openSetup(provider.id)} aria-label={`Open ${provider.name} CLI flow`}>
-                          <DataTable.PrimaryCell icon={<NodeIcon name={providerIconKey(provider)} size={16} />} iconTone="integration" title={provider.name} />
+                          <DataTable.PrimaryCell
+                            icon={<NodeIcon name={providerIconKey(provider)} size={16} brand={false} />}
+                            iconTone="integration"
+                            iconBrand={[provider.name, providerIconKey(provider)]}
+                            title={provider.name}
+                          />
                           <DataTable.Cell>{provider.category}</DataTable.Cell>
                           <DataTable.Cell><code>{provider.authCommands.join(" · ")}</code></DataTable.Cell>
                           <DataTable.Cell><StatusChip tone={cliStateTone(provider.state)} label={cliStateLabel(provider.state)} /></DataTable.Cell>

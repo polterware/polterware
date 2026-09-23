@@ -22,14 +22,16 @@ const (
 )
 
 type AgentRun struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	Task          string                 `protobuf:"bytes,3,opt,name=task,proto3" json:"task,omitempty"`
-	AgentLabel    string                 `protobuf:"bytes,4,opt,name=agent_label,json=agentLabel,proto3" json:"agent_label,omitempty"`
-	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	CompletedAt   string                 `protobuf:"bytes,7,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ProjectId   string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Task        string                 `protobuf:"bytes,3,opt,name=task,proto3" json:"task,omitempty"`
+	AgentLabel  string                 `protobuf:"bytes,4,opt,name=agent_label,json=agentLabel,proto3" json:"agent_label,omitempty"`
+	Status      string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	CreatedAt   string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CompletedAt string                 `protobuf:"bytes,7,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	// actor_kind is "human" or "agent" (B9 Unified Change History).
+	ActorKind     string `protobuf:"bytes,8,opt,name=actor_kind,json=actorKind,proto3" json:"actor_kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -109,6 +111,13 @@ func (x *AgentRun) GetCreatedAt() string {
 func (x *AgentRun) GetCompletedAt() string {
 	if x != nil {
 		return x.CompletedAt
+	}
+	return ""
+}
+
+func (x *AgentRun) GetActorKind() string {
+	if x != nil {
+		return x.ActorKind
 	}
 	return ""
 }
@@ -197,6 +206,68 @@ func (x *AgentRunStep) GetCreatedAt() string {
 	return ""
 }
 
+// ChangeEnvelope is required on semantic Desktop mutations (same fields as MCP audited writes).
+// agent_run_id is optional for human Desktop writes: the core starts and completes a human run.
+type ChangeEnvelope struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Summary       string                 `protobuf:"bytes,1,opt,name=summary,proto3" json:"summary,omitempty"`
+	Rationale     string                 `protobuf:"bytes,2,opt,name=rationale,proto3" json:"rationale,omitempty"`
+	AgentRunId    string                 `protobuf:"bytes,3,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChangeEnvelope) Reset() {
+	*x = ChangeEnvelope{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangeEnvelope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangeEnvelope) ProtoMessage() {}
+
+func (x *ChangeEnvelope) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangeEnvelope.ProtoReflect.Descriptor instead.
+func (*ChangeEnvelope) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ChangeEnvelope) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *ChangeEnvelope) GetRationale() string {
+	if x != nil {
+		return x.Rationale
+	}
+	return ""
+}
+
+func (x *ChangeEnvelope) GetAgentRunId() string {
+	if x != nil {
+		return x.AgentRunId
+	}
+	return ""
+}
+
 type ListAgentRunsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
@@ -207,7 +278,7 @@ type ListAgentRunsRequest struct {
 
 func (x *ListAgentRunsRequest) Reset() {
 	*x = ListAgentRunsRequest{}
-	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[2]
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -219,7 +290,7 @@ func (x *ListAgentRunsRequest) String() string {
 func (*ListAgentRunsRequest) ProtoMessage() {}
 
 func (x *ListAgentRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[2]
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -232,7 +303,7 @@ func (x *ListAgentRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAgentRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListAgentRunsRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{2}
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListAgentRunsRequest) GetProjectId() string {
@@ -258,7 +329,7 @@ type ListAgentRunsResponse struct {
 
 func (x *ListAgentRunsResponse) Reset() {
 	*x = ListAgentRunsResponse{}
-	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[3]
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -270,7 +341,7 @@ func (x *ListAgentRunsResponse) String() string {
 func (*ListAgentRunsResponse) ProtoMessage() {}
 
 func (x *ListAgentRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[3]
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -283,7 +354,7 @@ func (x *ListAgentRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAgentRunsResponse.ProtoReflect.Descriptor instead.
 func (*ListAgentRunsResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{3}
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListAgentRunsResponse) GetRuns() []*AgentRun {
@@ -302,7 +373,7 @@ type GetAgentRunRequest struct {
 
 func (x *GetAgentRunRequest) Reset() {
 	*x = GetAgentRunRequest{}
-	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[4]
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -314,7 +385,7 @@ func (x *GetAgentRunRequest) String() string {
 func (*GetAgentRunRequest) ProtoMessage() {}
 
 func (x *GetAgentRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[4]
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -327,7 +398,7 @@ func (x *GetAgentRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAgentRunRequest.ProtoReflect.Descriptor instead.
 func (*GetAgentRunRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{4}
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetAgentRunRequest) GetId() string {
@@ -347,7 +418,7 @@ type GetAgentRunResponse struct {
 
 func (x *GetAgentRunResponse) Reset() {
 	*x = GetAgentRunResponse{}
-	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[5]
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -359,7 +430,7 @@ func (x *GetAgentRunResponse) String() string {
 func (*GetAgentRunResponse) ProtoMessage() {}
 
 func (x *GetAgentRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[5]
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -372,7 +443,7 @@ func (x *GetAgentRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAgentRunResponse.ProtoReflect.Descriptor instead.
 func (*GetAgentRunResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{5}
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetAgentRunResponse) GetRun() *AgentRun {
@@ -389,11 +460,232 @@ func (x *GetAgentRunResponse) GetSteps() []*AgentRunStep {
 	return nil
 }
 
+type ProjectChange struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StepId        string                 `protobuf:"bytes,1,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	AgentRunId    string                 `protobuf:"bytes,2,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ActorKind     string                 `protobuf:"bytes,4,opt,name=actor_kind,json=actorKind,proto3" json:"actor_kind,omitempty"`
+	AgentLabel    string                 `protobuf:"bytes,5,opt,name=agent_label,json=agentLabel,proto3" json:"agent_label,omitempty"`
+	RunStatus     string                 `protobuf:"bytes,6,opt,name=run_status,json=runStatus,proto3" json:"run_status,omitempty"`
+	RunTask       string                 `protobuf:"bytes,7,opt,name=run_task,json=runTask,proto3" json:"run_task,omitempty"`
+	Summary       string                 `protobuf:"bytes,8,opt,name=summary,proto3" json:"summary,omitempty"`
+	PayloadJson   string                 `protobuf:"bytes,9,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectChange) Reset() {
+	*x = ProjectChange{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectChange) ProtoMessage() {}
+
+func (x *ProjectChange) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectChange.ProtoReflect.Descriptor instead.
+func (*ProjectChange) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ProjectChange) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+func (x *ProjectChange) GetAgentRunId() string {
+	if x != nil {
+		return x.AgentRunId
+	}
+	return ""
+}
+
+func (x *ProjectChange) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ProjectChange) GetActorKind() string {
+	if x != nil {
+		return x.ActorKind
+	}
+	return ""
+}
+
+func (x *ProjectChange) GetAgentLabel() string {
+	if x != nil {
+		return x.AgentLabel
+	}
+	return ""
+}
+
+func (x *ProjectChange) GetRunStatus() string {
+	if x != nil {
+		return x.RunStatus
+	}
+	return ""
+}
+
+func (x *ProjectChange) GetRunTask() string {
+	if x != nil {
+		return x.RunTask
+	}
+	return ""
+}
+
+func (x *ProjectChange) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *ProjectChange) GetPayloadJson() string {
+	if x != nil {
+		return x.PayloadJson
+	}
+	return ""
+}
+
+func (x *ProjectChange) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+type ListChangesRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	// Optional filter: "human" | "agent". Empty lists both.
+	ActorKind     string `protobuf:"bytes,2,opt,name=actor_kind,json=actorKind,proto3" json:"actor_kind,omitempty"`
+	Limit         int32  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListChangesRequest) Reset() {
+	*x = ListChangesRequest{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListChangesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListChangesRequest) ProtoMessage() {}
+
+func (x *ListChangesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListChangesRequest.ProtoReflect.Descriptor instead.
+func (*ListChangesRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListChangesRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ListChangesRequest) GetActorKind() string {
+	if x != nil {
+		return x.ActorKind
+	}
+	return ""
+}
+
+func (x *ListChangesRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListChangesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Changes       []*ProjectChange       `protobuf:"bytes,1,rep,name=changes,proto3" json:"changes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListChangesResponse) Reset() {
+	*x = ListChangesResponse{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListChangesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListChangesResponse) ProtoMessage() {}
+
+func (x *ListChangesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListChangesResponse.ProtoReflect.Descriptor instead.
+func (*ListChangesResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ListChangesResponse) GetChanges() []*ProjectChange {
+	if x != nil {
+		return x.Changes
+	}
+	return nil
+}
+
 var File_polterware_local_v1_agentrun_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_agentrun_proto_rawDesc = "" +
 	"\n" +
-	"\"polterware/local/v1/agentrun.proto\x12\x13polterware.local.v1\"\xc8\x01\n" +
+	"\"polterware/local/v1/agentrun.proto\x12\x13polterware.local.v1\"\xe7\x01\n" +
 	"\bAgentRun\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -404,7 +696,9 @@ const file_polterware_local_v1_agentrun_proto_rawDesc = "" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12!\n" +
-	"\fcompleted_at\x18\a \x01(\tR\vcompletedAt\"\xb0\x01\n" +
+	"\fcompleted_at\x18\a \x01(\tR\vcompletedAt\x12\x1d\n" +
+	"\n" +
+	"actor_kind\x18\b \x01(\tR\tactorKind\"\xb0\x01\n" +
 	"\fAgentRunStep\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
 	"\fagent_run_id\x18\x02 \x01(\tR\n" +
@@ -413,7 +707,12 @@ const file_polterware_local_v1_agentrun_proto_rawDesc = "" +
 	"\asummary\x18\x04 \x01(\tR\asummary\x12!\n" +
 	"\fpayload_json\x18\x05 \x01(\tR\vpayloadJson\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\tR\tcreatedAt\"K\n" +
+	"created_at\x18\x06 \x01(\tR\tcreatedAt\"j\n" +
+	"\x0eChangeEnvelope\x12\x18\n" +
+	"\asummary\x18\x01 \x01(\tR\asummary\x12\x1c\n" +
+	"\trationale\x18\x02 \x01(\tR\trationale\x12 \n" +
+	"\fagent_run_id\x18\x03 \x01(\tR\n" +
+	"agentRunId\"K\n" +
 	"\x14ListAgentRunsRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
@@ -424,10 +723,37 @@ const file_polterware_local_v1_agentrun_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x7f\n" +
 	"\x13GetAgentRunResponse\x12/\n" +
 	"\x03run\x18\x01 \x01(\v2\x1d.polterware.local.v1.AgentRunR\x03run\x127\n" +
-	"\x05steps\x18\x02 \x03(\v2!.polterware.local.v1.AgentRunStepR\x05steps2\xdb\x01\n" +
+	"\x05steps\x18\x02 \x03(\v2!.polterware.local.v1.AgentRunStepR\x05steps\"\xbf\x02\n" +
+	"\rProjectChange\x12\x17\n" +
+	"\astep_id\x18\x01 \x01(\tR\x06stepId\x12 \n" +
+	"\fagent_run_id\x18\x02 \x01(\tR\n" +
+	"agentRunId\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x03 \x01(\tR\tprojectId\x12\x1d\n" +
+	"\n" +
+	"actor_kind\x18\x04 \x01(\tR\tactorKind\x12\x1f\n" +
+	"\vagent_label\x18\x05 \x01(\tR\n" +
+	"agentLabel\x12\x1d\n" +
+	"\n" +
+	"run_status\x18\x06 \x01(\tR\trunStatus\x12\x19\n" +
+	"\brun_task\x18\a \x01(\tR\arunTask\x12\x18\n" +
+	"\asummary\x18\b \x01(\tR\asummary\x12!\n" +
+	"\fpayload_json\x18\t \x01(\tR\vpayloadJson\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\n" +
+	" \x01(\tR\tcreatedAt\"h\n" +
+	"\x12ListChangesRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1d\n" +
+	"\n" +
+	"actor_kind\x18\x02 \x01(\tR\tactorKind\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"S\n" +
+	"\x13ListChangesResponse\x12<\n" +
+	"\achanges\x18\x01 \x03(\v2\".polterware.local.v1.ProjectChangeR\achanges2\xbd\x02\n" +
 	"\x0fAgentRunService\x12f\n" +
 	"\rListAgentRuns\x12).polterware.local.v1.ListAgentRunsRequest\x1a*.polterware.local.v1.ListAgentRunsResponse\x12`\n" +
-	"\vGetAgentRun\x12'.polterware.local.v1.GetAgentRunRequest\x1a(.polterware.local.v1.GetAgentRunResponseB\xe9\x01\n" +
+	"\vGetAgentRun\x12'.polterware.local.v1.GetAgentRunRequest\x1a(.polterware.local.v1.GetAgentRunResponse\x12`\n" +
+	"\vListChanges\x12'.polterware.local.v1.ListChangesRequest\x1a(.polterware.local.v1.ListChangesResponseB\xe9\x01\n" +
 	"\x17com.polterware.local.v1B\rAgentrunProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
 
 var (
@@ -442,28 +768,35 @@ func file_polterware_local_v1_agentrun_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_agentrun_proto_rawDescData
 }
 
-var file_polterware_local_v1_agentrun_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_polterware_local_v1_agentrun_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_polterware_local_v1_agentrun_proto_goTypes = []any{
 	(*AgentRun)(nil),              // 0: polterware.local.v1.AgentRun
 	(*AgentRunStep)(nil),          // 1: polterware.local.v1.AgentRunStep
-	(*ListAgentRunsRequest)(nil),  // 2: polterware.local.v1.ListAgentRunsRequest
-	(*ListAgentRunsResponse)(nil), // 3: polterware.local.v1.ListAgentRunsResponse
-	(*GetAgentRunRequest)(nil),    // 4: polterware.local.v1.GetAgentRunRequest
-	(*GetAgentRunResponse)(nil),   // 5: polterware.local.v1.GetAgentRunResponse
+	(*ChangeEnvelope)(nil),        // 2: polterware.local.v1.ChangeEnvelope
+	(*ListAgentRunsRequest)(nil),  // 3: polterware.local.v1.ListAgentRunsRequest
+	(*ListAgentRunsResponse)(nil), // 4: polterware.local.v1.ListAgentRunsResponse
+	(*GetAgentRunRequest)(nil),    // 5: polterware.local.v1.GetAgentRunRequest
+	(*GetAgentRunResponse)(nil),   // 6: polterware.local.v1.GetAgentRunResponse
+	(*ProjectChange)(nil),         // 7: polterware.local.v1.ProjectChange
+	(*ListChangesRequest)(nil),    // 8: polterware.local.v1.ListChangesRequest
+	(*ListChangesResponse)(nil),   // 9: polterware.local.v1.ListChangesResponse
 }
 var file_polterware_local_v1_agentrun_proto_depIdxs = []int32{
 	0, // 0: polterware.local.v1.ListAgentRunsResponse.runs:type_name -> polterware.local.v1.AgentRun
 	0, // 1: polterware.local.v1.GetAgentRunResponse.run:type_name -> polterware.local.v1.AgentRun
 	1, // 2: polterware.local.v1.GetAgentRunResponse.steps:type_name -> polterware.local.v1.AgentRunStep
-	2, // 3: polterware.local.v1.AgentRunService.ListAgentRuns:input_type -> polterware.local.v1.ListAgentRunsRequest
-	4, // 4: polterware.local.v1.AgentRunService.GetAgentRun:input_type -> polterware.local.v1.GetAgentRunRequest
-	3, // 5: polterware.local.v1.AgentRunService.ListAgentRuns:output_type -> polterware.local.v1.ListAgentRunsResponse
-	5, // 6: polterware.local.v1.AgentRunService.GetAgentRun:output_type -> polterware.local.v1.GetAgentRunResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	7, // 3: polterware.local.v1.ListChangesResponse.changes:type_name -> polterware.local.v1.ProjectChange
+	3, // 4: polterware.local.v1.AgentRunService.ListAgentRuns:input_type -> polterware.local.v1.ListAgentRunsRequest
+	5, // 5: polterware.local.v1.AgentRunService.GetAgentRun:input_type -> polterware.local.v1.GetAgentRunRequest
+	8, // 6: polterware.local.v1.AgentRunService.ListChanges:input_type -> polterware.local.v1.ListChangesRequest
+	4, // 7: polterware.local.v1.AgentRunService.ListAgentRuns:output_type -> polterware.local.v1.ListAgentRunsResponse
+	6, // 8: polterware.local.v1.AgentRunService.GetAgentRun:output_type -> polterware.local.v1.GetAgentRunResponse
+	9, // 9: polterware.local.v1.AgentRunService.ListChanges:output_type -> polterware.local.v1.ListChangesResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_agentrun_proto_init() }
@@ -477,7 +810,7 @@ func file_polterware_local_v1_agentrun_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_agentrun_proto_rawDesc), len(file_polterware_local_v1_agentrun_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

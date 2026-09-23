@@ -90,7 +90,7 @@ export function SpecFeatureDetail(props: {
                   <Show when={checklistIncomplete() && feature().status !== "ready"}>
                     <StatusChip tone="warn" label="checklist open" />
                   </Show>
-                  <span class="text-[12px] text-[var(--color-text-muted)] font-mono">
+                  <span class="text-[12px] text-[var(--color-text-muted)] font-mono pw-selectable">
                     {feature().featureKey}
                   </span>
                 </div>

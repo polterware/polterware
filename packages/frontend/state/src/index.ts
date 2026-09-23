@@ -51,7 +51,7 @@ export type DetailPanelState = DetailPanelSessionState & {
 };
 
 export const detailPanelDefaultState: DetailPanelSessionState = {
-  mode: "collapsed",
+  mode: "open",
   activeScope: null,
   activeTarget: null,
   outgoingTarget: null,
@@ -75,6 +75,14 @@ function containsTarget(targets: readonly DetailTarget[], target: DetailTarget |
     && targets.some((candidate) => targetsMatch(candidate, target));
 }
 
+/** Open/collapsed chrome preference for the session; never returns maximized. */
+function sessionLayoutMode(state: DetailPanelSessionState): "open" | "collapsed" {
+  if (state.mode === "maximized") {
+    return state.restoreMode === "collapsed" ? "collapsed" : "open";
+  }
+  return state.mode === "collapsed" ? "collapsed" : "open";
+}
+
 export const detailPanelStore = createStore<DetailPanelState>()(
   (set, get) => ({
       ...detailPanelDefaultState,
@@ -95,11 +103,14 @@ export const detailPanelStore = createStore<DetailPanelState>()(
             });
             return;
           }
+          const isScopeChange = state.activeScope !== scopeId;
+          const layoutMode = sessionLayoutMode(state);
           set({
             activeScope: scopeId,
             activeTarget: null,
             collectionStatus: "loading",
-            mode: "open",
+            mode: isScopeChange ? layoutMode : state.mode,
+            restoreMode: isScopeChange ? layoutMode : state.restoreMode,
             outgoingTarget: null,
             presence: "visible",
           });
@@ -145,19 +156,21 @@ export const detailPanelStore = createStore<DetailPanelState>()(
               pendingTarget: remainingPendingTarget,
               collectionStatus: "ready",
               mode: "collapsed",
-              restoreMode: isScopeChange ? "open" : state.restoreMode,
+              restoreMode: isScopeChange ? sessionLayoutMode(state) : state.restoreMode,
               presence: isScopeChange ? "hidden" : state.presence,
             });
             return;
           }
+
+          const layoutMode = sessionLayoutMode(state);
 
           set({
             activeScope: scopeId,
             activeTarget: nextTarget,
             pendingTarget: pendingTarget ? null : remainingPendingTarget,
             collectionStatus: "ready",
-            mode: isScopeChange ? "open" : state.mode,
-            restoreMode: isScopeChange ? "open" : state.restoreMode,
+            mode: isScopeChange ? layoutMode : state.mode,
+            restoreMode: isScopeChange ? layoutMode : state.restoreMode,
             outgoingTarget: null,
             presence: "visible",
           });
@@ -189,14 +202,15 @@ export const detailPanelStore = createStore<DetailPanelState>()(
         }
 
         const pendingTarget = state.pendingTarget?.scopeId === scopeId ? null : state.pendingTarget;
+        const layoutMode = sessionLayoutMode(state);
         set({
           activeScope: null,
           activeTarget: null,
           outgoingTarget: null,
           pendingTarget,
           collectionStatus: "idle",
-          mode: pendingTarget ? "open" : "collapsed",
-          restoreMode: "open",
+          mode: pendingTarget ? "open" : layoutMode,
+          restoreMode: pendingTarget ? "open" : layoutMode,
           presence: pendingTarget ? "visible" : "hidden",
         });
       },
@@ -211,12 +225,15 @@ export const detailPanelStore = createStore<DetailPanelState>()(
       },
 
       activateTarget: (target) => {
+        const state = get();
         set({
           activeScope: target.scopeId,
           activeTarget: target,
           pendingTarget: null,
           outgoingTarget: null,
           presence: "visible",
+          mode: state.mode === "maximized" ? "maximized" : "open",
+          restoreMode: state.mode === "maximized" ? state.restoreMode : "open",
         });
       },
 
@@ -254,7 +271,7 @@ export const detailPanelStore = createStore<DetailPanelState>()(
       },
 
       collapse: () => {
-        set({ mode: "collapsed" });
+        set({ mode: "collapsed", restoreMode: "collapsed" });
       },
 
       maximize: () => {
@@ -270,6 +287,12 @@ export const detailPanelStore = createStore<DetailPanelState>()(
       },
 
       restore: () => {
+        const state = get();
+        if (state.mode === "maximized") {
+          const next = state.restoreMode === "collapsed" ? "collapsed" : "open";
+          set({ mode: next, restoreMode: next });
+          return;
+        }
         set({ mode: "open", restoreMode: "open" });
       },
     }),

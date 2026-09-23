@@ -1,7 +1,7 @@
-/** English skill body that teaches an AI how to use Polterware MCP tools. */
+/** English skill body that teaches an AI how to use Polterware MCP tools and the local CLI. */
 export const POLTERWARE_AI_SKILL_MARKDOWN = `# Polterware local project context
 
-Use this skill when the operator asks about a Polterware project’s architecture, resources, knowledge, or bounded context. Polterware keeps a local SQLite project model (PPM) and knowledge store. Reach them through the stable Polterware MCP tools — not by inventing cloud APIs.
+Use this skill when the operator asks about a Polterware project’s architecture, resources, knowledge, or bounded context. Polterware keeps a local SQLite project model (PPM) and knowledge store. Reach them through the stable Polterware MCP tools or the local \`polterware\` CLI — not by inventing cloud APIs.
 
 ## When to use
 
@@ -9,7 +9,9 @@ Use this skill when the operator asks about a Polterware project’s architectur
 - Gather a bounded context package before proposing a change.
 - Look up a PPM entity or evidence record by id after a context hit.
 - Check drift findings for the project (import dependency diffs, edges under accepted ADRs without evidence, declared-versus-observed conflicts).
-- Record a minimal AgentRun audit trail: context → task → change → evidence → drift.
+- Record a minimal AgentRun audit trail: context → task → change → evidence → drift. Justified changes (human and agent) appear in Agents → History.
+- Mutate facts, evidence, or knowledge through audited write tools (required change envelope: \`summary\`, \`rationale\`, open \`agent_run_id\`). Humans on Desktop use the same envelope.
+- Bootstrap or refresh a project from the shell with \`polterware init | scan | context | drift\`.
 
 ## Tools
 
@@ -27,19 +29,44 @@ Use this skill when the operator asks about a Polterware project’s architectur
 | Tool | Purpose |
 | --- | --- |
 | \`agent_run.start\` | Start an open run with \`project_id\` + \`task\` (optional \`agent_label\`). |
-| \`agent_run.append\` | Append \`kind: "change"\` (\`summary\` + \`rationale\` required, optional \`paths\`) or \`kind: "evidence"\` (\`evidence_ids\`). |
+| \`agent_run.append\` | Append declared-only \`kind: "change"\` (\`summary\` + \`rationale\` required, optional \`paths\`) or \`kind: "evidence"\` (\`evidence_ids\`). Does not mutate the PPM. |
 | \`agent_run.complete\` | Mark the run completed. |
 | \`agent_run.get\` | Reconstruct the ordered audit chain for one run. |
 | \`agent_run.list\` | List runs for a project. |
 
+### Audited writes
+
+Every write requires \`project_id\`, \`agent_run_id\` (open run), \`summary\`, and \`rationale\`. Persisted rows use actor \`agent\` and source \`mcp\`.
+
+| Tool | Purpose |
+| --- | --- |
+| \`fact.upsert\` | Upsert a PPM fact (\`statement\`; optional \`id\`, \`truth_class\`, \`entity_id\`). |
+| \`evidence.upsert\` | Upsert PPM evidence (\`kind\`; optional \`id\`, \`evidence_summary\`, \`path\`). |
+| \`evidence.link\` | Link evidence to a fact (\`fact_id\`, \`evidence_id\`). |
+| \`knowledge.upsert\` | Upsert a knowledge item (\`title\`, \`kind\`; optional \`id\`, \`body\`, \`tags\`). |
+| \`knowledge.link\` | Link knowledge to a PPM entity (\`knowledge_id\`, \`entity_id\`, \`predicate\`). |
+
 Always pass the operator’s current \`project_id\` when the tool accepts it.
+
+## Local CLI
+
+Build with \`pnpm build:cli\` (\`dist/polterware\`). Same \`-db\` default as \`polterware-core\`. In-process SQLite — no session file.
+
+| Command | Purpose |
+| --- | --- |
+| \`polterware init --name <name> [--path <root>] [--id <id>]\` | Register a project and default \`local\` environment. |
+| \`polterware scan --project <id>\` | Deterministic MVP import (facts, evidence, sources). |
+| \`polterware context --project <id> [--query] [--entity] [--budget] [--agent-run-id] [--json]\` | Compile a context package. |
+| \`polterware drift --project <id> [--entity] [--agent-run-id] [--json]\` | Run the Narrow Drift Checker. |
+
+Prefer MCP when already connected as an agent; use the CLI for shell/CI bootstrap against the same database.
 
 ## Suggested audit flow
 
 1. \`agent_run.start\` with a clear task.
 2. \`context.get\` with the returned \`agent_run_id\`.
-3. \`agent_run.append\` change envelope (\`summary\` + \`rationale\`).
-4. \`agent_run.append\` evidence ids you relied on.
+3. Audited writes (\`fact.upsert\` / \`evidence.*\` / \`knowledge.*\`) with the same \`agent_run_id\` and a change envelope.
+4. \`agent_run.append\` evidence ids you relied on (optional).
 5. \`drift.check\` with the same \`agent_run_id\`.
 6. \`agent_run.complete\`, then \`agent_run.get\` to verify the chain.
 
@@ -52,7 +79,8 @@ Always pass the operator’s current \`project_id\` when the tool accepts it.
 5. Do not invent Spec Kit CLI, \`.specify/\`, embeddings, GraphRAG, or fixed PCTX serialization.
 6. Credentials and provider tokens are never in SQLite; do not ask Polterware MCP for secrets.
 7. Drift findings are advisory — never overwrite project truth from a finding alone.
-8. Change steps are declared envelopes only in this slice; they do not mutate the PPM.
+8. Prefer audited write tools to mutate the model; \`agent_run.append\` change steps are declared envelopes only and do not mutate the PPM.
+9. Never omit \`summary\`, \`rationale\`, or \`agent_run_id\` on write tools — the core rejects incomplete envelopes.
 
 ## Cursor MCP config
 

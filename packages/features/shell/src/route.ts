@@ -75,6 +75,8 @@ export const SECTION_TABS = {
   agents: [
     { id: "access", label: "Access" },
     { id: "compile", label: "Compile" },
+    { id: "drift", label: "Drift" },
+    { id: "facts", label: "Facts" },
     { id: "history", label: "History" },
   ],
   integrations: [

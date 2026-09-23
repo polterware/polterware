@@ -39,12 +39,16 @@ const (
 	// AgentRunServiceGetAgentRunProcedure is the fully-qualified name of the AgentRunService's
 	// GetAgentRun RPC.
 	AgentRunServiceGetAgentRunProcedure = "/polterware.local.v1.AgentRunService/GetAgentRun"
+	// AgentRunServiceListChangesProcedure is the fully-qualified name of the AgentRunService's
+	// ListChanges RPC.
+	AgentRunServiceListChangesProcedure = "/polterware.local.v1.AgentRunService/ListChanges"
 )
 
 // AgentRunServiceClient is a client for the polterware.local.v1.AgentRunService service.
 type AgentRunServiceClient interface {
 	ListAgentRuns(context.Context, *connect.Request[v1.ListAgentRunsRequest]) (*connect.Response[v1.ListAgentRunsResponse], error)
 	GetAgentRun(context.Context, *connect.Request[v1.GetAgentRunRequest]) (*connect.Response[v1.GetAgentRunResponse], error)
+	ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error)
 }
 
 // NewAgentRunServiceClient constructs a client for the polterware.local.v1.AgentRunService service.
@@ -70,6 +74,12 @@ func NewAgentRunServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(agentRunServiceMethods.ByName("GetAgentRun")),
 			connect.WithClientOptions(opts...),
 		),
+		listChanges: connect.NewClient[v1.ListChangesRequest, v1.ListChangesResponse](
+			httpClient,
+			baseURL+AgentRunServiceListChangesProcedure,
+			connect.WithSchema(agentRunServiceMethods.ByName("ListChanges")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -77,6 +87,7 @@ func NewAgentRunServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type agentRunServiceClient struct {
 	listAgentRuns *connect.Client[v1.ListAgentRunsRequest, v1.ListAgentRunsResponse]
 	getAgentRun   *connect.Client[v1.GetAgentRunRequest, v1.GetAgentRunResponse]
+	listChanges   *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
 }
 
 // ListAgentRuns calls polterware.local.v1.AgentRunService.ListAgentRuns.
@@ -89,10 +100,16 @@ func (c *agentRunServiceClient) GetAgentRun(ctx context.Context, req *connect.Re
 	return c.getAgentRun.CallUnary(ctx, req)
 }
 
+// ListChanges calls polterware.local.v1.AgentRunService.ListChanges.
+func (c *agentRunServiceClient) ListChanges(ctx context.Context, req *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error) {
+	return c.listChanges.CallUnary(ctx, req)
+}
+
 // AgentRunServiceHandler is an implementation of the polterware.local.v1.AgentRunService service.
 type AgentRunServiceHandler interface {
 	ListAgentRuns(context.Context, *connect.Request[v1.ListAgentRunsRequest]) (*connect.Response[v1.ListAgentRunsResponse], error)
 	GetAgentRun(context.Context, *connect.Request[v1.GetAgentRunRequest]) (*connect.Response[v1.GetAgentRunResponse], error)
+	ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error)
 }
 
 // NewAgentRunServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -114,12 +131,20 @@ func NewAgentRunServiceHandler(svc AgentRunServiceHandler, opts ...connect.Handl
 		connect.WithSchema(agentRunServiceMethods.ByName("GetAgentRun")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentRunServiceListChangesHandler := connect.NewUnaryHandler(
+		AgentRunServiceListChangesProcedure,
+		svc.ListChanges,
+		connect.WithSchema(agentRunServiceMethods.ByName("ListChanges")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/polterware.local.v1.AgentRunService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentRunServiceListAgentRunsProcedure:
 			agentRunServiceListAgentRunsHandler.ServeHTTP(w, r)
 		case AgentRunServiceGetAgentRunProcedure:
 			agentRunServiceGetAgentRunHandler.ServeHTTP(w, r)
+		case AgentRunServiceListChangesProcedure:
+			agentRunServiceListChangesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +160,8 @@ func (UnimplementedAgentRunServiceHandler) ListAgentRuns(context.Context, *conne
 
 func (UnimplementedAgentRunServiceHandler) GetAgentRun(context.Context, *connect.Request[v1.GetAgentRunRequest]) (*connect.Response[v1.GetAgentRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.AgentRunService.GetAgentRun is not implemented"))
+}
+
+func (UnimplementedAgentRunServiceHandler) ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.AgentRunService.ListChanges is not implemented"))
 }

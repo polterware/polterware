@@ -19,11 +19,20 @@ export type InputProps = JSX.InputHTMLAttributes<HTMLInputElement> & {
 };
 
 export function Input(props: InputProps) {
-  const [local, rest] = splitProps(props, ["size", "class", "classList", "type"]);
+  const [local, rest] = splitProps(props, [
+    "size",
+    "class",
+    "classList",
+    "type",
+    "spellcheck",
+    "autocomplete",
+  ]);
   const size = () => local.size ?? "sm";
   return (
     <input
       type={local.type ?? "text"}
+      spellcheck={local.spellcheck ?? false}
+      autocomplete={local.autocomplete ?? "off"}
       {...rest}
       class={cn(
         fieldBase,
@@ -44,9 +53,11 @@ export type TextareaProps = JSX.TextareaHTMLAttributes<HTMLTextAreaElement> & {
 };
 
 export function Textarea(props: TextareaProps) {
-  const [local, rest] = splitProps(props, ["size", "class", "classList"]);
+  const [local, rest] = splitProps(props, ["size", "class", "classList", "spellcheck", "autocomplete"]);
   return (
     <textarea
+      spellcheck={local.spellcheck ?? false}
+      autocomplete={local.autocomplete ?? "off"}
       {...rest}
       class={cn(fieldBase, "control-field-area", local.class)}
       classList={local.classList}

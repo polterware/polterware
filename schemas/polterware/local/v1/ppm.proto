@@ -2,6 +2,8 @@ syntax = "proto3";
 package polterware.local.v1;
 option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
 
+import "polterware/local/v1/agentrun.proto";
+
 message PpmEntity {
   string id = 1;
   string project_id = 2;
@@ -110,6 +112,7 @@ message GetFactResponse {
 
 message UpsertFactRequest {
   PpmFact fact = 1;
+  ChangeEnvelope change = 2;
 }
 
 message UpsertFactResponse {
@@ -134,6 +137,7 @@ message GetEvidenceResponse {
 
 message UpsertEvidenceRequest {
   PpmEvidence evidence = 1;
+  ChangeEnvelope change = 2;
 }
 
 message UpsertEvidenceResponse {
@@ -144,6 +148,7 @@ message LinkEvidenceToFactRequest {
   string project_id = 1;
   string fact_id = 2;
   string evidence_id = 3;
+  ChangeEnvelope change = 4;
 }
 
 message LinkEvidenceToFactResponse {}

@@ -45,4 +45,4 @@ Re-running import upserts the same rows; it does not duplicate.
 - No full HCL or OpenAPI schema validation — parsers extract a small deterministic subset.
 - No Git history, provider inventory, or filesystem indexing beyond the MVP set.
 - `CompileContext` includes imported facts with reasons and evidence (B3). See [`context-compiler.md`](context-compiler.md).
-- CLI `polterware scan` is B8; Desktop triggers import from Knowledge → Sources.
+- CLI `polterware scan` is shipped (B8); Desktop also triggers import from Knowledge → Sources.

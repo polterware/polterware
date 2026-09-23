@@ -91,15 +91,24 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
         sync: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.syncProjectModel, payload),
         importSources: (payload: JsonObject) =>
           coreCall(ipc, IPC_CHANNELS.core.importProjectSources, payload),
+        listFacts: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listFacts, payload),
+        getFact: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.getFact, payload),
+        upsertFact: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.upsertFact, payload),
+        listEvidence: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listEvidence, payload),
+        getEvidence: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.getEvidence, payload),
+        upsertEvidence: (payload: JsonObject) =>
+          coreCall(ipc, IPC_CHANNELS.core.upsertEvidence, payload),
+        linkEvidenceToFact: (payload: JsonObject) =>
+          coreCall(ipc, IPC_CHANNELS.core.linkEvidenceToFact, payload),
       },
       context: {
         compile: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.compileContext, payload),
-        listToolCalls: (payload?: JsonObject) =>
-          coreCall(ipc, IPC_CHANNELS.core.listAgentToolCalls, payload),
-        listAgentRuns: (payload: JsonObject) =>
-          coreCall(ipc, IPC_CHANNELS.core.listAgentRuns, payload),
+        checkDrift: (payload: JsonObject) =>
+          coreCall(ipc, IPC_CHANNELS.core.checkDrift, payload),
         getAgentRun: (payload: JsonObject) =>
           coreCall(ipc, IPC_CHANNELS.core.getAgentRun, payload),
+        listChanges: (payload: JsonObject) =>
+          coreCall(ipc, IPC_CHANNELS.core.listChanges, payload),
       },
       integrations: {
         listProviders: () => coreCall(ipc, IPC_CHANNELS.core.listCliProviders),

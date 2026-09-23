@@ -44,7 +44,7 @@ export function McpStatusCard(props: {
           </Button>
         </div>
       </div>
-      <p class="m-0 mt-1.5 truncate font-mono text-[11px] text-[var(--color-text-muted)]" title={status()?.dbPath}>
+      <p class="m-0 mt-1.5 truncate font-mono pw-selectable text-[11px] text-[var(--color-text-muted)]" title={status()?.dbPath}>
         PID {status()?.pid ?? "—"} · {truncatePath(status()?.dbPath ?? "")}
       </p>
     </section>

@@ -10,7 +10,7 @@
 
 ## Product positioning
 
-Polterware's category is **Project Context & Change Intelligence for AI Coding** ([`docs/product-vision.md`](docs/product-vision.md) v3, [ADR 0004](docs/adr/0004-product-positioning-and-wedge.md)). Evolution priority is the wedge: PPM facts/evidence, deterministic import, Context Compiler, stable MCP reads, Drift, AgentRun, audited MCP writes, and CLI. Operations, Terminal-as-product, and Nodes/remote execution were removed on the kill branch ([`docs/architecture/kill-ops-terminal-nodes.md`](docs/architecture/kill-ops-terminal-nodes.md)). Integrations remain as evidence/Connect UI only. Wedge delivery order: [`docs/architecture/wedge-validation-sequence.md`](docs/architecture/wedge-validation-sequence.md) (next slice: B7 Audited MCP writes).
+Polterware's category is **Project Context & Change Intelligence for AI Coding** ([`docs/product-vision.md`](docs/product-vision.md) v3, [ADR 0004](docs/adr/0004-product-positioning-and-wedge.md)). Evolution priority is the wedge: PPM facts/evidence, deterministic import, Context Compiler, stable MCP reads, Drift, AgentRun, audited MCP writes, CLI, and Unified Change History. Operations, Terminal-as-product, and Nodes/remote execution were removed on the kill branch ([`docs/architecture/kill-ops-terminal-nodes.md`](docs/architecture/kill-ops-terminal-nodes.md)). Integrations remain as evidence/Connect UI only. Wedge delivery order: [`docs/architecture/wedge-validation-sequence.md`](docs/architecture/wedge-validation-sequence.md) (B1–B9 complete).
 
 ## Current product boundary
 
@@ -43,7 +43,7 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
   - Specs hold one Constitution per project (`constitution`) and per-feature Spec / Plan / Tasks / Clarify / Checklist items linked by `featureKey`. Mark ready is blocked while Checklist still has unchecked `- [ ]` lines.
   - Library lists `doc`, `adr`, and `runbook` items with Kind / Status / Severity / Linked filters.
   - Sources lists registered project-relative paths (`kind = source`); Import from project root runs `ImportProjectSources` for the MVP file set. Generic filesystem indexing beyond that set is not shipped.
-- Agents: Access, Compile, History
+- Agents: Access, Compile, Drift, Facts, History
 - Integrations: Connected, Catalog (**KEEP** — evidence + Connect UI)
 - Settings: General, Environments, Shortcuts, Advanced
 
@@ -75,4 +75,4 @@ Skip it when the change is already located in a known file, and when typecheck, 
 After relevant changes, use static checks allowed by the task: typecheck, `pnpm design:lint`, `buf lint`, `go vet ./...`, and `git diff --check`. Maintain risk-proportional tests, but do not run them without explicit permission.
 
 Previous specifications live under `docs/future/` and are non-normative.
-`docs/spec.md` defines implemented behavior. `docs/product-vision.md` v3 and ADR 0004 define product direction; never present planned PPM depth, drift, CLI, Web App, or Cloud capabilities as already shipped.
+`docs/spec.md` defines implemented behavior. `docs/product-vision.md` v3 and ADR 0004 define product direction; never present planned post-wedge depth (Change Gates, Web App, Cloud) as already shipped.

@@ -299,6 +299,24 @@ func (s *Store) SaveKnowledgeLink(link knowledge.EntityLink) error {
 	return err
 }
 
+func (s *Store) GetKnowledgeLink(id string) (knowledge.EntityLink, error) {
+	var link knowledge.EntityLink
+	var observed, created string
+	err := s.DB.QueryRow(
+		`SELECT id,project_id,knowledge_id,entity_id,predicate,truth_class,source,actor,observed_at,created_at
+		 FROM knowledge_entity_links WHERE id=?`, id,
+	).Scan(
+		&link.ID, &link.ProjectID, &link.KnowledgeID, &link.EntityID, &link.Predicate,
+		&link.TruthClass, &link.Source, &link.Actor, &observed, &created,
+	)
+	if err != nil {
+		return knowledge.EntityLink{}, err
+	}
+	link.ObservedAt, _ = time.Parse(time.RFC3339, observed)
+	link.CreatedAt, _ = time.Parse(time.RFC3339, created)
+	return link, nil
+}
+
 func (s *Store) ListKnowledgeLinks(projectID, knowledgeID, entityID string) ([]knowledge.EntityLink, error) {
 	query := `SELECT id,project_id,knowledge_id,entity_id,predicate,truth_class,source,actor,observed_at,created_at
 		FROM knowledge_entity_links WHERE project_id=?`

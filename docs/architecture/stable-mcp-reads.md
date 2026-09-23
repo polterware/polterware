@@ -40,15 +40,16 @@ AgentRun lifecycle tools (`agent_run.start` / `append` / `complete` / `get` / `l
 
 Empty `findings` with `checker: "narrow"` means the checker ran and found no disagreements under its rules — not “no checker yet”. Rules and limits: [`narrow-drift-checker.md`](narrow-drift-checker.md).
 
-## Desktop vs MCP
+## Desktop vs MCP vs CLI
 
-- MCP stdio exposes the read tools above plus AgentRun audit tools.
-- Desktop Agents → Compile still calls Connect RPC `ContextService.CompileContext` (same package shape; RPC name unchanged).
-- Desktop Agents → History lists AgentRuns via `AgentRunService`.
+- MCP stdio exposes the read tools above plus AgentRun audit tools and audited write tools ([`audited-mcp-writes.md`](audited-mcp-writes.md)).
+- Desktop Agents → Compile calls Connect RPC `ContextService.CompileContext` (same package shape as `context.get`; RPC name unchanged).
+- Desktop Agents → Drift calls Connect RPC `ContextService.CheckDrift` (same narrow result shape as MCP `drift.check`; Desktop preview does not pass `agent_run_id`).
+- Desktop Agents → History lists justified changes via `AgentRunService.ListChanges` / `GetAgentRun`.
 - Agents skill markdown documents the stable MCP names.
+- CLI `polterware context` / `polterware drift` share wedge composition with MCP ([`cli.md`](cli.md)).
 
 ## Out of scope
 
-- Audited MCP writes (B7)
-- CLI surface (B8)
-- Desktop Drift UI
+- Dedicated Drift product surface outside Agents
+- Connect HTTP / session-file CLI mode

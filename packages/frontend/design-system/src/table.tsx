@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp, X } from "./hugeicons";
 import { DitherIconTile, type DitherIconTone } from "./dither-icon";
+import { detailPanelStore } from "@polterware/frontend-state";
 import {
   For,
   Show,
@@ -475,6 +476,13 @@ function DataTableToolbar(props: { children: JSX.Element; class?: string }) {
   return <div class={`pw-data-table-toolbar ${props.class ?? ""}`}>{props.children}</div>;
 }
 
+function collapseDetailPanelFromCollectionBackground() {
+  const mode = detailPanelStore.getState().mode;
+  if (mode === "open" || mode === "maximized") {
+    detailPanelStore.getState().collapse();
+  }
+}
+
 function DataTableTable(props: {
   children: JSX.Element;
   class?: string;
@@ -486,6 +494,12 @@ function DataTableTable(props: {
       ref={context.setScrollElement}
       class="pw-data-table-scroll"
       data-virtualized={context.virtualized() ? "true" : undefined}
+      onClick={(event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        if (target.closest("tr")) return;
+        collapseDetailPanelFromCollectionBackground();
+      }}
     >
       <table class={`pw-data-table ${props.class ?? ""}`} aria-label={props["aria-label"]}>
         {props.children}
@@ -677,6 +691,11 @@ function DataTableRow<T = any>(props: {
       onClick={(event) => {
         if (!interactive() || isDataTableInteractiveTarget(event.target, event.currentTarget)) return;
         activate();
+      }}
+      onDblClick={(event) => {
+        if (!interactive() || isDataTableInteractiveTarget(event.target, event.currentTarget)) return;
+        activate();
+        detailPanelStore.getState().maximize();
       }}
       onKeyDown={(event) => {
         if (!interactive() || event.target !== event.currentTarget) return;

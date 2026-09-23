@@ -114,8 +114,6 @@ export type DiscoveryCandidate = {
 /** Detail data projected into the global contextual panel. */
 export type InspectorSnapshot = {
   knowledge: Array<{ id?: string; title: string; body?: string }>;
-  ops: Array<{ id: string; type?: string; status: string }>;
-  logs: string[];
 };
 
 export type { ArchitectureNodeView } from "./types";
@@ -538,12 +536,6 @@ export function ArchitectureView(props: {
             evidence: Boolean(e.evidence),
           };
         }),
-      activity: (props.inspector?.ops ?? []).slice(0, 5).map((o, i) => ({
-        id: o.id ?? String(i),
-        at: o.status,
-        title: o.type ?? "Operation",
-        detail: o.id,
-      })),
       docs: (props.inspector?.knowledge ?? []).map((k) => ({
         id: k.id ?? k.title,
         title: k.title,

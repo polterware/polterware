@@ -17,7 +17,13 @@ describe("first version routes", () => {
     expect(SECTION_TABS.architecture?.map((tab) => tab.id)).toEqual(["canvas", "views"]);
     expect(SECTION_TABS.knowledge?.map((tab) => tab.id)).toEqual(["specs", "library", "sources"]);
     expect(SECTION_TABS.resources?.map((tab) => tab.id)).toEqual(["inventory"]);
-    expect(SECTION_TABS.agents?.map((tab) => tab.id)).toEqual(["access", "compile", "history"]);
+    expect(SECTION_TABS.agents?.map((tab) => tab.id)).toEqual([
+      "access",
+      "compile",
+      "drift",
+      "facts",
+      "history",
+    ]);
     expect(SECTION_TABS.settings?.map((tab) => tab.id)).toEqual([
       "general",
       "environments",

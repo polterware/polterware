@@ -1064,6 +1064,7 @@ func (x *GetFactResponse) GetEvidence() []*PpmEvidence {
 type UpsertFactRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Fact          *PpmFact               `protobuf:"bytes,1,opt,name=fact,proto3" json:"fact,omitempty"`
+	Change        *ChangeEnvelope        `protobuf:"bytes,2,opt,name=change,proto3" json:"change,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1101,6 +1102,13 @@ func (*UpsertFactRequest) Descriptor() ([]byte, []int) {
 func (x *UpsertFactRequest) GetFact() *PpmFact {
 	if x != nil {
 		return x.Fact
+	}
+	return nil
+}
+
+func (x *UpsertFactRequest) GetChange() *ChangeEnvelope {
+	if x != nil {
+		return x.Change
 	}
 	return nil
 }
@@ -1328,6 +1336,7 @@ func (x *GetEvidenceResponse) GetEvidence() *PpmEvidence {
 type UpsertEvidenceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Evidence      *PpmEvidence           `protobuf:"bytes,1,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	Change        *ChangeEnvelope        `protobuf:"bytes,2,opt,name=change,proto3" json:"change,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1365,6 +1374,13 @@ func (*UpsertEvidenceRequest) Descriptor() ([]byte, []int) {
 func (x *UpsertEvidenceRequest) GetEvidence() *PpmEvidence {
 	if x != nil {
 		return x.Evidence
+	}
+	return nil
+}
+
+func (x *UpsertEvidenceRequest) GetChange() *ChangeEnvelope {
+	if x != nil {
+		return x.Change
 	}
 	return nil
 }
@@ -1418,6 +1434,7 @@ type LinkEvidenceToFactRequest struct {
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	FactId        string                 `protobuf:"bytes,2,opt,name=fact_id,json=factId,proto3" json:"fact_id,omitempty"`
 	EvidenceId    string                 `protobuf:"bytes,3,opt,name=evidence_id,json=evidenceId,proto3" json:"evidence_id,omitempty"`
+	Change        *ChangeEnvelope        `protobuf:"bytes,4,opt,name=change,proto3" json:"change,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1471,6 +1488,13 @@ func (x *LinkEvidenceToFactRequest) GetEvidenceId() string {
 		return x.EvidenceId
 	}
 	return ""
+}
+
+func (x *LinkEvidenceToFactRequest) GetChange() *ChangeEnvelope {
+	if x != nil {
+		return x.Change
+	}
+	return nil
 }
 
 type LinkEvidenceToFactResponse struct {
@@ -1633,7 +1657,7 @@ var File_polterware_local_v1_ppm_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_ppm_proto_rawDesc = "" +
 	"\n" +
-	"\x1dpolterware/local/v1/ppm.proto\x12\x13polterware.local.v1\"\xc4\x02\n" +
+	"\x1dpolterware/local/v1/ppm.proto\x12\x13polterware.local.v1\x1a\"polterware/local/v1/agentrun.proto\"\xc4\x02\n" +
 	"\tPpmEntity\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1733,9 +1757,10 @@ const file_polterware_local_v1_ppm_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x81\x01\n" +
 	"\x0fGetFactResponse\x120\n" +
 	"\x04fact\x18\x01 \x01(\v2\x1c.polterware.local.v1.PpmFactR\x04fact\x12<\n" +
-	"\bevidence\x18\x02 \x03(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"E\n" +
+	"\bevidence\x18\x02 \x03(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"\x82\x01\n" +
 	"\x11UpsertFactRequest\x120\n" +
-	"\x04fact\x18\x01 \x01(\v2\x1c.polterware.local.v1.PpmFactR\x04fact\"F\n" +
+	"\x04fact\x18\x01 \x01(\v2\x1c.polterware.local.v1.PpmFactR\x04fact\x12;\n" +
+	"\x06change\x18\x02 \x01(\v2#.polterware.local.v1.ChangeEnvelopeR\x06change\"F\n" +
 	"\x12UpsertFactResponse\x120\n" +
 	"\x04fact\x18\x01 \x01(\v2\x1c.polterware.local.v1.PpmFactR\x04fact\"4\n" +
 	"\x13ListEvidenceRequest\x12\x1d\n" +
@@ -1746,17 +1771,19 @@ const file_polterware_local_v1_ppm_proto_rawDesc = "" +
 	"\x12GetEvidenceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"S\n" +
 	"\x13GetEvidenceResponse\x12<\n" +
-	"\bevidence\x18\x01 \x01(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"U\n" +
+	"\bevidence\x18\x01 \x01(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"\x92\x01\n" +
 	"\x15UpsertEvidenceRequest\x12<\n" +
-	"\bevidence\x18\x01 \x01(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"V\n" +
+	"\bevidence\x18\x01 \x01(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\x12;\n" +
+	"\x06change\x18\x02 \x01(\v2#.polterware.local.v1.ChangeEnvelopeR\x06change\"V\n" +
 	"\x16UpsertEvidenceResponse\x12<\n" +
-	"\bevidence\x18\x01 \x01(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"t\n" +
+	"\bevidence\x18\x01 \x01(\v2 .polterware.local.v1.PpmEvidenceR\bevidence\"\xb1\x01\n" +
 	"\x19LinkEvidenceToFactRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
 	"\afact_id\x18\x02 \x01(\tR\x06factId\x12\x1f\n" +
 	"\vevidence_id\x18\x03 \x01(\tR\n" +
-	"evidenceId\"\x1c\n" +
+	"evidenceId\x12;\n" +
+	"\x06change\x18\x04 \x01(\v2#.polterware.local.v1.ChangeEnvelopeR\x06change\"\x1c\n" +
 	"\x1aLinkEvidenceToFactResponse\"<\n" +
 	"\x1bImportProjectSourcesRequest\x12\x1d\n" +
 	"\n" +
@@ -1826,6 +1853,7 @@ var file_polterware_local_v1_ppm_proto_goTypes = []any{
 	(*LinkEvidenceToFactResponse)(nil),   // 25: polterware.local.v1.LinkEvidenceToFactResponse
 	(*ImportProjectSourcesRequest)(nil),  // 26: polterware.local.v1.ImportProjectSourcesRequest
 	(*ImportProjectSourcesResponse)(nil), // 27: polterware.local.v1.ImportProjectSourcesResponse
+	(*ChangeEnvelope)(nil),               // 28: polterware.local.v1.ChangeEnvelope
 }
 var file_polterware_local_v1_ppm_proto_depIdxs = []int32{
 	0,  // 0: polterware.local.v1.ListEntitiesResponse.entities:type_name -> polterware.local.v1.PpmEntity
@@ -1835,40 +1863,43 @@ var file_polterware_local_v1_ppm_proto_depIdxs = []int32{
 	10, // 4: polterware.local.v1.GetFactResponse.fact:type_name -> polterware.local.v1.PpmFact
 	11, // 5: polterware.local.v1.GetFactResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
 	10, // 6: polterware.local.v1.UpsertFactRequest.fact:type_name -> polterware.local.v1.PpmFact
-	10, // 7: polterware.local.v1.UpsertFactResponse.fact:type_name -> polterware.local.v1.PpmFact
-	11, // 8: polterware.local.v1.ListEvidenceResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
-	11, // 9: polterware.local.v1.GetEvidenceResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
-	11, // 10: polterware.local.v1.UpsertEvidenceRequest.evidence:type_name -> polterware.local.v1.PpmEvidence
-	11, // 11: polterware.local.v1.UpsertEvidenceResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
-	2,  // 12: polterware.local.v1.ProjectModelService.ListEntities:input_type -> polterware.local.v1.ListEntitiesRequest
-	4,  // 13: polterware.local.v1.ProjectModelService.ListRelationships:input_type -> polterware.local.v1.ListRelationshipsRequest
-	6,  // 14: polterware.local.v1.ProjectModelService.GetEntity:input_type -> polterware.local.v1.GetEntityRequest
-	8,  // 15: polterware.local.v1.ProjectModelService.SyncProjectModel:input_type -> polterware.local.v1.SyncProjectModelRequest
-	12, // 16: polterware.local.v1.ProjectModelService.ListFacts:input_type -> polterware.local.v1.ListFactsRequest
-	14, // 17: polterware.local.v1.ProjectModelService.GetFact:input_type -> polterware.local.v1.GetFactRequest
-	16, // 18: polterware.local.v1.ProjectModelService.UpsertFact:input_type -> polterware.local.v1.UpsertFactRequest
-	18, // 19: polterware.local.v1.ProjectModelService.ListEvidence:input_type -> polterware.local.v1.ListEvidenceRequest
-	20, // 20: polterware.local.v1.ProjectModelService.GetEvidence:input_type -> polterware.local.v1.GetEvidenceRequest
-	22, // 21: polterware.local.v1.ProjectModelService.UpsertEvidence:input_type -> polterware.local.v1.UpsertEvidenceRequest
-	24, // 22: polterware.local.v1.ProjectModelService.LinkEvidenceToFact:input_type -> polterware.local.v1.LinkEvidenceToFactRequest
-	26, // 23: polterware.local.v1.ProjectModelService.ImportProjectSources:input_type -> polterware.local.v1.ImportProjectSourcesRequest
-	3,  // 24: polterware.local.v1.ProjectModelService.ListEntities:output_type -> polterware.local.v1.ListEntitiesResponse
-	5,  // 25: polterware.local.v1.ProjectModelService.ListRelationships:output_type -> polterware.local.v1.ListRelationshipsResponse
-	7,  // 26: polterware.local.v1.ProjectModelService.GetEntity:output_type -> polterware.local.v1.GetEntityResponse
-	9,  // 27: polterware.local.v1.ProjectModelService.SyncProjectModel:output_type -> polterware.local.v1.SyncProjectModelResponse
-	13, // 28: polterware.local.v1.ProjectModelService.ListFacts:output_type -> polterware.local.v1.ListFactsResponse
-	15, // 29: polterware.local.v1.ProjectModelService.GetFact:output_type -> polterware.local.v1.GetFactResponse
-	17, // 30: polterware.local.v1.ProjectModelService.UpsertFact:output_type -> polterware.local.v1.UpsertFactResponse
-	19, // 31: polterware.local.v1.ProjectModelService.ListEvidence:output_type -> polterware.local.v1.ListEvidenceResponse
-	21, // 32: polterware.local.v1.ProjectModelService.GetEvidence:output_type -> polterware.local.v1.GetEvidenceResponse
-	23, // 33: polterware.local.v1.ProjectModelService.UpsertEvidence:output_type -> polterware.local.v1.UpsertEvidenceResponse
-	25, // 34: polterware.local.v1.ProjectModelService.LinkEvidenceToFact:output_type -> polterware.local.v1.LinkEvidenceToFactResponse
-	27, // 35: polterware.local.v1.ProjectModelService.ImportProjectSources:output_type -> polterware.local.v1.ImportProjectSourcesResponse
-	24, // [24:36] is the sub-list for method output_type
-	12, // [12:24] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	28, // 7: polterware.local.v1.UpsertFactRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	10, // 8: polterware.local.v1.UpsertFactResponse.fact:type_name -> polterware.local.v1.PpmFact
+	11, // 9: polterware.local.v1.ListEvidenceResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
+	11, // 10: polterware.local.v1.GetEvidenceResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
+	11, // 11: polterware.local.v1.UpsertEvidenceRequest.evidence:type_name -> polterware.local.v1.PpmEvidence
+	28, // 12: polterware.local.v1.UpsertEvidenceRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	11, // 13: polterware.local.v1.UpsertEvidenceResponse.evidence:type_name -> polterware.local.v1.PpmEvidence
+	28, // 14: polterware.local.v1.LinkEvidenceToFactRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	2,  // 15: polterware.local.v1.ProjectModelService.ListEntities:input_type -> polterware.local.v1.ListEntitiesRequest
+	4,  // 16: polterware.local.v1.ProjectModelService.ListRelationships:input_type -> polterware.local.v1.ListRelationshipsRequest
+	6,  // 17: polterware.local.v1.ProjectModelService.GetEntity:input_type -> polterware.local.v1.GetEntityRequest
+	8,  // 18: polterware.local.v1.ProjectModelService.SyncProjectModel:input_type -> polterware.local.v1.SyncProjectModelRequest
+	12, // 19: polterware.local.v1.ProjectModelService.ListFacts:input_type -> polterware.local.v1.ListFactsRequest
+	14, // 20: polterware.local.v1.ProjectModelService.GetFact:input_type -> polterware.local.v1.GetFactRequest
+	16, // 21: polterware.local.v1.ProjectModelService.UpsertFact:input_type -> polterware.local.v1.UpsertFactRequest
+	18, // 22: polterware.local.v1.ProjectModelService.ListEvidence:input_type -> polterware.local.v1.ListEvidenceRequest
+	20, // 23: polterware.local.v1.ProjectModelService.GetEvidence:input_type -> polterware.local.v1.GetEvidenceRequest
+	22, // 24: polterware.local.v1.ProjectModelService.UpsertEvidence:input_type -> polterware.local.v1.UpsertEvidenceRequest
+	24, // 25: polterware.local.v1.ProjectModelService.LinkEvidenceToFact:input_type -> polterware.local.v1.LinkEvidenceToFactRequest
+	26, // 26: polterware.local.v1.ProjectModelService.ImportProjectSources:input_type -> polterware.local.v1.ImportProjectSourcesRequest
+	3,  // 27: polterware.local.v1.ProjectModelService.ListEntities:output_type -> polterware.local.v1.ListEntitiesResponse
+	5,  // 28: polterware.local.v1.ProjectModelService.ListRelationships:output_type -> polterware.local.v1.ListRelationshipsResponse
+	7,  // 29: polterware.local.v1.ProjectModelService.GetEntity:output_type -> polterware.local.v1.GetEntityResponse
+	9,  // 30: polterware.local.v1.ProjectModelService.SyncProjectModel:output_type -> polterware.local.v1.SyncProjectModelResponse
+	13, // 31: polterware.local.v1.ProjectModelService.ListFacts:output_type -> polterware.local.v1.ListFactsResponse
+	15, // 32: polterware.local.v1.ProjectModelService.GetFact:output_type -> polterware.local.v1.GetFactResponse
+	17, // 33: polterware.local.v1.ProjectModelService.UpsertFact:output_type -> polterware.local.v1.UpsertFactResponse
+	19, // 34: polterware.local.v1.ProjectModelService.ListEvidence:output_type -> polterware.local.v1.ListEvidenceResponse
+	21, // 35: polterware.local.v1.ProjectModelService.GetEvidence:output_type -> polterware.local.v1.GetEvidenceResponse
+	23, // 36: polterware.local.v1.ProjectModelService.UpsertEvidence:output_type -> polterware.local.v1.UpsertEvidenceResponse
+	25, // 37: polterware.local.v1.ProjectModelService.LinkEvidenceToFact:output_type -> polterware.local.v1.LinkEvidenceToFactResponse
+	27, // 38: polterware.local.v1.ProjectModelService.ImportProjectSources:output_type -> polterware.local.v1.ImportProjectSourcesResponse
+	27, // [27:39] is the sub-list for method output_type
+	15, // [15:27] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_ppm_proto_init() }
@@ -1876,6 +1907,7 @@ func file_polterware_local_v1_ppm_proto_init() {
 	if File_polterware_local_v1_ppm_proto != nil {
 		return
 	}
+	file_polterware_local_v1_agentrun_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

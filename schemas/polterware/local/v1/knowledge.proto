@@ -2,6 +2,8 @@ syntax = "proto3";
 package polterware.local.v1;
 option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
 
+import "polterware/local/v1/agentrun.proto";
+
 message KnowledgeItem {
   string id = 1;
   string project_id = 2;
@@ -38,11 +40,18 @@ message KnowledgeSearchHit {
   string source = 5;
 }
 
-message SaveKnowledgeRequest { KnowledgeItem item = 1; }
+message SaveKnowledgeRequest {
+  KnowledgeItem item = 1;
+  // Required for Desktop semantic writes (B9): summary + rationale.
+  ChangeEnvelope change = 2;
+}
 message SaveKnowledgeResponse { KnowledgeItem item = 1; }
 message ListKnowledgeRequest { string project_id = 1; string kind = 2; }
 message ListKnowledgeResponse { repeated KnowledgeItem items = 1; }
-message DeleteKnowledgeRequest { string id = 1; }
+message DeleteKnowledgeRequest {
+  string id = 1;
+  ChangeEnvelope change = 2;
+}
 message DeleteKnowledgeResponse {}
 
 message SearchKnowledgeRequest {
@@ -66,6 +75,7 @@ message ListKnowledgeLinksResponse {
 
 message SaveKnowledgeLinkRequest {
   KnowledgeEntityLink link = 1;
+  ChangeEnvelope change = 2;
 }
 message SaveKnowledgeLinkResponse {
   KnowledgeEntityLink link = 1;
@@ -73,6 +83,7 @@ message SaveKnowledgeLinkResponse {
 
 message DeleteKnowledgeLinkRequest {
   string id = 1;
+  ChangeEnvelope change = 2;
 }
 message DeleteKnowledgeLinkResponse {}
 

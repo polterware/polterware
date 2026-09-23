@@ -46,6 +46,7 @@ func TestToolsListStableContract(t *testing.T) {
 	want := []string{
 		ToolContextGet, ToolEntityGet, ToolEvidenceGet, ToolDriftCheck,
 		ToolAgentRunStart, ToolAgentRunAppend, ToolAgentRunComplete, ToolAgentRunGet, ToolAgentRunList,
+		ToolFactUpsert, ToolEvidenceUpsert, ToolEvidenceLink, ToolKnowledgeUpsert, ToolKnowledgeLink,
 	}
 	if len(tools) != len(want) {
 		t.Fatalf("expected %d tools, got %d", len(want), len(tools))
@@ -66,7 +67,7 @@ func TestInitializeStableVersion(t *testing.T) {
 	}
 	payload := result.(map[string]any)
 	info := payload["serverInfo"].(map[string]any)
-	if info["version"] != "0.3.0" {
+	if info["version"] != "0.4.0" {
 		t.Fatalf("version=%v", info["version"])
 	}
 	instructions, _ := payload["instructions"].(string)
@@ -75,6 +76,9 @@ func TestInitializeStableVersion(t *testing.T) {
 	}
 	if !strings.Contains(instructions, "agent_run") {
 		t.Fatalf("instructions missing agent_run: %s", instructions)
+	}
+	if !strings.Contains(instructions, "fact.upsert") {
+		t.Fatalf("instructions missing audited writes: %s", instructions)
 	}
 }
 
@@ -317,5 +321,175 @@ func TestAgentRunAuditChain(t *testing.T) {
 	}
 	if !strings.Contains(listText, runID) {
 		t.Fatalf("list missing run: %s", listText)
+	}
+}
+
+func TestAuditedWritesRequireEnvelopeAndMutate(t *testing.T) {
+	server := testServer(t)
+
+	startText, err := server.callTool(ToolAgentRunStart, map[string]any{
+		"project_id": seed.ProjectID,
+		"task":       "Record ADR fact",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var started map[string]any
+	if err := json.Unmarshal([]byte(startText), &started); err != nil {
+		t.Fatal(err)
+	}
+	runID, _ := started["id"].(string)
+
+	_, err = server.callTool(ToolFactUpsert, map[string]any{
+		"project_id": seed.ProjectID,
+		"statement":  "SQLite is the local store",
+	})
+	if err == nil {
+		t.Fatal("expected missing envelope error")
+	}
+
+	factText, err := server.callTool(ToolFactUpsert, map[string]any{
+		"project_id":   seed.ProjectID,
+		"agent_run_id": runID,
+		"summary":      "Add local store fact",
+		"rationale":    "Matches accepted ADR",
+		"statement":    "SQLite is the local store",
+		"truth_class":  ppm.TruthDeclared,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var factOut map[string]any
+	if err := json.Unmarshal([]byte(factText), &factOut); err != nil {
+		t.Fatal(err)
+	}
+	factResult := factOut["result"].(map[string]any)
+	factID, _ := factResult["id"].(string)
+	if factID == "" || factResult["actor"] != "agent" || factResult["source"] != "mcp" {
+		t.Fatalf("unexpected fact result: %s", factText)
+	}
+
+	evText, err := server.callTool(ToolEvidenceUpsert, map[string]any{
+		"project_id":       seed.ProjectID,
+		"agent_run_id":     runID,
+		"summary":          "Attach ADR evidence",
+		"rationale":        "File backs the fact",
+		"kind":             ppm.EvidenceKindFile,
+		"evidence_summary": "ADR text",
+		"path":             "docs/adr/0004-product-positioning-and-wedge.md",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var evOut map[string]any
+	if err := json.Unmarshal([]byte(evText), &evOut); err != nil {
+		t.Fatal(err)
+	}
+	evidenceID, _ := evOut["result"].(map[string]any)["id"].(string)
+
+	if _, err := server.callTool(ToolEvidenceLink, map[string]any{
+		"project_id":   seed.ProjectID,
+		"agent_run_id": runID,
+		"summary":      "Link evidence to fact",
+		"rationale":    "Provenance chain",
+		"fact_id":      factID,
+		"evidence_id":  evidenceID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	knowText, err := server.callTool(ToolKnowledgeUpsert, map[string]any{
+		"project_id":   seed.ProjectID,
+		"agent_run_id": runID,
+		"summary":      "Add ADR library item",
+		"rationale":    "Document the decision",
+		"title":        "Local SQLite ADR",
+		"kind":         "adr",
+		"body":         "Use SQLite for Desktop.",
+		"tags":         []any{"storage"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var knowOut map[string]any
+	if err := json.Unmarshal([]byte(knowText), &knowOut); err != nil {
+		t.Fatal(err)
+	}
+	knowledgeID, _ := knowOut["result"].(map[string]any)["id"].(string)
+	if knowledgeID == "" {
+		t.Fatalf("missing knowledge id: %s", knowText)
+	}
+
+	entities, err := server.Store.ListPpmEntities(seed.ProjectID, "")
+	if err != nil || len(entities) == 0 {
+		t.Fatalf("need entities: %v", err)
+	}
+	if _, err := server.callTool(ToolKnowledgeLink, map[string]any{
+		"project_id":   seed.ProjectID,
+		"agent_run_id": runID,
+		"summary":      "Link ADR to entity",
+		"rationale":    "Documents the component",
+		"knowledge_id": knowledgeID,
+		"entity_id":    entities[0].ID,
+		"predicate":    ppm.PredDocuments,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	stored, err := server.Store.GetPpmFact(factID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Statement != "SQLite is the local store" || stored.Actor != "agent" {
+		t.Fatalf("fact not persisted: %+v", stored)
+	}
+	linked, err := server.Store.ListPpmEvidenceForFact(factID)
+	if err != nil || len(linked) != 1 || linked[0].ID != evidenceID {
+		t.Fatalf("evidence link missing: %v %#v", err, linked)
+	}
+
+	getText, err := server.callTool(ToolAgentRunGet, map[string]any{"id": runID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var record map[string]any
+	if err := json.Unmarshal([]byte(getText), &record); err != nil {
+		t.Fatal(err)
+	}
+	steps, ok := record["steps"].([]any)
+	if !ok || len(steps) != 5 {
+		t.Fatalf("expected 5 change steps from writes, got %#v", record["steps"])
+	}
+	first := steps[0].(map[string]any)
+	payload := first["payload"].(map[string]any)
+	if payload["tool"] != ToolFactUpsert {
+		t.Fatalf("first change tool=%v", payload["tool"])
+	}
+}
+
+func TestAuditedWriteRejectsClosedRun(t *testing.T) {
+	server := testServer(t)
+	startText, err := server.callTool(ToolAgentRunStart, map[string]any{
+		"project_id": seed.ProjectID,
+		"task":       "closed write",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var started map[string]any
+	_ = json.Unmarshal([]byte(startText), &started)
+	runID, _ := started["id"].(string)
+	if _, err := server.callTool(ToolAgentRunComplete, map[string]any{"agent_run_id": runID}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = server.callTool(ToolFactUpsert, map[string]any{
+		"project_id":   seed.ProjectID,
+		"agent_run_id": runID,
+		"summary":      "late",
+		"rationale":    "should fail",
+		"statement":    "nope",
+	})
+	if err == nil {
+		t.Fatal("expected closed-run rejection")
 	}
 }

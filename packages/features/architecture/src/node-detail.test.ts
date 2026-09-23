@@ -90,16 +90,15 @@ describe("ArchitectureNodeDetail composition contract", () => {
     expect(detailSource).toContain("onLinkResource");
   });
 
-  it("keeps loading, not-found, error, connected/docs/activity empty honesty", () => {
+  it("keeps loading, not-found, error, connected/docs empty honesty", () => {
     expect(detailSource).toContain("PageLoading");
     expect(detailSource).toContain("PageError");
     expect(detailSource).toContain("Node not found");
     expect(detailSource).toContain("No connections listed.");
     expect(detailSource).toContain("No docs linked.");
-    expect(detailSource).toContain("No activity.");
     expect(detailSource).toContain('aria-label="Connected architecture"');
     expect(detailSource).toContain('aria-label="Linked documents"');
-    expect(detailSource).toContain('aria-label="Architecture node activity"');
+    expect(detailSource).not.toContain("Architecture node activity");
     expect(detailSource).not.toMatch(/PrimaryCell[^>]*description=/);
   });
 });

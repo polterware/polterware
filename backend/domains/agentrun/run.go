@@ -21,13 +21,32 @@ const (
 	KindDrift    = "drift"
 )
 
+const (
+	// ActorAgent is the provenance actor for audited MCP writes.
+	ActorAgent = "agent"
+	// ActorHuman is the provenance actor for audited Desktop writes.
+	ActorHuman = "human"
+	// SourceMCP is the provenance source for audited MCP writes.
+	SourceMCP = "mcp"
+	// SourceDesktop is the provenance source for audited Desktop writes.
+	SourceDesktop = "desktop"
+
+	// ActorKindAgent labels AgentRuns started by coding agents.
+	ActorKindAgent = "agent"
+	// ActorKindHuman labels AgentRuns started by Desktop humans.
+	ActorKindHuman = "human"
+)
+
 var (
-	ErrUnknownRun      = errors.New("unknown agent run")
-	ErrRunNotOpen      = errors.New("agent run is not open")
-	ErrInvalidKind     = errors.New("invalid agent run step kind")
-	ErrChangeIncomplete = errors.New("change step requires summary and rationale")
-	ErrEmptyTask       = errors.New("task is required")
-	ErrEmptyProject    = errors.New("project_id is required")
+	ErrUnknownRun         = errors.New("unknown agent run")
+	ErrRunNotOpen         = errors.New("agent run is not open")
+	ErrInvalidKind        = errors.New("invalid agent run step kind")
+	ErrInvalidActorKind   = errors.New("invalid actor kind")
+	ErrChangeIncomplete   = errors.New("change step requires summary and rationale")
+	ErrMissingAgentRunID  = errors.New("agent_run_id is required")
+	ErrProjectMismatch    = errors.New("project_id does not match agent run")
+	ErrEmptyTask          = errors.New("task is required")
+	ErrEmptyProject       = errors.New("project_id is required")
 )
 
 // Run is a minimal AgentRun audit header (task lives here, not as a step).
@@ -36,6 +55,7 @@ type Run struct {
 	ProjectID   string
 	Task        string
 	AgentLabel  string
+	ActorKind   string
 	Status      string
 	CreatedAt   time.Time
 	CompletedAt *time.Time
@@ -96,9 +116,40 @@ func ValidateStart(projectID, task string) error {
 	return nil
 }
 
+// NormalizeActorKind returns human|agent. Empty defaults to agent for MCP compatibility.
+func NormalizeActorKind(kind string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "", ActorKindAgent:
+		return ActorKindAgent, nil
+	case ActorKindHuman:
+		return ActorKindHuman, nil
+	default:
+		return "", fmt.Errorf("%w: %q", ErrInvalidActorKind, kind)
+	}
+}
+
 func ValidateChange(summary, rationale string) error {
 	if strings.TrimSpace(summary) == "" || strings.TrimSpace(rationale) == "" {
 		return ErrChangeIncomplete
+	}
+	return nil
+}
+
+// ValidateAuditedWrite requires the B7 mutation envelope before any PPM/Knowledge write.
+func ValidateAuditedWrite(summary, rationale, agentRunID string) error {
+	if strings.TrimSpace(agentRunID) == "" {
+		return ErrMissingAgentRunID
+	}
+	return ValidateChange(summary, rationale)
+}
+
+// MatchProject ensures the mutation targets the same project as the open run.
+func MatchProject(run Run, projectID string) error {
+	if strings.TrimSpace(projectID) == "" {
+		return ErrEmptyProject
+	}
+	if run.ProjectID != strings.TrimSpace(projectID) {
+		return ErrProjectMismatch
 	}
 	return nil
 }
@@ -118,7 +169,16 @@ func CanComplete(run Run) error {
 }
 
 func Start(projectID, task, agentLabel string, now time.Time) (Run, error) {
+	return StartWithActor(projectID, task, agentLabel, ActorKindAgent, now)
+}
+
+// StartWithActor creates an open AgentRun for the given actor kind (human|agent).
+func StartWithActor(projectID, task, agentLabel, actorKind string, now time.Time) (Run, error) {
 	if err := ValidateStart(projectID, task); err != nil {
+		return Run{}, err
+	}
+	kind, err := NormalizeActorKind(actorKind)
+	if err != nil {
 		return Run{}, err
 	}
 	if now.IsZero() {
@@ -129,6 +189,7 @@ func Start(projectID, task, agentLabel string, now time.Time) (Run, error) {
 		ProjectID:  strings.TrimSpace(projectID),
 		Task:       strings.TrimSpace(task),
 		AgentLabel: strings.TrimSpace(agentLabel),
+		ActorKind:  kind,
 		Status:     StatusOpen,
 		CreatedAt:  now.UTC(),
 	}, nil

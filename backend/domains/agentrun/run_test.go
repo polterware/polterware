@@ -19,6 +19,16 @@ func TestStartAndComplete(t *testing.T) {
 	if run.Status != StatusOpen || run.ID == "" || run.Task != "Fix import drift" {
 		t.Fatalf("unexpected run: %+v", run)
 	}
+	if run.ActorKind != ActorKindAgent {
+		t.Fatalf("expected agent actor kind, got %q", run.ActorKind)
+	}
+	human, err := StartWithActor("proj-1", "Edit constitution", "Desktop", ActorKindHuman, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if human.ActorKind != ActorKindHuman {
+		t.Fatalf("expected human actor kind, got %q", human.ActorKind)
+	}
 	done, err := Complete(run, now.Add(time.Minute))
 	if err != nil {
 		t.Fatal(err)
@@ -50,6 +60,44 @@ func TestChangeStepRequiresEnvelope(t *testing.T) {
 	}
 	if step.Kind != KindChange || !strings.Contains(step.PayloadJSON, "rationale") {
 		t.Fatalf("unexpected step: %+v", step)
+	}
+}
+
+func TestValidateAuditedWrite(t *testing.T) {
+	if err := ValidateAuditedWrite("s", "r", ""); !errors.Is(err, ErrMissingAgentRunID) {
+		t.Fatalf("got %v", err)
+	}
+	if err := ValidateAuditedWrite("", "r", "arun-1"); !errors.Is(err, ErrChangeIncomplete) {
+		t.Fatalf("got %v", err)
+	}
+	if err := ValidateAuditedWrite("s", "r", "arun-1"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMatchProject(t *testing.T) {
+	run := Run{ProjectID: "proj-1", Status: StatusOpen}
+	if err := MatchProject(run, "proj-2"); !errors.Is(err, ErrProjectMismatch) {
+		t.Fatalf("got %v", err)
+	}
+	if err := MatchProject(run, "proj-1"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMutationChangeStepIncludesTool(t *testing.T) {
+	step, err := NewMutationChangeStep(
+		"arun-1", "Add fact", "From ADR", "fact.upsert",
+		[]string{"fact-1"}, []string{"docs/adr/0004.md"}, time.Time{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(step.PayloadJSON, `"tool":"fact.upsert"`) {
+		t.Fatalf("missing tool in payload: %s", step.PayloadJSON)
+	}
+	if !strings.Contains(step.PayloadJSON, "fact-1") {
+		t.Fatalf("missing subject id: %s", step.PayloadJSON)
 	}
 }
 

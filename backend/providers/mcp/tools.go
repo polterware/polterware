@@ -2,7 +2,7 @@ package mcp
 
 import "fmt"
 
-// Stable wedge MCP tools (B4 reads + B6 AgentRun audit).
+// Stable wedge MCP tools (B4 reads + B6 AgentRun audit + B7 audited writes).
 const (
 	ToolContextGet       = "context.get"
 	ToolEntityGet        = "entity.get"
@@ -13,7 +13,31 @@ const (
 	ToolAgentRunComplete = "agent_run.complete"
 	ToolAgentRunGet      = "agent_run.get"
 	ToolAgentRunList     = "agent_run.list"
+	ToolFactUpsert       = "fact.upsert"
+	ToolEvidenceUpsert   = "evidence.upsert"
+	ToolEvidenceLink     = "evidence.link"
+	ToolKnowledgeUpsert  = "knowledge.upsert"
+	ToolKnowledgeLink    = "knowledge.link"
 )
+
+func auditedWriteProperties(extra map[string]any) map[string]any {
+	props := map[string]any{
+		"project_id":   map[string]any{"type": "string"},
+		"agent_run_id": map[string]any{"type": "string"},
+		"summary":      map[string]any{"type": "string", "description": "Change envelope summary (required)"},
+		"rationale":    map[string]any{"type": "string", "description": "Change envelope rationale (required)"},
+		"paths":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+	}
+	for key, value := range extra {
+		props[key] = value
+	}
+	return props
+}
+
+func auditedWriteRequired(extra ...string) []string {
+	required := []string{"project_id", "agent_run_id", "summary", "rationale"}
+	return append(required, extra...)
+}
 
 func toolDefinitions() []map[string]any {
 	return []map[string]any{
@@ -23,11 +47,11 @@ func toolDefinitions() []map[string]any {
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"project_id":    map[string]any{"type": "string"},
-					"query":         map[string]any{"type": "string"},
-					"entity_id":     map[string]any{"type": "string"},
-					"token_budget":  map[string]any{"type": "integer"},
-					"agent_run_id":  map[string]any{"type": "string"},
+					"project_id":   map[string]any{"type": "string"},
+					"query":        map[string]any{"type": "string"},
+					"entity_id":    map[string]any{"type": "string"},
+					"token_budget": map[string]any{"type": "integer"},
+					"agent_run_id": map[string]any{"type": "string"},
 				},
 				"required": []string{"project_id"},
 			},
@@ -73,25 +97,25 @@ func toolDefinitions() []map[string]any {
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"project_id":   map[string]any{"type": "string"},
-					"task":         map[string]any{"type": "string"},
-					"agent_label":  map[string]any{"type": "string"},
+					"project_id":  map[string]any{"type": "string"},
+					"task":        map[string]any{"type": "string"},
+					"agent_label": map[string]any{"type": "string"},
 				},
 				"required": []string{"project_id", "task"},
 			},
 		},
 		{
 			"name":        ToolAgentRunAppend,
-			"description": "Append a change or evidence step to an open AgentRun. Change requires summary and rationale. Context and drift steps come from context.get / drift.check with agent_run_id.",
+			"description": "Append a declared-only change or evidence step to an open AgentRun. Change requires summary and rationale but does not mutate the PPM. Prefer fact.upsert / evidence.* / knowledge.* for real mutations.",
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"agent_run_id":  map[string]any{"type": "string"},
-					"kind":          map[string]any{"type": "string", "enum": []string{"change", "evidence"}},
-					"summary":       map[string]any{"type": "string"},
-					"rationale":     map[string]any{"type": "string"},
-					"paths":         map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"evidence_ids":  map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"agent_run_id": map[string]any{"type": "string"},
+					"kind":         map[string]any{"type": "string", "enum": []string{"change", "evidence"}},
+					"summary":      map[string]any{"type": "string"},
+					"rationale":    map[string]any{"type": "string"},
+					"paths":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"evidence_ids": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 				},
 				"required": []string{"agent_run_id", "kind"},
 			},
@@ -131,6 +155,78 @@ func toolDefinitions() []map[string]any {
 				"required": []string{"project_id"},
 			},
 		},
+		{
+			"name":        ToolFactUpsert,
+			"description": "Audited write: upsert a PPM fact. Requires summary, rationale, and an open agent_run_id. Actor is always agent/mcp.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": auditedWriteProperties(map[string]any{
+					"statement":   map[string]any{"type": "string"},
+					"id":          map[string]any{"type": "string"},
+					"truth_class": map[string]any{"type": "string"},
+					"entity_id":   map[string]any{"type": "string"},
+				}),
+				"required": auditedWriteRequired("statement"),
+			},
+		},
+		{
+			"name":        ToolEvidenceUpsert,
+			"description": "Audited write: upsert PPM evidence. Requires summary, rationale, and an open agent_run_id. Use evidence_summary for the evidence body (envelope summary is the change title).",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": auditedWriteProperties(map[string]any{
+					"kind":              map[string]any{"type": "string"},
+					"id":                map[string]any{"type": "string"},
+					"evidence_summary":  map[string]any{"type": "string"},
+					"path":              map[string]any{"type": "string"},
+				}),
+				"required": auditedWriteRequired("kind"),
+			},
+		},
+		{
+			"name":        ToolEvidenceLink,
+			"description": "Audited write: link existing evidence to a fact. Requires summary, rationale, and an open agent_run_id.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": auditedWriteProperties(map[string]any{
+					"fact_id":     map[string]any{"type": "string"},
+					"evidence_id": map[string]any{"type": "string"},
+				}),
+				"required": auditedWriteRequired("fact_id", "evidence_id"),
+			},
+		},
+		{
+			"name":        ToolKnowledgeUpsert,
+			"description": "Audited write: upsert a knowledge item. Requires summary, rationale, and an open agent_run_id.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": auditedWriteProperties(map[string]any{
+					"title":         map[string]any{"type": "string"},
+					"kind":          map[string]any{"type": "string"},
+					"id":            map[string]any{"type": "string"},
+					"body":          map[string]any{"type": "string"},
+					"tags":          map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"item_summary":  map[string]any{"type": "string"},
+					"status":        map[string]any{"type": "string"},
+					"extra_json":    map[string]any{"type": "string"},
+				}),
+				"required": auditedWriteRequired("title", "kind"),
+			},
+		},
+		{
+			"name":        ToolKnowledgeLink,
+			"description": "Audited write: link a knowledge item to a PPM entity. Requires summary, rationale, and an open agent_run_id.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": auditedWriteProperties(map[string]any{
+					"knowledge_id": map[string]any{"type": "string"},
+					"entity_id":    map[string]any{"type": "string"},
+					"predicate":    map[string]any{"type": "string"},
+					"truth_class":  map[string]any{"type": "string"},
+				}),
+				"required": auditedWriteRequired("knowledge_id", "entity_id", "predicate"),
+			},
+		},
 	}
 }
 
@@ -154,6 +250,16 @@ func (s *Server) invokeTool(name string, args map[string]any) (string, error) {
 		return s.agentRunGet(args)
 	case ToolAgentRunList:
 		return s.agentRunList(args)
+	case ToolFactUpsert:
+		return s.factUpsert(args)
+	case ToolEvidenceUpsert:
+		return s.evidenceUpsert(args)
+	case ToolEvidenceLink:
+		return s.evidenceLink(args)
+	case ToolKnowledgeUpsert:
+		return s.knowledgeUpsert(args)
+	case ToolKnowledgeLink:
+		return s.knowledgeLink(args)
 	default:
 		return "", fmt.Errorf("unknown tool %q", name)
 	}
