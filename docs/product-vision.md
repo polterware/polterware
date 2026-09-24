@@ -306,8 +306,8 @@ Provider credentials remain in provider CLI or operating-system credential store
 6. **Audited MCP writes** — narrow semantic mutations with required `summary`, `rationale`, and `agent_run_id`.
 7. **CLI** — `polterware init | scan | context | drift` sharing the core.
 8. **Unified Change History** — Agents → History as one feed of justified human + agent model changes (filters, envelope detail). See [`architecture/unified-change-history.md`](architecture/unified-change-history.md).
-9. **Structured SDD and Change Gates** — later, after the wedge validates.
-10. **Web App and Cloud** — after the local model is stable.
+9. **Structured SDD and Change Gates** — later, after the wedge validates. Post-wedge local and Cloud backlog: [`architecture/post-wedge-direction.md`](architecture/post-wedge-direction.md), [ADR 0005](adr/0005-post-wedge-cloud-and-enrichment-boundary.md).
+10. **Web App and Cloud** — after the local model is stable. Cloud continuity thesis and anti-features: [ADR 0005](adr/0005-post-wedge-cloud-and-enrichment-boundary.md).
 
 Each phase requires its own specification and acceptance criteria. Later phases must not be represented as shipped merely because their concepts are documented here.
 

@@ -38,13 +38,6 @@ function isIntegrationDetailSection(value: string): value is IntegrationDetailSe
   return Object.prototype.hasOwnProperty.call(DETAIL_SECTION_IDS, value);
 }
 
-function integrationTone(status: WorkspaceIntegration["status"]): "healthy" | "danger" | "warn" | "muted" {
-  if (status === "connected") return "healthy";
-  if (status === "error") return "danger";
-  if (status === "disabled") return "warn";
-  return "muted";
-}
-
 function syncTone(result: WorkspaceIntegrationSyncRun["result"]): "healthy" | "warn" | "danger" | "syncing" {
   if (result === "success") return "healthy";
   if (result === "partial") return "warn";
@@ -83,15 +76,6 @@ export function IntegrationDetail(props: {
           <DetailPanel.Header
             icon={<NodeIcon name={providerIconKey(integration())} size={16} brand={false} />}
             title={integration().name}
-            status={
-              <StatusChip
-                tone={integrationTone(props.status ?? integration().status)}
-                label={props.status ?? integration().status}
-              />
-            }
-            subtitle={[integration().environment, integration().lastSync ? `Synced ${integration().lastSync}` : ""]
-              .filter(Boolean)
-              .join(" · ")}
           >
             <DetailPanel.Actions>
               <DetailPanel.PrimaryAction
@@ -195,6 +179,7 @@ export function IntegrationDetail(props: {
             <DetailPanel.Rail>
               <DetailPanel.Section title="Connection">
                 <DetailPanel.Properties>
+                  <DetailPanel.Property label="Status" value={props.status ?? integration().status} />
                   <DetailPanel.Property label="Connection" value={integration().connectionLabel} />
                   <DetailPanel.Property label="Environment" value={integration().environment} />
                   <DetailPanel.Property label="Last sync" value={integration().lastSync} />

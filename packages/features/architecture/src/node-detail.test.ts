@@ -70,10 +70,12 @@ describe("ArchitectureNodeDetail composition contract", () => {
     expect(detailSource).not.toContain("DetailPanel.Metric");
     expect(detailSource).toContain("DetailPanel.Action");
     expect(detailSource).toContain("StatusChip");
-    expect(detailSource).toContain("architectureLifecycleTone");
-    expect(detailSource).toContain("architectureLinkStatusTone");
+    expect(detailSource).toContain("architectureLifecycleLabel");
+    expect(detailSource).toContain("architectureLinkStatusLabel");
     expect(detailSource).toContain("connectionEvidenceTone");
     expect(detailSource).toContain("connectionEvidenceLabel");
+    expect(detailSource).not.toContain("architectureLifecycleTone");
+    expect(detailSource).not.toContain("architectureLinkStatusTone");
     // Evidence must not be presented as raw string alone without StatusChip
     expect(detailSource).not.toMatch(
       /DataTable\.Cell>\{\s*connection\.evidence\s*\?\s*"Proven"\s*:\s*"Unproven"\s*\}/,

@@ -11,7 +11,6 @@ import type {
   WorkspaceSpecFeature,
 } from "@polterware/feature-shell";
 import { KnowledgeDocumentNotFound, KnowledgeDocumentShell } from "./knowledge-document-shell";
-import { specStatusTone } from "./knowledge-document-helpers";
 import { checklistHasOpenItems, checklistProgress } from "./spec-templates";
 
 const ARTIFACT_TABS = [
@@ -64,10 +63,6 @@ export function SpecFeatureDetail(props: {
             <DetailPanel.Header
               icon={<FileText size={16} />}
               title={feature().title}
-              status={<StatusChip tone={specStatusTone(feature().status)} label={feature().status} />}
-              subtitle={["Feature", feature().owner, `Updated ${feature().updatedAt}`]
-                .filter(Boolean)
-                .join(" · ")}
             >
               <Show when={props.onSetStatus || props.onArchive}>
                 <DetailPanel.Actions>

@@ -69,9 +69,9 @@ function readStringMetadata(
 
 function readEdgeFlowPref(): boolean {
   try {
-    return localStorage.getItem(EDGE_FLOW_PREF_KEY) !== "0";
+    return localStorage.getItem(EDGE_FLOW_PREF_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -238,8 +238,32 @@ export function ArchitectureView(props: {
   const [revision, setRevision] = createSignal(0);
   const [saveStatus, setSaveStatus] = createSignal<SaveStatus>("clean");
   const [envId, setEnvId] = createSignal<string | "all">("all");
+  // Defer canvas mount two frames after loading ends so setWorkspace / layout
+  // parse do not compete with the same paint as ArchitectureCanvas DOM/SVG.
+  const [canvasMountReady, setCanvasMountReady] = createSignal(!props.loading);
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
   const outgoingTarget = createDetailPanelSelector((state) => state.outgoingTarget);
+
+  createEffect(() => {
+    if (props.loading) {
+      setCanvasMountReady(false);
+      return;
+    }
+    let cancelled = false;
+    let outerFrame = 0;
+    let innerFrame = 0;
+    outerFrame = requestAnimationFrame(() => {
+      innerFrame = requestAnimationFrame(() => {
+        if (!cancelled) setCanvasMountReady(true);
+      });
+    });
+    onCleanup(() => {
+      cancelled = true;
+      cancelAnimationFrame(outerFrame);
+      cancelAnimationFrame(innerFrame);
+    });
+  });
+
   /** Revision we last persisted successfully — used to ignore autosave echo reloads. */
   let lastLocalSaveRevision: number | null = null;
   /** Set before persist so workspace revision bumps cannot reload mid-save. */
@@ -663,11 +687,11 @@ export function ArchitectureView(props: {
 
   const canvasPanel = () => (
     <div class="relative flex h-full min-h-0 min-w-0 flex-1 flex-col">
-      <Show when={props.loading}>
+      <Show when={props.loading || !canvasMountReady()}>
         <PageLoading label="Loading architecture…" />
       </Show>
       {/* Keep the fixture canvas usable when a local preview reports a soft error. */}
-      <Show when={!props.loading}>
+      <Show when={!props.loading && canvasMountReady()}>
         <Show when={props.error}>
           <div class="px-4 pt-2">
             <p class="mb-2 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] px-2.5 py-1 text-[11px] text-[var(--color-text-muted)]">

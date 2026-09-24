@@ -2,11 +2,9 @@ import { Show } from "solid-js";
 import {
   DetailPanel,
   Shield,
-  StatusChip,
 } from "@polterware/frontend-design-system";
 import type { WorkspaceConstitution } from "@polterware/feature-shell";
 import { KnowledgeDocumentNotFound, KnowledgeDocumentShell } from "./knowledge-document-shell";
-import { libraryStatusTone } from "./knowledge-document-helpers";
 
 export function ConstitutionDetail(props: {
   constitution: WorkspaceConstitution | null | undefined;
@@ -29,17 +27,6 @@ export function ConstitutionDetail(props: {
           <DetailPanel.Header
             icon={<Shield size={16} />}
             title={constitution().title}
-            status={
-              constitution().status ? (
-                <StatusChip
-                  tone={libraryStatusTone(constitution().status)}
-                  label={constitution().status}
-                />
-              ) : undefined
-            }
-            subtitle={["Constitution", constitution().owner, `Updated ${constitution().updatedAt}`]
-              .filter(Boolean)
-              .join(" · ")}
           >
             <Show when={props.onArchive}>
               <DetailPanel.Actions>

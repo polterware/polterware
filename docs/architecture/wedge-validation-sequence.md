@@ -6,7 +6,7 @@ Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`docs/prod
 
 ## Next implementation slice
 
-Wedge B1–B9 complete for local validation. Next product work is outside this sequence (or post-wedge gates), not another B-slice foundation.
+Wedge B1–B9 complete for local validation. Next product work is outside this sequence (or post-wedge gates), not another B-slice foundation. Post-wedge Cloud, enrichment, Context Oracle, and local backlog direction: [ADR 0005](../adr/0005-post-wedge-cloud-and-enrichment-boundary.md) and [`post-wedge-direction.md`](post-wedge-direction.md).
 
 B9 (Unified Change History) is implemented: Agents → History lists justified `human` + `agent` changes; Desktop semantic Knowledge/PPM writes require `summary` + `rationale`. See [`unified-change-history.md`](unified-change-history.md).
 

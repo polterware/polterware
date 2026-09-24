@@ -75,16 +75,12 @@ export function ArchitectureViewDetail(props: {
         {(v) => {
           const members = () => membershipRows(v());
           const membershipKnown = () => hasMembershipList(v());
-          const nodeLabel = () => `${v().nodeCount} ${v().nodeCount === 1 ? "node" : "nodes"}`;
 
           return (
             <>
               <DetailPanel.Header
                 icon={<Eye size={16} />}
                 title={v().name}
-                subtitle={[nodeLabel(), v().updated ? `Updated ${v().updated}` : ""]
-                  .filter(Boolean)
-                  .join(" · ")}
               >
                 <DetailPanel.Actions>
                   <DetailPanel.PrimaryAction

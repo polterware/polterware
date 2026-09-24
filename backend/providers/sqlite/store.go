@@ -226,7 +226,7 @@ func (s *Store) UpdateLayout(projectID string, expectedRevision int64, body stri
 	if err != nil {
 		return updated, err
 	}
-	_, _ = s.SyncProjectModel(projectID)
+	_, _ = s.syncArchitectureLayout(projectID, updated.BodyJSON, true)
 	return updated, nil
 }
 
@@ -415,6 +415,3 @@ func nullable(value string) any {
 	}
 	return value
 }
-
-
-

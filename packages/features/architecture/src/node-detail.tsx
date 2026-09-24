@@ -10,10 +10,8 @@ import { FileText, Link2, Network } from "@polterware/frontend-design-system";
 import { NodeIcon } from "./domain/node-icon";
 import {
   architectureLifecycleLabel,
-  architectureLifecycleTone,
   architectureLinkResourceCaption,
   architectureLinkStatusLabel,
-  architectureLinkStatusTone,
   connectionEvidenceLabel,
   connectionEvidenceTone,
 } from "./node-detail-helpers";
@@ -62,19 +60,6 @@ export function ArchitectureNodeDetail(props: {
               <DetailPanel.Header
                 icon={<NodeIcon type={n().kind} name={n().kind} size={16} />}
                 title={n().label}
-                status={
-                  <>
-                    <StatusChip
-                      tone={architectureLifecycleTone(n().lifecycle)}
-                      label={architectureLifecycleLabel(n().lifecycle)}
-                    />
-                    <StatusChip
-                      tone={architectureLinkStatusTone(n().linkStatus)}
-                      label={architectureLinkStatusLabel(n().linkStatus)}
-                    />
-                  </>
-                }
-                subtitle={[n().kind, n().environment].filter(Boolean).join(" · ")}
               >
                 <Show when={props.onOpenOnCanvas || canLink()}>
                   <DetailPanel.Actions>
@@ -168,10 +153,27 @@ export function ArchitectureNodeDetail(props: {
                     </DetailPanel.Section>
                   </Show>
                 </DetailPanel.Main>
-                <Show when={linkCaption() || n().role || n().owner || n().environment}>
+                <Show
+                  when={
+                    linkCaption() ||
+                    n().role ||
+                    n().owner ||
+                    n().environment ||
+                    n().lifecycle ||
+                    n().linkStatus
+                  }
+                >
                   <DetailPanel.Rail>
                     <DetailPanel.Section title="Properties">
                       <DetailPanel.Properties>
+                        <DetailPanel.Property
+                          label="Lifecycle"
+                          value={architectureLifecycleLabel(n().lifecycle)}
+                        />
+                        <DetailPanel.Property
+                          label="Link"
+                          value={architectureLinkStatusLabel(n().linkStatus)}
+                        />
                         <DetailPanel.Property label="Resource" value={linkCaption()} />
                         <DetailPanel.Property label="Role" value={n().role} />
                         <DetailPanel.Property label="Owner" value={n().owner} />

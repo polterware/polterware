@@ -26,9 +26,6 @@ export function SourceDetail(props: {
           <DetailPanel.Header
             icon={<FileText size={16} />}
             title={source().title}
-            subtitle={["Source", source().owner, `Updated ${source().updatedAt}`]
-              .filter(Boolean)
-              .join(" · ")}
           >
             <Show when={props.onArchive}>
               <DetailPanel.Actions>

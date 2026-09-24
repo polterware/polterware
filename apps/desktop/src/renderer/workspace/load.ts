@@ -64,6 +64,16 @@ export type WorkspaceSnapshot = {
   rawKnowledge: Record<string, unknown>[];
 };
 
+type ProjectMetadata = {
+  rawProjects: Record<string, unknown>[];
+  rawEnvironments: Record<string, unknown>[];
+  environments: EnvironmentItem[];
+};
+
+export type ProjectCatalog = ProjectMetadata & {
+  projects: ProjectSwitcherItem[];
+};
+
 const emptySettings: ProjectGeneralSettings = {
   name: "",
   description: "",
@@ -105,43 +115,49 @@ function core() {
   return window.polterware.core;
 }
 
-export async function loadProjects(currentProjectId?: string): Promise<{
-  projects: ProjectSwitcherItem[];
-  rawProjects: Record<string, unknown>[];
-  environments: EnvironmentItem[];
-}> {
-  const listed = asRecord(await core().projects.list());
+async function loadProjectMetadata(api = core()): Promise<ProjectMetadata> {
+  const listed = asRecord(await api.projects.list());
   const rawProjects = asObjectArray(listed.projects);
-  const environments: EnvironmentItem[] = [];
-  for (const project of rawProjects) {
-    const listedEnvs = asRecord(await core().projects.listEnvironments({ projectId: asString(project.id) }));
-    environments.push(...mapEnvironments(asObjectArray(listedEnvs.environments)));
-  }
+  const environmentResults = await Promise.all(rawProjects.map(async (project) => {
+    const listedEnvs = asRecord(await api.projects.listEnvironments({ projectId: asString(project.id) }));
+    return asObjectArray(listedEnvs.environments);
+  }));
+  const rawEnvironments = environmentResults.flat();
+  const environments = mapEnvironments(rawEnvironments);
+  return { rawProjects, rawEnvironments, environments };
+}
+
+export async function loadProjects(currentProjectId?: string): Promise<ProjectCatalog> {
+  const metadata = await loadProjectMetadata();
   return {
-    projects: mapProjects(rawProjects, environments, currentProjectId),
-    rawProjects,
-    environments,
+    ...metadata,
+    projects: mapProjects(metadata.rawProjects, metadata.environments, currentProjectId),
   };
 }
 
-export async function loadWorkspace(projectId: string): Promise<WorkspaceSnapshot> {
+export async function loadWorkspace(
+  projectId: string,
+  catalog?: ProjectCatalog,
+): Promise<WorkspaceSnapshot> {
   const api = core();
-  const health = asRecord(await api.health.getStoreHealth());
-  const listed = asRecord(await api.projects.list());
-  const rawProjects = asObjectArray(listed.projects);
-  const environments: EnvironmentItem[] = [];
-  for (const project of rawProjects) {
-    const listedEnvs = asRecord(await api.projects.listEnvironments({ projectId: asString(project.id) }));
-    environments.push(...mapEnvironments(asObjectArray(listedEnvs.environments)));
-  }
-  const projectEnvironments = environments.filter((item) => item.projectId === projectId);
-  const currentEnvRecords = (await Promise.all(rawProjects.map(async (project) => {
-    if (asString(project.id) !== projectId) return [];
-    const listedEnvs = asRecord(await api.projects.listEnvironments({ projectId }));
-    return asObjectArray(listedEnvs.environments);
-  }))).flat();
-
-  const [settingsRes, layoutRes, resourcesRes, knowledgeRes, entitiesRes, linksRes, providersRes, connectionsRes, integrationResourcesRes, syncRunsRes, viewsRes] = await Promise.all([
+  const metadataPromise: Promise<ProjectMetadata> = catalog
+    ? Promise.resolve(catalog)
+    : loadProjectMetadata(api);
+  const [
+    healthRes,
+    settingsRes,
+    layoutRes,
+    resourcesRes,
+    knowledgeRes,
+    entitiesRes,
+    linksRes,
+    providersRes,
+    connectionsRes,
+    integrationResourcesRes,
+    syncRunsRes,
+    viewsRes,
+  ] = await Promise.all([
+    api.health.getStoreHealth(),
     api.projects.getSettings({ projectId }),
     api.architecture.getLayout({ projectId }).catch(() => ({})),
     api.architecture.listResources({ projectId }),
@@ -153,38 +169,74 @@ export async function loadWorkspace(projectId: string): Promise<WorkspaceSnapsho
     api.integrations.listResources({ projectId }),
     api.integrations.listSyncRuns({ projectId }),
     api.architecture.listViews({ projectId }),
-  ]);
+  ] as const);
 
+  const metadata = await metadataPromise;
+  const health = asRecord(healthRes);
+  const { rawProjects, rawEnvironments, environments } = metadata;
+  const projectEnvironments = environments.filter((item) => item.projectId === projectId);
+  const currentEnvRecords = rawEnvironments.filter((item) => asString(item.projectId) === projectId);
+  // Architecture + project shell first — needed for the default route paint.
   const resources = mapResources(asObjectArray(asRecord(resourcesRes).resources), projectEnvironments);
+  const layout = asRecord(asRecord(layoutRes).layout);
+  const projects = mapProjects(rawProjects, environments, projectId);
+  const settings = mapSettings(
+    asRecord(asRecord(settingsRes).settings),
+    rawProjects.find((item) => asString(item.id) === projectId),
+  );
+  const settingsEnvironments = mapSettingsEnvironments(currentEnvRecords, resources);
+  const views = mapViews(asObjectArray(asRecord(viewsRes).views));
+
+  // Yield between map groups so the post-Promise.all burst is not one long task.
+  await Promise.resolve();
+
   const knowledgeItems = asObjectArray(asRecord(knowledgeRes).items);
   const ppmEntities = mapPpmEntities(asObjectArray(asRecord(entitiesRes).entities));
   const linksByKnowledge = mapKnowledgeEntityLinks(asObjectArray(asRecord(linksRes).links), ppmEntities);
-  const integrationResources = mapIntegrationResources(asObjectArray(asRecord(integrationResourcesRes).resources), projectEnvironments);
+  const documents = mapDocuments(knowledgeItems, linksByKnowledge);
+  const adrs = mapAdrs(knowledgeItems, linksByKnowledge);
+  const runbooks = mapRunbooks(knowledgeItems, linksByKnowledge);
+  const sources = mapSources(knowledgeItems, linksByKnowledge);
+  const specFeatures = mapSpecFeatures(knowledgeItems);
+  const constitution = mapConstitution(knowledgeItems);
+
+  await Promise.resolve();
+
+  const integrationResources = mapIntegrationResources(
+    asObjectArray(asRecord(integrationResourcesRes).resources),
+    projectEnvironments,
+  );
   const providersRaw = asObjectArray(asRecord(providersRes).providers);
-  const integrations = mapConnections(asObjectArray(asRecord(connectionsRes).connections), providersRaw, projectEnvironments, integrationResources);
-  const layout = asRecord(asRecord(layoutRes).layout);
+  const integrations = mapConnections(
+    asObjectArray(asRecord(connectionsRes).connections),
+    providersRaw,
+    projectEnvironments,
+    integrationResources,
+  );
+  const providers = mapProviders(providersRaw, integrations);
+  const syncRuns = mapSyncRuns(asObjectArray(asRecord(syncRunsRes).runs));
 
   return {
     available: true,
     quarantined: health.quarantined === true,
     healthMessage: asString(health.message),
-    projects: mapProjects(rawProjects, environments, projectId),
+    projects,
     environments,
-    settingsEnvironments: mapSettingsEnvironments(currentEnvRecords, resources),
-    settings: mapSettings(asRecord(asRecord(settingsRes).settings), rawProjects.find((item) => asString(item.id) === projectId)),
+    settingsEnvironments,
+    settings,
     resources,
-    documents: mapDocuments(knowledgeItems, linksByKnowledge),
-    adrs: mapAdrs(knowledgeItems, linksByKnowledge),
-    runbooks: mapRunbooks(knowledgeItems, linksByKnowledge),
-    sources: mapSources(knowledgeItems, linksByKnowledge),
-    specFeatures: mapSpecFeatures(knowledgeItems),
-    constitution: mapConstitution(knowledgeItems),
+    documents,
+    adrs,
+    runbooks,
+    sources,
+    specFeatures,
+    constitution,
     ppmEntities,
-    providers: mapProviders(providersRaw, integrations),
+    providers,
     integrations,
     integrationResources,
-    syncRuns: mapSyncRuns(asObjectArray(asRecord(syncRunsRes).runs)),
-    views: mapViews(asObjectArray(asRecord(viewsRes).views)),
+    syncRuns,
+    views,
     layoutBody: asString(layout.bodyJson),
     layoutRevision: asNumber(layout.revision),
     rawKnowledge: knowledgeItems,

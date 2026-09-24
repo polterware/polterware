@@ -3,10 +3,8 @@ import {
   DetailPanel,
   Network,
   Package,
-  StatusChip,
 } from "@polterware/frontend-design-system";
 import type { Resource } from "./types";
-import { healthTone } from "./resource-status";
 
 export function ResourceDetail(props: {
   resource: Resource;
@@ -18,10 +16,6 @@ export function ResourceDetail(props: {
       <DetailPanel.Header
         icon={<Package size={16} />}
         title={resource().name}
-        status={<StatusChip tone={healthTone(resource().status)} label={resource().status} />}
-        subtitle={[resource().type, resource().provider, resource().environment]
-          .filter(Boolean)
-          .join(" · ")}
       >
         <Show when={props.onOpenArchitecture}>
           <DetailPanel.Actions>
@@ -58,6 +52,7 @@ export function ResourceDetail(props: {
         <DetailPanel.Rail>
           <DetailPanel.Section title="Properties">
             <DetailPanel.Properties>
+              <DetailPanel.Property label="Status" value={resource().status} />
               <DetailPanel.Property label="Type" value={resource().type} />
               <DetailPanel.Property label="Provider" value={resource().provider} />
               <DetailPanel.Property label="Environment" value={resource().environment} />

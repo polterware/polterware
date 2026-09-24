@@ -3,9 +3,11 @@ import { render } from "solid-js/web";
 import { App } from "./App";
 import { CommanderApp } from "./CommanderApp";
 import { attachDesktopDropGuards } from "./desktop-drop-guards.js";
+import { applyShellChromeFromBootQuery } from "./shell-chrome-boot.js";
 import "./styles.css";
 
 attachDesktopDropGuards();
+applyShellChromeFromBootQuery();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("root missing");

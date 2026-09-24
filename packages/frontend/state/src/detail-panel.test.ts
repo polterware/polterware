@@ -274,6 +274,16 @@ describe("detailPanelStore", () => {
     });
   });
 
+  it("keeps the panel hidden while the collection is loading on first open", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "loading", targets: [] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: null,
+      collectionStatus: "loading",
+      presence: "hidden",
+    });
+  });
+
   it("selects the first target when loading in the current scope becomes ready", () => {
     detailPanelStore.getState().registerCollection({ scopeId, status: "loading", targets: [] });
     detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
@@ -283,6 +293,19 @@ describe("detailPanelStore", () => {
       outgoingTarget: null,
       presence: "visible",
       mode: "open",
+    });
+  });
+
+  it("keeps the panel visible through same-scope loading when it was already open", () => {
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    expect(detailPanelStore.getState().presence).toBe("visible");
+
+    detailPanelStore.getState().registerCollection({ scopeId, status: "loading", targets: [] });
+
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeTarget: null,
+      collectionStatus: "loading",
+      presence: "visible",
     });
   });
 

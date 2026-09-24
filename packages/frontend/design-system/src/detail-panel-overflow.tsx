@@ -24,7 +24,7 @@ export function DetailPanelOverflow(props: DetailPanelOverflowProps) {
   return (
     <DropdownMenu positioning={{ placement: "bottom-end" }}>
       <DropdownMenuTrigger
-        class="pw-detail-panel__action pw-detail-panel__overflow-trigger"
+        class="pw-detail-panel__action pw-detail-panel__overflow-trigger control-field control-field-sm !rounded-full !p-0"
         aria-label={props.label ?? "More actions"}
       >
         <MoreHorizontal size={14} aria-hidden />

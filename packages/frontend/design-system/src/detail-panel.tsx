@@ -63,10 +63,6 @@ export type DetailPanelBodyProps = {
 export type DetailPanelHeaderProps = {
   icon?: JSX.Element;
   title: JSX.Element;
-  /** Status chips rendered beside the title. */
-  status?: JSX.Element;
-  /** Quiet one-line context under the title (kind, provider, counts). */
-  subtitle?: JSX.Element;
   children?: JSX.Element;
   class?: string;
 };
@@ -456,23 +452,13 @@ function DetailPanelHeader(props: DetailPanelHeaderProps) {
   return (
     <header class={`pw-detail-panel__header ${props.class ?? ""}`}>
       <div class="pw-detail-panel__identity">
-        <div class="pw-detail-panel__identity-content">
+        <div class="pw-detail-panel__identity-content !rounded-full">
           <Show when={props.icon}>
             <span class="pw-detail-panel__header-icon" aria-hidden>
               {props.icon}
             </span>
           </Show>
-          <div class="pw-detail-panel__heading">
-            <div class="pw-detail-panel__title-row">
-              <h2 class="pw-detail-panel__title">{props.title}</h2>
-              <Show when={props.status}>
-                <span class="pw-detail-panel__status">{props.status}</span>
-              </Show>
-            </div>
-            <Show when={props.subtitle}>
-              <p class="pw-detail-panel__subtitle">{props.subtitle}</p>
-            </Show>
-          </div>
+          <h2 class="pw-detail-panel__title">{props.title}</h2>
         </div>
         <Show when={context.mode() === "collapsed"}>
           <button
@@ -542,7 +528,7 @@ function DetailPanelHeader(props: DetailPanelHeaderProps) {
 }
 
 const detailPanelIconControlClass =
-  "pw-detail-panel__action focus-visible:outline-none";
+  "pw-detail-panel__action control-field control-field-sm !rounded-full !p-0 focus-visible:outline-none";
 
 function DetailPanelAction(props: DetailPanelActionProps) {
   useDetailPanel("Action");

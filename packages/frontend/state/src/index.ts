@@ -112,6 +112,11 @@ export const detailPanelStore = createStore<DetailPanelState>()(
           }
           const isScopeChange = state.activeScope !== scopeId;
           const layoutMode = sessionLayoutMode(state);
+          // Keep the panel off-screen during loading so the open animation does
+          // not compete with workspace hydrate / window show. Reveal on ready.
+          // Same-scope refresh while already visible keeps the panel open.
+          const nextPresence =
+            !isScopeChange && state.presence === "visible" ? "visible" : "hidden";
           set({
             activeScope: scopeId,
             activeTarget: null,
@@ -119,7 +124,7 @@ export const detailPanelStore = createStore<DetailPanelState>()(
             mode: isScopeChange ? layoutMode : state.mode,
             restoreMode: isScopeChange ? layoutMode : state.restoreMode,
             outgoingTarget: null,
-            presence: "visible",
+            presence: nextPresence,
           });
           return;
         }

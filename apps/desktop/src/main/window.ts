@@ -79,6 +79,7 @@ function configureWindowSecurity(window: BrowserWindow): void {
 }
 
 function loadRenderer(window: BrowserWindow, surface?: "commander"): void {
+  const reduceTransparencyParam = mainWindowReduceTransparency ? "1" : "0";
   const rendererUrl = process.env["ELECTRON_RENDERER_URL"];
 
   if (!app.isPackaged && rendererUrl) {
@@ -86,12 +87,16 @@ function loadRenderer(window: BrowserWindow, surface?: "commander"): void {
     if (surface) {
       url.searchParams.set("surface", surface);
     }
+    url.searchParams.set("reduceTransparency", reduceTransparencyParam);
     void window.loadURL(url.toString());
     return;
   }
 
+  const search = new URLSearchParams();
+  if (surface) search.set("surface", surface);
+  search.set("reduceTransparency", reduceTransparencyParam);
   void window.loadFile(join(__dirname, "../renderer/index.html"), {
-    search: surface ? `surface=${surface}` : undefined,
+    search: search.toString(),
   });
 }
 

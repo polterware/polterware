@@ -66,7 +66,7 @@ describe("DetailPanel", () => {
         >
           <DetailPanel.Collection>Collection</DetailPanel.Collection>
           <DetailPanel.Content>
-            <DetailPanel.Header title="Record" subtitle="Service · AWS" />
+            <DetailPanel.Header title="Record" />
             <DetailPanel.Body>
               <DetailPanel.Main>
                 <DetailPanel.Section title="Overview">Description</DetailPanel.Section>
@@ -92,7 +92,7 @@ describe("DetailPanel", () => {
     const record = host.querySelector(".pw-detail-panel__record")!;
     expect(record.querySelector(":scope > .pw-detail-panel__main h3")?.textContent).toBe("Overview");
     expect(record.querySelector(":scope > aside.pw-detail-panel__rail")).not.toBeNull();
-    expect(host.querySelector(".pw-detail-panel__subtitle")?.textContent).toBe("Service · AWS");
+    expect(host.querySelector(".pw-detail-panel__subtitle")).toBeNull();
     expect(
       Array.from(host.querySelectorAll(".pw-detail-panel__property dt"), (dt) => dt.textContent),
     ).toEqual(["Provider", "Region", "Tags"]);
@@ -192,7 +192,10 @@ describe("DetailPanel", () => {
       /\.pw-detail-panel-root\s*{[^}]*container-type: size;/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__panel\s*{[^}]*inset: 0;[^}]*height: 100%;[^}]*transform: translateY\(50cqh\);[^}]*transition: transform[^}]*will-change: transform;/,
+      /\.pw-detail-panel__panel\s*{[^}]*inset: 0;[^}]*height: 100%;[^}]*transform: translateY\(50cqh\);[^}]*transition: transform/,
+    );
+    expect(css).toMatch(
+      /\.pw-detail-panel-root\[data-settling="true"\] \.pw-detail-panel__panel\s*{[^}]*will-change: transform;/,
     );
     expect(css).toMatch(
       /data-mode="collapsed"\] \.pw-detail-panel__panel\s*{[^}]*transform: translateY\(calc\(100cqh - var\(--detail-panel-collapsed-height\)\)\);/,
@@ -249,13 +252,10 @@ describe("DetailPanel", () => {
       /data-mode="collapsed"\] \.pw-detail-panel__title\s*{/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__identity-content\s*{[^}]*position: relative;[^}]*isolation: isolate;[^}]*min-height: var\(--control-height-sm\);[^}]*gap: 10px;[^}]*border-radius: 9999px;/,
+      /\.pw-detail-panel__identity-content\s*{[^}]*position: relative;[^}]*isolation: isolate;[^}]*height: var\(--control-height-sm\);[^}]*gap: 8px;/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__identity-content::before\s*{[^}]*inset: 0;[^}]*border-radius: inherit;[^}]*background-color: var\(--color-surface-subtle\);[^}]*var\(--edge-light-field-highlight\)[^}]*var\(--edge-light-field-rim\)[^}]*var\(--detail-panel-title-chrome-alpha\);/,
-    );
-    expect(css).toMatch(
-      /data-mode="collapsed"\] \.pw-detail-panel__identity-content\s*{[^}]*padding: 2px 8px;/,
+      /\.pw-detail-panel__identity-content::before\s*{[^}]*inset-block: 0;[^}]*inset-inline: -1rem;[^}]*border-radius: inherit;[^}]*background-color: var\(--color-surface-subtle\);[^}]*var\(--edge-light-field-highlight\)[^}]*var\(--edge-light-field-rim\)[^}]*var\(--detail-panel-title-chrome-alpha\);/,
     );
     expect(css).toContain("--detail-panel-title-chrome-alpha: 0;");
     expect(css).toMatch(
@@ -263,16 +263,13 @@ describe("DetailPanel", () => {
     );
     expect(css).not.toContain("padding-inline: 1rem;");
     expect(css).toMatch(
-      /\.pw-detail-panel__header-icon\s*{[^}]*width: 28px;[^}]*height: 28px;[^}]*flex: 0 0 28px;[^}]*border-radius: var\(--radius-control\);/,
+      /\.pw-detail-panel__header-icon\s*{[^}]*width: 16px;[^}]*height: 16px;[^}]*flex: 0 0 16px;/,
     );
     expect(css).toMatch(
       /\.pw-detail-panel__header-icon svg\s*{[^}]*transition: transform var\(--detail-panel-snap-duration\)[^}]*var\(--detail-panel-snap-ease\);/,
     );
     expect(css).toMatch(
       /data-mode="collapsed"\] \.pw-detail-panel__header-icon svg\s*{[^}]*transform: scale\(0\.875\);/,
-    );
-    expect(css).toMatch(
-      /data-mode="collapsed"\] \.pw-detail-panel__header-icon\s*{[^}]*background-color: transparent;/,
     );
     expect(css).not.toMatch(
       /data-mode="collapsed"\] \.pw-detail-panel__header-icon\s*{[^}]*(?:width|height|flex-basis):/,
@@ -334,20 +331,22 @@ describe("DetailPanel", () => {
     expect(css).not.toContain("row-resize");
     expect(css).not.toContain("pw-detail-panel__resize-handle");
     expect(css).toMatch(
-      /\.pw-detail-panel__header\s*{[^}]*display: flex;[^}]*align-items: center;[^}]*border-bottom: 1px solid var\(--color-border-subtle\);[^}]*padding: 10px 10px 10px 16px;/,
+      /\.pw-detail-panel__header\s*{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\);[^}]*border-bottom: 1px solid var\(--color-border-subtle\);[^}]*gap: 4px;/,
     );
     expect(css).toMatch(
       /data-mode="collapsed"\] \.pw-detail-panel__header\s*{[^}]*border-bottom: 0;/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__identity\s*{[^}]*display: flex;[^}]*flex: 1 1 auto;/,
-    );
-    expect(css).not.toContain("justify-self: center;");
-    expect(css).toMatch(
-      /\.pw-detail-panel__actions \+ \.pw-detail-panel__global-actions\s*{[^}]*border-left: 1px solid var\(--color-border-subtle\);/,
+      /\.pw-detail-panel__identity\s*{[^}]*grid-column: 2;[^}]*grid-row: 1;[^}]*justify-self: center;/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__action\s*{[^}]*border-radius: var\(--radius-control\);[^}]*background: transparent;/,
+      /\.pw-detail-panel__actions\s*{[^}]*grid-column: 1;[^}]*grid-row: 1;[^}]*justify-content: flex-start;[^}]*justify-self: start;/,
+    );
+    expect(css).toMatch(
+      /\.pw-detail-panel__global-actions\s*{[^}]*grid-column: 3;[^}]*grid-row: 1;[^}]*justify-content: flex-end;[^}]*justify-self: end;[^}]*margin-inline-start: 0;/,
+    );
+    expect(css).toMatch(
+      /\.pw-detail-panel__actions\s*{[^}]*margin-inline-start: 0;/,
     );
     expect(source).toMatch(
       /<Tooltip\.Group>\s*{props\.children}\s*<div class="pw-detail-panel__global-actions">/,
@@ -649,10 +648,12 @@ describe("DetailPanel", () => {
     const collapseButton = host.querySelector<HTMLButtonElement>("[aria-label='Collapse details']")!;
     const domainAction = host.querySelector<HTMLButtonElement>("[aria-label='Edit']")!;
     expect(domainAction.textContent).toBe("");
-    expect(domainAction.classList.contains("pw-detail-panel__action")).toBe(true);
+    expect(domainAction.classList.contains("!rounded-full")).toBe(true);
     expect(domainAction.dataset.tone).toBe("primary");
     expect(domainAction.hasAttribute("title")).toBe(false);
-    expect(collapseButton.classList.contains("pw-detail-panel__action")).toBe(true);
+    expect(collapseButton.classList.contains("control-field")).toBe(true);
+    expect(collapseButton.classList.contains("control-field-sm")).toBe(true);
+    expect(collapseButton.classList.contains("!rounded-full")).toBe(true);
     host.querySelector<HTMLButtonElement>("[aria-label='Maximize details']")!.click();
     await vi.waitFor(() => expect(mode()).toBe("maximized"));
     const collection = host.querySelector<HTMLElement & { inert: boolean }>(
@@ -680,6 +681,7 @@ describe("DetailPanel", () => {
     expect(host.querySelector("[aria-label='Collapse details']")).toBeNull();
     const collapsedIdentity = host.querySelector(".pw-detail-panel__identity-content")!;
     expect(collapsedIdentity.classList.contains("control-field")).toBe(false);
+    expect(collapsedIdentity.classList.contains("!rounded-full")).toBe(true);
     expect(collapsedIdentity.querySelector(".pw-detail-panel__title")?.textContent).toBe(
       "Alpha detail",
     );

@@ -2,11 +2,9 @@ import { Show, type JSX } from "solid-js";
 import {
   DetailPanel,
   BookOpen02Icon,
-  StatusChip,
 } from "@polterware/frontend-design-system";
 import type { WorkspaceRunbook } from "@polterware/feature-shell";
 import { KnowledgeDocumentNotFound, KnowledgeDocumentShell } from "./knowledge-document-shell";
-import { runbookSeverityTone } from "./knowledge-document-helpers";
 
 export function RunbookDetail(props: {
   runbook: WorkspaceRunbook | null | undefined;
@@ -32,15 +30,6 @@ export function RunbookDetail(props: {
           <DetailPanel.Header
             icon={<BookOpen02Icon size={16} />}
             title={runbook().title}
-            status={
-              <StatusChip
-                tone={runbookSeverityTone(runbook().severity)}
-                label={runbook().severity}
-              />
-            }
-            subtitle={["Runbook", runbook().service, runbook().owner]
-              .filter(Boolean)
-              .join(" · ")}
           >
             <Show when={props.onDuplicate || props.onArchive}>
               <DetailPanel.Actions>

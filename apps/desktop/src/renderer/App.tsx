@@ -27,7 +27,13 @@ import { CommandPalette } from "@polterware/feature-commander";
 import { pushToast } from "@polterware/frontend-design-system";
 import { detailPanelStore, matchesShortcut } from "@polterware/frontend-state";
 import { bootstrapPlatform } from "./platform-bootstrap";
-import { emptyWorkspace, loadProjects, loadWorkspace, type WorkspaceSnapshot } from "./workspace/load";
+import {
+  emptyWorkspace,
+  loadProjects,
+  loadWorkspace,
+  type ProjectCatalog,
+  type WorkspaceSnapshot,
+} from "./workspace/load";
 import { shouldOpenCreateProject } from "./workspace/first-project";
 import {
   persistCreatedProject,
@@ -107,13 +113,16 @@ export function App() {
   const [workspace, setWorkspace] = createSignal<WorkspaceSnapshot>(emptyWorkspace());
   const [loading, setLoading] = createSignal(true);
 
-  async function refreshWorkspace(projectId = route().projectId ?? "") {
+  async function refreshWorkspace(
+    projectId = route().projectId ?? "",
+    catalog?: ProjectCatalog,
+  ) {
     if (!projectId) {
       setLoading(false);
       return;
     }
     try {
-      const snapshot = await loadWorkspace(projectId);
+      const snapshot = await loadWorkspace(projectId, catalog);
       setWorkspace(snapshot);
       if (shouldOpenCreateProject({
         coreAvailable: snapshot.available,
@@ -172,7 +181,7 @@ export function App() {
         );
       }
       loadedProjectId = preferredId;
-      await refreshWorkspace(preferredId);
+      await refreshWorkspace(preferredId, listed);
       setBootstrapped(true);
     } catch (error) {
       setWorkspace({

@@ -27,3 +27,5 @@ Living architecture and the research guide live in the Polterware Notion workspa
 - `docs/spec.md` continues to describe shipped Ops/Terminal/Nodes until removal, labeled as scheduled for removal.
 - Agents and humans must not present condemned surfaces as the product story.
 - Canvas may remain a human inspector of the model; it is not the wedge or the category.
+
+See also: [ADR 0005](0005-post-wedge-cloud-and-enrichment-boundary.md) (post-wedge Cloud and enrichment boundary).

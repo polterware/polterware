@@ -74,7 +74,6 @@ import { SourcesEmpty, sourcesFilterEmpty } from "./sources-empty";
 import { SourcesTable } from "./sources-table";
 import { SpecFeatureDetail } from "./spec-feature-detail";
 import {
-  adrStatusTone,
   libraryStatusTone,
   runbookSeverityTone,
   specStatusTone,
@@ -1036,7 +1035,6 @@ export function KnowledgeView(props: {
         {(item) => (
           <DocumentDetail
             document={item()}
-            kindLabel="Doc"
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
               noteBodyChange(item().id, markdown, item().bodyMarkdown);
@@ -1065,8 +1063,6 @@ export function KnowledgeView(props: {
               owner: item().owner,
               entityLinks: item().entityLinks,
             }}
-            kindLabel="ADR"
-            status={{ label: item().status, tone: adrStatusTone(item().status) }}
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
               noteBodyChange(item().id, markdown, item().bodyMarkdown);

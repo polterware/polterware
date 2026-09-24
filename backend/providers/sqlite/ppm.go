@@ -11,7 +11,15 @@ import (
 )
 
 func (s *Store) UpsertPpmEntity(entity ppm.Entity) error {
-	_, err := s.DB.Exec(`INSERT INTO ppm_entities(
+	return s.upsertPpmEntity(entity, false)
+}
+
+func (s *Store) upsertPpmEntityIfChanged(entity ppm.Entity) error {
+	return s.upsertPpmEntity(entity, true)
+}
+
+func (s *Store) upsertPpmEntity(entity ppm.Entity, onlyIfChanged bool) error {
+	query := `INSERT INTO ppm_entities(
 		id,project_id,kind,ref_kind,ref_id,title,truth_class,source,actor,observed_at,created_at,updated_at
 	) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
 	ON CONFLICT(project_id, ref_kind, ref_id) DO UPDATE SET
@@ -20,7 +28,14 @@ func (s *Store) UpsertPpmEntity(entity ppm.Entity) error {
 		source=excluded.source,
 		actor=excluded.actor,
 		observed_at=excluded.observed_at,
-		updated_at=excluded.updated_at`,
+		updated_at=excluded.updated_at`
+	if onlyIfChanged {
+		query += ` WHERE ppm_entities.title IS NOT excluded.title
+			OR ppm_entities.truth_class IS NOT excluded.truth_class
+			OR ppm_entities.source IS NOT excluded.source
+			OR ppm_entities.actor IS NOT excluded.actor`
+	}
+	_, err := s.DB.Exec(query,
 		entity.ID, entity.ProjectID, entity.Kind, entity.RefKind, entity.RefID, entity.Title,
 		entity.TruthClass, entity.Source, entity.Actor,
 		entity.ObservedAt.Format(time.RFC3339), entity.CreatedAt.Format(time.RFC3339), entity.UpdatedAt.Format(time.RFC3339),
@@ -83,14 +98,28 @@ func (s *Store) DeletePpmEntitiesMissingRefs(projectID, refKind string, keepIDs 
 }
 
 func (s *Store) UpsertPpmRelationship(rel ppm.Relationship) error {
-	_, err := s.DB.Exec(`INSERT INTO ppm_relationships(
+	return s.upsertPpmRelationship(rel, false)
+}
+
+func (s *Store) upsertPpmRelationshipIfChanged(rel ppm.Relationship) error {
+	return s.upsertPpmRelationship(rel, true)
+}
+
+func (s *Store) upsertPpmRelationship(rel ppm.Relationship, onlyIfChanged bool) error {
+	query := `INSERT INTO ppm_relationships(
 		id,project_id,subject_entity_id,predicate,object_entity_id,truth_class,source,actor,observed_at,created_at
 	) VALUES(?,?,?,?,?,?,?,?,?,?)
 	ON CONFLICT(project_id, subject_entity_id, predicate, object_entity_id) DO UPDATE SET
 		truth_class=excluded.truth_class,
 		source=excluded.source,
 		actor=excluded.actor,
-		observed_at=excluded.observed_at`,
+		observed_at=excluded.observed_at`
+	if onlyIfChanged {
+		query += ` WHERE ppm_relationships.truth_class IS NOT excluded.truth_class
+			OR ppm_relationships.source IS NOT excluded.source
+			OR ppm_relationships.actor IS NOT excluded.actor`
+	}
+	_, err := s.DB.Exec(query,
 		rel.ID, rel.ProjectID, rel.SubjectEntityID, rel.Predicate, rel.ObjectEntityID,
 		rel.TruthClass, rel.Source, rel.Actor,
 		rel.ObservedAt.Format(time.RFC3339), rel.CreatedAt.Format(time.RFC3339),
@@ -142,68 +171,20 @@ func (s *Store) DeletePpmRelationshipsMissing(projectID, source string, keepIDs 
 
 // SyncProjectModel projects architecture nodes, resources, environments, and canvas edges into PPM.
 func (s *Store) SyncProjectModel(projectID string) (int, error) {
-	now := time.Now().UTC()
-	count := 0
-
 	layout, err := s.GetLayout(projectID)
 	if err != nil && err != sql.ErrNoRows {
 		return 0, err
 	}
-	var keepNodes []string
+	layoutBody := ""
 	if err == nil {
-		for _, node := range ppm.ParseLayoutNodes(layout.BodyJSON) {
-			entity, err := ppm.NewEntity(projectID, ppm.KindComponent, ppm.RefArchitectureNode, node.ID, node.Title, ppm.TruthDeclared, ppm.SourceArchitectureLayout, "system")
-			if err != nil {
-				return 0, err
-			}
-			entity.ObservedAt = now
-			entity.UpdatedAt = now
-			if err := s.UpsertPpmEntity(entity); err != nil {
-				return 0, err
-			}
-			keepNodes = append(keepNodes, node.ID)
-			count++
-		}
+		layoutBody = layout.BodyJSON
 	}
-	if err := s.DeletePpmEntitiesMissingRefs(projectID, ppm.RefArchitectureNode, keepNodes); err != nil {
+	count, err := s.syncArchitectureLayout(projectID, layoutBody, false)
+	if err != nil {
 		return 0, err
 	}
 
-	keepRelIDs := []string{}
-	if err == nil {
-		nodeSet := make(map[string]struct{}, len(keepNodes))
-		for _, id := range keepNodes {
-			nodeSet[id] = struct{}{}
-		}
-		for _, edge := range ppm.ParseLayoutEdges(layout.BodyJSON) {
-			if _, ok := nodeSet[edge.SourceNodeID]; !ok {
-				continue
-			}
-			if _, ok := nodeSet[edge.TargetNodeID]; !ok {
-				continue
-			}
-			subjectID := ppm.EntityID(projectID, ppm.RefArchitectureNode, edge.SourceNodeID)
-			objectID := ppm.EntityID(projectID, ppm.RefArchitectureNode, edge.TargetNodeID)
-			truth := ppm.TruthDeclared
-			if !edge.Evidence {
-				truth = ppm.TruthInferred
-			}
-			rel, err := ppm.NewRelationship(projectID, subjectID, edge.Predicate, objectID, truth, ppm.SourceArchitectureLayout, "system")
-			if err != nil {
-				return 0, err
-			}
-			rel.ObservedAt = now
-			if err := s.UpsertPpmRelationship(rel); err != nil {
-				return 0, err
-			}
-			keepRelIDs = append(keepRelIDs, rel.ID)
-			count++
-		}
-	}
-	if err := s.DeletePpmRelationshipsMissing(projectID, ppm.SourceArchitectureLayout, keepRelIDs); err != nil {
-		return 0, err
-	}
-
+	now := time.Now().UTC()
 	resources, err := s.ListResources(projectID)
 	if err != nil {
 		return 0, err
@@ -245,6 +226,72 @@ func (s *Store) SyncProjectModel(projectID string) (int, error) {
 		count++
 	}
 	if err := s.DeletePpmEntitiesMissingRefs(projectID, ppm.RefEnvironment, keepEnvs); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (s *Store) syncArchitectureLayout(projectID, layoutBody string, onlyIfChanged bool) (int, error) {
+	now := time.Now().UTC()
+	count := 0
+	var keepNodes []string
+	for _, node := range ppm.ParseLayoutNodes(layoutBody) {
+		entity, err := ppm.NewEntity(projectID, ppm.KindComponent, ppm.RefArchitectureNode, node.ID, node.Title, ppm.TruthDeclared, ppm.SourceArchitectureLayout, "system")
+		if err != nil {
+			return 0, err
+		}
+		entity.ObservedAt = now
+		entity.UpdatedAt = now
+		if onlyIfChanged {
+			err = s.upsertPpmEntityIfChanged(entity)
+		} else {
+			err = s.UpsertPpmEntity(entity)
+		}
+		if err != nil {
+			return 0, err
+		}
+		keepNodes = append(keepNodes, node.ID)
+		count++
+	}
+	if err := s.DeletePpmEntitiesMissingRefs(projectID, ppm.RefArchitectureNode, keepNodes); err != nil {
+		return 0, err
+	}
+
+	keepRelIDs := []string{}
+	nodeSet := make(map[string]struct{}, len(keepNodes))
+	for _, id := range keepNodes {
+		nodeSet[id] = struct{}{}
+	}
+	for _, edge := range ppm.ParseLayoutEdges(layoutBody) {
+		if _, ok := nodeSet[edge.SourceNodeID]; !ok {
+			continue
+		}
+		if _, ok := nodeSet[edge.TargetNodeID]; !ok {
+			continue
+		}
+		subjectID := ppm.EntityID(projectID, ppm.RefArchitectureNode, edge.SourceNodeID)
+		objectID := ppm.EntityID(projectID, ppm.RefArchitectureNode, edge.TargetNodeID)
+		truth := ppm.TruthDeclared
+		if !edge.Evidence {
+			truth = ppm.TruthInferred
+		}
+		rel, err := ppm.NewRelationship(projectID, subjectID, edge.Predicate, objectID, truth, ppm.SourceArchitectureLayout, "system")
+		if err != nil {
+			return 0, err
+		}
+		rel.ObservedAt = now
+		if onlyIfChanged {
+			err = s.upsertPpmRelationshipIfChanged(rel)
+		} else {
+			err = s.UpsertPpmRelationship(rel)
+		}
+		if err != nil {
+			return 0, err
+		}
+		keepRelIDs = append(keepRelIDs, rel.ID)
+		count++
+	}
+	if err := s.DeletePpmRelationshipsMissing(projectID, ppm.SourceArchitectureLayout, keepRelIDs); err != nil {
 		return 0, err
 	}
 	return count, nil

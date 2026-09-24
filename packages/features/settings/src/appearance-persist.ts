@@ -29,6 +29,13 @@ export function applyShellChromeMode(reduceTransparency: boolean): ShellChromeMo
   return mode;
 }
 
+/** Read reduceTransparency from the renderer boot query (set by Electron Main). */
+export function readReduceTransparencyFromBootQuery(
+  search = typeof window !== "undefined" ? window.location.search : "",
+): boolean {
+  return new URLSearchParams(search).get("reduceTransparency") === "1";
+}
+
 export function readShellChromeMode(): ShellChromeMode {
   if (typeof document === "undefined") return "vibrancy";
   return document.documentElement.dataset.shellChrome === "solid" ? "solid" : "vibrancy";
@@ -37,8 +44,9 @@ export function readShellChromeMode(): ShellChromeMode {
 export async function hydrateAppearancePreferences(): Promise<AppearancePreferences> {
   const bridge = appearancePreferencesBridge();
   if (!bridge) {
-    applyShellChromeMode(false);
-    return { version: 1, reduceTransparency: false };
+    const reduceTransparency = readReduceTransparencyFromBootQuery();
+    applyShellChromeMode(reduceTransparency);
+    return { version: 1, reduceTransparency };
   }
   const preferences = await bridge.getAppearancePreferences();
   applyShellChromeMode(preferences.reduceTransparency);

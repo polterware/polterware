@@ -5,14 +5,11 @@ import {
   PageError,
   PageLoading,
   Server,
-  StatusChip,
 } from "@polterware/frontend-design-system";
 import type { ProjectEnvironment } from "./types";
 import {
   environmentKindLabel,
-  environmentKindTone,
   protectionLabel,
-  protectionTone,
 } from "./environment-status";
 
 export function EnvironmentDetail(props: {
@@ -78,19 +75,6 @@ export function EnvironmentDetail(props: {
               <DetailPanel.Header
                 icon={<Server size={16} />}
                 title={environment().name}
-                status={
-                  <>
-                    <StatusChip
-                      tone={environmentKindTone(environment().kind)}
-                      label={environmentKindLabel(environment().kind)}
-                    />
-                    <StatusChip
-                      tone={protectionTone(environment().protection)}
-                      label={protectionLabel(environment().protection)}
-                    />
-                  </>
-                }
-                subtitle={environment().isDefault ? "Default environment" : "Environment"}
               >
                 <Show when={showActions()}>
                   <DetailPanel.Actions>
@@ -140,6 +124,14 @@ export function EnvironmentDetail(props: {
                 <DetailPanel.Rail>
                   <DetailPanel.Section title="Properties">
                     <DetailPanel.Properties>
+                      <DetailPanel.Property
+                        label="Kind"
+                        value={environmentKindLabel(environment().kind)}
+                      />
+                      <DetailPanel.Property
+                        label="Protection"
+                        value={protectionLabel(environment().protection)}
+                      />
                       <DetailPanel.Property label="ID" value={environment().id} mono />
                       <DetailPanel.Property
                         label="Default"
