@@ -5,7 +5,6 @@ import {
   Button,
   Cloud,
   DataTable,
-  DetailPanel,
   Field,
   FilterPopover,
   Input,
@@ -21,10 +20,11 @@ import {
   ToolbarIconButton,
   type ActiveFilterPill,
   type FilterPopoverGroup,
-  type StatusTone,
 } from "@polterware/frontend-design-system";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
-import type { Resource, ResourceStatus } from "./types";
+import type { Resource } from "./types";
+import { ResourceDetail } from "./resource-detail";
+import { healthTone } from "./resource-status";
 import { ResourcesInventoryEmpty, resourcesFilterEmpty } from "./resources-empty";
 import { ResourceInventoryTemplateGrid } from "./resources-template-grid";
 import {
@@ -45,13 +45,6 @@ export { RESOURCE_INVENTORY_TEMPLATES } from "./create-templates";
 
 export type * from "./types";
 export type { ResourceListFilters } from "./resource-filters";
-
-function healthTone(status: ResourceStatus): StatusTone {
-  if (status === "healthy") return "healthy";
-  if (status === "degraded") return "warn";
-  if (status === "offline") return "danger";
-  return "unknown";
-}
 
 export function ResourcesView(props: {
   catalog?: Resource[];
@@ -343,38 +336,10 @@ export function ResourcesView(props: {
 
       <Show when={activeResource()}>
         {(item) => (
-          <DetailPanel.Content>
-            <DetailPanel.Header icon={<Package size={16} />} title={item().name}>
-              <DetailPanel.Actions>
-                <DetailPanel.Action
-                  label="Open architecture"
-                  onClick={() => props.onOpenArchitecture?.(item().id)}
-                >
-                  <Package />
-                </DetailPanel.Action>
-              </DetailPanel.Actions>
-            </DetailPanel.Header>
-            <DetailPanel.Body layout="sections">
-              <DetailPanel.Grid>
-                <DetailPanel.Section title="Resource">
-                  <DetailPanel.Metadata>
-                    <DetailPanel.MetadataItem
-                      label="Status"
-                      value={<StatusChip tone={healthTone(item().status)} label={item().status} />}
-                    />
-                    <DetailPanel.MetadataItem label="Type" value={item().type} />
-                    <DetailPanel.MetadataItem label="Provider" value={item().provider} />
-                    <DetailPanel.MetadataItem label="Environment" value={item().environment} />
-                    <DetailPanel.MetadataItem label="Region" value={item().region} />
-                    <DetailPanel.MetadataItem label="Source" value="Local store" />
-                  </DetailPanel.Metadata>
-                  <p class="mb-0 mt-3 text-[12px] text-[var(--color-text-secondary)]">
-                    {item().description}
-                  </p>
-                </DetailPanel.Section>
-              </DetailPanel.Grid>
-            </DetailPanel.Body>
-          </DetailPanel.Content>
+          <ResourceDetail
+            resource={item()}
+            onOpenArchitecture={props.onOpenArchitecture}
+          />
         )}
       </Show>
 

@@ -1,13 +1,11 @@
-import { For, Show } from "solid-js";
+import { Show } from "solid-js";
 import {
   DataTable,
   DetailPanel,
-  Delete,
   Eye,
   Package,
   PageError,
   PageLoading,
-  Pencil,
 } from "@polterware/frontend-design-system";
 import type { ArchViewCard } from "./extra-fixtures";
 import {
@@ -31,6 +29,10 @@ export {
   membershipRows,
 } from "./view-detail-helpers";
 
+function chips(values: readonly string[] | undefined) {
+  return (values ?? []).map((value) => ({ id: value, title: value }));
+}
+
 export function ArchitectureViewDetail(props: {
   view: ArchViewCard | null | undefined;
   loading?: boolean;
@@ -45,12 +47,10 @@ export function ArchitectureViewDetail(props: {
     <DetailPanel.Content>
       <Show when={props.loading}>
         <DetailPanel.Header title="Loading view" />
-        <DetailPanel.Body layout="sections">
-          <DetailPanel.Grid>
-            <DetailPanel.Section>
-              <PageLoading label="Loading view…" />
-            </DetailPanel.Section>
-          </DetailPanel.Grid>
+        <DetailPanel.Body>
+          <DetailPanel.Main>
+            <PageLoading label="Loading view…" />
+          </DetailPanel.Main>
         </DetailPanel.Body>
       </Show>
 
@@ -58,18 +58,16 @@ export function ArchitectureViewDetail(props: {
         <DetailPanel.Header
           title={props.notFound || !props.view ? "View not found" : "Failed to load"}
         />
-        <DetailPanel.Body layout="sections">
-          <DetailPanel.Grid>
-            <DetailPanel.Section>
-              <PageError
-                title={props.notFound || !props.view ? "View not found" : "Failed to load"}
-                message={
-                  props.error ??
-                  "This architecture view is unavailable or was removed from the project."
-                }
-              />
-            </DetailPanel.Section>
-          </DetailPanel.Grid>
+        <DetailPanel.Body>
+          <DetailPanel.Main>
+            <PageError
+              title={props.notFound || !props.view ? "View not found" : "Failed to load"}
+              message={
+                props.error ??
+                "This architecture view is unavailable or was removed from the project."
+              }
+            />
+          </DetailPanel.Main>
         </DetailPanel.Body>
       </Show>
 
@@ -77,103 +75,68 @@ export function ArchitectureViewDetail(props: {
         {(v) => {
           const members = () => membershipRows(v());
           const membershipKnown = () => hasMembershipList(v());
-          const membershipEmpty = () => membershipEmptyCopy(v());
+          const nodeLabel = () => `${v().nodeCount} ${v().nodeCount === 1 ? "node" : "nodes"}`;
 
           return (
             <>
-              <DetailPanel.Header icon={<Eye size={16} />} title={v().name}>
+              <DetailPanel.Header
+                icon={<Eye size={16} />}
+                title={v().name}
+                subtitle={[nodeLabel(), v().updated ? `Updated ${v().updated}` : ""]
+                  .filter(Boolean)
+                  .join(" · ")}
+              >
                 <DetailPanel.Actions>
-                  <DetailPanel.Action
+                  <DetailPanel.PrimaryAction
                     label="Open"
-                    tone="primary"
+                    icon={<Eye size={14} aria-hidden />}
                     onClick={() => props.onOpen?.(v().id)}
-                  >
-                    <Eye />
-                  </DetailPanel.Action>
-                  <DetailPanel.Action label="Edit" onClick={() => props.onEdit?.(v())}>
-                    <Pencil />
-                  </DetailPanel.Action>
-                  <Show when={props.onDelete}>
-                    <DetailPanel.Action
-                      label="Delete"
-                      tone="danger"
-                      onClick={() => props.onDelete?.(v())}
-                    >
-                      <Delete />
-                    </DetailPanel.Action>
+                  />
+                  <Show when={props.onEdit || props.onDelete}>
+                    <DetailPanel.Overflow>
+                      <Show when={props.onEdit}>
+                        <DetailPanel.OverflowItem value="edit" onSelect={() => props.onEdit?.(v())}>
+                          Edit view
+                        </DetailPanel.OverflowItem>
+                      </Show>
+                      <Show when={props.onDelete}>
+                        <DetailPanel.OverflowItem
+                          value="delete"
+                          danger
+                          onSelect={() => props.onDelete?.(v())}
+                        >
+                          Delete view
+                        </DetailPanel.OverflowItem>
+                      </Show>
+                    </DetailPanel.Overflow>
                   </Show>
                 </DetailPanel.Actions>
               </DetailPanel.Header>
 
-              <DetailPanel.Body layout="sections">
-                <DetailPanel.Grid>
-                  <DetailPanel.Metric span={4} label="Nodes" value={String(v().nodeCount)} />
-                  <DetailPanel.Metric span={4} label="Updated" value={v().updated} />
-                  <DetailPanel.Metric
-                    span={4}
-                    label="Owner"
-                    value={v().owner?.trim() ? v().owner! : "—"}
-                  />
-
-                  <DetailPanel.Section title="Overview" span={8}>
-                    <DetailPanel.Metadata>
-                      <DetailPanel.MetadataItem
-                        label="Description"
-                        value={
-                          isDescriptionEmpty(v().description)
-                            ? emptyDescriptionCopy()
-                            : v().description
-                        }
-                      />
-                      <Show when={v().purpose}>
-                        <DetailPanel.MetadataItem label="Purpose" value={v().purpose!} />
-                      </Show>
-                    </DetailPanel.Metadata>
-                  </DetailPanel.Section>
-
-                  <DetailPanel.Section title="Environments" span={4}>
+              <DetailPanel.Body>
+                <DetailPanel.Main>
+                  <DetailPanel.Section title="Overview">
                     <Show
-                      when={hasEnvironments(v())}
+                      when={!isDescriptionEmpty(v().description)}
                       fallback={
-                        <p class="m-0 text-[12.5px] text-[var(--color-text-muted)]">
-                          No environment scope.
+                        <p class="pw-detail-panel__text" data-empty>
+                          {emptyDescriptionCopy()}
                         </p>
                       }
                     >
-                      <ul class="m-0 space-y-1.5 p-0">
-                        <For each={v().environments}>
-                          {(env) => (
-                            <li class="list-none text-[12.5px] text-[var(--color-text-secondary)]">
-                              {env}
-                            </li>
-                          )}
-                        </For>
-                      </ul>
+                      <p class="pw-detail-panel__text">{v().description}</p>
                     </Show>
-                    <Show when={hasTags(v())}>
-                      <div class="mt-3">
-                        <p class="m-0 mb-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-                          Tags
-                        </p>
-                        <ul class="m-0 space-y-1 p-0">
-                          <For each={v().tags}>
-                            {(tag) => (
-                              <li class="list-none text-[12.5px] text-[var(--color-text-secondary)]">
-                                {tag}
-                              </li>
-                            )}
-                          </For>
-                        </ul>
-                      </div>
+                    <Show when={v().purpose}>
+                      <p class="pw-detail-panel__text">{v().purpose}</p>
                     </Show>
                   </DetailPanel.Section>
 
-                  <DetailPanel.Section title="Membership" span={12}>
+                  <DetailPanel.Section title="Membership">
                     <Show
                       when={membershipKnown() && members().length > 0}
                       fallback={
-                        <p class="m-0 text-[12.5px] text-[var(--color-text-muted)]">
-                          {membershipEmpty()}
+                        <p class="pw-detail-panel__text" data-empty>
+                          {membershipEmptyCopy(v())}
                         </p>
                       }
                     >
@@ -228,21 +191,37 @@ export function ArchitectureViewDetail(props: {
                   </DetailPanel.Section>
 
                   <Show when={v().filterSummary}>
-                    <DetailPanel.Section title="Filters" span={6}>
-                      <p class="m-0 text-[12.5px] text-[var(--color-text-secondary)]">
-                        {v().filterSummary}
-                      </p>
+                    <DetailPanel.Section title="Filters">
+                      <p class="pw-detail-panel__text">{v().filterSummary}</p>
                     </DetailPanel.Section>
                   </Show>
 
                   <Show when={v().notes}>
-                    <DetailPanel.Section title="Notes" span={v().filterSummary ? 6 : 12}>
-                      <p class="m-0 text-[12.5px] text-[var(--color-text-secondary)]">
-                        {v().notes}
-                      </p>
+                    <DetailPanel.Section title="Notes">
+                      <p class="pw-detail-panel__text">{v().notes}</p>
                     </DetailPanel.Section>
                   </Show>
-                </DetailPanel.Grid>
+                </DetailPanel.Main>
+
+                <DetailPanel.Rail>
+                  <DetailPanel.Section title="Properties">
+                    <DetailPanel.Properties>
+                      <DetailPanel.Property label="Nodes" value={String(v().nodeCount)} />
+                      <DetailPanel.Property label="Owner" value={v().owner?.trim()} />
+                      <DetailPanel.Property label="Updated" value={v().updated} />
+                    </DetailPanel.Properties>
+                  </DetailPanel.Section>
+                  <Show when={hasEnvironments(v())}>
+                    <DetailPanel.Section title="Environments">
+                      <DetailPanel.LinkedEntities items={chips(v().environments)} />
+                    </DetailPanel.Section>
+                  </Show>
+                  <Show when={hasTags(v())}>
+                    <DetailPanel.Section title="Tags">
+                      <DetailPanel.LinkedEntities items={chips(v().tags)} />
+                    </DetailPanel.Section>
+                  </Show>
+                </DetailPanel.Rail>
               </DetailPanel.Body>
             </>
           );

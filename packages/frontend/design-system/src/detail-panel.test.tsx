@@ -34,12 +34,16 @@ describe("DetailPanel", () => {
       "Header",
       "Actions",
       "Action",
+      "PrimaryAction",
+      "Overflow",
+      "OverflowItem",
       "Body",
-      "Grid",
+      "Main",
+      "Rail",
       "Section",
-      "Metric",
-      "Metadata",
-      "MetadataItem",
+      "Properties",
+      "Property",
+      "LinkedEntities",
       "Content",
     ]);
     for (const component of Object.values(DetailPanel)) {
@@ -47,44 +51,87 @@ describe("DetailPanel", () => {
     }
   });
 
-  it("composes full-bleed sections, metrics, and metadata", () => {
+  it("composes record main, properties rail, and hides empty properties", async () => {
     const host = document.createElement("div");
+    document.body.append(host);
+    const onAdd = vi.fn();
     const dispose = render(
       () => (
-        <DetailPanel.Grid>
-          <DetailPanel.Metric label="Status" value="Healthy" span={4} />
-          <DetailPanel.Section title="Overview" span={8}>
-            <DetailPanel.Metadata columns={2}>
-              <DetailPanel.MetadataItem label="Provider" value="AWS" />
-              <DetailPanel.MetadataItem label="Region" value="us-east-1" mono />
-            </DetailPanel.Metadata>
-          </DetailPanel.Section>
-        </DetailPanel.Grid>
+        <DetailPanel.Root
+          mode="open"
+          activeEntityId="record"
+          onCollapse={() => undefined}
+          onMaximize={() => undefined}
+          onRestore={() => undefined}
+        >
+          <DetailPanel.Collection>Collection</DetailPanel.Collection>
+          <DetailPanel.Content>
+            <DetailPanel.Header title="Record" subtitle="Service · AWS" />
+            <DetailPanel.Body>
+              <DetailPanel.Main>
+                <DetailPanel.Section title="Overview">Description</DetailPanel.Section>
+              </DetailPanel.Main>
+              <DetailPanel.Rail>
+                <DetailPanel.Properties>
+                  <DetailPanel.Property label="Provider" value="AWS" />
+                  <DetailPanel.Property label="Region" value="us-east-1" mono />
+                  <DetailPanel.Property label="Owner" value={null} />
+                  <DetailPanel.Property label="Tags" value="" onAdd={onAdd} />
+                </DetailPanel.Properties>
+              </DetailPanel.Rail>
+            </DetailPanel.Body>
+          </DetailPanel.Content>
+        </DetailPanel.Root>
       ),
       host,
     );
 
-    expect(host.querySelector(".pw-detail-panel__grid")).not.toBeNull();
-    expect(host.querySelector('[data-span="4"]')?.textContent).toContain("Healthy");
-    expect(host.querySelector('[data-span="8"] h3')?.textContent).toBe("Overview");
-    expect(host.querySelector('[data-columns="2"]')?.textContent).toContain("us-east-1");
+    await vi.waitFor(() =>
+      expect(host.querySelector(".pw-detail-panel__record")).not.toBeNull(),
+    );
+    const record = host.querySelector(".pw-detail-panel__record")!;
+    expect(record.querySelector(":scope > .pw-detail-panel__main h3")?.textContent).toBe("Overview");
+    expect(record.querySelector(":scope > aside.pw-detail-panel__rail")).not.toBeNull();
+    expect(host.querySelector(".pw-detail-panel__subtitle")?.textContent).toBe("Service · AWS");
+    expect(
+      Array.from(host.querySelectorAll(".pw-detail-panel__property dt"), (dt) => dt.textContent),
+    ).toEqual(["Provider", "Region", "Tags"]);
     expect(host.querySelector("dd.font-mono")?.textContent).toBe("us-east-1");
+    host.querySelector<HTMLButtonElement>(".pw-detail-panel__property-add")!.click();
+    expect(onAdd).toHaveBeenCalledOnce();
 
     const css = readFileSync(
       "packages/frontend/design-system/src/detail-panel.css",
       "utf8",
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__cell\s*{[^}]*grid-column: 1 \/ -1;/,
+      /\.pw-detail-panel__record:has\(> \.pw-detail-panel__rail\)\s*{[^}]*grid-template-columns: minmax\(0, 1fr\) 280px;/,
     );
-    expect(css).toMatch(
-      /@media \(min-width: 768px\)[\s\S]*data-span="4"[^}]*grid-column: span 4 \/ span 4;/,
-    );
-    expect(css).toMatch(
-      /@media \(min-width: 768px\)[\s\S]*data-span="8"[^}]*grid-column: span 8 \/ span 8;/,
-    );
+    expect(css).toMatch(/@container \(max-width: 720px\)/);
+    expect(css).not.toContain(".pw-detail-panel__grid");
+    expect(css).not.toContain(".pw-detail-panel__metric");
 
     dispose();
+    host.remove();
+  });
+
+  it("mirrors bottom geometry on the X axis for side placement", () => {
+    const css = readFileSync(
+      "packages/frontend/design-system/src/detail-panel.css",
+      "utf8",
+    );
+    const source = readFileSync(
+      "packages/frontend/design-system/src/detail-panel.tsx",
+      "utf8",
+    );
+    expect(source).toContain('data-panel-placement={props.placement ?? "bottom"}');
+    expect(css).toMatch(
+      /data-panel-placement="side"\] \.pw-detail-panel__panel\s*{[^}]*transform: translateX\(calc\(100cqw - var\(--detail-panel-side-width\)\)\);/,
+    );
+    expect(css).toMatch(
+      /data-panel-placement="side"\]\[data-mode="maximized"\]\s*\.pw-detail-panel__panel\s*{[^}]*transform: translateX\(0\);/,
+    );
+    expect(css).not.toContain("[data-placement=");
   });
 
   it("disables layout transitions for reduced motion", () => {
@@ -193,7 +240,7 @@ describe("DetailPanel", () => {
       /\.pw-detail-panel__portal\s*{[^}]*display: flex;[^}]*height: 100%;[^}]*min-height: 0;[^}]*overflow: hidden;/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__body\s*{[^}]*min-height: 0;[^}]*flex: 1 1 0;[^}]*overflow: auto;[^}]*overscroll-behavior: contain;[^}]*padding: 16px;/,
+      /\.pw-detail-panel__body\s*{[^}]*min-height: 0;[^}]*flex: 1 1 0;[^}]*overflow: auto;[^}]*overscroll-behavior: contain;[^}]*container-type: inline-size;/,
     );
     expect(css).toMatch(
       /\.pw-detail-panel__title\s*{[^}]*font-size: 14px;/,
@@ -202,25 +249,30 @@ describe("DetailPanel", () => {
       /data-mode="collapsed"\] \.pw-detail-panel__title\s*{/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__identity-content\s*{[^}]*position: relative;[^}]*isolation: isolate;[^}]*height: var\(--control-height-sm\);[^}]*gap: 8px;/,
+      /\.pw-detail-panel__identity-content\s*{[^}]*position: relative;[^}]*isolation: isolate;[^}]*min-height: var\(--control-height-sm\);[^}]*gap: 10px;[^}]*border-radius: 9999px;/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__identity-content::before\s*{[^}]*inset-block: 0;[^}]*inset-inline: -1rem;[^}]*border-radius: inherit;[^}]*background-color: var\(--color-surface-subtle\);[^}]*var\(--edge-light-field-highlight\)[^}]*var\(--edge-light-field-rim\)[^}]*var\(--detail-panel-title-chrome-alpha\);/,
+      /\.pw-detail-panel__identity-content::before\s*{[^}]*inset: 0;[^}]*border-radius: inherit;[^}]*background-color: var\(--color-surface-subtle\);[^}]*var\(--edge-light-field-highlight\)[^}]*var\(--edge-light-field-rim\)[^}]*var\(--detail-panel-title-chrome-alpha\);/,
+    );
+    expect(css).toMatch(
+      /data-mode="collapsed"\] \.pw-detail-panel__identity-content\s*{[^}]*padding: 2px 8px;/,
     );
     expect(css).toContain("--detail-panel-title-chrome-alpha: 0;");
     expect(css).toMatch(
       /data-mode="collapsed"\]\s*{[^}]*--detail-panel-title-chrome-alpha: 1;/,
     );
     expect(css).not.toContain("padding-inline: 1rem;");
-    expect(css).not.toContain("gap: 6px;");
     expect(css).toMatch(
-      /\.pw-detail-panel__header-icon\s*{[^}]*width: 16px;[^}]*height: 16px;[^}]*flex: 0 0 16px;/,
+      /\.pw-detail-panel__header-icon\s*{[^}]*width: 28px;[^}]*height: 28px;[^}]*flex: 0 0 28px;[^}]*border-radius: var\(--radius-control\);/,
     );
     expect(css).toMatch(
       /\.pw-detail-panel__header-icon svg\s*{[^}]*transition: transform var\(--detail-panel-snap-duration\)[^}]*var\(--detail-panel-snap-ease\);/,
     );
     expect(css).toMatch(
       /data-mode="collapsed"\] \.pw-detail-panel__header-icon svg\s*{[^}]*transform: scale\(0\.875\);/,
+    );
+    expect(css).toMatch(
+      /data-mode="collapsed"\] \.pw-detail-panel__header-icon\s*{[^}]*background-color: transparent;/,
     );
     expect(css).not.toMatch(
       /data-mode="collapsed"\] \.pw-detail-panel__header-icon\s*{[^}]*(?:width|height|flex-basis):/,
@@ -282,22 +334,20 @@ describe("DetailPanel", () => {
     expect(css).not.toContain("row-resize");
     expect(css).not.toContain("pw-detail-panel__resize-handle");
     expect(css).toMatch(
-      /\.pw-detail-panel__header\s*{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\);[^}]*border-bottom: 1px solid var\(--color-border-subtle\);[^}]*gap: 4px;/,
+      /\.pw-detail-panel__header\s*{[^}]*display: flex;[^}]*align-items: center;[^}]*border-bottom: 1px solid var\(--color-border-subtle\);[^}]*padding: 10px 10px 10px 16px;/,
     );
     expect(css).toMatch(
       /data-mode="collapsed"\] \.pw-detail-panel__header\s*{[^}]*border-bottom: 0;/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__identity\s*{[^}]*grid-column: 2;[^}]*grid-row: 1;[^}]*justify-self: center;/,
+      /\.pw-detail-panel__identity\s*{[^}]*display: flex;[^}]*flex: 1 1 auto;/,
+    );
+    expect(css).not.toContain("justify-self: center;");
+    expect(css).toMatch(
+      /\.pw-detail-panel__actions \+ \.pw-detail-panel__global-actions\s*{[^}]*border-left: 1px solid var\(--color-border-subtle\);/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__actions\s*{[^}]*grid-column: 1;[^}]*grid-row: 1;[^}]*justify-content: flex-start;[^}]*justify-self: start;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__global-actions\s*{[^}]*grid-column: 3;[^}]*grid-row: 1;[^}]*justify-content: flex-end;[^}]*justify-self: end;[^}]*margin-inline-start: 0;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__actions\s*{[^}]*margin-inline-start: 0;/,
+      /\.pw-detail-panel__action\s*{[^}]*border-radius: var\(--radius-control\);[^}]*background: transparent;/,
     );
     expect(source).toMatch(
       /<Tooltip\.Group>\s*{props\.children}\s*<div class="pw-detail-panel__global-actions">/,
@@ -599,12 +649,10 @@ describe("DetailPanel", () => {
     const collapseButton = host.querySelector<HTMLButtonElement>("[aria-label='Collapse details']")!;
     const domainAction = host.querySelector<HTMLButtonElement>("[aria-label='Edit']")!;
     expect(domainAction.textContent).toBe("");
-    expect(domainAction.classList.contains("!rounded-full")).toBe(true);
+    expect(domainAction.classList.contains("pw-detail-panel__action")).toBe(true);
     expect(domainAction.dataset.tone).toBe("primary");
     expect(domainAction.hasAttribute("title")).toBe(false);
-    expect(collapseButton.classList.contains("control-field")).toBe(true);
-    expect(collapseButton.classList.contains("control-field-sm")).toBe(true);
-    expect(collapseButton.classList.contains("!rounded-full")).toBe(true);
+    expect(collapseButton.classList.contains("pw-detail-panel__action")).toBe(true);
     host.querySelector<HTMLButtonElement>("[aria-label='Maximize details']")!.click();
     await vi.waitFor(() => expect(mode()).toBe("maximized"));
     const collection = host.querySelector<HTMLElement & { inert: boolean }>(
@@ -632,8 +680,9 @@ describe("DetailPanel", () => {
     expect(host.querySelector("[aria-label='Collapse details']")).toBeNull();
     const collapsedIdentity = host.querySelector(".pw-detail-panel__identity-content")!;
     expect(collapsedIdentity.classList.contains("control-field")).toBe(false);
-    expect(collapsedIdentity.classList.contains("control-field-sm")).toBe(false);
-    expect(collapsedIdentity.classList.contains("!rounded-full")).toBe(true);
+    expect(collapsedIdentity.querySelector(".pw-detail-panel__title")?.textContent).toBe(
+      "Alpha detail",
+    );
 
     dispose();
     host.remove();
@@ -641,10 +690,11 @@ describe("DetailPanel", () => {
 
   it("keeps retained entity surfaces on the shared DetailPanel", () => {
     const featureFiles = [
-      "packages/features/architecture/src/index.tsx",
-      "packages/features/integrations/src/index.tsx",
-      "packages/features/knowledge/src/index.tsx",
-      "packages/features/resources/src/index.tsx",
+      "packages/features/architecture/src/node-detail.tsx",
+      "packages/features/architecture/src/view-detail.tsx",
+      "packages/features/integrations/src/integration-detail.tsx",
+      "packages/features/knowledge/src/knowledge-document-shell.tsx",
+      "packages/features/resources/src/resource-detail.tsx",
       "packages/features/settings/src/environment-detail.tsx",
     ];
 

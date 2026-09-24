@@ -2,7 +2,7 @@
   "name": "@polterware/workspace",
   "private": true,
   "license": "Apache-2.0",
-  "packageManager": "pnpm@11.18.0",
+  "packageManager": "pnpm@12.6.0",
   "scripts": {
     "generate": "bash tooling/generate.sh",
     "verify": "bash tooling/verify.sh",
@@ -28,10 +28,10 @@
     "deps:electron": "turbo run deps:electron --filter=@polterware/desktop"
   },
   "devDependencies": {
-    "@oxlint/plugins": "1.78.0",
+    "@oxlint/plugins": "1.85.0",
     "@typesafe-ai/sdk": "^0.6.0",
-    "oxlint": "1.78.0",
-    "turbo": "^2.6.1",
-    "typescript": "6.0.3"
+    "oxlint": "1.85.0",
+    "turbo": "^2.11.3",
+    "typescript": "7.0.2"
   }
 }

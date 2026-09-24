@@ -8,8 +8,12 @@ export function KnowledgeDocumentShell(props: {
   title: string;
   bodyMarkdown: string;
   onBodyChange: (md: string) => void;
-  /** Content above the editor (links, path, artifact tabs) — stays inside Body for collapsed hide. */
-  preamble?: JSX.Element;
+  /** Artifact switcher rendered above the title (Spec features). */
+  tabs?: JSX.Element;
+  /** Inline `DetailPanel.Properties` rendered under the title. */
+  properties?: JSX.Element;
+  /** `DetailPanel.LinkedEntities` rendered under the properties. */
+  links?: JSX.Element;
 }) {
   // Format dock only when DetailPanel is maximized (full writing surface).
   const panelMode = createDetailPanelSelector((state) => state.mode);
@@ -18,12 +22,20 @@ export function KnowledgeDocumentShell(props: {
   return (
     <DetailPanel.Body layout="document">
       <div class="pw-knowledge-doc">
-        <Show when={props.preamble}>
-          <div class="pw-knowledge-doc__preamble">{props.preamble}</div>
-        </Show>
         <div class="pw-knowledge-doc__body">
           <div class="pw-knowledge-doc__column">
-            <h2 class="pw-knowledge-doc__title">{props.title}</h2>
+            <Show when={props.tabs}>
+              <div class="pw-knowledge-doc__tabs">{props.tabs}</div>
+            </Show>
+            <header class="pw-knowledge-doc__header">
+              <h2 class="pw-knowledge-doc__title">{props.title}</h2>
+              <Show when={props.properties || props.links}>
+                <div class="pw-knowledge-doc__meta">
+                  {props.properties}
+                  {props.links}
+                </div>
+              </Show>
+            </header>
             <MarkdownEditor
               value={props.bodyMarkdown}
               onChange={props.onBodyChange}

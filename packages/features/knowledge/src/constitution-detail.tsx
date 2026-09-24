@@ -1,11 +1,12 @@
 import { Show } from "solid-js";
 import {
-  Archive,
   DetailPanel,
   Shield,
+  StatusChip,
 } from "@polterware/frontend-design-system";
 import type { WorkspaceConstitution } from "@polterware/feature-shell";
 import { KnowledgeDocumentNotFound, KnowledgeDocumentShell } from "./knowledge-document-shell";
+import { libraryStatusTone } from "./knowledge-document-helpers";
 
 export function ConstitutionDetail(props: {
   constitution: WorkspaceConstitution | null | undefined;
@@ -25,14 +26,30 @@ export function ConstitutionDetail(props: {
     >
       {(constitution) => (
         <DetailPanel.Content>
-          <DetailPanel.Header icon={<Shield size={16} />} title={constitution().title}>
-            <DetailPanel.Actions>
-              <Show when={props.onArchive}>
-                <DetailPanel.Action label="Archive" tone="danger" onClick={() => props.onArchive?.()}>
-                  <Archive />
-                </DetailPanel.Action>
-              </Show>
-            </DetailPanel.Actions>
+          <DetailPanel.Header
+            icon={<Shield size={16} />}
+            title={constitution().title}
+            status={
+              constitution().status ? (
+                <StatusChip
+                  tone={libraryStatusTone(constitution().status)}
+                  label={constitution().status}
+                />
+              ) : undefined
+            }
+            subtitle={["Constitution", constitution().owner, `Updated ${constitution().updatedAt}`]
+              .filter(Boolean)
+              .join(" · ")}
+          >
+            <Show when={props.onArchive}>
+              <DetailPanel.Actions>
+                <DetailPanel.Overflow>
+                  <DetailPanel.OverflowItem value="archive" danger onSelect={() => props.onArchive?.()}>
+                    Archive
+                  </DetailPanel.OverflowItem>
+                </DetailPanel.Overflow>
+              </DetailPanel.Actions>
+            </Show>
           </DetailPanel.Header>
           <KnowledgeDocumentShell
             title={constitution().title}

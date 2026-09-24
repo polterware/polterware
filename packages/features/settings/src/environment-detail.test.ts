@@ -8,11 +8,12 @@ const source = readFileSync(resolve(root, "environment-detail.tsx"), "utf8");
 const indexSource = readFileSync(resolve(root, "index.tsx"), "utf8");
 
 describe("EnvironmentDetail composition contract", () => {
-  it("uses production DetailPanel sections layout and StatusChip overview", () => {
-    expect(source).toContain('layout="sections"');
-    expect(source).toContain("DetailPanel.Grid");
-    expect(source).toContain("DetailPanel.Metric");
-    expect(source).toContain("DetailPanel.Metadata");
+  it("uses the record layout with header status chips and a properties rail", () => {
+    expect(source).toContain("DetailPanel.Main");
+    expect(source).toContain("DetailPanel.Rail");
+    expect(source).toContain("DetailPanel.Property");
+    expect(source).not.toContain("DetailPanel.Metric");
+    expect(source).not.toContain("DetailPanel.Grid");
     expect(source).toContain("PageLoading");
     expect(source).toContain("PageError");
     expect(source).toContain("Environment not found");
@@ -30,7 +31,8 @@ describe("EnvironmentDetail composition contract", () => {
     expect(indexSource).toContain("onSetDefault");
     expect(indexSource).toContain("onDelete");
     expect(source).toContain('label="Set as default"');
-    expect(source).toContain('label="Delete environment"');
+    expect(source).toContain("DetailPanel.PrimaryAction");
+    expect(source).toMatch(/DetailPanel\.OverflowItem[\s\S]*?danger[\s\S]*?Delete environment/);
     expect(source).toContain("onSetDefault");
     expect(source).toContain("onDelete");
   });

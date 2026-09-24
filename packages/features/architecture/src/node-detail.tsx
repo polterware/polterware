@@ -32,50 +32,59 @@ export function ArchitectureNodeDetail(props: {
     <DetailPanel.Content>
       <Show when={props.loading}>
         <DetailPanel.Header title="Loading node" />
-        <DetailPanel.Body layout="sections">
-          <DetailPanel.Grid>
-            <DetailPanel.Section>
-              <PageLoading label="Loading node…" />
-            </DetailPanel.Section>
-          </DetailPanel.Grid>
+        <DetailPanel.Body>
+          <DetailPanel.Main>
+            <PageLoading label="Loading node…" />
+          </DetailPanel.Main>
         </DetailPanel.Body>
       </Show>
       <Show when={!props.loading && (props.error || props.notFound || !props.node)}>
         <DetailPanel.Header
           title={props.notFound || !props.node ? "Node not found" : "Failed to load"}
         />
-        <DetailPanel.Body layout="sections">
-          <DetailPanel.Grid>
-            <DetailPanel.Section>
-              <PageError
-                title={props.notFound || !props.node ? "Node not found" : "Failed to load"}
-                message={props.error ?? "This architecture node is unavailable."}
-              />
-            </DetailPanel.Section>
-          </DetailPanel.Grid>
+        <DetailPanel.Body>
+          <DetailPanel.Main>
+            <PageError
+              title={props.notFound || !props.node ? "Node not found" : "Failed to load"}
+              message={props.error ?? "This architecture node is unavailable."}
+            />
+          </DetailPanel.Main>
         </DetailPanel.Body>
       </Show>
       <Show when={!props.loading && props.node}>
         {(n) => {
-          const lifecycleLabel = () => architectureLifecycleLabel(n().lifecycle);
-          const linkLabel = () => architectureLinkStatusLabel(n().linkStatus);
           const linkCaption = () =>
             architectureLinkResourceCaption(n().linkStatus, n().resourceName);
+          const canLink = () => Boolean(n().canLinkResource && props.onLinkResource);
 
           return (
             <>
               <DetailPanel.Header
-                icon={
-                  <NodeIcon
-                    type={n().kind}
-                    name={n().kind}
-                    size={16}
-                  />
-                }
+                icon={<NodeIcon type={n().kind} name={n().kind} size={16} />}
                 title={n().label}
+                status={
+                  <>
+                    <StatusChip
+                      tone={architectureLifecycleTone(n().lifecycle)}
+                      label={architectureLifecycleLabel(n().lifecycle)}
+                    />
+                    <StatusChip
+                      tone={architectureLinkStatusTone(n().linkStatus)}
+                      label={architectureLinkStatusLabel(n().linkStatus)}
+                    />
+                  </>
+                }
+                subtitle={[n().kind, n().environment].filter(Boolean).join(" · ")}
               >
-                <Show when={props.onOpenOnCanvas || (n().canLinkResource && props.onLinkResource)}>
+                <Show when={props.onOpenOnCanvas || canLink()}>
                   <DetailPanel.Actions>
+                    <Show when={canLink()}>
+                      <DetailPanel.PrimaryAction
+                        label="Link resource"
+                        icon={<Link2 size={14} aria-hidden />}
+                        onClick={() => props.onLinkResource?.(n().id)}
+                      />
+                    </Show>
                     <Show when={props.onOpenOnCanvas}>
                       <DetailPanel.Action
                         label="Open on canvas"
@@ -84,61 +93,12 @@ export function ArchitectureNodeDetail(props: {
                         <Network size={14} />
                       </DetailPanel.Action>
                     </Show>
-                    <Show when={n().canLinkResource && props.onLinkResource}>
-                      <DetailPanel.Action
-                        label="Link resource"
-                        onClick={() => props.onLinkResource?.(n().id)}
-                      >
-                        <Link2 size={14} />
-                      </DetailPanel.Action>
-                    </Show>
                   </DetailPanel.Actions>
                 </Show>
               </DetailPanel.Header>
-              <DetailPanel.Body layout="sections">
-                <DetailPanel.Grid>
-                  <DetailPanel.Metric
-                    span={3}
-                    label="Lifecycle"
-                    value={
-                      <StatusChip
-                        tone={architectureLifecycleTone(n().lifecycle)}
-                        label={lifecycleLabel()}
-                      />
-                    }
-                  />
-                  <DetailPanel.Metric
-                    span={3}
-                    label="Link"
-                    value={
-                      <StatusChip
-                        tone={architectureLinkStatusTone(n().linkStatus)}
-                        label={linkLabel()}
-                      />
-                    }
-                    description={linkCaption()}
-                  />
-                  <DetailPanel.Metric span={3} label="Kind" value={n().kind || "—"} />
-                  <DetailPanel.Metric
-                    span={3}
-                    label="Environment"
-                    value={n().environment ?? "—"}
-                  />
-
-                  <DetailPanel.Section title="Overview" span={4}>
-                    <DetailPanel.Metadata>
-                      <Show when={linkCaption()}>
-                        <DetailPanel.MetadataItem
-                          label="Resource"
-                          value={linkCaption()!}
-                        />
-                      </Show>
-                      <DetailPanel.MetadataItem label="Role" value={n().role ?? "—"} />
-                      <DetailPanel.MetadataItem label="Owner" value={n().owner ?? "—"} />
-                    </DetailPanel.Metadata>
-                  </DetailPanel.Section>
-
-                  <DetailPanel.Section title="Connected architecture" span={8}>
+              <DetailPanel.Body>
+                <DetailPanel.Main>
+                  <DetailPanel.Section title="Connected architecture">
                     <DataTable.Root
                       rows={n().connected}
                       getRowId={(connection) => connection.nodeId}
@@ -192,38 +152,34 @@ export function ArchitectureNodeDetail(props: {
                   </DetailPanel.Section>
 
                   <Show when={n().notes}>
-                    <DetailPanel.Section title="Operational notes" span={6}>
-                      <p class="m-0 text-[12px] text-[var(--color-text-secondary)]">
-                        {n().notes}
-                      </p>
+                    <DetailPanel.Section title="Notes">
+                      <p class="pw-detail-panel__text">{n().notes}</p>
                     </DetailPanel.Section>
                   </Show>
                   <Show when={n().docs.length > 0}>
-                    <DetailPanel.Section title="Linked docs" span={6}>
-                    <DataTable.Root rows={n().docs} getRowId={(doc) => doc.id}>
-                      <DataTable.Table aria-label="Linked documents">
-                        <DataTable.Header>
-                          <DataTable.ColumnHeader id="title" sortBy={(doc) => doc.title}>
-                            Document
-                          </DataTable.ColumnHeader>
-                        </DataTable.Header>
-                        <DataTable.Body>
-                          {(doc) => (
-                            <DataTable.Row row={doc}>
-                              <DataTable.PrimaryCell
-                                icon={<FileText size={16} />}
-                                iconTone="knowledge"
-                                title={doc.title}
-                              />
-                            </DataTable.Row>
-                          )}
-                        </DataTable.Body>
-                        <DataTable.Empty>No docs linked.</DataTable.Empty>
-                      </DataTable.Table>
-                    </DataTable.Root>
+                    <DetailPanel.Section title="Linked docs">
+                      <DetailPanel.LinkedEntities
+                        items={n().docs.map((doc) => ({
+                          id: doc.id,
+                          title: doc.title,
+                          icon: <FileText size={12} />,
+                        }))}
+                      />
                     </DetailPanel.Section>
                   </Show>
-                </DetailPanel.Grid>
+                </DetailPanel.Main>
+                <Show when={linkCaption() || n().role || n().owner || n().environment}>
+                  <DetailPanel.Rail>
+                    <DetailPanel.Section title="Properties">
+                      <DetailPanel.Properties>
+                        <DetailPanel.Property label="Resource" value={linkCaption()} />
+                        <DetailPanel.Property label="Role" value={n().role} />
+                        <DetailPanel.Property label="Owner" value={n().owner} />
+                        <DetailPanel.Property label="Environment" value={n().environment} />
+                      </DetailPanel.Properties>
+                    </DetailPanel.Section>
+                  </DetailPanel.Rail>
+                </Show>
               </DetailPanel.Body>
             </>
           );

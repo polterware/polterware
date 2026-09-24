@@ -1,12 +1,10 @@
 import { Show, type JSX } from "solid-js";
 import {
-  Archive,
   DetailPanel,
-  Field,
   FileText,
-  Input,
 } from "@polterware/frontend-design-system";
 import type { WorkspaceSource } from "@polterware/feature-shell";
+import { EditablePath } from "./editable-path";
 import { KnowledgeDocumentNotFound, KnowledgeDocumentShell } from "./knowledge-document-shell";
 
 export function SourceDetail(props: {
@@ -25,35 +23,36 @@ export function SourceDetail(props: {
     >
       {(source) => (
         <DetailPanel.Content>
-          <DetailPanel.Header icon={<FileText size={16} />} title={source().title}>
-            <DetailPanel.Actions>
-              <Show when={props.onArchive}>
-                <DetailPanel.Action label="Archive" tone="danger" onClick={() => props.onArchive?.()}>
-                  <Archive />
-                </DetailPanel.Action>
-              </Show>
-            </DetailPanel.Actions>
+          <DetailPanel.Header
+            icon={<FileText size={16} />}
+            title={source().title}
+            subtitle={["Source", source().owner, `Updated ${source().updatedAt}`]
+              .filter(Boolean)
+              .join(" · ")}
+          >
+            <Show when={props.onArchive}>
+              <DetailPanel.Actions>
+                <DetailPanel.Overflow>
+                  <DetailPanel.OverflowItem value="archive" danger onSelect={() => props.onArchive?.()}>
+                    Archive
+                  </DetailPanel.OverflowItem>
+                </DetailPanel.Overflow>
+              </DetailPanel.Actions>
+            </Show>
           </DetailPanel.Header>
           <KnowledgeDocumentShell
             title={source().title}
             bodyMarkdown={props.bodyMarkdown}
             onBodyChange={props.onBodyChange}
-            preamble={
-              <>
-                <div class="px-4 py-3">
-                  <Field label="Path" hint="Relative to the project root">
-                    <Input
-                      size="sm"
-                      class="font-mono"
-                      value={props.pathValue}
-                      onInput={(event) => props.onPathChange?.(event.currentTarget.value)}
-                      disabled={!props.onPathChange}
-                    />
-                  </Field>
-                </div>
-                <Show when={props.links}>{props.links}</Show>
-              </>
+            properties={
+              <DetailPanel.Properties variant="inline">
+                <DetailPanel.Property
+                  label="Path"
+                  value={<EditablePath value={props.pathValue} onChange={props.onPathChange} />}
+                />
+              </DetailPanel.Properties>
             }
+            links={props.links}
           />
         </DetailPanel.Content>
       )}

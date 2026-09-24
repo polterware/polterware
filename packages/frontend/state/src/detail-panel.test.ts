@@ -300,6 +300,30 @@ describe("detailPanelStore", () => {
     });
   });
 
+  it("tracks per-collection placement and resets to bottom on unregister", () => {
+    expect(detailPanelStore.getState().placement).toBe("bottom");
+
+    detailPanelStore.getState().registerCollection({
+      scopeId,
+      status: "ready",
+      targets: [firstTarget],
+      placement: "side",
+    });
+    expect(detailPanelStore.getState().placement).toBe("side");
+
+    detailPanelStore.getState().registerCollection({ scopeId, status: "ready", targets: [firstTarget] });
+    expect(detailPanelStore.getState().placement).toBe("bottom");
+
+    detailPanelStore.getState().registerCollection({
+      scopeId,
+      status: "ready",
+      targets: [firstTarget],
+      placement: "side",
+    });
+    detailPanelStore.getState().unregisterCollection(scopeId);
+    expect(detailPanelStore.getState().placement).toBe("bottom");
+  });
+
   it("maximizes only an active collection and restores to the recorded restoreMode", () => {
     detailPanelStore.getState().maximize();
     expect(detailPanelStore.getState().mode).toBe("open");

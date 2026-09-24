@@ -5,9 +5,13 @@ import {
 } from "./desktop-context-menu.js";
 
 function collectRoles(template: ReturnType<typeof buildDesktopContextMenuTemplate>): string[] {
-  return template
-    .map((item) => (typeof item.role === "string" ? item.role : null))
-    .filter((role): role is string => role !== null);
+  const roles: string[] = [];
+  for (const item of template) {
+    if (item.role !== undefined && item.role !== null) {
+      roles.push(item.role);
+    }
+  }
+  return roles;
 }
 
 function params(partial: Partial<DesktopContextMenuParams>): DesktopContextMenuParams {

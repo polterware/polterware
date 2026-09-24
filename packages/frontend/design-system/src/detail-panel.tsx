@@ -21,6 +21,10 @@ import {
 } from "./hugeicons";
 import { Kbd } from "./kbd";
 import { Tooltip } from "./tooltip";
+import { DetailPanelLinkedEntities } from "./detail-panel-linked-entities";
+import { DetailPanelOverflow, DetailPanelOverflowItem } from "./detail-panel-overflow";
+import { DetailPanelPrimaryAction } from "./detail-panel-primary-action";
+import { DetailPanelProperties, DetailPanelProperty } from "./detail-panel-properties";
 import { createShortcutLabel, matchesShortcut } from "@polterware/frontend-state";
 import "./detail-panel.css";
 
@@ -30,8 +34,12 @@ export type DetailPanelMode = "open" | "collapsed" | "maximized";
 
 export type DetailPanelPresence = "hidden" | "visible" | "dismissing";
 
+/** `bottom` = floating sheet over collections; `side` = right rail beside canvases. */
+export type DetailPanelPlacement = "bottom" | "side";
+
 export type DetailPanelRootProps = {
   mode: DetailPanelMode;
+  placement?: DetailPanelPlacement;
   presence?: DetailPanelPresence;
   activeEntityId?: string | null;
   onCollapse: () => void;
@@ -43,32 +51,32 @@ export type DetailPanelRootProps = {
   "aria-label"?: string;
 };
 
-export type DetailPanelActionTone = "neutral" | "primary" | "danger";
-
-export type DetailPanelSectionSpan = 3 | 4 | 6 | 8 | 9 | 12;
+export type DetailPanelActionTone = "neutral" | "primary";
 
 export type DetailPanelBodyProps = {
   children: JSX.Element;
   class?: string;
-  /** `sections` = operational grid; `document` = Notion-like knowledge canvas. */
-  layout?: "default" | "sections" | "document";
+  /** `record` = Main + optional Rail; `document` = knowledge writing canvas. */
+  layout?: "record" | "document";
+};
+
+export type DetailPanelHeaderProps = {
+  icon?: JSX.Element;
+  title: JSX.Element;
+  /** Status chips rendered beside the title. */
+  status?: JSX.Element;
+  /** Quiet one-line context under the title (kind, provider, counts). */
+  subtitle?: JSX.Element;
+  children?: JSX.Element;
+  class?: string;
 };
 
 export type DetailPanelSectionProps = {
   children: JSX.Element;
   class?: string;
-  span?: DetailPanelSectionSpan;
   title?: JSX.Element;
-};
-
-export type DetailPanelMetricProps = {
-  class?: string;
-  description?: JSX.Element;
-  icon?: JSX.Element;
-  label: JSX.Element;
-  span?: DetailPanelSectionSpan;
-  value: JSX.Element;
-  visualization?: JSX.Element;
+  /** Right-aligned element on the section title row. */
+  aside?: JSX.Element;
 };
 
 export type DetailPanelActionProps = Omit<
@@ -369,6 +377,7 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
           rootElement = element;
         }}
         class={`pw-detail-panel-root ${props.class ?? ""}`}
+        data-panel-placement={props.placement ?? "bottom"}
         data-mode={mode()}
         data-viewport-mode={viewportMode()}
         data-presence={presence()}
@@ -440,25 +449,30 @@ function DetailPanelCollection(props: { children: JSX.Element; class?: string })
   );
 }
 
-function DetailPanelHeader(props: {
-  icon?: JSX.Element;
-  title: JSX.Element;
-  children?: JSX.Element;
-  class?: string;
-}) {
+function DetailPanelHeader(props: DetailPanelHeaderProps) {
   const context = useDetailPanel("Header");
   const toggleShortcut = createShortcutLabel("shell.toggle_detail");
   const maximizeShortcut = createShortcutLabel("shell.maximize_detail");
   return (
     <header class={`pw-detail-panel__header ${props.class ?? ""}`}>
       <div class="pw-detail-panel__identity">
-        <div class="pw-detail-panel__identity-content !rounded-full">
+        <div class="pw-detail-panel__identity-content">
           <Show when={props.icon}>
             <span class="pw-detail-panel__header-icon" aria-hidden>
               {props.icon}
             </span>
           </Show>
-          <h2 class="pw-detail-panel__title">{props.title}</h2>
+          <div class="pw-detail-panel__heading">
+            <div class="pw-detail-panel__title-row">
+              <h2 class="pw-detail-panel__title">{props.title}</h2>
+              <Show when={props.status}>
+                <span class="pw-detail-panel__status">{props.status}</span>
+              </Show>
+            </div>
+            <Show when={props.subtitle}>
+              <p class="pw-detail-panel__subtitle">{props.subtitle}</p>
+            </Show>
+          </div>
         </div>
         <Show when={context.mode() === "collapsed"}>
           <button
@@ -528,7 +542,7 @@ function DetailPanelHeader(props: {
 }
 
 const detailPanelIconControlClass =
-  "pw-detail-panel__action control-field control-field-sm !rounded-full !p-0 focus-visible:outline-none";
+  "pw-detail-panel__action focus-visible:outline-none";
 
 function DetailPanelAction(props: DetailPanelActionProps) {
   useDetailPanel("Action");
@@ -583,22 +597,29 @@ function DetailPanelActions(props: { children: JSX.Element; class?: string }) {
 
 function DetailPanelBody(props: DetailPanelBodyProps) {
   const context = useDetailPanel("Body");
+  const layout = () => props.layout ?? "record";
   return (
     <div
       class={`pw-detail-panel__body ${props.class ?? ""}`}
-      data-layout={props.layout ?? "default"}
+      data-layout={layout()}
       hidden={context.viewportMode() === "collapsed"}
     >
-      {props.children}
+      <Show when={layout() === "record"} fallback={props.children}>
+        <div class="pw-detail-panel__record">{props.children}</div>
+      </Show>
     </div>
   );
 }
 
-function DetailPanelGrid(props: { children: JSX.Element; class?: string }) {
+function DetailPanelMain(props: { children: JSX.Element; class?: string }) {
   return (
-    <div class={`pw-detail-panel__grid ${props.class ?? ""}`}>
-      {props.children}
-    </div>
+    <div class={`pw-detail-panel__main ${props.class ?? ""}`}>{props.children}</div>
+  );
+}
+
+function DetailPanelRail(props: { children: JSX.Element; class?: string }) {
+  return (
+    <aside class={`pw-detail-panel__rail ${props.class ?? ""}`}>{props.children}</aside>
   );
 }
 
@@ -606,73 +627,19 @@ function DetailPanelSection(props: DetailPanelSectionProps) {
   const titleId = createUniqueId();
   return (
     <section
-      class={`pw-detail-panel__cell pw-detail-panel__section ${props.class ?? ""}`}
-      data-span={props.span ?? 12}
+      class={`pw-detail-panel__section ${props.class ?? ""}`}
       aria-labelledby={props.title ? titleId : undefined}
     >
-      <Show when={props.title}>
-        <h3 id={titleId} class="pw-detail-panel__section-title">
-          {props.title}
-        </h3>
+      <Show when={props.title || props.aside}>
+        <div class="pw-detail-panel__section-heading">
+          <h3 id={titleId} class="pw-detail-panel__section-title">
+            {props.title}
+          </h3>
+          <Show when={props.aside}>{props.aside}</Show>
+        </div>
       </Show>
       {props.children}
     </section>
-  );
-}
-
-function DetailPanelMetric(props: DetailPanelMetricProps) {
-  return (
-    <div
-      class={`pw-detail-panel__cell pw-detail-panel__metric ${props.class ?? ""}`}
-      data-span={props.span ?? 3}
-    >
-      <div class="pw-detail-panel__metric-heading">
-        <p class="pw-detail-panel__metric-value">{props.value}</p>
-        <Show when={props.icon}>
-          <span class="pw-detail-panel__metric-icon" aria-hidden>
-            {props.icon}
-          </span>
-        </Show>
-      </div>
-      <p class="pw-detail-panel__metric-label">{props.label}</p>
-      <Show when={props.description}>
-        <p class="pw-detail-panel__metric-description">{props.description}</p>
-      </Show>
-      <Show when={props.visualization}>
-        <div class="pw-detail-panel__metric-visualization">
-          {props.visualization}
-        </div>
-      </Show>
-    </div>
-  );
-}
-
-function DetailPanelMetadata(props: {
-  children: JSX.Element;
-  class?: string;
-  columns?: 1 | 2;
-}) {
-  return (
-    <dl
-      class={`pw-detail-panel__metadata ${props.class ?? ""}`}
-      data-columns={props.columns ?? 1}
-    >
-      {props.children}
-    </dl>
-  );
-}
-
-function DetailPanelMetadataItem(props: {
-  label: JSX.Element;
-  value: JSX.Element;
-  class?: string;
-  mono?: boolean;
-}) {
-  return (
-    <div class={`pw-detail-panel__metadata-item ${props.class ?? ""}`}>
-      <dt>{props.label}</dt>
-      <dd classList={{ "font-mono": props.mono, "pw-selectable": props.mono }}>{props.value}</dd>
-    </div>
   );
 }
 
@@ -700,11 +667,15 @@ export const DetailPanel = {
   Header: DetailPanelHeader,
   Actions: DetailPanelActions,
   Action: DetailPanelAction,
+  PrimaryAction: DetailPanelPrimaryAction,
+  Overflow: DetailPanelOverflow,
+  OverflowItem: DetailPanelOverflowItem,
   Body: DetailPanelBody,
-  Grid: DetailPanelGrid,
+  Main: DetailPanelMain,
+  Rail: DetailPanelRail,
   Section: DetailPanelSection,
-  Metric: DetailPanelMetric,
-  Metadata: DetailPanelMetadata,
-  MetadataItem: DetailPanelMetadataItem,
+  Properties: DetailPanelProperties,
+  Property: DetailPanelProperty,
+  LinkedEntities: DetailPanelLinkedEntities,
   Content: DetailPanelContent,
 };

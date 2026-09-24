@@ -83,35 +83,43 @@ export function IntegrationDetail(props: {
           <DetailPanel.Header
             icon={<NodeIcon name={providerIconKey(integration())} size={16} brand={false} />}
             title={integration().name}
+            status={
+              <StatusChip
+                tone={integrationTone(props.status ?? integration().status)}
+                label={props.status ?? integration().status}
+              />
+            }
+            subtitle={[integration().environment, integration().lastSync ? `Synced ${integration().lastSync}` : ""]
+              .filter(Boolean)
+              .join(" · ")}
           >
             <DetailPanel.Actions>
-              <DetailPanel.Action label="Refresh metadata" onClick={() => {
-                props.onSync?.();
-              }}>
-                <RefreshCw />
-              </DetailPanel.Action>
+              <DetailPanel.PrimaryAction
+                label="Refresh metadata"
+                icon={<RefreshCw size={14} aria-hidden />}
+                onClick={() => props.onSync?.()}
+              />
               <DetailPanel.Action label="Open CLI flow" onClick={() => props.onReconfigure?.()}>
                 <Plug />
               </DetailPanel.Action>
             </DetailPanel.Actions>
           </DetailPanel.Header>
-          <DetailPanel.Body layout="sections">
-            <DetailPanel.Grid>
-              <DetailPanel.Section>
+          <DetailPanel.Body>
+            <DetailPanel.Main>
+              <div class="mb-4">
                 <Tabs items={[...DETAIL_SECTIONS]} value={section()} onChange={(value) => {
                   if (isIntegrationDetailSection(value)) setSection(value);
                 }} aria-label="Integration detail" />
-              </DetailPanel.Section>
+              </div>
 
               <Show when={section() === "overview"}>
-                <DetailPanel.Section title="Connection">
-                  <div class="grid gap-4 sm:grid-cols-2">
-                    <div><p class="m-0 text-[11px] text-[var(--color-text-muted)]">Status</p><StatusChip tone={integrationTone(props.status ?? integration().status)} label={props.status ?? integration().status} /></div>
-                    <div><p class="m-0 text-[11px] text-[var(--color-text-muted)]">Connection</p><p class="m-0 mt-1 text-[13px]">{integration().connectionLabel}</p></div>
-                    <div><p class="m-0 text-[11px] text-[var(--color-text-muted)]">Environment</p><p class="m-0 mt-1 text-[13px]">{integration().environment}</p></div>
-                    <div><p class="m-0 text-[11px] text-[var(--color-text-muted)]">Last sync</p><p class="m-0 mt-1 text-[13px]">{integration().lastSync}</p></div>
-                  </div>
-                  <p class="m-0 mt-4 text-[12px] text-[var(--color-text-secondary)]">{integration().summary}</p>
+                <DetailPanel.Section title="Summary">
+                  <Show
+                    when={integration().summary}
+                    fallback={<p class="pw-detail-panel__text" data-empty>No summary yet.</p>}
+                  >
+                    <p class="pw-detail-panel__text">{integration().summary}</p>
+                  </Show>
                 </DetailPanel.Section>
               </Show>
 
@@ -120,7 +128,7 @@ export function IntegrationDetail(props: {
                   <Show
                     when={resources().length > 0}
                     fallback={
-                      <p class="m-0 text-[12px] text-[var(--color-text-secondary)]">
+                      <p class="pw-detail-panel__text" data-empty>
                         No imported resources yet. Refresh metadata imports a bounded inventory from the local CLI.
                       </p>
                     }
@@ -167,7 +175,7 @@ export function IntegrationDetail(props: {
                   <Show
                     when={syncRuns().length > 0}
                     fallback={
-                      <p class="m-0 text-[12px] text-[var(--color-text-secondary)]">
+                      <p class="pw-detail-panel__text" data-empty>
                         No sync runs yet. Refresh metadata pulls inventory through the authenticated local CLI.
                       </p>
                     }
@@ -183,7 +191,21 @@ export function IntegrationDetail(props: {
                   </Show>
                 </DetailPanel.Section>
               </Show>
-            </DetailPanel.Grid>
+            </DetailPanel.Main>
+            <DetailPanel.Rail>
+              <DetailPanel.Section title="Connection">
+                <DetailPanel.Properties>
+                  <DetailPanel.Property label="Connection" value={integration().connectionLabel} />
+                  <DetailPanel.Property label="Environment" value={integration().environment} />
+                  <DetailPanel.Property label="Last sync" value={integration().lastSync} />
+                  <DetailPanel.Property label="Provider" value={provider()?.name} />
+                  <DetailPanel.Property
+                    label="Resources"
+                    value={resources().length > 0 ? String(resources().length) : null}
+                  />
+                </DetailPanel.Properties>
+              </DetailPanel.Section>
+            </DetailPanel.Rail>
           </DetailPanel.Body>
         </DetailPanel.Content>
       )}

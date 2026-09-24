@@ -1,7 +1,6 @@
 import { For, Show } from "solid-js";
 import {
   Check,
-  Delete,
   DetailPanel,
   PageError,
   PageLoading,
@@ -29,12 +28,10 @@ export function EnvironmentDetail(props: {
     <DetailPanel.Content>
       <Show when={props.loading}>
         <DetailPanel.Header title="Loading environment" />
-        <DetailPanel.Body layout="sections">
-          <DetailPanel.Grid>
-            <DetailPanel.Section>
-              <PageLoading label="Loading environment…" />
-            </DetailPanel.Section>
-          </DetailPanel.Grid>
+        <DetailPanel.Body>
+          <DetailPanel.Main>
+            <PageLoading label="Loading environment…" />
+          </DetailPanel.Main>
         </DetailPanel.Body>
       </Show>
 
@@ -50,22 +47,20 @@ export function EnvironmentDetail(props: {
               : "Failed to load"
           }
         />
-        <DetailPanel.Body layout="sections">
-          <DetailPanel.Grid>
-            <DetailPanel.Section>
-              <PageError
-                title={
-                  props.notFound || !props.environment
-                    ? "Environment not found"
-                    : "Failed to load"
-                }
-                message={
-                  props.error ??
-                  "This environment is unavailable or was removed from the project."
-                }
-              />
-            </DetailPanel.Section>
-          </DetailPanel.Grid>
+        <DetailPanel.Body>
+          <DetailPanel.Main>
+            <PageError
+              title={
+                props.notFound || !props.environment
+                  ? "Environment not found"
+                  : "Failed to load"
+              }
+              message={
+                props.error ??
+                "This environment is unavailable or was removed from the project."
+              }
+            />
+          </DetailPanel.Main>
         </DetailPanel.Body>
       </Show>
 
@@ -83,70 +78,56 @@ export function EnvironmentDetail(props: {
               <DetailPanel.Header
                 icon={<Server size={16} />}
                 title={environment().name}
+                status={
+                  <>
+                    <StatusChip
+                      tone={environmentKindTone(environment().kind)}
+                      label={environmentKindLabel(environment().kind)}
+                    />
+                    <StatusChip
+                      tone={protectionTone(environment().protection)}
+                      label={protectionLabel(environment().protection)}
+                    />
+                  </>
+                }
+                subtitle={environment().isDefault ? "Default environment" : "Environment"}
               >
                 <Show when={showActions()}>
                   <DetailPanel.Actions>
                     <Show when={props.onSetDefault && !environment().isDefault}>
-                      <DetailPanel.Action
+                      <DetailPanel.PrimaryAction
                         label="Set as default"
+                        icon={<Check size={14} aria-hidden />}
                         onClick={() => props.onSetDefault?.(environment().id)}
-                      >
-                        <Check />
-                      </DetailPanel.Action>
+                      />
                     </Show>
                     <Show when={props.onDelete && props.canDelete !== false}>
-                      <DetailPanel.Action
-                        label="Delete environment"
-                        onClick={() => props.onDelete?.(environment().id)}
-                      >
-                        <Delete />
-                      </DetailPanel.Action>
+                      <DetailPanel.Overflow>
+                        <DetailPanel.OverflowItem
+                          value="delete"
+                          danger
+                          onSelect={() => props.onDelete?.(environment().id)}
+                        >
+                          Delete environment
+                        </DetailPanel.OverflowItem>
+                      </DetailPanel.Overflow>
                     </Show>
                   </DetailPanel.Actions>
                 </Show>
               </DetailPanel.Header>
 
-              <DetailPanel.Body layout="sections">
-                <DetailPanel.Grid>
-                  <DetailPanel.Metric
-                    span={3}
-                    label="Kind"
-                    value={
-                      <StatusChip
-                        tone={environmentKindTone(environment().kind)}
-                        label={environmentKindLabel(environment().kind)}
-                      />
-                    }
-                  />
-                  <DetailPanel.Metric
-                    span={3}
-                    label="Protection"
-                    value={
-                      <StatusChip
-                        tone={protectionTone(environment().protection)}
-                        label={protectionLabel(environment().protection)}
-                      />
-                    }
-                  />
-
-                  <DetailPanel.Section title="Environment" span={6}>
-                    <DetailPanel.Metadata>
-                      <DetailPanel.MetadataItem
-                        label="Environment ID"
-                        value={environment().id}
-                        mono
-                      />
-                      <Show when={environment().description}>
-                        <DetailPanel.MetadataItem
-                          label="Summary"
-                          value={environment().description!}
-                        />
-                      </Show>
-                    </DetailPanel.Metadata>
+              <DetailPanel.Body>
+                <DetailPanel.Main>
+                  <DetailPanel.Section title="Summary">
+                    <Show
+                      when={environment().description}
+                      fallback={<p class="pw-detail-panel__text" data-empty>No summary yet.</p>}
+                    >
+                      <p class="pw-detail-panel__text">{environment().description}</p>
+                    </Show>
                   </DetailPanel.Section>
-
                   <Show when={rules().length > 0}>
-                    <DetailPanel.Section title="Protection rules" span={6}>
+                    <DetailPanel.Section title="Protection rules">
                       <ul
                         class="m-0 list-disc space-y-1 pl-4 text-[12.5px] text-[var(--color-text-secondary)]"
                         aria-label="Protection rules"
@@ -155,7 +136,22 @@ export function EnvironmentDetail(props: {
                       </ul>
                     </DetailPanel.Section>
                   </Show>
-                </DetailPanel.Grid>
+                </DetailPanel.Main>
+                <DetailPanel.Rail>
+                  <DetailPanel.Section title="Properties">
+                    <DetailPanel.Properties>
+                      <DetailPanel.Property label="ID" value={environment().id} mono />
+                      <DetailPanel.Property
+                        label="Default"
+                        value={environment().isDefault ? "Yes" : "No"}
+                      />
+                      <DetailPanel.Property
+                        label="Rules"
+                        value={rules().length > 0 ? String(rules().length) : null}
+                      />
+                    </DetailPanel.Properties>
+                  </DetailPanel.Section>
+                </DetailPanel.Rail>
               </DetailPanel.Body>
             </>
           );

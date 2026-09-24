@@ -17,7 +17,7 @@ export function membershipEmptyCopy(
   view: Pick<ArchViewCard, "members" | "nodeCount"> | null | undefined,
 ): string {
   if (!hasMembershipList(view)) {
-    return "Membership list not available in mock.";
+    return "Membership has not been recorded for this view.";
   }
   if ((view?.members?.length ?? 0) === 0) {
     return "No members in this view.";

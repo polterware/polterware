@@ -12,24 +12,23 @@
     "test": "echo 'no tests yet'"
   },
   "peerDependencies": {
-    "solid-js": "^1.9.0"
+    "solid-js": "^1.9.15"
   },
   "dependencies": {
-    "@ark-ui/solid": "^5.38.0",
+    "@ark-ui/solid": "^5.39.2",
     "@corvu/resizable": "0.2.5",
-    "@hugeicons/core-free-icons": "^4.2.3",
+    "@hugeicons/core-free-icons": "^4.3.5",
     "@polterware/frontend-state": "workspace:*",
-    "@tanstack/solid-virtual": "3.13.12",
-    "@tiptap/core": "^2.27.2",
-    "@tiptap/extension-link": "^2.27.2",
-    "@tiptap/extension-placeholder": "^2.27.2",
-    "@tiptap/starter-kit": "^2.27.2",
-    "marked": "^15.0.12",
+    "@tanstack/solid-virtual": "3.13.40",
+    "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-placeholder": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
+    "marked": "^18.0.14",
     "turndown": "^7.2.4"
   },
   "devDependencies": {
-    "@types/node": "^24.12.2",
+    "@types/node": "^24.13.6",
     "@types/turndown": "^5.0.6",
-    "vitest": "^4.1.5"
+    "vitest": "^5.0.1"
   }
 }

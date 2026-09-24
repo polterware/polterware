@@ -27,7 +27,7 @@ describe("ArchitectureViewDetail helpers", () => {
     expect(hasMembershipList({})).toBe(false);
     expect(membershipRows({ members: undefined })).toEqual([]);
     expect(membershipEmptyCopy({ nodeCount: 12 })).toBe(
-      "Membership list not available in mock.",
+      "Membership has not been recorded for this view.",
     );
     expect(membershipEmptyCopy({ nodeCount: 0, members: [] })).toBe("No members in this view.");
     expect(membershipEmptyCopy({ nodeCount: 2, members: [{ id: "a", name: "A" }] })).toBe("");
@@ -55,17 +55,15 @@ describe("ArchitectureViewDetail helpers", () => {
 });
 
 describe("ArchitectureViewDetail composition contract", () => {
-  it("uses production DetailPanel sections layout and header actions", () => {
-    expect(source).toContain('layout="sections"');
-    expect(source).toContain("DetailPanel.Grid");
-    expect(source).toContain("DetailPanel.Metric");
-    expect(source).toContain("DetailPanel.Metadata");
-    expect(source).toContain("DetailPanel.Action");
+  it("uses the record layout, a primary Open action, and overflow for edit/delete", () => {
+    expect(source).toContain("DetailPanel.Main");
+    expect(source).toContain("DetailPanel.Rail");
+    expect(source).not.toContain("DetailPanel.Metric");
+    expect(source).toContain("DetailPanel.PrimaryAction");
     expect(source).toContain('label="Open"');
-    expect(source).toContain('tone="primary"');
-    expect(source).toContain('label="Edit"');
-    expect(source).toContain('label="Delete"');
-    expect(source).toContain('tone="danger"');
+    expect(source).toContain("Edit view");
+    expect(source).toMatch(/DetailPanel\.OverflowItem[\s\S]*?danger[\s\S]*?Delete view/);
+    expect(source).not.toContain('tone="danger"');
     expect(source).toContain("PageLoading");
     expect(source).toContain("PageError");
     expect(source).toContain("View not found");
@@ -74,7 +72,7 @@ describe("ArchitectureViewDetail composition contract", () => {
     expect(source).toContain("membershipEmptyCopy");
     expect(source).toContain("emptyDescriptionCopy");
     expect(source).toContain("No members in this view.");
-    expect(helpersSource).toContain("Membership list not available in mock.");
+    expect(helpersSource).not.toContain("mock");
     expect(helpersSource).toContain("No description provided for this view.");
     expect(source).toContain('aria-label="View members"');
     expect(source).toContain("DataTable.Root");

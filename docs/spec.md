@@ -34,6 +34,8 @@ Architecture / Canvas is the initial route and the destination after entering or
 
 Settings Advanced includes an app-level Appearance control: Reduce transparency switches the macOS title bar and sidebar from frosted vibrancy to a solid fill. The preference is stored in the Desktop userData directory and does not live in SQLite.
 
+Entity detail opens in one shared detail panel with collapsed, open, and maximized modes. Collections dock it at the bottom (Architecture Canvas included). Operational records show overview content beside a properties rail; Knowledge documents show inline properties and linked-entity chips above the Markdown editor. Destructive commands such as Archive and Delete live in the header overflow menu.
+
 The sidebar contains the five product surfaces. Settings is fixed in its footer. The title bar retains local project and environment switchers, Commander, and history controls. In-app Commander opens as the shared command palette dialog with the same opaque float surface as other product dialogs. The global Commander shortcut opens a separate frameless, draggable overlay (`?surface=commander`) with the same opaque panel material, search at the top, an Open Desktop control, and an overview strip (Knowledge, Integrations) that drills into in-overlay lists — not a miniature copy of the full Desktop shell. The in-app palette remains search-only.
 
 ## Local project model
@@ -50,7 +52,7 @@ The core also stores PPM **facts** (`ppm_facts`) and **evidence** (`ppm_evidence
 
 ## Knowledge Specs
 
-Knowledge Specs store product features as five linked knowledge items (`spec`, `plan`, `tasks`, `clarify`, `checklist`) that share a `featureKey` in `extra_json`. Creating a feature writes all five bodies from English templates. The Specs table lists one row per feature. The detail panel switches among Spec, Plan, Tasks, Clarify, and Checklist for that feature. Allowed feature statuses are `draft` and `ready`. Marking a feature ready is blocked while the Checklist body still contains unchecked Markdown items (`- [ ]`). Clarify holds open questions and does not block ready.
+Knowledge Specs store product features as five linked knowledge items (`spec`, `plan`, `tasks`, `clarify`, `checklist`) that share a `featureKey` in `extra_json`. Creating a feature writes all five bodies from English templates. The Specs table lists one row per feature. The detail panel switches among Spec, Plan, Tasks, Clarify, and Checklist for that feature and shows Checklist progress. Allowed feature statuses are `draft` and `ready`. Marking a feature ready is blocked while the Checklist body still contains unchecked Markdown items (`- [ ]`); the disabled Mark ready action explains why. Clarify holds open questions and does not block ready.
 
 Each project may also store one Constitution knowledge item (`kind = constitution`, no `featureKey`). The Specs tab shows that singleton above the feature table; creating it seeds an English principles template titled "Project constitution". Archiving removes the singleton so Specs returns to the empty constitution CTA. Specs do not run Spec Kit CLI and do not bind to `.specify/` on disk.
 

@@ -21,8 +21,8 @@ describe("Runbook detail helpers", () => {
 describe("RunbookDetail composition contract", () => {
   it("uses document layout without condemned execution actions", () => {
     expect(detailSource).toContain("KnowledgeDocumentShell");
-    expect(detailSource).toContain('label="Duplicate"');
-    expect(detailSource).toContain('label="Archive"');
+    expect(detailSource).toMatch(/OverflowItem value="duplicate"/);
+    expect(detailSource).toMatch(/OverflowItem value="archive" danger/);
     expect(detailSource).not.toContain('label="Run"');
     expect(detailSource).not.toContain('label="Open terminal"');
     expect(detailSource).toContain("KnowledgeDocumentNotFound");

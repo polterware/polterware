@@ -1,12 +1,12 @@
 import { Show, type JSX } from "solid-js";
 import {
   DetailPanel,
-  Archive,
   BookOpen02Icon,
-  Copy,
+  StatusChip,
 } from "@polterware/frontend-design-system";
 import type { WorkspaceRunbook } from "@polterware/feature-shell";
 import { KnowledgeDocumentNotFound, KnowledgeDocumentShell } from "./knowledge-document-shell";
+import { runbookSeverityTone } from "./knowledge-document-helpers";
 
 export function RunbookDetail(props: {
   runbook: WorkspaceRunbook | null | undefined;
@@ -29,25 +29,52 @@ export function RunbookDetail(props: {
     >
       {(runbook) => (
         <DetailPanel.Content>
-          <DetailPanel.Header icon={<BookOpen02Icon size={16} />} title={runbook().title}>
-            <DetailPanel.Actions>
-              <Show when={props.onDuplicate}>
-                <DetailPanel.Action label="Duplicate" onClick={() => props.onDuplicate?.()}>
-                  <Copy />
-                </DetailPanel.Action>
-              </Show>
-              <Show when={props.onArchive}>
-                <DetailPanel.Action label="Archive" tone="danger" onClick={() => props.onArchive?.()}>
-                  <Archive />
-                </DetailPanel.Action>
-              </Show>
-            </DetailPanel.Actions>
+          <DetailPanel.Header
+            icon={<BookOpen02Icon size={16} />}
+            title={runbook().title}
+            status={
+              <StatusChip
+                tone={runbookSeverityTone(runbook().severity)}
+                label={runbook().severity}
+              />
+            }
+            subtitle={["Runbook", runbook().service, runbook().owner]
+              .filter(Boolean)
+              .join(" · ")}
+          >
+            <Show when={props.onDuplicate || props.onArchive}>
+              <DetailPanel.Actions>
+                <DetailPanel.Overflow>
+                  <Show when={props.onDuplicate}>
+                    <DetailPanel.OverflowItem value="duplicate" onSelect={() => props.onDuplicate?.()}>
+                      Duplicate
+                    </DetailPanel.OverflowItem>
+                  </Show>
+                  <Show when={props.onArchive}>
+                    <DetailPanel.OverflowItem value="archive" danger onSelect={() => props.onArchive?.()}>
+                      Archive
+                    </DetailPanel.OverflowItem>
+                  </Show>
+                </DetailPanel.Overflow>
+              </DetailPanel.Actions>
+            </Show>
           </DetailPanel.Header>
           <KnowledgeDocumentShell
             title={runbook().title}
             bodyMarkdown={props.bodyMarkdown}
             onBodyChange={props.onBodyChange}
-            preamble={props.links}
+            properties={
+              <DetailPanel.Properties variant="inline">
+                <DetailPanel.Property label="Service" value={runbook().service} />
+                <DetailPanel.Property
+                  label="Component"
+                  value={runbook().componentName}
+                />
+                <DetailPanel.Property label="Resource" value={runbook().resourceName} />
+                <DetailPanel.Property label="Last validated" value={runbook().lastValidated} />
+              </DetailPanel.Properties>
+            }
+            links={props.links}
           />
         </DetailPanel.Content>
       )}

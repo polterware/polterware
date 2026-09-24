@@ -20,8 +20,8 @@ describe("DocumentDetail composition contract", () => {
   it("uses document layout shell and Archive action", () => {
     expect(detailSource).toContain("KnowledgeDocumentShell");
     expect(detailSource).toContain("KnowledgeDocumentNotFound");
-    expect(detailSource).toContain('label="Archive"');
-    expect(detailSource).toContain('tone="danger"');
+    expect(detailSource).toMatch(/OverflowItem value="archive" danger/);
+    expect(detailSource).not.toContain('tone="danger"');
     expect(detailSource).toContain("Book03Icon");
     expect(shellSource).toContain('layout="document"');
     expect(shellSource).toContain("MarkdownEditor");

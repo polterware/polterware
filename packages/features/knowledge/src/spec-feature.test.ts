@@ -30,7 +30,8 @@ describe("knowledge specs helpers", () => {
 describe("SpecFeatureDetail composition contract", () => {
   it("uses document layout shell with Spec Plan Tasks tabs", () => {
     expect(detailSource).toContain("KnowledgeDocumentShell");
-    expect(detailSource).toContain('label="Archive"');
+    expect(detailSource).toMatch(/OverflowItem value="archive" danger/);
+    expect(detailSource).toContain("Check every Checklist item before marking ready.");
     expect(detailSource).toContain("FileText");
     expect(detailSource).toContain('{ id: "spec", label: "Spec" }');
     expect(detailSource).toContain('{ id: "plan", label: "Plan" }');

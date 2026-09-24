@@ -1,4 +1,4 @@
-import type { MenuItemConstructorOptions } from "electron";
+import type { Menu, MenuItemConstructorOptions } from "electron";
 
 export type ApplicationMenuOptions = {
   isPackaged: boolean;
@@ -6,8 +6,8 @@ export type ApplicationMenuOptions = {
 };
 
 export type ApplicationMenuApi = {
-  buildFromTemplate: (template: MenuItemConstructorOptions[]) => unknown;
-  setApplicationMenu: (menu: unknown) => void;
+  buildFromTemplate: (template: MenuItemConstructorOptions[]) => Menu;
+  setApplicationMenu: (menu: Menu | null) => void;
 };
 
 /** Build the Desktop application menu without browser-style zoom roles. */

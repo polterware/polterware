@@ -21,14 +21,19 @@ export type DetailTarget = {
 
 export type DetailCollectionStatus = "idle" | "loading" | "ready" | "error";
 
+export type DetailPanelPlacement = "bottom" | "side";
+
 export type DetailCollectionRegistration = {
   scopeId: string;
   status: DetailCollectionStatus;
   targets: readonly DetailTarget[];
+  /** Where the shared DetailPanel docks while this collection is active. */
+  placement?: DetailPanelPlacement;
 };
 
 type DetailPanelSessionState = {
   mode: DetailPanelMode;
+  placement: DetailPanelPlacement;
   activeScope: string | null;
   activeTarget: DetailTarget | null;
   outgoingTarget: DetailTarget | null;
@@ -52,6 +57,7 @@ export type DetailPanelState = DetailPanelSessionState & {
 
 export const detailPanelDefaultState: DetailPanelSessionState = {
   mode: "open",
+  placement: "bottom",
   activeScope: null,
   activeTarget: null,
   outgoingTarget: null,
@@ -87,7 +93,8 @@ export const detailPanelStore = createStore<DetailPanelState>()(
   (set, get) => ({
       ...detailPanelDefaultState,
 
-      registerCollection: ({ scopeId, status, targets }) => {
+      registerCollection: ({ scopeId, status, targets, placement = "bottom" }) => {
+        if (get().placement !== placement) set({ placement });
         const state = get();
 
         if (status === "loading") {
@@ -208,6 +215,7 @@ export const detailPanelStore = createStore<DetailPanelState>()(
           activeTarget: null,
           outgoingTarget: null,
           pendingTarget,
+          placement: "bottom",
           collectionStatus: "idle",
           mode: pendingTarget ? "open" : layoutMode,
           restoreMode: pendingTarget ? "open" : layoutMode,

@@ -78,3 +78,10 @@ Changes to durable project truth require an attributable actor and a clear reaso
 export function checklistHasOpenItems(body: string): boolean {
   return /(?:^|\n)\s*-\s+\[\s\]\s+/m.test(body);
 }
+
+/** Checked vs total Markdown task items. */
+export function checklistProgress(body: string): { done: number; total: number } {
+  const open = body.match(/^\s*-\s+\[\s\]\s+/gm)?.length ?? 0;
+  const done = body.match(/^\s*-\s+\[[xX]\]\s+/gm)?.length ?? 0;
+  return { done, total: open + done };
+}

@@ -43,7 +43,7 @@ import { CreateSourceDialog } from "./create-source-dialog";
 import type { KnowledgeCreateTemplate } from "./create-templates";
 import { createDocumentAutosave } from "./document-autosave";
 import { DocumentDetail } from "./document-detail";
-import { EntityLinksSection } from "./entity-links-section";
+import { EntityLinks } from "./entity-links";
 import { LibraryEmpty, libraryFilterEmpty } from "./library-empty";
 import {
   EMPTY_LIBRARY_FILTERS,
@@ -74,6 +74,7 @@ import { SourcesEmpty, sourcesFilterEmpty } from "./sources-empty";
 import { SourcesTable } from "./sources-table";
 import { SpecFeatureDetail } from "./spec-feature-detail";
 import {
+  adrStatusTone,
   libraryStatusTone,
   runbookSeverityTone,
   specStatusTone,
@@ -804,7 +805,7 @@ export function KnowledgeView(props: {
     links: WorkspaceDocument["entityLinks"] | WorkspaceAdr["entityLinks"] | WorkspaceRunbook["entityLinks"] | WorkspaceSource["entityLinks"],
   ) {
     return (
-      <EntityLinksSection
+      <EntityLinks
         links={links}
         entities={props.entities}
         onOpenEntity={props.onOpenEntity}
@@ -1035,6 +1036,7 @@ export function KnowledgeView(props: {
         {(item) => (
           <DocumentDetail
             document={item()}
+            kindLabel="Doc"
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
               noteBodyChange(item().id, markdown, item().bodyMarkdown);
@@ -1058,11 +1060,13 @@ export function KnowledgeView(props: {
               tags: item().tags,
               componentIds: [],
               componentNames: [],
-              environment: "All",
+              environment: "",
               status: "published",
               owner: item().owner,
               entityLinks: item().entityLinks,
             }}
+            kindLabel="ADR"
+            status={{ label: item().status, tone: adrStatusTone(item().status) }}
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
               noteBodyChange(item().id, markdown, item().bodyMarkdown);

@@ -13,6 +13,7 @@ import "./main-surface.css";
  */
 export function MainSurface(props: { children: JSX.Element; class?: string }) {
   const mode = createDetailPanelSelector((state) => state.mode);
+  const placement = createDetailPanelSelector((state) => state.placement);
   const presence = createDetailPanelSelector((state) => state.presence);
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
   const outgoingTarget = createDetailPanelSelector((state) => state.outgoingTarget);
@@ -26,6 +27,7 @@ export function MainSurface(props: { children: JSX.Element; class?: string }) {
     >
       <DetailPanel.Root
         mode={mode()}
+        placement={placement()}
         presence={presence()}
         activeEntityId={detailTarget()?.entityId}
         onCollapse={() => detailPanelStore.getState().collapse()}
@@ -41,42 +43,33 @@ export function MainSurface(props: { children: JSX.Element; class?: string }) {
         <Show when={collectionStatus() === "loading"}>
           <DetailPanel.Content>
             <DetailPanel.Header title="Loading details" />
-            <DetailPanel.Body layout="sections">
-              <DetailPanel.Grid>
-                <DetailPanel.Section>
-                  <div
-                    class="space-y-3"
-                    role="status"
-                    aria-label="Loading details"
-                    aria-live="polite"
-                  >
-                    <span class="sr-only">Loading details…</span>
-                    <div class="h-4 w-48 bg-[var(--color-surface-subtle)]" />
-                    <div class="h-2 w-32 bg-[var(--color-surface-subtle)]" />
-                  </div>
-                </DetailPanel.Section>
-                <DetailPanel.Section span={6}>
-                  <div class="h-24 bg-[var(--color-surface-subtle)]" />
-                </DetailPanel.Section>
-                <DetailPanel.Section span={6}>
-                  <div class="h-24 bg-[var(--color-surface-subtle)]" />
-                </DetailPanel.Section>
-                <DetailPanel.Section>
-                  <div class="h-32 bg-[var(--color-surface-subtle)]" />
-                </DetailPanel.Section>
-              </DetailPanel.Grid>
+            <DetailPanel.Body>
+              <DetailPanel.Main>
+                <div
+                  class="space-y-3"
+                  role="status"
+                  aria-label="Loading details"
+                  aria-live="polite"
+                >
+                  <span class="sr-only">Loading details…</span>
+                  <div class="h-4 w-48 rounded-[var(--radius-control)] bg-[var(--color-surface-subtle)]" />
+                  <div class="h-2 w-32 rounded-[var(--radius-control)] bg-[var(--color-surface-subtle)]" />
+                  <div class="h-24 rounded-[var(--radius-control)] bg-[var(--color-surface-subtle)]" />
+                </div>
+              </DetailPanel.Main>
+              <DetailPanel.Rail>
+                <div class="h-32 rounded-[var(--radius-control)] bg-[var(--color-surface-subtle)]" />
+              </DetailPanel.Rail>
             </DetailPanel.Body>
           </DetailPanel.Content>
         </Show>
         <Show when={collectionStatus() === "error" && !activeTarget()}>
           <DetailPanel.Content>
             <DetailPanel.Header title="Details unavailable" />
-            <DetailPanel.Body layout="sections">
-              <DetailPanel.Grid>
-                <DetailPanel.Section>
-                  <PageError message="The selected details could not be loaded." />
-                </DetailPanel.Section>
-              </DetailPanel.Grid>
+            <DetailPanel.Body>
+              <DetailPanel.Main>
+                <PageError message="The selected details could not be loaded." />
+              </DetailPanel.Main>
             </DetailPanel.Body>
           </DetailPanel.Content>
         </Show>

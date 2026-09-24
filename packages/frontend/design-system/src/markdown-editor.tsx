@@ -10,7 +10,6 @@ import {
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import Link from "@tiptap/extension-link";
 import { marked } from "marked";
 import TurndownService from "turndown";
 import {
@@ -193,13 +192,16 @@ export function MarkdownEditor(props: MarkdownEditorProps): JSX.Element {
       extensions: [
         StarterKit.configure({
           heading: { levels: [1, 2, 3] },
+          link: {
+            openOnClick: false,
+            HTMLAttributes: { class: "pw-md-editor__link" },
+          },
+          listKeymap: false,
+          trailingNode: false,
+          underline: false,
         }),
         Placeholder.configure({
           placeholder: props.placeholder ?? "Start writing…",
-        }),
-        Link.configure({
-          openOnClick: false,
-          HTMLAttributes: { class: "pw-md-editor__link" },
         }),
       ],
       content: markdownToHtml(props.value ?? ""),
@@ -237,7 +239,7 @@ export function MarkdownEditor(props: MarkdownEditorProps): JSX.Element {
       lastEmitted = next;
       return;
     }
-    ed.commands.setContent(markdownToHtml(next), false);
+    ed.commands.setContent(markdownToHtml(next), { emitUpdate: false });
     lastEmitted = htmlToMarkdown(ed.getHTML());
   });
 

@@ -63,11 +63,11 @@ describe("architecture node detail helpers", () => {
 });
 
 describe("ArchitectureNodeDetail composition contract", () => {
-  it("uses production DetailPanel sections layout and StatusChip on ≥2 axes", () => {
-    expect(detailSource).toContain('layout="sections"');
-    expect(detailSource).toContain("DetailPanel.Grid");
-    expect(detailSource).toContain("DetailPanel.Metric");
-    expect(detailSource).toContain("DetailPanel.Metadata");
+  it("uses the record layout with header status chips on ≥2 axes", () => {
+    expect(detailSource).toContain("DetailPanel.Main");
+    expect(detailSource).toContain("DetailPanel.Rail");
+    expect(detailSource).toContain("DetailPanel.Property");
+    expect(detailSource).not.toContain("DetailPanel.Metric");
     expect(detailSource).toContain("DetailPanel.Action");
     expect(detailSource).toContain("StatusChip");
     expect(detailSource).toContain("architectureLifecycleTone");
@@ -95,9 +95,8 @@ describe("ArchitectureNodeDetail composition contract", () => {
     expect(detailSource).toContain("PageError");
     expect(detailSource).toContain("Node not found");
     expect(detailSource).toContain("No connections listed.");
-    expect(detailSource).toContain("No docs linked.");
     expect(detailSource).toContain('aria-label="Connected architecture"');
-    expect(detailSource).toContain('aria-label="Linked documents"');
+    expect(detailSource).toMatch(/title="Linked docs"[\s\S]*?DetailPanel\.LinkedEntities/);
     expect(detailSource).not.toContain("Architecture node activity");
     expect(detailSource).not.toMatch(/PrimaryCell[^>]*description=/);
   });

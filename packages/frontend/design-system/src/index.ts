@@ -84,13 +84,27 @@ export type {
   DetailPanelActionProps,
   DetailPanelActionTone,
   DetailPanelBodyProps,
-  DetailPanelMetricProps,
+  DetailPanelHeaderProps,
   DetailPanelMode,
+  DetailPanelPlacement,
   DetailPanelPresence,
   DetailPanelRootProps,
   DetailPanelSectionProps,
-  DetailPanelSectionSpan,
 } from "./detail-panel";
+export type {
+  DetailPanelPropertiesProps,
+  DetailPanelPropertyProps,
+} from "./detail-panel-properties";
+export type {
+  DetailPanelLinkCandidate,
+  DetailPanelLinkedEntitiesProps,
+  DetailPanelLinkedEntity,
+} from "./detail-panel-linked-entities";
+export type {
+  DetailPanelOverflowItemProps,
+  DetailPanelOverflowProps,
+} from "./detail-panel-overflow";
+export type { DetailPanelPrimaryActionProps } from "./detail-panel-primary-action";
 export { MarkdownEditor } from "./markdown-editor";
 export type { MarkdownEditorProps } from "./markdown-editor";
 export { ResizableSidebar, ResizableSplit } from "../panels/resizable";

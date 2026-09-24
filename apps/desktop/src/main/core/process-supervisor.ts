@@ -50,7 +50,7 @@ export async function startCoreProcess(options: {
   }
 
   const binary = resolveCoreBinaryPath();
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     POLTERWARE_SESSION_TOKEN: options.token,
   };

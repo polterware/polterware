@@ -1,4 +1,10 @@
-import type { MenuItemConstructorOptions, WebContents } from "electron";
+import type {
+  BaseWindow,
+  Menu,
+  MenuItemConstructorOptions,
+  WebContents,
+  WebFrameMain,
+} from "electron";
 
 export type DesktopContextEditFlags = {
   canUndo?: boolean;
@@ -13,20 +19,13 @@ export type DesktopContextMenuParams = {
   isEditable: boolean;
   selectionText: string;
   editFlags: DesktopContextEditFlags;
-  frame?: unknown;
+  frame?: WebFrameMain | null;
   x?: number;
   y?: number;
 };
 
 export type DesktopContextMenuApi = {
-  buildFromTemplate: (template: MenuItemConstructorOptions[]) => {
-    popup: (options: {
-      window?: unknown;
-      frame?: unknown;
-      x?: number;
-      y?: number;
-    }) => void;
-  };
+  buildFromTemplate: (template: MenuItemConstructorOptions[]) => Menu;
 };
 
 /** Pure template for Desktop right-click — edit/copy only, never Inspect/Reload. */
@@ -57,14 +56,14 @@ export function buildDesktopContextMenuTemplate(
 export function attachDesktopContextMenu(
   webContents: WebContents,
   menuApi: DesktopContextMenuApi,
-  getOwnerWindow?: () => unknown,
+  getOwnerWindow?: () => BaseWindow | undefined,
 ): void {
   webContents.on("context-menu", (_event, params) => {
     const template = buildDesktopContextMenuTemplate({
       isEditable: params.isEditable,
       selectionText: params.selectionText,
       editFlags: params.editFlags,
-      frame: params.frame,
+      frame: params.frame ?? undefined,
       x: params.x,
       y: params.y,
     });
@@ -75,7 +74,7 @@ export function attachDesktopContextMenu(
 
     menuApi.buildFromTemplate(template).popup({
       window: getOwnerWindow?.() ?? undefined,
-      frame: params.frame,
+      frame: params.frame ?? undefined,
       x: params.x,
       y: params.y,
     });

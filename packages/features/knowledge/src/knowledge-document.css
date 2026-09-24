@@ -9,13 +9,6 @@
   flex-direction: column;
 }
 
-/* Meta chrome (links, path, tabs) — scrolls with the document on the Body scroller. */
-.pw-knowledge-doc__preamble {
-  flex: 0 0 auto;
-  min-width: 0;
-  border-bottom: 1px solid var(--color-border-subtle);
-}
-
 .pw-knowledge-doc__body {
   position: relative;
   display: flex;
@@ -37,6 +30,18 @@
   gap: 20px;
 }
 
+.pw-knowledge-doc__tabs {
+  min-width: 0;
+}
+
+/* Title + inline properties + linked entities: chrome around the document, not a form. */
+.pw-knowledge-doc__header {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .pw-knowledge-doc__title {
   margin: 0;
   color: var(--color-text-primary);
@@ -44,4 +49,42 @@
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.01em;
+}
+
+.pw-knowledge-path {
+  max-width: 100%;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-control);
+  margin-inline: -6px;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: text;
+  font-size: 12px;
+  padding: 2px 6px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pw-knowledge-path:hover:not(:disabled) {
+  background-color: var(--color-surface-hover);
+}
+
+.pw-knowledge-path:disabled {
+  cursor: default;
+}
+
+.pw-knowledge-doc__meta {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border-bottom: 1px solid var(--color-border-subtle);
+  gap: 10px;
+  padding-bottom: 16px;
+}
+
+/* Every property may be hidden when empty; drop the divider with them. */
+.pw-knowledge-doc__meta:not(:has(> :not(:empty))) {
+  display: none;
 }

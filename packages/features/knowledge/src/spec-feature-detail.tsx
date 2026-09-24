@@ -1,6 +1,5 @@
 import { Show, createMemo } from "solid-js";
 import {
-  Archive,
   Check,
   DetailPanel,
   FileText,
@@ -13,7 +12,7 @@ import type {
 } from "@polterware/feature-shell";
 import { KnowledgeDocumentNotFound, KnowledgeDocumentShell } from "./knowledge-document-shell";
 import { specStatusTone } from "./knowledge-document-helpers";
-import { checklistHasOpenItems } from "./spec-templates";
+import { checklistHasOpenItems, checklistProgress } from "./spec-templates";
 
 const ARTIFACT_TABS = [
   { id: "spec", label: "Spec" },
@@ -43,11 +42,11 @@ export function SpecFeatureDetail(props: {
   const artifactLabel = createMemo(
     () => ARTIFACT_TABS.find((tab) => tab.id === artifact())?.label ?? "Spec",
   );
-  const checklistIncomplete = createMemo(() => {
-    const feature = props.feature;
-    if (!feature) return false;
-    return checklistHasOpenItems(props.checklistBody ?? feature.checklist.bodyMarkdown);
-  });
+  const checklistBody = createMemo(
+    () => props.checklistBody ?? props.feature?.checklist.bodyMarkdown ?? "",
+  );
+  const checklistIncomplete = createMemo(() => checklistHasOpenItems(checklistBody()));
+  const progress = createMemo(() => checklistProgress(checklistBody()));
 
   return (
     <Show
@@ -58,53 +57,71 @@ export function SpecFeatureDetail(props: {
         </Show>
       }
     >
-      {(feature) => (
-        <DetailPanel.Content>
-          <DetailPanel.Header icon={<FileText size={16} />} title={feature().title}>
-            <DetailPanel.Actions>
-              <Show when={props.onSetStatus}>
-                <DetailPanel.Action
-                  label={feature().status === "ready" ? "Mark draft" : "Mark ready"}
-                  onClick={() =>
-                    props.onSetStatus?.(feature().status === "ready" ? "draft" : "ready")
-                  }
-                >
-                  <Check />
-                </DetailPanel.Action>
-              </Show>
-              <Show when={props.onArchive}>
-                <DetailPanel.Action label="Archive" tone="danger" onClick={() => props.onArchive?.()}>
-                  <Archive />
-                </DetailPanel.Action>
-              </Show>
-            </DetailPanel.Actions>
-          </DetailPanel.Header>
-          <KnowledgeDocumentShell
-            title={`${feature().title} · ${artifactLabel()}`}
-            bodyMarkdown={props.bodyMarkdown}
-            onBodyChange={props.onBodyChange}
-            preamble={
-              <div class="flex flex-col gap-3 px-4 py-3">
-                <div class="flex flex-wrap items-center gap-2">
-                  <StatusChip tone={specStatusTone(feature().status)} label={feature().status} />
-                  <Show when={checklistIncomplete() && feature().status !== "ready"}>
-                    <StatusChip tone="warn" label="checklist open" />
+      {(feature) => {
+        const isReady = () => feature().status === "ready";
+        return (
+          <DetailPanel.Content>
+            <DetailPanel.Header
+              icon={<FileText size={16} />}
+              title={feature().title}
+              status={<StatusChip tone={specStatusTone(feature().status)} label={feature().status} />}
+              subtitle={["Feature", feature().owner, `Updated ${feature().updatedAt}`]
+                .filter(Boolean)
+                .join(" · ")}
+            >
+              <Show when={props.onSetStatus || props.onArchive}>
+                <DetailPanel.Actions>
+                  <Show when={props.onSetStatus}>
+                    <DetailPanel.PrimaryAction
+                      label={isReady() ? "Mark draft" : "Mark ready"}
+                      icon={isReady() ? undefined : <Check size={14} aria-hidden />}
+                      disabled={!isReady() && checklistIncomplete()}
+                      disabledReason="Check every Checklist item before marking ready."
+                      onClick={() => props.onSetStatus?.(isReady() ? "draft" : "ready")}
+                    />
                   </Show>
-                  <span class="text-[12px] text-[var(--color-text-muted)] font-mono pw-selectable">
-                    {feature().featureKey}
-                  </span>
-                </div>
+                  <Show when={props.onArchive}>
+                    <DetailPanel.Overflow>
+                      <DetailPanel.OverflowItem value="archive" danger onSelect={() => props.onArchive?.()}>
+                        Archive
+                      </DetailPanel.OverflowItem>
+                    </DetailPanel.Overflow>
+                  </Show>
+                </DetailPanel.Actions>
+              </Show>
+            </DetailPanel.Header>
+            <KnowledgeDocumentShell
+              title={`${feature().title} · ${artifactLabel()}`}
+              bodyMarkdown={props.bodyMarkdown}
+              onBodyChange={props.onBodyChange}
+              tabs={
                 <Tabs
                   items={[...ARTIFACT_TABS]}
                   value={artifact()}
                   onChange={(next) => props.onArtifactChange?.(normalizeArtifact(next))}
                   aria-label="Feature artifacts"
                 />
-              </div>
-            }
-          />
-        </DetailPanel.Content>
-      )}
+              }
+              properties={
+                <DetailPanel.Properties variant="inline">
+                  <DetailPanel.Property label="Feature key" value={feature().featureKey} mono />
+                  <DetailPanel.Property
+                    label="Checklist"
+                    value={
+                      progress().total > 0 ? (
+                        <StatusChip
+                          tone={checklistIncomplete() ? "warn" : "healthy"}
+                          label={`${progress().done}/${progress().total}`}
+                        />
+                      ) : null
+                    }
+                  />
+                </DetailPanel.Properties>
+              }
+            />
+          </DetailPanel.Content>
+        );
+      }}
     </Show>
   );
 }
