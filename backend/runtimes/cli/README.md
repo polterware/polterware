@@ -11,4 +11,6 @@ go build -o ../dist/polterware ./runtimes/cli
 ../dist/polterware -db /tmp/polterware-test.db drift --project <id> --json
 ```
 
+Run `../dist/polterware` with no subcommand in a terminal for the status TUI (core start/stop, MCP setup for Claude Code / Codex / Cursor, sessions, runs, history).
+
 Opens SQLite in-process (same default `-db` as `polterware-core`). See `docs/architecture/cli.md`.

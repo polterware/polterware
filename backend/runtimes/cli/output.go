@@ -19,6 +19,7 @@ func fail(err error) {
 
 func usage() {
 	fmt.Fprintf(os.Stderr, `Usage:
+  polterware [-db path]                (interactive status and MCP setup; requires a terminal)
   polterware [-db path] init --name <name> [--path <root>] [--id <id>] [--json]
   polterware [-db path] scan --project <id> [--json]
   polterware [-db path] context --project <id> [--query ...] [--entity ...] [--budget N] [--agent-run-id ...] [--json]

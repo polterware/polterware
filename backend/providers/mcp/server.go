@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/polterware/polterware/backend/domains/agentaccess"
+	"github.com/polterware/polterware/backend/platform/runstate"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
@@ -16,6 +20,10 @@ type Server struct {
 	In    io.Reader
 	Out   io.Writer
 	Err   io.Writer
+	// DBPath enables presence files under <db dir>/run when set.
+	DBPath string
+
+	presence runstate.MCPSession
 }
 
 type rpcRequest struct {
@@ -37,9 +45,51 @@ type rpcError struct {
 	Message string `json:"message"`
 }
 
-func Run(store *storepkg.Store) error {
-	server := &Server{Store: store, In: os.Stdin, Out: os.Stdout, Err: os.Stderr}
+func Run(store *storepkg.Store, dbPath string) error {
+	server := &Server{Store: store, In: os.Stdin, Out: os.Stdout, Err: os.Stderr, DBPath: dbPath}
+	server.writePresence()
+	defer server.removePresence()
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	go func() {
+		<-sig
+		server.removePresence()
+		os.Exit(0)
+	}()
 	return server.Serve()
+}
+
+func (s *Server) writePresence() {
+	if s.DBPath == "" {
+		return
+	}
+	if s.presence.PID == 0 {
+		s.presence = runstate.MCPSession{PID: os.Getpid(), DBPath: s.DBPath, StartedAt: time.Now().UTC()}
+	}
+	_ = runstate.WriteJSON(runstate.MCPPath(s.DBPath, s.presence.PID), s.presence)
+}
+
+func (s *Server) removePresence() {
+	if s.DBPath == "" {
+		return
+	}
+	_ = os.Remove(runstate.MCPPath(s.DBPath, os.Getpid()))
+}
+
+func (s *Server) recordClient(params json.RawMessage) {
+	var init struct {
+		ClientInfo struct {
+			Name    string `json:"name"`
+			Version string `json:"version"`
+		} `json:"clientInfo"`
+	}
+	if json.Unmarshal(params, &init) != nil || init.ClientInfo.Name == "" {
+		return
+	}
+	s.presence.ClientName = init.ClientInfo.Name
+	s.presence.ClientVersion = init.ClientInfo.Version
+	s.writePresence()
 }
 
 func (s *Server) Serve() error {
@@ -83,6 +133,7 @@ func (s *Server) write(resp rpcResponse) error {
 func (s *Server) dispatch(req rpcRequest) (any, error) {
 	switch req.Method {
 	case "initialize":
+		s.recordClient(req.Params)
 		return map[string]any{
 			"protocolVersion": "2024-11-05",
 			"capabilities":    map[string]any{"tools": map[string]any{}},

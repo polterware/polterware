@@ -95,11 +95,11 @@ The `polterware` binary (`pnpm build:cli` → `dist/polterware`) opens the same 
 - `context` — Context Compiler package (optional `--query`, `--entity`, `--budget`, `--agent-run-id`, `--json`)
 - `drift` — Narrow Drift Checker (optional `--entity`, `--agent-run-id`, `--json`)
 
-It does not use a session file or Connect HTTP in this version. See [`architecture/cli.md`](architecture/cli.md).
+Run with no subcommand in a terminal, `polterware` opens a read-mostly status TUI. It shows the standalone core, MCP client configuration, live MCP sessions, AgentRuns, MCP tool calls, and Unified Change History for one project. It can start and stop a standalone core, configure or remove the `polterware` MCP server in Claude Code, Codex, and Cursor, and register and scan the current directory as a project. Without a terminal, it prints usage and exits 2. It does not use Connect HTTP. See [`architecture/cli.md`](architecture/cli.md).
 
 ## Execution authority
 
-The Electron Main process starts `polterware-core`. The renderer reads and writes through `window.polterware` only. Go core owns local execution:
+The Electron Main process starts `polterware-core`, or attaches to a live standalone core for the same database (`<db dir>/run/core.json`, `owner = standalone`). Quitting the Desktop does not stop an attached standalone core. The renderer reads and writes through `window.polterware` only. Go core owns local execution:
 
 - Project creation picks the project directory through Electron Main's native folder dialog (`app.selectDirectory`); the renderer never browses the filesystem directly.
 - Integrations Connect may open a core-owned local PTY for provider authentication commands (`auth-*` / local synthetic targets). Product Terminal sessions and SSH host profiles (Nodes) are not shipped.
@@ -137,7 +137,7 @@ Core requests use one technical bearer session token without an account director
 - `SyncProjectModel` projects canvas nodes and edges into PPM entities and relationships (`DEPENDS_ON` / `CALLS` / `RELATED_TO`).
 - Agents exposes MCP helper start/stop, Cursor config copy, the Polterware AI skill, CompileContext preview, Narrow Drift Checker preview (`CheckDrift`), PPM Facts (list/inspect facts and evidence; upsert/link with change envelope), and Unified Change History (justified human + agent mutations with envelope and audit chain). Desktop Knowledge/PPM semantic writes require `summary` and `rationale`.
 - `AgentRunService.ListChanges` lists change steps for the project with optional `actor_kind` filter (`human` | `agent`).
-- `polterware` CLI supports `init`, `scan`, `context`, and `drift` against the local SQLite store (`-db`).
+- `polterware` CLI supports `init`, `scan`, `context`, and `drift` against the local SQLite store (`-db`). With no subcommand in a terminal, it opens the status TUI (core start/stop, MCP client setup for Claude Code / Codex / Cursor, live MCP sessions, runs, tool calls, and history).
 - The provider catalog contains exactly the nine specified providers.
 - Provider connect may probe CLI availability and authentication status without storing tokens.
 - Static validation passes: typecheck, design lint, Buf lint, Go vet, and `git diff --check`.

@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app } from "electron";
@@ -49,10 +49,17 @@ export async function startCoreProcess(options: {
     return { endpoint: overrideEndpoint.replace(/\/$/, ""), token: overrideToken || options.token };
   }
 
+  const standalone = readStandaloneCore(options.dbPath);
+  if (standalone) {
+    options.log?.(`Attached to standalone Polterware core (pid ${standalone.pid}) at ${standalone.endpoint}`);
+    return { endpoint: standalone.endpoint, token: standalone.token };
+  }
+
   const binary = resolveCoreBinaryPath();
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     POLTERWARE_SESSION_TOKEN: options.token,
+    POLTERWARE_CORE_OWNER: "desktop",
   };
   delete env.TYPESAFE_API_KEY;
   const args = ["-listen", "127.0.0.1:0", "-db", options.dbPath];
@@ -66,6 +73,33 @@ export async function startCoreProcess(options: {
 
   const endpoint = await waitForEndpoint(child, options.log, binary ? 20_000 : 60_000);
   return { endpoint, token: options.token, child };
+}
+
+type StandaloneCore = { pid: number; endpoint: string; token: string };
+
+/** Reads `<db dir>/run/core.json` written by `polterware-core serve` (see backend/platform/runstate). */
+function readStandaloneCore(dbPath: string): StandaloneCore | undefined {
+  try {
+    const state = JSON.parse(readFileSync(join(dirname(dbPath), "run", "core.json"), "utf8")) as {
+      pid?: unknown;
+      endpoint?: unknown;
+      token?: unknown;
+      dbPath?: unknown;
+      owner?: unknown;
+    };
+    if (state.owner !== "standalone") return undefined;
+    if (typeof state.pid !== "number" || typeof state.endpoint !== "string" || typeof state.token !== "string") {
+      return undefined;
+    }
+    // realpath normalizes case on macOS (Electron userData is "Polterware", the CLI default is "polterware").
+    if (typeof state.dbPath !== "string" || realpathSync.native(state.dbPath) !== realpathSync.native(dbPath)) {
+      return undefined;
+    }
+    process.kill(state.pid, 0);
+    return { pid: state.pid, endpoint: state.endpoint.replace(/\/$/, ""), token: state.token };
+  } catch {
+    return undefined;
+  }
 }
 
 export async function stopCoreProcess(handle: CoreProcessHandle | undefined): Promise<void> {

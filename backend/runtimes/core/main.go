@@ -11,6 +11,7 @@ import (
 	"time"
 
 	localcore "github.com/polterware/polterware/backend/compositions/local-core"
+	"github.com/polterware/polterware/backend/platform/runstate"
 	"github.com/polterware/polterware/backend/providers/mcp"
 	sqlstore "github.com/polterware/polterware/backend/providers/sqlite"
 )
@@ -20,6 +21,9 @@ func main() {
 	listenAddress := flag.String("listen", "127.0.0.1:4020", "loopback listen address")
 	sessionToken := flag.String("token", os.Getenv("POLTERWARE_SESSION_TOKEN"), "session bearer token")
 	flag.Parse()
+	if abs, err := filepath.Abs(*dbPath); err == nil {
+		*dbPath = abs
+	}
 
 	args := flag.Args()
 	mode := "serve"
@@ -37,7 +41,7 @@ func main() {
 	switch mode {
 	case "mcp":
 		fmt.Fprintf(os.Stderr, "polterware-core mcp (experimental tools; not a product API contract)\n")
-		if err := mcp.Run(store); err != nil {
+		if err := mcp.Run(store, *dbPath); err != nil {
 			fmt.Fprintf(os.Stderr, "mcp: %v\n", err)
 			os.Exit(1)
 		}
@@ -47,6 +51,11 @@ func main() {
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q (use serve or mcp)\n", mode)
 		os.Exit(2)
+	}
+
+	if existing, ok := runstate.ReadCore(*dbPath); ok && existing.Owner == "standalone" {
+		fmt.Fprintf(os.Stderr, "polterware-core already running for this database (pid %d, %s)\n", existing.PID, existing.Endpoint)
+		os.Exit(3)
 	}
 
 	token := *sessionToken
@@ -66,6 +75,22 @@ func main() {
 
 	core := localcore.NewCore(store, token)
 	hs := localcore.ServeConnect(ln, core)
+
+	owner := os.Getenv("POLTERWARE_CORE_OWNER")
+	if owner == "" {
+		owner = "standalone"
+	}
+	if err := runstate.WriteJSON(runstate.CorePath(*dbPath), runstate.Core{
+		PID:       os.Getpid(),
+		Endpoint:  endpoint,
+		Token:     token,
+		DBPath:    *dbPath,
+		Owner:     owner,
+		StartedAt: time.Now().UTC(),
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "run state: %v\n", err)
+	}
+	defer runstate.RemoveCore(*dbPath, os.Getpid())
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
