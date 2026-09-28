@@ -15,6 +15,7 @@ describe("EnvironmentDetail composition contract", () => {
     expect(source).not.toContain("DetailPanel.Metric");
     expect(source).not.toContain("DetailPanel.Grid");
     expect(source).toContain("PageLoading");
+    expect(source).toContain('layout="detail"');
     expect(source).toContain("PageError");
     expect(source).toContain("Environment not found");
     expect(source).toContain("StatusChip");

@@ -50,7 +50,7 @@ Always pass the operator’s current \`project_id\` when the tool accepts it.
 
 ## Local CLI
 
-Build with \`pnpm build:cli\` (\`dist/polterware\`). Same \`-db\` default as \`polterware-core\`. In-process SQLite — no session file.
+Build with \`pnpm build:cli\` (\`dist/polterware\`). The same binary serves the Desktop core (\`polterware serve\`) and MCP (\`polterware mcp\`). In-process SQLite — no session file.
 
 | Command | Purpose |
 | --- | --- |
@@ -84,7 +84,7 @@ Prefer MCP when already connected as an agent; use the CLI for shell/CI bootstra
 
 ## Cursor MCP config
 
-Configure a local stdio MCP server that runs \`polterware-core mcp\` against the same Desktop database path shown in Agents. Copy the JSON snippet from that screen.
+Configure a local stdio MCP server that runs \`polterware mcp\` against the same Desktop database path shown in Agents. Copy the JSON snippet from that screen.
 `;
 
 export const POLTERWARE_AI_SKILL_FILENAME = "polterware-ai-skill.md";

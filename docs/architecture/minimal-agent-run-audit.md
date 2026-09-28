@@ -1,6 +1,6 @@
 # Minimal AgentRun audit (B6)
 
-Status: Shipped for `polterware-core mcp` AgentRun tools + Desktop Agents → History
+Status: Shipped for `polterware mcp` AgentRun tools + Desktop Agents → History
 
 Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`wedge-validation-sequence.md`](wedge-validation-sequence.md), [`stable-mcp-reads.md`](stable-mcp-reads.md), [`docs/product-vision.md`](../product-vision.md) v3.
 

@@ -14,7 +14,7 @@ The Desktop must describe actions according to what actually occurred. SQLite mu
 
 ## III. Runtime separation
 
-Electron Main starts and supervises `polterware-core`. The renderer uses only the typed `window.polterware` preload bridge and never receives raw Electron, Node.js, filesystem, shell, or credential-store access.
+Electron Main starts and supervises the local core (`polterware serve`). The renderer uses only the typed `window.polterware` preload bridge and never receives raw Electron, Node.js, filesystem, shell, or credential-store access.
 
 The Go core is the local authority for persistence and execution. Its active domains and Protobuf services are limited to Projects, Architecture, Resources, Knowledge, Operations, Workflows, Integrations, Process, Terminal, Logs, Health, and Maintenance.
 

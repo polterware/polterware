@@ -65,6 +65,7 @@ describe("ArchitectureViewDetail composition contract", () => {
     expect(source).toMatch(/DetailPanel\.OverflowItem[\s\S]*?danger[\s\S]*?Delete view/);
     expect(source).not.toContain('tone="danger"');
     expect(source).toContain("PageLoading");
+    expect(source).toContain('layout="detail"');
     expect(source).toContain("PageError");
     expect(source).toContain("View not found");
     expect(source).toContain('title="Overview"');

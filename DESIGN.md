@@ -49,6 +49,7 @@ The title bar contains history controls, one ghost project switcher, one environ
 | Status | filled `StatusChip` |
 | Entity details | global compound `DetailPanel` |
 | Domain identity | `DitherIconTile` |
+| Loading placeholder | `Skeleton` / `PageSkeleton` (via `PageLoading`) |
 
 Product features must not reproduce focus management, Escape behavior, outside dismissal, portals, positioning, or presence when the shared Ark-backed primitive owns it.
 
@@ -56,11 +57,19 @@ Product features must not reproduce focus management, Escape behavior, outside d
 
 Operational collections use `DataTable`, sortable data columns, no actions column, and one explicit Hugeicons domain icon in the primary cell. Long descriptions and secondary metadata belong in the detail panel.
 
+Static reference tables (for example the CLI reference options, commands, and keys) also use `DataTable`, with `sortable={false}` columns, no row activation, no primary-cell icon, and wrapping description cells. The operational-collection rules above do not apply to them.
+
 Entity detail uses the single `DetailPanel` hosted by `MainSurface`. It has exactly three modes: collapsed strip, open, and maximized. Placement is chosen per collection when it registers: `bottom` (default, half-height open) or `side` (fixed-width right inspector, vertical collapsed strip). All shipped collections use bottom. Placement changes geometry only; modes, shortcuts, focus, and settlement are identical. Features do not create a second inspector, detail route, drawer, or modal for entity content. Open and collapsed layout persist across collection scope changes in the session; maximized does not (a scope change exits to the prior open or collapsed preference). Selection and target activation are independent of layout mode, except that activating a target opens a collapsed panel (maximized stays maximized). On DataTable collections, clicking empty scroll background collapses the panel; clicking a row opens it; double-clicking a row maximizes it.
 
 The detail header keeps a centered identity in every mode: domain icon and title. Icon actions use round pill controls. Header actions are at most one `DetailPanel.PrimaryAction` (labeled; disabled actions explain why in a tooltip), a few neutral icon `DetailPanel.Action`s, and `DetailPanel.Overflow` for secondary and destructive commands. Destructive commands never appear as standalone header buttons. Counts, status, and secondary context live in the properties rail or document meta — not in the header.
 
 Operational records use the record layout: `DetailPanel.Main` holds overview text, tables, and notes; an optional `DetailPanel.Rail` holds `DetailPanel.Properties`, a label/value list where empty values are hidden (or offer an explicit add affordance). The rail stacks below the main column when the panel is narrower than 720px. Knowledge documents use document layout: title, inline properties and `DetailPanel.LinkedEntities` chips under it, then the shared Markdown editor. There is no shared span grid, and feature-owned rounded section cards are not structural detail chrome.
+
+## Spacing and grouping
+
+Separate sibling content groups with spacing, not divider lines. Do not add `border-t` / `border-b` rules or `<hr>` between entries in a list, section, or document; use a consistent gap scale instead (tighter inside a group, wider between groups). Borders stay on shared chrome — page headers, controls, surfaces, and tables — where they define an object, not a gap.
+
+Reference and long-form reading pages (for example the CLI reference) use a single centered column (`mx-auto w-full max-w-3xl`) inside `PageContent`, with generous vertical padding. Long reference pages may add an "On this page" summary pinned to the left edge of `PageContent` (the reading column stays centered in the remaining space): sticky, hidden below `lg`, with the active item following the section in view. It uses the hover and selected surface tokens, not a rail line or divider.
 
 ## Surface and color rules
 

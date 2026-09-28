@@ -14,7 +14,7 @@ The Desktop opens at **Architecture / Canvas** and supports multiple local proje
 - Integrations — Connected, Catalog
 - Settings — General, Environments, Advanced
 
-The Electron Main process starts `polterware-core`. The renderer reads and writes only through `window.polterware`. Project data persists in local SQLite (projects, environments, architecture layout, resources and nodes, knowledge, operations, workflows, schedules, and integration connections).
+The Electron Main process starts the local core (`polterware serve`). The renderer reads and writes only through `window.polterware`. Project data persists in local SQLite (projects, environments, architecture layout, resources and nodes, knowledge, operations, workflows, schedules, and integration connections).
 
 Terminal opens interactive local PTY sessions on the Terminal page and in the quick drawer; Expand hands the live session off to the full page. Integrations detect CLI binaries, run provider login in an in-app PTY from the setup wizard, and probe connection status. Credentials stay in the OS/CLI credential store; the app has no provider-token field and does not persist provider credentials in SQLite. Raw terminal output is not a sanitized credential view.
 
@@ -43,7 +43,7 @@ and [ADR 0003](docs/adr/0003-web-repository-boundary.md).
 - `apps/desktop` — Electron Main, preload bridge, and Solid renderer
 - `packages/features` — retained product surfaces
 - `packages/frontend` — shared design system, canvas, and state
-- `backend` — local Go runtime (`polterware-core`)
+- `backend` — local Go runtime (single `polterware` binary: CLI, TUI, `serve`, `mcp`)
 - `schemas` — Protobuf contracts and generated Go/TypeScript messages
 - `docs/spec.md` — normative product scope
 - `docs/product-vision.md` — normative product direction
@@ -58,7 +58,7 @@ pnpm install
 pnpm dev:desktop
 ```
 
-`pnpm dev:desktop` starts the Desktop together with `polterware-core`. For standalone core development:
+`pnpm dev:desktop` starts the Desktop together with the local core. For standalone core development:
 
 ```bash
 pnpm dev:core

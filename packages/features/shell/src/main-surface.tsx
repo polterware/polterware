@@ -3,6 +3,7 @@ export { PageHeader, PageContent, PageToolbar } from "@polterware/frontend-desig
 import {
   DetailPanel,
   PageError,
+  PageSkeleton,
 } from "@polterware/frontend-design-system";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
 import "./main-surface.css";
@@ -45,21 +46,8 @@ export function MainSurface(props: { children: JSX.Element; class?: string }) {
             <DetailPanel.Header title="Loading details" />
             <DetailPanel.Body>
               <DetailPanel.Main>
-                <div
-                  class="space-y-3"
-                  role="status"
-                  aria-label="Loading details"
-                  aria-live="polite"
-                >
-                  <span class="sr-only">Loading details…</span>
-                  <div class="h-4 w-48 rounded-[var(--radius-control)] bg-[var(--color-surface-subtle)]" />
-                  <div class="h-2 w-32 rounded-[var(--radius-control)] bg-[var(--color-surface-subtle)]" />
-                  <div class="h-24 rounded-[var(--radius-control)] bg-[var(--color-surface-subtle)]" />
-                </div>
+                <PageSkeleton layout="detail" label="Loading details…" class="min-h-0 p-0" />
               </DetailPanel.Main>
-              <DetailPanel.Rail>
-                <div class="h-32 rounded-[var(--radius-control)] bg-[var(--color-surface-subtle)]" />
-              </DetailPanel.Rail>
             </DetailPanel.Body>
           </DetailPanel.Content>
         </Show>

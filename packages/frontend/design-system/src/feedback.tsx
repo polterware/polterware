@@ -1,12 +1,9 @@
 import type { JSX } from "solid-js";
 import { Button } from "./button";
+import { PageSkeleton, type PageSkeletonLayout } from "./skeleton";
 
-export function PageLoading(props: { label?: string }) {
-  return (
-    <div class="flex h-full min-h-[200px] items-center justify-center p-8" role="status" aria-live="polite">
-      <p class="text-[13px] text-[var(--color-text-muted)]">{props.label ?? "Loading…"}</p>
-    </div>
-  );
+export function PageLoading(props: { label?: string; layout?: PageSkeletonLayout }) {
+  return <PageSkeleton layout={props.layout ?? "page"} label={props.label} />;
 }
 
 export function PageEmpty(props: {

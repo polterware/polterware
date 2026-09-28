@@ -5,7 +5,8 @@
   "type": "module",
   "main": "./src/index.tsx",
   "exports": {
-    ".": "./src/index.tsx"
+    ".": "./src/index.tsx",
+    "./boot": "./src/boot.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",

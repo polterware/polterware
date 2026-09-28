@@ -8,7 +8,7 @@ Include the affected version or commit, impact, reproduction steps, and any sugg
 
 ## Current boundary
 
-The Desktop is a local Electron application backed by `polterware-core` and SQLite. The renderer receives a narrow typed preload bridge and has no unrestricted Node.js, Electron, filesystem, shell, PTY, credential-store, or core network access.
+The Desktop is a local Electron application backed by the local `polterware` core and SQLite. The renderer receives a narrow typed preload bridge and has no unrestricted Node.js, Electron, filesystem, shell, PTY, credential-store, or core network access.
 
 Electron Main starts and supervises the core, owns Connect clients, and mediates every renderer request. The core binds to loopback, requires a technical bearer session token except for health, and owns local persistence, operations, workflows, processes, terminal sessions, and integration probes. Self-hosted and Cloud functionality is not implemented today.
 

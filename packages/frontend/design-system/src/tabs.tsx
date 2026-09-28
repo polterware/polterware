@@ -15,8 +15,8 @@ import { Tooltip } from "./tooltip";
 import "./tabs.css";
 import "./tooltip.css";
 
-/** Hold longer than compact tooltips so scanning tabs does not flash rich copy. */
-const TAB_TOOLTIP_OPEN_DELAY = 900;
+/** Hold briefly so scanning tabs does not flash rich copy. */
+const TAB_TOOLTIP_OPEN_DELAY = 400;
 export type TabTooltip = {
   title: string;
   description: string;

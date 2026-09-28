@@ -4,6 +4,7 @@ import {
   FilterPopover,
   LibraryBig,
   PageContent,
+  PageLoading,
   PageToolbar,
   ShieldCheck,
   StatusChip,
@@ -71,6 +72,7 @@ export function IntegrationsView(props: {
   resources?: WorkspaceIntegrationResource[];
   syncRuns?: WorkspaceIntegrationSyncRun[];
   tab?: string;
+  loading?: boolean;
   onTabChange?: (tab: string) => void;
   onOpen?: (id: string) => void;
   setupOpen?: boolean;
@@ -112,8 +114,8 @@ export function IntegrationsView(props: {
     const scope = scopeId();
     detailPanelStore.getState().registerCollection({
       scopeId: scope,
-      status: "ready",
-      targets: !setupOpen() && tab() === "connected"
+      status: props.loading ? "loading" : "ready",
+      targets: !props.loading && !setupOpen() && tab() === "connected"
         ? (props.integrations ?? []).map((integration) => ({ scopeId: scope, entityId: integration.id, entityKind: "integration" }))
         : [],
     });
@@ -140,6 +142,7 @@ export function IntegrationsView(props: {
   }
 
   return (
+    <Show when={!props.loading} fallback={<PageLoading layout="table" label="Loading integrations…" />}>
     <>
       <Show when={setupOpen()} fallback={
         <div class="flex h-full min-h-0 flex-col">
@@ -284,5 +287,6 @@ export function IntegrationsView(props: {
         )}
       </Show>
     </>
+    </Show>
   );
 }

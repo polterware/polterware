@@ -32,6 +32,8 @@ export type {
   TemplateCardProps,
 } from "./template-card";
 export { PageLoading, PageEmpty, PageError, FixtureBanner, PageOffline, PageForbidden } from "./feedback";
+export { Skeleton, PageSkeleton } from "./skeleton";
+export type { SkeletonProps, PageSkeletonProps, PageSkeletonLayout } from "./skeleton";
 export { ToastRegion, pushToast } from "./toast";
 export type { ToastItem } from "./toast";
 export { PageHeader, PageContent, PageToolbar } from "./page";

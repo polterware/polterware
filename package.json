@@ -9,7 +9,6 @@
     "dev:desktop": "turbo run dev --filter=@polterware/desktop",
     "dev": "pnpm dev:desktop",
     "dev:core": "bash scripts/dev.sh --core-only",
-    "build:core": "mkdir -p dist && cd backend && go build -o ../dist/polterware-core ./runtimes/core",
     "build:cli": "mkdir -p dist && cd backend && go build -o ../dist/polterware ./runtimes/cli",
     "lint": "oxlint . && (turbo run lint --continue || true)",
     "format:check": "echo 'format:check ok (prettier optional until packages wired)'",

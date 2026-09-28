@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import {
-  resolveCoreBinaryPath,
+  resolveCliBinaryPath,
   resolveRepositoryRoot,
   resolveUserDatabasePath,
 } from "./core/process-supervisor.js";
@@ -14,7 +14,7 @@ export type McpSupervisor = {
 
 function buildLaunch(): { command: string; args: string[]; cwd?: string; display: string } {
   const dbPath = resolveUserDatabasePath();
-  const binary = resolveCoreBinaryPath();
+  const binary = resolveCliBinaryPath();
   if (binary) {
     return {
       command: binary,
@@ -25,14 +25,14 @@ function buildLaunch(): { command: string; args: string[]; cwd?: string; display
   const cwd = resolveRepositoryRoot();
   return {
     command: "go",
-    args: ["run", "./backend/runtimes/core", "-db", dbPath, "mcp"],
+    args: ["run", "./backend/runtimes/cli", "-db", dbPath, "mcp"],
     cwd,
-    display: `go run ./backend/runtimes/core -db ${JSON.stringify(dbPath)} mcp`,
+    display: `go run ./backend/runtimes/cli -db ${JSON.stringify(dbPath)} mcp`,
   };
 }
 
 function cursorConfigSnippet(dbPath: string): string {
-  const binary = resolveCoreBinaryPath();
+  const binary = resolveCliBinaryPath();
   const config = binary
           ? {
                 mcpServers: {
@@ -46,7 +46,7 @@ function cursorConfigSnippet(dbPath: string): string {
                 mcpServers: {
                   polterware: {
                     command: "go",
-                    args: ["run", "./backend/runtimes/core", "-db", dbPath, "mcp"],
+                    args: ["run", "./backend/runtimes/cli", "-db", dbPath, "mcp"],
                     cwd: resolveRepositoryRoot(),
                   },
                 },
@@ -54,7 +54,7 @@ function cursorConfigSnippet(dbPath: string): string {
   return `${JSON.stringify(config, null, 2)}\n`;
 }
 
-/** Owns an optional local `polterware-core mcp` helper process (stdio kept open). */
+/** Owns an optional local `polterware mcp` helper process (stdio kept open). */
 export function createMcpSupervisor(options?: {
   log?: (message: string) => void;
 }): McpSupervisor {

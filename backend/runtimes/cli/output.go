@@ -24,5 +24,7 @@ func usage() {
   polterware [-db path] scan --project <id> [--json]
   polterware [-db path] context --project <id> [--query ...] [--entity ...] [--budget N] [--agent-run-id ...] [--json]
   polterware [-db path] drift --project <id> [--entity ...] [--agent-run-id ...] [--json]
+  polterware [-db path] serve [--listen addr] [--token token]   (local core server for the Desktop)
+  polterware [-db path] mcp                                     (MCP server over stdio for coding agents)
 `)
 }

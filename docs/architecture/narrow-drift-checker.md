@@ -1,6 +1,6 @@
 # Narrow Drift Checker (B5)
 
-Status: Shipped for `polterware-core mcp` `drift.check`
+Status: Shipped for `polterware mcp` `drift.check`
 
 Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`wedge-validation-sequence.md`](wedge-validation-sequence.md), [`stable-mcp-reads.md`](stable-mcp-reads.md), [`docs/product-vision.md`](../product-vision.md) v3.
 
@@ -31,7 +31,7 @@ Import dependency diff runs only when the project `root_path` exists and is read
 - Does not interpret ADR markdown; “active decision” means accepted ADR + `knowledge_entity_links`.
 - Does not map manifest dependencies onto canvas nodes.
 - Does not prune stale import facts on re-import; `dependency_removed` remains the honest signal until a later prune.
-- No dedicated Desktop Drift product surface outside Agents. Desktop preview is Agents → Drift via Connect `CheckDrift` (inspection only; no `agent_run_id`). CLI `polterware drift` is shipped (B8); see [`cli.md`](cli.md). AgentRun attribution for drift steps is B6 (`agent_run_id` on MCP `drift.check`); see [`minimal-agent-run-audit.md`](minimal-agent-run-audit.md). Agents → History also inspects findings embedded on `drift` steps in the audit chain (see [`unified-change-history.md`](unified-change-history.md)).
+- No dedicated Desktop Drift product surface outside Agents. Desktop preview is Agents → Context (Drift section) via Connect `CheckDrift` (inspection only; no `agent_run_id`). CLI `polterware drift` is shipped (B8); see [`cli.md`](cli.md). AgentRun attribution for drift steps is B6 (`agent_run_id` on MCP `drift.check`); see [`minimal-agent-run-audit.md`](minimal-agent-run-audit.md). Agents → History also inspects findings embedded on `drift` steps in the audit chain (see [`unified-change-history.md`](unified-change-history.md)).
 
 ## Code
 

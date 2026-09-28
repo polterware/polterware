@@ -11,8 +11,10 @@ import "./dialog.css";
 
 /**
  * Product dialog size:
- * - default / md / lg / xl — catalog frame (Add to Architecture)
- * - sm — compact form dialogs (hug content)
+ * - sm — compact forms / confirms (create project)
+ * - md — medium forms (default when omitted)
+ * - lg — create dialogs with template grids
+ * - xl — dense catalogs (Add to Architecture)
  */
 export type DialogSize = "sm" | "md" | "lg" | "xl";
 
@@ -20,13 +22,15 @@ export type A11yDialogProps = {
   open: boolean;
   /** Accessible name — always required. When `chrome="flush"`, rendered sr-only. */
   title: string;
+  /** Optional leading content in the default header (e.g. icon), beside the title. */
+  titleLeading?: JSX.Element;
   children: JSX.Element;
   onClose: () => void;
   class?: string;
   /** Extra classes on the backdrop (e.g. lighter Commander scrim). */
   overlayClass?: string;
   footer?: JSX.Element;
-  /** `sm` for compact forms; other values use the catalog frame. */
+  /** Defaults to `md`. Pass `xl` for dense catalogs. */
   size?: DialogSize;
   description?: string;
   /** @deprecated Body always fills the fixed dialog frame. */
@@ -60,7 +64,7 @@ export type A11yDialogProps = {
 /**
  * Product dialog: Ark Dialog + Polter surface.
  *
- * Default frame = catalog (Add to Architecture). Pass `size="sm"` for compact forms.
+ * Default frame = `md` (medium form). Pass `xl` for dense catalogs.
  * Catalogs: `chrome="flush"`, `dividers={false}` — space separates regions, not lines.
  */
 export function A11yDialog(props: A11yDialogProps) {
@@ -68,7 +72,7 @@ export function A11yDialog(props: A11yDialogProps) {
   const dividers = () => props.dividers ?? !flush();
   const dismissible = () => props.dismissible !== false;
   const showCloseButton = () => props.showCloseButton !== false;
-  const frameSize = () => (props.size === "sm" ? "sm" : undefined);
+  const frameSize = (): DialogSize => props.size ?? "md";
 
   return (
     <ArkDialog.Root
@@ -84,15 +88,15 @@ export function A11yDialog(props: A11yDialogProps) {
       <Portal>
         <ArkDialog.Backdrop
           class={[
-            "pw-dialog-overlay fixed inset-0 z-[100] bg-[var(--color-overlay)]",
+            "pw-dialog-overlay fixed inset-0 z-[var(--z-dialog,100)] bg-[var(--color-overlay)]",
             props.overlayClass ?? "",
           ].join(" ")}
         />
-        <ArkDialog.Positioner class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8 pointer-events-none">
+        <ArkDialog.Positioner class="fixed inset-0 z-[var(--z-dialog,100)] flex items-center justify-center p-4 sm:p-8 pointer-events-none">
           <ArkDialog.Content
             data-size={frameSize()}
             class={[
-              /* Size comes from dialog.css .pw-dialog-content / [data-size=sm]. */
+              /* Size comes from dialog.css .pw-dialog-content[data-size]. */
               "pw-dialog-content surface-panel-float pointer-events-auto relative flex flex-col overflow-hidden outline-none",
               props.class ?? "",
             ].join(" ")}
@@ -122,9 +126,14 @@ export function A11yDialog(props: A11yDialogProps) {
               }`}
             >
               <div class="min-w-0 flex-1">
-                <ArkDialog.Title class="m-0 text-[15px] font-semibold text-[var(--color-text-primary)]">
-                  {props.title}
-                </ArkDialog.Title>
+                <div class="flex min-w-0 items-center gap-2.5">
+                  <Show when={props.titleLeading}>
+                    <div class="shrink-0">{props.titleLeading}</div>
+                  </Show>
+                  <ArkDialog.Title class="m-0 min-w-0 text-[15px] font-semibold text-[var(--color-text-primary)]">
+                    {props.title}
+                  </ArkDialog.Title>
+                </div>
                 <Show when={props.description}>
                   <ArkDialog.Description class="mt-1 m-0 text-[12px] text-[var(--color-text-muted)]">
                     {props.description}

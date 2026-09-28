@@ -17,12 +17,12 @@
 }
 
 .pw-tooltip-positioner {
-  z-index: var(--z-tooltip, 70);
+  z-index: var(--z-tooltip, 110);
   pointer-events: none;
 }
 
 .pw-tooltip-content {
-  z-index: var(--z-tooltip, 70);
+  z-index: var(--z-tooltip, 110);
   width: max-content;
   max-width: min(240px, calc(100vw - 16px));
   padding: 6px 8px;

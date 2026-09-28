@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "main": "./src/index.tsx",
-  "exports": { ".": "./src/index.tsx" },
+  "exports": {
+    ".": "./src/index.tsx",
+    "./change-envelope": "./src/change-envelope.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --passWithNoTests --config vitest.config.ts"

@@ -94,6 +94,7 @@ describe("ArchitectureNodeDetail composition contract", () => {
 
   it("keeps loading, not-found, error, connected/docs empty honesty", () => {
     expect(detailSource).toContain("PageLoading");
+    expect(detailSource).toContain('layout="detail"');
     expect(detailSource).toContain("PageError");
     expect(detailSource).toContain("Node not found");
     expect(detailSource).toContain("No connections listed.");

@@ -32,7 +32,7 @@ export function ArchitectureNodeDetail(props: {
         <DetailPanel.Header title="Loading node" />
         <DetailPanel.Body>
           <DetailPanel.Main>
-            <PageLoading label="Loading node…" />
+            <PageLoading layout="detail" label="Loading node…" />
           </DetailPanel.Main>
         </DetailPanel.Body>
       </Show>

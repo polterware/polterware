@@ -53,8 +53,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build core binary
-        run: pnpm build:core
+      - name: Build CLI binary
+        run: pnpm build:cli
 
       - name: Build desktop app
         run: pnpm --filter @polterware/desktop build

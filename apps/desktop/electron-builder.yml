@@ -21,7 +21,7 @@ extraResources:
   - from: ../../dist
     to: .
     filter:
-      - polterware-core
+      - polterware
 publish:
   - provider: github
     owner: polterware

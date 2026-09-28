@@ -259,7 +259,7 @@ The Desktop (Electron + Solid) is the primary local human product and remains th
 
 ### CLI
 
-A local Go CLI (`init`, `scan`, `context`, `drift`) is part of the wedge validation path and shares `polterware-core`.
+A local Go CLI (`init`, `scan`, `context`, `drift`) is part of the wedge validation path and ships in the same `polterware` binary as the core and MCP server.
 
 ### MCP
 
@@ -290,7 +290,7 @@ The following are **outside the product vision**. Ops / Terminal-as-product / No
 
 ## Target technical direction
 
-The local foundation remains Electron, Solid, Go `polterware-core`, and SQLite. The renderer remains unprivileged and accesses local authority only through the typed preload bridge and Electron Main.
+The local foundation remains Electron, Solid, Go `polterware` (core, MCP, and CLI in one binary), and SQLite. The renderer remains unprivileged and accesses local authority only through the typed preload bridge and Electron Main.
 
 The PPM begins with embedded storage and ordinary relational representations. A separate graph database, vector service, or Python sidecar is not a prerequisite.
 

@@ -6,7 +6,7 @@ Polterware is a local-first source of truth for software projects. The current D
 
 ## First-version promise
 
-A project is a local directory with one or more environments. Opening a project leads directly to its architecture canvas. Project data persists in SQLite through `polterware-core`, including architecture, resources, knowledge, operations, workflows, schedules, and integration state.
+A project is a local directory with one or more environments. Opening a project leads directly to its architecture canvas. Project data persists in SQLite through the local core (`polterware serve`), including architecture, resources, knowledge, operations, workflows, schedules, and integration state.
 
 The core owns local execution. Terminal sessions use a real local PTY, operations and workflow steps run through the local runner, supported provider setup may hand off to official CLI authentication, and integration sync may import a bounded provider inventory. Every action must report its actual scope and result without implying a remote deployment or complete cloud graph.
 

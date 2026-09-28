@@ -49,7 +49,7 @@ subscription or authorization.
 
 ## Modes
 
-The only active first-version mode is `local`, backed by local SQLite persistence and `polterware-core` execution.
+The only active first-version mode is `local`, backed by local SQLite persistence and local core (`polterware serve`) execution.
 
 When implemented, `self-hosted` will expose only the capabilities provided by
 that installation.

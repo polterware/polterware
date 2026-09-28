@@ -34,7 +34,7 @@ See [`audited-mcp-writes.md`](audited-mcp-writes.md).
 
 ### B8 — CLI
 
-Local Go binary `polterware` with `init`, `scan`, `context`, and `drift`. In-process SQLite (same default `-db` as `polterware-core`); no session file in this slice. Shares wedge composition with MCP.
+Local Go binary `polterware` with `init`, `scan`, `context`, and `drift`. In-process SQLite (same default `-db` as the Desktop core); no session file in this slice. Shares wedge composition with MCP.
 
 See [`cli.md`](cli.md).
 

@@ -12,7 +12,7 @@ export const CURRENT_SCOPE = [
 
 export const AREAS = {
   desktop: "Electron Main, preload, or the Solid renderer under apps/desktop",
-  core: "polterware-core under backend/runtimes/core",
+  core: "the polterware CLI and local core under backend/runtimes/cli",
   "shared-package": "packages/features, packages/frontend, or packages/contracts",
   schema: "Protobuf schemas and generated contracts",
   documentation: "docs/spec.md, ADRs, or other repository documentation",

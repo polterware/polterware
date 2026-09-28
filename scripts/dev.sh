@@ -7,7 +7,7 @@ cd "$ROOT"
 if [[ "${1:-}" == "--core-only" ]]; then
   DB_PATH="${POLTERWARE_DEV_DB:-$ROOT/.data/dev-local.db}"
   mkdir -p "$(dirname "$DB_PATH")"
-  exec go run ./backend/runtimes/core -db "$DB_PATH"
+  exec go run ./backend/runtimes/cli -db "$DB_PATH" serve
 fi
 
 if [[ $# -gt 0 ]]; then

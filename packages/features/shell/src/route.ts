@@ -13,7 +13,10 @@ export type NavSectionId =
   | "integrations"
   | "settings";
 
-export type SectionId = NavSectionId;
+/** Full pages reachable outside the sidebar (e.g. from the Help menu). */
+export type PageSectionId = "cli";
+
+export type SectionId = NavSectionId | PageSectionId;
 export type ProjectSettingsTabId = "general" | "environments" | "shortcuts" | "advanced";
 export type KnowledgeTabId = "specs" | "library" | "sources";
 export type IntegrationsTabId = "connected" | "catalog";
@@ -58,6 +61,7 @@ export const DEFAULT_TABS = {
   agents: "access",
   integrations: "connected",
   settings: "general",
+  cli: "reference",
 } satisfies Record<SectionId, string>;
 
 export const SECTION_TABS = {
@@ -74,10 +78,9 @@ export const SECTION_TABS = {
   ],
   agents: [
     { id: "access", label: "Access" },
-    { id: "compile", label: "Compile" },
-    { id: "drift", label: "Drift" },
     { id: "facts", label: "Facts" },
     { id: "history", label: "History" },
+    { id: "context", label: "Context" },
   ],
   integrations: [
     { id: "connected", label: "Connected" },
@@ -107,7 +110,7 @@ export function isNavSectionId(value: string): value is NavSectionId {
 }
 
 export function isSectionId(value: string): value is SectionId {
-  return isNavSectionId(value);
+  return isNavSectionId(value) || value === "cli";
 }
 
 export type ResolvedRoute = { section: SectionId; tab: string };
@@ -170,6 +173,10 @@ export function resolveRoute(
     (tab === "docs" || tab === "adrs" || tab === "runbooks")
   ) {
     tab = "library";
+  }
+  // Retired Agents Compile / Drift tabs → Context.
+  if (section === "agents" && (tab === "compile" || tab === "drift")) {
+    tab = "context";
   }
 
   if (isSectionId(section) && sectionAvailable(section, platform)) {

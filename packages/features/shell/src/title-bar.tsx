@@ -1,9 +1,13 @@
 import { ChevronLeft, ChevronRight, Search } from "@polterware/frontend-design-system";
 import { createShortcutLabel } from "@polterware/frontend-state";
+import { createSignal } from "solid-js";
 import {
   WorkspaceContextBar,
   type WorkspaceContext,
 } from "./context-switchers";
+import { HelpMenu } from "./help-menu";
+import { HelpTopicDialog } from "./help-topic-dialog";
+import type { HelpTopicId } from "./help-topics";
 import type { EnvironmentItem, ProjectSwitcherItem } from "./types";
 import "./title-bar.css";
 
@@ -19,58 +23,74 @@ export type TitleBarProps = {
   onSelectEnvironment?: (environmentId: string) => void;
   onCreateProject?: () => void;
   onOpenCommander?: () => void;
+  onOpenCliReference?: () => void;
 };
 
 export function TitleBar(props: TitleBarProps) {
   const commanderShortcut = createShortcutLabel("shell.toggle_commander");
+  const [activeTopicId, setActiveTopicId] = createSignal<HelpTopicId | null>(
+    null,
+  );
+
   return (
-    <header class="window-title-bar" role="banner">
-      <div class="flex shrink-0 items-center [-webkit-app-region:no-drag]">
-        <button
-          type="button"
-          aria-label="Go back"
-          disabled={!props.canGoBack}
-          onClick={props.onBack}
-          style={navButtonStyle(!props.canGoBack)}
-        >
-          <ChevronLeft size={13} />
-        </button>
-        <button
-          type="button"
-          aria-label="Go forward"
-          disabled={!props.canGoForward}
-          onClick={props.onForward}
-          style={navButtonStyle(!props.canGoForward)}
-        >
-          <ChevronRight size={13} />
-        </button>
-      </div>
+    <>
+      <header class="window-title-bar" role="banner">
+        <div class="flex shrink-0 items-center [-webkit-app-region:no-drag]">
+          <button
+            type="button"
+            aria-label="Go back"
+            disabled={!props.canGoBack}
+            onClick={props.onBack}
+            style={navButtonStyle(!props.canGoBack)}
+          >
+            <ChevronLeft size={13} />
+          </button>
+          <button
+            type="button"
+            aria-label="Go forward"
+            disabled={!props.canGoForward}
+            onClick={props.onForward}
+            style={navButtonStyle(!props.canGoForward)}
+          >
+            <ChevronRight size={13} />
+          </button>
+        </div>
 
-      <div class="flex min-w-0 shrink items-center [-webkit-app-region:no-drag]">
-        <WorkspaceContextBar
-          context={props.workspace}
-          projects={props.projects}
-          environments={props.environments}
-          onSelectProject={props.onSelectProject}
-          onSelectEnvironment={props.onSelectEnvironment}
-          onCreateProject={props.onCreateProject}
-        />
-      </div>
+        <div class="flex min-w-0 shrink items-center [-webkit-app-region:no-drag]">
+          <WorkspaceContextBar
+            context={props.workspace}
+            projects={props.projects}
+            environments={props.environments}
+            onSelectProject={props.onSelectProject}
+            onSelectEnvironment={props.onSelectEnvironment}
+            onCreateProject={props.onCreateProject}
+          />
+        </div>
 
-      <div class="min-w-3 flex-1" aria-hidden />
+        <div class="min-w-3 flex-1" aria-hidden />
 
-      <div class="flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]">
-        <button
-          type="button"
-          aria-label="Search or run a command"
-          title={`Commander (${commanderShortcut()})`}
-          onClick={() => props.onOpenCommander?.()}
-          class={headerIconControlClass}
-        >
-          <Search size={14} />
-        </button>
-      </div>
-    </header>
+        <div class="flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]">
+          <button
+            type="button"
+            aria-label="Search or run a command"
+            title={`Commander (${commanderShortcut()})`}
+            onClick={() => props.onOpenCommander?.()}
+            class={headerIconControlClass}
+          >
+            <Search size={14} />
+          </button>
+          <HelpMenu
+            onSelectTopic={(topicId) => setActiveTopicId(topicId)}
+            onOpenCliReference={props.onOpenCliReference}
+          />
+        </div>
+      </header>
+
+      <HelpTopicDialog
+        topicId={activeTopicId()}
+        onClose={() => setActiveTopicId(null)}
+      />
+    </>
   );
 }
 

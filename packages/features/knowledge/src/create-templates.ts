@@ -138,7 +138,7 @@ We need to choose a technology for …
 
 Constraints:
 
-- Must run locally through polterware-core when applicable
+- Must run locally through the polterware core when applicable
 - Must fit the current architecture boundaries
 
 ## Decision
@@ -212,7 +212,7 @@ Operators need project context, agent access, and provider Connect without a hos
 
 ## Decision
 
-Keep Desktop, Integrations Connect auth, and polterware-core MCP/CLI local for the first version.
+Keep Desktop, Integrations Connect auth, and the polterware CLI, core, and MCP local for the first version.
 
 ## Consequences
 

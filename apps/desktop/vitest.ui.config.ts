@@ -43,8 +43,16 @@ export default defineConfig({
         replacement: resolve(rootDir, "../../packages/features/resources/src/index.tsx"),
       },
       {
+        find: "@polterware/feature-settings/boot",
+        replacement: resolve(rootDir, "../../packages/features/settings/src/boot.ts"),
+      },
+      {
         find: "@polterware/feature-settings",
         replacement: resolve(rootDir, "../../packages/features/settings/src/index.tsx"),
+      },
+      {
+        find: "@polterware/feature-knowledge/change-envelope",
+        replacement: resolve(rootDir, "../../packages/features/knowledge/src/change-envelope.ts"),
       },
       {
         find: "@polterware/feature-knowledge",

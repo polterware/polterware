@@ -20,7 +20,7 @@ const (
 	mcpPrefix = "mcp-"
 )
 
-// Core describes a running `polterware-core serve` process.
+// Core describes a running `polterware serve` process.
 type Core struct {
 	PID       int       `json:"pid"`
 	Endpoint  string    `json:"endpoint"`
@@ -30,7 +30,7 @@ type Core struct {
 	StartedAt time.Time `json:"startedAt"`
 }
 
-// MCPSession describes a running `polterware-core mcp` stdio process.
+// MCPSession describes a running `polterware mcp` stdio process.
 type MCPSession struct {
 	PID           int       `json:"pid"`
 	DBPath        string    `json:"dbPath"`

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,30 +11,17 @@ import (
 	"github.com/polterware/polterware/backend/platform/runstate"
 )
 
-const coreBinaryName = "polterware-core"
-
-// resolveCoreBinary finds polterware-core: $POLTERWARE_CORE_BIN, next to this
-// executable (the dist/ layout), then PATH.
-func resolveCoreBinary() (string, error) {
-	if env := os.Getenv("POLTERWARE_CORE_BIN"); env != "" {
-		if _, err := os.Stat(env); err != nil {
-			return "", fmt.Errorf("POLTERWARE_CORE_BIN: %w", err)
-		}
-		return filepath.Abs(env)
+// selfBinary resolves this executable; the core server and MCP server are its
+// own `serve` and `mcp` subcommands.
+func selfBinary() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("resolve polterware executable: %w", err)
 	}
-	if exe, err := os.Executable(); err == nil {
-		if resolved, err := filepath.EvalSymlinks(exe); err == nil {
-			exe = resolved
-		}
-		candidate := filepath.Join(filepath.Dir(exe), coreBinaryName)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, nil
-		}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
 	}
-	if path, err := exec.LookPath(coreBinaryName); err == nil {
-		return filepath.Abs(path)
-	}
-	return "", errors.New("polterware-core not found; run `pnpm build:core` or set POLTERWARE_CORE_BIN")
+	return exe, nil
 }
 
 // startCore launches a detached standalone core and waits for core.json.
@@ -52,7 +38,7 @@ func startCore(binary, dbPath string) (runstate.Core, error) {
 	}
 	defer logFile.Close()
 
-	cmd := exec.Command(binary, "-listen", "127.0.0.1:0", "-db", dbPath, "serve")
+	cmd := exec.Command(binary, "-db", dbPath, "serve", "--listen", "127.0.0.1:0")
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	cmd.Env = append(os.Environ(), "POLTERWARE_CORE_OWNER=standalone")

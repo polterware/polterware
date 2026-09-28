@@ -13,7 +13,7 @@ Historical specifications under `docs/future/` describe earlier states or supers
 
 ## Objective
 
-Deliver a maintainable first version focused on understanding and documenting local software projects for AI coding. The Desktop reads and writes through `polterware-core` and may run CLI-backed integration probes (including Connect auth PTY) on the host machine.
+Deliver a maintainable first version focused on understanding and documenting local software projects for AI coding. The Desktop reads and writes through the local core (`polterware serve`) and may run CLI-backed integration probes (including Connect auth PTY) on the host machine.
 
 ## Deployment boundary
 
@@ -28,7 +28,7 @@ Architecture / Canvas is the initial route and the destination after entering or
 | Architecture | Canvas, Views | Human inspector; not the wedge |
 | Resources | — (Inventory page, no tab rail) | Project resource registry for PPM / Architecture |
 | Knowledge | Specs, Library, Sources | Aligns with context/evidence direction |
-| Agents | Access, Compile, Drift, Facts, History | MCP access, compile preview, narrow drift preview, PPM facts/evidence, Unified Change History |
+| Agents | Access, Facts, History, Context | MCP access, PPM facts/evidence, Unified Change History, compile + narrow drift preview |
 | Integrations | Connected, Catalog | **KEEP** as evidence + Connect UI |
 | Settings | General, Environments, Shortcuts, Advanced | — |
 
@@ -36,11 +36,11 @@ Settings Advanced includes an app-level Appearance control: Reduce transparency 
 
 Entity detail opens in one shared detail panel with collapsed, open, and maximized modes. Collections dock it at the bottom (Architecture Canvas included). Operational records show overview content beside a properties rail; Knowledge documents show inline properties and linked-entity chips above the Markdown editor. Destructive commands such as Archive and Delete live in the header overflow menu.
 
-The sidebar contains the five product surfaces. Settings is fixed in its footer. The title bar retains local project and environment switchers, Commander, and history controls. In-app Commander opens as the shared command palette dialog with the same opaque float surface as other product dialogs. The global Commander shortcut opens a separate frameless, draggable overlay (`?surface=commander`) with the same opaque panel material, search at the top, an Open Desktop control, and an overview strip (Knowledge, Integrations) that drills into in-overlay lists — not a miniature copy of the full Desktop shell. The in-app palette remains search-only.
+The sidebar contains the five product surfaces. Settings is fixed in its footer. The title bar retains local project and environment switchers, Commander, history controls, and a Help menu. The Help menu opens short topic dialogs and a static CLI reference page (`polterware` commands and flags); that page is a route outside the sidebar, not a product surface. In-app Commander opens as the shared command palette dialog with the same opaque float surface as other product dialogs. The global Commander shortcut opens a separate frameless, draggable overlay (`?surface=commander`) with the same opaque panel material, search at the top, an Open Desktop control, and an overview strip (Knowledge, Integrations) that drills into in-overlay lists — not a miniature copy of the full Desktop shell. The in-app palette remains search-only.
 
 ## Local project model
 
-The application supports several local projects. A project has an identifier, name, directory, environments, and an active/archived status. Project creation asks for name, a directory chosen through the native folder dialog, and environments. Mutations persist in the local SQLite store through `polterware-core`.
+The application supports several local projects. A project has an identifier, name, directory, environments, and an active/archived status. Project creation asks for name, a directory chosen through the native folder dialog, and environments. Mutations persist in the local SQLite store through the local core.
 
 ## Minimal Polterware Project Model (PPM)
 
@@ -82,24 +82,26 @@ Integrations do not use content templates; they use the fixed provider catalog.
 
 `CompileContext` assembles a bounded context package from entity resolution, knowledge links, one-hop relationships, PPM facts with linked evidence, and full-text hits under a token budget. Items include `kind`, `id`, `title`, `excerpt`, `truth_class`, `source`, `path`, machine `reasons`, and `evidence` refs. There is no embedding model, GraphRAG, or fixed PCTX serialization. See [`architecture/context-compiler.md`](architecture/context-compiler.md).
 
-`polterware-core mcp` serves a stable MCP stdio contract over the same local SQLite store: reads `context.get`, `entity.get`, `evidence.get`, and `drift.check`; AgentRun audit tools `agent_run.start`, `agent_run.append`, `agent_run.complete`, `agent_run.get`, and `agent_run.list`; and audited write tools `fact.upsert`, `evidence.upsert`, `evidence.link`, `knowledge.upsert`, and `knowledge.link`. Write tools require `summary`, `rationale`, and an open `agent_run_id`; they persist PPM/Knowledge mutations and append attributable change steps. `context.get` returns the Context Compiler package. `drift.check` runs the Narrow Drift Checker (`checker: "narrow"`) and may return findings for import dependency diffs, edges under accepted ADRs without evidence, and declared-versus-observed fact conflicts. Optional `agent_run_id` on `context.get` / `drift.check` appends steps to an open AgentRun. See [`architecture/stable-mcp-reads.md`](architecture/stable-mcp-reads.md), [`architecture/narrow-drift-checker.md`](architecture/narrow-drift-checker.md), [`architecture/minimal-agent-run-audit.md`](architecture/minimal-agent-run-audit.md), and [`architecture/audited-mcp-writes.md`](architecture/audited-mcp-writes.md).
+`polterware mcp` serves a stable MCP stdio contract over the same local SQLite store: reads `context.get`, `entity.get`, `evidence.get`, and `drift.check`; AgentRun audit tools `agent_run.start`, `agent_run.append`, `agent_run.complete`, `agent_run.get`, and `agent_run.list`; and audited write tools `fact.upsert`, `evidence.upsert`, `evidence.link`, `knowledge.upsert`, and `knowledge.link`. Write tools require `summary`, `rationale`, and an open `agent_run_id`; they persist PPM/Knowledge mutations and append attributable change steps. `context.get` returns the Context Compiler package. `drift.check` runs the Narrow Drift Checker (`checker: "narrow"`) and may return findings for import dependency diffs, edges under accepted ADRs without evidence, and declared-versus-observed fact conflicts. Optional `agent_run_id` on `context.get` / `drift.check` appends steps to an open AgentRun. See [`architecture/stable-mcp-reads.md`](architecture/stable-mcp-reads.md), [`architecture/narrow-drift-checker.md`](architecture/narrow-drift-checker.md), [`architecture/minimal-agent-run-audit.md`](architecture/minimal-agent-run-audit.md), and [`architecture/audited-mcp-writes.md`](architecture/audited-mcp-writes.md).
 
 Agents is the Desktop operator surface for this access: start/stop a parked local MCP helper, copy Cursor MCP config, copy or download the Polterware AI skill (markdown that teaches agents how to use those tools), preview `CompileContext` for the current project (optional query and entity id), preview the Narrow Drift Checker via Connect `CheckDrift` (optional entity id; inspection only, no `agent_run_id`), inspect and justify PPM facts and evidence (`ListFacts` / `UpsertFact` / `UpsertEvidence` / `LinkEvidenceToFact` with change envelope), and Unified Change History — a feed of justified `human` and `agent` project-model changes (summary, rationale, audit chain) for the current project. Desktop Knowledge and PPM semantic mutations require the same change envelope (`summary`, `rationale`); the core records them on human AgentRuns. See [`architecture/unified-change-history.md`](architecture/unified-change-history.md).
 
 ## Local CLI
 
-The `polterware` binary (`pnpm build:cli` → `dist/polterware`) opens the same SQLite store in-process (flag `-db`, same default path as `polterware-core`) and exposes:
+The `polterware` binary (`pnpm build:cli` → `dist/polterware`) is the only Go binary. Its headless commands open the same SQLite store in-process (flag `-db`, default: the Desktop database path):
 
 - `init` — register a project and a default `local` environment
 - `scan` — deterministic MVP import (`ImportProjectSources`)
 - `context` — Context Compiler package (optional `--query`, `--entity`, `--budget`, `--agent-run-id`, `--json`)
 - `drift` — Narrow Drift Checker (optional `--entity`, `--agent-run-id`, `--json`)
+- `serve` — local core server (Connect + bearer session token) that the Desktop starts or attaches to
+- `mcp` — MCP stdio server for coding agents
 
 Run with no subcommand in a terminal, `polterware` opens a read-mostly status TUI. It shows the standalone core, MCP client configuration, live MCP sessions, AgentRuns, MCP tool calls, and Unified Change History for one project. It can start and stop a standalone core, configure or remove the `polterware` MCP server in Claude Code, Codex, and Cursor, and register and scan the current directory as a project. Without a terminal, it prints usage and exits 2. It does not use Connect HTTP. See [`architecture/cli.md`](architecture/cli.md).
 
 ## Execution authority
 
-The Electron Main process starts `polterware-core`, or attaches to a live standalone core for the same database (`<db dir>/run/core.json`, `owner = standalone`). Quitting the Desktop does not stop an attached standalone core. The renderer reads and writes through `window.polterware` only. Go core owns local execution:
+The Electron Main process starts the local core (`polterware serve`), or attaches to a live standalone core for the same database (`<db dir>/run/core.json`, `owner = standalone`). Quitting the Desktop does not stop an attached standalone core. The renderer reads and writes through `window.polterware` only. Go core owns local execution:
 
 - Project creation picks the project directory through Electron Main's native folder dialog (`app.selectDirectory`); the renderer never browses the filesystem directly.
 - Integrations Connect may open a core-owned local PTY for provider authentication commands (`auth-*` / local synthetic targets). Product Terminal sessions and SSH host profiles (Nodes) are not shipped.
@@ -114,7 +116,7 @@ Connected detail contains Overview, Resources, CLI, and Sync.
 
 ## Reduced core
 
-The repository retains Go runtimes `polterware-core` and `polterware` (CLI). Active domains are Projects, Architecture, Resources (inventory), Knowledge, Project Model (PPM), Context, AgentRun, Integrations, Terminal (Connect PTY only), Health, and Maintenance.
+The repository retains one Go runtime, the `polterware` binary (CLI, TUI, `serve`, `mcp`). Active domains are Projects, Architecture, Resources (inventory), Knowledge, Project Model (PPM), Context, AgentRun, Integrations, Terminal (Connect PTY only), Health, and Maintenance.
 
 Core requests use one technical bearer session token without an account directory. The database is initialized from a clean SQLite baseline with no compatibility guarantee for earlier databases.
 
@@ -132,8 +134,8 @@ Core requests use one technical bearer session token without an account director
 - PPM facts and evidence persist with provenance; `verified` facts require a non-`system` actor; evidence can link to facts via `LinkEvidenceToFact`. `ImportProjectSources` upserts observed facts/evidence from MVP project files. `CompileContext` includes facts with `reasons` and `evidence` refs.
 - Knowledge Specs, Library, and Sources, Resources Inventory, Architecture, and Settings Environments empty states show inspiration template cards that create the item immediately where applicable; create dialogs also offer templates, and blank create remains on the toolbar and form.
 - `CompileContext` returns a bounded package with provenance fields, machine reasons, and evidence refs.
-- `ContextService.CheckDrift` returns the Narrow Drift Checker result (`checker: "narrow"`) for Desktop Agents → Drift preview.
-- `polterware-core mcp` exposes stable reads `context.get`, `entity.get`, `evidence.get`, and `drift.check` over stdio (`drift.check` uses checker `narrow` with typed findings), AgentRun audit tools `agent_run.start` / `append` / `complete` / `get` / `list`, and audited writes `fact.upsert` / `evidence.upsert` / `evidence.link` / `knowledge.upsert` / `knowledge.link` (required `summary`, `rationale`, open `agent_run_id`).
+- `ContextService.CheckDrift` returns the Narrow Drift Checker result (`checker: "narrow"`) for Desktop Agents → Context preview.
+- `polterware mcp` exposes stable reads `context.get`, `entity.get`, `evidence.get`, and `drift.check` over stdio (`drift.check` uses checker `narrow` with typed findings), AgentRun audit tools `agent_run.start` / `append` / `complete` / `get` / `list`, and audited writes `fact.upsert` / `evidence.upsert` / `evidence.link` / `knowledge.upsert` / `knowledge.link` (required `summary`, `rationale`, open `agent_run_id`).
 - `SyncProjectModel` projects canvas nodes and edges into PPM entities and relationships (`DEPENDS_ON` / `CALLS` / `RELATED_TO`).
 - Agents exposes MCP helper start/stop, Cursor config copy, the Polterware AI skill, CompileContext preview, Narrow Drift Checker preview (`CheckDrift`), PPM Facts (list/inspect facts and evidence; upsert/link with change envelope), and Unified Change History (justified human + agent mutations with envelope and audit chain). Desktop Knowledge/PPM semantic writes require `summary` and `rationale`.
 - `AgentRunService.ListChanges` lists change steps for the project with optional `actor_kind` filter (`human` | `agent`).

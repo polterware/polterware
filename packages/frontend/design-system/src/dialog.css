@@ -5,26 +5,52 @@
  * Tokens: --duration-enter / --duration-control, --ease-enter / --ease-standard.
  * No bounce (DESIGN.md). prefers-reduced-motion handled in base.css.
  *
- * Default frame = catalog surface (.pw-product-frame).
- * data-size="sm" = compact form dialogs (create project, short forms).
+ * Size scale (data-size):
+ * - sm — compact forms / confirms (create project)
+ * - md — medium forms (default when size omitted)
+ * - lg — create dialogs with template grids
+ * - xl — dense catalogs (Add to Architecture)
  */
 
-/* Canonical product dialog frame — same box as .pw-product-frame / command palette */
+/* Base = md (safe default). Catalog is opt-in via data-size="xl". */
 .pw-dialog-content {
-  width: min(72rem, calc(100vw - 2.5rem));
-  max-width: min(72rem, calc(100vw - 2.5rem));
-  height: min(78vh, 760px);
-  max-height: min(92vh, 900px);
-  min-height: min(78vh, 760px);
+  width: min(36rem, calc(100vw - 2.5rem));
+  max-width: min(36rem, calc(100vw - 2.5rem));
+  height: auto;
+  min-height: 0;
+  max-height: min(90vh, 720px);
 }
 
-/* Compact form dialogs — hug content, moderate width */
 .pw-dialog-content[data-size="sm"] {
   width: min(30rem, calc(100vw - 2.5rem));
   max-width: min(30rem, calc(100vw - 2.5rem));
   height: auto;
   min-height: 0;
   max-height: min(90vh, 640px);
+}
+
+.pw-dialog-content[data-size="md"] {
+  width: min(36rem, calc(100vw - 2.5rem));
+  max-width: min(36rem, calc(100vw - 2.5rem));
+  height: auto;
+  min-height: 0;
+  max-height: min(90vh, 720px);
+}
+
+.pw-dialog-content[data-size="lg"] {
+  width: min(44rem, calc(100vw - 2.5rem));
+  max-width: min(44rem, calc(100vw - 2.5rem));
+  height: auto;
+  min-height: 0;
+  max-height: min(85vh, 760px);
+}
+
+.pw-dialog-content[data-size="xl"] {
+  width: min(72rem, calc(100vw - 2.5rem));
+  max-width: min(72rem, calc(100vw - 2.5rem));
+  height: min(78vh, 760px);
+  max-height: min(92vh, 900px);
+  min-height: min(78vh, 760px);
 }
 
 @keyframes pw-dialog-overlay-in {

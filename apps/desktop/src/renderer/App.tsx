@@ -1,6 +1,7 @@
-import { Match, Switch, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { Match, Switch, Suspense, createEffect, createSignal, lazy, onCleanup, onMount } from "solid-js";
 import {
   Shell,
+  CliReferencePage,
   CreateProjectDialog,
   createDefaultRoute,
   goSection,
@@ -15,22 +16,47 @@ import {
   historySnapshot,
   ensureRouteAvailable,
   routesEqual,
+  SECTION_TABS,
   type ClientRoute,
   type EnvironmentItem,
 } from "@polterware/feature-shell";
 import { ArchitectureView } from "@polterware/feature-architecture";
-import { ResourcesView } from "@polterware/feature-resources";
-import { KnowledgeView, ChangeEnvelopeDialogHost, requestChangeEnvelope, type ChangeEnvelope } from "@polterware/feature-knowledge";
-import { IntegrationsView } from "@polterware/feature-integrations";
-import { SettingsView, AgentsPage, hydrateShortcutPreferences, hydrateAppearancePreferences } from "@polterware/feature-settings";
+import {
+  ChangeEnvelopeDialogHost,
+  requestChangeEnvelope,
+  type ChangeEnvelope,
+} from "@polterware/feature-knowledge/change-envelope";
+import { hydrateAppearancePreferences, hydrateShortcutPreferences } from "@polterware/feature-settings/boot";
 import { CommandPalette } from "@polterware/feature-commander";
-import { pushToast } from "@polterware/frontend-design-system";
+import { PageLoading, pushToast } from "@polterware/frontend-design-system";
 import { detailPanelStore, matchesShortcut } from "@polterware/frontend-state";
 import { bootstrapPlatform } from "./platform-bootstrap";
+
+if (import.meta.env.DEV && !SECTION_TABS.agents?.some((tab) => tab.id === "context")) {
+  console.warn("[polterware] Agents SECTION_TABS is missing Context — reload the Desktop window.");
+}
+
+const ResourcesView = lazy(() =>
+  import("@polterware/feature-resources").then((m) => ({ default: m.ResourcesView })),
+);
+const KnowledgeView = lazy(() =>
+  import("@polterware/feature-knowledge").then((m) => ({ default: m.KnowledgeView })),
+);
+const IntegrationsView = lazy(() =>
+  import("@polterware/feature-integrations").then((m) => ({ default: m.IntegrationsView })),
+);
+const SettingsView = lazy(() =>
+  import("@polterware/feature-settings").then((m) => ({ default: m.SettingsView })),
+);
+const AgentsPage = lazy(() =>
+  import("@polterware/feature-settings").then((m) => ({ default: m.AgentsPage })),
+);
+
 import {
   emptyWorkspace,
   loadProjects,
-  loadWorkspace,
+  loadWorkspaceExtensions,
+  loadWorkspaceShell,
   type ProjectCatalog,
   type WorkspaceSnapshot,
 } from "./workspace/load";
@@ -122,27 +148,46 @@ export function App() {
       return;
     }
     try {
-      const snapshot = await loadWorkspace(projectId, catalog);
-      setWorkspace(snapshot);
+      const shell = await loadWorkspaceShell(projectId, catalog);
+      if (loadedProjectId && loadedProjectId !== projectId) return;
+      setWorkspace(shell);
       if (shouldOpenCreateProject({
-        coreAvailable: snapshot.available,
-        projectCount: snapshot.projects.length,
+        coreAvailable: shell.available,
+        projectCount: shell.projects.length,
       })) {
         loadedProjectId = "";
         setCreateProjectOpen(true);
+        setLoading(false);
         return;
       }
       const current = route();
       if (!current.environmentId) {
-        const environment = snapshot.environments.find((item) => item.projectId === snapshot.settings.projectId || item.projectId === current.projectId);
+        const environment = shell.environments.find((item) => item.projectId === shell.settings.projectId || item.projectId === current.projectId);
         if (environment) applyRoute(setEnvironment(current, environment.id), "silent");
+      }
+      setLoading(false);
+
+      try {
+        const extensions = await loadWorkspaceExtensions(projectId, {
+          environments: shell.environments,
+        });
+        if (loadedProjectId && loadedProjectId !== projectId) return;
+        setWorkspace((currentWorkspace) => ({
+          ...currentWorkspace,
+          ...extensions,
+          extensionsReady: true,
+        }));
+      } catch (error) {
+        pushToast(
+          error instanceof Error ? error.message : "Could not load workspace extensions.",
+          "danger",
+        );
       }
     } catch (error) {
       setWorkspace({
         ...emptyWorkspace(),
         healthMessage: error instanceof Error ? error.message : "Core unavailable",
       });
-    } finally {
       setLoading(false);
     }
   }
@@ -330,6 +375,7 @@ export function App() {
       }
       onOpenCommander={() => setPaletteOpen(true)}
       onOpenSettings={() => applyRoute(setTab(goSection(route(), "settings"), "general"))}
+      onOpenCliReference={() => navigateSection("cli")}
       canGoBack={historyIndex() > 0}
       canGoForward={historyIndex() < history().length - 1}
       onBack={goBack}
@@ -337,6 +383,7 @@ export function App() {
       status={{ dataMode: dataMode() }}
       platform={PLATFORM_CONTEXT}
     >
+      <Suspense fallback={<PageLoading layout="page" label="Loading…" />}>
       <Switch>
         <Match when={route().section === "architecture"}>
           <ArchitectureView
@@ -385,6 +432,12 @@ export function App() {
               applyRoute(openDialog(route(), { type: "arch-node-create" }), "silent")
             }
             onCloseCreateNode={() => applyRoute(closeDialog(route()), "silent")}
+            onAddResource={() =>
+              applyRoute(
+                openDialog(goSection(route(), "resources"), { type: "resource-create" }),
+                "silent",
+              )
+            }
             onSubmitCreateNode={(result) => {
               applyRoute(closeDialog(route()), "silent");
               if (!result.ok) {
@@ -438,6 +491,7 @@ export function App() {
           <ResourcesView
             catalog={workspace().resources}
             dataSource="empty"
+            loading={loading()}
             search={route().search}
             filters={route().filters}
             environmentId={route().environmentId}
@@ -484,6 +538,7 @@ export function App() {
             constitution={workspace().constitution}
             entities={workspace().ppmEntities}
             tab={route().tab}
+            loading={loading() || !workspace().extensionsReady}
             onTabChange={(tab) => applyRoute(setTab(route(), tab))}
             onOpenDoc={(id) => activateDetail("knowledge:library", id, "document")}
             onOpenAdr={(id) => activateDetail("knowledge:library", id, "adr")}
@@ -666,27 +721,31 @@ export function App() {
                 });
                 return;
               }
+              const kind = template.kind;
+              if (kind !== "doc" && kind !== "runbook" && kind !== "adr" && kind !== "source") {
+                return;
+              }
               void justifyChange({
                 title: "Justify create",
-                defaultSummary: `Create ${template.kind}: ${template.title}`,
+                defaultSummary: `Create ${kind}: ${template.title}`,
               }).then((change) => {
                 if (!change) return;
                 return persistKnowledgeCreate({
                   projectId: currentProjectId(),
-                  kind: template.kind,
+                  kind,
                   title: template.title,
                   body: template.body,
                   extraJson: template.extraJson,
                   change,
                 }).then(async (id) => {
                   await refreshWorkspace(currentProjectId());
-                  if (template.kind === "runbook") {
+                  if (kind === "runbook") {
                     activateDetail("knowledge:library", id, "runbook");
                     pushToast("Runbook saved locally.", "success");
-                  } else if (template.kind === "adr") {
+                  } else if (kind === "adr") {
                     activateDetail("knowledge:library", id, "adr");
                     pushToast("ADR saved locally.", "success");
-                  } else if (template.kind === "source") {
+                  } else if (kind === "source") {
                     activateDetail("knowledge:sources", id, "source");
                     pushToast("Source saved locally.", "success");
                   } else {
@@ -845,6 +904,7 @@ export function App() {
             resources={workspace().integrationResources}
             syncRuns={workspace().syncRuns}
             tab={route().tab}
+            loading={loading() || !workspace().extensionsReady}
             onTabChange={(tab) => applyRoute(setTab(route(), tab))}
             onOpen={(id) => activateDetail("integrations:connected", id, "integration")}
             setupOpen={route().dialog?.type === "integration-connect"}
@@ -892,12 +952,17 @@ export function App() {
           />
         </Match>
 
+        <Match when={route().section === "cli"}>
+          <CliReferencePage />
+        </Match>
+
         <Match when={route().section === "settings"}>
           <SettingsView
             tab={route().tab}
             projectId={currentProjectId()}
             general={workspace().settings}
             environments={workspace().settingsEnvironments}
+            loading={loading()}
             onTabChange={(tab) => applyRoute(setTab(route(), tab))}
             onSaveGeneral={(settings) => {
               void persistProjectSettings(
@@ -985,6 +1050,7 @@ export function App() {
           />
         </Match>
       </Switch>
+      </Suspense>
 
       <CreateProjectDialog
         open={createProjectOpen()}

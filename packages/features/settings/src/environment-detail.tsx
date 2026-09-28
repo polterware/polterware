@@ -27,7 +27,7 @@ export function EnvironmentDetail(props: {
         <DetailPanel.Header title="Loading environment" />
         <DetailPanel.Body>
           <DetailPanel.Main>
-            <PageLoading label="Loading environment…" />
+            <PageLoading layout="detail" label="Loading environment…" />
           </DetailPanel.Main>
         </DetailPanel.Body>
       </Show>

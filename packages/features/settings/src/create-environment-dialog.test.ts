@@ -14,6 +14,5 @@ describe("CreateEnvironmentDialog contract", () => {
     expect(dialogSource).toContain('label="Kind"');
     expect(dialogSource).toContain('label="Protection"');
     expect(dialogSource).toContain("defaultProtectionForKind");
-    expect(dialogSource).toContain("local SQLite database");
   });
 });

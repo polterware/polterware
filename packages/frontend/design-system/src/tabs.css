@@ -41,6 +41,23 @@
   align-items: center;
 }
 
+/* Flat surfaces without a tab rail — same type metrics as .pw-tab--active. */
+.pw-page-toolbar-title {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  /* Match .pw-tab horizontal inset so the label isn’t flush to the edge. */
+  padding: 5px 14px;
+  margin-inline-start: 4px;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .pw-page-toolbar-actions {
   display: flex;
   flex-shrink: 0;

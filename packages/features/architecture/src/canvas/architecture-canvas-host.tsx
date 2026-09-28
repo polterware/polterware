@@ -108,7 +108,7 @@ import {
   createFixtureResourceLinkPort,
   type ResourceLinkPort,
 } from "../domain/fixture-resource-link-port";
-import { suggestPlaceFromResource } from "../domain/place-link";
+import { suggestPlaceFromResource, type LinkableResource } from "../domain/place-link";
 import { setSessionSnapshot } from "./session-viewport";
 import { createLocalStorageTypePrefs } from "./type-prefs-local";
 import { AddToArchitectureDialog } from "./add-to-architecture-dialog";
@@ -161,6 +161,8 @@ export function ArchitectureCanvasHost(props: {
   onViewportChange?: (vp: Viewport) => void;
   onRequestSave?: () => void;
   onRevisionLocal?: (body: string) => void;
+  /** Opens Resources create when operator picks Add resource in the catalog. */
+  onAddResource?: () => void;
   /** Operator toggle for the edge flow animation (toolbar). Defaults to on. */
   edgeFlow?: boolean;
 }) {
@@ -834,10 +836,6 @@ export function ArchitectureCanvasHost(props: {
 
   function onCatalogSelect(def: ComponentTypeDefinition) {
     setCatalogOpen(false);
-    if (def.id === "link-from-resources" || def.id === "action_link_resource") {
-      openResourceFirst();
-      return;
-    }
     if (def.placementKind === "action" || !def.placeable || def.placementKind === "boundary") {
       pushToast(`${def.label}: not available yet`);
       return;
@@ -846,15 +844,9 @@ export function ArchitectureCanvasHost(props: {
     setConfigureDef(def);
   }
 
-  function openResourceFirst() {
-    const port = resourceLinkPort();
-    const first = port.listCandidates({ typeFilterStrict: false })[0];
-    if (!first) {
-      pushToast("No resources available to link");
-      return;
-    }
-    // Open configure with first resource path: selection happens in the link section; seed from the first placeable database or service.
-    const suggestion = suggestPlaceFromResource(first);
+  function placeFromResource(resource: LinkableResource) {
+    setCatalogOpen(false);
+    const suggestion = suggestPlaceFromResource(resource);
     const typeKey = suggestion.suggestedComponentType ?? "service";
     const def =
       listCatalogTypes().find(
@@ -2145,8 +2137,11 @@ export function ArchitectureCanvasHost(props: {
         <AddToArchitectureDialog
           open={catalogOpen()}
           prefs={typePrefs}
+          resources={resourceLinkPort().listCandidates({ typeFilterStrict: false })}
           onClose={() => setCatalogOpen(false)}
           onSelect={onCatalogSelect}
+          onSelectResource={placeFromResource}
+          onAddResource={props.onAddResource}
           onUnavailableAction={(def) => pushToast(`${def.label}: not available yet`)}
         />
 

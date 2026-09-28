@@ -6,20 +6,54 @@
   box-shadow: none;
 }
 
-.architecture-catalog-tabs-fade {
+/*
+ * Tab chrome: opaque through mid-tabs, then a real trail fade over the list
+ * (same idea as .pw-page-toolbar--fade-edge). List tucks under the trail so
+ * icons/text show through the transparent end — otherwise surface-on-surface
+ * looks like a hard cut.
+ */
+.architecture-catalog-tabs-bar {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  padding: 0.5rem 1.25rem 0.35rem;
+  pointer-events: none;
+  background: transparent;
+}
+
+.architecture-catalog-tabs-bar::before {
+  content: "";
   position: absolute;
-  inset: 0 0 auto;
-  z-index: 1;
-  padding: 0.5rem 1.25rem 1.5rem;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 50%;
   pointer-events: none;
   background: var(--color-surface);
 }
 
+.architecture-catalog-tabs-bar::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: calc(50% + 64px);
+  pointer-events: none;
+  background: var(--material-fade-edge-toolbar-trail);
+}
+
 .architecture-catalog-tabs {
+  position: relative;
+  z-index: 1;
   width: 100%;
   pointer-events: auto;
 }
 
-.architecture-catalog-list--under-tabs {
-  padding-top: 3.5rem;
+.architecture-catalog-list {
+  position: relative;
+  z-index: 0;
+  /* Pull first rows under the fade trail so the gradient reads over content. */
+  margin-top: -2.75rem;
+  padding-top: 3rem;
 }

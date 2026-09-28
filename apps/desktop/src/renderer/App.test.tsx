@@ -12,12 +12,30 @@ describe("Desktop core composition", () => {
     expect(source).not.toContain("TerminalPage");
   });
 
+  it("lazy-loads secondary surfaces behind Suspense", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const source = readFileSync(join(import.meta.dirname, "App.tsx"), "utf8");
+    expect(source).toContain('import { ArchitectureView } from "@polterware/feature-architecture"');
+    expect(source).toContain("lazy(() =>");
+    expect(source).toContain("<Suspense");
+    expect(source).toContain('import("@polterware/feature-resources")');
+    expect(source).toContain('import("@polterware/feature-knowledge")');
+    expect(source).toContain('import("@polterware/feature-integrations")');
+    expect(source).toContain('import("@polterware/feature-settings")');
+    expect(source).not.toMatch(/import \{ ResourcesView \} from "@polterware\/feature-resources"/);
+    expect(source).not.toMatch(/import \{[^}]*KnowledgeView[^}]*\} from "@polterware\/feature-knowledge"/);
+    expect(source).toContain("@polterware/feature-knowledge/change-envelope");
+    expect(source).toContain("@polterware/feature-settings/boot");
+  });
+
   it("loads workspace data through the typed core bridge", async () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const source = readFileSync(join(import.meta.dirname, "App.tsx"), "utf8");
     const persist = readFileSync(join(import.meta.dirname, "workspace/persist.ts"), "utf8");
-    expect(source).toContain("loadWorkspace");
+    expect(source).toContain("loadWorkspaceShell");
+    expect(source).toContain("loadWorkspaceExtensions");
     expect(source).toContain("persistView");
     expect(source).toContain("persistKnowledgeCreate");
     expect(source).toContain("persistResource");

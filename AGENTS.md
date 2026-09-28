@@ -16,9 +16,9 @@ Polterware's category is **Project Context & Change Intelligence for AI Coding**
 
 Polterware's first version is a local SQLite-backed Desktop with five project surfaces: Architecture, Resources (Inventory), Knowledge, Agents, and Integrations. Settings is fixed in the sidebar footer. Architecture / Canvas is the default route.
 
-The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. The Electron Main process starts `polterware-core`, and the renderer reads and writes through `window.polterware` only.
+The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. The Electron Main process starts the local core (`polterware serve`), and the renderer reads and writes through `window.polterware` only.
 
-The Desktop may execute on the local machine through `polterware-core` only. The renderer never spawns shells or touches Node APIs; it talks through `window.polterware`.
+The Desktop may execute on the local machine through the local core only. The renderer never spawns shells or touches Node APIs; it talks through `window.polterware`.
 
 - Integrations: detect CLI binaries, start provider authentication commands in a core-owned PTY, optionally open provider documentation through Main `openExternal`, and probe connection status. Credentials stay in the OS/CLI credential store. **KEEP** as evidence/Connect path (not a provider console). Residual `terminals.*` IPC and `providers/terminal` exist only for that Connect auth PTY path.
 
@@ -26,7 +26,7 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
 
 ## Architecture boundaries
 
-- Go local authority: `backend/runtimes/core` and retained domains only.
+- Go local authority: the single `polterware` binary (`backend/runtimes/cli`: TUI, commands, `serve`, `mcp`) and retained domains only.
 - Desktop: `apps/desktop` with thin Electron Main, typed preload bridge, and Solid renderer.
 - Features: `packages/features/<feature>`.
 - Shared frontend: `packages/frontend`.
@@ -43,7 +43,7 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
   - Specs hold one Constitution per project (`constitution`) and per-feature Spec / Plan / Tasks / Clarify / Checklist items linked by `featureKey`. Mark ready is blocked while Checklist still has unchecked `- [ ]` lines.
   - Library lists `doc`, `adr`, and `runbook` items with Kind / Status / Severity / Linked filters.
   - Sources lists registered project-relative paths (`kind = source`); Import from project root runs `ImportProjectSources` for the MVP file set. Generic filesystem indexing beyond that set is not shipped.
-- Agents: Access, Compile, Drift, Facts, History
+- Agents: Access, Facts, History, Context
 - Integrations: Connected, Catalog (**KEEP** — evidence + Connect UI)
 - Settings: General, Environments, Shortcuts, Advanced
 
@@ -57,7 +57,7 @@ Do not hand-roll shared control chrome, menus, dialogs, operational tables, or e
 
 ## Development judgments
 
-`pnpm jev` is a local development aid. It reads `TYPESAFE_API_KEY` from the repository `.env` and calls TypeSafe Jev. Do not add this call to the Desktop, the renderer, or `polterware-core`, and do not print the key.
+`pnpm jev` is a local development aid. It reads `TYPESAFE_API_KEY` from the repository `.env` and calls TypeSafe Jev. Do not add this call to the Desktop, the renderer, or the `polterware` binary, and do not print the key.
 
 Use it when a closed semantic judgment avoids a wide search or a wrong implementation:
 

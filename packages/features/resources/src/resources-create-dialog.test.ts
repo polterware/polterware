@@ -23,6 +23,5 @@ describe("Resources create dialog contract", () => {
     expect(indexSource).not.toContain('{ value: "Development", label: "Development" }');
     expect(indexSource).not.toContain('{ value: "Staging", label: "Staging" }');
     expect(indexSource).not.toContain('{ value: "Production", label: "Production" }');
-    expect(indexSource).toContain("currently selected environment from the header switcher");
   });
 });

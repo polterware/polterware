@@ -108,7 +108,7 @@ export function ConfigureComponentDialog(props: {
       open={props.open && Boolean(props.def)}
       title="Configure component"
       description="Set component details before placing on the canvas."
-      size="xl"
+      size="md"
       onClose={() => props.onClose()}
       footer={
         <div class="flex justify-end gap-2">

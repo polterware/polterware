@@ -49,7 +49,7 @@ export function ArchitectureViewDetail(props: {
         <DetailPanel.Header title="Loading view" />
         <DetailPanel.Body>
           <DetailPanel.Main>
-            <PageLoading label="Loading view…" />
+            <PageLoading layout="detail" label="Loading view…" />
           </DetailPanel.Main>
         </DetailPanel.Body>
       </Show>

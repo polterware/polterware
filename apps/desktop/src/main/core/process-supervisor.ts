@@ -21,14 +21,15 @@ export function resolveUserDatabasePath(): string {
   return join(app.getPath("userData"), "local.db");
 }
 
-export function resolveCoreBinaryPath(): string | undefined {
+/** Resolves the `polterware` CLI, which serves the core (`serve`) and MCP (`mcp`). */
+export function resolveCliBinaryPath(): string | undefined {
   if (app.isPackaged) {
-    const packaged = join(process.resourcesPath, "polterware-core");
+    const packaged = join(process.resourcesPath, "polterware");
     return existsSync(packaged) ? packaged : undefined;
   }
-  const fromApp = resolve(app.getAppPath(), "../../dist/polterware-core");
+  const fromApp = resolve(app.getAppPath(), "../../dist/polterware");
   if (existsSync(fromApp)) return fromApp;
-  const fromMain = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../dist/polterware-core");
+  const fromMain = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../dist/polterware");
   if (existsSync(fromMain)) return fromMain;
   return undefined;
 }
@@ -55,17 +56,17 @@ export async function startCoreProcess(options: {
     return { endpoint: standalone.endpoint, token: standalone.token };
   }
 
-  const binary = resolveCoreBinaryPath();
+  const binary = resolveCliBinaryPath();
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     POLTERWARE_SESSION_TOKEN: options.token,
     POLTERWARE_CORE_OWNER: "desktop",
   };
   delete env.TYPESAFE_API_KEY;
-  const args = ["-listen", "127.0.0.1:0", "-db", options.dbPath];
+  const args = ["-db", options.dbPath, "serve", "--listen", "127.0.0.1:0"];
   const child = binary
     ? spawn(binary, args, { env, stdio: ["ignore", "ignore", "pipe"] })
-    : spawn("go", ["run", "./backend/runtimes/core", ...args], {
+    : spawn("go", ["run", "./backend/runtimes/cli", ...args], {
         cwd: resolveRepositoryRoot(),
         env,
         stdio: ["ignore", "ignore", "pipe"],
@@ -77,7 +78,7 @@ export async function startCoreProcess(options: {
 
 type StandaloneCore = { pid: number; endpoint: string; token: string };
 
-/** Reads `<db dir>/run/core.json` written by `polterware-core serve` (see backend/platform/runstate). */
+/** Reads `<db dir>/run/core.json` written by `polterware serve` (see backend/platform/runstate). */
 function readStandaloneCore(dbPath: string): StandaloneCore | undefined {
   try {
     const state = JSON.parse(readFileSync(join(dirname(dbPath), "run", "core.json"), "utf8")) as {

@@ -2,7 +2,6 @@ import { Match, Show, Switch, createMemo, createSignal, onMount } from "solid-js
 import {
   Button,
   Boxes,
-  GitCompare,
   History,
   Layers,
   PageContent,
@@ -40,26 +39,6 @@ const AGENTS_TABS: TabItem[] = [
     },
   },
   {
-    id: "compile",
-    label: "Compile",
-    tooltip: {
-      title: "Context compile",
-      description:
-        "Preview CompileContext for the current project: a bounded package of entities, facts with evidence, knowledge links, and search hits under a token budget.",
-      icon: Layers,
-    },
-  },
-  {
-    id: "drift",
-    label: "Drift",
-    tooltip: {
-      title: "Narrow drift",
-      description:
-        "Run the Narrow Drift Checker for the current project. Findings are advisory; empty means no disagreement under the narrow rules.",
-      icon: GitCompare,
-    },
-  },
-  {
     id: "facts",
     label: "Facts",
     tooltip: {
@@ -79,9 +58,19 @@ const AGENTS_TABS: TabItem[] = [
       icon: History,
     },
   },
+  {
+    id: "context",
+    label: "Context",
+    tooltip: {
+      title: "Context and drift",
+      description:
+        "Preview CompileContext for the current project, then run the Narrow Drift Checker. Findings are advisory; empty means no disagreement under the narrow rules.",
+      icon: Layers,
+    },
+  },
 ];
 
-type AgentsTabId = "access" | "compile" | "drift" | "facts" | "history";
+type AgentsTabId = "access" | "context" | "facts" | "history";
 
 type AgentsBridge = {
   getMcpStatus: () => Promise<unknown>;
@@ -320,19 +309,14 @@ function mapDriftResult(value: unknown): DriftPreviewResult {
 }
 
 function normalizeAgentsTab(raw?: string): AgentsTabId {
-  if (
-    raw === "compile"
-    || raw === "drift"
-    || raw === "facts"
-    || raw === "history"
-    || raw === "access"
-  ) {
+  if (raw === "compile" || raw === "drift") return "context";
+  if (raw === "context" || raw === "facts" || raw === "history" || raw === "access") {
     return raw;
   }
   return "access";
 }
 
-/** Agents: MCP access, compile preview, drift preview, PPM facts, and Unified Change History. */
+/** Agents: MCP access, context/drift preview, PPM facts, and Unified Change History. */
 export function AgentsPage(props: {
   projectId: string;
   tab?: string;
@@ -561,23 +545,15 @@ export function AgentsPage(props: {
               Stop
             </Button>
           </Show>
-          <Show when={tab() === "compile"}>
+          <Show when={tab() === "context"}>
             <Button
               size="sm"
               variant="ghost"
-              disabled={compileBusy()}
-              onClick={() => runCompile()}
-            >
-              <RefreshCw size={14} />
-              Refresh
-            </Button>
-          </Show>
-          <Show when={tab() === "drift"}>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={driftBusy()}
-              onClick={() => runDrift()}
+              disabled={compileBusy() || driftBusy()}
+              onClick={() => {
+                runCompile();
+                runDrift();
+              }}
             >
               <RefreshCw size={14} />
               Refresh
@@ -610,39 +586,44 @@ export function AgentsPage(props: {
 
       <Switch>
         <Match when={tab() === "access"}>
-          <PageContent class="max-w-2xl space-y-3 overflow-auto p-4 text-[12.5px]">
+          <PageContent class="mx-auto w-full max-w-2xl space-y-3 overflow-auto p-4 text-[12.5px]">
             <McpStatusCard status={mcpStatus()} />
             <SkillCard />
           </PageContent>
         </Match>
 
-        <Match when={tab() === "compile"}>
-          <PageContent class="max-w-2xl overflow-auto p-4 text-[12.5px]">
-            <CompilePreviewCard
-              query={query()}
-              entityId={entityId()}
-              budget={budget()}
-              busy={compileBusy()}
-              result={compileResult()}
-              error={compileError()}
-              onQueryChange={setQuery}
-              onEntityIdChange={setEntityId}
-              onBudgetChange={setBudget}
-              onCompile={() => runCompile()}
-            />
-          </PageContent>
-        </Match>
-
-        <Match when={tab() === "drift"}>
-          <PageContent class="max-w-2xl overflow-auto p-4 text-[12.5px]">
-            <DriftPreviewCard
-              entityId={entityId()}
-              busy={driftBusy()}
-              result={driftResult()}
-              error={driftError()}
-              onEntityIdChange={setEntityId}
-              onCheck={() => runDrift()}
-            />
+        <Match when={tab() === "context"}>
+          <PageContent class="mx-auto w-full max-w-2xl space-y-8 overflow-auto p-4 text-[12.5px]">
+            <section class="space-y-3">
+              <h2 class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">
+                Compile
+              </h2>
+              <CompilePreviewCard
+                query={query()}
+                entityId={entityId()}
+                budget={budget()}
+                busy={compileBusy()}
+                result={compileResult()}
+                error={compileError()}
+                onQueryChange={setQuery}
+                onEntityIdChange={setEntityId}
+                onBudgetChange={setBudget}
+                onCompile={() => runCompile()}
+              />
+            </section>
+            <section class="space-y-3">
+              <h2 class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">
+                Drift
+              </h2>
+              <DriftPreviewCard
+                entityId={entityId()}
+                busy={driftBusy()}
+                result={driftResult()}
+                error={driftError()}
+                onEntityIdChange={setEntityId}
+                onCheck={() => runDrift()}
+              />
+            </section>
           </PageContent>
         </Match>
 

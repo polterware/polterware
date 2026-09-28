@@ -7,6 +7,7 @@ import {
   Field,
   Input,
   PageContent,
+  PageLoading,
   PageToolbar,
   Plus,
   Select,
@@ -35,6 +36,7 @@ import {
 } from "./settings-helpers";
 import { ShortcutsPage } from "./shortcuts-page";
 import { AppearanceCard } from "./appearance-card";
+import { PrivacyCard } from "./privacy-card";
 
 export type { EnvironmentKind, ProjectEnvironment, ProjectGeneralSettings, ProtectionLevel, SettingsTabId } from "./types";
 export type { CreateEnvironmentDraft } from "./create-environment-dialog";
@@ -53,6 +55,7 @@ export { AgentsPage } from "./agents-page";
 export { hydrateShortcutPreferences, persistShortcutOverrides } from "./shortcut-persist";
 export { hydrateAppearancePreferences, persistReduceTransparency } from "./appearance-persist";
 export { AppearanceCard } from "./appearance-card";
+export { PrivacyCard } from "./privacy-card";
 
 /** Project-scoped settings persisted in the local store. */
 export function SettingsView(props: {
@@ -60,6 +63,7 @@ export function SettingsView(props: {
   projectId?: string;
   general?: ProjectGeneralSettings;
   environments?: ProjectEnvironment[];
+  loading?: boolean;
   onTabChange?: (t: string) => void;
   onSaveGeneral?: (settings: ProjectGeneralSettings) => void;
   onCreateEnvironment?: (draft: CreateEnvironmentDraft) => void;
@@ -106,12 +110,12 @@ export function SettingsView(props: {
   createEffect(() => {
     const scope = scopeId();
     const targets =
-      tab() === "environments"
+      !props.loading && tab() === "environments"
         ? environments().map((environment) => environmentDetailTarget(environment.id))
         : [];
     detailPanelStore.getState().registerCollection({
       scopeId: scope,
-      status: "ready",
+      status: props.loading ? "loading" : "ready",
       targets,
     });
     onCleanup(() => detailPanelStore.getState().unregisterCollection(scope));
@@ -158,6 +162,7 @@ export function SettingsView(props: {
   }
 
   return (
+    <Show when={!props.loading} fallback={<PageLoading layout="page" label="Loading settings…" />}>
     <>
       <div class="flex h-full min-h-0 flex-col">
         <PageToolbar.Root>
@@ -245,6 +250,9 @@ export function SettingsView(props: {
                   Save changes
                 </Button>
               </div>
+              <Card>
+                <PrivacyCard />
+              </Card>
             </PageContent>
           </div>
         </Show>
@@ -406,6 +414,7 @@ export function SettingsView(props: {
       <A11yDialog
         open={archiveOpen()}
         title="Archive project?"
+        size="sm"
         onClose={() => setArchiveOpen(false)}
         footer={
           <>
@@ -425,6 +434,7 @@ export function SettingsView(props: {
       <A11yDialog
         open={resetOpen()}
         title="Reset local store?"
+        size="sm"
         onClose={() => setResetOpen(false)}
         footer={
           <>
@@ -449,5 +459,6 @@ export function SettingsView(props: {
         </p>
       </A11yDialog>
     </>
+    </Show>
   );
 }

@@ -80,9 +80,18 @@ export default defineConfig({
           rootDir,
           "../../packages/features/architecture/src/index.tsx",
         ),
+        // Subpaths before package roots so Vite does not treat them as file suffixes.
+        "@polterware/feature-knowledge/change-envelope": resolve(
+          rootDir,
+          "../../packages/features/knowledge/src/change-envelope.ts",
+        ),
         "@polterware/feature-knowledge": resolve(
           rootDir,
           "../../packages/features/knowledge/src/index.tsx",
+        ),
+        "@polterware/feature-settings/boot": resolve(
+          rootDir,
+          "../../packages/features/settings/src/boot.ts",
         ),
         "@polterware/feature-settings": resolve(
           rootDir,

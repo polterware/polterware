@@ -13,7 +13,7 @@ Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`wedge-val
 3. PPM facts (entity-scoped, query statement match, or project sample) with linked evidence
 4. Provenance-aware ranking and token-budget packing
 
-This package shape is exposed to agents as MCP `context.get` (B4). The Connect RPC remains `CompileContext` for Desktop Agents → Compile. See [`stable-mcp-reads.md`](stable-mcp-reads.md).
+This package shape is exposed to agents as MCP `context.get` (B4). The Connect RPC remains `CompileContext` for Desktop Agents → Context. See [`stable-mcp-reads.md`](stable-mcp-reads.md).
 
 ## Item shape
 
@@ -46,7 +46,7 @@ No embedding model, vector store, reranker, or GraphRAG.
 
 ## Desktop
 
-Agents → Compile previews the package (optional query, optional entity id, budget). Empty query compiles the project sample (entities + imported facts).
+Agents → Context previews the package (optional query, optional entity id, budget). Empty query compiles the project sample (entities + imported facts).
 
 ## Limitations
 

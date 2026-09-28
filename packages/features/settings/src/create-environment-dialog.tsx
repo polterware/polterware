@@ -60,26 +60,21 @@ export function CreateEnvironmentDialog(props: {
     <A11yDialog
       open={props.open}
       title="Add environment"
-      description="Pick a template or create a blank environment stored in the local SQLite database."
-      size="xl"
+      size="lg"
+      dividers={false}
       onClose={close}
       footer={
         <>
-          <Button size="sm" variant="ghost" onClick={close}>
+          <Button size="sm" variant="ghost" class="mr-auto" onClick={close}>
             Cancel
           </Button>
           <Button size="sm" variant="primary" disabled={!canSubmit()} onClick={submit}>
-            Create blank
+            Create
           </Button>
         </>
       }
     >
       <div class="grid gap-4">
-        {props.onCreateFromTemplate ? (
-          <EnvironmentTemplateGrid
-            onSelect={(template) => props.onCreateFromTemplate?.(template)}
-          />
-        ) : null}
         <Field label="Name">
           <Input
             size="sm"
@@ -108,6 +103,11 @@ export function CreateEnvironmentDialog(props: {
             onChange={(value) => setProtection(value as ProtectionLevel)}
           />
         </Field>
+        {props.onCreateFromTemplate ? (
+          <EnvironmentTemplateGrid
+            onSelect={(template) => props.onCreateFromTemplate?.(template)}
+          />
+        ) : null}
       </div>
     </A11yDialog>
   );

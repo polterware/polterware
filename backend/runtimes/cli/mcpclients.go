@@ -24,7 +24,7 @@ const (
 	clientConfiguredOther
 )
 
-// mcpClient configures one agent client to launch `polterware-core -db <db> mcp`.
+// mcpClient configures one agent client to launch `polterware -db <db> mcp`.
 type mcpClient struct {
 	ID     string
 	Name   string

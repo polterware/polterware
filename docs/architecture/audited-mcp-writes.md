@@ -1,6 +1,6 @@
 # Audited MCP writes (B7)
 
-Status: Shipped for `polterware-core mcp` semantic write tools
+Status: Shipped for `polterware mcp` semantic write tools
 
 Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`wedge-validation-sequence.md`](wedge-validation-sequence.md), [`minimal-agent-run-audit.md`](minimal-agent-run-audit.md), [`docs/product-vision.md`](../product-vision.md) v3.
 

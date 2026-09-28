@@ -61,6 +61,14 @@ func main() {
 		if err := runDrift(store, rest); err != nil {
 			fail(err)
 		}
+	case "serve":
+		if err := runServe(store, *dbPath, rest); err != nil {
+			fail(err)
+		}
+	case "mcp":
+		if err := runMCP(store, *dbPath); err != nil {
+			fail(err)
+		}
 	case "help", "-h", "--help":
 		usage()
 	default:

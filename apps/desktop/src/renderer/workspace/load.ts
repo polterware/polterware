@@ -42,6 +42,7 @@ export type WorkspaceSnapshot = {
   available: boolean;
   quarantined: boolean;
   healthMessage: string;
+  extensionsReady: boolean;
   projects: ProjectSwitcherItem[];
   environments: EnvironmentItem[];
   settingsEnvironments: ProjectEnvironment[];
@@ -64,6 +65,23 @@ export type WorkspaceSnapshot = {
   rawKnowledge: Record<string, unknown>[];
 };
 
+/** Extension-domain fields merged after the Architecture shell paints. */
+export type WorkspaceExtensions = Pick<
+  WorkspaceSnapshot,
+  | "documents"
+  | "adrs"
+  | "runbooks"
+  | "sources"
+  | "specFeatures"
+  | "constitution"
+  | "ppmEntities"
+  | "providers"
+  | "integrations"
+  | "integrationResources"
+  | "syncRuns"
+  | "rawKnowledge"
+>;
+
 type ProjectMetadata = {
   rawProjects: Record<string, unknown>[];
   rawEnvironments: Record<string, unknown>[];
@@ -83,16 +101,8 @@ const emptySettings: ProjectGeneralSettings = {
   dataSource: "unavailable",
 };
 
-export function emptyWorkspace(): WorkspaceSnapshot {
+export function emptyWorkspaceExtensions(): WorkspaceExtensions {
   return {
-    available: false,
-    quarantined: false,
-    healthMessage: "",
-    projects: [],
-    environments: [],
-    settingsEnvironments: [],
-    settings: emptySettings,
-    resources: [],
     documents: [],
     adrs: [],
     runbooks: [],
@@ -104,10 +114,25 @@ export function emptyWorkspace(): WorkspaceSnapshot {
     integrations: [],
     integrationResources: [],
     syncRuns: [],
+    rawKnowledge: [],
+  };
+}
+
+export function emptyWorkspace(): WorkspaceSnapshot {
+  return {
+    available: false,
+    quarantined: false,
+    healthMessage: "",
+    extensionsReady: false,
+    projects: [],
+    environments: [],
+    settingsEnvironments: [],
+    settings: emptySettings,
+    resources: [],
+    ...emptyWorkspaceExtensions(),
     views: [],
     layoutBody: "",
     layoutRevision: 0,
-    rawKnowledge: [],
   };
 }
 
@@ -135,7 +160,11 @@ export async function loadProjects(currentProjectId?: string): Promise<ProjectCa
   };
 }
 
-export async function loadWorkspace(
+/**
+ * Architecture + project shell — enough for the default route paint.
+ * Extension domains (Knowledge / PPM / Integrations) load separately.
+ */
+export async function loadWorkspaceShell(
   projectId: string,
   catalog?: ProjectCatalog,
 ): Promise<WorkspaceSnapshot> {
@@ -143,31 +172,11 @@ export async function loadWorkspace(
   const metadataPromise: Promise<ProjectMetadata> = catalog
     ? Promise.resolve(catalog)
     : loadProjectMetadata(api);
-  const [
-    healthRes,
-    settingsRes,
-    layoutRes,
-    resourcesRes,
-    knowledgeRes,
-    entitiesRes,
-    linksRes,
-    providersRes,
-    connectionsRes,
-    integrationResourcesRes,
-    syncRunsRes,
-    viewsRes,
-  ] = await Promise.all([
+  const [healthRes, settingsRes, layoutRes, resourcesRes, viewsRes] = await Promise.all([
     api.health.getStoreHealth(),
     api.projects.getSettings({ projectId }),
     api.architecture.getLayout({ projectId }).catch(() => ({})),
     api.architecture.listResources({ projectId }),
-    api.knowledge.list({ projectId }),
-    api.ppm.listEntities({ projectId }).catch(() => ({ entities: [] })),
-    api.knowledge.listLinks({ projectId }).catch(() => ({ links: [] })),
-    api.integrations.listProviders(),
-    api.integrations.listConnections({ projectId }),
-    api.integrations.listResources({ projectId }),
-    api.integrations.listSyncRuns({ projectId }),
     api.architecture.listViews({ projectId }),
   ] as const);
 
@@ -176,7 +185,6 @@ export async function loadWorkspace(
   const { rawProjects, rawEnvironments, environments } = metadata;
   const projectEnvironments = environments.filter((item) => item.projectId === projectId);
   const currentEnvRecords = rawEnvironments.filter((item) => asString(item.projectId) === projectId);
-  // Architecture + project shell first — needed for the default route paint.
   const resources = mapResources(asObjectArray(asRecord(resourcesRes).resources), projectEnvironments);
   const layout = asRecord(asRecord(layoutRes).layout);
   const projects = mapProjects(rawProjects, environments, projectId);
@@ -187,7 +195,54 @@ export async function loadWorkspace(
   const settingsEnvironments = mapSettingsEnvironments(currentEnvRecords, resources);
   const views = mapViews(asObjectArray(asRecord(viewsRes).views));
 
-  // Yield between map groups so the post-Promise.all burst is not one long task.
+  return {
+    available: true,
+    quarantined: health.quarantined === true,
+    healthMessage: asString(health.message),
+    extensionsReady: false,
+    projects,
+    environments,
+    settingsEnvironments,
+    settings,
+    resources,
+    ...emptyWorkspaceExtensions(),
+    views,
+    layoutBody: asString(layout.bodyJson),
+    layoutRevision: asNumber(layout.revision),
+  };
+}
+
+export async function loadWorkspaceExtensions(
+  projectId: string,
+  options?: { environments?: EnvironmentItem[] },
+): Promise<WorkspaceExtensions> {
+  const api = core();
+  const environmentsPromise: Promise<EnvironmentItem[]> = options?.environments
+    ? Promise.resolve(options.environments)
+    : loadProjectMetadata(api).then((metadata) => metadata.environments);
+  const settled = await Promise.all([
+    api.knowledge.list({ projectId }),
+    api.ppm.listEntities({ projectId }).catch(() => ({ entities: [] })),
+    api.knowledge.listLinks({ projectId }).catch(() => ({ links: [] })),
+    api.integrations.listProviders(),
+    api.integrations.listConnections({ projectId }),
+    api.integrations.listResources({ projectId }),
+    api.integrations.listSyncRuns({ projectId }),
+    environmentsPromise,
+  ]);
+  const [
+    knowledgeRes,
+    entitiesRes,
+    linksRes,
+    providersRes,
+    connectionsRes,
+    integrationResourcesRes,
+    syncRunsRes,
+  ] = settled;
+  const environments: EnvironmentItem[] = settled[7];
+
+  const projectEnvironments = environments.filter((item) => item.projectId === projectId);
+
   await Promise.resolve();
 
   const knowledgeItems = asObjectArray(asRecord(knowledgeRes).items);
@@ -217,14 +272,6 @@ export async function loadWorkspace(
   const syncRuns = mapSyncRuns(asObjectArray(asRecord(syncRunsRes).runs));
 
   return {
-    available: true,
-    quarantined: health.quarantined === true,
-    healthMessage: asString(health.message),
-    projects,
-    environments,
-    settingsEnvironments,
-    settings,
-    resources,
     documents,
     adrs,
     runbooks,
@@ -236,9 +283,20 @@ export async function loadWorkspace(
     integrations,
     integrationResources,
     syncRuns,
-    views,
-    layoutBody: asString(layout.bodyJson),
-    layoutRevision: asNumber(layout.revision),
     rawKnowledge: knowledgeItems,
+  };
+}
+
+/** Full snapshot — shell then extensions (callers that need one round-trip). */
+export async function loadWorkspace(
+  projectId: string,
+  catalog?: ProjectCatalog,
+): Promise<WorkspaceSnapshot> {
+  const shell = await loadWorkspaceShell(projectId, catalog);
+  const extensions = await loadWorkspaceExtensions(projectId);
+  return {
+    ...shell,
+    ...extensions,
+    extensionsReady: true,
   };
 }

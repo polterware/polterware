@@ -19,10 +19,9 @@ describe("first version routes", () => {
     expect(SECTION_TABS.resources?.map((tab) => tab.id)).toEqual(["inventory"]);
     expect(SECTION_TABS.agents?.map((tab) => tab.id)).toEqual([
       "access",
-      "compile",
-      "drift",
       "facts",
       "history",
+      "context",
     ]);
     expect(SECTION_TABS.settings?.map((tab) => tab.id)).toEqual([
       "general",
@@ -65,5 +64,10 @@ describe("first version routes", () => {
     expect(resolveRoute("knowledge", "docs")).toEqual({ section: "knowledge", tab: "library" });
     expect(resolveRoute("knowledge", "adrs")).toEqual({ section: "knowledge", tab: "library" });
     expect(resolveRoute("knowledge", "runbooks")).toEqual({ section: "knowledge", tab: "library" });
+  });
+
+  it("maps legacy Agents Compile and Drift tabs to Context", () => {
+    expect(resolveRoute("agents", "compile")).toEqual({ section: "agents", tab: "context" });
+    expect(resolveRoute("agents", "drift")).toEqual({ section: "agents", tab: "context" });
   });
 });

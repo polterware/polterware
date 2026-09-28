@@ -206,6 +206,7 @@ export function ArchitectureView(props: {
   onTabChange?: (tab: string) => void;
   onCreateNode?: () => void;
   onCloseCreateNode?: () => void;
+  onAddResource?: () => void;
   onSubmitCreateNode?: (
     result: { ok: true; nodeId: string } | { ok: false; error: string },
   ) => void;
@@ -688,7 +689,7 @@ export function ArchitectureView(props: {
   const canvasPanel = () => (
     <div class="relative flex h-full min-h-0 min-w-0 flex-1 flex-col">
       <Show when={props.loading || !canvasMountReady()}>
-        <PageLoading label="Loading architecture…" />
+        <PageLoading layout="canvas" label="Loading architecture…" />
       </Show>
       {/* Keep the fixture canvas usable when a local preview reports a soft error. */}
       <Show when={!props.loading && canvasMountReady()}>
@@ -726,6 +727,7 @@ export function ArchitectureView(props: {
               onRequestSave={() => {
                 void saveManual();
               }}
+              onAddResource={props.onAddResource}
               edgeFlow={edgeFlow()}
             />
           </Show>
@@ -927,6 +929,7 @@ export function ArchitectureView(props: {
         open={Boolean(props.createDialogOpen)}
         onClose={() => props.onCloseCreateNode?.()}
         onSubmit={(d) => submitCreate(d)}
+        onAddResource={props.onAddResource}
       />
     </>
   );

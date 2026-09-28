@@ -44,34 +44,24 @@ export function CreateKnowledgeDialog(props: {
     if (kind === "runbook") {
       return {
         title: "New runbook",
-        description: "Pick a template or create a blank runbook stored in the local SQLite database.",
         placeholder: "Runbook title",
-        blank: "Create blank",
       };
     }
     if (kind === "feature") {
       return {
         title: "New feature",
-        description: "Pick a template or create a blank Spec, Plan, and Tasks draft linked by one feature key.",
         placeholder: "Feature title",
-        blank: "Create blank",
       };
     }
     if (kind === "adr") {
       return {
         title: "New ADR",
-        description: "Pick a template or create a blank architecture decision record.",
         placeholder: "ADR title",
-        blank: "Create blank",
       };
     }
     return {
       title: props.pickLibraryKind ? "New library item" : "New document",
-      description: props.pickLibraryKind
-        ? "Choose a category, then pick a template or create a blank item stored in the local SQLite database."
-        : "Pick a template or create a blank document stored in the local SQLite database.",
       placeholder: "Document title",
-      blank: "Create blank",
     };
   };
   const canSubmit = () => title().trim().length > 0;
@@ -97,16 +87,16 @@ export function CreateKnowledgeDialog(props: {
     <A11yDialog
       open={props.open}
       title={copy().title}
-      description={copy().description}
-      size="xl"
+      size="lg"
+      dividers={false}
       onClose={close}
       footer={
         <>
-          <Button size="sm" variant="ghost" onClick={close}>
+          <Button size="sm" variant="ghost" class="mr-auto" onClick={close}>
             Cancel
           </Button>
           <Button size="sm" variant="primary" disabled={!canSubmit()} onClick={submit}>
-            {copy().blank}
+            Create
           </Button>
         </>
       }
@@ -126,9 +116,6 @@ export function CreateKnowledgeDialog(props: {
             />
           </Field>
         </Show>
-        {props.onCreateFromTemplate ? (
-          <KnowledgeTemplateGrid kind={activeKind()} onSelect={selectTemplate} />
-        ) : null}
         <Field label="Title">
           <Input
             size="sm"
@@ -137,6 +124,9 @@ export function CreateKnowledgeDialog(props: {
             onInput={(event) => setTitle(event.currentTarget.value)}
           />
         </Field>
+        {props.onCreateFromTemplate ? (
+          <KnowledgeTemplateGrid kind={activeKind()} onSelect={selectTemplate} />
+        ) : null}
       </div>
     </A11yDialog>
   );

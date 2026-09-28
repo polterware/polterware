@@ -61,6 +61,7 @@ export {
 export { MainSurface, PageHeader, PageContent } from "./main-surface";
 export { SidebarNav, SidebarSettingsItem } from "./sidebar";
 export { TitleBar } from "./title-bar";
+export { CliReferencePage } from "./cli-reference-page";
 export { TerminalEmulator } from "./terminal-emulator";
 export { TerminalTranscript } from "./terminal-transcript";
 export { CreateProjectDialog } from "./create-project-dialog";
@@ -112,6 +113,7 @@ export function Shell(props: {
   onSelectEnvironment?: (environmentId: string) => void;
   onOpenCommander?: () => void;
   onOpenSettings?: () => void;
+  onOpenCliReference?: () => void;
   workspace?: WorkspaceContext;
   projects?: ProjectSwitcherItem[];
   environments?: EnvironmentItem[];
@@ -168,6 +170,7 @@ export function Shell(props: {
         onSelectEnvironment={selectEnvironment}
         onCreateProject={() => props.onCreateProject?.()}
         onOpenCommander={() => props.onOpenCommander?.()}
+        onOpenCliReference={props.onOpenCliReference}
       />
 
       <div class="flex min-h-0 flex-1">

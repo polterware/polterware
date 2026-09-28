@@ -11,6 +11,7 @@ import {
   Link,
   ListChecks,
   PageContent,
+  PageLoading,
   PageToolbar,
   Plus,
   ScrollText,
@@ -167,6 +168,7 @@ export function KnowledgeView(props: {
   constitution?: WorkspaceConstitution | null;
   entities?: WorkspacePpmEntity[];
   tab?: string;
+  loading?: boolean;
   error?: string;
   onTabChange?: (tab: string) => void;
   onOpenDoc?: (id: string) => void;
@@ -277,11 +279,15 @@ export function KnowledgeView(props: {
   let lastCollectionFingerprint = "";
   createEffect(() => {
     const scope = scopeId();
-    const status = props.error ? "error" : "ready";
-    const constitutionTarget: CollectionTarget[] = props.constitution
+    const status = props.loading ? "loading" : props.error ? "error" : "ready";
+    const constitutionTarget: CollectionTarget[] = props.loading
+      ? []
+      : props.constitution
       ? [{ scopeId: scope, entityId: props.constitution.id, entityKind: "constitution" }]
       : [];
-    const targets: CollectionTarget[] = tab() === "library"
+    const targets: CollectionTarget[] = props.loading
+      ? []
+      : tab() === "library"
       ? libraryRows().map((row) => ({
           scopeId: scope,
           entityId: row.id,
@@ -834,6 +840,7 @@ export function KnowledgeView(props: {
   });
 
   return (
+    <Show when={!props.loading} fallback={<PageLoading layout="table" label="Loading knowledge…" />}>
     <>
       <div class="flex h-full min-h-0 flex-col">
         <PageToolbar.Root>
@@ -1199,5 +1206,6 @@ export function KnowledgeView(props: {
         }}
       />
     </>
+    </Show>
   );
 }

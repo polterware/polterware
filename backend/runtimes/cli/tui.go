@@ -109,7 +109,7 @@ type tuiModel struct {
 
 func runTUI(store *storepkg.Store, dbPath string) error {
 	cwd, _ := os.Getwd()
-	coreBin, coreErr := resolveCoreBinary()
+	coreBin, coreErr := selfBinary()
 	m := &tuiModel{store: store, dbPath: dbPath, coreBin: coreBin, coreErr: coreErr, cwd: cwd}
 	for _, client := range mcpClients() {
 		m.clients = append(m.clients, clientState{client: client, busy: true})
@@ -459,6 +459,9 @@ func (m *tuiModel) listLen(s section) int {
 func (m *tuiModel) listRows() int {
 	sessions := max(len(m.snap.sessions), 1)
 	fixed := 1 + 2 + 2 + 1 + sessions + 1 + 3*2 + 2
+	if m.showGhost() {
+		fixed += ghostHeight - 1
+	}
 	rows := (m.height - fixed) / 3
 	return clamp(rows, 2, 12)
 }
@@ -502,7 +505,18 @@ func (m *tuiModel) viewHeader() string {
 		}
 	}
 	dot := styleMuted.Render(" · ")
-	return m.line(styleBrand.Render("polterware") + dot + project + dot + styleMuted.Render(shortPath(m.dbPath)))
+	if !m.showGhost() {
+		return m.line(styleBrand.Render("polterware") + dot + project + dot + styleMuted.Render(shortPath(m.dbPath)))
+	}
+	info := make([]string, ghostHeight)
+	info[2] = styleBrand.Render("polterware")
+	info[3] = project
+	info[4] = styleMuted.Render(shortPath(m.dbPath))
+	var b strings.Builder
+	for i, ghost := range renderGhost() {
+		b.WriteString(m.line(ghost + info[i]))
+	}
+	return b.String()
 }
 
 func (m *tuiModel) viewCore() string {
@@ -520,7 +534,7 @@ func (m *tuiModel) viewCore() string {
 	default:
 		status = styleMuted.Render("○ stopped")
 		if m.coreErr != nil {
-			status += "  " + styleWarning.Render("polterware-core not found — run pnpm build:core")
+			status += "  " + styleWarning.Render(m.coreErr.Error())
 		}
 	}
 	return m.line(m.label(sectionCore, "Core") + status)

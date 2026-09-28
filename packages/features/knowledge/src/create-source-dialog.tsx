@@ -32,31 +32,21 @@ export function CreateSourceDialog(props: {
     <A11yDialog
       open={props.open}
       title="Add source"
-      description="Register a project path that grounds the model — relative to the project root."
-      size="xl"
+      size="lg"
+      dividers={false}
       onClose={close}
       footer={
         <>
-          <Button size="sm" variant="ghost" onClick={close}>
+          <Button size="sm" variant="ghost" class="mr-auto" onClick={close}>
             Cancel
           </Button>
           <Button size="sm" variant="primary" disabled={!canSubmit()} onClick={submit}>
-            Add source
+            Create
           </Button>
         </>
       }
     >
       <div class="grid gap-4">
-        {props.onCreateFromTemplate ? (
-          <KnowledgeTemplateGrid
-            kind="source"
-            onSelect={(template) => {
-              props.onCreateFromTemplate?.(template);
-              setTitle("");
-              setPath("");
-            }}
-          />
-        ) : null}
         <Field label="Title">
           <Input
             size="sm"
@@ -73,6 +63,16 @@ export function CreateSourceDialog(props: {
             onInput={(event) => setPath(event.currentTarget.value)}
           />
         </Field>
+        {props.onCreateFromTemplate ? (
+          <KnowledgeTemplateGrid
+            kind="source"
+            onSelect={(template) => {
+              props.onCreateFromTemplate?.(template);
+              setTitle("");
+              setPath("");
+            }}
+          />
+        ) : null}
       </div>
     </A11yDialog>
   );

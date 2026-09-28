@@ -11,6 +11,7 @@ import {
   Layers,
   Package,
   PageContent,
+  PageLoading,
   PageToolbar,
   Plus,
   SearchBar,
@@ -49,6 +50,7 @@ export type { ResourceListFilters } from "./resource-filters";
 export function ResourcesView(props: {
   catalog?: Resource[];
   dataSource?: "fixture" | "empty";
+  loading?: boolean;
   search?: string;
   filters?: Readonly<Record<string, readonly string[]>>;
   environmentId?: string;
@@ -84,6 +86,15 @@ export function ResourcesView(props: {
 
   createEffect(() => {
     const scope = scopeId();
+    if (props.loading) {
+      detailPanelStore.getState().registerCollection({
+        scopeId: scope,
+        status: "loading",
+        targets: [],
+      });
+      onCleanup(() => detailPanelStore.getState().unregisterCollection(scope));
+      return;
+    }
     const targets = resources().map((item) => ({
       scopeId: scope,
       entityId: item.id,
@@ -241,100 +252,105 @@ export function ResourcesView(props: {
   return (
     <>
       <div class="flex h-full min-h-0 flex-col">
-        <PageToolbar.Root>
-          <PageToolbar.Leading>
-            <span class="sr-only">Resource inventory</span>
-          </PageToolbar.Leading>
-          <PageToolbar.Actions>
-            <SearchBar
-              placeholder="Search"
-              value={filters().query}
-              onInput={(value) => commitFilters({ ...filters(), query: value })}
-              aria-label="Search"
-            />
-            <FilterPopover
-              ariaLabel="Resource filters"
-              title="Filter resources"
-              active={resourceListFiltersActive(filters())}
-              onClear={() =>
-                commitFilters({
-                  ...EMPTY_RESOURCE_LIST_FILTERS,
-                  query: filters().query,
-                })
-              }
-              groups={filterGroups()}
-            />
-            <ToolbarIconButton label="Add resource" onClick={() => props.onCreate?.()}>
-              <Plus size={14} />
-            </ToolbarIconButton>
-          </PageToolbar.Actions>
-        </PageToolbar.Root>
-        <ActiveFilterBar
-          items={activePills()}
-          onClear={() =>
-            commitFilters({
-              ...EMPTY_RESOURCE_LIST_FILTERS,
-              query: filters().query,
-            })
-          }
-        />
-        <PageContent class="p-0">
-          <Show
-            when={catalog().length > 0}
-            fallback={
-              <ResourcesInventoryEmpty
-                onCreate={() => props.onCreate?.()}
-                onCreateFromTemplate={(template) => props.onSubmitDialog?.(template.draft)}
+        <Show when={props.loading}>
+          <PageLoading layout="table" label="Loading resources…" />
+        </Show>
+        <Show when={!props.loading}>
+          <PageToolbar.Root>
+            <PageToolbar.Leading>
+              <span class="pw-page-toolbar-title">Resources</span>
+            </PageToolbar.Leading>
+            <PageToolbar.Actions>
+              <SearchBar
+                placeholder="Search"
+                value={filters().query}
+                onInput={(value) => commitFilters({ ...filters(), query: value })}
+                aria-label="Search"
               />
-            }
-          >
-            <Show when={resources().length > 0} fallback={resourcesFilterEmpty()}>
-              <DataTable.Root
-                rows={resources()}
-                getRowId={(item) => item.id}
-                activeRowId={
-                  activeTarget()?.scopeId === "resources:inventory"
-                    ? activeTarget()?.entityId
-                    : null
+              <FilterPopover
+                ariaLabel="Resource filters"
+                title="Filter resources"
+                active={resourceListFiltersActive(filters())}
+                onClear={() =>
+                  commitFilters({
+                    ...EMPTY_RESOURCE_LIST_FILTERS,
+                    query: filters().query,
+                  })
                 }
-                activateFirstRow
-                onActiveRowChange={(id) => id && activate(id)}
-              >
-                <DataTable.Table aria-label="Resource inventory">
-                  <DataTable.Header>
-                    <DataTable.ColumnHeader<Resource> id="name">Resource</DataTable.ColumnHeader>
-                    <DataTable.ColumnHeader<Resource> id="type">Type</DataTable.ColumnHeader>
-                    <DataTable.ColumnHeader<Resource> id="provider">Provider</DataTable.ColumnHeader>
-                    <DataTable.ColumnHeader<Resource> id="status">Status</DataTable.ColumnHeader>
-                  </DataTable.Header>
-                  <DataTable.Body<Resource>>
-                    {(item) => (
-                      <DataTable.Row
-                        row={item}
-                        rowId={item.id}
-                        onActivate={() => activate(item.id)}
-                      >
-                        <DataTable.PrimaryCell
-                          icon={<Package size={16} />}
-                          iconTone="data"
-                          title={item.name}
-                        />
-                        <DataTable.Cell>{item.type}</DataTable.Cell>
-                        <DataTable.Cell>{item.provider}</DataTable.Cell>
-                        <DataTable.Cell>
-                          <StatusChip tone={healthTone(item.status)} label={item.status} />
-                        </DataTable.Cell>
-                      </DataTable.Row>
-                    )}
-                  </DataTable.Body>
-                </DataTable.Table>
-              </DataTable.Root>
+                groups={filterGroups()}
+              />
+              <ToolbarIconButton label="Add resource" onClick={() => props.onCreate?.()}>
+                <Plus size={14} />
+              </ToolbarIconButton>
+            </PageToolbar.Actions>
+          </PageToolbar.Root>
+          <ActiveFilterBar
+            items={activePills()}
+            onClear={() =>
+              commitFilters({
+                ...EMPTY_RESOURCE_LIST_FILTERS,
+                query: filters().query,
+              })
+            }
+          />
+          <PageContent class="p-0">
+            <Show
+              when={catalog().length > 0}
+              fallback={
+                <ResourcesInventoryEmpty
+                  onCreate={() => props.onCreate?.()}
+                  onCreateFromTemplate={(template) => props.onSubmitDialog?.(template.draft)}
+                />
+              }
+            >
+              <Show when={resources().length > 0} fallback={resourcesFilterEmpty()}>
+                <DataTable.Root
+                  rows={resources()}
+                  getRowId={(item) => item.id}
+                  activeRowId={
+                    activeTarget()?.scopeId === "resources:inventory"
+                      ? activeTarget()?.entityId
+                      : null
+                  }
+                  activateFirstRow
+                  onActiveRowChange={(id) => id && activate(id)}
+                >
+                  <DataTable.Table aria-label="Resource inventory">
+                    <DataTable.Header>
+                      <DataTable.ColumnHeader<Resource> id="name">Resource</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<Resource> id="type">Type</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<Resource> id="provider">Provider</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<Resource> id="status">Status</DataTable.ColumnHeader>
+                    </DataTable.Header>
+                    <DataTable.Body<Resource>>
+                      {(item) => (
+                        <DataTable.Row
+                          row={item}
+                          rowId={item.id}
+                          onActivate={() => activate(item.id)}
+                        >
+                          <DataTable.PrimaryCell
+                            icon={<Package size={16} />}
+                            iconTone="data"
+                            title={item.name}
+                          />
+                          <DataTable.Cell>{item.type}</DataTable.Cell>
+                          <DataTable.Cell>{item.provider}</DataTable.Cell>
+                          <DataTable.Cell>
+                            <StatusChip tone={healthTone(item.status)} label={item.status} />
+                          </DataTable.Cell>
+                        </DataTable.Row>
+                      )}
+                    </DataTable.Body>
+                  </DataTable.Table>
+                </DataTable.Root>
+              </Show>
             </Show>
-          </Show>
-        </PageContent>
+          </PageContent>
+        </Show>
       </div>
 
-      <Show when={activeResource()}>
+      <Show when={!props.loading && activeResource()}>
         {(item) => (
           <ResourceDetail
             resource={item()}
@@ -344,13 +360,14 @@ export function ResourcesView(props: {
       </Show>
 
       <A11yDialog
-        open={Boolean(props.dialogOpen)}
+        open={Boolean(props.dialogOpen) && !props.loading}
         title="Add resource"
-        size="xl"
+        size="lg"
+        dividers={false}
         onClose={() => props.onCloseDialog?.()}
         footer={(
           <>
-            <Button variant="ghost" size="sm" onClick={() => props.onCloseDialog?.()}>
+            <Button variant="ghost" size="sm" class="mr-auto" onClick={() => props.onCloseDialog?.()}>
               Cancel
             </Button>
             <Button
@@ -359,18 +376,12 @@ export function ResourcesView(props: {
               disabled={!name().trim()}
               onClick={() => props.onSubmitDialog?.({ name: name().trim(), type: type() })}
             >
-              Save blank
+              Create
             </Button>
           </>
         )}
       >
         <div class="grid gap-4">
-          <ResourceInventoryTemplateGrid
-            onSelect={(template) => props.onSubmitDialog?.(template.draft)}
-          />
-          <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
-            This resource is stored in the local SQLite database.
-          </p>
           <Field label="Name">
             <Input
               size="sm"
@@ -390,9 +401,9 @@ export function ResourcesView(props: {
               onChange={setType}
             />
           </Field>
-          <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
-            Created in the currently selected environment from the header switcher.
-          </p>
+          <ResourceInventoryTemplateGrid
+            onSelect={(template) => props.onSubmitDialog?.(template.draft)}
+          />
         </div>
       </A11yDialog>
     </>

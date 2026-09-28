@@ -152,7 +152,7 @@ declared / verified truth
 context.get for all agents
 ```
 
-Do not put `TYPESAFE_API_KEY` or vendor LLM keys in Desktop, renderer, or `polterware-core`. Local must work offline.
+Do not put `TYPESAFE_API_KEY` or vendor LLM keys in Desktop, renderer, or the `polterware` binary. Local must work offline.
 
 ## Out of scope / kill reinforcement
 
@@ -173,3 +173,5 @@ Do not put `TYPESAFE_API_KEY` or vendor LLM keys in Desktop, renderer, or `polte
 - Deployment / capabilities: [`deployment-model.md`](deployment-model.md)
 - Hosted UI porting: [`hosted-ui-porting.md`](hosted-ui-porting.md)
 - Decisions: [ADR 0005](../adr/0005-post-wedge-cloud-and-enrichment-boundary.md)
+- Implemented runtime: [`local-wedge-runtime.md`](local-wedge-runtime.md)
+- Discussion snapshot: [`docs/ideas/2026-09-24-post-wedge-strategy.md`](../ideas/2026-09-24-post-wedge-strategy.md)
