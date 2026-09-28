@@ -320,6 +320,10 @@ function normalizeAgentsTab(raw?: string): AgentsTabId {
 export function AgentsPage(props: {
   projectId: string;
   tab?: string;
+  /** Tab rail supplied by the host section; defaults to the Agents tabs. */
+  tabs?: TabItem[];
+  /** Accessible name for a host-supplied rail. */
+  tabsLabel?: string;
   onTabChange?: (tab: string) => void;
   justifyChange: PpmJustifyChange;
 }) {
@@ -510,10 +514,10 @@ export function AgentsPage(props: {
       <PageToolbar.Root>
         <PageToolbar.Tabs>
           <Tabs
-            items={[...AGENTS_TABS]}
+            items={[...(props.tabs ?? AGENTS_TABS)]}
             value={tab()}
             onChange={(value) => props.onTabChange?.(value)}
-            aria-label="Agents"
+            aria-label={props.tabsLabel ?? "Agents"}
           />
         </PageToolbar.Tabs>
         <PageToolbar.Actions>

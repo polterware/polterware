@@ -15,6 +15,7 @@ Add one file per idea or theme. Date the filename when the note is a snapshot of
 
 Notes:
 
+- Consolidated 2026-09-28 brainstorm (Atlas + Oracle, Grounded SDD, continuity, Inbox) and build order: [`../architecture/atlas-grounded-sdd-roadmap.md`](../architecture/atlas-grounded-sdd-roadmap.md).
 - [2026-09-28-engineering-control-plane-overview.md](2026-09-28-engineering-control-plane-overview.md) — visão da discussão, fronteiras com a direção vigente e arquitetura conceitual.
 - [2026-09-28-behavioral-runtime.md](2026-09-28-behavioral-runtime.md) — reprodutibilidade comportamental, ações tipadas, contratos, estados e limites de enforcement.
 - [2026-09-28-engineering-knowledge.md](2026-09-28-engineering-knowledge.md) — biblioteca de evidências, packs, proveniência, lacunas e cápsulas de contexto.
@@ -24,4 +25,5 @@ Notes:
 - [2026-09-28-agent-context-token-efficiency.md](2026-09-28-agent-context-token-efficiency.md) — context files, hybrid layout, and TOON.
 - [2026-09-28-automatic-agent-context-plugin.md](2026-09-28-automatic-agent-context-plugin.md) — plugin, skill, and session hook for bounded automatic agent context.
 - [2026-09-28-agent-tooling-sidebar.md](2026-09-28-agent-tooling-sidebar.md) — sidebar routes for agent skills, plugins, hooks, and configuration inventory.
+- [2026-09-28-jev-feature-catalog.md](2026-09-28-jev-feature-catalog.md) — 28 Jev features for the Atlas direction (change, continuity, decisions, Oracle, authoring), P1 designs, cost control.
 - [2026-09-28-jev-and-llm-api-keys.md](2026-09-28-jev-and-llm-api-keys.md) — Jev judgments and bring-your-own LLM keys.

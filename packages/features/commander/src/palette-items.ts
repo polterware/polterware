@@ -10,9 +10,11 @@ export type PaletteItem = {
 };
 
 export const DEFAULT_PALETTE_ITEMS: PaletteItem[] = [
-  { id: "nav.architecture", label: "Architecture", group: "Navigation" },
-  { id: "nav.resources", label: "Resources", group: "Navigation" },
-  { id: "nav.knowledge", label: "Knowledge", group: "Navigation" },
+  { id: "nav.inbox", label: "Inbox", group: "Navigation" },
+  { id: "nav.atlas", label: "Atlas", group: "Navigation" },
+  { id: "nav.work", label: "Work", group: "Navigation" },
+  { id: "nav.decisions", label: "Decisions", group: "Navigation" },
+  { id: "nav.reality", label: "Reality", group: "Navigation" },
   { id: "nav.agents", label: "Agents", group: "Navigation" },
   { id: "nav.integrations", label: "Integrations", group: "Navigation" },
   { id: "nav.settings", label: "Project Settings", group: "Navigation" },

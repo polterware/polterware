@@ -4,9 +4,9 @@ import type {
   ProjectGeneralSettings,
   ProtectionLevel,
 } from "@polterware/feature-settings";
-import type { WorkspaceCatalogProvider } from "@polterware/feature-shell";
+import type { WorkspaceCatalogProvider, WorkStage } from "@polterware/feature-shell";
 import type { ChangeEnvelope } from "@polterware/feature-knowledge";
-import { asNumber, asObjectArray, asRecord, asString } from "./format";
+import { asNumber, asObjectArray, asRecord, asString, parseJsonObject } from "./format";
 import type { WorkspaceSnapshot } from "./load";
 import {
   checklistHasOpenItems,
@@ -321,6 +321,29 @@ export async function persistKnowledgeSetFeatureStatus(
       change: changePayload(change),
     });
   }
+}
+
+/** Move a feature to another Work board stage; stored on the spec artifact's extra_json. */
+export async function persistKnowledgeSetFeatureStage(
+  workspace: WorkspaceSnapshot,
+  projectId: string,
+  featureKey: string,
+  stage: WorkStage,
+  change: ChangeEnvelope,
+): Promise<void> {
+  const feature = workspace.specFeatures.find((item) => item.featureKey === featureKey);
+  if (!feature) return;
+  const current = workspace.rawKnowledge.find((item) => asString(item.id) === feature.spec.id);
+  if (!current) return;
+  const extra = parseJsonObject(asString(current.extraJson));
+  await core().knowledge.save({
+    item: {
+      ...current,
+      projectId,
+      extraJson: JSON.stringify({ ...extra, featureKey, stage }),
+    },
+    change: changePayload(change),
+  });
 }
 
 export async function persistConstitutionEnsure(input: {

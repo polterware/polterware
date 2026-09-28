@@ -3,15 +3,18 @@ import {
   Check,
   DetailPanel,
   FileText,
+  Select,
   StatusChip,
   Tabs,
 } from "@polterware/frontend-design-system";
 import type {
+  WorkStage,
   WorkspaceSpecArtifactKind,
   WorkspaceSpecFeature,
 } from "@polterware/feature-shell";
 import { KnowledgeDocumentNotFound, KnowledgeDocumentShell } from "./knowledge-document-shell";
 import { checklistHasOpenItems, checklistProgress } from "./spec-templates";
+import { WORK_STAGES, isWorkStage, resolveFeatureStage } from "./work-stage";
 
 const ARTIFACT_TABS = [
   { id: "spec", label: "Spec" },
@@ -36,6 +39,7 @@ export function SpecFeatureDetail(props: {
   onBodyChange: (md: string) => void;
   onArchive?: () => void;
   onSetStatus?: (status: "draft" | "ready") => void;
+  onSetStage?: (stage: WorkStage) => void;
 }) {
   const artifact = createMemo(() => normalizeArtifact(props.artifact));
   const artifactLabel = createMemo(
@@ -100,6 +104,23 @@ export function SpecFeatureDetail(props: {
               properties={
                 <DetailPanel.Properties variant="inline">
                   <DetailPanel.Property label="Feature key" value={feature().featureKey} mono />
+                  <DetailPanel.Property
+                    label="Stage"
+                    value={
+                      <Select
+                        aria-label="Work stage"
+                        class="w-32"
+                        options={WORK_STAGES.map((stage) => ({ value: stage.id, label: stage.label }))}
+                        value={resolveFeatureStage(feature())}
+                        disabled={!props.onSetStage}
+                        onChange={(next) => {
+                          if (isWorkStage(next) && next !== resolveFeatureStage(feature())) {
+                            props.onSetStage?.(next);
+                          }
+                        }}
+                      />
+                    }
+                  />
                   <DetailPanel.Property
                     label="Checklist"
                     value={

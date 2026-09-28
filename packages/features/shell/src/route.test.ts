@@ -2,27 +2,30 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_TABS, SECTION_TABS, createDefaultRoute, enterProject, isNavSectionId, resolveRoute } from "./route";
 
 describe("first version routes", () => {
-  it("opens Architecture Canvas", () => {
-    expect(createDefaultRoute()).toMatchObject({ section: "architecture", tab: "canvas" });
+  it("opens Atlas Canvas", () => {
+    expect(createDefaultRoute()).toMatchObject({ section: "atlas", tab: "canvas" });
   });
 
-  it("exposes only retained project surfaces", () => {
+  it("exposes only the Atlas project surfaces", () => {
     expect(
-      ["architecture", "resources", "knowledge", "agents", "integrations", "settings"].every(
+      ["inbox", "atlas", "work", "decisions", "reality", "agents", "integrations", "settings"].every(
         isNavSectionId,
       ),
     ).toBe(true);
+    expect(isNavSectionId("architecture")).toBe(false);
+    expect(isNavSectionId("knowledge")).toBe(false);
     expect(isNavSectionId("operations")).toBe(false);
     expect(isNavSectionId("terminal")).toBe(false);
-    expect(SECTION_TABS.architecture?.map((tab) => tab.id)).toEqual(["canvas", "views"]);
-    expect(SECTION_TABS.knowledge?.map((tab) => tab.id)).toEqual(["specs", "library", "sources"]);
-    expect(SECTION_TABS.resources?.map((tab) => tab.id)).toEqual(["inventory"]);
-    expect(SECTION_TABS.agents?.map((tab) => tab.id)).toEqual([
-      "access",
+    expect(SECTION_TABS.atlas?.map((tab) => tab.id)).toEqual(["canvas", "views"]);
+    expect(SECTION_TABS.work?.map((tab) => tab.id)).toEqual(["board", "specs"]);
+    expect(SECTION_TABS.decisions?.map((tab) => tab.id)).toEqual(["adrs"]);
+    expect(SECTION_TABS.reality?.map((tab) => tab.id)).toEqual([
+      "inventory",
+      "sources",
       "facts",
-      "history",
-      "context",
+      "docs",
     ]);
+    expect(SECTION_TABS.agents?.map((tab) => tab.id)).toEqual(["access", "history", "context"]);
     expect(SECTION_TABS.settings?.map((tab) => tab.id)).toEqual([
       "general",
       "environments",
@@ -30,40 +33,41 @@ describe("first version routes", () => {
       "advanced",
     ]);
     expect(DEFAULT_TABS.agents).toBe("access");
+    expect(DEFAULT_TABS.work).toBe("board");
   });
 
-  it("switches local projects back to Architecture", () => {
+  it("switches local projects back to Atlas", () => {
     expect(
-      enterProject(createDefaultRoute("architecture"), "project-two", {
+      enterProject(createDefaultRoute("atlas"), "project-two", {
         environmentId: "local",
       }),
     ).toMatchObject({
       projectId: "project-two",
       environmentId: "local",
-      section: "architecture",
+      section: "atlas",
       tab: "canvas",
     });
   });
 
-  it("falls back unknown and condemned routes to Architecture", () => {
-    expect(resolveRoute("unknown")).toEqual({ section: "architecture", tab: "canvas" });
-    expect(resolveRoute("operations")).toEqual({ section: "architecture", tab: "canvas" });
-    expect(resolveRoute("terminal")).toEqual({ section: "architecture", tab: "canvas" });
-    expect(resolveRoute("resources", "nodes")).toEqual({
-      section: "resources",
-      tab: "inventory",
-    });
-    expect(resolveRoute("architecture", "components")).toEqual({
-      section: "architecture",
-      tab: "canvas",
-    });
+  it("falls back unknown and condemned routes to Atlas", () => {
+    expect(resolveRoute("unknown")).toEqual({ section: "atlas", tab: "canvas" });
+    expect(resolveRoute("operations")).toEqual({ section: "atlas", tab: "canvas" });
+    expect(resolveRoute("terminal")).toEqual({ section: "atlas", tab: "canvas" });
     expect(DEFAULT_TABS.integrations).toBe("connected");
   });
 
-  it("maps legacy Knowledge tabs to Library", () => {
-    expect(resolveRoute("knowledge", "docs")).toEqual({ section: "knowledge", tab: "library" });
-    expect(resolveRoute("knowledge", "adrs")).toEqual({ section: "knowledge", tab: "library" });
-    expect(resolveRoute("knowledge", "runbooks")).toEqual({ section: "knowledge", tab: "library" });
+  it("maps pre-Atlas sections to their new homes", () => {
+    expect(resolveRoute("architecture", "views")).toEqual({ section: "atlas", tab: "views" });
+    expect(resolveRoute("architecture", "components")).toEqual({ section: "atlas", tab: "canvas" });
+    expect(resolveRoute("resources", "nodes")).toEqual({ section: "reality", tab: "inventory" });
+    expect(resolveRoute("knowledge")).toEqual({ section: "work", tab: "specs" });
+    expect(resolveRoute("knowledge", "specs")).toEqual({ section: "work", tab: "specs" });
+    expect(resolveRoute("knowledge", "library")).toEqual({ section: "decisions", tab: "adrs" });
+    expect(resolveRoute("knowledge", "adrs")).toEqual({ section: "decisions", tab: "adrs" });
+    expect(resolveRoute("knowledge", "docs")).toEqual({ section: "reality", tab: "docs" });
+    expect(resolveRoute("knowledge", "runbooks")).toEqual({ section: "reality", tab: "docs" });
+    expect(resolveRoute("knowledge", "sources")).toEqual({ section: "reality", tab: "sources" });
+    expect(resolveRoute("agents", "facts")).toEqual({ section: "reality", tab: "facts" });
   });
 
   it("maps legacy Agents Compile and Drift tabs to Context", () => {

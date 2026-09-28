@@ -159,10 +159,15 @@ export type WorkspaceSpecArtifact = {
   featureKey: string;
 };
 
+/** Work board column for a feature (Grounded SDD lifecycle). */
+export type WorkStage = "shape" | "plan" | "build" | "verify" | "delivered";
+
 export type WorkspaceSpecFeature = {
   featureKey: string;
   title: string;
   status: "draft" | "ready";
+  /** Stage persisted on the spec artifact; absent means derive from status and tasks. */
+  stage?: WorkStage;
   updatedAt: string;
   owner: string;
   summary: string;

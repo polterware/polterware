@@ -19,7 +19,8 @@ export type {
   SectionId,
   NavSectionId,
   ProjectSettingsTabId,
-  KnowledgeTabId,
+  WorkTabId,
+  RealityTabId,
   IntegrationsTabId,
 } from "./route";
 export type {
@@ -62,6 +63,7 @@ export { MainSurface, PageHeader, PageContent } from "./main-surface";
 export { SidebarNav, SidebarSettingsItem } from "./sidebar";
 export { TitleBar } from "./title-bar";
 export { CliReferencePage } from "./cli-reference-page";
+export { InboxPage } from "./inbox-page";
 export { TerminalEmulator } from "./terminal-emulator";
 export { TerminalTranscript } from "./terminal-transcript";
 export { CreateProjectDialog } from "./create-project-dialog";
@@ -84,11 +86,13 @@ export {
 } from "./workspace-mocks";
 
 export const DEFAULT_NAV: NavItem[] = [
-  { id: "architecture", label: "Architecture", group: "SYSTEM" },
-  { id: "resources", label: "Resources", group: "SYSTEM" },
-  { id: "knowledge", label: "Knowledge", group: "SYSTEM" },
-  { id: "agents", label: "Agents", group: "MANAGEMENT" },
-  { id: "integrations", label: "Integrations", group: "MANAGEMENT" },
+  { id: "inbox", label: "Inbox", group: "PROJECT" },
+  { id: "atlas", label: "Atlas", group: "PROJECT" },
+  { id: "work", label: "Work", group: "PROJECT" },
+  { id: "decisions", label: "Decisions", group: "PROJECT" },
+  { id: "reality", label: "Reality", group: "PROJECT" },
+  { id: "agents", label: "Agents", group: "CONNECT" },
+  { id: "integrations", label: "Integrations", group: "CONNECT" },
 ];
 
 function workspaceFromRoute(
@@ -128,7 +132,7 @@ export function Shell(props: {
 }) {
   const [localWorkspace, setLocalWorkspace] = createSignal<WorkspaceContext | null>(null);
 
-  const currentSection = () => props.route?.().section ?? props.panel?.() ?? "architecture";
+  const currentSection = () => props.route?.().section ?? props.panel?.() ?? "atlas";
   const items = () => props.navItems ?? DEFAULT_NAV;
   const workspace = createMemo(
     () => props.workspace ?? localWorkspace() ?? workspaceFromRoute(props.route?.(), props.environments ?? ENVIRONMENT_FIXTURES),

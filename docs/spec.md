@@ -21,22 +21,26 @@ Only the `local` deployment mode is active in this first version. Self-hosted an
 
 ## Information architecture
 
-Architecture / Canvas is the initial route and the destination after entering or changing a project.
+Atlas / Canvas is the initial route and the destination after entering or changing a project.
 
-| Surface | Tabs | Direction note |
+| Surface | Tabs | Content |
 | --- | --- | --- |
-| Architecture | Canvas, Views | Human inspector; not the wedge |
-| Resources | — (Inventory page, no tab rail) | Project resource registry for PPM / Architecture |
-| Knowledge | Specs, Library, Sources | Aligns with context/evidence direction |
-| Agents | Access, Facts, History, Context | MCP access, PPM facts/evidence, Unified Change History, compile + narrow drift preview |
+| Inbox | — (flat page) | Empty state only; no items are routed here yet |
+| Atlas | Canvas, Views | Architecture canvas and saved views |
+| Work | Board, Specs | Feature board by stage; Specs list with the project Constitution |
+| Decisions | — (flat ADR list) | Library restricted to `adr` |
+| Reality | Inventory, Sources, Facts, Docs | Resource inventory, registered sources, PPM facts/evidence, `doc` and `runbook` items |
+| Agents | Access, History, Context | MCP access, Unified Change History, compile + narrow drift preview |
 | Integrations | Connected, Catalog | **KEEP** as evidence + Connect UI |
 | Settings | General, Environments, Shortcuts, Advanced | — |
+
+Routes from the previous navigation redirect to their new homes: Architecture → Atlas, Resources → Reality › Inventory, Knowledge Specs → Work › Specs, Knowledge Library ADRs → Decisions, Knowledge docs/runbooks → Reality › Docs, Knowledge Sources → Reality › Sources, and Agents Facts → Reality › Facts.
 
 Settings Advanced includes an app-level Appearance control: Reduce transparency switches the macOS title bar and sidebar from frosted vibrancy to a solid fill. The preference is stored in the Desktop userData directory and does not live in SQLite.
 
 Entity detail opens in one shared detail panel with collapsed, open, and maximized modes. Collections dock it at the bottom (Architecture Canvas included). Operational records show overview content beside a properties rail; Knowledge documents show inline properties and linked-entity chips above the Markdown editor. Destructive commands such as Archive and Delete live in the header overflow menu.
 
-The sidebar contains the five product surfaces. Settings is fixed in its footer. The title bar retains local project and environment switchers, Commander, history controls, and a Help menu. The Help menu opens short topic dialogs and a static CLI reference page (`polterware` commands and flags); that page is a route outside the sidebar, not a product surface. In-app Commander opens as the shared command palette dialog with the same opaque float surface as other product dialogs. The global Commander shortcut opens a separate frameless, draggable overlay (`?surface=commander`) with the same opaque panel material, search at the top, an Open Desktop control, and an overview strip (Knowledge, Integrations) that drills into in-overlay lists — not a miniature copy of the full Desktop shell. The in-app palette remains search-only.
+The sidebar contains the Inbox, Atlas, Work, Decisions, Reality, Agents, and Integrations surfaces. Settings is fixed in its footer. The title bar retains local project and environment switchers, Commander, history controls, and a Help menu. The Help menu opens short topic dialogs and a static CLI reference page (`polterware` commands and flags); that page is a route outside the sidebar, not a product surface. In-app Commander opens as the shared command palette dialog with the same opaque float surface as other product dialogs. The global Commander shortcut opens a separate frameless, draggable overlay (`?surface=commander`) with the same opaque panel material, search at the top, an Open Desktop control, and an overview strip (Knowledge, Integrations) that drills into in-overlay lists — not a miniature copy of the full Desktop shell. The in-app palette remains search-only.
 
 ## Local project model
 
@@ -53,6 +57,8 @@ The core also stores PPM **facts** (`ppm_facts`) and **evidence** (`ppm_evidence
 ## Knowledge Specs
 
 Knowledge Specs store product features as five linked knowledge items (`spec`, `plan`, `tasks`, `clarify`, `checklist`) that share a `featureKey` in `extra_json`. Creating a feature writes all five bodies from English templates. The Specs table lists one row per feature. The detail panel switches among Spec, Plan, Tasks, Clarify, and Checklist for that feature and shows Checklist progress. Allowed feature statuses are `draft` and `ready`. Marking a feature ready is blocked while the Checklist body still contains unchecked Markdown items (`- [ ]`); the disabled Mark ready action explains why. Clarify holds open questions and does not block ready.
+
+Work › Board groups the same features into five stage columns: Shape, Plan, Build, Verify, and Delivered. A stage chosen in the feature detail panel is stored as `stage` in the spec artifact's `extra_json` with a change envelope. Without a stored stage, draft features show in Shape, and ready features show in Build until every Tasks item is checked, then in Verify. Board cards show Tasks progress and the count of unchecked Clarify items.
 
 Each project may also store one Constitution knowledge item (`kind = constitution`, no `featureKey`). The Specs tab shows that singleton above the feature table; creating it seeds an English principles template titled "Project constitution". Archiving removes the singleton so Specs returns to the empty constitution CTA. Specs do not run Spec Kit CLI and do not bind to `.specify/` on disk.
 
@@ -122,9 +128,10 @@ Core requests use one technical bearer session token without an account director
 
 ## Acceptance
 
-- The initial route is Architecture / Canvas.
-- The sidebar exposes exactly five surfaces plus footer Settings.
-- Knowledge exposes Specs, Library, and Sources.
+- The initial route is Atlas / Canvas.
+- The sidebar exposes Inbox, Atlas, Work, Decisions, Reality, Agents, and Integrations plus footer Settings.
+- Work exposes Board and Specs; Decisions lists ADRs; Reality exposes Inventory, Sources, Facts, and Docs.
+- Work › Board shows features in Shape, Plan, Build, Verify, and Delivered columns; a stored `stage` overrides the status/Tasks-derived default.
 - Specs store one feature as five local knowledge items (`spec`, `plan`, `tasks`, `clarify`, `checklist`) linked by `featureKey` in `extra_json`.
 - Specs also support one project Constitution (`kind = constitution`) without a `featureKey`.
 - Marking a feature ready requires the Checklist body to have no unchecked `- [ ]` items; Clarify does not gate ready.

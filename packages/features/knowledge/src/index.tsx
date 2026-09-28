@@ -34,6 +34,7 @@ import {
   type WorkspaceSource,
   type WorkspaceSpecArtifactKind,
   type WorkspaceSpecFeature,
+  type WorkStage,
 } from "@polterware/feature-shell";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
 import { ConstitutionDetail } from "./constitution-detail";
@@ -80,6 +81,7 @@ import {
   specStatusTone,
 } from "./knowledge-document-helpers";
 import { KnowledgeSpecsEmpty, knowledgeFilterEmpty } from "./knowledge-empty";
+import { WorkBoard } from "./work-board";
 
 export { featureKeyFromTitle, uniqueFeatureKey } from "./feature-key";
 export type { KnowledgeCreateTemplate, KnowledgeTemplateKind } from "./create-templates";
@@ -98,6 +100,7 @@ export {
   TASKS_BODY_TEMPLATE,
 } from "./spec-templates";
 export { ChangeEnvelopeDialogHost } from "./change-envelope-dialog";
+export { WORK_STAGES, resolveFeatureStage, workStageLabel } from "./work-stage";
 export {
   requestChangeEnvelope,
   type ChangeEnvelope,
@@ -137,7 +140,7 @@ const TABS: TabItem[] = [
   },
 ];
 
-type KnowledgeTab = "specs" | "library" | "sources";
+type KnowledgeTab = "board" | "specs" | "library" | "sources";
 
 type CollectionTarget = {
   scopeId: string;
@@ -146,9 +149,13 @@ type CollectionTarget = {
 };
 
 function normalizeTab(raw?: string): KnowledgeTab {
-  if (raw === "library" || raw === "sources") return raw;
+  if (raw === "board" || raw === "library" || raw === "sources") return raw;
   if (raw === "docs" || raw === "adrs" || raw === "runbooks") return "library";
   return "specs";
+}
+
+function isFeatureScope(scopeId?: string): boolean {
+  return scopeId === "knowledge:specs" || scopeId === "knowledge:board";
 }
 
 function collectionFingerprint(
@@ -167,7 +174,16 @@ export function KnowledgeView(props: {
   specFeatures?: WorkspaceSpecFeature[];
   constitution?: WorkspaceConstitution | null;
   entities?: WorkspacePpmEntity[];
+  /** Content mode: board, specs, library, or sources. */
   tab?: string;
+  /** Tab rail supplied by the host section; defaults to the Knowledge tabs. */
+  tabs?: TabItem[];
+  /** Selected rail id when the rail differs from the content mode. */
+  activeTab?: string;
+  /** Accessible name for the rail, or the toolbar title when the rail has one item. */
+  tabsLabel?: string;
+  /** Restrict Library to these kinds (e.g. ADRs only). */
+  libraryKinds?: readonly LibraryCategory[];
   loading?: boolean;
   error?: string;
   onTabChange?: (tab: string) => void;
@@ -194,9 +210,13 @@ export function KnowledgeView(props: {
   onArchiveFeature?: (featureKey: string) => void;
   onArchiveConstitution?: () => void;
   onSetFeatureStatus?: (featureKey: string, status: "draft" | "ready") => void;
+  onSetFeatureStage?: (featureKey: string, stage: WorkStage) => void;
   onDuplicate?: (id: string) => void;
 }) {
   const tab = () => normalizeTab(props.tab);
+  /** Board and Specs both list features and share the feature detail. */
+  const featureTab = () => tab() === "board" || tab() === "specs";
+  const railItems = () => props.tabs ?? TABS;
   const [libraryFilters, setLibraryFilters] = createSignal<LibraryFilters>({
     ...EMPTY_LIBRARY_FILTERS,
   });
@@ -256,12 +276,21 @@ export function KnowledgeView(props: {
     pathAutosave.schedule(id, path);
   }
 
-  const allLibraryRows = createMemo(() =>
-    libraryRowsFromWorkspace({
+  const allLibraryRows = createMemo(() => {
+    const rows = libraryRowsFromWorkspace({
       documents: props.documents,
       adrs: props.adrs,
       runbooks: props.runbooks,
-    }),
+    });
+    const kinds = props.libraryKinds;
+    return kinds && kinds.length > 0
+      ? rows.filter((row) => kinds.includes(row.category))
+      : rows;
+  });
+
+  /** Filter kinds when set, otherwise the locked kinds, for create and empty copy. */
+  const effectiveLibraryKinds = createMemo(() =>
+    libraryFilters().kinds.length > 0 ? libraryFilters().kinds : [...(props.libraryKinds ?? [])],
   );
 
   const libraryRows = createMemo(() =>
@@ -298,6 +327,12 @@ export function KnowledgeView(props: {
             scopeId: scope,
             entityId: source.id,
             entityKind: "source",
+          }))
+      : tab() === "board"
+        ? features().map((feature) => ({
+            scopeId: scope,
+            entityId: feature.featureKey,
+            entityKind: "feature",
           }))
       : tab() === "specs"
         ? [
@@ -366,7 +401,7 @@ export function KnowledgeView(props: {
 
   const feature = createMemo((): WorkspaceSpecFeature | undefined => {
     const target = activeTarget();
-    return target?.scopeId === "knowledge:specs" && target.entityKind === "feature"
+    return isFeatureScope(target?.scopeId) && target?.entityKind === "feature"
       ? (props.specFeatures ?? []).find((item) => item.featureKey === target.entityId)
       : undefined;
   });
@@ -412,15 +447,15 @@ export function KnowledgeView(props: {
   }
 
   const createKind = createMemo((): CreateKnowledgeKind => {
-    if (tab() === "specs") return "feature";
-    const kind = libraryEmptyCategory(libraryFilters().kinds);
+    if (featureTab()) return "feature";
+    const kind = libraryEmptyCategory(effectiveLibraryKinds());
     if (kind === "adr") return "adr";
     if (kind === "runbook") return "runbook";
     return "doc";
   });
 
   const pickLibraryKind = createMemo(
-    () => tab() === "library" && libraryFilters().kinds.length !== 1,
+    () => tab() === "library" && effectiveLibraryKinds().length !== 1,
   );
 
   const listSearch = createMemo(() => {
@@ -432,7 +467,7 @@ export function KnowledgeView(props: {
           setSourceFilters((current) => ({ ...current, query: value })),
       };
     }
-    if (tab() === "specs") {
+    if (featureTab()) {
       return {
         placeholder: "Search",
         value: specFilters().query,
@@ -450,8 +485,8 @@ export function KnowledgeView(props: {
 
   const createLabel = createMemo(() => {
     if (tab() === "sources") return "Add source";
-    if (tab() === "specs") return "New feature";
-    const kind = libraryEmptyCategory(libraryFilters().kinds);
+    if (featureTab()) return "New feature";
+    const kind = libraryEmptyCategory(effectiveLibraryKinds());
     if (kind === "runbook") return "New runbook";
     if (kind === "adr") return "New ADR";
     if (kind === "doc") return "New document";
@@ -473,7 +508,9 @@ export function KnowledgeView(props: {
           { id: "doc", label: "Doc", leading: icon(FileText) },
           { id: "adr", label: "ADR", leading: icon(ScrollText) },
           { id: "runbook", label: "Runbook", leading: icon(BookOpen) },
-        ].map((option) => ({
+        ].filter((option) =>
+          !props.libraryKinds?.length || props.libraryKinds.includes(option.id as LibraryCategory),
+        ).map((option) => ({
           ...option,
           checked: current.kinds.includes(option.id as LibraryCategory),
           onCheckedChange: (checked: boolean) =>
@@ -555,7 +592,7 @@ export function KnowledgeView(props: {
             })),
         })),
       },
-    ];
+    ].filter((group) => group.id !== "kind" || group.options.length > 1);
   });
 
   const specFilterGroups = createMemo((): FilterPopoverGroup[] => {
@@ -684,7 +721,7 @@ export function KnowledgeView(props: {
         groups: sourceFilterGroups(),
       };
     }
-    if (tab() === "specs") {
+    if (featureTab()) {
       return {
         ariaLabel: "Feature filters",
         title: "Filter features",
@@ -757,7 +794,7 @@ export function KnowledgeView(props: {
       }
       return pills;
     }
-    if (tab() === "specs") {
+    if (featureTab()) {
       const current = specFilters();
       const pills: ActiveFilterPill[] = current.statuses.map((status) => ({
         id: `status:${status}`,
@@ -830,7 +867,7 @@ export function KnowledgeView(props: {
   const hasLibraryItems = createMemo(() => allLibraryRows().length > 0);
 
   const libraryEmptyKind = createMemo(() =>
-    libraryEmptyCategory(libraryFilters().kinds),
+    libraryEmptyCategory(effectiveLibraryKinds()),
   );
 
   const libraryHasScopedItems = createMemo(() => {
@@ -844,21 +881,32 @@ export function KnowledgeView(props: {
     <>
       <div class="flex h-full min-h-0 flex-col">
         <PageToolbar.Root>
-          <PageToolbar.Tabs>
-            <Tabs
-              items={[...TABS]}
-              value={tab()}
-              onChange={(next) => {
-                setLibraryFilters({ ...EMPTY_LIBRARY_FILTERS });
-                setSpecFilters({ ...EMPTY_SPEC_LIST_FILTERS });
-                setSourceFilters({ ...EMPTY_SOURCE_LIST_FILTERS });
-                setCreateOpen(false);
-                setSourceCreateOpen(false);
-                props.onTabChange?.(next);
-              }}
-              aria-label="Knowledge"
-            />
-          </PageToolbar.Tabs>
+          <Show
+            when={railItems().length > 1}
+            fallback={
+              <PageToolbar.Leading>
+                <span class="pw-page-toolbar-title">
+                  {props.tabsLabel ?? railItems()[0]?.label ?? "Knowledge"}
+                </span>
+              </PageToolbar.Leading>
+            }
+          >
+            <PageToolbar.Tabs>
+              <Tabs
+                items={[...railItems()]}
+                value={props.activeTab ?? tab()}
+                onChange={(next) => {
+                  setLibraryFilters({ ...EMPTY_LIBRARY_FILTERS });
+                  setSpecFilters({ ...EMPTY_SPEC_LIST_FILTERS });
+                  setSourceFilters({ ...EMPTY_SOURCE_LIST_FILTERS });
+                  setCreateOpen(false);
+                  setSourceCreateOpen(false);
+                  props.onTabChange?.(next);
+                }}
+                aria-label={props.tabsLabel ?? "Knowledge"}
+              />
+            </PageToolbar.Tabs>
+          </Show>
           <PageToolbar.Actions>
             <SearchBar
               placeholder={listSearch().placeholder}
@@ -959,6 +1007,33 @@ export function KnowledgeView(props: {
                       : null
                   }
                   onActivate={(id) => activate(id, "source")}
+                />
+              </Show>
+            </Show>
+          </PageContent>
+        </Show>
+
+        <Show when={tab() === "board"}>
+          <PageContent class="p-0">
+            <Show
+              when={(props.specFeatures ?? []).length > 0}
+              fallback={
+                <KnowledgeSpecsEmpty
+                  onCreate={props.onCreateFeature ? () => setCreateOpen(true) : undefined}
+                  onCreateFromTemplate={props.onCreateFromTemplate}
+                />
+              }
+            >
+              <Show when={features().length > 0} fallback={knowledgeFilterEmpty("specs")}>
+                <WorkBoard
+                  features={features()}
+                  activeFeatureKey={
+                    activeTarget()?.scopeId === "knowledge:board"
+                    && activeTarget()?.entityKind === "feature"
+                      ? activeTarget()?.entityId
+                      : null
+                  }
+                  onActivate={(featureKey) => activate(featureKey, "feature")}
                 />
               </Show>
             </Show>
@@ -1147,6 +1222,11 @@ export function KnowledgeView(props: {
             onSetStatus={
               props.onSetFeatureStatus
                 ? (status) => props.onSetFeatureStatus?.(item().featureKey, status)
+                : undefined
+            }
+            onSetStage={
+              props.onSetFeatureStage
+                ? (stage) => props.onSetFeatureStage?.(item().featureKey, stage)
                 : undefined
             }
           />

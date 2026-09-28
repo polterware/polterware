@@ -18,9 +18,11 @@ import {
   Select,
   StatusChip,
   StatusDot,
+  Tabs,
   ToolbarIconButton,
   type ActiveFilterPill,
   type FilterPopoverGroup,
+  type TabItem,
 } from "@polterware/frontend-design-system";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
 import type { Resource } from "./types";
@@ -62,6 +64,11 @@ export function ResourcesView(props: {
   onCreate?: () => void;
   onCloseDialog?: () => void;
   onSubmitDialog?: (draft: { name: string; type: string }) => void;
+  /** Tab rail supplied by the host section; without it the toolbar shows a title. */
+  tabs?: TabItem[];
+  activeTab?: string;
+  tabsLabel?: string;
+  onTabChange?: (tab: string) => void;
 }) {
   const catalog = () => props.catalog ?? [];
   const [filters, setFilters] = createSignal<ResourceListFilters>(
@@ -257,9 +264,25 @@ export function ResourcesView(props: {
         </Show>
         <Show when={!props.loading}>
           <PageToolbar.Root>
-            <PageToolbar.Leading>
-              <span class="pw-page-toolbar-title">Resources</span>
-            </PageToolbar.Leading>
+            <Show
+              when={props.tabs}
+              fallback={
+                <PageToolbar.Leading>
+                  <span class="pw-page-toolbar-title">Resources</span>
+                </PageToolbar.Leading>
+              }
+            >
+              {(tabs) => (
+                <PageToolbar.Tabs>
+                  <Tabs
+                    items={[...tabs()]}
+                    value={props.activeTab ?? "inventory"}
+                    onChange={(value) => props.onTabChange?.(value)}
+                    aria-label={props.tabsLabel ?? "Resources"}
+                  />
+                </PageToolbar.Tabs>
+              )}
+            </Show>
             <PageToolbar.Actions>
               <SearchBar
                 placeholder="Search"

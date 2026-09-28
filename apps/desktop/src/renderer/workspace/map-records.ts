@@ -19,6 +19,7 @@ import type {
   WorkspaceSpecArtifact,
   WorkspaceSpecArtifactKind,
   WorkspaceSpecFeature,
+  WorkStage,
 } from "@polterware/feature-shell";
 import {
   asBoolean,
@@ -310,6 +311,16 @@ export function mapConstitution(items: Record<string, unknown>[]): WorkspaceCons
   };
 }
 
+function asWorkStage(value: string): WorkStage | undefined {
+  return value === "shape"
+    || value === "plan"
+    || value === "build"
+    || value === "verify"
+    || value === "delivered"
+    ? value
+    : undefined;
+}
+
 export function mapSpecFeatures(items: Record<string, unknown>[]): WorkspaceSpecFeature[] {
   const byFeature = new Map<string, {
     title: string;
@@ -318,6 +329,7 @@ export function mapSpecFeatures(items: Record<string, unknown>[]): WorkspaceSpec
     updatedAtRaw: string;
     owner: string;
     summary: string;
+    stage?: WorkStage;
     artifacts: Partial<Record<WorkspaceSpecArtifactKind, WorkspaceSpecArtifact>>;
   }>();
 
@@ -345,6 +357,7 @@ export function mapSpecFeatures(items: Record<string, unknown>[]): WorkspaceSpec
       current.status = artifact.status;
       current.owner = artifact.owner;
       current.summary = asString(item.summary);
+      current.stage = asWorkStage(asString(extra.stage));
     }
     if (asString(item.updatedAt) > current.updatedAtRaw) {
       current.updatedAtRaw = asString(item.updatedAt);
@@ -368,6 +381,7 @@ export function mapSpecFeatures(items: Record<string, unknown>[]): WorkspaceSpec
       updatedAt: group.updatedAt,
       owner: group.owner,
       summary: group.summary,
+      ...(group.stage ? { stage: group.stage } : {}),
       spec,
       plan,
       tasks,

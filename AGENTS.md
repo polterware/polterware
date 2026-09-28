@@ -12,9 +12,11 @@
 
 Polterware's category is **Project Context & Change Intelligence for AI Coding** ([`docs/product-vision.md`](docs/product-vision.md) v3, [ADR 0004](docs/adr/0004-product-positioning-and-wedge.md)). Evolution priority is the wedge: PPM facts/evidence, deterministic import, Context Compiler, stable MCP reads, Drift, AgentRun, audited MCP writes, CLI, and Unified Change History. Operations, Terminal-as-product, and Nodes/remote execution were removed on the kill branch ([`docs/architecture/kill-ops-terminal-nodes.md`](docs/architecture/kill-ops-terminal-nodes.md)). Integrations remain as evidence/Connect UI only. Wedge delivery order: [`docs/architecture/wedge-validation-sequence.md`](docs/architecture/wedge-validation-sequence.md) (B1–B9 complete).
 
+Active redesign (Atlas + Grounded SDD, branch `feat/atlas-grounded-sdd`): read [`docs/architecture/atlas-grounded-sdd-roadmap.md`](docs/architecture/atlas-grounded-sdd-roadmap.md) at session start for the thesis, what is done, and the next slice. It is a working roadmap, not shipped behavior.
+
 ## Current product boundary
 
-Polterware's first version is a local SQLite-backed Desktop with five project surfaces: Architecture, Resources (Inventory), Knowledge, Agents, and Integrations. Settings is fixed in the sidebar footer. Architecture / Canvas is the default route.
+Polterware's first version is a local SQLite-backed Desktop with project surfaces Inbox, Atlas, Work, Decisions, Reality, Agents, and Integrations. Settings is fixed in the sidebar footer. Atlas / Canvas is the default route.
 
 The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. The Electron Main process starts the local core (`polterware serve`), and the renderer reads and writes through `window.polterware` only.
 
@@ -37,13 +39,16 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
 
 ## Product navigation
 
-- Architecture: Canvas, Views
-- Resources: Inventory (flat page; no tab rail)
-- Knowledge: Specs, Library, Sources
+- Inbox: flat page (empty state; nothing routed yet)
+- Atlas: Canvas, Views
+- Work: Board, Specs
+  - Board groups features by stage (Shape, Plan, Build, Verify, Delivered); `stage` lives in the spec artifact's `extra_json`.
   - Specs hold one Constitution per project (`constitution`) and per-feature Spec / Plan / Tasks / Clarify / Checklist items linked by `featureKey`. Mark ready is blocked while Checklist still has unchecked `- [ ]` lines.
-  - Library lists `doc`, `adr`, and `runbook` items with Kind / Status / Severity / Linked filters.
+- Decisions: ADRs (Library restricted to `adr`)
+- Reality: Inventory, Sources, Facts, Docs
   - Sources lists registered project-relative paths (`kind = source`); Import from project root runs `ImportProjectSources` for the MVP file set. Generic filesystem indexing beyond that set is not shipped.
-- Agents: Access, Facts, History, Context
+  - Docs lists `doc` and `runbook` items.
+- Agents: Access, History, Context
 - Integrations: Connected, Catalog (**KEEP** — evidence + Connect UI)
 - Settings: General, Environments, Shortcuts, Advanced
 
@@ -54,21 +59,6 @@ Keep project and environment switchers, Commander, history controls, and Setting
 `DESIGN.md` and `@polterware/frontend-design-system` are the visual source of truth. Product features must use shared `Input`, `Textarea`, `Select`, `Field`, `Button`, `Card`, `Surface`, Ark-backed overlays, `PageToolbar`, `FilterChip`, `DataTable`, `DitherIconTile`, `StatusChip`, and the global `DetailPanel` where applicable.
 
 Do not hand-roll shared control chrome, menus, dialogs, operational tables, or entity panels. Use only radius and color tokens. Structural surfaces and text are opaque; alpha is limited to shared border, shadow, scrim, and transition tokens. Exception: on macOS the main window title bar and sidebar may use Electron vibrancy with `--color-shell-glass` washes; Commander and other product chrome stay opaque. Hugeicons Free Stroke Rounded is the only product icon set.
-
-## Development judgments
-
-`pnpm jev` is a local development aid. It reads `TYPESAFE_API_KEY` from the repository `.env` and calls TypeSafe Jev. Do not add this call to the Desktop, the renderer, or the `polterware` binary, and do not print the key.
-
-Use it when a closed semantic judgment avoids a wide search or a wrong implementation:
-
-- `pnpm jev triage "<task>"` before opening files, when the task does not already name a file or package.
-- `pnpm jev pick "<task>" -- <candidate...>` when search returned several plausible paths and one starting point is enough.
-- `pnpm jev review` once, on the finished diff, when the change touches the renderer boundary, integrations, product copy, Knowledge scope, or shared controls.
-- `pnpm jev copy "<text>"` when new user-facing copy might describe planned behavior as shipped.
-
-Skip it when the change is already located in a known file, and when typecheck, design lint, Buf, or `go vet` already decides the question.
-
-`hold` exits 2 and stops that step for Erick. `review` means inspect that line before continuing. `clear` means proceed.
 
 ## Verification
 

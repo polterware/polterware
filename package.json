@@ -22,13 +22,11 @@
     "dist": "turbo run dist --filter=@polterware/desktop",
     "dist:mac": "turbo run dist:mac --filter=@polterware/desktop",
     "design:lint": "node tooling/check-ui-opacity.mjs",
-    "jev": "node tooling/jev/cli.mjs",
     "test:ui-opacity": "node --test tooling/check-ui-opacity.test.mjs",
     "deps:electron": "turbo run deps:electron --filter=@polterware/desktop"
   },
   "devDependencies": {
     "@oxlint/plugins": "1.85.0",
-    "@typesafe-ai/sdk": "^0.6.0",
     "oxlint": "1.85.0",
     "turbo": "^2.11.3",
     "typescript": "7.0.2"

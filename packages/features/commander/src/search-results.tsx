@@ -20,12 +20,12 @@ export type SearchHit = {
 };
 
 export const SEARCH_HITS: SearchHit[] = [
-  { id: "h1", category: "Architecture", title: "Payment Service", subtitle: "Service · Production", section: "architecture", entityKind: "arch-node", entityId: "payment" },
-  { id: "h2", category: "Architecture", title: "Payment flow", subtitle: "Saved view", section: "architecture", tab: "views" },
-  { id: "h3", category: "Architecture", title: "payment-service", subtitle: "Component · AWS · Healthy", section: "architecture", tab: "canvas", entityKind: "resource", entityId: "payment-service" },
-  { id: "h4", category: "Resources", title: "prod-postgres", subtitle: "Database · AWS RDS · Healthy", section: "resources", tab: "inventory", entityKind: "resource", entityId: "res-rds" },
-  { id: "h5", category: "Knowledge", title: "Payment flow Spec", subtitle: "spec · Feature checklist", section: "knowledge", tab: "specs", entityKind: "feature", entityId: "payment-flow" },
-  { id: "h6", category: "Knowledge", title: "ADR 0004", subtitle: "adr · Product positioning", section: "knowledge", tab: "library", entityKind: "adr", entityId: "adr-0004" },
+  { id: "h1", category: "Atlas", title: "Payment Service", subtitle: "Service · Production", section: "atlas", entityKind: "arch-node", entityId: "payment" },
+  { id: "h2", category: "Atlas", title: "Payment flow", subtitle: "Saved view", section: "atlas", tab: "views" },
+  { id: "h3", category: "Atlas", title: "payment-service", subtitle: "Component · AWS · Healthy", section: "atlas", tab: "canvas", entityKind: "resource", entityId: "payment-service" },
+  { id: "h4", category: "Reality", title: "prod-postgres", subtitle: "Database · AWS RDS · Healthy", section: "reality", tab: "inventory", entityKind: "resource", entityId: "res-rds" },
+  { id: "h5", category: "Work", title: "Payment flow Spec", subtitle: "spec · Feature checklist", section: "work", tab: "specs", entityKind: "feature", entityId: "payment-flow" },
+  { id: "h6", category: "Decisions", title: "ADR 0004", subtitle: "adr · Product positioning", section: "decisions", tab: "adrs", entityKind: "adr", entityId: "adr-0004" },
 ];
 
 export function knowledgeHitsFromSearch(hits: Array<{
@@ -38,13 +38,14 @@ export function knowledgeHitsFromSearch(hits: Array<{
     const title = hit.item?.title;
     if (!id || !title) return [];
     const kind = hit.item?.kind ?? "doc";
-    const tab = kind === "spec" || kind === "plan" || kind === "tasks" || kind === "clarify" || kind === "checklist" || kind === "constitution"
-      ? "specs"
+    const isFeature = kind === "spec" || kind === "plan" || kind === "tasks" || kind === "clarify" || kind === "checklist" || kind === "constitution";
+    const { section, tab, category } = isFeature
+      ? { section: "work", tab: "specs", category: "Work" }
       : kind === "source"
-        ? "sources"
-        : kind === "doc" || kind === "adr" || kind === "runbook"
-          ? "library"
-          : "library";
+        ? { section: "reality", tab: "sources", category: "Reality" }
+        : kind === "adr"
+          ? { section: "decisions", tab: "adrs", category: "Decisions" }
+          : { section: "reality", tab: "docs", category: "Reality" };
     const entityKind = kind === "runbook"
       ? "runbook"
       : kind === "adr"
@@ -58,10 +59,10 @@ export function knowledgeHitsFromSearch(hits: Array<{
               : "document";
     return [{
       id: `knowledge-${id}`,
-      category: "Knowledge",
+      category,
       title,
       subtitle: `${kind} · ${hit.snippet || hit.item?.summary || hit.source || "knowledge"}`,
-      section: "knowledge",
+      section,
       tab,
       entityKind,
       entityId: id,
@@ -105,7 +106,7 @@ export function SearchResultsPage(props: {
     for (const h of base) c.set(h.category, (c.get(h.category) ?? 0) + 1);
     return c;
   });
-  const cats = () => ["all", "Architecture", "Resources", "Knowledge"];
+  const cats = () => ["all", "Atlas", "Work", "Decisions", "Reality"];
 
   return (
     <div class="flex h-full min-h-0 flex-col">
@@ -131,7 +132,7 @@ export function SearchResultsPage(props: {
         {filtered().length === 0 ? (
           <p class="text-center text-[13px] text-[var(--color-text-muted)]">No results — refine your query</p>
         ) : (
-          <For each={["Architecture", "Resources", "Knowledge"]}>
+          <For each={["Atlas", "Work", "Decisions", "Reality"]}>
             {(cat) => {
               const items = () => filtered().filter((h) => h.category === cat);
               if (!items().length) return null;

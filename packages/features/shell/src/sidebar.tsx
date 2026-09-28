@@ -1,10 +1,12 @@
 import { For, type JSX } from "solid-js";
 import {
-  Bookshelf01Icon,
   Bot,
   ConnectIcon,
+  FolderKanban,
+  Inbox,
+  Layers,
+  Scale,
   SchemeIcon,
-  Package,
   Settings,
 } from "@polterware/frontend-design-system";
 import {
@@ -19,9 +21,11 @@ import "./sidebar.css";
  * Sidebar glyphs stay within the curated Hugeicons set.
  */
 const icons = {
-  architecture: (p) => <SchemeIcon size={p.size ?? 14} class={p.class} />,
-  resources: (p) => <Package size={p.size ?? 14} class={p.class} />,
-  knowledge: (p) => <Bookshelf01Icon size={p.size ?? 14} class={p.class} />,
+  inbox: (p) => <Inbox size={p.size ?? 14} class={p.class} />,
+  atlas: (p) => <SchemeIcon size={p.size ?? 14} class={p.class} />,
+  work: (p) => <FolderKanban size={p.size ?? 14} class={p.class} />,
+  decisions: (p) => <Scale size={p.size ?? 14} class={p.class} />,
+  reality: (p) => <Layers size={p.size ?? 14} class={p.class} />,
   agents: (p) => <Bot size={p.size ?? 14} class={p.class} />,
   integrations: (p) => <ConnectIcon size={p.size ?? 14} class={p.class} />,
   settings: (p) => <Settings size={p.size ?? 14} class={p.class} />,
@@ -55,7 +59,7 @@ export function SidebarNav(props: {
             <For each={items}>
               {(item) => {
                 const active = () => props.activeId === item.id;
-                const renderIcon = icons[item.id] ?? icons.resources!;
+                const renderIcon = icons[item.id] ?? icons.atlas!;
                 return (
                   <button
                     type="button"
