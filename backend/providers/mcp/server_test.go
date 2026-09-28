@@ -44,6 +44,7 @@ func TestToolsListStableContract(t *testing.T) {
 		t.Fatalf("unexpected tools type %T", payload["tools"])
 	}
 	want := []string{
+		ToolPolterFormat, ToolPolterQuery, ToolPolterApply,
 		ToolContextGet, ToolEntityGet, ToolEvidenceGet, ToolDriftCheck,
 		ToolAgentRunStart, ToolAgentRunAppend, ToolAgentRunComplete, ToolAgentRunGet, ToolAgentRunList,
 		ToolFactUpsert, ToolEvidenceUpsert, ToolEvidenceLink, ToolKnowledgeUpsert, ToolKnowledgeLink,
@@ -67,12 +68,15 @@ func TestInitializeStableVersion(t *testing.T) {
 	}
 	payload := result.(map[string]any)
 	info := payload["serverInfo"].(map[string]any)
-	if info["version"] != "0.4.0" {
+	if info["version"] != "0.5.0" {
 		t.Fatalf("version=%v", info["version"])
 	}
 	instructions, _ := payload["instructions"].(string)
 	if strings.Contains(strings.ToLower(instructions), "experimental") {
 		t.Fatalf("instructions still experimental: %s", instructions)
+	}
+	if !strings.Contains(instructions, "polter.apply") {
+		t.Fatalf("instructions missing polter.apply: %s", instructions)
 	}
 	if !strings.Contains(instructions, "agent_run") {
 		t.Fatalf("instructions missing agent_run: %s", instructions)

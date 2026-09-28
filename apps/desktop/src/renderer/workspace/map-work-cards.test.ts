@@ -1,0 +1,50 @@
+import { describe, expect, it } from "vitest";
+import { mapConstitution, mapWorkCards } from "./map-records";
+
+describe("mapWorkCards", () => {
+  it("maps cards with tasks, questions, and invariants", () => {
+    const cards = mapWorkCards([
+      {
+        id: "01J",
+        slug: "git-metadata-import",
+        title: "Git metadata import",
+        stage: "plan",
+        decisions: ["ADR-0007"],
+        updatedAt: "2026-09-28T12:00:00Z",
+        tasks: [
+          { id: "t1", number: 1, title: "Commit evidence upsert", state: "done" },
+          { id: "t2", number: 2, title: "Stamp revision", state: "bogus" },
+        ],
+        questions: [{ id: "q1", text: "Include merge commits?", blocking: true, options: ["yes", "no"], state: "open" }],
+        invariants: [{ id: "i1", text: "No network calls during scan" }],
+      },
+      { id: "02J", slug: "untitled", stage: "unknown" },
+    ]);
+
+    expect(cards).toHaveLength(2);
+    expect(cards[0]?.stage).toBe("plan");
+    expect(cards[0]?.tasks.map((task) => task.state)).toEqual(["done", "open"]);
+    expect(cards[0]?.questions[0]?.blocking).toBe(true);
+    expect(cards[0]?.invariants[0]?.text).toBe("No network calls during scan");
+    expect(cards[1]?.stage).toBe("shape");
+    expect(cards[1]?.title).toBe("untitled");
+  });
+});
+
+describe("mapConstitution", () => {
+  it("returns the project constitution singleton", () => {
+    const constitution = mapConstitution([
+      {
+        id: "constitution-1",
+        kind: "constitution",
+        title: "Project constitution",
+        body: "# Principles",
+        status: "active",
+        owner: "Platform",
+        updatedAt: "2026-09-21T12:00:00Z",
+        extraJson: "{}",
+      },
+    ]);
+    expect(constitution?.id).toBe("constitution-1");
+  });
+});

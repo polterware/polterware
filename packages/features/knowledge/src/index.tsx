@@ -32,8 +32,7 @@ import {
   type WorkspacePpmEntity,
   type WorkspaceRunbook,
   type WorkspaceSource,
-  type WorkspaceSpecArtifactKind,
-  type WorkspaceSpecFeature,
+  type WorkspaceWorkCard,
   type WorkStage,
 } from "@polterware/feature-shell";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
@@ -59,48 +58,37 @@ import {
   type LibraryRow,
 } from "./library-row";
 import {
+  EMPTY_CARD_LIST_FILTERS,
   EMPTY_SOURCE_LIST_FILTERS,
-  EMPTY_SPEC_LIST_FILTERS,
+  cardListFiltersActive,
   distinctSourcePathPrefixes,
   filterSources,
-  filterSpecFeatures,
+  filterWorkCards,
   sourceListFiltersActive,
-  specListFiltersActive,
+  type CardListFilters,
   type SourceListFilters,
-  type SpecListFilters,
 } from "./list-filters";
 import { LibraryTable } from "./library-table";
 import { RunbookDetail } from "./runbook-detail";
 import { SourceDetail } from "./source-detail";
 import { SourcesEmpty, sourcesFilterEmpty } from "./sources-empty";
 import { SourcesTable } from "./sources-table";
-import { SpecFeatureDetail } from "./spec-feature-detail";
-import {
-  libraryStatusTone,
-  runbookSeverityTone,
-  specStatusTone,
-} from "./knowledge-document-helpers";
-import { KnowledgeSpecsEmpty, knowledgeFilterEmpty } from "./knowledge-empty";
+import { libraryStatusTone, runbookSeverityTone } from "./knowledge-document-helpers";
+import { WorkCardsEmpty, workCardsFilterEmpty } from "./knowledge-empty";
 import { WorkBoard } from "./work-board";
+import { WorkCardDetail } from "./work-card-detail";
+import { WORK_STAGES, cardTaskProgress, workStageLabel, workStageTone } from "./work-stage";
 
-export { featureKeyFromTitle, uniqueFeatureKey } from "./feature-key";
+export { cardSlugFromTitle, uniqueCardSlug } from "./card-slug";
 export type { KnowledgeCreateTemplate, KnowledgeTemplateKind } from "./create-templates";
 export {
   KNOWLEDGE_CREATE_TEMPLATES,
   knowledgeTemplateById,
   knowledgeTemplatesForKind,
 } from "./create-templates";
-export {
-  checklistHasOpenItems,
-  CHECKLIST_BODY_TEMPLATE,
-  CLARIFY_BODY_TEMPLATE,
-  CONSTITUTION_BODY_TEMPLATE,
-  PLAN_BODY_TEMPLATE,
-  SPEC_BODY_TEMPLATE,
-  TASKS_BODY_TEMPLATE,
-} from "./spec-templates";
+export { CONSTITUTION_BODY_TEMPLATE } from "./constitution-template";
 export { ChangeEnvelopeDialogHost } from "./change-envelope-dialog";
-export { WORK_STAGES, resolveFeatureStage, workStageLabel } from "./work-stage";
+export { WORK_STAGES, workStageLabel } from "./work-stage";
 export {
   requestChangeEnvelope,
   type ChangeEnvelope,
@@ -112,9 +100,9 @@ const TABS: TabItem[] = [
     id: "specs",
     label: "Specs",
     tooltip: {
-      title: "Feature specs",
+      title: "Specs",
       description:
-        "One Constitution per project, plus features as Spec · Plan · Tasks · Clarify · Checklist. Mark ready is blocked while Checklist still has unchecked - [ ] items.",
+        "One Constitution per project, plus every Work card as a list. Agents write cards with polterware apply.",
       icon: ListChecks,
     },
   },
@@ -154,7 +142,7 @@ function normalizeTab(raw?: string): KnowledgeTab {
   return "specs";
 }
 
-function isFeatureScope(scopeId?: string): boolean {
+function isCardScope(scopeId?: string): boolean {
   return scopeId === "knowledge:specs" || scopeId === "knowledge:board";
 }
 
@@ -171,7 +159,7 @@ export function KnowledgeView(props: {
   adrs?: WorkspaceAdr[];
   runbooks?: WorkspaceRunbook[];
   sources?: WorkspaceSource[];
-  specFeatures?: WorkspaceSpecFeature[];
+  workCards?: WorkspaceWorkCard[];
   constitution?: WorkspaceConstitution | null;
   entities?: WorkspacePpmEntity[];
   /** Content mode: board, specs, library, or sources. */
@@ -191,7 +179,7 @@ export function KnowledgeView(props: {
   onOpenAdr?: (id: string) => void;
   onOpenRunbook?: (id: string) => void;
   onOpenSource?: (id: string) => void;
-  onOpenFeature?: (featureKey: string) => void;
+  onOpenCard?: (slug: string) => void;
   onOpenConstitution?: (id: string) => void;
   onOpenComponent?: (componentId: string) => void;
   onOpenEntity?: (entityId: string, refId: string, kind: string) => void;
@@ -203,25 +191,24 @@ export function KnowledgeView(props: {
   onCreateSource?: (input: { title: string; path: string }) => void;
   onImportProjectSources?: () => void;
   importBusy?: boolean;
-  onCreateFeature?: (title: string) => void;
+  onCreateCard?: (title: string) => void;
   onCreateFromTemplate?: (template: KnowledgeCreateTemplate) => void;
   onEnsureConstitution?: () => void;
   onArchive?: (id: string) => void;
-  onArchiveFeature?: (featureKey: string) => void;
+  onRemoveCard?: (slug: string) => void;
   onArchiveConstitution?: () => void;
-  onSetFeatureStatus?: (featureKey: string, status: "draft" | "ready") => void;
-  onSetFeatureStage?: (featureKey: string, stage: WorkStage) => void;
+  onSetCardStage?: (slug: string, stage: WorkStage) => void;
   onDuplicate?: (id: string) => void;
 }) {
   const tab = () => normalizeTab(props.tab);
-  /** Board and Specs both list features and share the feature detail. */
-  const featureTab = () => tab() === "board" || tab() === "specs";
+  /** Board and Specs both list Work cards and share the card detail. */
+  const cardTab = () => tab() === "board" || tab() === "specs";
   const railItems = () => props.tabs ?? TABS;
   const [libraryFilters, setLibraryFilters] = createSignal<LibraryFilters>({
     ...EMPTY_LIBRARY_FILTERS,
   });
-  const [specFilters, setSpecFilters] = createSignal<SpecListFilters>({
-    ...EMPTY_SPEC_LIST_FILTERS,
+  const [cardFilters, setCardFilters] = createSignal<CardListFilters>({
+    ...EMPTY_CARD_LIST_FILTERS,
   });
   const [sourceFilters, setSourceFilters] = createSignal<SourceListFilters>({
     ...EMPTY_SOURCE_LIST_FILTERS,
@@ -230,7 +217,6 @@ export function KnowledgeView(props: {
   const [pathOverrides, setPathOverrides] = createSignal<Record<string, string>>({});
   const [createOpen, setCreateOpen] = createSignal(false);
   const [sourceCreateOpen, setSourceCreateOpen] = createSignal(false);
-  const [artifactByFeature, setArtifactByFeature] = createSignal<Record<string, WorkspaceSpecArtifactKind>>({});
   const scopeId = createMemo(() => `knowledge:${tab()}`);
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
 
@@ -301,8 +287,8 @@ export function KnowledgeView(props: {
     filterSources(props.sources ?? [], sourceFilters()),
   );
 
-  const features = createMemo(() =>
-    filterSpecFeatures(props.specFeatures ?? [], specFilters()),
+  const cards = createMemo(() =>
+    filterWorkCards(props.workCards ?? [], cardFilters()),
   );
 
   let lastCollectionFingerprint = "";
@@ -329,18 +315,18 @@ export function KnowledgeView(props: {
             entityKind: "source",
           }))
       : tab() === "board"
-        ? features().map((feature) => ({
+        ? cards().map((card) => ({
             scopeId: scope,
-            entityId: feature.featureKey,
-            entityKind: "feature",
+            entityId: card.slug,
+            entityKind: "card",
           }))
       : tab() === "specs"
         ? [
             ...constitutionTarget,
-            ...features().map((feature) => ({
+            ...cards().map((card) => ({
               scopeId: scope,
-              entityId: feature.featureKey,
-              entityKind: "feature",
+              entityId: card.slug,
+              entityKind: "card",
             })),
           ]
         : [];
@@ -399,10 +385,10 @@ export function KnowledgeView(props: {
       : undefined;
   });
 
-  const feature = createMemo((): WorkspaceSpecFeature | undefined => {
+  const card = createMemo((): WorkspaceWorkCard | undefined => {
     const target = activeTarget();
-    return isFeatureScope(target?.scopeId) && target?.entityKind === "feature"
-      ? (props.specFeatures ?? []).find((item) => item.featureKey === target.entityId)
+    return isCardScope(target?.scopeId) && target?.entityKind === "card"
+      ? (props.workCards ?? []).find((item) => item.slug === target.entityId)
       : undefined;
   });
 
@@ -417,21 +403,9 @@ export function KnowledgeView(props: {
       : undefined;
   });
 
-  const activeArtifact = createMemo((): WorkspaceSpecArtifactKind => {
-    const current = feature();
-    if (!current) return "spec";
-    return artifactByFeature()[current.featureKey] ?? "spec";
-  });
-
-  const activeArtifactId = createMemo(() => {
-    const current = feature();
-    if (!current) return "";
-    return current[activeArtifact()].id;
-  });
-
   function activate(
     entityId: string,
-    entityKind: "document" | "adr" | "runbook" | "source" | "feature" | "constitution",
+    entityKind: "document" | "adr" | "runbook" | "source" | "card" | "constitution",
   ) {
     detailPanelStore.getState().activateTarget({ scopeId: scopeId(), entityId, entityKind });
     if (entityKind === "document") props.onOpenDoc?.(entityId);
@@ -439,7 +413,7 @@ export function KnowledgeView(props: {
     else if (entityKind === "runbook") props.onOpenRunbook?.(entityId);
     else if (entityKind === "source") props.onOpenSource?.(entityId);
     else if (entityKind === "constitution") props.onOpenConstitution?.(entityId);
-    else props.onOpenFeature?.(entityId);
+    else props.onOpenCard?.(entityId);
   }
 
   function activateLibraryRow(row: LibraryRow) {
@@ -447,7 +421,7 @@ export function KnowledgeView(props: {
   }
 
   const createKind = createMemo((): CreateKnowledgeKind => {
-    if (featureTab()) return "feature";
+    if (cardTab()) return "card";
     const kind = libraryEmptyCategory(effectiveLibraryKinds());
     if (kind === "adr") return "adr";
     if (kind === "runbook") return "runbook";
@@ -467,12 +441,12 @@ export function KnowledgeView(props: {
           setSourceFilters((current) => ({ ...current, query: value })),
       };
     }
-    if (featureTab()) {
+    if (cardTab()) {
       return {
         placeholder: "Search",
-        value: specFilters().query,
+        value: cardFilters().query,
         onInput: (value: string) =>
-          setSpecFilters((current) => ({ ...current, query: value })),
+          setCardFilters((current) => ({ ...current, query: value })),
       };
     }
     return {
@@ -485,7 +459,7 @@ export function KnowledgeView(props: {
 
   const createLabel = createMemo(() => {
     if (tab() === "sources") return "Add source";
-    if (featureTab()) return "New feature";
+    if (cardTab()) return "New card";
     const kind = libraryEmptyCategory(effectiveLibraryKinds());
     if (kind === "runbook") return "New runbook";
     if (kind === "adr") return "New ADR";
@@ -595,56 +569,52 @@ export function KnowledgeView(props: {
     ].filter((group) => group.id !== "kind" || group.options.length > 1);
   });
 
-  const specFilterGroups = createMemo((): FilterPopoverGroup[] => {
-    const current = specFilters();
+  const cardFilterGroups = createMemo((): FilterPopoverGroup[] => {
+    const current = cardFilters();
     const icon = (node: typeof FileText) => {
       const Icon = node;
       return <Icon size={14} aria-hidden />;
     };
     return [
       {
-        id: "status",
-        label: "Status",
+        id: "stage",
+        label: "Stage",
         leading: <StatusDot tone="ok" showLabel={false} />,
-        options: (
-          [
-            { id: "ready", label: "Ready" },
-            { id: "draft", label: "Draft" },
-          ] as const
-        ).map((option) => ({
-          ...option,
-          leading: <StatusDot tone={specStatusTone(option.id)} showLabel={false} />,
-          checked: current.statuses.includes(option.id),
+        options: WORK_STAGES.map((stage) => ({
+          id: stage.id,
+          label: stage.label,
+          leading: <StatusDot tone={workStageTone(stage.id)} showLabel={false} />,
+          checked: current.stages.includes(stage.id),
           onCheckedChange: (checked: boolean) =>
-            setSpecFilters((prev) => ({
+            setCardFilters((prev) => ({
               ...prev,
-              statuses: toggleFilterValue(prev.statuses, option.id, checked),
+              stages: toggleFilterValue(prev.stages, stage.id, checked),
             })),
         })),
       },
       {
-        id: "checklist",
-        label: "Checklist",
+        id: "questions",
+        label: "Questions",
         leading: icon(ListChecks),
         selectionMode: "single" as const,
         options: [
           {
             id: "open",
-            label: "Open items",
+            label: "Open questions",
             leading: icon(ListChecks),
           },
           {
             id: "clear",
-            label: "All clear",
+            label: "No open questions",
             leading: <StatusDot tone="healthy" showLabel={false} />,
           },
         ].map((option) => ({
           ...option,
-          checked: current.checklist === option.id,
+          checked: current.questions === option.id,
           onCheckedChange: (checked: boolean) =>
-            setSpecFilters((prev) => ({
+            setCardFilters((prev) => ({
               ...prev,
-              checklist: checked
+              questions: checked
                 ? (option.id as "open" | "clear")
                 : "any",
             })),
@@ -721,17 +691,17 @@ export function KnowledgeView(props: {
         groups: sourceFilterGroups(),
       };
     }
-    if (featureTab()) {
+    if (cardTab()) {
       return {
-        ariaLabel: "Feature filters",
-        title: "Filter features",
-        active: specListFiltersActive(specFilters()),
+        ariaLabel: "Card filters",
+        title: "Filter cards",
+        active: cardListFiltersActive(cardFilters()),
         onClear: () =>
-          setSpecFilters((current) => ({
-            ...EMPTY_SPEC_LIST_FILTERS,
+          setCardFilters((current) => ({
+            ...EMPTY_CARD_LIST_FILTERS,
             query: current.query,
           })),
-        groups: specFilterGroups(),
+        groups: cardFilterGroups(),
       };
     }
     return {
@@ -794,26 +764,26 @@ export function KnowledgeView(props: {
       }
       return pills;
     }
-    if (featureTab()) {
-      const current = specFilters();
-      const pills: ActiveFilterPill[] = current.statuses.map((status) => ({
-        id: `status:${status}`,
-        label: `Status: ${status}`,
+    if (cardTab()) {
+      const current = cardFilters();
+      const pills: ActiveFilterPill[] = current.stages.map((stage) => ({
+        id: `stage:${stage}`,
+        label: `Stage: ${workStageLabel(stage)}`,
         onRemove: () =>
-          setSpecFilters((prev) => ({
+          setCardFilters((prev) => ({
             ...prev,
-            statuses: prev.statuses.filter((value) => value !== status),
+            stages: prev.stages.filter((value) => value !== stage),
           })),
       }));
-      if (current.checklist !== "any") {
+      if (current.questions !== "any") {
         pills.push({
-          id: "checklist",
+          id: "questions",
           label:
-            current.checklist === "open"
-              ? "Checklist: Open items"
-              : "Checklist: All clear",
+            current.questions === "open"
+              ? "Questions: Open"
+              : "Questions: None open",
           onRemove: () =>
-            setSpecFilters((prev) => ({ ...prev, checklist: "any" })),
+            setCardFilters((prev) => ({ ...prev, questions: "any" })),
         });
       }
       return pills;
@@ -897,7 +867,7 @@ export function KnowledgeView(props: {
                 value={props.activeTab ?? tab()}
                 onChange={(next) => {
                   setLibraryFilters({ ...EMPTY_LIBRARY_FILTERS });
-                  setSpecFilters({ ...EMPTY_SPEC_LIST_FILTERS });
+                  setCardFilters({ ...EMPTY_CARD_LIST_FILTERS });
                   setSourceFilters({ ...EMPTY_SOURCE_LIST_FILTERS });
                   setCreateOpen(false);
                   setSourceCreateOpen(false);
@@ -938,7 +908,7 @@ export function KnowledgeView(props: {
                 <Plus size={14} />
               </ToolbarIconButton>
             </Show>
-            <Show when={tab() !== "sources" && (props.onCreate || props.onCreateFeature)}>
+            <Show when={tab() !== "sources" && (cardTab() ? props.onCreateCard : props.onCreate)}>
               <ToolbarIconButton
                 label={createLabel()}
                 onClick={() => setCreateOpen(true)}
@@ -1016,24 +986,24 @@ export function KnowledgeView(props: {
         <Show when={tab() === "board"}>
           <PageContent class="p-0">
             <Show
-              when={(props.specFeatures ?? []).length > 0}
+              when={(props.workCards ?? []).length > 0}
               fallback={
-                <KnowledgeSpecsEmpty
-                  onCreate={props.onCreateFeature ? () => setCreateOpen(true) : undefined}
+                <WorkCardsEmpty
+                  onCreate={props.onCreateCard ? () => setCreateOpen(true) : undefined}
                   onCreateFromTemplate={props.onCreateFromTemplate}
                 />
               }
             >
-              <Show when={features().length > 0} fallback={knowledgeFilterEmpty("specs")}>
+              <Show when={cards().length > 0} fallback={workCardsFilterEmpty()}>
                 <WorkBoard
-                  features={features()}
-                  activeFeatureKey={
+                  cards={cards()}
+                  activeSlug={
                     activeTarget()?.scopeId === "knowledge:board"
-                    && activeTarget()?.entityKind === "feature"
+                    && activeTarget()?.entityKind === "card"
                       ? activeTarget()?.entityId
                       : null
                   }
-                  onActivate={(featureKey) => activate(featureKey, "feature")}
+                  onActivate={(slug) => activate(slug, "card")}
                 />
               </Show>
             </Show>
@@ -1063,44 +1033,50 @@ export function KnowledgeView(props: {
               )}
             </Show>
             <Show
-              when={(props.specFeatures ?? []).length > 0}
+              when={(props.workCards ?? []).length > 0}
               fallback={
-                <KnowledgeSpecsEmpty
-                  onCreate={props.onCreateFeature ? () => setCreateOpen(true) : undefined}
+                <WorkCardsEmpty
+                  onCreate={props.onCreateCard ? () => setCreateOpen(true) : undefined}
                   onCreateFromTemplate={props.onCreateFromTemplate}
                 />
               }
             >
-              <Show when={features().length > 0} fallback={knowledgeFilterEmpty("specs")}>
+              <Show when={cards().length > 0} fallback={workCardsFilterEmpty()}>
                 <DataTable.Root
-                  rows={features()}
-                  getRowId={(item) => item.featureKey}
+                  rows={cards()}
+                  getRowId={(item) => item.slug}
                   activeRowId={
                     activeTarget()?.scopeId === "knowledge:specs"
-                    && activeTarget()?.entityKind === "feature"
+                    && activeTarget()?.entityKind === "card"
                       ? activeTarget()?.entityId
                       : null
                   }
                   activateFirstRow={!props.constitution}
-                  onActiveRowChange={(id) => id && activate(id, "feature")}
+                  onActiveRowChange={(id) => id && activate(id, "card")}
                 >
-                  <DataTable.Table aria-label="Features">
+                  <DataTable.Table aria-label="Cards">
                     <DataTable.Header>
-                      <DataTable.ColumnHeader<WorkspaceSpecFeature> id="title">Feature</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceSpecFeature> id="featureKey">Key</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceSpecFeature> id="status">Status</DataTable.ColumnHeader>
-                      <DataTable.ColumnHeader<WorkspaceSpecFeature> id="updatedAt">Updated</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<WorkspaceWorkCard> id="title">Card</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<WorkspaceWorkCard> id="slug">Slug</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<WorkspaceWorkCard> id="stage">Stage</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<WorkspaceWorkCard> id="tasks">Tasks</DataTable.ColumnHeader>
+                      <DataTable.ColumnHeader<WorkspaceWorkCard> id="updatedAt">Updated</DataTable.ColumnHeader>
                     </DataTable.Header>
-                    <DataTable.Body<WorkspaceSpecFeature>>
+                    <DataTable.Body<WorkspaceWorkCard>>
                       {(item) => (
                         <DataTable.Row
                           row={item}
-                          rowId={item.featureKey}
-                          onActivate={() => activate(item.featureKey, "feature")}
+                          rowId={item.slug}
+                          onActivate={() => activate(item.slug, "card")}
                         >
-                          <DataTable.PrimaryCell icon={<FileText size={16} />} iconTone="knowledge" title={item.title} />
-                          <DataTable.Cell class="font-mono pw-selectable text-[12px]">{item.featureKey}</DataTable.Cell>
-                          <DataTable.Cell><StatusChip tone={specStatusTone(item.status)} label={item.status} /></DataTable.Cell>
+                          <DataTable.PrimaryCell icon={<ListChecks size={16} />} iconTone="knowledge" title={item.title} />
+                          <DataTable.Cell class="font-mono pw-selectable text-[12px]">{item.slug}</DataTable.Cell>
+                          <DataTable.Cell><StatusChip tone={workStageTone(item.stage)} label={workStageLabel(item.stage)} /></DataTable.Cell>
+                          <DataTable.Cell class="tabular-nums text-[var(--color-text-muted)]">
+                            {cardTaskProgress(item).total > 0
+                              ? `${cardTaskProgress(item).done}/${cardTaskProgress(item).total}`
+                              : "—"}
+                          </DataTable.Cell>
                           <DataTable.Cell class="text-[var(--color-text-muted)]">{item.updatedAt}</DataTable.Cell>
                         </DataTable.Row>
                       )}
@@ -1190,43 +1166,18 @@ export function KnowledgeView(props: {
           />
         )}
       </Show>
-      <Show when={feature()}>
+      <Show when={card()}>
         {(item) => (
-          <SpecFeatureDetail
-            feature={item()}
-            artifact={activeArtifact()}
-            bodyMarkdown={
-              bodyOverrides()[activeArtifactId()]
-              ?? item()[activeArtifact()].bodyMarkdown
-            }
-            checklistBody={
-              bodyOverrides()[item().checklist.id] ?? item().checklist.bodyMarkdown
-            }
-            onArtifactChange={(next) => {
-              setArtifactByFeature((current) => ({
-                ...current,
-                [item().featureKey]: next,
-              }));
-            }}
-            onBodyChange={(markdown) => {
-              const artifactId = activeArtifactId();
-              if (!artifactId) return;
-              const baseline = item()[activeArtifact()].bodyMarkdown;
-              noteBodyChange(artifactId, markdown, baseline);
-            }}
-            onArchive={
-              props.onArchiveFeature
-                ? () => props.onArchiveFeature?.(item().featureKey)
-                : undefined
-            }
-            onSetStatus={
-              props.onSetFeatureStatus
-                ? (status) => props.onSetFeatureStatus?.(item().featureKey, status)
-                : undefined
-            }
+          <WorkCardDetail
+            card={item()}
             onSetStage={
-              props.onSetFeatureStage
-                ? (stage) => props.onSetFeatureStage?.(item().featureKey, stage)
+              props.onSetCardStage
+                ? (stage) => props.onSetCardStage?.(item().slug, stage)
+                : undefined
+            }
+            onRemove={
+              props.onRemoveCard
+                ? () => props.onRemoveCard?.(item().slug)
                 : undefined
             }
           />
@@ -1262,7 +1213,7 @@ export function KnowledgeView(props: {
             : undefined
         }
         onSubmit={(title, kind) => {
-          if (kind === "feature") props.onCreateFeature?.(title);
+          if (kind === "card") props.onCreateCard?.(title);
           else if (kind === "runbook") props.onCreate?.("runbook", title);
           else if (kind === "adr") props.onCreate?.("adr", title);
           else props.onCreate?.("doc", title);

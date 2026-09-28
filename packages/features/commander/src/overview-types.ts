@@ -4,7 +4,7 @@ export type OverviewFeatureRow = {
   id: string;
   title: string;
   status: string;
-  kind: "feature" | "constitution";
+  kind: "card" | "constitution";
 };
 
 export type OverviewIntegrationRow = {

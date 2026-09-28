@@ -6,7 +6,6 @@ import type {
   WorkspaceIntegrationResource,
   WorkspaceIntegrationSyncRun,
   WorkspaceRunbook,
-  WorkspaceSpecFeature,
 } from "./types";
 
 export const CATALOG_PROVIDER_MOCKS: WorkspaceCatalogProvider[] = [
@@ -200,74 +199,6 @@ export const RUNBOOK_MOCKS: WorkspaceRunbook[] = RUNBOOK_SEEDS.map((runbook) => 
   entityLinks: [],
   bodyMarkdown: runbookMarkdown(runbook),
 }));
-
-const SPEC_FEATURE_KEY = "local-health-checks";
-
-export const SPEC_FEATURE_MOCKS: WorkspaceSpecFeature[] = [
-  {
-    featureKey: SPEC_FEATURE_KEY,
-    title: "Local health checks",
-    status: "ready",
-    updatedAt: "1 day ago",
-    owner: "Platform",
-    summary: "Specify honest local health reporting for the desktop.",
-    spec: {
-      id: "spec-local-health",
-      kind: "spec",
-      title: "Local health checks",
-      bodyMarkdown:
-        "## User stories\n\n### User story 1 - Inspect health (Priority: P1)\n\nAs an operator, I want to see local core health so that I know whether the project store is available.\n\n**Acceptance**\n\n1. **Given** a local project is open, **When** health is loaded, **Then** the desktop shows an honest available or quarantined state.\n\n## Requirements\n\n- **FR-001**: System MUST report local store availability through polterware-core.\n\n## Success criteria\n\n- **SC-001**: Operators can distinguish available and quarantined states without leaving the desktop.\n\n## Assumptions\n\n- Health remains a local-only signal in the first version.",
-      status: "ready",
-      updatedAt: "1 day ago",
-      owner: "Platform",
-      featureKey: SPEC_FEATURE_KEY,
-    },
-    plan: {
-      id: "plan-local-health",
-      kind: "plan",
-      title: "Local health checks",
-      bodyMarkdown:
-        "## Approach\n\nKeep health as a core probe over the local SQLite store and surface the result in the desktop shell.\n\n## Technical plan\n\n- Reuse the existing Health service.\n- Map quarantined and available states into the workspace snapshot.",
-      status: "ready",
-      updatedAt: "1 day ago",
-      owner: "Platform",
-      featureKey: SPEC_FEATURE_KEY,
-    },
-    tasks: {
-      id: "tasks-local-health",
-      kind: "tasks",
-      title: "Local health checks",
-      bodyMarkdown:
-        "## Tasks\n\n- [x] T001 Wire Health into the workspace snapshot\n- [x] T002 Show honest quarantine messaging in the shell\n- [ ] T003 Add Specs coverage for health acceptance language",
-      status: "ready",
-      updatedAt: "1 day ago",
-      owner: "Platform",
-      featureKey: SPEC_FEATURE_KEY,
-    },
-    clarify: {
-      id: "clarify-local-health",
-      kind: "clarify",
-      title: "Local health checks",
-      bodyMarkdown:
-        "## Open questions\n\n- [x] Is health a local-only signal?\n- [ ] Should quarantine block Specs editing?\n\n## Resolved\n\n- Health remains local-only in the first version.",
-      status: "ready",
-      updatedAt: "1 day ago",
-      owner: "Platform",
-      featureKey: SPEC_FEATURE_KEY,
-    },
-    checklist: {
-      id: "checklist-local-health",
-      kind: "checklist",
-      title: "Local health checks",
-      bodyMarkdown:
-        "## Specification quality\n\n- [x] User stories and acceptance scenarios are testable\n- [x] Functional requirements are unambiguous\n- [x] Success criteria are measurable\n- [x] Assumptions and out-of-scope items are explicit\n- [x] Clarify open questions are answered or accepted as deferred",
-      status: "ready",
-      updatedAt: "1 day ago",
-      owner: "Platform",
-      featureKey: SPEC_FEATURE_KEY,
-    },
-  },
-];
 
 export const CONSTITUTION_MOCK: WorkspaceConstitution = {
   id: "constitution-project",

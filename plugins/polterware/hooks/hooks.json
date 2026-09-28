@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "command -v polterware >/dev/null 2>&1 || exit 0; polterware hook session-start" }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          { "type": "command", "command": "command -v polterware >/dev/null 2>&1 || exit 0; polterware hook session-end" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "command -v polterware >/dev/null 2>&1 || exit 0; polterware hook lint" }
+        ]
+      }
+    ]
+  }
+}

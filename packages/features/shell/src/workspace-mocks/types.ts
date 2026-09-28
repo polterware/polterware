@@ -146,36 +146,45 @@ export type WorkspaceSource = {
   entityLinks: WorkspaceEntityLink[];
 };
 
-export type WorkspaceSpecArtifactKind = "spec" | "plan" | "tasks" | "clarify" | "checklist";
-
-export type WorkspaceSpecArtifact = {
-  id: string;
-  kind: WorkspaceSpecArtifactKind;
-  title: string;
-  bodyMarkdown: string;
-  status: "draft" | "ready";
-  updatedAt: string;
-  owner: string;
-  featureKey: string;
-};
-
-/** Work board column for a feature (Grounded SDD lifecycle). */
+/** Work board column for a card (Grounded SDD lifecycle). */
 export type WorkStage = "shape" | "plan" | "build" | "verify" | "delivered";
 
-export type WorkspaceSpecFeature = {
-  featureKey: string;
+export type WorkspaceWorkTask = {
+  id: string;
+  number: number;
   title: string;
-  status: "draft" | "ready";
-  /** Stage persisted on the spec artifact; absent means derive from status and tasks. */
-  stage?: WorkStage;
-  updatedAt: string;
+  state: "open" | "done" | "dropped";
+  scope: string;
+};
+
+export type WorkspaceWorkQuestion = {
+  id: string;
+  text: string;
+  blocking: boolean;
+  options: string[];
+  state: "open" | "answered";
+  answer: string;
+};
+
+export type WorkspaceWorkInvariant = {
+  id: string;
+  text: string;
+};
+
+/** Work card from the Work tables (ADR 0006), written through the Polter format. */
+export type WorkspaceWorkCard = {
+  id: string;
+  slug: string;
+  title: string;
+  intent: string;
+  stage: WorkStage;
   owner: string;
-  summary: string;
-  spec: WorkspaceSpecArtifact;
-  plan: WorkspaceSpecArtifact;
-  tasks: WorkspaceSpecArtifact;
-  clarify: WorkspaceSpecArtifact;
-  checklist: WorkspaceSpecArtifact;
+  under: string;
+  decisions: string[];
+  updatedAt: string;
+  tasks: WorkspaceWorkTask[];
+  questions: WorkspaceWorkQuestion[];
+  invariants: WorkspaceWorkInvariant[];
 };
 
 export type WorkspaceConstitution = {

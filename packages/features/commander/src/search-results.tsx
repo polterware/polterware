@@ -24,7 +24,7 @@ export const SEARCH_HITS: SearchHit[] = [
   { id: "h2", category: "Atlas", title: "Payment flow", subtitle: "Saved view", section: "atlas", tab: "views" },
   { id: "h3", category: "Atlas", title: "payment-service", subtitle: "Component · AWS · Healthy", section: "atlas", tab: "canvas", entityKind: "resource", entityId: "payment-service" },
   { id: "h4", category: "Reality", title: "prod-postgres", subtitle: "Database · AWS RDS · Healthy", section: "reality", tab: "inventory", entityKind: "resource", entityId: "res-rds" },
-  { id: "h5", category: "Work", title: "Payment flow Spec", subtitle: "spec · Feature checklist", section: "work", tab: "specs", entityKind: "feature", entityId: "payment-flow" },
+  { id: "h5", category: "Work", title: "Payment flow", subtitle: "card · Build", section: "work", tab: "board", entityKind: "card", entityId: "payment-flow" },
   { id: "h6", category: "Decisions", title: "ADR 0004", subtitle: "adr · Product positioning", section: "decisions", tab: "adrs", entityKind: "adr", entityId: "adr-0004" },
 ];
 
@@ -38,8 +38,7 @@ export function knowledgeHitsFromSearch(hits: Array<{
     const title = hit.item?.title;
     if (!id || !title) return [];
     const kind = hit.item?.kind ?? "doc";
-    const isFeature = kind === "spec" || kind === "plan" || kind === "tasks" || kind === "clarify" || kind === "checklist" || kind === "constitution";
-    const { section, tab, category } = isFeature
+    const { section, tab, category } = kind === "constitution"
       ? { section: "work", tab: "specs", category: "Work" }
       : kind === "source"
         ? { section: "reality", tab: "sources", category: "Reality" }
@@ -52,11 +51,9 @@ export function knowledgeHitsFromSearch(hits: Array<{
         ? "adr"
         : kind === "source"
           ? "source"
-          : kind === "spec" || kind === "plan" || kind === "tasks" || kind === "clarify" || kind === "checklist"
-            ? "feature"
-            : kind === "constitution"
-              ? "constitution"
-              : "document";
+          : kind === "constitution"
+            ? "constitution"
+            : "document";
     return [{
       id: `knowledge-${id}`,
       category,

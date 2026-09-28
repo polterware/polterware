@@ -1,15 +1,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 
-	"github.com/polterware/polterware/backend/compositions/wedge"
-	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
+	"connectrpc.com/connect"
+
+	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
 )
 
-func runScan(store *storepkg.Store, args []string) error {
+func runScan(dbPath string, args []string) error {
 	fs := flag.NewFlagSet("scan", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	projectID := fs.String("project", "", "project id")
@@ -17,12 +19,17 @@ func runScan(store *storepkg.Store, args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	result, err := wedge.ScanProject(store, *projectID)
+	c, err := dial(dbPath)
 	if err != nil {
 		return err
 	}
+	res, err := c.PPM.ImportProjectSources(context.Background(), connect.NewRequest(&localv1.ImportProjectSourcesRequest{ProjectId: *projectID}))
+	if err != nil {
+		return err
+	}
+	result := res.Msg
 	if *asJSON {
-		return writeJSON(result)
+		return writeProtoJSON(result)
 	}
 	fmt.Printf("%s\n", result.Message)
 	fmt.Printf("facts=%d evidence=%d sources=%d skipped=%d\n",

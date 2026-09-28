@@ -3,14 +3,12 @@ package localcore
 import (
 	"context"
 	"crypto/rand"
-	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -24,8 +22,11 @@ import (
 	"github.com/polterware/polterware/backend/domains/knowledge"
 	"github.com/polterware/polterware/backend/domains/projects"
 	"github.com/polterware/polterware/backend/domains/resources"
+	dbsqlite "github.com/polterware/polterware/backend/platform/db/sqlite"
+	"github.com/polterware/polterware/backend/platform/events"
 	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
 	"github.com/polterware/polterware/backend/platform/gen/polterware/local/v1/localv1connect"
+	"github.com/polterware/polterware/backend/providers/mcp"
 	"github.com/polterware/polterware/backend/providers/seed"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 	terminalpkg "github.com/polterware/polterware/backend/providers/terminal"
@@ -37,11 +38,36 @@ type Core struct {
 	Started      time.Time
 	Terminals    *terminalpkg.Manager
 	terminalOnce sync.Once
+
+	// Build identifies the core binary (coreclient.BuildID).
+	Build string
+	// Bus turns committed SQLite writes into change events (ADR 0007).
+	Bus *events.Bus
+	// MCP serves MCP sessions over HTTP at /mcp.
+	MCP *mcp.Sessions
+
+	life     lifecycle
+	calls    inflight
+	sessions agentSessions
 }
 
+// NewCore wires the core around the only open store of this database. It
+// installs the change recorder, so every committed write becomes an event.
 func NewCore(store *storepkg.Store, token string) *Core {
 	_ = seed.Defaults(store)
-	return &Core{Store: store, Token: token, Started: time.Now().UTC()}
+	core := &Core{
+		Store:   store,
+		Token:   token,
+		Started: time.Now().UTC(),
+		Bus:     events.NewBus(),
+		MCP:     mcp.NewSessions(store),
+		life:    lifecycle{done: make(chan struct{})},
+	}
+	core.touch()
+	dbsqlite.SetChangeRecorder(func(tables, projectIDs []string) {
+		core.Bus.Record(tables, projectIDs, core.calls.clients())
+	})
+	return core
 }
 
 func MintToken() (string, error) {
@@ -60,22 +86,10 @@ func Listen(address string) (net.Listener, string, error) {
 	return listener, "http://" + listener.Addr().String(), nil
 }
 
-func (core *Core) authInterceptor() connect.UnaryInterceptorFunc {
-	return func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, request connect.AnyRequest) (connect.AnyResponse, error) {
-			header := request.Header().Get("Authorization")
-			candidate := strings.TrimPrefix(header, "Bearer ")
-			if !strings.HasPrefix(header, "Bearer ") || subtle.ConstantTimeCompare([]byte(candidate), []byte(core.Token)) != 1 {
-				return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid or missing session token"))
-			}
-			return next(ctx, request)
-		}
-	}
-}
-
 func ServeConnect(listener net.Listener, core *Core) *http.Server {
 	mux := http.NewServeMux()
-	options := []connect.HandlerOption{connect.WithInterceptors(core.authInterceptor())}
+	auth := interceptor{core: core}
+	options := []connect.HandlerOption{connect.WithInterceptors(auth)}
 	register := func(path string, handler http.Handler) { mux.Handle(path, handler) }
 	path, handler := localv1connect.NewHealthServiceHandler(core)
 	register(path, handler)
@@ -84,6 +98,8 @@ func ServeConnect(listener net.Listener, core *Core) *http.Server {
 	path, handler = localv1connect.NewArchitectureServiceHandler(core, options...)
 	register(path, handler)
 	path, handler = localv1connect.NewKnowledgeServiceHandler(core, options...)
+	register(path, handler)
+	path, handler = localv1connect.NewWorkServiceHandler(core, options...)
 	register(path, handler)
 	path, handler = localv1connect.NewProjectModelServiceHandler(core, options...)
 	register(path, handler)
@@ -97,14 +113,20 @@ func ServeConnect(listener net.Listener, core *Core) *http.Server {
 	register(path, handler)
 	path, handler = localv1connect.NewMaintenanceServiceHandler(core, options...)
 	register(path, handler)
+	path, handler = localv1connect.NewChangeServiceHandler(core, options...)
+	register(path, handler)
+	register("/mcp", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := auth.authorize(r.Header); err != nil {
+			http.Error(w, "invalid or missing session token", http.StatusUnauthorized)
+			return
+		}
+		defer core.calls.begin("mcp")()
+		core.MCP.ServeHTTP(w, r)
+	}))
 
 	server := &http.Server{Handler: h2c.NewHandler(mux, &http2.Server{})}
 	go func() { _ = server.Serve(listener) }()
 	return server
-}
-
-func (core *Core) Check(context.Context, *connect.Request[localv1.CheckRequest]) (*connect.Response[localv1.CheckResponse], error) {
-	return connect.NewResponse(&localv1.CheckResponse{Status: "ok", Version: "0.1.0", UptimeSec: time.Since(core.Started).Seconds()}), nil
 }
 
 func (core *Core) ListProjects(_ context.Context, request *connect.Request[localv1.ListProjectsRequest]) (*connect.Response[localv1.ListProjectsResponse], error) {

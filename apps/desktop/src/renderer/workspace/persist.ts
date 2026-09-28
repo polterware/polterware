@@ -6,18 +6,9 @@ import type {
 } from "@polterware/feature-settings";
 import type { WorkspaceCatalogProvider, WorkStage } from "@polterware/feature-shell";
 import type { ChangeEnvelope } from "@polterware/feature-knowledge";
-import { asNumber, asObjectArray, asRecord, asString, parseJsonObject } from "./format";
+import { asNumber, asObjectArray, asRecord, asString } from "./format";
 import type { WorkspaceSnapshot } from "./load";
-import {
-  checklistHasOpenItems,
-  uniqueFeatureKey as nextFeatureKey,
-  CHECKLIST_BODY_TEMPLATE,
-  CLARIFY_BODY_TEMPLATE,
-  CONSTITUTION_BODY_TEMPLATE,
-  PLAN_BODY_TEMPLATE,
-  SPEC_BODY_TEMPLATE,
-  TASKS_BODY_TEMPLATE,
-} from "@polterware/feature-knowledge";
+import { CONSTITUTION_BODY_TEMPLATE, uniqueCardSlug } from "@polterware/feature-knowledge";
 
 function core() {
   return window.polterware.core;
@@ -219,48 +210,6 @@ export async function persistKnowledgeCreate(input: {
   return id;
 }
 
-export async function persistKnowledgeCreateFeature(input: {
-  workspace: WorkspaceSnapshot;
-  projectId: string;
-  title: string;
-  change: ChangeEnvelope;
-}): Promise<string> {
-  const featureKey = nextFeatureKey(
-    input.workspace.specFeatures.map((feature) => feature.featureKey),
-    input.title,
-  );
-  const extraJson = JSON.stringify({ featureKey });
-  const artifacts: Array<{
-    kind: "spec" | "plan" | "tasks" | "clarify" | "checklist";
-    body: string;
-    prefix: string;
-  }> = [
-    { kind: "spec", body: SPEC_BODY_TEMPLATE, prefix: "spec" },
-    { kind: "plan", body: PLAN_BODY_TEMPLATE, prefix: "plan" },
-    { kind: "tasks", body: TASKS_BODY_TEMPLATE, prefix: "tasks" },
-    { kind: "clarify", body: CLARIFY_BODY_TEMPLATE, prefix: "clarify" },
-    { kind: "checklist", body: CHECKLIST_BODY_TEMPLATE, prefix: "checklist" },
-  ];
-  for (const artifact of artifacts) {
-    await core().knowledge.save({
-      item: {
-        id: newId(artifact.prefix),
-        projectId: input.projectId,
-        title: input.title,
-        body: artifact.body,
-        kind: artifact.kind,
-        tags: [],
-        summary: "",
-        owner: "human",
-        status: "draft",
-        extraJson,
-      },
-      change: changePayload(input.change),
-    });
-  }
-  return featureKey;
-}
-
 export async function persistKnowledgeDelete(
   id: string,
   change: ChangeEnvelope,
@@ -268,82 +217,50 @@ export async function persistKnowledgeDelete(
   await core().knowledge.delete({ id, change: changePayload(change) });
 }
 
-export async function persistKnowledgeArchiveFeature(
-  workspace: WorkspaceSnapshot,
-  featureKey: string,
-  change: ChangeEnvelope,
-): Promise<void> {
-  const feature = workspace.specFeatures.find((item) => item.featureKey === featureKey);
-  if (!feature) return;
-  await Promise.all([
-    persistKnowledgeDelete(feature.spec.id, change),
-    persistKnowledgeDelete(feature.plan.id, change),
-    persistKnowledgeDelete(feature.tasks.id, change),
-    persistKnowledgeDelete(feature.clarify.id, change),
-    persistKnowledgeDelete(feature.checklist.id, change),
-  ]);
+/** Polter text for one card: the Desktop writes Work through the same codec as agents. */
+function polterCard(slug: string, title: string | null, meta: Record<string, string>): string {
+  const heading = title ? `## ${slug}: ${title.replace(/\s+/g, " ").trim()}` : `## ${slug}`;
+  const metaLine = Object.entries(meta).map(([key, value]) => `${key}: ${value}`).join(" · ");
+  return `---\npolter: 1\n---\n\n${heading}\n${metaLine}\n`;
 }
 
-export class ChecklistIncompleteError extends Error {
-  constructor() {
-    super("Complete the checklist before marking ready.");
-    this.name = "ChecklistIncompleteError";
-  }
+async function applyPolter(projectId: string, text: string, change: ChangeEnvelope): Promise<void> {
+  await core().work.apply({ projectId, text, change: changePayload(change) });
 }
 
-export async function persistKnowledgeSetFeatureStatus(
-  workspace: WorkspaceSnapshot,
+/** Create a Work card in Shape; returns its slug. */
+export async function persistWorkCreateCard(input: {
+  workspace: WorkspaceSnapshot;
+  projectId: string;
+  title: string;
+  change: ChangeEnvelope;
+}): Promise<string> {
+  const slug = uniqueCardSlug(input.workspace.workCards.map((card) => card.slug), input.title);
+  // status: active restores a removed card that already owns this slug.
+  await applyPolter(
+    input.projectId,
+    polterCard(slug, input.title, { stage: "shape", status: "active" }),
+    input.change,
+  );
+  return slug;
+}
+
+export async function persistWorkSetStage(
   projectId: string,
-  featureKey: string,
-  status: "draft" | "ready",
-  change: ChangeEnvelope,
-): Promise<void> {
-  const feature = workspace.specFeatures.find((item) => item.featureKey === featureKey);
-  if (!feature) return;
-  if (status === "ready" && checklistHasOpenItems(feature.checklist.bodyMarkdown)) {
-    throw new ChecklistIncompleteError();
-  }
-  for (const artifact of [
-    feature.spec,
-    feature.plan,
-    feature.tasks,
-    feature.clarify,
-    feature.checklist,
-  ]) {
-    const current = workspace.rawKnowledge.find((item) => asString(item.id) === artifact.id);
-    if (!current) continue;
-    await core().knowledge.save({
-      item: {
-        ...current,
-        projectId,
-        status,
-      },
-      change: changePayload(change),
-    });
-  }
-}
-
-/** Move a feature to another Work board stage; stored on the spec artifact's extra_json. */
-export async function persistKnowledgeSetFeatureStage(
-  workspace: WorkspaceSnapshot,
-  projectId: string,
-  featureKey: string,
+  slug: string,
   stage: WorkStage,
   change: ChangeEnvelope,
 ): Promise<void> {
-  const feature = workspace.specFeatures.find((item) => item.featureKey === featureKey);
-  if (!feature) return;
-  const current = workspace.rawKnowledge.find((item) => asString(item.id) === feature.spec.id);
-  if (!current) return;
-  const extra = parseJsonObject(asString(current.extraJson));
-  await core().knowledge.save({
-    item: {
-      ...current,
-      projectId,
-      extraJson: JSON.stringify({ ...extra, featureKey, stage }),
-    },
-    change: changePayload(change),
-  });
+  await applyPolter(projectId, polterCard(slug, null, { stage }), change);
+}
+
+/** Remove a card from the board; the core keeps the row with status removed. */
+export async function persistWorkRemoveCard(
+  projectId: string,
+  slug: string,
+  change: ChangeEnvelope,
+): Promise<void> {
+  await applyPolter(projectId, polterCard(slug, null, { status: "removed" }), change);
 }
 
 export async function persistConstitutionEnsure(input: {

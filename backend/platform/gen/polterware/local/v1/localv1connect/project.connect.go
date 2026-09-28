@@ -33,6 +33,12 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// ProjectServiceResolveProjectProcedure is the fully-qualified name of the ProjectService's
+	// ResolveProject RPC.
+	ProjectServiceResolveProjectProcedure = "/polterware.local.v1.ProjectService/ResolveProject"
+	// ProjectServiceInitProjectProcedure is the fully-qualified name of the ProjectService's
+	// InitProject RPC.
+	ProjectServiceInitProjectProcedure = "/polterware.local.v1.ProjectService/InitProject"
 	// ProjectServiceListProjectsProcedure is the fully-qualified name of the ProjectService's
 	// ListProjects RPC.
 	ProjectServiceListProjectsProcedure = "/polterware.local.v1.ProjectService/ListProjects"
@@ -61,6 +67,8 @@ const (
 
 // ProjectServiceClient is a client for the polterware.local.v1.ProjectService service.
 type ProjectServiceClient interface {
+	ResolveProject(context.Context, *connect.Request[v1.ResolveProjectRequest]) (*connect.Response[v1.ResolveProjectResponse], error)
+	InitProject(context.Context, *connect.Request[v1.InitProjectRequest]) (*connect.Response[v1.InitProjectResponse], error)
 	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
 	SaveProject(context.Context, *connect.Request[v1.SaveProjectRequest]) (*connect.Response[v1.SaveProjectResponse], error)
 	ArchiveProject(context.Context, *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error)
@@ -82,6 +90,18 @@ func NewProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	projectServiceMethods := v1.File_polterware_local_v1_project_proto.Services().ByName("ProjectService").Methods()
 	return &projectServiceClient{
+		resolveProject: connect.NewClient[v1.ResolveProjectRequest, v1.ResolveProjectResponse](
+			httpClient,
+			baseURL+ProjectServiceResolveProjectProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("ResolveProject")),
+			connect.WithClientOptions(opts...),
+		),
+		initProject: connect.NewClient[v1.InitProjectRequest, v1.InitProjectResponse](
+			httpClient,
+			baseURL+ProjectServiceInitProjectProcedure,
+			connect.WithSchema(projectServiceMethods.ByName("InitProject")),
+			connect.WithClientOptions(opts...),
+		),
 		listProjects: connect.NewClient[v1.ListProjectsRequest, v1.ListProjectsResponse](
 			httpClient,
 			baseURL+ProjectServiceListProjectsProcedure,
@@ -135,6 +155,8 @@ func NewProjectServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // projectServiceClient implements ProjectServiceClient.
 type projectServiceClient struct {
+	resolveProject      *connect.Client[v1.ResolveProjectRequest, v1.ResolveProjectResponse]
+	initProject         *connect.Client[v1.InitProjectRequest, v1.InitProjectResponse]
 	listProjects        *connect.Client[v1.ListProjectsRequest, v1.ListProjectsResponse]
 	saveProject         *connect.Client[v1.SaveProjectRequest, v1.SaveProjectResponse]
 	archiveProject      *connect.Client[v1.ArchiveProjectRequest, v1.ArchiveProjectResponse]
@@ -143,6 +165,16 @@ type projectServiceClient struct {
 	deleteEnvironment   *connect.Client[v1.DeleteEnvironmentRequest, v1.DeleteEnvironmentResponse]
 	getProjectSettings  *connect.Client[v1.GetProjectSettingsRequest, v1.GetProjectSettingsResponse]
 	saveProjectSettings *connect.Client[v1.SaveProjectSettingsRequest, v1.SaveProjectSettingsResponse]
+}
+
+// ResolveProject calls polterware.local.v1.ProjectService.ResolveProject.
+func (c *projectServiceClient) ResolveProject(ctx context.Context, req *connect.Request[v1.ResolveProjectRequest]) (*connect.Response[v1.ResolveProjectResponse], error) {
+	return c.resolveProject.CallUnary(ctx, req)
+}
+
+// InitProject calls polterware.local.v1.ProjectService.InitProject.
+func (c *projectServiceClient) InitProject(ctx context.Context, req *connect.Request[v1.InitProjectRequest]) (*connect.Response[v1.InitProjectResponse], error) {
+	return c.initProject.CallUnary(ctx, req)
 }
 
 // ListProjects calls polterware.local.v1.ProjectService.ListProjects.
@@ -187,6 +219,8 @@ func (c *projectServiceClient) SaveProjectSettings(ctx context.Context, req *con
 
 // ProjectServiceHandler is an implementation of the polterware.local.v1.ProjectService service.
 type ProjectServiceHandler interface {
+	ResolveProject(context.Context, *connect.Request[v1.ResolveProjectRequest]) (*connect.Response[v1.ResolveProjectResponse], error)
+	InitProject(context.Context, *connect.Request[v1.InitProjectRequest]) (*connect.Response[v1.InitProjectResponse], error)
 	ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error)
 	SaveProject(context.Context, *connect.Request[v1.SaveProjectRequest]) (*connect.Response[v1.SaveProjectResponse], error)
 	ArchiveProject(context.Context, *connect.Request[v1.ArchiveProjectRequest]) (*connect.Response[v1.ArchiveProjectResponse], error)
@@ -204,6 +238,18 @@ type ProjectServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	projectServiceMethods := v1.File_polterware_local_v1_project_proto.Services().ByName("ProjectService").Methods()
+	projectServiceResolveProjectHandler := connect.NewUnaryHandler(
+		ProjectServiceResolveProjectProcedure,
+		svc.ResolveProject,
+		connect.WithSchema(projectServiceMethods.ByName("ResolveProject")),
+		connect.WithHandlerOptions(opts...),
+	)
+	projectServiceInitProjectHandler := connect.NewUnaryHandler(
+		ProjectServiceInitProjectProcedure,
+		svc.InitProject,
+		connect.WithSchema(projectServiceMethods.ByName("InitProject")),
+		connect.WithHandlerOptions(opts...),
+	)
 	projectServiceListProjectsHandler := connect.NewUnaryHandler(
 		ProjectServiceListProjectsProcedure,
 		svc.ListProjects,
@@ -254,6 +300,10 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 	)
 	return "/polterware.local.v1.ProjectService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case ProjectServiceResolveProjectProcedure:
+			projectServiceResolveProjectHandler.ServeHTTP(w, r)
+		case ProjectServiceInitProjectProcedure:
+			projectServiceInitProjectHandler.ServeHTTP(w, r)
 		case ProjectServiceListProjectsProcedure:
 			projectServiceListProjectsHandler.ServeHTTP(w, r)
 		case ProjectServiceSaveProjectProcedure:
@@ -278,6 +328,14 @@ func NewProjectServiceHandler(svc ProjectServiceHandler, opts ...connect.Handler
 
 // UnimplementedProjectServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedProjectServiceHandler struct{}
+
+func (UnimplementedProjectServiceHandler) ResolveProject(context.Context, *connect.Request[v1.ResolveProjectRequest]) (*connect.Response[v1.ResolveProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.ResolveProject is not implemented"))
+}
+
+func (UnimplementedProjectServiceHandler) InitProject(context.Context, *connect.Request[v1.InitProjectRequest]) (*connect.Response[v1.InitProjectResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.InitProject is not implemented"))
+}
 
 func (UnimplementedProjectServiceHandler) ListProjects(context.Context, *connect.Request[v1.ListProjectsRequest]) (*connect.Response[v1.ListProjectsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ProjectService.ListProjects is not implemented"))

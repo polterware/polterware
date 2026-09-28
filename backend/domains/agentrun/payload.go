@@ -26,6 +26,8 @@ type ChangePayload struct {
 	Paths      []string `json:"paths,omitempty"`
 	Tool       string   `json:"tool,omitempty"`
 	SubjectIDs []string `json:"subject_ids,omitempty"`
+	// BatchID links the step to its change_ops rows (Polter apply).
+	BatchID string `json:"batch_id,omitempty"`
 }
 
 // EvidencePayload lists evidence ids attributed to the run.
@@ -112,6 +114,11 @@ func NewChangeStep(runID, summary, rationale string, paths []string, now time.Ti
 
 // NewMutationChangeStep builds a change step, optionally attributing a write tool and subject ids.
 func NewMutationChangeStep(runID, summary, rationale, tool string, subjectIDs, paths []string, now time.Time) (Step, error) {
+	return NewBatchChangeStep(runID, summary, rationale, tool, "", subjectIDs, paths, now)
+}
+
+// NewBatchChangeStep is NewMutationChangeStep plus the change_ops batch id.
+func NewBatchChangeStep(runID, summary, rationale, tool, batchID string, subjectIDs, paths []string, now time.Time) (Step, error) {
 	if err := ValidateChange(summary, rationale); err != nil {
 		return Step{}, err
 	}
@@ -121,6 +128,7 @@ func NewMutationChangeStep(runID, summary, rationale, tool string, subjectIDs, p
 		Paths:      paths,
 		Tool:       strings.TrimSpace(tool),
 		SubjectIDs: subjectIDs,
+		BatchID:    strings.TrimSpace(batchID),
 	})
 	if err != nil {
 		return Step{}, err

@@ -1,6 +1,10 @@
 package mcp
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/polterware/polterware/backend/domains/polter"
+)
 
 // Stable wedge MCP tools (B4 reads + B6 AgentRun audit + B7 audited writes).
 const (
@@ -18,6 +22,10 @@ const (
 	ToolEvidenceLink     = "evidence.link"
 	ToolKnowledgeUpsert  = "knowledge.upsert"
 	ToolKnowledgeLink    = "knowledge.link"
+	// Polter channel (ADR 0006): Work cards in Polter format.
+	ToolPolterApply  = "polter.apply"
+	ToolPolterQuery  = "polter.query"
+	ToolPolterFormat = "polter.format"
 )
 
 func auditedWriteProperties(extra map[string]any) map[string]any {
@@ -41,6 +49,39 @@ func auditedWriteRequired(extra ...string) []string {
 
 func toolDefinitions() []map[string]any {
 	return []map[string]any{
+		{
+			"name":        ToolPolterFormat,
+			"description": "Return the Polter format spec (about 150 tokens). Read it once before writing Work cards with polter.apply.",
+			"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+		},
+		{
+			"name":        ToolPolterQuery,
+			"description": "Read Work cards in Polter format: \"cards\" lists one line per card; \"card <slug>\" returns the whole card.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"project_id": map[string]any{"type": "string"},
+					"query":      map[string]any{"type": "string", "description": "\"cards\" (default) or \"card <slug>\""},
+				},
+				"required": []string{"project_id"},
+			},
+		},
+		{
+			"name":        ToolPolterApply,
+			"description": "Create or update Work cards, tasks, questions, and invariants from Polter text in one audited write. Needs summary and rationale (frontmatter or arguments). Without agent_run_id the write joins this session's run; no agent_run.start/complete needed. dry_run returns the plan.",
+			"inputSchema": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"project_id":   map[string]any{"type": "string"},
+					"text":         map[string]any{"type": "string", "description": "Polter format text"},
+					"dry_run":      map[string]any{"type": "boolean"},
+					"summary":      map[string]any{"type": "string", "description": "Overrides the frontmatter summary"},
+					"rationale":    map[string]any{"type": "string", "description": "Overrides the frontmatter rationale"},
+					"agent_run_id": map[string]any{"type": "string", "description": "Optional open AgentRun"},
+				},
+				"required": []string{"project_id", "text"},
+			},
+		},
 		{
 			"name":        ToolContextGet,
 			"description": "Compile a bounded, provenance-aware project context package with machine reasons and evidence refs. Pass agent_run_id to append a context step on an open AgentRun.",
@@ -232,6 +273,12 @@ func toolDefinitions() []map[string]any {
 
 func (s *Server) invokeTool(name string, args map[string]any) (string, error) {
 	switch name {
+	case ToolPolterFormat:
+		return polter.Spec, nil
+	case ToolPolterQuery:
+		return s.polterQuery(args)
+	case ToolPolterApply:
+		return s.polterApply(args)
 	case ToolContextGet:
 		return s.contextGet(args)
 	case ToolEntityGet:

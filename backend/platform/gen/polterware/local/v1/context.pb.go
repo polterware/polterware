@@ -211,6 +211,7 @@ type CompileContextRequest struct {
 	Query         string                 `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
 	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	TokenBudget   int32                  `protobuf:"varint,4,opt,name=token_budget,json=tokenBudget,proto3" json:"token_budget,omitempty"`
+	AgentRunId    string                 `protobuf:"bytes,5,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -271,6 +272,13 @@ func (x *CompileContextRequest) GetTokenBudget() int32 {
 		return x.TokenBudget
 	}
 	return 0
+}
+
+func (x *CompileContextRequest) GetAgentRunId() string {
+	if x != nil {
+		return x.AgentRunId
+	}
+	return ""
 }
 
 type CompileContextResponse struct {
@@ -641,6 +649,7 @@ type CheckDriftRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	EntityId      string                 `protobuf:"bytes,2,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	AgentRunId    string                 `protobuf:"bytes,3,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -685,6 +694,13 @@ func (x *CheckDriftRequest) GetProjectId() string {
 func (x *CheckDriftRequest) GetEntityId() string {
 	if x != nil {
 		return x.EntityId
+	}
+	return ""
+}
+
+func (x *CheckDriftRequest) GetAgentRunId() string {
+	if x != nil {
+		return x.AgentRunId
 	}
 	return ""
 }
@@ -786,13 +802,15 @@ const file_polterware_local_v1_context_proto_rawDesc = "" +
 	"\x06source\x18\x06 \x01(\tR\x06source\x12\x12\n" +
 	"\x04path\x18\a \x01(\tR\x04path\x12\x18\n" +
 	"\areasons\x18\b \x03(\tR\areasons\x12C\n" +
-	"\bevidence\x18\t \x03(\v2'.polterware.local.v1.ContextEvidenceRefR\bevidence\"\x8c\x01\n" +
+	"\bevidence\x18\t \x03(\v2'.polterware.local.v1.ContextEvidenceRefR\bevidence\"\xae\x01\n" +
 	"\x15CompileContextRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12\x1b\n" +
 	"\tentity_id\x18\x03 \x01(\tR\bentityId\x12!\n" +
-	"\ftoken_budget\x18\x04 \x01(\x05R\vtokenBudget\"\x84\x02\n" +
+	"\ftoken_budget\x18\x04 \x01(\x05R\vtokenBudget\x12 \n" +
+	"\fagent_run_id\x18\x05 \x01(\tR\n" +
+	"agentRunId\"\x84\x02\n" +
 	"\x16CompileContextResponse\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
@@ -826,11 +844,13 @@ const file_polterware_local_v1_context_proto_rawDesc = "" +
 	"\asummary\x18\x03 \x01(\tR\asummary\x12\x1f\n" +
 	"\vsubject_ids\x18\x04 \x03(\tR\n" +
 	"subjectIds\x12!\n" +
-	"\fevidence_ids\x18\x05 \x03(\tR\vevidenceIds\"O\n" +
+	"\fevidence_ids\x18\x05 \x03(\tR\vevidenceIds\"q\n" +
 	"\x11CheckDriftRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
-	"\tentity_id\x18\x02 \x01(\tR\bentityId\"\xc1\x01\n" +
+	"\tentity_id\x18\x02 \x01(\tR\bentityId\x12 \n" +
+	"\fagent_run_id\x18\x03 \x01(\tR\n" +
+	"agentRunId\"\xc1\x01\n" +
 	"\x12CheckDriftResponse\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +

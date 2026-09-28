@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/health.proto.
  */
 export const file_polterware_local_v1_health: GenFile = /*@__PURE__*/
-  fileDesc("CiBwb2x0ZXJ3YXJlL2xvY2FsL3YxL2hlYWx0aC5wcm90bxITcG9sdGVyd2FyZS5sb2NhbC52MSIOCgxDaGVja1JlcXVlc3QiRAoNQ2hlY2tSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDwoHdmVyc2lvbhgCIAEoCRISCgp1cHRpbWVfc2VjGAMgASgBMl8KDUhlYWx0aFNlcnZpY2USTgoFQ2hlY2sSIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkNoZWNrUmVxdWVzdBoiLnBvbHRlcndhcmUubG9jYWwudjEuQ2hlY2tSZXNwb25zZULnAQoXY29tLnBvbHRlcndhcmUubG9jYWwudjFCC0hlYWx0aFByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
+  fileDesc("CiBwb2x0ZXJ3YXJlL2xvY2FsL3YxL2hlYWx0aC5wcm90bxITcG9sdGVyd2FyZS5sb2NhbC52MSIOCgxDaGVja1JlcXVlc3QiYAoNQ2hlY2tSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDwoHdmVyc2lvbhgCIAEoCRISCgp1cHRpbWVfc2VjGAMgASgBEg0KBWJ1aWxkGAQgASgJEgsKA3BpZBgFIAEoBTJfCg1IZWFsdGhTZXJ2aWNlEk4KBUNoZWNrEiEucG9sdGVyd2FyZS5sb2NhbC52MS5DaGVja1JlcXVlc3QaIi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkNoZWNrUmVzcG9uc2VC5wEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQgtIZWFsdGhQcm90b1ABWlFnaXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9iYWNrZW5kL3BsYXRmb3JtL2dlbi9wb2x0ZXJ3YXJlL2xvY2FsL3YxO2xvY2FsdjGiAgNQTFiqAhNQb2x0ZXJ3YXJlLkxvY2FsLlYxygITUG9sdGVyd2FyZVxMb2NhbFxWMeICH1BvbHRlcndhcmVcTG9jYWxcVjFcR1BCTWV0YWRhdGHqAhVQb2x0ZXJ3YXJlOjpMb2NhbDo6VjFiBnByb3RvMw");
 
 /**
  * @generated from message polterware.local.v1.CheckRequest
@@ -43,6 +43,19 @@ export type CheckResponse = Message<"polterware.local.v1.CheckResponse"> & {
    * @generated from field: double uptime_sec = 3;
    */
   uptimeSec: number;
+
+  /**
+   * build identifies the core binary; a client with a different build asks the
+   * core to shut down and starts its own (ADR 0007).
+   *
+   * @generated from field: string build = 4;
+   */
+  build: string;
+
+  /**
+   * @generated from field: int32 pid = 5;
+   */
+  pid: number;
 };
 
 /**

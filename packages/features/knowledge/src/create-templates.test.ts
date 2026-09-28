@@ -15,7 +15,7 @@ describe("knowledge create templates", () => {
     expect(knowledgeTemplatesForKind("doc")).toHaveLength(3);
     expect(knowledgeTemplatesForKind("adr")).toHaveLength(3);
     expect(knowledgeTemplatesForKind("runbook")).toHaveLength(3);
-    expect(knowledgeTemplatesForKind("feature")).toHaveLength(3);
+    expect(knowledgeTemplatesForKind("card")).toHaveLength(3);
     expect(knowledgeTemplatesForKind("source")).toHaveLength(3);
   });
 

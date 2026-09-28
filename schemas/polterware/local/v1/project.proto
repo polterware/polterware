@@ -51,7 +51,25 @@ message GetProjectSettingsResponse { ProjectSettings settings = 1; }
 message SaveProjectSettingsRequest { ProjectSettings settings = 1; }
 message SaveProjectSettingsResponse { ProjectSettings settings = 1; }
 
+// ResolveProject returns the project with id, or, when id is empty, the
+// registered project whose root contains dir (deepest root wins).
+message ResolveProjectRequest {
+  string id = 1;
+  string dir = 2;
+}
+message ResolveProjectResponse { Project project = 1; }
+
+// InitProject registers a project with an empty layout and a "local" environment.
+message InitProjectRequest {
+  string id = 1;
+  string name = 2;
+  string root_path = 3;
+}
+message InitProjectResponse { Project project = 1; }
+
 service ProjectService {
+  rpc ResolveProject(ResolveProjectRequest) returns (ResolveProjectResponse);
+  rpc InitProject(InitProjectRequest) returns (InitProjectResponse);
   rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
   rpc SaveProject(SaveProjectRequest) returns (SaveProjectResponse);
   rpc ArchiveProject(ArchiveProjectRequest) returns (ArchiveProjectResponse);

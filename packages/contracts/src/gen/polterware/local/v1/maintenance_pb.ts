@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/maintenance.proto.
  */
 export const file_polterware_local_v1_maintenance: GenFile = /*@__PURE__*/
-  fileDesc("CiVwb2x0ZXJ3YXJlL2xvY2FsL3YxL21haW50ZW5hbmNlLnByb3RvEhNwb2x0ZXJ3YXJlLmxvY2FsLnYxIhgKFlJlc2V0TG9jYWxTdG9yZVJlcXVlc3QiKQoXUmVzZXRMb2NhbFN0b3JlUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJIhcKFUdldFN0b3JlSGVhbHRoUmVxdWVzdCI+ChZHZXRTdG9yZUhlYWx0aFJlc3BvbnNlEhMKC3F1YXJhbnRpbmVkGAEgASgIEg8KB21lc3NhZ2UYAiABKAky7QEKEk1haW50ZW5hbmNlU2VydmljZRJsCg9SZXNldExvY2FsU3RvcmUSKy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlJlc2V0TG9jYWxTdG9yZVJlcXVlc3QaLC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlJlc2V0TG9jYWxTdG9yZVJlc3BvbnNlEmkKDkdldFN0b3JlSGVhbHRoEioucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRTdG9yZUhlYWx0aFJlcXVlc3QaKy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkdldFN0b3JlSGVhbHRoUmVzcG9uc2VC7AEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQhBNYWludGVuYW5jZVByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
+  fileDesc("CiVwb2x0ZXJ3YXJlL2xvY2FsL3YxL21haW50ZW5hbmNlLnByb3RvEhNwb2x0ZXJ3YXJlLmxvY2FsLnYxIhgKFlJlc2V0TG9jYWxTdG9yZVJlcXVlc3QiKQoXUmVzZXRMb2NhbFN0b3JlUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJIhcKFUdldFN0b3JlSGVhbHRoUmVxdWVzdCI+ChZHZXRTdG9yZUhlYWx0aFJlc3BvbnNlEhMKC3F1YXJhbnRpbmVkGAEgASgIEg8KB21lc3NhZ2UYAiABKAkiIQoPU2h1dGRvd25SZXF1ZXN0Eg4KBnJlYXNvbhgBIAEoCSISChBTaHV0ZG93blJlc3BvbnNlMsYCChJNYWludGVuYW5jZVNlcnZpY2USbAoPUmVzZXRMb2NhbFN0b3JlEisucG9sdGVyd2FyZS5sb2NhbC52MS5SZXNldExvY2FsU3RvcmVSZXF1ZXN0GiwucG9sdGVyd2FyZS5sb2NhbC52MS5SZXNldExvY2FsU3RvcmVSZXNwb25zZRJpCg5HZXRTdG9yZUhlYWx0aBIqLnBvbHRlcndhcmUubG9jYWwudjEuR2V0U3RvcmVIZWFsdGhSZXF1ZXN0GisucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRTdG9yZUhlYWx0aFJlc3BvbnNlElcKCFNodXRkb3duEiQucG9sdGVyd2FyZS5sb2NhbC52MS5TaHV0ZG93blJlcXVlc3QaJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNodXRkb3duUmVzcG9uc2VC7AEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQhBNYWludGVuYW5jZVByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
 
 /**
  * @generated from message polterware.local.v1.ResetLocalStoreRequest
@@ -78,6 +78,39 @@ export const GetStoreHealthResponseSchema: GenMessage<GetStoreHealthResponse> = 
   messageDesc(file_polterware_local_v1_maintenance, 3);
 
 /**
+ * Shutdown stops the core after the response is sent (build mismatch or an
+ * explicit stop from the TUI).
+ *
+ * @generated from message polterware.local.v1.ShutdownRequest
+ */
+export type ShutdownRequest = Message<"polterware.local.v1.ShutdownRequest"> & {
+  /**
+   * @generated from field: string reason = 1;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ShutdownRequest.
+ * Use `create(ShutdownRequestSchema)` to create a new message.
+ */
+export const ShutdownRequestSchema: GenMessage<ShutdownRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_maintenance, 4);
+
+/**
+ * @generated from message polterware.local.v1.ShutdownResponse
+ */
+export type ShutdownResponse = Message<"polterware.local.v1.ShutdownResponse"> & {
+};
+
+/**
+ * Describes the message polterware.local.v1.ShutdownResponse.
+ * Use `create(ShutdownResponseSchema)` to create a new message.
+ */
+export const ShutdownResponseSchema: GenMessage<ShutdownResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_maintenance, 5);
+
+/**
  * @generated from service polterware.local.v1.MaintenanceService
  */
 export const MaintenanceService: GenService<{
@@ -96,6 +129,14 @@ export const MaintenanceService: GenService<{
     methodKind: "unary";
     input: typeof GetStoreHealthRequestSchema;
     output: typeof GetStoreHealthResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.MaintenanceService.Shutdown
+   */
+  shutdown: {
+    methodKind: "unary";
+    input: typeof ShutdownRequestSchema;
+    output: typeof ShutdownResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_polterware_local_v1_maintenance, 0);

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -10,32 +11,51 @@ import (
 	"time"
 
 	localcore "github.com/polterware/polterware/backend/compositions/local-core"
+	"github.com/polterware/polterware/backend/platform/coreclient"
 	"github.com/polterware/polterware/backend/platform/runstate"
-	"github.com/polterware/polterware/backend/providers/mcp"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
-// runServe runs the loopback Connect server the Desktop and TUI attach to.
-func runServe(store *storepkg.Store, dbPath string, args []string) error {
+// defaultIdle is how long the core waits without requests or open change
+// streams before it exits (ADR 0007: daemon with idle exit).
+const defaultIdle = 10 * time.Minute
+
+// runServe runs the core: the only process that opens the store. The Desktop,
+// CLI, TUI, and MCP bridge attach to it through core.json.
+func runServe(dbPath string, args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
-	listenAddress := fs.String("listen", "127.0.0.1:4020", "loopback listen address")
-	sessionToken := fs.String("token", os.Getenv("POLTERWARE_SESSION_TOKEN"), "session bearer token")
+	listenAddress := fs.String("listen", "127.0.0.1:0", "loopback listen address")
+	sessionToken := fs.String("token", os.Getenv("POLTERWARE_SESSION_TOKEN"), "session bearer token (default: minted)")
+	idle := fs.Duration("idle", idleFromEnv(), "exit after this long without clients (0 keeps running)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	if existing, ok := runstate.ReadCore(dbPath); ok && existing.Owner == "standalone" {
-		fmt.Fprintf(os.Stderr, "polterware core already running for this database (pid %d, %s)\n", existing.PID, existing.Endpoint)
+	lock, err := runstate.LockCore(dbPath)
+	if errors.Is(err, runstate.ErrCoreLocked) {
+		if existing, ok := runstate.ReadCore(dbPath); ok {
+			fmt.Fprintf(os.Stderr, "polterware core already running for this database (pid %d, %s)\n", existing.PID, existing.Endpoint)
+		} else {
+			fmt.Fprintln(os.Stderr, "polterware core already running for this database")
+		}
 		os.Exit(3)
 	}
+	if err != nil {
+		return fmt.Errorf("core lock: %w", err)
+	}
+	defer lock.Close()
+
+	store, err := storepkg.New(dbPath)
+	if err != nil {
+		return fmt.Errorf("db open: %w", err)
+	}
+	defer store.Close()
 
 	token := *sessionToken
 	if token == "" {
-		minted, err := localcore.MintToken()
-		if err != nil {
+		if token, err = localcore.MintToken(); err != nil {
 			return fmt.Errorf("token: %w", err)
 		}
-		token = minted
 	}
 	ln, endpoint, err := localcore.Listen(*listenAddress)
 	if err != nil {
@@ -44,18 +64,17 @@ func runServe(store *storepkg.Store, dbPath string, args []string) error {
 	fmt.Fprintf(os.Stderr, "polterware core listening on %s with session-token authentication\n", endpoint)
 
 	core := localcore.NewCore(store, token)
+	if exe, err := coreclient.Executable(); err == nil {
+		core.Build = coreclient.BuildID(exe)
+	}
 	hs := localcore.ServeConnect(ln, core)
 
-	owner := os.Getenv("POLTERWARE_CORE_OWNER")
-	if owner == "" {
-		owner = "standalone"
-	}
 	if err := runstate.WriteJSON(runstate.CorePath(dbPath), runstate.Core{
 		PID:       os.Getpid(),
 		Endpoint:  endpoint,
 		Token:     token,
 		DBPath:    dbPath,
-		Owner:     owner,
+		Build:     core.Build,
 		StartedAt: time.Now().UTC(),
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "run state: %v\n", err)
@@ -63,16 +82,36 @@ func runServe(store *storepkg.Store, dbPath string, args []string) error {
 	defer runstate.RemoveCore(dbPath, os.Getpid())
 
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-	<-sig
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+wait:
+	for {
+		select {
+		case <-sig:
+			break wait
+		case <-core.Done():
+			break wait
+		case <-ticker.C:
+			if *idle > 0 && core.Idle(*idle) {
+				fmt.Fprintf(os.Stderr, "polterware core idle for %s; exiting\n", *idle)
+				break wait
+			}
+		}
+	}
+	core.Stop()
+	core.MCP.CloseAll()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = hs.Shutdown(ctx)
 	return nil
 }
 
-// runMCP serves MCP over stdio for coding agents.
-func runMCP(store *storepkg.Store, dbPath string) error {
-	fmt.Fprintf(os.Stderr, "polterware mcp (experimental tools; not a product API contract)\n")
-	return mcp.Run(store, dbPath)
+func idleFromEnv() time.Duration {
+	if value := os.Getenv("POLTERWARE_CORE_IDLE"); value != "" {
+		if d, err := time.ParseDuration(value); err == nil {
+			return d
+		}
+	}
+	return defaultIdle
 }

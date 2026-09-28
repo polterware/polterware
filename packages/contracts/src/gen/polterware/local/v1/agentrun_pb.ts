@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/agentrun.proto.
  */
 export const file_polterware_local_v1_agentrun: GenFile = /*@__PURE__*/
-  fileDesc("CiJwb2x0ZXJ3YXJlL2xvY2FsL3YxL2FnZW50cnVuLnByb3RvEhNwb2x0ZXJ3YXJlLmxvY2FsLnYxIpsBCghBZ2VudFJ1bhIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBHRhc2sYAyABKAkSEwoLYWdlbnRfbGFiZWwYBCABKAkSDgoGc3RhdHVzGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSFAoMY29tcGxldGVkX2F0GAcgASgJEhIKCmFjdG9yX2tpbmQYCCABKAkieQoMQWdlbnRSdW5TdGVwEgoKAmlkGAEgASgJEhQKDGFnZW50X3J1bl9pZBgCIAEoCRIMCgRraW5kGAMgASgJEg8KB3N1bW1hcnkYBCABKAkSFAoMcGF5bG9hZF9qc29uGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkiSgoOQ2hhbmdlRW52ZWxvcGUSDwoHc3VtbWFyeRgBIAEoCRIRCglyYXRpb25hbGUYAiABKAkSFAoMYWdlbnRfcnVuX2lkGAMgASgJIjkKFExpc3RBZ2VudFJ1bnNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFbGltaXQYAiABKAUiRAoVTGlzdEFnZW50UnVuc1Jlc3BvbnNlEisKBHJ1bnMYASADKAsyHS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuIiAKEkdldEFnZW50UnVuUmVxdWVzdBIKCgJpZBgBIAEoCSJzChNHZXRBZ2VudFJ1blJlc3BvbnNlEioKA3J1bhgBIAEoCzIdLnBvbHRlcndhcmUubG9jYWwudjEuQWdlbnRSdW4SMAoFc3RlcHMYAiADKAsyIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuU3RlcCLUAQoNUHJvamVjdENoYW5nZRIPCgdzdGVwX2lkGAEgASgJEhQKDGFnZW50X3J1bl9pZBgCIAEoCRISCgpwcm9qZWN0X2lkGAMgASgJEhIKCmFjdG9yX2tpbmQYBCABKAkSEwoLYWdlbnRfbGFiZWwYBSABKAkSEgoKcnVuX3N0YXR1cxgGIAEoCRIQCghydW5fdGFzaxgHIAEoCRIPCgdzdW1tYXJ5GAggASgJEhQKDHBheWxvYWRfanNvbhgJIAEoCRISCgpjcmVhdGVkX2F0GAogASgJIksKEkxpc3RDaGFuZ2VzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhIKCmFjdG9yX2tpbmQYAiABKAkSDQoFbGltaXQYAyABKAUiSgoTTGlzdENoYW5nZXNSZXNwb25zZRIzCgdjaGFuZ2VzGAEgAygLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5Qcm9qZWN0Q2hhbmdlMr0CCg9BZ2VudFJ1blNlcnZpY2USZgoNTGlzdEFnZW50UnVucxIpLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEFnZW50UnVuc1JlcXVlc3QaKi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RBZ2VudFJ1bnNSZXNwb25zZRJgCgtHZXRBZ2VudFJ1bhInLnBvbHRlcndhcmUubG9jYWwudjEuR2V0QWdlbnRSdW5SZXF1ZXN0GigucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRBZ2VudFJ1blJlc3BvbnNlEmAKC0xpc3RDaGFuZ2VzEicucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0Q2hhbmdlc1JlcXVlc3QaKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RDaGFuZ2VzUmVzcG9uc2VC6QEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQg1BZ2VudHJ1blByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
+  fileDesc("CiJwb2x0ZXJ3YXJlL2xvY2FsL3YxL2FnZW50cnVuLnByb3RvEhNwb2x0ZXJ3YXJlLmxvY2FsLnYxIpsBCghBZ2VudFJ1bhIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBHRhc2sYAyABKAkSEwoLYWdlbnRfbGFiZWwYBCABKAkSDgoGc3RhdHVzGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSFAoMY29tcGxldGVkX2F0GAcgASgJEhIKCmFjdG9yX2tpbmQYCCABKAkieQoMQWdlbnRSdW5TdGVwEgoKAmlkGAEgASgJEhQKDGFnZW50X3J1bl9pZBgCIAEoCRIMCgRraW5kGAMgASgJEg8KB3N1bW1hcnkYBCABKAkSFAoMcGF5bG9hZF9qc29uGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkiSgoOQ2hhbmdlRW52ZWxvcGUSDwoHc3VtbWFyeRgBIAEoCRIRCglyYXRpb25hbGUYAiABKAkSFAoMYWdlbnRfcnVuX2lkGAMgASgJIjkKFExpc3RBZ2VudFJ1bnNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFbGltaXQYAiABKAUiRAoVTGlzdEFnZW50UnVuc1Jlc3BvbnNlEisKBHJ1bnMYASADKAsyHS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuIiAKEkdldEFnZW50UnVuUmVxdWVzdBIKCgJpZBgBIAEoCSJzChNHZXRBZ2VudFJ1blJlc3BvbnNlEioKA3J1bhgBIAEoCzIdLnBvbHRlcndhcmUubG9jYWwudjEuQWdlbnRSdW4SMAoFc3RlcHMYAiADKAsyIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuU3RlcCLUAQoNUHJvamVjdENoYW5nZRIPCgdzdGVwX2lkGAEgASgJEhQKDGFnZW50X3J1bl9pZBgCIAEoCRISCgpwcm9qZWN0X2lkGAMgASgJEhIKCmFjdG9yX2tpbmQYBCABKAkSEwoLYWdlbnRfbGFiZWwYBSABKAkSEgoKcnVuX3N0YXR1cxgGIAEoCRIQCghydW5fdGFzaxgHIAEoCRIPCgdzdW1tYXJ5GAggASgJEhQKDHBheWxvYWRfanNvbhgJIAEoCRISCgpjcmVhdGVkX2F0GAogASgJIksKEkxpc3RDaGFuZ2VzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhIKCmFjdG9yX2tpbmQYAiABKAkSDQoFbGltaXQYAyABKAUiSgoTTGlzdENoYW5nZXNSZXNwb25zZRIzCgdjaGFuZ2VzGAEgAygLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5Qcm9qZWN0Q2hhbmdlIm8KCk1jcFNlc3Npb24SCgoCaWQYASABKAkSEwoLY2xpZW50X25hbWUYAiABKAkSFgoOY2xpZW50X3ZlcnNpb24YAyABKAkSEgoKc3RhcnRlZF9hdBgEIAEoCRIUCgxsYXN0X3NlZW5fYXQYBSABKAkiGAoWTGlzdE1jcFNlc3Npb25zUmVxdWVzdCJMChdMaXN0TWNwU2Vzc2lvbnNSZXNwb25zZRIxCghzZXNzaW9ucxgBIAMoCzIfLnBvbHRlcndhcmUubG9jYWwudjEuTWNwU2Vzc2lvbjKrAwoPQWdlbnRSdW5TZXJ2aWNlEmwKD0xpc3RNY3BTZXNzaW9ucxIrLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdE1jcFNlc3Npb25zUmVxdWVzdBosLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdE1jcFNlc3Npb25zUmVzcG9uc2USZgoNTGlzdEFnZW50UnVucxIpLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEFnZW50UnVuc1JlcXVlc3QaKi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RBZ2VudFJ1bnNSZXNwb25zZRJgCgtHZXRBZ2VudFJ1bhInLnBvbHRlcndhcmUubG9jYWwudjEuR2V0QWdlbnRSdW5SZXF1ZXN0GigucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRBZ2VudFJ1blJlc3BvbnNlEmAKC0xpc3RDaGFuZ2VzEicucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0Q2hhbmdlc1JlcXVlc3QaKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RDaGFuZ2VzUmVzcG9uc2VC6QEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQg1BZ2VudHJ1blByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
 
 /**
  * @generated from message polterware.local.v1.AgentRun
@@ -325,9 +325,86 @@ export const ListChangesResponseSchema: GenMessage<ListChangesResponse> = /*@__P
   messageDesc(file_polterware_local_v1_agentrun, 9);
 
 /**
+ * McpSession is one live MCP client connected to the core (ADR 0007).
+ *
+ * @generated from message polterware.local.v1.McpSession
+ */
+export type McpSession = Message<"polterware.local.v1.McpSession"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string client_name = 2;
+   */
+  clientName: string;
+
+  /**
+   * @generated from field: string client_version = 3;
+   */
+  clientVersion: string;
+
+  /**
+   * @generated from field: string started_at = 4;
+   */
+  startedAt: string;
+
+  /**
+   * @generated from field: string last_seen_at = 5;
+   */
+  lastSeenAt: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.McpSession.
+ * Use `create(McpSessionSchema)` to create a new message.
+ */
+export const McpSessionSchema: GenMessage<McpSession> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 10);
+
+/**
+ * @generated from message polterware.local.v1.ListMcpSessionsRequest
+ */
+export type ListMcpSessionsRequest = Message<"polterware.local.v1.ListMcpSessionsRequest"> & {
+};
+
+/**
+ * Describes the message polterware.local.v1.ListMcpSessionsRequest.
+ * Use `create(ListMcpSessionsRequestSchema)` to create a new message.
+ */
+export const ListMcpSessionsRequestSchema: GenMessage<ListMcpSessionsRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 11);
+
+/**
+ * @generated from message polterware.local.v1.ListMcpSessionsResponse
+ */
+export type ListMcpSessionsResponse = Message<"polterware.local.v1.ListMcpSessionsResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.McpSession sessions = 1;
+   */
+  sessions: McpSession[];
+};
+
+/**
+ * Describes the message polterware.local.v1.ListMcpSessionsResponse.
+ * Use `create(ListMcpSessionsResponseSchema)` to create a new message.
+ */
+export const ListMcpSessionsResponseSchema: GenMessage<ListMcpSessionsResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 12);
+
+/**
  * @generated from service polterware.local.v1.AgentRunService
  */
 export const AgentRunService: GenService<{
+  /**
+   * @generated from rpc polterware.local.v1.AgentRunService.ListMcpSessions
+   */
+  listMcpSessions: {
+    methodKind: "unary";
+    input: typeof ListMcpSessionsRequestSchema;
+    output: typeof ListMcpSessionsResponseSchema;
+  },
   /**
    * @generated from rpc polterware.local.v1.AgentRunService.ListAgentRuns
    */

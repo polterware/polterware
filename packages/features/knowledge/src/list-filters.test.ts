@@ -1,72 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
   EMPTY_SOURCE_LIST_FILTERS,
-  EMPTY_SPEC_LIST_FILTERS,
+  EMPTY_CARD_LIST_FILTERS,
   distinctSourcePathPrefixes,
   filterSources,
-  filterSpecFeatures,
+  filterWorkCards,
   sourcePathPrefix,
 } from "./list-filters";
-import type { WorkspaceSource, WorkspaceSpecFeature } from "@polterware/feature-shell";
+import type { WorkspaceSource, WorkspaceWorkCard } from "@polterware/feature-shell";
 
-const feature = {
-  featureKey: "auth",
+const card = {
+  id: "01J",
+  slug: "auth",
   title: "Auth",
-  status: "draft",
-  updatedAt: "2026-01-01",
+  intent: "Login",
+  stage: "plan",
   owner: "Ada",
-  summary: "Login",
-  spec: {
-    id: "s",
-    kind: "spec",
-    title: "Spec",
-    bodyMarkdown: "",
-    status: "draft",
-    updatedAt: "2026-01-01",
-    owner: "Ada",
-    featureKey: "auth",
-  },
-  plan: {
-    id: "p",
-    kind: "plan",
-    title: "Plan",
-    bodyMarkdown: "",
-    status: "draft",
-    updatedAt: "2026-01-01",
-    owner: "Ada",
-    featureKey: "auth",
-  },
-  tasks: {
-    id: "t",
-    kind: "tasks",
-    title: "Tasks",
-    bodyMarkdown: "",
-    status: "draft",
-    updatedAt: "2026-01-01",
-    owner: "Ada",
-    featureKey: "auth",
-  },
-  clarify: {
-    id: "c",
-    kind: "clarify",
-    title: "Clarify",
-    bodyMarkdown: "",
-    status: "draft",
-    updatedAt: "2026-01-01",
-    owner: "Ada",
-    featureKey: "auth",
-  },
-  checklist: {
-    id: "ch",
-    kind: "checklist",
-    title: "Checklist",
-    bodyMarkdown: "- [ ] Open item\n",
-    status: "draft",
-    updatedAt: "2026-01-01",
-    owner: "Ada",
-    featureKey: "auth",
-  },
-} satisfies WorkspaceSpecFeature;
+  under: "",
+  decisions: [],
+  updatedAt: "2026-01-01",
+  tasks: [],
+  questions: [{ id: "q1", text: "SSO?", blocking: false, options: [], state: "open", answer: "" }],
+  invariants: [],
+} satisfies WorkspaceWorkCard;
 
 const source = {
   id: "src-1",
@@ -85,25 +41,12 @@ describe("list-filters", () => {
     expect(distinctSourcePathPrefixes([source])).toEqual(["schemas"]);
   });
 
-  it("filters specs by status and checklist", () => {
-    expect(
-      filterSpecFeatures([feature], {
-        ...EMPTY_SPEC_LIST_FILTERS,
-        statuses: ["ready"],
-      }),
-    ).toHaveLength(0);
-    expect(
-      filterSpecFeatures([feature], {
-        ...EMPTY_SPEC_LIST_FILTERS,
-        checklist: "open",
-      }),
-    ).toHaveLength(1);
-    expect(
-      filterSpecFeatures([feature], {
-        ...EMPTY_SPEC_LIST_FILTERS,
-        checklist: "clear",
-      }),
-    ).toHaveLength(0);
+  it("filters cards by stage, open questions, and query", () => {
+    expect(filterWorkCards([card], { ...EMPTY_CARD_LIST_FILTERS, stages: ["build"] })).toHaveLength(0);
+    expect(filterWorkCards([card], { ...EMPTY_CARD_LIST_FILTERS, stages: ["plan"] })).toHaveLength(1);
+    expect(filterWorkCards([card], { ...EMPTY_CARD_LIST_FILTERS, questions: "open" })).toHaveLength(1);
+    expect(filterWorkCards([card], { ...EMPTY_CARD_LIST_FILTERS, questions: "clear" })).toHaveLength(0);
+    expect(filterWorkCards([card], { ...EMPTY_CARD_LIST_FILTERS, query: "login" })).toHaveLength(1);
   });
 
   it("filters sources by path prefix and linked", () => {

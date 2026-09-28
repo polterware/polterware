@@ -1,8 +1,4 @@
-import type {
-  WorkspaceDocument,
-  WorkspaceRunbook,
-  WorkspaceSpecFeature,
-} from "@polterware/feature-shell";
+import type { WorkspaceDocument, WorkspaceRunbook } from "@polterware/feature-shell";
 import type { StatusTone } from "@polterware/frontend-design-system";
 
 export type { StatusTone };
@@ -27,8 +23,4 @@ export function runbookSeverityTone(severity: WorkspaceRunbook["severity"]): Sta
   if (severity === "critical" || severity === "high") return "danger";
   if (severity === "medium") return "warn";
   return "muted";
-}
-
-export function specStatusTone(status: WorkspaceSpecFeature["status"]): StatusTone {
-  return status === "ready" ? "healthy" : "warn";
 }

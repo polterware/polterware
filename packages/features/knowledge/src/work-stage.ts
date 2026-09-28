@@ -1,6 +1,5 @@
 import type { StatusTone } from "@polterware/frontend-design-system";
-import type { WorkStage, WorkspaceSpecFeature } from "@polterware/feature-shell";
-import { checklistProgress } from "./spec-templates";
+import type { WorkStage, WorkspaceWorkCard } from "@polterware/feature-shell";
 
 export const WORK_STAGES: readonly { id: WorkStage; label: string }[] = [
   { id: "shape", label: "Shape" },
@@ -25,24 +24,12 @@ export function workStageTone(stage: WorkStage): StatusTone {
   return "muted";
 }
 
-/** Checked vs total `- [ ]` items in the Tasks artifact. */
-export function featureTaskProgress(feature: WorkspaceSpecFeature): { done: number; total: number } {
-  return checklistProgress(feature.tasks.bodyMarkdown);
+/** Done vs total tasks; dropped tasks do not count. */
+export function cardTaskProgress(card: WorkspaceWorkCard): { done: number; total: number } {
+  const live = card.tasks.filter((task) => task.state !== "dropped");
+  return { done: live.filter((task) => task.state === "done").length, total: live.length };
 }
 
-/** Unchecked `- [ ]` items in the Clarify artifact. */
-export function featureOpenQuestions(feature: WorkspaceSpecFeature): number {
-  const progress = checklistProgress(feature.clarify.bodyMarkdown);
-  return progress.total - progress.done;
-}
-
-/**
- * Stored stage wins. Without one, draft features are still being shaped, and
- * ready features are in Build until every task is checked, then in Verify.
- */
-export function resolveFeatureStage(feature: WorkspaceSpecFeature): WorkStage {
-  if (feature.stage) return feature.stage;
-  if (feature.status === "draft") return "shape";
-  const progress = featureTaskProgress(feature);
-  return progress.total > 0 && progress.done === progress.total ? "verify" : "build";
+export function cardOpenQuestions(card: WorkspaceWorkCard): number {
+  return card.questions.filter((question) => question.state === "open").length;
 }

@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AgentRunServiceListMcpSessionsProcedure is the fully-qualified name of the AgentRunService's
+	// ListMcpSessions RPC.
+	AgentRunServiceListMcpSessionsProcedure = "/polterware.local.v1.AgentRunService/ListMcpSessions"
 	// AgentRunServiceListAgentRunsProcedure is the fully-qualified name of the AgentRunService's
 	// ListAgentRuns RPC.
 	AgentRunServiceListAgentRunsProcedure = "/polterware.local.v1.AgentRunService/ListAgentRuns"
@@ -46,6 +49,7 @@ const (
 
 // AgentRunServiceClient is a client for the polterware.local.v1.AgentRunService service.
 type AgentRunServiceClient interface {
+	ListMcpSessions(context.Context, *connect.Request[v1.ListMcpSessionsRequest]) (*connect.Response[v1.ListMcpSessionsResponse], error)
 	ListAgentRuns(context.Context, *connect.Request[v1.ListAgentRunsRequest]) (*connect.Response[v1.ListAgentRunsResponse], error)
 	GetAgentRun(context.Context, *connect.Request[v1.GetAgentRunRequest]) (*connect.Response[v1.GetAgentRunResponse], error)
 	ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error)
@@ -62,6 +66,12 @@ func NewAgentRunServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	agentRunServiceMethods := v1.File_polterware_local_v1_agentrun_proto.Services().ByName("AgentRunService").Methods()
 	return &agentRunServiceClient{
+		listMcpSessions: connect.NewClient[v1.ListMcpSessionsRequest, v1.ListMcpSessionsResponse](
+			httpClient,
+			baseURL+AgentRunServiceListMcpSessionsProcedure,
+			connect.WithSchema(agentRunServiceMethods.ByName("ListMcpSessions")),
+			connect.WithClientOptions(opts...),
+		),
 		listAgentRuns: connect.NewClient[v1.ListAgentRunsRequest, v1.ListAgentRunsResponse](
 			httpClient,
 			baseURL+AgentRunServiceListAgentRunsProcedure,
@@ -85,9 +95,15 @@ func NewAgentRunServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // agentRunServiceClient implements AgentRunServiceClient.
 type agentRunServiceClient struct {
-	listAgentRuns *connect.Client[v1.ListAgentRunsRequest, v1.ListAgentRunsResponse]
-	getAgentRun   *connect.Client[v1.GetAgentRunRequest, v1.GetAgentRunResponse]
-	listChanges   *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
+	listMcpSessions *connect.Client[v1.ListMcpSessionsRequest, v1.ListMcpSessionsResponse]
+	listAgentRuns   *connect.Client[v1.ListAgentRunsRequest, v1.ListAgentRunsResponse]
+	getAgentRun     *connect.Client[v1.GetAgentRunRequest, v1.GetAgentRunResponse]
+	listChanges     *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
+}
+
+// ListMcpSessions calls polterware.local.v1.AgentRunService.ListMcpSessions.
+func (c *agentRunServiceClient) ListMcpSessions(ctx context.Context, req *connect.Request[v1.ListMcpSessionsRequest]) (*connect.Response[v1.ListMcpSessionsResponse], error) {
+	return c.listMcpSessions.CallUnary(ctx, req)
 }
 
 // ListAgentRuns calls polterware.local.v1.AgentRunService.ListAgentRuns.
@@ -107,6 +123,7 @@ func (c *agentRunServiceClient) ListChanges(ctx context.Context, req *connect.Re
 
 // AgentRunServiceHandler is an implementation of the polterware.local.v1.AgentRunService service.
 type AgentRunServiceHandler interface {
+	ListMcpSessions(context.Context, *connect.Request[v1.ListMcpSessionsRequest]) (*connect.Response[v1.ListMcpSessionsResponse], error)
 	ListAgentRuns(context.Context, *connect.Request[v1.ListAgentRunsRequest]) (*connect.Response[v1.ListAgentRunsResponse], error)
 	GetAgentRun(context.Context, *connect.Request[v1.GetAgentRunRequest]) (*connect.Response[v1.GetAgentRunResponse], error)
 	ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error)
@@ -119,6 +136,12 @@ type AgentRunServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAgentRunServiceHandler(svc AgentRunServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	agentRunServiceMethods := v1.File_polterware_local_v1_agentrun_proto.Services().ByName("AgentRunService").Methods()
+	agentRunServiceListMcpSessionsHandler := connect.NewUnaryHandler(
+		AgentRunServiceListMcpSessionsProcedure,
+		svc.ListMcpSessions,
+		connect.WithSchema(agentRunServiceMethods.ByName("ListMcpSessions")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentRunServiceListAgentRunsHandler := connect.NewUnaryHandler(
 		AgentRunServiceListAgentRunsProcedure,
 		svc.ListAgentRuns,
@@ -139,6 +162,8 @@ func NewAgentRunServiceHandler(svc AgentRunServiceHandler, opts ...connect.Handl
 	)
 	return "/polterware.local.v1.AgentRunService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AgentRunServiceListMcpSessionsProcedure:
+			agentRunServiceListMcpSessionsHandler.ServeHTTP(w, r)
 		case AgentRunServiceListAgentRunsProcedure:
 			agentRunServiceListAgentRunsHandler.ServeHTTP(w, r)
 		case AgentRunServiceGetAgentRunProcedure:
@@ -153,6 +178,10 @@ func NewAgentRunServiceHandler(svc AgentRunServiceHandler, opts ...connect.Handl
 
 // UnimplementedAgentRunServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAgentRunServiceHandler struct{}
+
+func (UnimplementedAgentRunServiceHandler) ListMcpSessions(context.Context, *connect.Request[v1.ListMcpSessionsRequest]) (*connect.Response[v1.ListMcpSessionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.AgentRunService.ListMcpSessions is not implemented"))
+}
 
 func (UnimplementedAgentRunServiceHandler) ListAgentRuns(context.Context, *connect.Request[v1.ListAgentRunsRequest]) (*connect.Response[v1.ListAgentRunsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.AgentRunService.ListAgentRuns is not implemented"))

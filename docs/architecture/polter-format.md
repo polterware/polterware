@@ -1,6 +1,6 @@
 # Polter format and agent protocol
 
-Status: Proposed (2026-09-28 discussion). Nothing here is implemented.
+Status: Proposed ([ADR 0006](../adr/0006-polter-format-and-work-model.md)). Grammar v1, the codec, the CLI (`apply`, `lint`, `format`, `query`, `hook`), the Desktop Work board (`WorkService`), MCP `polter.apply` / `polter.query` / `polter.format`, the Claude Code plugin (`plugins/polterware`), session-scoped AgentRuns, and similarity hints (word-set normalization, no FTS5 index yet) are implemented; zoom/budget encoding is not. Shipped behavior lives in [`docs/spec.md`](../spec.md).
 
 Authority: none yet. Part of [`atlas-grounded-sdd-roadmap.md`](atlas-grounded-sdd-roadmap.md). Requires an ADR before it replaces existing MCP tools, because it changes the stable MCP surface ([`stable-mcp-reads.md`](stable-mcp-reads.md), [`audited-mcp-writes.md`](audited-mcp-writes.md)).
 
@@ -106,6 +106,14 @@ Import HEAD, branch and recent commits as evidence.
 | `? Question [blocking] (a \| b \| c)` | Open question with optional blocking flag and options; becomes an Inbox Decision item |
 | `! Statement` | Contract invariant; inherited by children |
 
+Decided in grammar v1 (implemented):
+
+- Metadata keys: `stage`, `owner`, `under` (stored as raw text until Atlas nodes exist), `decisions` (comma-separated ADR refs such as `ADR-0007`), `status` (`active` or `removed`). Separators `·`, ` - `, or new lines.
+- Tasks: `[ ]` open, `[x]` done, `[-]` dropped. An optional `T<n>` prefix is the task identity; without it a task matches an existing one by normalized title or becomes a new task with the next number. Numbers are per card and never reused.
+- Questions and invariants match by normalized text; a trailing `[removed]` removes them.
+- Frontmatter carries `polter: 1` and optionally `summary` and `rationale` (the change envelope).
+- A `# Title` line and prose outside cards are ignored; tasks, questions, and invariants outside a card are errors.
+
 The whole spec must fit in about 150 tokens so it can be taught cheaply. Keep few symbols, all close to things models already know (checkbox, frontmatter, `key: value`).
 
 **Identity and idempotency.** Upsert by slug. Re-applying an edited text updates cards and tasks instead of duplicating them. Removal is explicit; history is never deleted.
@@ -179,7 +187,7 @@ Existing tools (`context.get`, `entity.get`, `evidence.get`, `drift.check`, `fac
 
 ### Audit without ceremony
 
-The session-start hook opens the AgentRun and stores its id for the session. Each write carries only a short `summary` and `rationale`. No explicit start/complete calls. Human and agent changes stay in Unified Change History.
+The session-start hook marks the session (`POLTERWARE_SESSION`); the first write opens its AgentRun and later writes join it, so read-only sessions leave no run. The session-end hook completes it. MCP does the same per `polterware mcp` process. Each write carries only a short `summary` and `rationale`. No explicit start/complete calls. Human and agent changes stay in Unified Change History.
 
 ## Channels
 
@@ -215,11 +223,13 @@ Uses:
 - **Commit ↔ task linking** in Git import: explicit references first; FTS5 match only as a suggestion, never as automatic "Delivered".
 - **Prose search** in Commander and Oracle.
 
+Implemented (slice 3c): duplicate and placement hints use normalization only — a word set per card (slug + title), question, and invariant, compared by Jaccard overlap (at least half shared and two shared words, or identical sets) against the snapshot `apply` already loads. The project's Work graph is small enough that an index adds nothing for hints; the FTS5 index over Polter blocks lands with the first consumer that needs ranked prose search (Commander, Oracle, commit ↔ task suggestions). Placement suggests an existing `under:` value until Atlas nodes exist.
+
 Measure before adding embeddings: count duplicates and commit links that FTS5 + normalization miss on real use (Polterware's own development). If the miss rate is material, add local embeddings (`sqlite-vec` + a small local model, downloaded only when enabled) as an optional layer. Known costs: binary size, ONNX Runtime via cgo in a single cross-platform binary, and threshold tuning.
 
 ## Open points
 
-- How existing Knowledge spec items (Spec/Plan/Tasks/Clarify/Checklist) map onto the new tables.
+- ~~How existing Knowledge spec items map onto the new tables~~ — decided: they are discontinued, not migrated ([ADR 0006](../adr/0006-polter-format-and-work-model.md)).
 - Projection details: which decisions go to which repository's `AGENTS.md` block, and how ADR edits made in a repository are imported back.
 - Cloud replication of the change log (see roadmap "Pending discussion").
 - Whether `status` and `handoff` use the same card grammar or a small sibling block.

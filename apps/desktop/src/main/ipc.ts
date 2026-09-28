@@ -230,6 +230,8 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.listKnowledgeLinks]: coreHandler(controllers, "listKnowledgeLinks"),
     [IPC_CHANNELS.core.saveKnowledgeLink]: coreHandler(controllers, "saveKnowledgeLink"),
     [IPC_CHANNELS.core.deleteKnowledgeLink]: coreHandler(controllers, "deleteKnowledgeLink"),
+    [IPC_CHANNELS.core.listWorkCards]: coreHandler(controllers, "listWorkCards"),
+    [IPC_CHANNELS.core.applyPolter]: coreHandler(controllers, "applyPolter"),
     [IPC_CHANNELS.core.listPpmEntities]: coreHandler(controllers, "listPpmEntities"),
     [IPC_CHANNELS.core.syncProjectModel]: coreHandler(controllers, "syncProjectModel"),
     [IPC_CHANNELS.core.importProjectSources]: coreHandler(controllers, "importProjectSources"),

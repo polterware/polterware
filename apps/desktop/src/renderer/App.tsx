@@ -53,11 +53,14 @@ const AgentsPage = lazy(() =>
 import {
   emptyWorkspace,
   loadProjects,
+  loadWorkCards,
   loadWorkspaceExtensions,
   loadWorkspaceShell,
+  pickWorkspaceExtensions,
   type ProjectCatalog,
   type WorkspaceSnapshot,
 } from "./workspace/load";
+import { createChangeRefresher } from "./workspace/live-refresh";
 import { shouldOpenCreateProject } from "./workspace/first-project";
 import {
   persistCreatedProject,
@@ -71,19 +74,18 @@ import {
   persistImportProjectSources,
   persistKnowledgeBody,
   persistKnowledgeCreate,
-  persistKnowledgeCreateFeature,
-  persistKnowledgeArchiveFeature,
   persistKnowledgeDelete,
   persistKnowledgeDuplicate,
   persistKnowledgeSourcePath,
-  persistKnowledgeSetFeatureStatus,
-  persistKnowledgeSetFeatureStage,
   persistConstitutionEnsure,
   persistConstitutionArchive,
   persistLayout,
   persistProjectSettings,
   persistResource,
   persistView,
+  persistWorkCreateCard,
+  persistWorkRemoveCard,
+  persistWorkSetStage,
   resetLocalStore,
 } from "./workspace/persist";
 
@@ -268,9 +270,39 @@ export function App() {
     const unsubscribeExecute = window.polterware.commander.onExecuteCommand((id: string) => {
       handlePaletteCommand(id);
     });
+    // Live sync (ADR 0007): writes from the CLI, MCP agents, or the TUI refresh
+    // only the affected slices of the current project.
+    const refresher = createChangeRefresher({
+      currentProjectId: () => currentProjectId(),
+      refreshShell: async (projectId) => {
+        const shell = await loadWorkspaceShell(projectId);
+        if (currentProjectId() !== projectId) return;
+        setWorkspace((current) => ({
+          ...shell,
+          ...pickWorkspaceExtensions(current),
+          extensionsReady: current.extensionsReady,
+        }));
+      },
+      refreshExtensions: async (projectId) => {
+        const extensions = await loadWorkspaceExtensions(projectId, { environments: workspace().environments });
+        if (currentProjectId() !== projectId) return;
+        setWorkspace((current) => ({ ...current, ...extensions, extensionsReady: true }));
+      },
+      refreshWork: async (projectId) => {
+        const workCards = await loadWorkCards(projectId);
+        if (currentProjectId() !== projectId) return;
+        setWorkspace((current) => ({ ...current, workCards }));
+      },
+      onError: (error) => {
+        console.warn("Live refresh failed.", error);
+      },
+    });
+    const unsubscribeChanges = window.polterware.core.onChange(refresher.push);
     onCleanup(() => {
       window.removeEventListener("keydown", onKeyDown);
       unsubscribeExecute();
+      unsubscribeChanges();
+      refresher.dispose();
     });
   });
 
@@ -370,9 +402,30 @@ export function App() {
     return "local" as const;
   };
 
-  /** Features open in the Board or Specs detail scope, matching the visible Work tab. */
-  const featureScopeId = () =>
+  /** Cards open in the Board or Specs detail scope, matching the visible Work tab. */
+  const cardScopeId = () =>
     route().section === "work" && route().tab === "board" ? "knowledge:board" : "knowledge:specs";
+
+  function createWorkCard(title: string) {
+    void justifyChange({
+      title: "Justify create card",
+      defaultSummary: `Create card: ${title}`,
+    }).then((change) => {
+      if (!change) return;
+      return persistWorkCreateCard({
+        workspace: workspace(),
+        projectId: currentProjectId(),
+        title,
+        change,
+      }).then(async (slug) => {
+        await refreshWorkspace(currentProjectId());
+        activateDetail(cardScopeId(), slug, "card");
+        pushToast("Card saved locally.", "success");
+      });
+    }).catch((error: unknown) => {
+      pushToast(error instanceof Error ? error.message : "Could not create card.", "danger");
+    });
+  }
 
   /** Knowledge content hosted by Work, Decisions, and Reality with their own tab rails. */
   function KnowledgeSurface(surface: {
@@ -388,7 +441,7 @@ export function App() {
         adrs={workspace().adrs}
         runbooks={workspace().runbooks}
         sources={workspace().sources}
-        specFeatures={workspace().specFeatures}
+        workCards={workspace().workCards}
         constitution={workspace().constitution}
         entities={workspace().ppmEntities}
         tab={surface.tab}
@@ -402,7 +455,7 @@ export function App() {
         onOpenAdr={(id) => activateDetail("knowledge:library", id, "adr")}
         onOpenRunbook={(id) => activateDetail("knowledge:library", id, "runbook")}
         onOpenSource={(id) => activateDetail("knowledge:sources", id, "source")}
-        onOpenFeature={(featureKey) => activateDetail(featureScopeId(), featureKey, "feature")}
+        onOpenCard={(slug) => activateDetail(cardScopeId(), slug, "card")}
         onOpenConstitution={(id) => activateDetail("knowledge:specs", id, "constitution")}
         onOpenEntity={(_entityId, refId, kind) => {
           if (kind === "component") {
@@ -558,25 +611,8 @@ export function App() {
         }}
         importBusy={importSourcesBusy()}
         onCreateFromTemplate={(template) => {
-          if (template.kind === "feature") {
-            void justifyChange({
-              title: "Justify create feature",
-              defaultSummary: `Create feature: ${template.title}`,
-            }).then((change) => {
-              if (!change) return;
-              return persistKnowledgeCreateFeature({
-                workspace: workspace(),
-                projectId: currentProjectId(),
-                title: template.title,
-                change,
-              }).then(async (featureKey) => {
-                await refreshWorkspace(currentProjectId());
-                activateDetail(featureScopeId(), featureKey, "feature");
-                pushToast("Feature saved locally.", "success");
-              });
-            }).catch((error: unknown) => {
-              pushToast(error instanceof Error ? error.message : "Could not create feature.", "danger");
-            });
+          if (template.kind === "card") {
+            createWorkCard(template.title);
             return;
           }
           const kind = template.kind;
@@ -615,26 +651,7 @@ export function App() {
             pushToast(error instanceof Error ? error.message : "Could not create knowledge.", "danger");
           });
         }}
-        onCreateFeature={(title) => {
-          void justifyChange({
-            title: "Justify create feature",
-            defaultSummary: `Create feature: ${title}`,
-          }).then((change) => {
-            if (!change) return;
-            return persistKnowledgeCreateFeature({
-              workspace: workspace(),
-              projectId: currentProjectId(),
-              title,
-              change,
-            }).then(async (featureKey) => {
-              await refreshWorkspace(currentProjectId());
-              activateDetail(featureScopeId(), featureKey, "feature");
-              pushToast("Feature saved locally.", "success");
-            });
-          }).catch((error: unknown) => {
-            pushToast(error instanceof Error ? error.message : "Could not create feature.", "danger");
-          });
-        }}
+        onCreateCard={(title) => createWorkCard(title)}
         onEnsureConstitution={() => {
           void justifyChange({
             title: "Justify constitution",
@@ -669,18 +686,18 @@ export function App() {
             pushToast(error instanceof Error ? error.message : "Could not archive knowledge.", "danger");
           });
         }}
-        onArchiveFeature={(featureKey) => {
+        onRemoveCard={(slug) => {
           void justifyChange({
-            title: "Justify archive feature",
-            defaultSummary: `Archive feature: ${featureKey}`,
+            title: "Justify remove card",
+            defaultSummary: `Remove card: ${slug}`,
           }).then((change) => {
             if (!change) return;
-            return persistKnowledgeArchiveFeature(workspace(), featureKey, change).then(async () => {
-              pushToast("Feature archived.", "success");
+            return persistWorkRemoveCard(currentProjectId(), slug, change).then(async () => {
+              pushToast("Card removed from the board.", "success");
               await refreshWorkspace(currentProjectId());
             });
           }).catch((error: unknown) => {
-            pushToast(error instanceof Error ? error.message : "Could not archive feature.", "danger");
+            pushToast(error instanceof Error ? error.message : "Could not remove card.", "danger");
           });
         }}
         onArchiveConstitution={() => {
@@ -697,46 +714,18 @@ export function App() {
             pushToast(error instanceof Error ? error.message : "Could not archive constitution.", "danger");
           });
         }}
-        onSetFeatureStatus={(featureKey, status) => {
+        onSetCardStage={(slug, stage) => {
           void justifyChange({
-            title: "Justify feature status",
-            defaultSummary: status === "ready"
-              ? `Mark feature ready: ${featureKey}`
-              : `Mark feature draft: ${featureKey}`,
+            title: "Justify card stage",
+            defaultSummary: `Move card to ${stageLabel(stage)}: ${slug}`,
           }).then((change) => {
             if (!change) return;
-            return persistKnowledgeSetFeatureStatus(
-              workspace(),
-              currentProjectId(),
-              featureKey,
-              status,
-              change,
-            ).then(async () => {
+            return persistWorkSetStage(currentProjectId(), slug, stage, change).then(async () => {
               await refreshWorkspace(currentProjectId());
-              pushToast(status === "ready" ? "Feature marked ready." : "Feature marked draft.", "success");
+              pushToast(`Card moved to ${stageLabel(stage)}.`, "success");
             });
           }).catch((error: unknown) => {
-            pushToast(error instanceof Error ? error.message : "Could not update feature status.", "danger");
-          });
-        }}
-        onSetFeatureStage={(featureKey, stage) => {
-          void justifyChange({
-            title: "Justify feature stage",
-            defaultSummary: `Move feature to ${stageLabel(stage)}: ${featureKey}`,
-          }).then((change) => {
-            if (!change) return;
-            return persistKnowledgeSetFeatureStage(
-              workspace(),
-              currentProjectId(),
-              featureKey,
-              stage,
-              change,
-            ).then(async () => {
-              await refreshWorkspace(currentProjectId());
-              pushToast(`Feature moved to ${stageLabel(stage)}.`, "success");
-            });
-          }).catch((error: unknown) => {
-            pushToast(error instanceof Error ? error.message : "Could not update feature stage.", "danger");
+            pushToast(error instanceof Error ? error.message : "Could not update card stage.", "danger");
           });
         }}
         onDuplicate={(id) => {

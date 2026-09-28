@@ -3,6 +3,7 @@ import { createConnectTransport } from "@connectrpc/connect-node";
 import {
   ArchitectureService,
   AgentRunService,
+  ChangeService,
   ContextService,
   HealthService,
   IntegrationService,
@@ -11,10 +12,12 @@ import {
   ProjectModelService,
   ProjectService,
   TerminalService,
+  WorkService,
 } from "@polterware/contracts";
 
 const authInterceptor = (token: string): Interceptor => (next) => async (request) => {
   request.header.set("Authorization", `Bearer ${token}`);
+  request.header.set("Polterware-Client", "desktop");
   return next(request);
 };
 
@@ -24,11 +27,13 @@ export type CoreClients = {
   projects: Client<typeof ProjectService>;
   architecture: Client<typeof ArchitectureService>;
   knowledge: Client<typeof KnowledgeService>;
+  work: Client<typeof WorkService>;
   ppm: Client<typeof ProjectModelService>;
   context: Client<typeof ContextService>;
   agentRuns: Client<typeof AgentRunService>;
   integrations: Client<typeof IntegrationService>;
   terminals: Client<typeof TerminalService>;
+  changes: Client<typeof ChangeService>;
 };
 
 export function createCoreTransport(endpoint: string, token: string): Transport {
@@ -47,11 +52,13 @@ export function createCoreClients(endpoint: string, token: string): CoreClients 
     projects: createClient(ProjectService, transport),
     architecture: createClient(ArchitectureService, transport),
     knowledge: createClient(KnowledgeService, transport),
+    work: createClient(WorkService, transport),
     ppm: createClient(ProjectModelService, transport),
     context: createClient(ContextService, transport),
     agentRuns: createClient(AgentRunService, transport),
     integrations: createClient(IntegrationService, transport),
     terminals: createClient(TerminalService, transport),
+    changes: createClient(ChangeService, transport),
   };
 }
 

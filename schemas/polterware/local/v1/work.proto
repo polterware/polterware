@@ -1,0 +1,109 @@
+syntax = "proto3";
+package polterware.local.v1;
+option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
+
+import "polterware/local/v1/agentrun.proto";
+
+// Work model (ADR 0006): cards with tasks, questions, and invariants.
+message WorkTask {
+  string id = 1;
+  int32 number = 2;
+  string title = 3;
+  // state is "open", "done", or "dropped".
+  string state = 4;
+  string scope = 5;
+}
+
+message WorkQuestion {
+  string id = 1;
+  string text = 2;
+  bool blocking = 3;
+  repeated string options = 4;
+  // state is "open" or "answered".
+  string state = 5;
+  string answer = 6;
+}
+
+message WorkInvariant {
+  string id = 1;
+  string text = 2;
+}
+
+message WorkCard {
+  string id = 1;
+  string project_id = 2;
+  string slug = 3;
+  string title = 4;
+  string intent = 5;
+  // stage is "shape", "plan", "build", "verify", or "delivered".
+  string stage = 6;
+  string owner = 7;
+  string under = 8;
+  repeated string decisions = 9;
+  string created_at = 10;
+  string updated_at = 11;
+  repeated WorkTask tasks = 12;
+  repeated WorkQuestion questions = 13;
+  repeated WorkInvariant invariants = 14;
+}
+
+message PolterDiagnostic {
+  int32 line = 1;
+  string severity = 2;
+  string message = 3;
+}
+
+// ListWorkCards returns active cards with their tasks, open or answered
+// questions, and active invariants, ordered by position.
+message ListWorkCardsRequest { string project_id = 1; }
+message ListWorkCardsResponse { repeated WorkCard cards = 1; }
+
+// ApplyPolter plans Polter format text against the store and, unless dry_run,
+// applies it in one transaction as one audited change.
+message ApplyPolterRequest {
+  string project_id = 1;
+  string text = 2;
+  bool dry_run = 3;
+  // Required unless dry_run; frontmatter summary/rationale fill empty fields.
+  ChangeEnvelope change = 4;
+  // session_id joins an agent session's run (Claude Code session id); without
+  // it and without change.agent_run_id, an agent client opens a one-off run.
+  string session_id = 5;
+  string session_label = 6;
+}
+message ApplyPolterResponse {
+  bool applied = 1;
+  // One terraform-style line per operation (`+`, `~`, `-`).
+  repeated string ops = 2;
+  string summary = 3;
+  repeated PolterDiagnostic diagnostics = 4;
+  string agent_run_id = 5;
+  string batch_id = 6;
+}
+
+// LintPolter checks syntax, plus references and similarity hints when
+// project_id is set.
+message LintPolterRequest {
+  string project_id = 1;
+  string text = 2;
+}
+message LintPolterResponse { repeated PolterDiagnostic diagnostics = 1; }
+
+// QueryPolter answers "cards" or "card <slug>" in Polter text.
+message QueryPolterRequest {
+  string project_id = 1;
+  string query = 2;
+}
+message QueryPolterResponse { string text = 1; }
+
+// EndSession completes the runs an agent session opened.
+message EndSessionRequest { string session_id = 1; }
+message EndSessionResponse { int32 completed_runs = 1; }
+
+service WorkService {
+  rpc ListWorkCards(ListWorkCardsRequest) returns (ListWorkCardsResponse);
+  rpc ApplyPolter(ApplyPolterRequest) returns (ApplyPolterResponse);
+  rpc LintPolter(LintPolterRequest) returns (LintPolterResponse);
+  rpc QueryPolter(QueryPolterRequest) returns (QueryPolterResponse);
+  rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
+}

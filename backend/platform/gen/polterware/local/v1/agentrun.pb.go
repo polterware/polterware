@@ -681,6 +681,163 @@ func (x *ListChangesResponse) GetChanges() []*ProjectChange {
 	return nil
 }
 
+// McpSession is one live MCP client connected to the core (ADR 0007).
+type McpSession struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ClientName    string                 `protobuf:"bytes,2,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
+	ClientVersion string                 `protobuf:"bytes,3,opt,name=client_version,json=clientVersion,proto3" json:"client_version,omitempty"`
+	StartedAt     string                 `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	LastSeenAt    string                 `protobuf:"bytes,5,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpSession) Reset() {
+	*x = McpSession{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpSession) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpSession) ProtoMessage() {}
+
+func (x *McpSession) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpSession.ProtoReflect.Descriptor instead.
+func (*McpSession) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *McpSession) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *McpSession) GetClientName() string {
+	if x != nil {
+		return x.ClientName
+	}
+	return ""
+}
+
+func (x *McpSession) GetClientVersion() string {
+	if x != nil {
+		return x.ClientVersion
+	}
+	return ""
+}
+
+func (x *McpSession) GetStartedAt() string {
+	if x != nil {
+		return x.StartedAt
+	}
+	return ""
+}
+
+func (x *McpSession) GetLastSeenAt() string {
+	if x != nil {
+		return x.LastSeenAt
+	}
+	return ""
+}
+
+type ListMcpSessionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMcpSessionsRequest) Reset() {
+	*x = ListMcpSessionsRequest{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMcpSessionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMcpSessionsRequest) ProtoMessage() {}
+
+func (x *ListMcpSessionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMcpSessionsRequest.ProtoReflect.Descriptor instead.
+func (*ListMcpSessionsRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{11}
+}
+
+type ListMcpSessionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sessions      []*McpSession          `protobuf:"bytes,1,rep,name=sessions,proto3" json:"sessions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMcpSessionsResponse) Reset() {
+	*x = ListMcpSessionsResponse{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMcpSessionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMcpSessionsResponse) ProtoMessage() {}
+
+func (x *ListMcpSessionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMcpSessionsResponse.ProtoReflect.Descriptor instead.
+func (*ListMcpSessionsResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListMcpSessionsResponse) GetSessions() []*McpSession {
+	if x != nil {
+		return x.Sessions
+	}
+	return nil
+}
+
 var File_polterware_local_v1_agentrun_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_agentrun_proto_rawDesc = "" +
@@ -749,8 +906,22 @@ const file_polterware_local_v1_agentrun_proto_rawDesc = "" +
 	"actor_kind\x18\x02 \x01(\tR\tactorKind\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\"S\n" +
 	"\x13ListChangesResponse\x12<\n" +
-	"\achanges\x18\x01 \x03(\v2\".polterware.local.v1.ProjectChangeR\achanges2\xbd\x02\n" +
-	"\x0fAgentRunService\x12f\n" +
+	"\achanges\x18\x01 \x03(\v2\".polterware.local.v1.ProjectChangeR\achanges\"\xa5\x01\n" +
+	"\n" +
+	"McpSession\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\vclient_name\x18\x02 \x01(\tR\n" +
+	"clientName\x12%\n" +
+	"\x0eclient_version\x18\x03 \x01(\tR\rclientVersion\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x04 \x01(\tR\tstartedAt\x12 \n" +
+	"\flast_seen_at\x18\x05 \x01(\tR\n" +
+	"lastSeenAt\"\x18\n" +
+	"\x16ListMcpSessionsRequest\"V\n" +
+	"\x17ListMcpSessionsResponse\x12;\n" +
+	"\bsessions\x18\x01 \x03(\v2\x1f.polterware.local.v1.McpSessionR\bsessions2\xab\x03\n" +
+	"\x0fAgentRunService\x12l\n" +
+	"\x0fListMcpSessions\x12+.polterware.local.v1.ListMcpSessionsRequest\x1a,.polterware.local.v1.ListMcpSessionsResponse\x12f\n" +
 	"\rListAgentRuns\x12).polterware.local.v1.ListAgentRunsRequest\x1a*.polterware.local.v1.ListAgentRunsResponse\x12`\n" +
 	"\vGetAgentRun\x12'.polterware.local.v1.GetAgentRunRequest\x1a(.polterware.local.v1.GetAgentRunResponse\x12`\n" +
 	"\vListChanges\x12'.polterware.local.v1.ListChangesRequest\x1a(.polterware.local.v1.ListChangesResponseB\xe9\x01\n" +
@@ -768,35 +939,41 @@ func file_polterware_local_v1_agentrun_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_agentrun_proto_rawDescData
 }
 
-var file_polterware_local_v1_agentrun_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_polterware_local_v1_agentrun_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_polterware_local_v1_agentrun_proto_goTypes = []any{
-	(*AgentRun)(nil),              // 0: polterware.local.v1.AgentRun
-	(*AgentRunStep)(nil),          // 1: polterware.local.v1.AgentRunStep
-	(*ChangeEnvelope)(nil),        // 2: polterware.local.v1.ChangeEnvelope
-	(*ListAgentRunsRequest)(nil),  // 3: polterware.local.v1.ListAgentRunsRequest
-	(*ListAgentRunsResponse)(nil), // 4: polterware.local.v1.ListAgentRunsResponse
-	(*GetAgentRunRequest)(nil),    // 5: polterware.local.v1.GetAgentRunRequest
-	(*GetAgentRunResponse)(nil),   // 6: polterware.local.v1.GetAgentRunResponse
-	(*ProjectChange)(nil),         // 7: polterware.local.v1.ProjectChange
-	(*ListChangesRequest)(nil),    // 8: polterware.local.v1.ListChangesRequest
-	(*ListChangesResponse)(nil),   // 9: polterware.local.v1.ListChangesResponse
+	(*AgentRun)(nil),                // 0: polterware.local.v1.AgentRun
+	(*AgentRunStep)(nil),            // 1: polterware.local.v1.AgentRunStep
+	(*ChangeEnvelope)(nil),          // 2: polterware.local.v1.ChangeEnvelope
+	(*ListAgentRunsRequest)(nil),    // 3: polterware.local.v1.ListAgentRunsRequest
+	(*ListAgentRunsResponse)(nil),   // 4: polterware.local.v1.ListAgentRunsResponse
+	(*GetAgentRunRequest)(nil),      // 5: polterware.local.v1.GetAgentRunRequest
+	(*GetAgentRunResponse)(nil),     // 6: polterware.local.v1.GetAgentRunResponse
+	(*ProjectChange)(nil),           // 7: polterware.local.v1.ProjectChange
+	(*ListChangesRequest)(nil),      // 8: polterware.local.v1.ListChangesRequest
+	(*ListChangesResponse)(nil),     // 9: polterware.local.v1.ListChangesResponse
+	(*McpSession)(nil),              // 10: polterware.local.v1.McpSession
+	(*ListMcpSessionsRequest)(nil),  // 11: polterware.local.v1.ListMcpSessionsRequest
+	(*ListMcpSessionsResponse)(nil), // 12: polterware.local.v1.ListMcpSessionsResponse
 }
 var file_polterware_local_v1_agentrun_proto_depIdxs = []int32{
-	0, // 0: polterware.local.v1.ListAgentRunsResponse.runs:type_name -> polterware.local.v1.AgentRun
-	0, // 1: polterware.local.v1.GetAgentRunResponse.run:type_name -> polterware.local.v1.AgentRun
-	1, // 2: polterware.local.v1.GetAgentRunResponse.steps:type_name -> polterware.local.v1.AgentRunStep
-	7, // 3: polterware.local.v1.ListChangesResponse.changes:type_name -> polterware.local.v1.ProjectChange
-	3, // 4: polterware.local.v1.AgentRunService.ListAgentRuns:input_type -> polterware.local.v1.ListAgentRunsRequest
-	5, // 5: polterware.local.v1.AgentRunService.GetAgentRun:input_type -> polterware.local.v1.GetAgentRunRequest
-	8, // 6: polterware.local.v1.AgentRunService.ListChanges:input_type -> polterware.local.v1.ListChangesRequest
-	4, // 7: polterware.local.v1.AgentRunService.ListAgentRuns:output_type -> polterware.local.v1.ListAgentRunsResponse
-	6, // 8: polterware.local.v1.AgentRunService.GetAgentRun:output_type -> polterware.local.v1.GetAgentRunResponse
-	9, // 9: polterware.local.v1.AgentRunService.ListChanges:output_type -> polterware.local.v1.ListChangesResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: polterware.local.v1.ListAgentRunsResponse.runs:type_name -> polterware.local.v1.AgentRun
+	0,  // 1: polterware.local.v1.GetAgentRunResponse.run:type_name -> polterware.local.v1.AgentRun
+	1,  // 2: polterware.local.v1.GetAgentRunResponse.steps:type_name -> polterware.local.v1.AgentRunStep
+	7,  // 3: polterware.local.v1.ListChangesResponse.changes:type_name -> polterware.local.v1.ProjectChange
+	10, // 4: polterware.local.v1.ListMcpSessionsResponse.sessions:type_name -> polterware.local.v1.McpSession
+	11, // 5: polterware.local.v1.AgentRunService.ListMcpSessions:input_type -> polterware.local.v1.ListMcpSessionsRequest
+	3,  // 6: polterware.local.v1.AgentRunService.ListAgentRuns:input_type -> polterware.local.v1.ListAgentRunsRequest
+	5,  // 7: polterware.local.v1.AgentRunService.GetAgentRun:input_type -> polterware.local.v1.GetAgentRunRequest
+	8,  // 8: polterware.local.v1.AgentRunService.ListChanges:input_type -> polterware.local.v1.ListChangesRequest
+	12, // 9: polterware.local.v1.AgentRunService.ListMcpSessions:output_type -> polterware.local.v1.ListMcpSessionsResponse
+	4,  // 10: polterware.local.v1.AgentRunService.ListAgentRuns:output_type -> polterware.local.v1.ListAgentRunsResponse
+	6,  // 11: polterware.local.v1.AgentRunService.GetAgentRun:output_type -> polterware.local.v1.GetAgentRunResponse
+	9,  // 12: polterware.local.v1.AgentRunService.ListChanges:output_type -> polterware.local.v1.ListChangesResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_agentrun_proto_init() }
@@ -810,7 +987,7 @@ func file_polterware_local_v1_agentrun_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_agentrun_proto_rawDesc), len(file_polterware_local_v1_agentrun_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

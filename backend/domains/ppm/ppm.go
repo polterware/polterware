@@ -193,8 +193,6 @@ func DefaultPredicateForKnowledge(kind string) string {
 	switch kind {
 	case "runbook":
 		return PredOperates
-	case "spec", "plan", "tasks", "clarify", "checklist":
-		return PredDefines
 	default:
 		return PredDocuments
 	}

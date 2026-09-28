@@ -8,6 +8,10 @@
 - Do not create branches or commits unless explicitly requested.
 - Do not run browsers, automated tests, builds, previews, distributions, or development servers unless explicitly requested in the current task.
 
+## Work cards
+
+- Codex and other agents: run `polterware format` once for the Polter grammar, read with `polterware query cards`, and write Work cards with `polterware apply <file|->` (frontmatter `summary` and `rationale`). Claude Code gets the same through the `plugins/polterware` plugin.
+
 ## Product positioning
 
 Polterware's category is **Project Context & Change Intelligence for AI Coding** ([`docs/product-vision.md`](docs/product-vision.md) v3, [ADR 0004](docs/adr/0004-product-positioning-and-wedge.md)). Evolution priority is the wedge: PPM facts/evidence, deterministic import, Context Compiler, stable MCP reads, Drift, AgentRun, audited MCP writes, CLI, and Unified Change History. Operations, Terminal-as-product, and Nodes/remote execution were removed on the kill branch ([`docs/architecture/kill-ops-terminal-nodes.md`](docs/architecture/kill-ops-terminal-nodes.md)). Integrations remain as evidence/Connect UI only. Wedge delivery order: [`docs/architecture/wedge-validation-sequence.md`](docs/architecture/wedge-validation-sequence.md) (B1–B9 complete).
@@ -18,7 +22,7 @@ Active redesign (Atlas + Grounded SDD, branch `feat/atlas-grounded-sdd`): read [
 
 Polterware's first version is a local SQLite-backed Desktop with project surfaces Inbox, Atlas, Work, Decisions, Reality, Agents, and Integrations. Settings is fixed in the sidebar footer. Atlas / Canvas is the default route.
 
-The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. The Electron Main process starts the local core (`polterware serve`), and the renderer reads and writes through `window.polterware` only.
+The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. One local core process (`polterware serve`) per database is the only process that opens SQLite ([ADR 0007](docs/adr/0007-single-local-core.md)); Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes through `window.polterware` only.
 
 The Desktop may execute on the local machine through the local core only. The renderer never spawns shells or touches Node APIs; it talks through `window.polterware`.
 
@@ -42,8 +46,8 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
 - Inbox: flat page (empty state; nothing routed yet)
 - Atlas: Canvas, Views
 - Work: Board, Specs
-  - Board groups features by stage (Shape, Plan, Build, Verify, Delivered); `stage` lives in the spec artifact's `extra_json`.
-  - Specs hold one Constitution per project (`constitution`) and per-feature Spec / Plan / Tasks / Clarify / Checklist items linked by `featureKey`. Mark ready is blocked while Checklist still has unchecked `- [ ]` lines.
+  - Board groups Work cards (`work_cards`, ADR 0006) by stage (Shape, Plan, Build, Verify, Delivered). The Desktop reads through `WorkService.ListWorkCards` and writes Polter text through `WorkService.ApplyPolter`; agents use `polterware apply`.
+  - Specs hold one Constitution per project (`constitution`) above a table of the same cards. The five-document Spec / Plan / Tasks / Clarify / Checklist model is removed.
 - Decisions: ADRs (Library restricted to `adr`)
 - Reality: Inventory, Sources, Facts, Docs
   - Sources lists registered project-relative paths (`kind = source`); Import from project root runs `ImportProjectSources` for the MVP file set. Generic filesystem indexing beyond that set is not shipped.

@@ -60,6 +60,8 @@ export const IPC_CHANNELS = {
     listKnowledgeLinks: "core:list-knowledge-links",
     saveKnowledgeLink: "core:save-knowledge-link",
     deleteKnowledgeLink: "core:delete-knowledge-link",
+    listWorkCards: "core:list-work-cards",
+    applyPolter: "core:apply-polter",
     listPpmEntities: "core:list-ppm-entities",
     syncProjectModel: "core:sync-project-model",
     importProjectSources: "core:import-project-sources",
@@ -99,7 +101,20 @@ export const IPC_EVENTS = {
     focusSearch: "commander:focus-search",
     executeCommand: "commander:execute-command",
   },
+  core: {
+    changed: "core:changed",
+  },
 } as const;
+
+/** A coalesced store change from the core (ADR 0007). */
+export type CoreChangeEvent = {
+  seq: number;
+  projectIds: string[];
+  kinds: string[];
+  /** Clients whose calls caused the change ("desktop", "cli", "mcp", "tui", "core"). */
+  origins: string[];
+  resync: boolean;
+};
 
 export type IpcEventTree = typeof IPC_EVENTS;
 

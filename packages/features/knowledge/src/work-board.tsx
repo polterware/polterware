@@ -1,27 +1,22 @@
 import { For, Show, createMemo } from "solid-js";
 import { Card, StatusChip } from "@polterware/frontend-design-system";
-import type { WorkStage, WorkspaceSpecFeature } from "@polterware/feature-shell";
-import {
-  WORK_STAGES,
-  featureOpenQuestions,
-  featureTaskProgress,
-  resolveFeatureStage,
-} from "./work-stage";
+import type { WorkStage, WorkspaceWorkCard } from "@polterware/feature-shell";
+import { WORK_STAGES, cardOpenQuestions, cardTaskProgress } from "./work-stage";
 import "./work-board.css";
 
 export function WorkBoard(props: {
-  features: readonly WorkspaceSpecFeature[];
-  activeFeatureKey?: string | null;
-  onActivate: (featureKey: string) => void;
+  cards: readonly WorkspaceWorkCard[];
+  activeSlug?: string | null;
+  onActivate: (slug: string) => void;
 }) {
   const columns = createMemo(() => {
-    const byStage = new Map<WorkStage, WorkspaceSpecFeature[]>(
+    const byStage = new Map<WorkStage, WorkspaceWorkCard[]>(
       WORK_STAGES.map((stage) => [stage.id, []]),
     );
-    for (const feature of props.features) {
-      byStage.get(resolveFeatureStage(feature))?.push(feature);
+    for (const card of props.cards) {
+      byStage.get(card.stage)?.push(card);
     }
-    return WORK_STAGES.map((stage) => ({ ...stage, features: byStage.get(stage.id) ?? [] }));
+    return WORK_STAGES.map((stage) => ({ ...stage, cards: byStage.get(stage.id) ?? [] }));
   });
 
   return (
@@ -34,24 +29,24 @@ export function WorkBoard(props: {
                 {column.label}
               </span>
               <span class="text-[12px] tabular-nums text-[var(--color-text-muted)]">
-                {column.features.length}
+                {column.cards.length}
               </span>
             </header>
             <div class="pw-work-column__cards">
               <Show
-                when={column.features.length > 0}
+                when={column.cards.length > 0}
                 fallback={
                   <p class="m-0 px-1 py-2 text-[12px] text-[var(--color-text-muted)]">
-                    No features
+                    No cards
                   </p>
                 }
               >
-                <For each={column.features}>
-                  {(feature) => (
+                <For each={column.cards}>
+                  {(card) => (
                     <WorkCard
-                      feature={feature}
-                      active={props.activeFeatureKey === feature.featureKey}
-                      onActivate={() => props.onActivate(feature.featureKey)}
+                      card={card}
+                      active={props.activeSlug === card.slug}
+                      onActivate={() => props.onActivate(card.slug)}
                     />
                   )}
                 </For>
@@ -65,12 +60,12 @@ export function WorkBoard(props: {
 }
 
 function WorkCard(props: {
-  feature: WorkspaceSpecFeature;
+  card: WorkspaceWorkCard;
   active: boolean;
   onActivate: () => void;
 }) {
-  const progress = createMemo(() => featureTaskProgress(props.feature));
-  const openQuestions = createMemo(() => featureOpenQuestions(props.feature));
+  const progress = createMemo(() => cardTaskProgress(props.card));
+  const openQuestions = createMemo(() => cardOpenQuestions(props.card));
 
   return (
     <Card
@@ -85,9 +80,9 @@ function WorkCard(props: {
         aria-pressed={props.active ? "true" : "false"}
         onClick={() => props.onActivate()}
       >
-        <span class="pw-work-card__title">{props.feature.title}</span>
+        <span class="pw-work-card__title">{props.card.title}</span>
         <span class="truncate font-mono text-[11px] text-[var(--color-text-muted)]">
-          {props.feature.featureKey}
+          {props.card.slug}
         </span>
         <span class="flex flex-wrap items-center gap-1.5">
           <Show when={progress().total > 0}>
@@ -104,7 +99,7 @@ function WorkCard(props: {
           </Show>
         </span>
         <span class="text-[11px] text-[var(--color-text-muted)]">
-          {props.feature.owner} · {props.feature.updatedAt}
+          {props.card.owner ? `${props.card.owner} · ${props.card.updatedAt}` : props.card.updatedAt}
         </span>
       </button>
     </Card>

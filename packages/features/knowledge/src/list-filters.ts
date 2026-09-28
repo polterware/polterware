@@ -1,12 +1,12 @@
-import type { WorkspaceSource, WorkspaceSpecFeature } from "@polterware/feature-shell";
-import { checklistHasOpenItems } from "./spec-templates";
+import type { WorkStage, WorkspaceSource, WorkspaceWorkCard } from "@polterware/feature-shell";
+import { cardOpenQuestions } from "./work-stage";
 
-export type SpecChecklistFilter = "any" | "open" | "clear";
+export type CardQuestionsFilter = "any" | "open" | "clear";
 export type LinkedFilter = "any" | "linked" | "unlinked";
 
-export type SpecListFilters = {
-  statuses: readonly string[];
-  checklist: SpecChecklistFilter;
+export type CardListFilters = {
+  stages: readonly WorkStage[];
+  questions: CardQuestionsFilter;
   query: string;
 };
 
@@ -16,9 +16,9 @@ export type SourceListFilters = {
   query: string;
 };
 
-export const EMPTY_SPEC_LIST_FILTERS: SpecListFilters = {
-  statuses: [],
-  checklist: "any",
+export const EMPTY_CARD_LIST_FILTERS: CardListFilters = {
+  stages: [],
+  questions: "any",
   query: "",
 };
 
@@ -28,8 +28,8 @@ export const EMPTY_SOURCE_LIST_FILTERS: SourceListFilters = {
   query: "",
 };
 
-export function specListFiltersActive(filters: SpecListFilters): boolean {
-  return filters.statuses.length > 0 || filters.checklist !== "any";
+export function cardListFiltersActive(filters: CardListFilters): boolean {
+  return filters.stages.length > 0 || filters.questions !== "any";
 }
 
 export function sourceListFiltersActive(filters: SourceListFilters): boolean {
@@ -50,23 +50,17 @@ export function distinctSourcePathPrefixes(sources: readonly WorkspaceSource[]):
   return [...values].sort((a, b) => a.localeCompare(b));
 }
 
-export function filterSpecFeatures(
-  features: readonly WorkspaceSpecFeature[],
-  filters: SpecListFilters,
-): WorkspaceSpecFeature[] {
+export function filterWorkCards(
+  cards: readonly WorkspaceWorkCard[],
+  filters: CardListFilters,
+): WorkspaceWorkCard[] {
   const needle = filters.query.trim().toLowerCase();
-  return features.filter((feature) => {
-    if (filters.statuses.length > 0 && !filters.statuses.includes(feature.status)) {
-      return false;
-    }
-    if (filters.checklist === "open" && !checklistHasOpenItems(feature.checklist.bodyMarkdown)) {
-      return false;
-    }
-    if (filters.checklist === "clear" && checklistHasOpenItems(feature.checklist.bodyMarkdown)) {
-      return false;
-    }
+  return cards.filter((card) => {
+    if (filters.stages.length > 0 && !filters.stages.includes(card.stage)) return false;
+    if (filters.questions === "open" && cardOpenQuestions(card) === 0) return false;
+    if (filters.questions === "clear" && cardOpenQuestions(card) > 0) return false;
     if (!needle) return true;
-    return [feature.title, feature.featureKey, feature.summary, feature.owner].some((value) =>
+    return [card.title, card.slug, card.intent, card.owner, card.under].some((value) =>
       value.toLowerCase().includes(needle),
     );
   });

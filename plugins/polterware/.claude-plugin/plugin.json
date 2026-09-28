@@ -1,0 +1,6 @@
+{
+  "name": "polterware",
+  "version": "0.1.0",
+  "description": "Write Polterware Work cards in Polter format, lint .pw.md files, and audit each session as one AgentRun.",
+  "author": { "name": "Polterware" }
+}

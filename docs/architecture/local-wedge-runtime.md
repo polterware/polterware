@@ -39,7 +39,7 @@ SQLite local.db
 4. Main holds ConnectRPC clients and sends `Authorization: Bearer <token>`. The core rejects any other token.
 5. The Solid renderer calls `window.polterware` only. Preload forwards IPC to Main.
 
-`POLTERWARE_CORE_ENDPOINT` and `POLTERWARE_CORE_TOKEN` can point Main at an already running core. Without them, Main first reads `<db dir>/run/core.json`. If a live `standalone` core for the same database exists (for example, one started from the `polterware` TUI), Main attaches to it and leaves it running on quit. See [`cli.md`](cli.md#run-state). The Desktop passes Electron `userData/local.db` (product name Polterware). A core or CLI started on its own defaults to `~/Library/Application Support/polterware/local.db`. They share a model only when `-db` is the same file.
+`POLTERWARE_CORE_ENDPOINT` and `POLTERWARE_CORE_TOKEN` can point Main at an already running core. Otherwise Main attaches to the live core for its database (`<db dir>/run/core.json`) or starts one detached, and never stops it on quit ([ADR 0007](../adr/0007-single-local-core.md); the boot steps above predate it). See [`cli.md`](cli.md#run-state). The Desktop passes Electron `userData/local.db` (product name Polterware). A core or CLI started on its own defaults to `~/Library/Application Support/polterware/local.db`. They share a model only when `-db` is the same file.
 
 ## Process boundary
 

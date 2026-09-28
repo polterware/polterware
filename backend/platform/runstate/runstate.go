@@ -1,42 +1,29 @@
-// Package runstate owns the small JSON files that let local Polterware processes
-// find each other: the standalone core (core.json) and live MCP sessions
-// (mcp-<pid>.json). Files live in <db dir>/run and are private to the user.
+// Package runstate owns the small files that let local Polterware processes
+// find the core (ADR 0007): core.json (endpoint, token, build), core.lock (one
+// core per database), and core.log. Files live in <db dir>/run and are private
+// to the user.
 package runstate
 
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"syscall"
 	"time"
 )
 
-const (
-	coreFile  = "core.json"
-	mcpPrefix = "mcp-"
-)
+const coreFile = "core.json"
 
-// Core describes a running `polterware serve` process.
+// Core describes the running core (`polterware serve`).
 type Core struct {
-	PID       int       `json:"pid"`
-	Endpoint  string    `json:"endpoint"`
-	Token     string    `json:"token"`
-	DBPath    string    `json:"dbPath"`
-	Owner     string    `json:"owner"`
+	PID      int    `json:"pid"`
+	Endpoint string `json:"endpoint"`
+	Token    string `json:"token"`
+	DBPath   string `json:"dbPath"`
+	// Build identifies the core binary (see coreclient.BuildID).
+	Build     string    `json:"build"`
 	StartedAt time.Time `json:"startedAt"`
-}
-
-// MCPSession describes a running `polterware mcp` stdio process.
-type MCPSession struct {
-	PID           int       `json:"pid"`
-	DBPath        string    `json:"dbPath"`
-	ClientName    string    `json:"clientName"`
-	ClientVersion string    `json:"clientVersion"`
-	StartedAt     time.Time `json:"startedAt"`
 }
 
 // Dir returns the run-state directory for a database path.
@@ -48,8 +35,30 @@ func CorePath(dbPath string) string { return filepath.Join(Dir(dbPath), coreFile
 
 func LogPath(dbPath string) string { return filepath.Join(Dir(dbPath), "core.log") }
 
-func MCPPath(dbPath string, pid int) string {
-	return filepath.Join(Dir(dbPath), fmt.Sprintf("%s%d.json", mcpPrefix, pid))
+func LockPath(dbPath string) string { return filepath.Join(Dir(dbPath), "core.lock") }
+
+// ErrCoreLocked means another core already owns this database.
+var ErrCoreLocked = errors.New("another polterware core owns this database")
+
+// LockCore takes the exclusive per-database core lock (ADR 0007: one core per
+// database). The lock lasts until the returned file is closed or the process
+// exits.
+func LockCore(dbPath string) (*os.File, error) {
+	if err := EnsureDir(dbPath); err != nil {
+		return nil, err
+	}
+	file, err := os.OpenFile(LockPath(dbPath), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = file.Close()
+		if errors.Is(err, syscall.EWOULDBLOCK) {
+			return nil, ErrCoreLocked
+		}
+		return nil, err
+	}
+	return file, nil
 }
 
 // EnsureDir creates the run-state directory with user-only permissions.
@@ -122,32 +131,4 @@ func RemoveCore(dbPath string, pid int) {
 		return
 	}
 	_ = os.Remove(path)
-}
-
-// ListMCP returns live MCP sessions for dbPath, oldest first, and prunes stale files.
-func ListMCP(dbPath string) []MCPSession {
-	entries, err := os.ReadDir(Dir(dbPath))
-	if err != nil {
-		return nil
-	}
-	var out []MCPSession
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasPrefix(name, mcpPrefix) || !strings.HasSuffix(name, ".json") {
-			continue
-		}
-		path := filepath.Join(Dir(dbPath), name)
-		body, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		var session MCPSession
-		if json.Unmarshal(body, &session) != nil || !PIDAlive(session.PID) {
-			_ = os.Remove(path)
-			continue
-		}
-		out = append(out, session)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].StartedAt.Before(out[j].StartedAt) })
-	return out
 }

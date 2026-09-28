@@ -58,10 +58,14 @@ func (*CheckRequest) Descriptor() ([]byte, []int) {
 }
 
 type CheckResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
-	UptimeSec     float64                `protobuf:"fixed64,3,opt,name=uptime_sec,json=uptimeSec,proto3" json:"uptime_sec,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Status    string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Version   string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	UptimeSec float64                `protobuf:"fixed64,3,opt,name=uptime_sec,json=uptimeSec,proto3" json:"uptime_sec,omitempty"`
+	// build identifies the core binary; a client with a different build asks the
+	// core to shut down and starts its own (ADR 0007).
+	Build         string `protobuf:"bytes,4,opt,name=build,proto3" json:"build,omitempty"`
+	Pid           int32  `protobuf:"varint,5,opt,name=pid,proto3" json:"pid,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,17 +121,33 @@ func (x *CheckResponse) GetUptimeSec() float64 {
 	return 0
 }
 
+func (x *CheckResponse) GetBuild() string {
+	if x != nil {
+		return x.Build
+	}
+	return ""
+}
+
+func (x *CheckResponse) GetPid() int32 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
 var File_polterware_local_v1_health_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_health_proto_rawDesc = "" +
 	"\n" +
 	" polterware/local/v1/health.proto\x12\x13polterware.local.v1\"\x0e\n" +
-	"\fCheckRequest\"`\n" +
+	"\fCheckRequest\"\x88\x01\n" +
 	"\rCheckResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1d\n" +
 	"\n" +
-	"uptime_sec\x18\x03 \x01(\x01R\tuptimeSec2_\n" +
+	"uptime_sec\x18\x03 \x01(\x01R\tuptimeSec\x12\x14\n" +
+	"\x05build\x18\x04 \x01(\tR\x05build\x12\x10\n" +
+	"\x03pid\x18\x05 \x01(\x05R\x03pid2_\n" +
 	"\rHealthService\x12N\n" +
 	"\x05Check\x12!.polterware.local.v1.CheckRequest\x1a\".polterware.local.v1.CheckResponseB\xe7\x01\n" +
 	"\x17com.polterware.local.v1B\vHealthProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"

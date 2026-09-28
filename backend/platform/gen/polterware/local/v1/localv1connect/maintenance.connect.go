@@ -39,12 +39,16 @@ const (
 	// MaintenanceServiceGetStoreHealthProcedure is the fully-qualified name of the MaintenanceService's
 	// GetStoreHealth RPC.
 	MaintenanceServiceGetStoreHealthProcedure = "/polterware.local.v1.MaintenanceService/GetStoreHealth"
+	// MaintenanceServiceShutdownProcedure is the fully-qualified name of the MaintenanceService's
+	// Shutdown RPC.
+	MaintenanceServiceShutdownProcedure = "/polterware.local.v1.MaintenanceService/Shutdown"
 )
 
 // MaintenanceServiceClient is a client for the polterware.local.v1.MaintenanceService service.
 type MaintenanceServiceClient interface {
 	ResetLocalStore(context.Context, *connect.Request[v1.ResetLocalStoreRequest]) (*connect.Response[v1.ResetLocalStoreResponse], error)
 	GetStoreHealth(context.Context, *connect.Request[v1.GetStoreHealthRequest]) (*connect.Response[v1.GetStoreHealthResponse], error)
+	Shutdown(context.Context, *connect.Request[v1.ShutdownRequest]) (*connect.Response[v1.ShutdownResponse], error)
 }
 
 // NewMaintenanceServiceClient constructs a client for the polterware.local.v1.MaintenanceService
@@ -70,6 +74,12 @@ func NewMaintenanceServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(maintenanceServiceMethods.ByName("GetStoreHealth")),
 			connect.WithClientOptions(opts...),
 		),
+		shutdown: connect.NewClient[v1.ShutdownRequest, v1.ShutdownResponse](
+			httpClient,
+			baseURL+MaintenanceServiceShutdownProcedure,
+			connect.WithSchema(maintenanceServiceMethods.ByName("Shutdown")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -77,6 +87,7 @@ func NewMaintenanceServiceClient(httpClient connect.HTTPClient, baseURL string, 
 type maintenanceServiceClient struct {
 	resetLocalStore *connect.Client[v1.ResetLocalStoreRequest, v1.ResetLocalStoreResponse]
 	getStoreHealth  *connect.Client[v1.GetStoreHealthRequest, v1.GetStoreHealthResponse]
+	shutdown        *connect.Client[v1.ShutdownRequest, v1.ShutdownResponse]
 }
 
 // ResetLocalStore calls polterware.local.v1.MaintenanceService.ResetLocalStore.
@@ -89,11 +100,17 @@ func (c *maintenanceServiceClient) GetStoreHealth(ctx context.Context, req *conn
 	return c.getStoreHealth.CallUnary(ctx, req)
 }
 
+// Shutdown calls polterware.local.v1.MaintenanceService.Shutdown.
+func (c *maintenanceServiceClient) Shutdown(ctx context.Context, req *connect.Request[v1.ShutdownRequest]) (*connect.Response[v1.ShutdownResponse], error) {
+	return c.shutdown.CallUnary(ctx, req)
+}
+
 // MaintenanceServiceHandler is an implementation of the polterware.local.v1.MaintenanceService
 // service.
 type MaintenanceServiceHandler interface {
 	ResetLocalStore(context.Context, *connect.Request[v1.ResetLocalStoreRequest]) (*connect.Response[v1.ResetLocalStoreResponse], error)
 	GetStoreHealth(context.Context, *connect.Request[v1.GetStoreHealthRequest]) (*connect.Response[v1.GetStoreHealthResponse], error)
+	Shutdown(context.Context, *connect.Request[v1.ShutdownRequest]) (*connect.Response[v1.ShutdownResponse], error)
 }
 
 // NewMaintenanceServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -115,12 +132,20 @@ func NewMaintenanceServiceHandler(svc MaintenanceServiceHandler, opts ...connect
 		connect.WithSchema(maintenanceServiceMethods.ByName("GetStoreHealth")),
 		connect.WithHandlerOptions(opts...),
 	)
+	maintenanceServiceShutdownHandler := connect.NewUnaryHandler(
+		MaintenanceServiceShutdownProcedure,
+		svc.Shutdown,
+		connect.WithSchema(maintenanceServiceMethods.ByName("Shutdown")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/polterware.local.v1.MaintenanceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MaintenanceServiceResetLocalStoreProcedure:
 			maintenanceServiceResetLocalStoreHandler.ServeHTTP(w, r)
 		case MaintenanceServiceGetStoreHealthProcedure:
 			maintenanceServiceGetStoreHealthHandler.ServeHTTP(w, r)
+		case MaintenanceServiceShutdownProcedure:
+			maintenanceServiceShutdownHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -136,4 +161,8 @@ func (UnimplementedMaintenanceServiceHandler) ResetLocalStore(context.Context, *
 
 func (UnimplementedMaintenanceServiceHandler) GetStoreHealth(context.Context, *connect.Request[v1.GetStoreHealthRequest]) (*connect.Response[v1.GetStoreHealthResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.MaintenanceService.GetStoreHealth is not implemented"))
+}
+
+func (UnimplementedMaintenanceServiceHandler) Shutdown(context.Context, *connect.Request[v1.ShutdownRequest]) (*connect.Response[v1.ShutdownResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.MaintenanceService.Shutdown is not implemented"))
 }

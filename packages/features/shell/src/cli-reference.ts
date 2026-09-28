@@ -118,6 +118,79 @@ export const CLI_COMMANDS: readonly CliCommand[] = [
     example: "polterware drift --project <project-id>",
   },
   {
+    id: "apply",
+    name: "polterware apply",
+    synopsis:
+      "polterware apply <file|-> [--dry-run] [--project <id>] [--summary <text>] [--rationale <text>] [--agent-run-id <id>]",
+    summary:
+      "Write Polter text (Work cards, tasks, questions, invariants) to the store as one audited change. A text only changes what it mentions.",
+    flags: [
+      { name: "--dry-run", description: "Print the plan without writing." },
+      {
+        name: "--project",
+        value: "id",
+        description: "Project id. Defaults to the project whose root contains the current directory.",
+      },
+      { name: "--summary", value: "text", description: "Change summary. Overrides the frontmatter." },
+      { name: "--rationale", value: "text", description: "Change rationale. Overrides the frontmatter." },
+      AGENT_RUN_FLAG,
+    ],
+    example: "polterware apply roadmap.pw.md --dry-run",
+  },
+  {
+    id: "lint",
+    name: "polterware lint",
+    synopsis: "polterware lint <file|dir|-> [--project <id>]",
+    summary:
+      "Validate Polter text. Silent on success; prints one line per error with the fix and exits 1. Directories are searched for *.pw.md files.",
+    flags: [
+      {
+        name: "--project",
+        value: "id",
+        description: "Project id for reference checks. Without a resolvable project, only syntax is checked.",
+      },
+    ],
+    example: "polterware lint roadmap.pw.md",
+  },
+  {
+    id: "format",
+    name: "polterware format",
+    synopsis: "polterware format",
+    summary: "Print the Polter format spec, short enough to teach an agent in one read.",
+    flags: [],
+    example: "polterware format",
+  },
+  {
+    id: "query",
+    name: "polterware query",
+    synopsis: 'polterware query "cards" | "card <slug>" [--project <id>]',
+    summary:
+      "Read Work state in Polter format: one line per active card, or one full card.",
+    flags: [
+      {
+        name: "--project",
+        value: "id",
+        description: "Project id. Defaults to the project whose root contains the current directory.",
+      },
+    ],
+    example: "polterware query cards",
+  },
+  {
+    id: "hook",
+    name: "polterware hook",
+    synopsis: "polterware hook session-start [--label <name>] | session-end | lint",
+    summary:
+      "Claude Code hook entry points (JSON on stdin), installed by the Polterware plugin. session-start makes every apply in the session join one AgentRun per project; session-end completes it; lint checks written .pw.md files and returns errors to the agent.",
+    flags: [
+      {
+        name: "--label",
+        value: "name",
+        description: "AgentRun label for the session. Defaults to claude-code.",
+      },
+    ],
+    example: "polterware hook lint",
+  },
+  {
     id: "serve",
     name: "polterware serve",
     synopsis: "polterware [-db path] serve [--listen <addr>] [--token <token>]",

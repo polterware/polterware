@@ -11,7 +11,13 @@ message GetStoreHealthResponse {
   string message = 2;
 }
 
+// Shutdown stops the core after the response is sent (build mismatch or an
+// explicit stop from the TUI).
+message ShutdownRequest { string reason = 1; }
+message ShutdownResponse {}
+
 service MaintenanceService {
   rpc ResetLocalStore(ResetLocalStoreRequest) returns (ResetLocalStoreResponse);
   rpc GetStoreHealth(GetStoreHealthRequest) returns (GetStoreHealthResponse);
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }

@@ -25,6 +25,10 @@ func New(path string) (*Store, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := dbsqlite.LoadProjectColumns(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	return &Store{DB: db}, nil
 }
 

@@ -1,6 +1,6 @@
 import type { DitherIconTone } from "@polterware/frontend-design-system";
 
-export type KnowledgeTemplateKind = "doc" | "runbook" | "adr" | "feature" | "source";
+export type KnowledgeTemplateKind = "doc" | "runbook" | "adr" | "card" | "source";
 
 export type KnowledgeCreateTemplate = {
   id: string;
@@ -325,24 +325,24 @@ A database, cache, or upstream service is unavailable and a standby exists.
   },
 ];
 
-const FEATURE_TEMPLATES: KnowledgeCreateTemplate[] = [
+const CARD_TEMPLATES: KnowledgeCreateTemplate[] = [
   {
-    id: "feature-user-auth",
-    kind: "feature",
+    id: "card-user-auth",
+    kind: "card",
     title: "User authentication",
     description: "Sign-in, session, and access boundaries.",
     tone: "identity",
   },
   {
-    id: "feature-background-jobs",
-    kind: "feature",
+    id: "card-background-jobs",
+    kind: "card",
     title: "Background job runner",
     description: "Queue, run, and observe async work.",
     tone: "execution",
   },
   {
-    id: "feature-api-rate-limit",
-    kind: "feature",
+    id: "card-api-rate-limit",
+    kind: "card",
     title: "API rate limiting",
     description: "Protect endpoints with fair request limits.",
     tone: "security",
@@ -383,7 +383,7 @@ export const KNOWLEDGE_CREATE_TEMPLATES: KnowledgeCreateTemplate[] = [
   ...DOC_TEMPLATES,
   ...ADR_TEMPLATES,
   ...RUNBOOK_TEMPLATES,
-  ...FEATURE_TEMPLATES,
+  ...CARD_TEMPLATES,
   ...SOURCE_TEMPLATES,
 ];
 

@@ -87,6 +87,13 @@ An agent working on a task gets the full task, the component summarized, the dom
 - [x] **Slice 1 — Navigation swap** (uncommitted on `feat/atlas-grounded-sdd`). Sidebar: Inbox, Atlas, Work, Decisions, Reality, Agents, Integrations; Settings in the footer. Default route Atlas › Canvas. Legacy routes (`architecture`, `resources`, `knowledge/*`, `agents/facts`) redirect. Commander, `docs/spec.md`, and `AGENTS.md` updated. Files: `packages/features/shell/src/route.ts`, `sidebar.tsx`, `index.tsx`, `inbox-page.tsx`, `apps/desktop/src/renderer/App.tsx`, commander files.
 - [x] **Slice 2 — Work › Board** (uncommitted). Five stage columns (Shape, Plan, Build, Verify, Delivered). `stage` lives in the spec artifact `extra_json`; derived when missing (draft → Shape, ready → Build, all tasks checked → Verify). Stage Select in the feature detail panel, audited via `justifyChange`. Files: `packages/features/knowledge/src/work-board.tsx`, `work-board.css`, `work-stage.ts`, `spec-feature-detail.tsx`, `apps/desktop/src/renderer/workspace/map-records.ts`, `persist.ts`.
 - [x] Inbox page exists with an honest empty state only.
+- [x] **Slice 3a — backend pass** (uncommitted). [ADR 0006](../adr/0006-polter-format-and-work-model.md) (Proposed). Work tables (`work_cards`, `work_tasks`, `work_questions`, `work_invariants`) and append-only `change_ops` in migration `0014_work_model.sql`; ULID ids (`backend/platform/ids`). Codec `backend/domains/polter` (decode, lint, plan, encode, format spec, query parse), store `providers/sqlite/work.go`, composition `wedge/work.go` (`ApplyPolter`, `QueryPolter`, `ResolveProject`). CLI `apply [--dry-run]`, `lint`, `format`, `query "cards" | "card <slug>"`. `apply` without `--agent-run-id` auto-opens an agent run labelled `cli`; the change step carries the `change_ops` batch id. Tests written in `domains/polter/polter_test.go` and `compositions/wedge/work_test.go`, not run.
+- [x] **Slice 3a — Desktop pass** (uncommitted). `schemas/polterware/local/v1/work.proto` (`WorkService.ListWorkCards`, `ApplyPolter`); handlers in `compositions/local-core/work_handlers.go`; `wedge.ApplyInput` gained `ActorKind`/`Tool`. Desktop: `core.work.listCards` / `core.work.apply` through shared IPC, Main controllers, and preload. Renderer maps `workCards` (`map-records.ts`) and writes via `persistWorkCreateCard`, `persistWorkSetStage`, `persistWorkRemoveCard` (`persist.ts`). Knowledge package: `work-board.tsx`, `work-card-detail.tsx` (read-only intent/tasks/questions/invariants, stage Select, remove), `work-stage.ts`, `card-slug.ts`, card filters; Commander overview reads cards. Removed: `spec-feature-detail.tsx`, `spec-templates.ts` (Constitution template kept in `constitution-template.ts`), `feature-key.ts`, spec knowledge kinds and seed items. Test `work_handlers_test.go` written, not run.
+- [x] **Slice 3b — Agent channels** (uncommitted). MCP `polter.format`, `polter.query`, `polter.apply` (`providers/mcp/polter.go`; server version 0.5.0). Session runs in `wedge/session.go` (`SessionRuns`, `ApplyInSession`): one agent run per project per session, opened on the first real write, never for invalid, no-op, or dry-run text. MCP keeps it per process (label = client name, completed on exit); the CLI keeps it per Claude Code session through `polterware hook session-start` (exports `POLTERWARE_SESSION` to `$CLAUDE_ENV_FILE`), `<db dir>/run/sessions/<id>.json`, and `hook session-end`. `hook lint` returns `.pw.md` errors to the agent (exit 2). Claude Code plugin in `plugins/polterware` (skill `polter` embedding `polter.Spec`, hooks) with marketplace `.claude-plugin/marketplace.json`. AGENTS.md Work cards line; Desktop AI skill teaches `polter.*`. Tests written in `providers/mcp/polter_test.go`, `wedge/session_test.go`, `domains/polter/skill_test.go`, not run.
+
+- [x] **Slice 3c — Hints** (uncommitted). `domains/polter/hints.go`: `Lint` with `References.Cards` reports non-blocking `hint` diagnostics for new cards, questions, and invariants similar to active ones (normalized word sets, Jaccard), and suggests `under:` for new cards from existing `under:` values. `wedge.ApplyPolter` reuses its snapshot for references; CLI `lint`/`apply`, `hook lint` (exit 2), and MCP `polter.apply` print hints prefixed `hint:`; the Desktop already receives them as `PolterDiagnostic`. FTS5 index deferred to the first ranked-search consumer (see `polter-format.md`). Test `TestLintHints` written, not run.
+
+- [x] **Slice 3d — Single local core + live sync** (uncommitted). [ADR 0007](../adr/0007-single-local-core.md). Only `polterware serve` opens SQLite (lock `run/core.lock`, idle exit, build handshake). Commit hooks → `platform/events` bus → `ChangeService.WatchChanges`; Desktop Main forwards to `window.polterware.core.onChange`, renderer refreshes affected slices (`renderer/workspace/live-refresh.ts`). MCP moved into the core (`/mcp`), `polterware mcp` is a bridge; CLI and TUI use `platform/coreclient`. New RPCs: `ResolveProject`, `InitProject`, `LintPolter`, `QueryPolter`, `EndSession`, `ListMcpSessions`, `Shutdown`. Removed: per-process MCP presence files, session state files, core `owner`. Not run end to end.
 
 Validation so far: typecheck passed; `git diff --check` clean; `pnpm design:lint` fails only on files this work did not touch. Tests and browser not run.
 
@@ -94,30 +101,41 @@ Known leftovers: some UI copy still says "Architecture" (Atlas canvas tab label,
 
 ## Next slices
 
-Recommended order: 3 (foundation every later slice reads and writes), then 4 (continuity test), then 5 and 6. Slices 3a–3c are sequential; 3a is the next unit of work.
+Recommended order: 3 (foundation every later slice reads and writes), then 3d (single core + live sync), then 4 (continuity test), then 5 and 6. Slices 3a–3c are done; 3d is implemented and awaits end-to-end validation; slice 4 is next.
 
 ### Slice 3a — Work model + Polter codec + CLI
 
 Goal: an agent creates a roadmap or Work cards with one `polterware apply` call, cheaply. Design: [`polter-format.md`](polter-format.md).
 
-- [ ] ADR (Proposed): Polter format as the agent ↔ Polterware protocol; Polterware store is the source of truth; repositories get evidence in and projections out.
-- [ ] Work model decision and schema: typed tables for cards (features), tasks (with scope), questions (with blocking flag and options), and invariants, in `schemas` (proto) + SQLite baseline. Recommended: the existing five Knowledge artifacts (Spec/Plan/Tasks/Clarify/Checklist) stay as documents attached to a card; the Board reads the new tables.
-- [ ] Stable ids (ULID) for new records; every mutation appended to the change log with the envelope (extends Unified Change History; this log becomes the Cloud sync contract).
-- [ ] Codec package in the Go core: decode → plan (diff vs store) → validate → apply (one transaction), and encode at zoom/budget. Grammar v1 (cards, metadata, tasks with scope, `?` questions, `!` invariants, `polter: 1`). Upsert by slug; removal only explicit. Round-trip property.
-- [ ] CLI: `polterware apply <file|-> [--dry-run]`, `polterware lint <file|dir|->` (syntax + reference levels, silent on success, one-line errors with the fix), `polterware format` (~150-token spec).
-- [ ] Compact list output (one line per card) and single-card encode.
-- [ ] Work › Board renders cards from the new tables.
+- [x] ADR (Proposed): [ADR 0006](../adr/0006-polter-format-and-work-model.md).
+- [x] Work model schema in the SQLite baseline (migration `0014_work_model.sql`). Decided: the five Knowledge artifacts (Spec/Plan/Tasks/Clarify/Checklist) are discontinued, not attached or migrated.
+- [x] Stable ids (ULID) for new records; every applied operation appended to `change_ops` with a batch id carried by the AgentRun change step.
+- [x] Codec package: decode → lint → plan (diff vs store) → apply (one transaction); encode list and single card. Grammar v1, upsert by slug, explicit removal, round-trip property (tests written). Zoom/budget encoding moves to slice 8.
+- [x] CLI: `apply [--dry-run]`, `lint` (syntax + `decisions:` references), `format`, `query`.
+- [x] Compact list output (one line per card) and single-card encode.
+- [x] **Desktop pass:** proto `WorkService` (`ListWorkCards`, `ApplyPolter`) → generated Go/TS; core handlers; Main/preload wiring (`window.polterware.core.work`); Work › Board and Specs render cards from the Work tables; stage change, create, and remove go through `ApplyPolter` as Polter text (human actor, tool `desktop.work.apply`). Five-document spec flow removed (feature detail, templates, `mapSpecFeatures`, `extra_json` stage, spec kinds in `knowledge.ValidKind`, seed spec items). Constitution kept.
 
 ### Slice 3b — Agent channels
 
-- [ ] MCP: `polter.apply`, `polter.query`, `polter.format` (existing tools stay until the ADR approves migration).
-- [ ] Claude Code plugin: skill with the format spec + `PostToolUse` hook running lint on `.pw.md` writes.
-- [ ] One line in `AGENTS.md` for Codex and others (`polterware format`, `polterware apply`).
-- [ ] Session-scoped AgentRun opened by hook; writes carry only `summary` + `rationale`, no start/complete calls.
+- [x] MCP: `polter.apply`, `polter.query`, `polter.format` (existing tools stay until the ADR approves migration).
+- [x] Claude Code plugin: skill with the format spec + `PostToolUse` hook running lint on `.pw.md` writes.
+- [x] One line in `AGENTS.md` for Codex and others (`polterware format`, `polterware apply`).
+- [x] Session-scoped AgentRun opened by hook; writes carry only `summary` + `rationale`, no start/complete calls.
 
 ### Slice 3c — Hints
 
-- [ ] Duplicate and placement hints via normalization + SQLite FTS5 (no embeddings), reported by `lint` and `apply`. See [`polter-format.md`](polter-format.md#similarity-and-matching-no-embeddings-first).
+- [x] Duplicate and placement hints via normalization (no embeddings), reported by `lint` and `apply`. FTS5 deferred to ranked prose search. See [`polter-format.md`](polter-format.md#similarity-and-matching-no-embeddings-first).
+
+### Slice 3d — Single local core + live sync
+
+Goal: every surface shows the same state without a manual reload. Decided in [ADR 0007](../adr/0007-single-local-core.md) (Proposed): one core process owns SQLite; everything else is a client.
+
+- [x] ADR 0007; one core per database (`run/core.lock`), daemon with 10-minute idle exit, build handshake (`HealthService.Check` build, `MaintenanceService.Shutdown`).
+- [x] Change events from SQLite commit hooks (`platform/db/sqlite/hooks.go`) → coalescing bus (`platform/events`) → `ChangeService.WatchChanges` with kinds, project ids, origins, resync.
+- [x] Desktop Main attaches or starts the core detached, swaps clients on restart, and forwards events (`window.polterware.core.onChange`); the renderer reloads only affected slices and skips its own writes.
+- [x] MCP runs in the core (`/mcp`, `providers/mcp/http.go`); `polterware mcp` is a stdio bridge.
+- [x] CLI commands and the TUI are core clients (`platform/coreclient`); agent session runs live in the core (`WorkService.EndSession`).
+- [ ] Validate end to end (Desktop open, `polterware apply` from a terminal, MCP from Claude Code) and measure start latency of the first CLI call.
 
 ### Slice 4 — Continuity loop (the two-week test)
 

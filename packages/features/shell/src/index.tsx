@@ -81,7 +81,6 @@ export {
   CATALOG_PROVIDER_MOCKS,
   DOCUMENT_MOCKS,
   RUNBOOK_MOCKS,
-  SPEC_FEATURE_MOCKS,
   CONSTITUTION_MOCK,
 } from "./workspace-mocks";
 

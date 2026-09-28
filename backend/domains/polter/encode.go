@@ -1,0 +1,208 @@
+package polter
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/polterware/polterware/backend/domains/work"
+)
+
+// Header is the canonical frontmatter every encoded document starts with.
+const Header = "---\npolter: 1\n---\n"
+
+// Format renders a Document in canonical form. Format(Decode(Format(Decode(x))))
+// equals Format(Decode(x)): the codec's round-trip property.
+func Format(doc Document) string {
+	var b strings.Builder
+	b.WriteString("---\npolter: 1\n")
+	if doc.Summary != "" {
+		fmt.Fprintf(&b, "summary: %s\n", doc.Summary)
+	}
+	if doc.Rationale != "" {
+		fmt.Fprintf(&b, "rationale: %s\n", doc.Rationale)
+	}
+	b.WriteString("---\n")
+	for _, card := range doc.Cards {
+		b.WriteString("\n")
+		writeCard(&b, card)
+	}
+	return b.String()
+}
+
+// EncodeCard renders one stored card as a full Polter document.
+func EncodeCard(card work.Card) string {
+	var b strings.Builder
+	b.WriteString(Header)
+	b.WriteString("\n")
+	writeCard(&b, NodeFromCard(card))
+	return b.String()
+}
+
+// NodeFromCard converts a stored card to its AST. Removed questions and
+// invariants are left out; dropped tasks stay so their numbers remain visible.
+func NodeFromCard(card work.Card) CardNode {
+	node := CardNode{Slug: card.Slug, Title: card.Title, Intent: card.Intent, IntentSet: card.Intent != ""}
+	node.Meta = append(node.Meta, MetaEntry{Key: "stage", Value: card.Stage})
+	if card.Owner != "" {
+		node.Meta = append(node.Meta, MetaEntry{Key: "owner", Value: card.Owner})
+	}
+	if card.Under != "" {
+		node.Meta = append(node.Meta, MetaEntry{Key: "under", Value: card.Under})
+	}
+	if len(card.Decisions) > 0 {
+		node.Meta = append(node.Meta, MetaEntry{Key: "decisions", Value: strings.Join(card.Decisions, ", ")})
+	}
+	if card.Status == work.CardRemoved {
+		node.Meta = append(node.Meta, MetaEntry{Key: "status", Value: work.CardRemoved})
+	}
+	for _, task := range card.Tasks {
+		node.Tasks = append(node.Tasks, TaskNode{Number: task.Number, Title: task.Title, State: task.State, Scope: task.Scope})
+	}
+	for _, q := range card.Questions {
+		if q.State != work.QuestionOpen {
+			continue
+		}
+		node.Questions = append(node.Questions, QuestionNode{Text: q.Text, Blocking: q.Blocking, Options: q.Options})
+	}
+	for _, inv := range card.Invariants {
+		if inv.State != work.InvariantActive {
+			continue
+		}
+		node.Invariants = append(node.Invariants, InvariantNode{Text: inv.Text})
+	}
+	return node
+}
+
+func writeCard(b *strings.Builder, card CardNode) {
+	if card.Title != "" {
+		fmt.Fprintf(b, "## %s: %s\n", card.Slug, card.Title)
+	} else {
+		fmt.Fprintf(b, "## %s\n", card.Slug)
+	}
+	if meta := canonicalMeta(card); len(meta) > 0 {
+		parts := make([]string, 0, len(meta))
+		for _, entry := range meta {
+			parts = append(parts, entry.Key+": "+entry.Value)
+		}
+		b.WriteString(strings.Join(parts, " · "))
+		b.WriteString("\n")
+	}
+	if card.IntentSet {
+		b.WriteString("\n")
+		b.WriteString(card.Intent)
+		b.WriteString("\n")
+	}
+	if len(card.Tasks)+len(card.Questions)+len(card.Invariants) > 0 {
+		b.WriteString("\n")
+	}
+	for _, task := range card.Tasks {
+		box := " "
+		switch task.State {
+		case work.TaskDone:
+			box = "x"
+		case work.TaskDropped:
+			box = "-"
+		}
+		fmt.Fprintf(b, "- [%s] ", box)
+		if task.Number > 0 {
+			fmt.Fprintf(b, "T%d ", task.Number)
+		}
+		b.WriteString(task.Title)
+		if task.Scope != "" {
+			fmt.Fprintf(b, " `%s`", task.Scope)
+		}
+		b.WriteString("\n")
+	}
+	for _, q := range card.Questions {
+		b.WriteString("? ")
+		b.WriteString(q.Text)
+		if q.Blocking {
+			b.WriteString(" [blocking]")
+		}
+		if q.Removed {
+			b.WriteString(" [removed]")
+		}
+		if len(q.Options) > 0 {
+			fmt.Fprintf(b, " (%s)", strings.Join(q.Options, " | "))
+		}
+		b.WriteString("\n")
+	}
+	for _, inv := range card.Invariants {
+		b.WriteString("! ")
+		b.WriteString(inv.Text)
+		if inv.Removed {
+			b.WriteString(" [removed]")
+		}
+		b.WriteString("\n")
+	}
+}
+
+// canonicalMeta keeps the last value per key, in MetaKeys order.
+func canonicalMeta(card CardNode) []MetaEntry {
+	var out []MetaEntry
+	for _, key := range MetaKeys {
+		if value, ok := card.MetaValue(key); ok {
+			out = append(out, MetaEntry{Key: key, Value: value})
+		}
+	}
+	return out
+}
+
+// EncodeList renders active cards one per line:
+// slug  stage  2/5 tasks  1 open?  "Title"
+func EncodeList(snapshot work.Snapshot) string {
+	type row struct{ slug, stage, tasks, questions, title string }
+	var rows []row
+	widths := [4]int{}
+	for _, card := range snapshot.Cards {
+		if card.Status != work.CardActive {
+			continue
+		}
+		done, total := TaskProgress(card)
+		r := row{slug: card.Slug, stage: card.Stage, tasks: fmt.Sprintf("%d/%d tasks", done, total), title: card.Title}
+		if open := OpenQuestions(card); open > 0 {
+			r.questions = fmt.Sprintf("%d open?", open)
+		}
+		for i, value := range []string{r.slug, r.stage, r.tasks, r.questions} {
+			widths[i] = max(widths[i], len(value))
+		}
+		rows = append(rows, r)
+	}
+	if len(rows) == 0 {
+		return "no cards\n"
+	}
+	var b strings.Builder
+	for _, r := range rows {
+		fmt.Fprintf(&b, "%-*s  %-*s  %-*s  ", widths[0], r.slug, widths[1], r.stage, widths[2], r.tasks)
+		if widths[3] > 0 {
+			fmt.Fprintf(&b, "%-*s  ", widths[3], r.questions)
+		}
+		fmt.Fprintf(&b, "%q\n", r.title)
+	}
+	return b.String()
+}
+
+// TaskProgress counts done tasks against non-dropped tasks.
+func TaskProgress(card work.Card) (done, total int) {
+	for _, task := range card.Tasks {
+		switch task.State {
+		case work.TaskDone:
+			done++
+			total++
+		case work.TaskOpen:
+			total++
+		}
+	}
+	return done, total
+}
+
+// OpenQuestions counts questions still waiting for a decision.
+func OpenQuestions(card work.Card) int {
+	n := 0
+	for _, q := range card.Questions {
+		if q.State == work.QuestionOpen {
+			n++
+		}
+	}
+	return n
+}

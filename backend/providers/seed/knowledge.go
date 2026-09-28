@@ -72,51 +72,6 @@ func seedKnowledge(store *storepkg.Store) error {
 			CreatedAt: docsUpdated.Add(-48 * time.Hour), UpdatedAt: docsUpdated.Add(-48 * time.Hour),
 		},
 		{
-			ID: "spec-local-health", ProjectID: ProjectID, Title: "Local health checks", Kind: "spec",
-			Body: "## User stories\n\n### User story 1 - Inspect health (Priority: P1)\n\nAs an operator, I want to see local core health so that I know whether the project store is available.\n\n**Acceptance**\n\n1. **Given** a local project is open, **When** health is loaded, **Then** the desktop shows an honest available or quarantined state.\n\n## Requirements\n\n- **FR-001**: System MUST report local store availability through polterware-core.\n- **FR-002**: System MUST keep health checks free of provider credentials.\n\n## Success criteria\n\n- **SC-001**: Operators can distinguish available and quarantined states without leaving the desktop.\n\n## Assumptions\n\n- Health remains a local-only signal in the first version.",
-			Tags: []string{"health", "local"}, Summary: "Specify honest local health reporting for the desktop.",
-			Owner: "Platform", Status: "ready", ExtraJSON: mustJSON(map[string]any{
-				"featureKey": "local-health-checks",
-			}),
-			CreatedAt: docsUpdated.Add(-24 * time.Hour), UpdatedAt: docsUpdated.Add(-24 * time.Hour),
-		},
-		{
-			ID: "plan-local-health", ProjectID: ProjectID, Title: "Local health checks", Kind: "plan",
-			Body: "## Approach\n\nKeep health as a core probe over the local SQLite store and surface the result in the desktop shell.\n\n## Technical plan\n\n- Reuse the existing Health service.\n- Map quarantined and available states into the workspace snapshot.\n- Avoid inventing cloud or shared-workspace health.",
-			Tags: []string{"health", "local"}, Summary: "Plan for local health reporting.",
-			Owner: "Platform", Status: "ready", ExtraJSON: mustJSON(map[string]any{
-				"featureKey": "local-health-checks",
-			}),
-			CreatedAt: docsUpdated.Add(-24 * time.Hour), UpdatedAt: docsUpdated.Add(-24 * time.Hour),
-		},
-		{
-			ID: "tasks-local-health", ProjectID: ProjectID, Title: "Local health checks", Kind: "tasks",
-			Body: "## Tasks\n\n- [x] T001 Wire Health into the workspace snapshot\n- [x] T002 Show honest quarantine messaging in the shell\n- [ ] T003 Add Specs coverage for health acceptance language",
-			Tags: []string{"health", "local"}, Summary: "Tasks for local health reporting.",
-			Owner: "Platform", Status: "ready", ExtraJSON: mustJSON(map[string]any{
-				"featureKey": "local-health-checks",
-			}),
-			CreatedAt: docsUpdated.Add(-24 * time.Hour), UpdatedAt: docsUpdated.Add(-24 * time.Hour),
-		},
-		{
-			ID: "clarify-local-health", ProjectID: ProjectID, Title: "Local health checks", Kind: "clarify",
-			Body: "## Open questions\n\n- [x] Is health a local-only signal?\n- [ ] Should quarantine block Specs editing?\n\n## Resolved\n\n- Health remains local-only in the first version.",
-			Tags: []string{"health", "local"}, Summary: "Open questions for local health reporting.",
-			Owner: "Platform", Status: "ready", ExtraJSON: mustJSON(map[string]any{
-				"featureKey": "local-health-checks",
-			}),
-			CreatedAt: docsUpdated.Add(-24 * time.Hour), UpdatedAt: docsUpdated.Add(-24 * time.Hour),
-		},
-		{
-			ID: "checklist-local-health", ProjectID: ProjectID, Title: "Local health checks", Kind: "checklist",
-			Body: "## Specification quality\n\n- [x] User stories and acceptance scenarios are testable\n- [x] Functional requirements are unambiguous\n- [x] Success criteria are measurable\n- [x] Assumptions and out-of-scope items are explicit\n- [x] Clarify open questions are answered or accepted as deferred",
-			Tags: []string{"health", "local"}, Summary: "Quality checklist for local health reporting.",
-			Owner: "Platform", Status: "ready", ExtraJSON: mustJSON(map[string]any{
-				"featureKey": "local-health-checks",
-			}),
-			CreatedAt: docsUpdated.Add(-24 * time.Hour), UpdatedAt: docsUpdated.Add(-24 * time.Hour),
-		},
-		{
 			ID: "constitution-project", ProjectID: ProjectID, Title: "Project constitution", Kind: "constitution",
 			Body: "# Project constitution\n\n## Core principles\n\n### Local-first truth\nProject state must remain useful on one machine without requiring a hosted account.\n\n### Honest product boundaries\nDo not describe planned capabilities as shipped.\n\n### Provenance over inference\nDeclared and observed facts take precedence over inferred knowledge.\n\n## Governance\n\nChanges to durable project truth require an attributable actor and a clear reason.",
 			Tags: []string{"constitution"}, Summary: "Project principles for the local desktop.",
@@ -147,7 +102,6 @@ func seedKnowledgeLinks(store *storepkg.Store) error {
 		{knowledgeID: "rb-database", refKind: ppm.RefArchitectureNode, refID: "n-pg", predicate: ppm.PredOperates},
 		{knowledgeID: "rb-database", refKind: ppm.RefResource, refID: "res-rds-prod", predicate: ppm.PredOperates},
 		{knowledgeID: "adr-sqlite-local", refKind: ppm.RefArchitectureNode, refID: "n-pg", predicate: ppm.PredRelatedTo},
-		{knowledgeID: "spec-local-health", refKind: ppm.RefArchitectureNode, refID: "n-gw", predicate: ppm.PredDefines},
 	}
 	for _, spec := range specs {
 		entity, err := store.GetPpmEntityByRef(ProjectID, spec.refKind, spec.refID)

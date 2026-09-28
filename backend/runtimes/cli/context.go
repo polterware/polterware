@@ -1,16 +1,18 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 
-	"github.com/polterware/polterware/backend/compositions/wedge"
+	"connectrpc.com/connect"
+
 	contextpkg "github.com/polterware/polterware/backend/domains/context"
-	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
+	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
 )
 
-func runContext(store *storepkg.Store, args []string) error {
+func runContext(dbPath string, args []string) error {
 	fs := flag.NewFlagSet("context", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	projectID := fs.String("project", "", "project id")
@@ -22,23 +24,28 @@ func runContext(store *storepkg.Store, args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	pkg, err := wedge.CompileContext(store, wedge.ContextInput{
-		ProjectID:   *projectID,
-		Query:       *query,
-		EntityID:    *entityID,
-		TokenBudget: *budget,
-		AgentRunID:  *agentRunID,
-	})
+	c, err := dial(dbPath)
 	if err != nil {
 		return err
 	}
+	res, err := c.Context.CompileContext(context.Background(), connect.NewRequest(&localv1.CompileContextRequest{
+		ProjectId:   *projectID,
+		Query:       *query,
+		EntityId:    *entityID,
+		TokenBudget: int32(*budget),
+		AgentRunId:  *agentRunID,
+	}))
+	if err != nil {
+		return err
+	}
+	pkg := res.Msg
 	if *asJSON {
-		return writeJSON(pkg)
+		return writeProtoJSON(pkg)
 	}
 	fmt.Printf("context project=%s items=%d tokens=%d truncated=%v\n",
-		pkg.ProjectID, len(pkg.Items), pkg.TokensUsed, pkg.Truncated)
+		pkg.ProjectId, len(pkg.Items), pkg.TokensUsed, pkg.Truncated)
 	for _, item := range pkg.Items {
-		fmt.Printf("- [%s] %s (%s)\n", item.Kind, item.Title, item.ID)
+		fmt.Printf("- [%s] %s (%s)\n", item.Kind, item.Title, item.Id)
 	}
 	return nil
 }

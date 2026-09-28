@@ -1,15 +1,17 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 
-	"github.com/polterware/polterware/backend/compositions/wedge"
-	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
+	"connectrpc.com/connect"
+
+	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
 )
 
-func runDrift(store *storepkg.Store, args []string) error {
+func runDrift(dbPath string, args []string) error {
 	fs := flag.NewFlagSet("drift", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	projectID := fs.String("project", "", "project id")
@@ -19,19 +21,24 @@ func runDrift(store *storepkg.Store, args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	result, err := wedge.CheckDrift(store, wedge.DriftInput{
-		ProjectID:  *projectID,
-		EntityID:   *entityID,
-		AgentRunID: *agentRunID,
-	})
+	c, err := dial(dbPath)
 	if err != nil {
 		return err
 	}
+	res, err := c.Context.CheckDrift(context.Background(), connect.NewRequest(&localv1.CheckDriftRequest{
+		ProjectId:  *projectID,
+		EntityId:   *entityID,
+		AgentRunId: *agentRunID,
+	}))
+	if err != nil {
+		return err
+	}
+	result := res.Msg
 	if *asJSON {
-		return writeJSON(result)
+		return writeProtoJSON(result)
 	}
 	fmt.Printf("drift project=%s checker=%s findings=%d status=%s\n",
-		result.ProjectID, result.Checker, len(result.Findings), result.Status)
+		result.ProjectId, result.Checker, len(result.Findings), result.Status)
 	for _, finding := range result.Findings {
 		fmt.Printf("- [%s/%s] %s\n", finding.Severity, finding.Type, finding.Summary)
 	}

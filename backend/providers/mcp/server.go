@@ -5,25 +5,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
+	"github.com/polterware/polterware/backend/compositions/wedge"
 	"github.com/polterware/polterware/backend/domains/agentaccess"
-	"github.com/polterware/polterware/backend/platform/runstate"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
+// Server is one MCP session. The core serves sessions over HTTP (see
+// Sessions); Serve keeps a line-oriented loop for tests and embedding.
 type Server struct {
 	Store *storepkg.Store
 	In    io.Reader
 	Out   io.Writer
 	Err   io.Writer
-	// DBPath enables presence files under <db dir>/run when set.
-	DBPath string
 
-	presence runstate.MCPSession
+	ID            string
+	ClientName    string
+	ClientVersion string
+	StartedAt     time.Time
+	lastSeen      time.Time
+
+	// session holds this MCP session's open agent run per project for polter.apply.
+	session wedge.SessionRuns
 }
 
 type rpcRequest struct {
@@ -45,37 +49,8 @@ type rpcError struct {
 	Message string `json:"message"`
 }
 
-func Run(store *storepkg.Store, dbPath string) error {
-	server := &Server{Store: store, In: os.Stdin, Out: os.Stdout, Err: os.Stderr, DBPath: dbPath}
-	server.writePresence()
-	defer server.removePresence()
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	go func() {
-		<-sig
-		server.removePresence()
-		os.Exit(0)
-	}()
-	return server.Serve()
-}
-
-func (s *Server) writePresence() {
-	if s.DBPath == "" {
-		return
-	}
-	if s.presence.PID == 0 {
-		s.presence = runstate.MCPSession{PID: os.Getpid(), DBPath: s.DBPath, StartedAt: time.Now().UTC()}
-	}
-	_ = runstate.WriteJSON(runstate.MCPPath(s.DBPath, s.presence.PID), s.presence)
-}
-
-func (s *Server) removePresence() {
-	if s.DBPath == "" {
-		return
-	}
-	_ = os.Remove(runstate.MCPPath(s.DBPath, os.Getpid()))
-}
+// Close completes the agent runs this session opened.
+func (s *Server) Close() { s.session.Close(s.Store) }
 
 func (s *Server) recordClient(params json.RawMessage) {
 	var init struct {
@@ -87,11 +62,12 @@ func (s *Server) recordClient(params json.RawMessage) {
 	if json.Unmarshal(params, &init) != nil || init.ClientInfo.Name == "" {
 		return
 	}
-	s.presence.ClientName = init.ClientInfo.Name
-	s.presence.ClientVersion = init.ClientInfo.Version
-	s.writePresence()
+	s.ClientName = init.ClientInfo.Name
+	s.ClientVersion = init.ClientInfo.Version
+	s.session.Label = init.ClientInfo.Name
 }
 
+// Serve reads one JSON-RPC message per line from In and writes responses to Out.
 func (s *Server) Serve() error {
 	scanner := bufio.NewScanner(s.In)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -100,34 +76,40 @@ func (s *Server) Serve() error {
 		if len(line) == 0 {
 			continue
 		}
-		var req rpcRequest
-		if err := json.Unmarshal(line, &req); err != nil {
-			_ = s.write(rpcResponse{JSONRPC: "2.0", Error: &rpcError{Code: -32700, Message: "parse error"}})
-			continue
+		if body, ok := s.handle(line); ok {
+			if _, err := fmt.Fprintf(s.Out, "%s\n", body); err != nil {
+				return err
+			}
 		}
-		if req.Method == "notifications/initialized" || req.Method == "notifications/cancelled" {
-			continue
-		}
-		result, err := s.dispatch(req)
-		if req.ID == nil {
-			continue
-		}
-		if err != nil {
-			_ = s.write(rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32000, Message: err.Error()}})
-			continue
-		}
-		_ = s.write(rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: result})
 	}
 	return scanner.Err()
 }
 
-func (s *Server) write(resp rpcResponse) error {
+// handle answers one JSON-RPC message; ok is false for notifications.
+func (s *Server) handle(line []byte) (body []byte, ok bool) {
+	var req rpcRequest
+	if err := json.Unmarshal(line, &req); err != nil {
+		return marshal(rpcResponse{JSONRPC: "2.0", Error: &rpcError{Code: -32700, Message: "parse error"}}), true
+	}
+	if req.Method == "notifications/initialized" || req.Method == "notifications/cancelled" {
+		return nil, false
+	}
+	result, err := s.dispatch(req)
+	if req.ID == nil {
+		return nil, false
+	}
+	if err != nil {
+		return marshal(rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32000, Message: err.Error()}}), true
+	}
+	return marshal(rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: result}), true
+}
+
+func marshal(resp rpcResponse) []byte {
 	body, err := json.Marshal(resp)
 	if err != nil {
-		return err
+		body, _ = json.Marshal(rpcResponse{JSONRPC: "2.0", ID: resp.ID, Error: &rpcError{Code: -32603, Message: err.Error()}})
 	}
-	_, err = fmt.Fprintf(s.Out, "%s\n", body)
-	return err
+	return body
 }
 
 func (s *Server) dispatch(req rpcRequest) (any, error) {
@@ -137,8 +119,8 @@ func (s *Server) dispatch(req rpcRequest) (any, error) {
 		return map[string]any{
 			"protocolVersion": "2024-11-05",
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "polterware-mcp", "version": "0.4.0"},
-			"instructions":    "Polterware MCP: context.get, entity.get, evidence.get, drift.check; AgentRun audit (agent_run.start|append|complete|get|list); audited writes (fact.upsert, evidence.upsert, evidence.link, knowledge.upsert, knowledge.link) requiring summary, rationale, and open agent_run_id. Prefer context.get for bounded project context.",
+			"serverInfo":      map[string]any{"name": "polterware-mcp", "version": "0.5.0"},
+			"instructions":    "Polterware MCP. Work cards: read polter.format once, then polter.query and polter.apply (Polter text with summary and rationale; the session run is implicit). Also context.get, entity.get, evidence.get, drift.check; AgentRun audit (agent_run.start|append|complete|get|list); audited writes (fact.upsert, evidence.upsert, evidence.link, knowledge.upsert, knowledge.link) requiring summary, rationale, and open agent_run_id. Prefer context.get for bounded project context.",
 		}, nil
 	case "tools/list":
 		return map[string]any{"tools": toolDefinitions()}, nil

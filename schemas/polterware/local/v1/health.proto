@@ -7,6 +7,10 @@ message CheckResponse {
   string status = 1;
   string version = 2;
   double uptime_sec = 3;
+  // build identifies the core binary; a client with a different build asks the
+  // core to shut down and starts its own (ADR 0007).
+  string build = 4;
+  int32 pid = 5;
 }
 
 service HealthService {

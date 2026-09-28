@@ -2,6 +2,7 @@ package wedge
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/polterware/polterware/backend/domains/agentrun"
@@ -15,6 +16,12 @@ type ChangeEnvelope struct {
 	AgentRunID string
 	ProjectID  string
 	Paths      []string
+	// AutoStartLabel lets an agent write without an open run: the core opens
+	// and completes a run with this label (the CLI uses "cli"). MCP leaves it
+	// empty, so MCP writes still require an explicit AgentRunID.
+	AutoStartLabel string
+	// BatchID links the change step to its change_ops rows.
+	BatchID string
 }
 
 // AuditedWriteResult is returned after a successful audited mutation.
@@ -50,14 +57,17 @@ func ExecuteAuditedWrite(
 	autoComplete := false
 
 	if runID == "" {
-		if kind != agentrun.ActorKindHuman {
+		label := "Desktop"
+		if autoLabel := strings.TrimSpace(env.AutoStartLabel); autoLabel != "" {
+			label = autoLabel
+		} else if kind != agentrun.ActorKindHuman {
 			return AuditedWriteResult{}, agentrun.ErrMissingAgentRunID
 		}
 		run, startErr := agentrun.StartWithActor(
 			env.ProjectID,
 			env.Summary,
-			"Desktop",
-			agentrun.ActorKindHuman,
+			label,
+			kind,
 			now,
 		)
 		if startErr != nil {
@@ -93,11 +103,12 @@ func ExecuteAuditedWrite(
 		if err := agentrun.MatchProject(open, env.ProjectID); err != nil {
 			return agentrun.Step{}, err
 		}
-		return agentrun.NewMutationChangeStep(
+		return agentrun.NewBatchChangeStep(
 			open.ID,
 			env.Summary,
 			env.Rationale,
 			tool,
+			env.BatchID,
 			subjectIDs,
 			env.Paths,
 			now,

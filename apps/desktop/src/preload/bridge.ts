@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { IPC_CHANNELS, IPC_EVENTS, type AppIpcRequests, type AppIpcResponses, type JsonObject } from "../shared/ipc.js";
+import {
+  IPC_CHANNELS,
+  IPC_EVENTS,
+  type AppIpcRequests,
+  type AppIpcResponses,
+  type CoreChangeEvent,
+  type JsonObject,
+} from "../shared/ipc.js";
 
 type BridgeListener = (...args: unknown[]) => void;
 type BridgeIpc = {
@@ -53,6 +60,14 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
       },
     },
     core: {
+      /** Store changes from any client (CLI, MCP, other windows); returns unsubscribe. */
+      onChange: (callback: (event: CoreChangeEvent) => void) => {
+        const listener: BridgeListener = (_event, payload) => {
+          if (payload && typeof payload === "object") callback(payload as CoreChangeEvent);
+        };
+        ipc.on?.(IPC_EVENTS.core.changed, listener);
+        return () => ipc.removeListener?.(IPC_EVENTS.core.changed, listener);
+      },
       health: {
         check: () => coreCall(ipc, IPC_CHANNELS.core.healthCheck),
         getStoreHealth: () => coreCall(ipc, IPC_CHANNELS.core.getStoreHealth),
@@ -85,6 +100,10 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
         listLinks: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listKnowledgeLinks, payload),
         saveLink: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveKnowledgeLink, payload),
         deleteLink: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.deleteKnowledgeLink, payload),
+      },
+      work: {
+        listCards: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listWorkCards, payload),
+        apply: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.applyPolter, payload),
       },
       ppm: {
         listEntities: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listPpmEntities, payload),

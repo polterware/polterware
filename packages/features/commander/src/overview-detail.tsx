@@ -10,9 +10,10 @@ import {
 } from "./overview-types";
 import "./overview-detail.css";
 
-function featureTone(status: string): "healthy" | "warn" | "muted" {
-  if (status === "ready") return "healthy";
-  if (status === "draft") return "warn";
+function featureTone(status: string): "healthy" | "ok" | "syncing" | "muted" {
+  if (status === "delivered") return "healthy";
+  if (status === "verify") return "syncing";
+  if (status === "build") return "ok";
   return "muted";
 }
 
@@ -29,7 +30,7 @@ function DetailRow(props: {
   title: string;
   meta: string;
   status: string;
-  tone: "healthy" | "syncing" | "danger" | "muted" | "warn";
+  tone: "healthy" | "ok" | "syncing" | "danger" | "muted" | "warn";
 }) {
   return (
     <div class="commander-detail-row">
@@ -103,7 +104,7 @@ export function OverviewDetail(props: {
                 {(row: OverviewFeatureRow) => (
                   <DetailRow
                     title={row.title}
-                    meta={row.kind === "constitution" ? "Constitution" : "Spec feature"}
+                    meta={row.kind === "constitution" ? "Constitution" : "Work card"}
                     status={row.status}
                     tone={featureTone(row.status)}
                   />

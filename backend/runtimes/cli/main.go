@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 
 	"golang.org/x/term"
-
-	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
 func main() {
@@ -25,12 +23,7 @@ func main() {
 			usage()
 			os.Exit(2)
 		}
-		store, err := storepkg.New(*dbPath)
-		if err != nil {
-			fail(fmt.Errorf("db open: %w", err))
-		}
-		defer store.Close()
-		if err := runTUI(store, *dbPath); err != nil {
+		if err := runTUI(*dbPath); err != nil {
 			fail(err)
 		}
 		return
@@ -38,42 +31,40 @@ func main() {
 	command := args[0]
 	rest := args[1:]
 
-	store, err := storepkg.New(*dbPath)
-	if err != nil {
-		fail(fmt.Errorf("db open: %w", err))
-	}
-	defer store.Close()
-
+	// Only `serve` opens the store (ADR 0007); every other command is a client
+	// of the core and starts it when none is running.
+	var err error
 	switch command {
-	case "init":
-		if err := runInit(store, rest); err != nil {
-			fail(err)
-		}
-	case "scan":
-		if err := runScan(store, rest); err != nil {
-			fail(err)
-		}
-	case "context":
-		if err := runContext(store, rest); err != nil {
-			fail(err)
-		}
-	case "drift":
-		if err := runDrift(store, rest); err != nil {
-			fail(err)
-		}
 	case "serve":
-		if err := runServe(store, *dbPath, rest); err != nil {
-			fail(err)
-		}
+		err = runServe(*dbPath, rest)
 	case "mcp":
-		if err := runMCP(store, *dbPath); err != nil {
-			fail(err)
-		}
+		err = runMCP(*dbPath)
+	case "init":
+		err = runInit(*dbPath, rest)
+	case "scan":
+		err = runScan(*dbPath, rest)
+	case "context":
+		err = runContext(*dbPath, rest)
+	case "drift":
+		err = runDrift(*dbPath, rest)
+	case "apply":
+		err = runApply(*dbPath, rest)
+	case "lint":
+		err = runLint(*dbPath, rest)
+	case "format":
+		err = runFormat(rest)
+	case "query":
+		err = runQuery(*dbPath, rest)
+	case "hook":
+		err = runHook(*dbPath, rest)
 	case "help", "-h", "--help":
 		usage()
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n", command)
 		usage()
 		os.Exit(2)
+	}
+	if err != nil {
+		fail(err)
 	}
 }

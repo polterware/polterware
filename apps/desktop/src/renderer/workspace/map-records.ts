@@ -16,9 +16,7 @@ import type {
   WorkspaceIntegrationSyncRun,
   WorkspaceRunbook,
   WorkspaceSource,
-  WorkspaceSpecArtifact,
-  WorkspaceSpecArtifactKind,
-  WorkspaceSpecFeature,
+  WorkspaceWorkCard,
   WorkStage,
 } from "@polterware/feature-shell";
 import {
@@ -266,38 +264,6 @@ export function mapSources(
   });
 }
 
-function asSpecStatus(value: string): "draft" | "ready" {
-  return value === "ready" ? "ready" : "draft";
-}
-
-function asSpecArtifactKind(value: string): WorkspaceSpecArtifactKind | null {
-  if (
-    value === "spec"
-    || value === "plan"
-    || value === "tasks"
-    || value === "clarify"
-    || value === "checklist"
-  ) {
-    return value;
-  }
-  return null;
-}
-
-function mapSpecArtifact(item: Record<string, unknown>, featureKey: string): WorkspaceSpecArtifact | null {
-  const kind = asSpecArtifactKind(asString(item.kind));
-  if (!kind) return null;
-  return {
-    id: asString(item.id),
-    kind,
-    title: asString(item.title),
-    bodyMarkdown: asString(item.body),
-    status: asSpecStatus(asString(item.status)),
-    updatedAt: formatInstant(asString(item.updatedAt)),
-    owner: asString(item.owner, "Platform"),
-    featureKey,
-  };
-}
-
 export function mapConstitution(items: Record<string, unknown>[]): WorkspaceConstitution | null {
   const item = items.find((entry) => asString(entry.kind) === "constitution");
   if (!item) return null;
@@ -311,86 +277,50 @@ export function mapConstitution(items: Record<string, unknown>[]): WorkspaceCons
   };
 }
 
-function asWorkStage(value: string): WorkStage | undefined {
-  return value === "shape"
-    || value === "plan"
+function asWorkStage(value: string): WorkStage {
+  return value === "plan"
     || value === "build"
     || value === "verify"
     || value === "delivered"
     ? value
-    : undefined;
+    : "shape";
 }
 
-export function mapSpecFeatures(items: Record<string, unknown>[]): WorkspaceSpecFeature[] {
-  const byFeature = new Map<string, {
-    title: string;
-    status: "draft" | "ready";
-    updatedAt: string;
-    updatedAtRaw: string;
-    owner: string;
-    summary: string;
-    stage?: WorkStage;
-    artifacts: Partial<Record<WorkspaceSpecArtifactKind, WorkspaceSpecArtifact>>;
-  }>();
-
-  for (const item of items) {
-    const kind = asSpecArtifactKind(asString(item.kind));
-    if (!kind) continue;
-    const extra = parseJsonObject(asString(item.extraJson));
-    const featureKey = asString(extra.featureKey);
-    if (!featureKey) continue;
-    const artifact = mapSpecArtifact(item, featureKey);
-    if (!artifact) continue;
-
-    const current = byFeature.get(featureKey) ?? {
-      title: asString(item.title),
-      status: asSpecStatus(asString(item.status)),
-      updatedAt: formatInstant(asString(item.updatedAt)),
-      updatedAtRaw: asString(item.updatedAt),
-      owner: asString(item.owner, "Platform"),
-      summary: asString(item.summary),
-      artifacts: {},
-    };
-    current.artifacts[kind] = artifact;
-    if (kind === "spec") {
-      current.title = artifact.title;
-      current.status = artifact.status;
-      current.owner = artifact.owner;
-      current.summary = asString(item.summary);
-      current.stage = asWorkStage(asString(extra.stage));
-    }
-    if (asString(item.updatedAt) > current.updatedAtRaw) {
-      current.updatedAtRaw = asString(item.updatedAt);
-      current.updatedAt = artifact.updatedAt;
-    }
-    byFeature.set(featureKey, current);
-  }
-
-  const features: WorkspaceSpecFeature[] = [];
-  for (const [featureKey, group] of byFeature) {
-    const spec = group.artifacts.spec;
-    const plan = group.artifacts.plan;
-    const tasks = group.artifacts.tasks;
-    const clarify = group.artifacts.clarify;
-    const checklist = group.artifacts.checklist;
-    if (!spec || !plan || !tasks || !clarify || !checklist) continue;
-    features.push({
-      featureKey,
-      title: group.title || spec.title,
-      status: group.status,
-      updatedAt: group.updatedAt,
-      owner: group.owner,
-      summary: group.summary,
-      ...(group.stage ? { stage: group.stage } : {}),
-      spec,
-      plan,
-      tasks,
-      clarify,
-      checklist,
-    });
-  }
-
-  return features.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+/** Active Work cards from WorkService.ListWorkCards, in board position order. */
+export function mapWorkCards(items: Record<string, unknown>[]): WorkspaceWorkCard[] {
+  return items.map((item) => ({
+    id: asString(item.id),
+    slug: asString(item.slug),
+    title: asString(item.title, asString(item.slug)),
+    intent: asString(item.intent),
+    stage: asWorkStage(asString(item.stage)),
+    owner: asString(item.owner),
+    under: asString(item.under),
+    decisions: asStringArray(item.decisions),
+    updatedAt: formatInstant(asString(item.updatedAt)),
+    tasks: asObjectArray(item.tasks).map((task) => {
+      const state = asString(task.state);
+      return {
+        id: asString(task.id),
+        number: asNumber(task.number),
+        title: asString(task.title),
+        state: state === "done" || state === "dropped" ? state : "open",
+        scope: asString(task.scope),
+      };
+    }),
+    questions: asObjectArray(item.questions).map((question) => ({
+      id: asString(question.id),
+      text: asString(question.text),
+      blocking: asBoolean(question.blocking),
+      options: asStringArray(question.options),
+      state: asString(question.state) === "answered" ? "answered" : "open",
+      answer: asString(question.answer),
+    })),
+    invariants: asObjectArray(item.invariants).map((invariant) => ({
+      id: asString(invariant.id),
+      text: asString(invariant.text),
+    })),
+  }));
 }
 
 export function mapProviders(

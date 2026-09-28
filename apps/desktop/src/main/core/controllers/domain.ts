@@ -54,6 +54,8 @@ export function createCoreDomainControllers(clients: CoreClients) {
     listKnowledgeLinks: async (input?: JsonObject) => toJsonObject(await clients.knowledge.listKnowledgeLinks(requestMessage(input))),
     saveKnowledgeLink: async (input?: JsonObject) => toJsonObject(await clients.knowledge.saveKnowledgeLink(requestMessage(input))),
     deleteKnowledgeLink: async (input?: JsonObject) => toJsonObject(await clients.knowledge.deleteKnowledgeLink(requestMessage(input))),
+    listWorkCards: async (input?: JsonObject) => toJsonObject(await clients.work.listWorkCards(requestMessage(input))),
+    applyPolter: async (input?: JsonObject) => toJsonObject(await clients.work.applyPolter(requestMessage(input))),
     listPpmEntities: async (input?: JsonObject) => toJsonObject(await clients.ppm.listEntities(requestMessage(input))),
     syncProjectModel: async (input?: JsonObject) => toJsonObject(await clients.ppm.syncProjectModel(requestMessage(input))),
     importProjectSources: async (input?: JsonObject) =>

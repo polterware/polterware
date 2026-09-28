@@ -3,7 +3,7 @@ import { A11yDialog, Button, Field, Input, Select } from "@polterware/frontend-d
 import type { KnowledgeCreateTemplate } from "./create-templates";
 import { KnowledgeTemplateGrid } from "./knowledge-template-grid";
 
-export type CreateKnowledgeKind = "doc" | "runbook" | "feature" | "adr";
+export type CreateKnowledgeKind = "doc" | "runbook" | "card" | "adr";
 
 const LIBRARY_KIND_OPTIONS = [
   { value: "doc", label: "Document" },
@@ -34,7 +34,7 @@ export function CreateKnowledgeDialog(props: {
   });
 
   const activeKind = (): CreateKnowledgeKind => {
-    if (props.kind === "feature") return "feature";
+    if (props.kind === "card") return "card";
     if (props.pickLibraryKind) return pickedKind();
     return props.kind;
   };
@@ -47,10 +47,10 @@ export function CreateKnowledgeDialog(props: {
         placeholder: "Runbook title",
       };
     }
-    if (kind === "feature") {
+    if (kind === "card") {
       return {
-        title: "New feature",
-        placeholder: "Feature title",
+        title: "New card",
+        placeholder: "Card title",
       };
     }
     if (kind === "adr") {

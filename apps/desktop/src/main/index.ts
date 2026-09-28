@@ -1,4 +1,4 @@
-import { app, dialog, globalShortcut, shell, Menu } from "electron";
+import { app, BrowserWindow, dialog, globalShortcut, shell, Menu } from "electron";
 import log from "electron-log/main";
 import { getElectronAppIconController } from "./electron-app-icons.js";
 import { registerGlobalCommanderShortcut } from "./global-shortcuts.js";
@@ -13,15 +13,11 @@ import {
 } from "./window.js";
 import { setupAutoUpdater } from "./updater.js";
 import { registerPolterwareIpcHandlers } from "./ipc.js";
-import { createCoreClients, waitForHealth } from "./core/client.js";
+import { createCoreClients, waitForHealth, type CoreClients } from "./core/client.js";
 import { createCoreDomainControllers } from "./core/controllers/domain.js";
-import {
-  mintSessionToken,
-  resolveUserDatabasePath,
-  startCoreProcess,
-  stopCoreProcess,
-  type CoreProcessHandle,
-} from "./core/process-supervisor.js";
+import { ensureCore, resolveUserDatabasePath } from "./core/process-supervisor.js";
+import { startChangeWatcher } from "./core/change-watcher.js";
+import { IPC_EVENTS } from "../shared/ipc.js";
 import { createShortcutPreferencesController } from "./shortcut-preferences.js";
 import { createAppearancePreferencesController } from "./appearance-preferences.js";
 import { createMcpSupervisor } from "./mcp-supervisor.js";
@@ -137,19 +133,39 @@ async function bootstrap() {
     },
   };
 
-  let coreHandle: CoreProcessHandle | undefined;
+  // The core is a shared daemon (ADR 0007): attach or start it, never stop it
+  // on quit. Clients are swapped in place when the core restarts.
+  let stopChangeWatcher = () => {};
   try {
-    const token = mintSessionToken();
-    coreHandle = await startCoreProcess({
-      dbPath: resolveUserDatabasePath(),
-      token,
-      log: (message) => log.debug(message),
+    const dbPath = resolveUserDatabasePath();
+    const coreLog = (message: string) => log.debug(message);
+    let handle = await ensureCore({ dbPath, log: coreLog });
+    let current = createCoreClients(handle.endpoint, handle.token);
+    await waitForHealth(current);
+    const clients = new Proxy({} as CoreClients, {
+      get: (_target, key) => current[key as keyof CoreClients],
     });
-    const clients = createCoreClients(coreHandle.endpoint, coreHandle.token);
-    await waitForHealth(clients);
     registerPolterwareIpcHandlers({
       ...shellControllers,
       core: createCoreDomainControllers(clients),
+    });
+    stopChangeWatcher = startChangeWatcher({
+      getClients: () => current,
+      reconnect: async () => {
+        const next = await ensureCore({ dbPath, log: coreLog });
+        const replaced = next.endpoint !== handle.endpoint || next.token !== handle.token;
+        if (replaced) {
+          handle = next;
+          current = createCoreClients(next.endpoint, next.token);
+        }
+        return replaced;
+      },
+      emit: (event) => {
+        for (const window of BrowserWindow.getAllWindows()) {
+          if (!window.isDestroyed()) window.webContents.send(IPC_EVENTS.core.changed, event);
+        }
+      },
+      log: coreLog,
     });
   } catch (error) {
     log.error("Failed to start Polterware core.", error);
@@ -166,7 +182,7 @@ async function bootstrap() {
   app.on("before-quit", () => {
     unregisterCommanderShortcut();
     void mcpSupervisor.stop();
-    void stopCoreProcess(coreHandle);
+    stopChangeWatcher();
   });
 }
 

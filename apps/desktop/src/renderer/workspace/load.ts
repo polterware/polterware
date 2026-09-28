@@ -13,7 +13,7 @@ import type {
   WorkspaceIntegrationSyncRun,
   WorkspaceRunbook,
   WorkspaceSource,
-  WorkspaceSpecFeature,
+  WorkspaceWorkCard,
   WorkspaceConstitution,
 } from "@polterware/feature-shell";
 import { asNumber, asObjectArray, asRecord, asString } from "./format";
@@ -33,8 +33,8 @@ import {
   mapSettingsEnvironments,
   mapConstitution,
   mapSources,
-  mapSpecFeatures,
   mapSyncRuns,
+  mapWorkCards,
   mapViews,
 } from "./map-records";
 
@@ -52,7 +52,7 @@ export type WorkspaceSnapshot = {
   adrs: WorkspaceAdr[];
   runbooks: WorkspaceRunbook[];
   sources: WorkspaceSource[];
-  specFeatures: WorkspaceSpecFeature[];
+  workCards: WorkspaceWorkCard[];
   constitution: WorkspaceConstitution | null;
   ppmEntities: WorkspacePpmEntity[];
   providers: WorkspaceCatalogProvider[];
@@ -72,7 +72,7 @@ export type WorkspaceExtensions = Pick<
   | "adrs"
   | "runbooks"
   | "sources"
-  | "specFeatures"
+  | "workCards"
   | "constitution"
   | "ppmEntities"
   | "providers"
@@ -107,7 +107,7 @@ export function emptyWorkspaceExtensions(): WorkspaceExtensions {
     adrs: [],
     runbooks: [],
     sources: [],
-    specFeatures: [],
+    workCards: [],
     constitution: null,
     ppmEntities: [],
     providers: [],
@@ -138,6 +138,17 @@ export function emptyWorkspace(): WorkspaceSnapshot {
 
 function core() {
   return window.polterware.core;
+}
+
+/** Work cards only — the slice a Work change event refreshes. */
+export async function loadWorkCards(projectId: string): Promise<WorkspaceWorkCard[]> {
+  return mapWorkCards(asObjectArray(asRecord(await core().work.listCards({ projectId })).cards));
+}
+
+/** The extension fields of a snapshot, to keep them across a shell reload. */
+export function pickWorkspaceExtensions(snapshot: WorkspaceSnapshot): WorkspaceExtensions {
+  const keys = Object.keys(emptyWorkspaceExtensions()) as (keyof WorkspaceExtensions)[];
+  return Object.fromEntries(keys.map((key) => [key, snapshot[key]])) as WorkspaceExtensions;
 }
 
 async function loadProjectMetadata(api = core()): Promise<ProjectMetadata> {
@@ -222,6 +233,7 @@ export async function loadWorkspaceExtensions(
     : loadProjectMetadata(api).then((metadata) => metadata.environments);
   const settled = await Promise.all([
     api.knowledge.list({ projectId }),
+    api.work.listCards({ projectId }),
     api.ppm.listEntities({ projectId }).catch(() => ({ entities: [] })),
     api.knowledge.listLinks({ projectId }).catch(() => ({ links: [] })),
     api.integrations.listProviders(),
@@ -232,6 +244,7 @@ export async function loadWorkspaceExtensions(
   ]);
   const [
     knowledgeRes,
+    workRes,
     entitiesRes,
     linksRes,
     providersRes,
@@ -239,7 +252,7 @@ export async function loadWorkspaceExtensions(
     integrationResourcesRes,
     syncRunsRes,
   ] = settled;
-  const environments: EnvironmentItem[] = settled[7];
+  const environments: EnvironmentItem[] = settled[8];
 
   const projectEnvironments = environments.filter((item) => item.projectId === projectId);
 
@@ -252,7 +265,7 @@ export async function loadWorkspaceExtensions(
   const adrs = mapAdrs(knowledgeItems, linksByKnowledge);
   const runbooks = mapRunbooks(knowledgeItems, linksByKnowledge);
   const sources = mapSources(knowledgeItems, linksByKnowledge);
-  const specFeatures = mapSpecFeatures(knowledgeItems);
+  const workCards = mapWorkCards(asObjectArray(asRecord(workRes).cards));
   const constitution = mapConstitution(knowledgeItems);
 
   await Promise.resolve();
@@ -276,7 +289,7 @@ export async function loadWorkspaceExtensions(
     adrs,
     runbooks,
     sources,
-    specFeatures,
+    workCards,
     constitution,
     ppmEntities,
     providers,

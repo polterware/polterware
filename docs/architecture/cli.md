@@ -1,12 +1,12 @@
 # CLI `polterware` (B8)
 
-Status: Shipped for local in-process SQLite commands
+Status: Shipped; commands are clients of the single local core ([ADR 0007](../adr/0007-single-local-core.md))
 
 Authority: [ADR 0004](../adr/0004-product-positioning-and-wedge.md), [`wedge-validation-sequence.md`](wedge-validation-sequence.md), [`docs/product-vision.md`](../product-vision.md) v3.
 
 ## Purpose
 
-A single local Go binary serves the Desktop core (`serve`), the MCP stdio server (`mcp`), and headless commands for for headless project bootstrap, deterministic import, context compile, and narrow drift — the same SQLite model Desktop and MCP use.
+A single local Go binary serves the local core (`serve`), the MCP stdio bridge (`mcp`), and headless commands for project bootstrap, deterministic import, context compile, narrow drift, and Work cards — all through the one core that owns the SQLite store.
 
 ## Binary
 
@@ -16,7 +16,7 @@ A single local Go binary serves the Desktop core (`serve`), the MCP stdio server
 | Build | `pnpm build:cli` → `dist/polterware` |
 | Database | `-db` (default: the Desktop database path) |
 
-`init`, `scan`, `context`, `drift`, and the TUI use **in-process SQLite** and do not require Desktop or a Connect session.
+Only `serve` opens SQLite. `init`, `scan`, `context`, `drift`, `apply`, `lint`, `query`, `hook`, `mcp`, and the TUI call the core over loopback Connect (`backend/platform/coreclient`), starting it when none is running; they do not require the Desktop. `format` is local.
 
 ## Commands
 
@@ -26,8 +26,13 @@ A single local Go binary serves the Desktop core (`serve`), the MCP stdio server
 | `scan` | Deterministic MVP import (`ImportProjectSources` / B2) |
 | `context` | Context Compiler package (B3/B4 shape) |
 | `drift` | Narrow Drift Checker result (`checker: "narrow"`) |
-| `serve` | Local Connect server with bearer session token (`--listen`, default `127.0.0.1:4020`; `--token`, default `$POLTERWARE_SESSION_TOKEN` or minted). Electron Main spawns it as `polterware -db <db> serve --listen 127.0.0.1:0` |
-| `mcp` | MCP stdio server for coding agents |
+| `apply` | Polter text → plan → one audited write to the Work model ([ADR 0006](../adr/0006-polter-format-and-work-model.md)) |
+| `lint` | Validate Polter text; silent on success, one line per error or `hint:`, exit 1 only on errors |
+| `format` | Print the Polter format spec |
+| `query` | Work state in Polter format (`cards`, `card <slug>`) |
+| `hook` | Claude Code hook entry points (`session-start`, `session-end`, `lint`), reading the hook JSON on stdin |
+| `serve` | The local core: Connect services, `ChangeService.WatchChanges`, and MCP at `/mcp`, all behind the bearer session token (`--listen`, default `127.0.0.1:0`; `--token`, default `$POLTERWARE_SESSION_TOKEN` or minted; `--idle`, default 10m or `$POLTERWARE_CORE_IDLE`, `0` never exits). Exits 3 when another core holds the database lock |
+| `mcp` | MCP stdio bridge: forwards each JSON-RPC line to the core's `/mcp` and re-initializes transparently when the core restarted |
 
 ### Flags
 
@@ -36,7 +41,12 @@ polterware [-db path] init --name <name> [--path <root>] [--id <id>] [--json]
 polterware [-db path] scan --project <id> [--json]
 polterware [-db path] context --project <id> [--query ...] [--entity ...] [--budget N] [--agent-run-id ...] [--json]
 polterware [-db path] drift --project <id> [--entity ...] [--agent-run-id ...] [--json]
-polterware [-db path] serve [--listen addr] [--token token]
+polterware [-db path] apply <file|-> [--dry-run] [--project <id>] [--summary ...] [--rationale ...] [--agent-run-id ...]
+polterware [-db path] lint <file|dir|-> [--project <id>]
+polterware [-db path] format
+polterware [-db path] query "cards" | "card <slug>" [--project <id>]
+polterware [-db path] hook session-start [--label <name>] | session-end | lint
+polterware [-db path] serve [--listen addr] [--token token] [--idle duration]
 polterware [-db path] mcp
 ```
 
@@ -44,6 +54,9 @@ polterware [-db path] mcp
 - `init --id` optional; otherwise a `proj-<hex8>` id is minted.
 - `--json` prints one JSON object on stdout (same shapes as MCP for `context` / `drift`).
 - Optional `--agent-run-id` on `context` / `drift` appends a step when the run is open (same rules as MCP).
+- `apply`, `lint`, and `query` resolve the project from `--project` or from the registered project whose root contains the current directory. Flags may follow the file argument.
+- `apply` without `--agent-run-id` joins the agent session's run when `POLTERWARE_SESSION` is set (one run per project, opened on the first write); otherwise it opens and completes an agent AgentRun labelled `cli` for the write.
+- `hook session-start` appends `POLTERWARE_SESSION` and `POLTERWARE_AGENT_LABEL` (default `claude-code`) to `$CLAUDE_ENV_FILE`; it opens no run. `hook session-end` asks the core to complete the session's runs (`WorkService.EndSession`). `hook lint` lints the written file when it ends in `.pw.md` and exits 2 with errors and hints on stderr.
 
 Human-readable summaries go to stdout; errors to stderr with non-zero exit.
 
@@ -53,10 +66,10 @@ Human-readable summaries go to stdout; errors to stderr with non-zero exit.
 
 | Row | Source | Action |
 |-----|--------|--------|
-| Core | `<db dir>/run/core.json` | `enter` / `s` starts a detached standalone core (`polterware -db <db> serve --listen 127.0.0.1:0`, the running executable, log `run/core.log`) or stops it (SIGTERM). Desktop-owned cores are shown but not stopped. |
+| Core | `<db dir>/run/core.json` | The TUI starts the core on launch. `enter` / `s` stops it (`MaintenanceService.Shutdown`) or starts it again (detached `polterware -db <db> serve --listen 127.0.0.1:0`, log `run/core.log`). A running Desktop restarts a stopped core. |
 | Clients | `claude mcp get`, `codex mcp get`, `~/.cursor/mcp.json` | `enter` configures or removes the `polterware` server as `<polterware> -db <db> mcp` (absolute path of the running executable) after a `y` confirmation. Claude Code uses `--scope user`. For Cursor, only `mcpServers.polterware` is merged; invalid JSON is never overwritten. |
-| MCP | `run/mcp-<pid>.json` | Live `polterware mcp` sessions with client name/version from `initialize.clientInfo`. |
-| Runs / Calls / History | `ListAgentRuns`, `ListAgentToolCalls`, `ListChanges` | Read-only, refreshed every 2s. |
+| MCP | `ListMcpSessions` | Live MCP sessions in the core with client name/version from `initialize.clientInfo`. |
+| Runs / Calls / History | `ListAgentRuns`, `ListAgentToolCalls`, `ListChanges` | Read-only through the core, refreshed every 2s. |
 
 `p` cycles projects. The default is the project whose root contains the cwd, otherwise the most recently updated project. `i` registers the cwd (`InitProject`) and scans it.
 
@@ -64,10 +77,11 @@ Human-readable summaries go to stdout; errors to stderr with non-zero exit.
 
 `backend/platform/runstate` owns `<db dir>/run/` (dir 0700, files 0600):
 
-- `core.json` — `pid`, `endpoint`, `token`, `dbPath`, `owner` (`standalone` or `desktop`, from `POLTERWARE_CORE_OWNER`), `startedAt`. It is written after `serve` listens and removed on shutdown. A second `serve` exits 3 while a live standalone core exists for the same DB.
-- `mcp-<pid>.json` — written by `polterware mcp` and removed on exit.
+- `core.lock` — exclusive `flock` held by the running core; a second `serve` exits 3.
+- `core.json` — `pid`, `endpoint`, `token`, `dbPath`, `build` (`<mtime unix>-<size>` of the core binary), `startedAt`. It is written after `serve` listens and removed on shutdown.
+- `core.log` — stdout/stderr of detached cores.
 
-Stale files (dead pid) are pruned on read. Electron Main attaches to a live `standalone` core whose `dbPath` resolves to its own database, and otherwise spawns its own core as before.
+A stale `core.json` (dead pid) is pruned on read. Every client, Electron Main included, attaches to the live core whose `dbPath` resolves to its database, and replaces it when its own binary has a newer build. MCP sessions and agent session runs live in the core's memory.
 
 ## Shared composition
 
@@ -75,7 +89,6 @@ MCP and CLI call [`backend/compositions/wedge`](../../backend/compositions/wedge
 
 ## Out of scope
 
-- `POLTERWARE_SESSION_FILE` / Connect HTTP client against a live Desktop core
 - Packaging the CLI into Electron `extraResources` or Desktop PATH installers
 - Legacy big-bang commands (`health`, `ops`, `systems`, `pipelines`)
 - Unified Change History (B9)

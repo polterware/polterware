@@ -3,7 +3,7 @@ import { Show } from "solid-js";
 import type { KnowledgeCreateTemplate } from "./create-templates";
 import { KnowledgeTemplateGrid } from "./knowledge-template-grid";
 
-export function KnowledgeSpecsEmpty(props: {
+export function WorkCardsEmpty(props: {
   onCreate?: () => void;
   onCreateFromTemplate?: (template: KnowledgeCreateTemplate) => void;
 }) {
@@ -13,11 +13,12 @@ export function KnowledgeSpecsEmpty(props: {
         when={props.onCreateFromTemplate}
         fallback={
           <PageEmpty
-            title="No specs yet."
+            title="No cards yet."
+            description="Agents add cards with polterware apply."
             action={
               props.onCreate ? (
                 <Button size="sm" variant="primary" onClick={() => props.onCreate?.()}>
-                  New feature
+                  New card
                 </Button>
               ) : undefined
             }
@@ -25,7 +26,7 @@ export function KnowledgeSpecsEmpty(props: {
         }
       >
         <KnowledgeTemplateGrid
-          kind="feature"
+          kind="card"
           showLabel={false}
           onSelect={(template) => props.onCreateFromTemplate?.(template)}
         />
@@ -34,9 +35,6 @@ export function KnowledgeSpecsEmpty(props: {
   );
 }
 
-export function knowledgeFilterEmpty(kind: "specs") {
-  if (kind === "specs") {
-    return <PageEmpty title="No features match" description="Try another search or clear active filters." />;
-  }
-  return <PageEmpty title="No items match" description="Try another search or filter." />;
+export function workCardsFilterEmpty() {
+  return <PageEmpty title="No cards match" description="Try another search or clear active filters." />;
 }

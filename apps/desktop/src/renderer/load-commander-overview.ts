@@ -12,7 +12,7 @@ export type CommanderFeatureRow = {
   id: string;
   title: string;
   status: string;
-  kind: "feature" | "constitution";
+  kind: "card" | "constitution";
 };
 
 export type CommanderIntegrationRow = {
@@ -48,16 +48,6 @@ function asObjectArray(value: unknown): Record<string, unknown>[] {
 
 function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
-}
-
-function parseJsonObject(raw: string): Record<string, unknown> {
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    return asRecord(parsed);
-  } catch {
-    return {};
-  }
 }
 
 function emptyDetail(): CommanderOverviewDetail {
@@ -102,39 +92,22 @@ export async function loadCommanderOverview(): Promise<CommanderOverviewSnapshot
       };
     }
 
-    const [knowledgeRes, connectionsRes, providersRes] = await Promise.all([
+    const [knowledgeRes, workRes, connectionsRes, providersRes] = await Promise.all([
       window.polterware.core.knowledge.list({ projectId }),
+      window.polterware.core.work.listCards({ projectId }).catch(() => ({ cards: [] })),
       window.polterware.core.integrations.listConnections({ projectId }),
       window.polterware.core.integrations.listProviders(),
     ]);
 
     const knowledgeItems = asObjectArray(asRecord(knowledgeRes).items);
     const constitution = knowledgeItems.find((item) => asString(item.kind) === "constitution");
-    const byFeature = new Map<string, { title: string; status: string }>();
-    for (const item of knowledgeItems) {
-      const kind = asString(item.kind);
-      if (!["spec", "plan", "tasks", "clarify", "checklist"].includes(kind)) continue;
-      const extra = parseJsonObject(asString(item.extraJson));
-      const featureKey = asString(extra.featureKey);
-      if (!featureKey) continue;
-      const current = byFeature.get(featureKey) ?? {
-        title: asString(item.title),
-        status: asString(item.status, "draft"),
-      };
-      if (kind === "spec") {
-        current.title = asString(item.title) || current.title;
-        current.status = asString(item.status, current.status);
-      }
-      byFeature.set(featureKey, current);
-    }
-    const featuresList = [...byFeature.entries()].map(([key, value]) => ({
-      id: key,
-      title: value.title || key,
-      status: value.status,
-      kind: "feature" as const,
+    const cardsList = asObjectArray(asRecord(workRes).cards).map((card) => ({
+      id: asString(card.slug),
+      title: asString(card.title) || asString(card.slug),
+      status: asString(card.stage, "shape"),
+      kind: "card" as const,
     }));
-    const draftCount = featuresList.filter((item) => item.status === "draft").length;
-    const readyCount = featuresList.filter((item) => item.status === "ready").length;
+    const deliveredCount = cardsList.filter((item) => item.status === "delivered").length;
     const features: CommanderFeatureRow[] = [
       ...(constitution
         ? [
@@ -146,7 +119,7 @@ export async function loadCommanderOverview(): Promise<CommanderOverviewSnapshot
             },
           ]
         : []),
-      ...featuresList.slice(0, 10),
+      ...cardsList.slice(0, 10),
     ];
 
     const providers = asObjectArray(asRecord(providersRes).providers);
@@ -174,11 +147,11 @@ export async function loadCommanderOverview(): Promise<CommanderOverviewSnapshot
           id: "knowledge",
           title: "Knowledge",
           subtitle:
-            featuresList.length === 0
+            cardsList.length === 0
               ? constitution
                 ? "Constitution only"
-                : "No Spec features"
-              : `${draftCount} draft · ${readyCount} ready`,
+                : "No Work cards"
+              : `${cardsList.length} ${cardsList.length === 1 ? "card" : "cards"} · ${deliveredCount} delivered`,
           tone: "knowledge",
           openCommandId: "nav.work",
         },

@@ -1,22 +1,24 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/polterware/polterware/backend/compositions/wedge"
 	"github.com/polterware/polterware/backend/domains/agentaccess"
 	"github.com/polterware/polterware/backend/domains/agentrun"
 	"github.com/polterware/polterware/backend/domains/projects"
+	"github.com/polterware/polterware/backend/platform/coreclient"
+	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
 	"github.com/polterware/polterware/backend/platform/runstate"
-	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
 const refreshInterval = 2 * time.Second
@@ -64,11 +66,24 @@ type snapshot struct {
 	projects []projects.Project
 	core     runstate.Core
 	coreUp   bool
-	sessions []runstate.MCPSession
+	sessions []mcpSession
 	runs     []agentrun.Run
 	calls    []agentaccess.ToolCall
-	changes  []storepkg.ChangeRow
+	changes  []changeRow
 	err      error
+}
+
+// mcpSession and changeRow are the TUI's views of core responses.
+type mcpSession struct {
+	ClientName    string
+	ClientVersion string
+	StartedAt     time.Time
+}
+
+type changeRow struct {
+	ActorKind string
+	Summary   string
+	CreatedAt time.Time
 }
 
 type tickMsg time.Time
@@ -85,7 +100,6 @@ type actionMsg struct {
 }
 
 type tuiModel struct {
-	store   *storepkg.Store
 	dbPath  string
 	coreBin string
 	coreErr error
@@ -107,10 +121,15 @@ type tuiModel struct {
 	isError bool
 }
 
-func runTUI(store *storepkg.Store, dbPath string) error {
+func runTUI(dbPath string) error {
 	cwd, _ := os.Getwd()
-	coreBin, coreErr := selfBinary()
-	m := &tuiModel{store: store, dbPath: dbPath, coreBin: coreBin, coreErr: coreErr, cwd: cwd}
+	coreBin, coreErr := coreclient.Executable()
+	// The TUI reads through the core (ADR 0007); start it once on launch. Later
+	// refreshes never restart it, so stopping the core from the TUI sticks.
+	if coreErr == nil {
+		_, _ = coreclient.Ensure(dbPath)
+	}
+	m := &tuiModel{dbPath: dbPath, coreBin: coreBin, coreErr: coreErr, cwd: cwd}
 	for _, client := range mcpClients() {
 		m.clients = append(m.clients, clientState{client: client, busy: true})
 	}
@@ -127,37 +146,66 @@ func tick() tea.Cmd {
 }
 
 func (m *tuiModel) loadSnapshot() tea.Cmd {
-	store, dbPath, projectID := m.store, m.dbPath, m.projectID
+	dbPath, projectID := m.dbPath, m.projectID
 	return func() tea.Msg {
 		var snap snapshot
 		snap.core, snap.coreUp = runstate.ReadCore(dbPath)
-		snap.sessions = runstate.ListMCP(dbPath)
-		list, err := store.ListProjects(false)
+		if !snap.coreUp {
+			return snapshotMsg(snap)
+		}
+		c := coreclient.New(snap.core, "tui")
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if res, err := c.AgentRuns.ListMcpSessions(ctx, connect.NewRequest(&localv1.ListMcpSessionsRequest{})); err == nil {
+			for _, item := range res.Msg.Sessions {
+				snap.sessions = append(snap.sessions, mcpSession{ClientName: item.ClientName, ClientVersion: item.ClientVersion, StartedAt: parseTime(item.StartedAt)})
+			}
+		}
+		list, err := c.Projects.ListProjects(ctx, connect.NewRequest(&localv1.ListProjectsRequest{}))
 		if err != nil {
 			snap.err = err
 			return snapshotMsg(snap)
 		}
-		snap.projects = list
+		for _, item := range list.Msg.Projects {
+			snap.projects = append(snap.projects, projects.Project{ID: item.Id, Name: item.Name, RootPath: item.RootPath, Status: item.Status, UpdatedAt: parseTime(item.UpdatedAt)})
+		}
 		if projectID == "" {
 			return snapshotMsg(snap)
 		}
-		if snap.runs, err = store.ListAgentRuns(projectID, 50); err != nil {
+		if res, err := c.AgentRuns.ListAgentRuns(ctx, connect.NewRequest(&localv1.ListAgentRunsRequest{ProjectId: projectID, Limit: 50})); err != nil {
 			snap.err = err
+		} else {
+			for _, run := range res.Msg.Runs {
+				snap.runs = append(snap.runs, agentrun.Run{ID: run.Id, ProjectID: run.ProjectId, Task: run.Task, AgentLabel: run.AgentLabel, Status: run.Status, ActorKind: run.ActorKind, CreatedAt: parseTime(run.CreatedAt)})
+			}
 		}
-		if snap.changes, err = store.ListChanges(projectID, "", 50); err != nil {
+		if res, err := c.AgentRuns.ListChanges(ctx, connect.NewRequest(&localv1.ListChangesRequest{ProjectId: projectID, Limit: 50})); err != nil {
 			snap.err = err
+		} else {
+			for _, change := range res.Msg.Changes {
+				snap.changes = append(snap.changes, changeRow{ActorKind: change.ActorKind, Summary: change.Summary, CreatedAt: parseTime(change.CreatedAt)})
+			}
 		}
-		calls, err := store.ListAgentToolCalls(200)
-		if err != nil {
+		if res, err := c.Context.ListAgentToolCalls(ctx, connect.NewRequest(&localv1.ListAgentToolCallsRequest{Limit: 200})); err != nil {
 			snap.err = err
-		}
-		for _, call := range calls {
-			if call.ProjectID == projectID || call.ProjectID == "" {
-				snap.calls = append(snap.calls, call)
+		} else {
+			for _, call := range res.Msg.Calls {
+				if call.ProjectId == projectID || call.ProjectId == "" {
+					snap.calls = append(snap.calls, agentaccess.ToolCall{
+						ID: call.Id, ProjectID: call.ProjectId, AgentRunID: call.AgentRunId, ToolName: call.ToolName,
+						ArgumentsJSON: call.ArgumentsJson, ResultSummary: call.ResultSummary, OK: call.Ok, Source: call.Source,
+						CreatedAt: parseTime(call.CreatedAt),
+					})
+				}
 			}
 		}
 		return snapshotMsg(snap)
 	}
+}
+
+func parseTime(value string) time.Time {
+	parsed, _ := time.Parse(time.RFC3339, value)
+	return parsed
 }
 
 func (m *tuiModel) checkClients() tea.Cmd {
@@ -286,10 +334,6 @@ func (m *tuiModel) askCoreToggle() tea.Cmd {
 		return nil
 	}
 	if m.snap.coreUp {
-		if m.snap.core.Owner != "standalone" {
-			m.setMessage(fmt.Sprintf("Core is managed by %s.", m.snap.core.Owner), nil)
-			return nil
-		}
 		m.confirm = "core:stop"
 		return nil
 	}
@@ -297,7 +341,7 @@ func (m *tuiModel) askCoreToggle() tea.Cmd {
 }
 
 func (m *tuiModel) runAction(action string) tea.Cmd {
-	dbPath, coreBin, store, cwd := m.dbPath, m.coreBin, m.store, m.cwd
+	dbPath, coreBin, cwd := m.dbPath, m.coreBin, m.cwd
 	switch {
 	case action == "core:start":
 		if coreBin == "" {
@@ -306,7 +350,7 @@ func (m *tuiModel) runAction(action string) tea.Cmd {
 		}
 		m.busy = "Starting core…"
 		return func() tea.Msg {
-			core, err := startCore(coreBin, dbPath)
+			core, err := coreclient.Ensure(dbPath)
 			if err != nil {
 				return actionMsg{err: err}
 			}
@@ -315,7 +359,7 @@ func (m *tuiModel) runAction(action string) tea.Cmd {
 	case action == "core:stop":
 		m.busy = "Stopping core…"
 		return func() tea.Msg {
-			if err := stopCore(dbPath); err != nil {
+			if err := coreclient.Stop(dbPath); err != nil {
 				return actionMsg{err: err}
 			}
 			return actionMsg{text: "Core stopped."}
@@ -323,17 +367,23 @@ func (m *tuiModel) runAction(action string) tea.Cmd {
 	case action == "init":
 		m.busy = "Registering project…"
 		return func() tea.Msg {
-			project, err := wedge.InitProject(store, wedge.InitInput{Name: filepath.Base(cwd), RootPath: cwd})
+			c, err := coreclient.Connect(dbPath, "tui")
 			if err != nil {
 				return actionMsg{err: err}
 			}
-			result, err := wedge.ScanProject(store, project.ID)
+			ctx := context.Background()
+			initRes, err := c.Projects.InitProject(ctx, connect.NewRequest(&localv1.InitProjectRequest{Name: filepath.Base(cwd), RootPath: cwd}))
 			if err != nil {
-				return actionMsg{err: err, projectID: project.ID}
+				return actionMsg{err: err}
+			}
+			project := initRes.Msg.Project
+			scanRes, err := c.PPM.ImportProjectSources(ctx, connect.NewRequest(&localv1.ImportProjectSourcesRequest{ProjectId: project.Id}))
+			if err != nil {
+				return actionMsg{err: err, projectID: project.Id}
 			}
 			return actionMsg{
-				text:      fmt.Sprintf("Registered %s · %d facts, %d sources.", project.Name, result.FactCount, result.SourceCount),
-				projectID: project.ID,
+				text:      fmt.Sprintf("Registered %s · %d facts, %d sources.", project.Name, scanRes.Msg.FactCount, scanRes.Msg.SourceCount),
+				projectID: project.Id,
 			}
 		}
 	case strings.HasPrefix(action, "client:"):
@@ -528,9 +578,6 @@ func (m *tuiModel) viewCore() string {
 		core := m.snap.core
 		status = styleSuccess.Render("● running") + "  " +
 			styleSubtle.Render(fmt.Sprintf("pid %d  %s  up %s", core.PID, core.Endpoint, since(core.StartedAt)))
-		if core.Owner != "standalone" {
-			status += styleMuted.Render("  (" + core.Owner + ")")
-		}
 	default:
 		status = styleMuted.Render("○ stopped")
 		if m.coreErr != nil {
@@ -590,7 +637,7 @@ func (m *tuiModel) viewSessions() string {
 			name += " " + session.ClientVersion
 		}
 		row := styleSuccess.Render("● ") + styleText.Render(name) +
-			styleSubtle.Render(fmt.Sprintf("  pid %d  up %s", session.PID, since(session.StartedAt)))
+			styleSubtle.Render(fmt.Sprintf("  up %s", since(session.StartedAt)))
 		if i == len(m.snap.sessions)-1 {
 			row += styleMuted.Render(last)
 		}

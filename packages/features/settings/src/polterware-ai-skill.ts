@@ -11,9 +11,18 @@ Use this skill when the operator asks about a Polterware project’s architectur
 - Check drift findings for the project (import dependency diffs, edges under accepted ADRs without evidence, declared-versus-observed conflicts).
 - Record a minimal AgentRun audit trail: context → task → change → evidence → drift. Justified changes (human and agent) appear in Agents → History.
 - Mutate facts, evidence, or knowledge through audited write tools (required change envelope: \`summary\`, \`rationale\`, open \`agent_run_id\`). Humans on Desktop use the same envelope.
+- Create or update Work cards (roadmap items, tasks, open questions, invariants) in Polter format with \`polter.apply\` or \`polterware apply\`.
 - Bootstrap or refresh a project from the shell with \`polterware init | scan | context | drift\`.
 
 ## Tools
+
+### Work cards (Polter format)
+
+| Tool | Purpose |
+| --- | --- |
+| \`polter.format\` | The Polter format spec (about 150 tokens). Read it once before writing cards. |
+| \`polter.query\` | \`cards\` lists one line per card; \`card <slug>\` returns the whole card. |
+| \`polter.apply\` | Apply Polter text (\`text\`, optional \`dry_run\`) as one audited write. Needs \`summary\` and \`rationale\` (frontmatter or arguments). Without \`agent_run_id\` the write joins this session's run; no start or complete calls. |
 
 ### Reads
 
@@ -58,10 +67,17 @@ Build with \`pnpm build:cli\` (\`dist/polterware\`). The same binary serves the 
 | \`polterware scan --project <id>\` | Deterministic MVP import (facts, evidence, sources). |
 | \`polterware context --project <id> [--query] [--entity] [--budget] [--agent-run-id] [--json]\` | Compile a context package. |
 | \`polterware drift --project <id> [--entity] [--agent-run-id] [--json]\` | Run the Narrow Drift Checker. |
+| \`polterware format\` | Print the Polter format spec. |
+| \`polterware query cards\` | Read Work cards in Polter format. |
+| \`polterware apply <file\\|-> [--dry-run]\` | Write Work cards from Polter text. |
 
 Prefer MCP when already connected as an agent; use the CLI for shell/CI bootstrap against the same database.
 
 ## Suggested audit flow
+
+For Work cards, \`polter.apply\` is the whole flow: the session run is implicit.
+
+For facts, evidence, and knowledge:
 
 1. \`agent_run.start\` with a clear task.
 2. \`context.get\` with the returned \`agent_run_id\`.

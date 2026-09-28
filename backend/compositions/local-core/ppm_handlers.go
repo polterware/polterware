@@ -393,13 +393,29 @@ func (core *Core) CompileContext(_ context.Context, request *connect.Request[loc
 	if request.Msg.ProjectId == "" {
 		return nil, invalid("project id is required")
 	}
-	_, _ = core.Store.SyncProjectModel(request.Msg.ProjectId)
-	pkg, err := core.Store.CompileContext(contextpkg.Request{
-		ProjectID:   request.Msg.ProjectId,
-		Query:       request.Msg.Query,
-		EntityID:    request.Msg.EntityId,
-		TokenBudget: int(request.Msg.TokenBudget),
-	})
+	var pkg contextpkg.Package
+	var err error
+	if request.Msg.AgentRunId != "" {
+		// Same path as the CLI and MCP: appends a context step to the run.
+		pkg, err = wedge.CompileContext(core.Store, wedge.ContextInput{
+			ProjectID:   request.Msg.ProjectId,
+			Query:       request.Msg.Query,
+			EntityID:    request.Msg.EntityId,
+			TokenBudget: int(request.Msg.TokenBudget),
+			AgentRunID:  request.Msg.AgentRunId,
+		})
+		if err != nil {
+			return nil, mapAuditedErr(err)
+		}
+	} else {
+		_, _ = core.Store.SyncProjectModel(request.Msg.ProjectId)
+		pkg, err = core.Store.CompileContext(contextpkg.Request{
+			ProjectID:   request.Msg.ProjectId,
+			Query:       request.Msg.Query,
+			EntityID:    request.Msg.EntityId,
+			TokenBudget: int(request.Msg.TokenBudget),
+		})
+	}
 	summary := "compile failed"
 	ok := err == nil
 	if err == nil {
@@ -412,11 +428,12 @@ func (core *Core) CompileContext(_ context.Context, request *connect.Request[loc
 	}
 	_ = core.Store.AppendAgentToolCall(agentaccess.ToolCall{
 		ProjectID:     request.Msg.ProjectId,
+		AgentRunID:    request.Msg.AgentRunId,
 		ToolName:      "context.get",
 		ArgumentsJSON: fmt.Sprintf(`{"query":%q,"entity_id":%q,"token_budget":%d}`, request.Msg.Query, request.Msg.EntityId, request.Msg.TokenBudget),
 		ResultSummary: summary,
 		OK:            ok,
-		Source:        "desktop",
+		Source:        clientOf(request.Header()),
 	})
 	if err != nil {
 		return nil, internal(err)
@@ -464,8 +481,9 @@ func (core *Core) CheckDrift(_ context.Context, request *connect.Request[localv1
 		return nil, invalid("project id is required")
 	}
 	result, err := wedge.CheckDrift(core.Store, wedge.DriftInput{
-		ProjectID: request.Msg.ProjectId,
-		EntityID:  request.Msg.EntityId,
+		ProjectID:  request.Msg.ProjectId,
+		EntityID:   request.Msg.EntityId,
+		AgentRunID: request.Msg.AgentRunId,
 	})
 	summary := "drift check failed"
 	ok := err == nil
@@ -479,11 +497,12 @@ func (core *Core) CheckDrift(_ context.Context, request *connect.Request[localv1
 	}
 	_ = core.Store.AppendAgentToolCall(agentaccess.ToolCall{
 		ProjectID:     request.Msg.ProjectId,
+		AgentRunID:    request.Msg.AgentRunId,
 		ToolName:      "drift.check",
 		ArgumentsJSON: fmt.Sprintf(`{"entity_id":%q}`, request.Msg.EntityId),
 		ResultSummary: summary,
 		OK:            ok,
-		Source:        "desktop",
+		Source:        clientOf(request.Header()),
 	})
 	if err != nil {
 		return nil, mapDriftErr(err)

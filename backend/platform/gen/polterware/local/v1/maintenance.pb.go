@@ -189,6 +189,88 @@ func (x *GetStoreHealthResponse) GetMessage() string {
 	return ""
 }
 
+// Shutdown stops the core after the response is sent (build mismatch or an
+// explicit stop from the TUI).
+type ShutdownRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reason        string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShutdownRequest) Reset() {
+	*x = ShutdownRequest{}
+	mi := &file_polterware_local_v1_maintenance_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShutdownRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShutdownRequest) ProtoMessage() {}
+
+func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_maintenance_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
+func (*ShutdownRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_maintenance_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ShutdownRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type ShutdownResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShutdownResponse) Reset() {
+	*x = ShutdownResponse{}
+	mi := &file_polterware_local_v1_maintenance_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShutdownResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShutdownResponse) ProtoMessage() {}
+
+func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_maintenance_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShutdownResponse.ProtoReflect.Descriptor instead.
+func (*ShutdownResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_maintenance_proto_rawDescGZIP(), []int{5}
+}
+
 var File_polterware_local_v1_maintenance_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_maintenance_proto_rawDesc = "" +
@@ -200,10 +282,14 @@ const file_polterware_local_v1_maintenance_proto_rawDesc = "" +
 	"\x15GetStoreHealthRequest\"T\n" +
 	"\x16GetStoreHealthResponse\x12 \n" +
 	"\vquarantined\x18\x01 \x01(\bR\vquarantined\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\xed\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\")\n" +
+	"\x0fShutdownRequest\x12\x16\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason\"\x12\n" +
+	"\x10ShutdownResponse2\xc6\x02\n" +
 	"\x12MaintenanceService\x12l\n" +
 	"\x0fResetLocalStore\x12+.polterware.local.v1.ResetLocalStoreRequest\x1a,.polterware.local.v1.ResetLocalStoreResponse\x12i\n" +
-	"\x0eGetStoreHealth\x12*.polterware.local.v1.GetStoreHealthRequest\x1a+.polterware.local.v1.GetStoreHealthResponseB\xec\x01\n" +
+	"\x0eGetStoreHealth\x12*.polterware.local.v1.GetStoreHealthRequest\x1a+.polterware.local.v1.GetStoreHealthResponse\x12W\n" +
+	"\bShutdown\x12$.polterware.local.v1.ShutdownRequest\x1a%.polterware.local.v1.ShutdownResponseB\xec\x01\n" +
 	"\x17com.polterware.local.v1B\x10MaintenanceProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
 
 var (
@@ -218,20 +304,24 @@ func file_polterware_local_v1_maintenance_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_maintenance_proto_rawDescData
 }
 
-var file_polterware_local_v1_maintenance_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_polterware_local_v1_maintenance_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_polterware_local_v1_maintenance_proto_goTypes = []any{
 	(*ResetLocalStoreRequest)(nil),  // 0: polterware.local.v1.ResetLocalStoreRequest
 	(*ResetLocalStoreResponse)(nil), // 1: polterware.local.v1.ResetLocalStoreResponse
 	(*GetStoreHealthRequest)(nil),   // 2: polterware.local.v1.GetStoreHealthRequest
 	(*GetStoreHealthResponse)(nil),  // 3: polterware.local.v1.GetStoreHealthResponse
+	(*ShutdownRequest)(nil),         // 4: polterware.local.v1.ShutdownRequest
+	(*ShutdownResponse)(nil),        // 5: polterware.local.v1.ShutdownResponse
 }
 var file_polterware_local_v1_maintenance_proto_depIdxs = []int32{
 	0, // 0: polterware.local.v1.MaintenanceService.ResetLocalStore:input_type -> polterware.local.v1.ResetLocalStoreRequest
 	2, // 1: polterware.local.v1.MaintenanceService.GetStoreHealth:input_type -> polterware.local.v1.GetStoreHealthRequest
-	1, // 2: polterware.local.v1.MaintenanceService.ResetLocalStore:output_type -> polterware.local.v1.ResetLocalStoreResponse
-	3, // 3: polterware.local.v1.MaintenanceService.GetStoreHealth:output_type -> polterware.local.v1.GetStoreHealthResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	4, // 2: polterware.local.v1.MaintenanceService.Shutdown:input_type -> polterware.local.v1.ShutdownRequest
+	1, // 3: polterware.local.v1.MaintenanceService.ResetLocalStore:output_type -> polterware.local.v1.ResetLocalStoreResponse
+	3, // 4: polterware.local.v1.MaintenanceService.GetStoreHealth:output_type -> polterware.local.v1.GetStoreHealthResponse
+	5, // 5: polterware.local.v1.MaintenanceService.Shutdown:output_type -> polterware.local.v1.ShutdownResponse
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -248,7 +338,7 @@ func file_polterware_local_v1_maintenance_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_maintenance_proto_rawDesc), len(file_polterware_local_v1_maintenance_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

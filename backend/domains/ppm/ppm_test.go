@@ -59,7 +59,4 @@ func TestDefaultPredicateForKnowledge(t *testing.T) {
 	if DefaultPredicateForKnowledge("doc") != PredDocuments {
 		t.Fatal("doc")
 	}
-	if DefaultPredicateForKnowledge("spec") != PredDefines {
-		t.Fatal("spec")
-	}
 }
