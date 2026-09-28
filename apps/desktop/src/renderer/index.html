@@ -9,8 +9,15 @@
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Polterware Desktop</title>
+    <link rel="stylesheet" href="./boot-splash.css" />
   </head>
   <body translate="no" style="background: transparent; margin: 0">
+    <div id="boot-splash" aria-hidden="true">
+      <span class="boot-splash-body">
+        <img class="boot-splash-mark" src="./assets/polterware-ghost-mark.png" alt="" decoding="sync" fetchpriority="high" draggable="false" />
+        <span class="boot-splash-sheen"></span>
+      </span>
+    </div>
     <div id="root" style="background: transparent; height: 100%"></div>
     <script type="module" src="./main.tsx"></script>
   </body>

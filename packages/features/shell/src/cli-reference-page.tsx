@@ -210,6 +210,21 @@ function CommandIndex(props: {
   );
 }
 
+// Mirrors ghostBody in backend/runtimes/cli/ghost.go; spaces are the eyes.
+const GHOST_BODY = ["  ▄█████▄", " ████ █ ██", " ████▄█▄██", " █▀█▀█▀█▀█"].join("\n");
+
+function CliMark() {
+  return (
+    <pre aria-hidden="true" class="m-0 mb-8 justify-self-center font-mono text-[12px] leading-none text-[var(--color-text-primary)]">
+      <span class="text-[var(--color-success)]">{"     ●"}</span>
+      {"\n"}
+      <span class="text-[var(--color-text-muted)]">{"     │"}</span>
+      {"\n"}
+      {GHOST_BODY}
+    </pre>
+  );
+}
+
 function sectionId(command: CliCommand) {
   return `cli-${command.id}`;
 }
@@ -341,6 +356,8 @@ export function CliReferencePage() {
           <OnThisPage activeId={activeId()} onNavigate={scrollToSection} />
 
           <div class="mx-auto grid w-full min-w-0 max-w-3xl gap-12">
+            <CliMark />
+
             <section id={FIRST_SECTION} class="grid gap-4">
               <SectionHeading>Usage</SectionHeading>
               <Prose>

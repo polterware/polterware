@@ -30,6 +30,7 @@ import { hydrateAppearancePreferences, hydrateShortcutPreferences } from "@polte
 import { CommandPalette } from "@polterware/feature-commander";
 import { PageLoading, pushToast } from "@polterware/frontend-design-system";
 import { detailPanelStore, matchesShortcut } from "@polterware/frontend-state";
+import { hideBootSplash } from "./boot-splash";
 import { bootstrapPlatform } from "./platform-bootstrap";
 
 if (import.meta.env.DEV && !SECTION_TABS.agents?.some((tab) => tab.id === "context")) {
@@ -237,6 +238,10 @@ export function App() {
       setBootstrapped(true);
     }
   }
+
+  createEffect(() => {
+    if (bootstrapped()) hideBootSplash();
+  });
 
   createEffect(() => {
     if (!bootstrapped()) return;
