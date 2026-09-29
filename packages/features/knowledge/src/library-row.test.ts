@@ -42,6 +42,12 @@ const adr = {
   updatedAt: "2026-01-02",
   tags: ["adr"],
   status: "accepted",
+  state: "active",
+  supersededBy: "",
+  supersedes: [],
+  reviewTrigger: "",
+  statusReason: "",
+  governs: [],
   owner: "Ada",
   entityLinks: [],
 } satisfies WorkspaceAdr;
@@ -84,7 +90,7 @@ describe("libraryRowsFromWorkspace", () => {
       filterLibraryRows(rows, {
         ...EMPTY_LIBRARY_FILTERS,
         kinds: ["adr"],
-        statuses: ["accepted"],
+        statuses: ["active"],
       }),
     ).toHaveLength(1);
     expect(

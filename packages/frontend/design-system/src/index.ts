@@ -56,8 +56,9 @@ export type {
 } from "./tooltip";
 export { Kbd } from "./kbd";
 export type { KbdProps } from "./kbd";
-export { CheckboxRow } from "./checkbox-row";
-export type { CheckboxRowProps } from "./checkbox-row";
+export { spring } from "./springs";
+export { Switch, SwitchRow } from "./switch";
+export type { SwitchProps, SwitchRowProps, SwitchSize } from "./switch";
 export { FilterPopover, FilterCategoryPopover } from "./filter-popover";
 export type {
   FilterPopoverProps,

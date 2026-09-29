@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/agentrun.proto.
  */
 export const file_polterware_local_v1_agentrun: GenFile = /*@__PURE__*/
-  fileDesc("CiJwb2x0ZXJ3YXJlL2xvY2FsL3YxL2FnZW50cnVuLnByb3RvEhNwb2x0ZXJ3YXJlLmxvY2FsLnYxIpsBCghBZ2VudFJ1bhIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBHRhc2sYAyABKAkSEwoLYWdlbnRfbGFiZWwYBCABKAkSDgoGc3RhdHVzGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSFAoMY29tcGxldGVkX2F0GAcgASgJEhIKCmFjdG9yX2tpbmQYCCABKAkieQoMQWdlbnRSdW5TdGVwEgoKAmlkGAEgASgJEhQKDGFnZW50X3J1bl9pZBgCIAEoCRIMCgRraW5kGAMgASgJEg8KB3N1bW1hcnkYBCABKAkSFAoMcGF5bG9hZF9qc29uGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkiSgoOQ2hhbmdlRW52ZWxvcGUSDwoHc3VtbWFyeRgBIAEoCRIRCglyYXRpb25hbGUYAiABKAkSFAoMYWdlbnRfcnVuX2lkGAMgASgJIjkKFExpc3RBZ2VudFJ1bnNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFbGltaXQYAiABKAUiRAoVTGlzdEFnZW50UnVuc1Jlc3BvbnNlEisKBHJ1bnMYASADKAsyHS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuIiAKEkdldEFnZW50UnVuUmVxdWVzdBIKCgJpZBgBIAEoCSJzChNHZXRBZ2VudFJ1blJlc3BvbnNlEioKA3J1bhgBIAEoCzIdLnBvbHRlcndhcmUubG9jYWwudjEuQWdlbnRSdW4SMAoFc3RlcHMYAiADKAsyIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuU3RlcCLUAQoNUHJvamVjdENoYW5nZRIPCgdzdGVwX2lkGAEgASgJEhQKDGFnZW50X3J1bl9pZBgCIAEoCRISCgpwcm9qZWN0X2lkGAMgASgJEhIKCmFjdG9yX2tpbmQYBCABKAkSEwoLYWdlbnRfbGFiZWwYBSABKAkSEgoKcnVuX3N0YXR1cxgGIAEoCRIQCghydW5fdGFzaxgHIAEoCRIPCgdzdW1tYXJ5GAggASgJEhQKDHBheWxvYWRfanNvbhgJIAEoCRISCgpjcmVhdGVkX2F0GAogASgJIksKEkxpc3RDaGFuZ2VzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhIKCmFjdG9yX2tpbmQYAiABKAkSDQoFbGltaXQYAyABKAUiSgoTTGlzdENoYW5nZXNSZXNwb25zZRIzCgdjaGFuZ2VzGAEgAygLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5Qcm9qZWN0Q2hhbmdlIm8KCk1jcFNlc3Npb24SCgoCaWQYASABKAkSEwoLY2xpZW50X25hbWUYAiABKAkSFgoOY2xpZW50X3ZlcnNpb24YAyABKAkSEgoKc3RhcnRlZF9hdBgEIAEoCRIUCgxsYXN0X3NlZW5fYXQYBSABKAkiGAoWTGlzdE1jcFNlc3Npb25zUmVxdWVzdCJMChdMaXN0TWNwU2Vzc2lvbnNSZXNwb25zZRIxCghzZXNzaW9ucxgBIAMoCzIfLnBvbHRlcndhcmUubG9jYWwudjEuTWNwU2Vzc2lvbjKrAwoPQWdlbnRSdW5TZXJ2aWNlEmwKD0xpc3RNY3BTZXNzaW9ucxIrLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdE1jcFNlc3Npb25zUmVxdWVzdBosLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdE1jcFNlc3Npb25zUmVzcG9uc2USZgoNTGlzdEFnZW50UnVucxIpLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEFnZW50UnVuc1JlcXVlc3QaKi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RBZ2VudFJ1bnNSZXNwb25zZRJgCgtHZXRBZ2VudFJ1bhInLnBvbHRlcndhcmUubG9jYWwudjEuR2V0QWdlbnRSdW5SZXF1ZXN0GigucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRBZ2VudFJ1blJlc3BvbnNlEmAKC0xpc3RDaGFuZ2VzEicucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0Q2hhbmdlc1JlcXVlc3QaKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RDaGFuZ2VzUmVzcG9uc2VC6QEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQg1BZ2VudHJ1blByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
+  fileDesc("CiJwb2x0ZXJ3YXJlL2xvY2FsL3YxL2FnZW50cnVuLnByb3RvEhNwb2x0ZXJ3YXJlLmxvY2FsLnYxIpsBCghBZ2VudFJ1bhIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBHRhc2sYAyABKAkSEwoLYWdlbnRfbGFiZWwYBCABKAkSDgoGc3RhdHVzGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSFAoMY29tcGxldGVkX2F0GAcgASgJEhIKCmFjdG9yX2tpbmQYCCABKAkieQoMQWdlbnRSdW5TdGVwEgoKAmlkGAEgASgJEhQKDGFnZW50X3J1bl9pZBgCIAEoCRIMCgRraW5kGAMgASgJEg8KB3N1bW1hcnkYBCABKAkSFAoMcGF5bG9hZF9qc29uGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkiSgoOQ2hhbmdlRW52ZWxvcGUSDwoHc3VtbWFyeRgBIAEoCRIRCglyYXRpb25hbGUYAiABKAkSFAoMYWdlbnRfcnVuX2lkGAMgASgJIjkKFExpc3RBZ2VudFJ1bnNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFbGltaXQYAiABKAUiRAoVTGlzdEFnZW50UnVuc1Jlc3BvbnNlEisKBHJ1bnMYASADKAsyHS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuIiAKEkdldEFnZW50UnVuUmVxdWVzdBIKCgJpZBgBIAEoCSJzChNHZXRBZ2VudFJ1blJlc3BvbnNlEioKA3J1bhgBIAEoCzIdLnBvbHRlcndhcmUubG9jYWwudjEuQWdlbnRSdW4SMAoFc3RlcHMYAiADKAsyIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFnZW50UnVuU3RlcCLUAQoNUHJvamVjdENoYW5nZRIPCgdzdGVwX2lkGAEgASgJEhQKDGFnZW50X3J1bl9pZBgCIAEoCRISCgpwcm9qZWN0X2lkGAMgASgJEhIKCmFjdG9yX2tpbmQYBCABKAkSEwoLYWdlbnRfbGFiZWwYBSABKAkSEgoKcnVuX3N0YXR1cxgGIAEoCRIQCghydW5fdGFzaxgHIAEoCRIPCgdzdW1tYXJ5GAggASgJEhQKDHBheWxvYWRfanNvbhgJIAEoCRISCgpjcmVhdGVkX2F0GAogASgJIksKEkxpc3RDaGFuZ2VzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEhIKCmFjdG9yX2tpbmQYAiABKAkSDQoFbGltaXQYAyABKAUiSgoTTGlzdENoYW5nZXNSZXNwb25zZRIzCgdjaGFuZ2VzGAEgAygLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5Qcm9qZWN0Q2hhbmdlIm8KCk1jcFNlc3Npb24SCgoCaWQYASABKAkSEwoLY2xpZW50X25hbWUYAiABKAkSFgoOY2xpZW50X3ZlcnNpb24YAyABKAkSEgoKc3RhcnRlZF9hdBgEIAEoCRIUCgxsYXN0X3NlZW5fYXQYBSABKAkiGAoWTGlzdE1jcFNlc3Npb25zUmVxdWVzdCJMChdMaXN0TWNwU2Vzc2lvbnNSZXNwb25zZRIxCghzZXNzaW9ucxgBIAMoCzIfLnBvbHRlcndhcmUubG9jYWwudjEuTWNwU2Vzc2lvbiJICgpIb29rU3dpdGNoEgwKBG5hbWUYASABKAkSDQoFbGFiZWwYAiABKAkSDAoEbm90ZRgDIAEoCRIPCgdlbmFibGVkGAQgASgIIrwCCgpBZ2VudFNldHVwEi4KBWhvb2tzGAEgAygLMh8ucG9sdGVyd2FyZS5sb2NhbC52MS5Ib29rU3dpdGNoEhcKD3BvbHRlcndhcmVfcGF0aBgCIAEoCRITCgtjbGF1ZGVfcGF0aBgDIAEoCRIYChBwbHVnaW5faW5zdGFsbGVkGAQgASgIEhYKDnBsdWdpbl9lbmFibGVkGAUgASgIEhYKDnBsdWdpbl92ZXJzaW9uGAYgASgJEhgKEGVtYmVkZGVkX3ZlcnNpb24YByABKAkSFwoPbWFya2V0cGxhY2VfZGlyGAggASgJEg8KB3Byb2JsZW0YCSABKAkSEgoKc2tpbGxfcGF0aBgKIAEoCRITCgtza2lsbF9yZWFkeRgLIAEoCBIZChFhZ2VudHNfbGluZV9yZWFkeRgMIAEoCCIqChRHZXRBZ2VudFNldHVwUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJIkcKFUdldEFnZW50U2V0dXBSZXNwb25zZRIuCgVzZXR1cBgBIAEoCzIfLnBvbHRlcndhcmUubG9jYWwudjEuQWdlbnRTZXR1cCIZChdMaXN0SG9va1N3aXRjaGVzUmVxdWVzdCJKChhMaXN0SG9va1N3aXRjaGVzUmVzcG9uc2USLgoFaG9va3MYASADKAsyHy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkhvb2tTd2l0Y2giNQoUU2V0SG9va1N3aXRjaFJlcXVlc3QSDAoEbmFtZRgBIAEoCRIPCgdlbmFibGVkGAIgASgIIkcKFVNldEhvb2tTd2l0Y2hSZXNwb25zZRIuCgVob29rcxgBIAMoCzIfLnBvbHRlcndhcmUubG9jYWwudjEuSG9va1N3aXRjaDLsBQoPQWdlbnRSdW5TZXJ2aWNlEmYKDUdldEFnZW50U2V0dXASKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkdldEFnZW50U2V0dXBSZXF1ZXN0GioucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRBZ2VudFNldHVwUmVzcG9uc2USbwoQTGlzdEhvb2tTd2l0Y2hlcxIsLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEhvb2tTd2l0Y2hlc1JlcXVlc3QaLS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RIb29rU3dpdGNoZXNSZXNwb25zZRJmCg1TZXRIb29rU3dpdGNoEikucG9sdGVyd2FyZS5sb2NhbC52MS5TZXRIb29rU3dpdGNoUmVxdWVzdBoqLnBvbHRlcndhcmUubG9jYWwudjEuU2V0SG9va1N3aXRjaFJlc3BvbnNlEmwKD0xpc3RNY3BTZXNzaW9ucxIrLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdE1jcFNlc3Npb25zUmVxdWVzdBosLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdE1jcFNlc3Npb25zUmVzcG9uc2USZgoNTGlzdEFnZW50UnVucxIpLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEFnZW50UnVuc1JlcXVlc3QaKi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RBZ2VudFJ1bnNSZXNwb25zZRJgCgtHZXRBZ2VudFJ1bhInLnBvbHRlcndhcmUubG9jYWwudjEuR2V0QWdlbnRSdW5SZXF1ZXN0GigucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRBZ2VudFJ1blJlc3BvbnNlEmAKC0xpc3RDaGFuZ2VzEicucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0Q2hhbmdlc1JlcXVlc3QaKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RDaGFuZ2VzUmVzcG9uc2VC6QEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQg1BZ2VudHJ1blByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
 
 /**
  * @generated from message polterware.local.v1.AgentRun
@@ -394,9 +394,248 @@ export const ListMcpSessionsResponseSchema: GenMessage<ListMcpSessionsResponse> 
   messageDesc(file_polterware_local_v1_agentrun, 12);
 
 /**
+ * HookSwitch is one plugin hook the operator can turn off. hooks.json is
+ * fixed; `polterware hook <name>` exits 0 when its switch is off.
+ *
+ * @generated from message polterware.local.v1.HookSwitch
+ */
+export type HookSwitch = Message<"polterware.local.v1.HookSwitch"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string note = 3;
+   */
+  note: string;
+
+  /**
+   * @generated from field: bool enabled = 4;
+   */
+  enabled: boolean;
+};
+
+/**
+ * Describes the message polterware.local.v1.HookSwitch.
+ * Use `create(HookSwitchSchema)` to create a new message.
+ */
+export const HookSwitchSchema: GenMessage<HookSwitch> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 13);
+
+/**
+ * AgentSetup is the setup doctor's view: the hook switches, the Claude Code
+ * plugin against this binary, and the Codex / other agents path.
+ *
+ * @generated from message polterware.local.v1.AgentSetup
+ */
+export type AgentSetup = Message<"polterware.local.v1.AgentSetup"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.HookSwitch hooks = 1;
+   */
+  hooks: HookSwitch[];
+
+  /**
+   * @generated from field: string polterware_path = 2;
+   */
+  polterwarePath: string;
+
+  /**
+   * @generated from field: string claude_path = 3;
+   */
+  claudePath: string;
+
+  /**
+   * @generated from field: bool plugin_installed = 4;
+   */
+  pluginInstalled: boolean;
+
+  /**
+   * @generated from field: bool plugin_enabled = 5;
+   */
+  pluginEnabled: boolean;
+
+  /**
+   * @generated from field: string plugin_version = 6;
+   */
+  pluginVersion: string;
+
+  /**
+   * @generated from field: string embedded_version = 7;
+   */
+  embeddedVersion: string;
+
+  /**
+   * @generated from field: string marketplace_dir = 8;
+   */
+  marketplaceDir: string;
+
+  /**
+   * @generated from field: string problem = 9;
+   */
+  problem: string;
+
+  /**
+   * @generated from field: string skill_path = 10;
+   */
+  skillPath: string;
+
+  /**
+   * @generated from field: bool skill_ready = 11;
+   */
+  skillReady: boolean;
+
+  /**
+   * @generated from field: bool agents_line_ready = 12;
+   */
+  agentsLineReady: boolean;
+};
+
+/**
+ * Describes the message polterware.local.v1.AgentSetup.
+ * Use `create(AgentSetupSchema)` to create a new message.
+ */
+export const AgentSetupSchema: GenMessage<AgentSetup> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 14);
+
+/**
+ * @generated from message polterware.local.v1.GetAgentSetupRequest
+ */
+export type GetAgentSetupRequest = Message<"polterware.local.v1.GetAgentSetupRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.GetAgentSetupRequest.
+ * Use `create(GetAgentSetupRequestSchema)` to create a new message.
+ */
+export const GetAgentSetupRequestSchema: GenMessage<GetAgentSetupRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 15);
+
+/**
+ * @generated from message polterware.local.v1.GetAgentSetupResponse
+ */
+export type GetAgentSetupResponse = Message<"polterware.local.v1.GetAgentSetupResponse"> & {
+  /**
+   * @generated from field: polterware.local.v1.AgentSetup setup = 1;
+   */
+  setup?: AgentSetup | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.GetAgentSetupResponse.
+ * Use `create(GetAgentSetupResponseSchema)` to create a new message.
+ */
+export const GetAgentSetupResponseSchema: GenMessage<GetAgentSetupResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 16);
+
+/**
+ * ListHookSwitches is the cheap read hooks use; GetAgentSetup also runs the doctor.
+ *
+ * @generated from message polterware.local.v1.ListHookSwitchesRequest
+ */
+export type ListHookSwitchesRequest = Message<"polterware.local.v1.ListHookSwitchesRequest"> & {
+};
+
+/**
+ * Describes the message polterware.local.v1.ListHookSwitchesRequest.
+ * Use `create(ListHookSwitchesRequestSchema)` to create a new message.
+ */
+export const ListHookSwitchesRequestSchema: GenMessage<ListHookSwitchesRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 17);
+
+/**
+ * @generated from message polterware.local.v1.ListHookSwitchesResponse
+ */
+export type ListHookSwitchesResponse = Message<"polterware.local.v1.ListHookSwitchesResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.HookSwitch hooks = 1;
+   */
+  hooks: HookSwitch[];
+};
+
+/**
+ * Describes the message polterware.local.v1.ListHookSwitchesResponse.
+ * Use `create(ListHookSwitchesResponseSchema)` to create a new message.
+ */
+export const ListHookSwitchesResponseSchema: GenMessage<ListHookSwitchesResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 18);
+
+/**
+ * @generated from message polterware.local.v1.SetHookSwitchRequest
+ */
+export type SetHookSwitchRequest = Message<"polterware.local.v1.SetHookSwitchRequest"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: bool enabled = 2;
+   */
+  enabled: boolean;
+};
+
+/**
+ * Describes the message polterware.local.v1.SetHookSwitchRequest.
+ * Use `create(SetHookSwitchRequestSchema)` to create a new message.
+ */
+export const SetHookSwitchRequestSchema: GenMessage<SetHookSwitchRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 19);
+
+/**
+ * @generated from message polterware.local.v1.SetHookSwitchResponse
+ */
+export type SetHookSwitchResponse = Message<"polterware.local.v1.SetHookSwitchResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.HookSwitch hooks = 1;
+   */
+  hooks: HookSwitch[];
+};
+
+/**
+ * Describes the message polterware.local.v1.SetHookSwitchResponse.
+ * Use `create(SetHookSwitchResponseSchema)` to create a new message.
+ */
+export const SetHookSwitchResponseSchema: GenMessage<SetHookSwitchResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_agentrun, 20);
+
+/**
  * @generated from service polterware.local.v1.AgentRunService
  */
 export const AgentRunService: GenService<{
+  /**
+   * @generated from rpc polterware.local.v1.AgentRunService.GetAgentSetup
+   */
+  getAgentSetup: {
+    methodKind: "unary";
+    input: typeof GetAgentSetupRequestSchema;
+    output: typeof GetAgentSetupResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.AgentRunService.ListHookSwitches
+   */
+  listHookSwitches: {
+    methodKind: "unary";
+    input: typeof ListHookSwitchesRequestSchema;
+    output: typeof ListHookSwitchesResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.AgentRunService.SetHookSwitch
+   */
+  setHookSwitch: {
+    methodKind: "unary";
+    input: typeof SetHookSwitchRequestSchema;
+    output: typeof SetHookSwitchResponseSchema;
+  },
   /**
    * @generated from rpc polterware.local.v1.AgentRunService.ListMcpSessions
    */

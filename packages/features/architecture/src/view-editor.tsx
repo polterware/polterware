@@ -1,5 +1,5 @@
-import { createSignal, For, Show } from "solid-js";
-import { Button, CheckboxRow, Input, PageContent, PageHeader } from "@polterware/frontend-design-system";
+import { createSignal, Index, Show } from "solid-js";
+import { Button, SwitchRow, Input, PageContent, PageHeader } from "@polterware/frontend-design-system";
 import type { ViewEditorNode } from "./view-editor-helpers";
 
 export type ViewEditorDraft = {
@@ -81,15 +81,15 @@ export function ViewEditor(props: {
               </p>
             }
           >
-            <For each={props.availableNodes}>
+            <Index each={props.availableNodes}>
               {(node) => (
-                <CheckboxRow
-                  checked={included().has(node.id)}
-                  label={node.name}
-                  onCheckedChange={(checked) => toggleMember(node.id, checked)}
+                <SwitchRow
+                  checked={included().has(node().id)}
+                  label={node().name}
+                  onCheckedChange={(checked) => toggleMember(node().id, checked)}
                 />
               )}
-            </For>
+            </Index>
           </Show>
         </div>
       </PageContent>

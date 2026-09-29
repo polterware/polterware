@@ -6,7 +6,7 @@ import (
 
 	contextpkg "github.com/polterware/polterware/backend/domains/context"
 	"github.com/polterware/polterware/backend/domains/ppm"
-	"github.com/polterware/polterware/backend/providers/seed"
+	"github.com/polterware/polterware/backend/providers/demoseed"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
@@ -16,15 +16,15 @@ func TestCompileContextIncludesFactsReasonsEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	if err := seed.Defaults(store); err != nil {
+	if err := demoseed.Defaults(store); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.SyncProjectModel(seed.ProjectID); err != nil {
+	if _, err := store.SyncProjectModel(demoseed.ProjectID); err != nil {
 		t.Fatal(err)
 	}
 
 	fact, err := ppm.NewFact(
-		seed.ProjectID,
+		demoseed.ProjectID,
 		"module uses Go modules for dependency management",
 		ppm.TruthObserved,
 		"import:go.mod",
@@ -38,7 +38,7 @@ func TestCompileContextIncludesFactsReasonsEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	evidence, err := ppm.NewEvidence(
-		seed.ProjectID,
+		demoseed.ProjectID,
 		ppm.EvidenceKindFile,
 		"go.mod module line",
 		"import:go.mod",
@@ -51,12 +51,12 @@ func TestCompileContextIncludesFactsReasonsEvidence(t *testing.T) {
 	if err := store.UpsertPpmEvidence(evidence); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.LinkPpmEvidenceToFact(seed.ProjectID, fact.ID, evidence.ID); err != nil {
+	if err := store.LinkPpmEvidenceToFact(demoseed.ProjectID, fact.ID, evidence.ID); err != nil {
 		t.Fatal(err)
 	}
 
 	sample, err := store.CompileContext(contextpkg.Request{
-		ProjectID:   seed.ProjectID,
+		ProjectID:   demoseed.ProjectID,
 		TokenBudget: 2000,
 	})
 	if err != nil {
@@ -65,7 +65,7 @@ func TestCompileContextIncludesFactsReasonsEvidence(t *testing.T) {
 	assertFactItem(t, sample, fact.ID, evidence.ID, contextpkg.ReasonImportedFact)
 
 	matched, err := store.CompileContext(contextpkg.Request{
-		ProjectID:   seed.ProjectID,
+		ProjectID:   demoseed.ProjectID,
 		Query:       "Go modules",
 		TokenBudget: 2000,
 	})

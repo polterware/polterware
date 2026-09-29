@@ -2,10 +2,10 @@ package wedge
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/polterware/polterware/backend/domains/agentrun"
+	"github.com/polterware/polterware/backend/domains/decision"
 	"github.com/polterware/polterware/backend/domains/drift"
 	"github.com/polterware/polterware/backend/providers/importer"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
@@ -26,21 +26,50 @@ func CheckDrift(store *storepkg.Store, in DriftInput) (drift.Result, error) {
 	if _, err := store.SyncProjectModel(in.ProjectID); err != nil {
 		return drift.Result{}, err
 	}
+	input, err := assembleDriftInput(store, in.ProjectID, in.EntityID)
+	if err != nil {
+		return drift.Result{}, err
+	}
+	result := drift.Check(input)
+	if in.AgentRunID != "" {
+		now := time.Now().UTC()
+		if err := store.AppendAgentRunStepIfOpen(in.AgentRunID, func(run agentrun.Run) (agentrun.Step, error) {
+			return agentrun.NewDriftStep(run.ID, result, now)
+		}); err != nil {
+			return drift.Result{}, err
+		}
+	}
+	return result, nil
+}
 
+// DriftFindings runs the checker without syncing the project model or
+// recording a step, so reading it writes nothing. The Inbox uses it: a write
+// here would emit a change event and reload the Inbox again.
+func DriftFindings(store *storepkg.Store, projectID string) ([]drift.Finding, error) {
+	input, err := assembleDriftInput(store, projectID, "")
+	if err != nil {
+		return nil, err
+	}
+	return drift.Check(input).Findings, nil
+}
+
+// assembleDriftInput reads the store and a fresh import parse. It never writes.
+func assembleDriftInput(store *storepkg.Store, projectID, entityID string) (drift.Input, error) {
+	in := DriftInput{ProjectID: projectID, EntityID: entityID}
 	project, err := store.GetProject(in.ProjectID)
 	if err != nil {
-		return drift.Result{}, fmt.Errorf("unknown project")
+		return drift.Input{}, fmt.Errorf("unknown project")
 	}
 
 	facts, err := store.ListPpmFacts(in.ProjectID, "")
 	if err != nil {
-		return drift.Result{}, err
+		return drift.Input{}, err
 	}
 	factRefs := make([]drift.FactRef, 0, len(facts))
 	for _, fact := range facts {
 		evidence, err := store.ListPpmEvidenceForFact(fact.ID)
 		if err != nil {
-			return drift.Result{}, err
+			return drift.Input{}, err
 		}
 		evidenceIDs := make([]string, 0, len(evidence))
 		for _, item := range evidence {
@@ -58,7 +87,7 @@ func CheckDrift(store *storepkg.Store, in DriftInput) (drift.Result, error) {
 
 	rels, err := store.ListPpmRelationships(in.ProjectID, in.EntityID)
 	if err != nil {
-		return drift.Result{}, err
+		return drift.Input{}, err
 	}
 	relRefs := make([]drift.RelationshipRef, 0, len(rels))
 	for _, rel := range rels {
@@ -74,16 +103,16 @@ func CheckDrift(store *storepkg.Store, in DriftInput) (drift.Result, error) {
 
 	adrs, err := store.ListKnowledge(in.ProjectID, "adr")
 	if err != nil {
-		return drift.Result{}, err
+		return drift.Input{}, err
 	}
 	accepted := make([]drift.AcceptedADR, 0)
 	for _, item := range adrs {
-		if !strings.EqualFold(strings.TrimSpace(item.Status), "accepted") {
+		if decision.Normalize(item.Status) != decision.StateActive {
 			continue
 		}
 		links, err := store.ListKnowledgeLinks(in.ProjectID, item.ID, "")
 		if err != nil {
-			return drift.Result{}, err
+			return drift.Input{}, err
 		}
 		entityIDs := make([]string, 0, len(links))
 		for _, link := range links {
@@ -135,14 +164,13 @@ func CheckDrift(store *storepkg.Store, in DriftInput) (drift.Result, error) {
 		}
 	}
 
-	result := drift.Check(input)
-	if in.AgentRunID != "" {
-		now := time.Now().UTC()
-		if err := store.AppendAgentRunStepIfOpen(in.AgentRunID, func(run agentrun.Run) (agentrun.Step, error) {
-			return agentrun.NewDriftStep(run.ID, result, now)
-		}); err != nil {
-			return drift.Result{}, err
-		}
+	ready, doneTasks, taskLinks, window, err := assembleCommitDrift(store, in.ProjectID, rootPath)
+	if err != nil {
+		return drift.Input{}, err
 	}
-	return result, nil
+	input.GitDeliveryReady = ready
+	input.DoneTasks = doneTasks
+	input.TaskCommits = taskLinks
+	input.WindowCommits = window
+	return input, nil
 }

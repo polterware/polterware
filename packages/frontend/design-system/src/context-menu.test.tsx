@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "solid-js/web";
 import { createSignal } from "solid-js";
 import { ContextMenu } from "./context-menu";
+import { repoPath } from "../test/repo-path";
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -13,7 +14,7 @@ afterEach(() => {
 describe("ContextMenu", () => {
   it("exposes the compound API and fixed virtual-anchor positioning", () => {
     const source = readFileSync(
-      "packages/frontend/design-system/src/context-menu.tsx",
+      repoPath("packages/frontend/design-system/src/context-menu.tsx"),
       "utf8",
     );
 
@@ -70,8 +71,12 @@ describe("ContextMenu", () => {
     const item = document.querySelector<HTMLElement>("[role='menuitem']");
     expect(item).not.toBeNull();
     if (!item) return;
+    // Ark highlights an item on pointer move before a click selects it.
+    item.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" }));
+    item.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerType: "mouse", button: 0 }));
+    item.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerType: "mouse", button: 0 }));
     item.click();
-    expect(onSelect).toHaveBeenCalled();
+    await vi.waitFor(() => expect(onSelect).toHaveBeenCalled());
     await vi.waitFor(() => expect(open()).toBe(false));
 
     dispose();

@@ -4,9 +4,10 @@ import { ResizableSidebar, ToastRegion } from "@polterware/frontend-design-syste
 import type { PlatformContext } from "@polterware/frontend-platform";
 import type { ClientRoute, NavItem, ShellStatus } from "./route";
 import { isNavSectionId } from "./route";
-import { SidebarNav, SidebarSettingsItem } from "./sidebar";
+import { SidebarNav, SidebarSettingsItem, type SidebarCount } from "./sidebar";
 import { MainSurface } from "./main-surface";
 import { TitleBar } from "./title-bar";
+import type { CoreStatusMenuProps } from "./core-status-menu";
 import type { WorkspaceContext } from "./context-switchers";
 import type { EnvironmentItem, ProjectSwitcherItem } from "./types";
 import { ENVIRONMENT_FIXTURES } from "./fixtures";
@@ -61,7 +62,10 @@ export {
 } from "./route";
 export { MainSurface, PageHeader, PageContent } from "./main-surface";
 export { SidebarNav, SidebarSettingsItem } from "./sidebar";
+export type { SidebarCount } from "./sidebar";
 export { TitleBar } from "./title-bar";
+export { CoreStatusMenu } from "./core-status-menu";
+export type { CoreStatusMenuProps, LocalCoreStatus, LocalCoreState } from "./core-status-menu";
 export { CliReferencePage } from "./cli-reference-page";
 export { InboxPage } from "./inbox-page";
 export { TerminalEmulator } from "./terminal-emulator";
@@ -86,8 +90,8 @@ export {
 
 export const DEFAULT_NAV: NavItem[] = [
   { id: "inbox", label: "Inbox", group: "PROJECT" },
-  { id: "atlas", label: "Atlas", group: "PROJECT" },
   { id: "work", label: "Work", group: "PROJECT" },
+  { id: "atlas", label: "Atlas", group: "PROJECT" },
   { id: "decisions", label: "Decisions", group: "PROJECT" },
   { id: "reality", label: "Reality", group: "PROJECT" },
   { id: "agents", label: "Agents", group: "CONNECT" },
@@ -116,12 +120,16 @@ export function Shell(props: {
   onSelectEnvironment?: (environmentId: string) => void;
   onOpenCommander?: () => void;
   onOpenSettings?: () => void;
+  /** True while the Settings dialog is open. */
+  settingsOpen?: boolean;
   onOpenCliReference?: () => void;
+  coreStatus?: CoreStatusMenuProps;
   workspace?: WorkspaceContext;
   projects?: ProjectSwitcherItem[];
   environments?: EnvironmentItem[];
   status?: ShellStatus;
   navItems?: NavItem[];
+  navCounts?: Partial<Record<string, SidebarCount>>;
   platform?: PlatformContext;
   canGoBack?: boolean;
   canGoForward?: boolean;
@@ -131,7 +139,7 @@ export function Shell(props: {
 }) {
   const [localWorkspace, setLocalWorkspace] = createSignal<WorkspaceContext | null>(null);
 
-  const currentSection = () => props.route?.().section ?? props.panel?.() ?? "atlas";
+  const currentSection = () => props.route?.().section ?? props.panel?.() ?? "inbox";
   const items = () => props.navItems ?? DEFAULT_NAV;
   const workspace = createMemo(
     () => props.workspace ?? localWorkspace() ?? workspaceFromRoute(props.route?.(), props.environments ?? ENVIRONMENT_FIXTURES),
@@ -174,6 +182,7 @@ export function Shell(props: {
         onCreateProject={() => props.onCreateProject?.()}
         onOpenCommander={() => props.onOpenCommander?.()}
         onOpenCliReference={props.onOpenCliReference}
+        coreStatus={props.coreStatus}
       />
 
       <div class="flex min-h-0 flex-1">
@@ -193,12 +202,13 @@ export function Shell(props: {
                   activeId={activeId()}
                   onSelect={select}
                   platform={props.platform}
+                  counts={props.navCounts}
                 />
               </div>
               <div class="mt-auto px-2 py-3">
                 <SidebarSettingsItem
-                  active={currentSection() === "settings"}
-                  onSelect={() => props.onOpenSettings?.() ?? select("settings")}
+                  active={props.settingsOpen}
+                  onSelect={() => props.onOpenSettings?.()}
                 />
               </div>
             </div>

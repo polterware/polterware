@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/polterware/polterware/backend/providers/demoseed"
 	sqlstore "github.com/polterware/polterware/backend/providers/sqlite"
-	"github.com/polterware/polterware/backend/providers/seed"
 )
 
 func TestNoLegacyConfRequired(t *testing.T) {
@@ -14,7 +14,7 @@ func TestNoLegacyConfRequired(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	if err := seed.Defaults(s); err != nil {
+	if err := demoseed.Defaults(s); err != nil {
 		t.Fatal(err)
 	}
 }

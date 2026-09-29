@@ -16,7 +16,7 @@ describe("Desktop core composition", () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const source = readFileSync(join(import.meta.dirname, "App.tsx"), "utf8");
-    expect(source).toContain('import { ArchitectureView } from "@polterware/feature-architecture"');
+    expect(source).toMatch(/import \{[^}]*\bArchitectureView\b[^}]*\} from "@polterware\/feature-architecture"/);
     expect(source).toContain("lazy(() =>");
     expect(source).toContain("<Suspense");
     expect(source).toContain('import("@polterware/feature-resources")');

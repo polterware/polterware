@@ -2,7 +2,7 @@ import { Show, createEffect, createSignal } from "solid-js";
 import {
   A11yDialog,
   Button,
-  CheckboxRow,
+  SwitchRow,
   Field,
   Input,
   Select,
@@ -87,7 +87,7 @@ export function PpmEvidenceFormDialog(props: {
           />
         </Field>
         <Show when={props.canLinkToFact}>
-          <CheckboxRow
+          <SwitchRow
             checked={linkToSelectedFact()}
             label="Link to selected fact"
             onCheckedChange={(checked) => setLinkToSelectedFact(checked)}

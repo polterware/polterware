@@ -20,6 +20,11 @@ export function resolveUserDatabasePath(): string {
   return join(app.getPath("appData"), "polterware", "local.db");
 }
 
+/** Where the detached core writes its output. */
+export function getCoreLogPath(dbPath: string): string {
+  return join(dirname(dbPath), "run", "core.log");
+}
+
 /** Resolves the `polterware` CLI, which serves the core (`serve`) and MCP (`mcp`). */
 export function resolveCliBinaryPath(): string | undefined {
   if (app.isPackaged) {
@@ -45,6 +50,8 @@ export function resolveRepositoryRoot(): string {
  */
 export async function ensureCore(options: {
   dbPath: string;
+  /** `--idle` value for a core this call starts (default: the core's own). */
+  idle?: string;
   log?: (message: string) => void;
 }): Promise<CoreProcessHandle> {
   const overrideEndpoint = process.env.POLTERWARE_CORE_ENDPOINT?.trim();
@@ -58,7 +65,7 @@ export async function ensureCore(options: {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const state = readCoreState(options.dbPath);
     if (!state) {
-      await spawnCore(options.dbPath, binary, options.log);
+      await spawnCore(options.dbPath, binary, options.log, options.idle);
       continue;
     }
     const clients = createCoreClients(state.endpoint, state.token);
@@ -86,13 +93,28 @@ export async function ensureCore(options: {
     options.log?.(`Attached to Polterware core (pid ${state.pid}) at ${state.endpoint}`);
     return { endpoint: state.endpoint, token: state.token, pid: state.pid };
   }
-  throw new Error(`Polterware core did not start; see ${join(dirname(options.dbPath), "run", "core.log")}`);
+  throw new Error(`Polterware core did not start; see ${getCoreLogPath(options.dbPath)}`);
 }
 
-type CoreState = { pid: number; endpoint: string; token: string };
+export type CoreState = { pid: number; endpoint: string; token: string };
 
 /** Reads `<db dir>/run/core.json` written by `polterware serve` (see backend/platform/runstate). */
-function readCoreState(dbPath: string): CoreState | undefined {
+/** Asks the running core for dbPath to shut down and waits for it to exit. */
+export async function stopCore(options: { dbPath: string }): Promise<void> {
+  const state = readCoreState(options.dbPath);
+  if (!state) return;
+  const clients = createCoreClients(state.endpoint, state.token);
+  await clients.maintenance.shutdown({ reason: "desktop-quit" }).catch(() => {
+    try {
+      process.kill(state.pid, "SIGTERM");
+    } catch {
+      // Already gone.
+    }
+  });
+  await waitForExit(state.pid);
+}
+
+export function readCoreState(dbPath: string): CoreState | undefined {
   try {
     const state = JSON.parse(readFileSync(join(dirname(dbPath), "run", "core.json"), "utf8")) as {
       pid?: unknown;
@@ -115,14 +137,19 @@ function readCoreState(dbPath: string): CoreState | undefined {
 }
 
 /** Starts `polterware serve` detached, logging to run/core.log, and waits for core.json. */
-async function spawnCore(dbPath: string, binary: string | undefined, log?: (message: string) => void): Promise<void> {
+async function spawnCore(
+  dbPath: string,
+  binary: string | undefined,
+  log?: (message: string) => void,
+  idle?: string,
+): Promise<void> {
   const runDir = join(dirname(dbPath), "run");
   mkdirSync(runDir, { recursive: true, mode: 0o700 });
   const logFd = openSync(join(runDir, "core.log"), "a", 0o600);
   const env: NodeJS.ProcessEnv = { ...process.env };
   delete env.TYPESAFE_API_KEY;
   delete env.POLTERWARE_SESSION_TOKEN;
-  const args = ["-db", dbPath, "serve", "--listen", "127.0.0.1:0"];
+  const args = ["-db", dbPath, "serve", "--listen", "127.0.0.1:0", ...(idle ? ["--idle", idle] : [])];
   const child = binary
     ? spawn(binary, args, { env, detached: true, stdio: ["ignore", logFd, logFd] })
     : spawn("go", ["run", "./backend/runtimes/cli", ...args], {

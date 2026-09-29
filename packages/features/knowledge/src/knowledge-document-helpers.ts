@@ -8,14 +8,14 @@ export function documentStatusTone(status: WorkspaceDocument["status"]): StatusT
 }
 
 export function adrStatusTone(status: string): StatusTone {
-  if (status === "accepted") return "ok";
-  if (status === "proposed") return "muted";
+  if (status === "accepted" || status === "active") return "ok";
+  if (status === "proposed" || status === "superseded") return "muted";
   return "warn";
 }
 
 export function libraryStatusTone(status: string): StatusTone {
-  if (status === "published" || status === "accepted") return "ok";
-  if (status === "proposed") return "muted";
+  if (status === "published" || status === "accepted" || status === "active") return "ok";
+  if (status === "proposed" || status === "superseded") return "muted";
   return "warn";
 }
 

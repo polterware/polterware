@@ -10,20 +10,20 @@
 
 ## Work cards
 
-- Codex and other agents: run `polterware format` once for the Polter grammar, read with `polterware query cards`, and write Work cards with `polterware apply <file|->` (frontmatter `summary` and `rationale`). Claude Code gets the same through the `plugins/polterware` plugin.
+- Codex and other agents: run `polterware format` once for the Polter grammar, read with `polterware query cards`, and write Work cards with `polterware apply <file|->` (frontmatter `summary` and `rationale`). Claude Code gets the same through the `plugins/polterware` plugin (a symlink to `backend/providers/agentsetup/plugin`, which the binary embeds); `polterware setup claude|codex` installs it, and `polterware hooks enable|disable <name>` switches its hooks.
 - Codex and other agents: start a session with `polterware status` and end it with `polterware handoff`.
 
 ## Product positioning
 
-Polterware's category is **Project Context & Change Intelligence for AI Coding** ([`docs/product-vision.md`](docs/product-vision.md) v3, [ADR 0004](docs/adr/0004-product-positioning-and-wedge.md)). Evolution priority is the wedge: PPM facts/evidence, deterministic import, Context Compiler, stable MCP reads, Drift, AgentRun, audited MCP writes, CLI, and Unified Change History. Operations, Terminal-as-product, and Nodes/remote execution were removed on the kill branch ([`docs/architecture/kill-ops-terminal-nodes.md`](docs/architecture/kill-ops-terminal-nodes.md)). Integrations remain as evidence/Connect UI only. Wedge delivery order: [`docs/architecture/wedge-validation-sequence.md`](docs/architecture/wedge-validation-sequence.md) (B1–B9 complete).
+Polterware's category is **Project Context & Change Intelligence for AI Coding**: every agent and person reads the same evidence-backed project state, and drift from declared intent is flagged. The shipped wedge is PPM facts/evidence, deterministic import, Context Compiler, stable MCP reads, Drift, AgentRun, audited MCP writes, CLI, Unified Change History, the Polter format with Work cards, the Atlas, the Inbox, and the decision lifecycle. Operations, Terminal-as-product, and Nodes/remote execution were removed. Integrations remain as evidence/Connect UI only.
 
-Active redesign (Atlas + Grounded SDD, branch `feat/atlas-grounded-sdd`): read [`docs/architecture/atlas-grounded-sdd-roadmap.md`](docs/architecture/atlas-grounded-sdd-roadmap.md) at session start for the thesis, what is done, and the next slice. It is a working roadmap, not shipped behavior.
+[`docs/future.md`](docs/future.md) is the only planning document and lists what is **not** implemented (Cloud, Jev, enrichment backlog, research). It is direction, not shipped behavior; never present its items as shipped. The code, this file, `polterware --help`, and `polterware format` describe what exists.
 
 ## Current product boundary
 
-Polterware's first version is a local SQLite-backed Desktop with project surfaces Inbox, Atlas, Work, Decisions, Reality, Agents, and Integrations. Settings is fixed in the sidebar footer. Atlas / Canvas is the default route.
+Polterware's first version is a local SQLite-backed Desktop with project surfaces Inbox, Work, Atlas, Decisions, Reality, Agents, and Integrations. Settings is fixed in the sidebar footer. Inbox is the default route.
 
-The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. One local core process (`polterware serve`) per database is the only process that opens SQLite ([ADR 0007](docs/adr/0007-single-local-core.md)); Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes through `window.polterware` only.
+The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. One local core process (`polterware serve`) per database is the only process that opens SQLite (it is a detached daemon guarded by a lock, with a build handshake); Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes through `window.polterware` only.
 
 The Desktop may execute on the local machine through the local core only. The renderer never spawns shells or touches Node APIs; it talks through `window.polterware`.
 
@@ -44,20 +44,21 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
 
 ## Product navigation
 
-- Inbox: flat page (empty state; nothing routed yet)
-- Atlas: Canvas, Views
+- Inbox: flat page of derived items — Decision (open card questions), Drift (warning/conflict findings), Verify (facts with no evidence); count in the sidebar, also in `polterware status` and `polterware inbox`
 - Work: Board, Specs
-  - Board groups Work cards (`work_cards`, ADR 0006) by stage (Shape, Plan, Build, Verify, Delivered). The Desktop reads through `WorkService.ListWorkCards` and writes Polter text through `WorkService.ApplyPolter`; agents use `polterware apply`.
+  - The Polterware store, not Polter text, is the source of truth; `.pw.md` files are input only.
+  - Board groups Work cards (`work_cards`) by stage (Shape, Plan, Build, Verify, Delivered). The Desktop reads through `WorkService.ListWorkCards` and writes Polter text through `WorkService.ApplyPolter`; agents use `polterware apply`.
   - Specs hold one Constitution per project (`constitution`) above a table of the same cards. The five-document Spec / Plan / Tasks / Clarify / Checklist model is removed.
-- Decisions: ADRs (Library restricted to `adr`)
+- Atlas: Map, Hierarchy, Views (nodes: system, domain, component; a feature is a Work card)
+- Decisions: ADRs by lifecycle state (Active, Challenged, Proposed, Superseded)
 - Reality: Inventory, Sources, Facts, Docs
   - Sources lists registered project-relative paths (`kind = source`); Import from project root runs `ImportProjectSources` for the MVP file set. Generic filesystem indexing beyond that set is not shipped.
   - Docs lists `doc` and `runbook` items.
-- Agents: Access, History, Context
+- Agents: Access, Sessions, History, Context
 - Integrations: Connected, Catalog (**KEEP** — evidence + Connect UI)
 - Settings: General, Environments, Shortcuts, Advanced
 
-Keep project and environment switchers, Commander, history controls, and Settings. Do not introduce additional product surfaces without an approved specification update. Do not reintroduce removed Ops/Terminal/Nodes surfaces.
+Keep project and environment switchers, Commander, history controls, and Settings. Do not introduce additional product surfaces without an approved decision. Do not reintroduce removed Ops/Terminal/Nodes surfaces.
 
 ## UI law
 
@@ -69,5 +70,4 @@ Do not hand-roll shared control chrome, menus, dialogs, operational tables, or e
 
 After relevant changes, use static checks allowed by the task: typecheck, `pnpm design:lint`, `buf lint`, `go vet ./...`, and `git diff --check`. Maintain risk-proportional tests, but do not run them without explicit permission.
 
-Previous specifications live under `docs/future/` and are non-normative.
-`docs/spec.md` defines implemented behavior. `docs/product-vision.md` v3 and ADR 0004 define product direction; never present planned post-wedge depth (Change Gates, Web App, Cloud) as already shipped.
+Do not add Markdown design or planning documents. Record decisions and work in the Polterware store (`polterware apply`); put unshipped direction in `docs/future.md` and delete items from it when they ship.

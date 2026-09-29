@@ -5,48 +5,40 @@ import { describe, expect, it } from "vitest";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(resolve(root, "index.tsx"), "utf8");
+const rows = readFileSync(resolve(root, "environment-rows.tsx"), "utf8");
 
-describe("Environments table composition contract", () => {
-  it("uses DataTable with PrimaryCell and StatusChip for kind and protection", () => {
-    expect(source).toContain("DataTable.Root");
-    expect(source).toContain("DataTable.PrimaryCell");
-    expect(source).toContain("StatusChip");
-    expect(source).toContain("environmentKindTone");
-    expect(source).toContain("environmentKindLabel");
-    expect(source).toContain("protectionTone");
-    expect(source).toContain("protectionLabel");
-    expect(source).toContain('aria-label="Environments"');
-    expect(source).toContain("environments()");
-    expect(source).not.toContain("SETTINGS_ENVIRONMENT_MOCKS");
-    expect(source).toContain("activateFirstRow");
-    expect(source).toContain("onActiveRowChange");
+describe("Settings dialog composition contract", () => {
+  it("renders inside a flush A11yDialog with a tab nav and section cards", () => {
+    expect(source).toContain("<A11yDialog");
+    expect(source).toContain('chrome="flush"');
+    expect(source).toContain("SETTINGS_TABS");
+    expect(source).toContain("<SettingsSection");
+    expect(source).toContain("<SettingsRow");
+    expect(source).toContain("onClose");
   });
 
-  it("wires environment detail activation and does not reintroduce Access/Integrations tabs", () => {
-    expect(source).toContain("environmentsDetailScope");
-    expect(source).toContain("environmentDetailTarget");
-    expect(source).toContain("<EnvironmentDetail");
-    expect(source).toContain("registerCollection");
-    expect(source).toContain("activateTarget");
-    expect(source).toContain("SETTINGS_TABS");
-    expect(source).toContain('label="Add environment"');
-    expect(source).toContain("ToolbarIconButton");
+  it("lists environments as expandable rows with StatusChip kind and protection", () => {
+    expect(source).toContain("<EnvironmentRows");
+    expect(source).toContain("Add environment");
     expect(source).toContain("<CreateEnvironmentDialog");
     expect(source).toContain("onCreateEnvironment");
     expect(source).toContain("onSetDefaultEnvironment");
+    expect(rows).toContain("aria-expanded");
+    expect(rows).toContain("StatusChip");
+    expect(rows).toContain("environmentKindTone");
+    expect(rows).toContain("protectionTone");
+    expect(rows).toContain("Set as default");
+    expect(rows).toContain("Delete environment");
+    expect(source).not.toContain("DetailPanel");
+    expect(source).not.toContain("DataTable");
     expect(source).not.toMatch(/id:\s*"access"/);
     expect(source).not.toMatch(/id:\s*"integrations"/);
-    expect(source).not.toMatch(/id:\s*"connected"/);
-    expect(source).not.toMatch(/id:\s*"people"/);
-    expect(source).not.toContain('label: "Access"');
-    expect(source).not.toContain('label: "Integrations"');
   });
 
-  it("uses Field primitives on General and Dialog on Advanced archive", () => {
-    expect(source).toContain("<Field");
+  it("uses the shared inputs on General and a dialog for the archive confirm", () => {
+    expect(source).toContain("<Input");
     expect(source).toContain("Save changes");
     expect(source).toContain("saveGeneralSettingsToast");
-    expect(source).toContain("A11yDialog");
     expect(source).toContain("Archive project");
     expect(source).toContain("archiveProjectToast");
     expect(source).not.toContain("inputClass");

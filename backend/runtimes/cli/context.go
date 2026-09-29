@@ -5,47 +5,46 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"connectrpc.com/connect"
 
-	contextpkg "github.com/polterware/polterware/backend/domains/context"
 	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
 )
 
-func runContext(dbPath string, args []string) error {
-	fs := flag.NewFlagSet("context", flag.ContinueOnError)
+func runOracle(dbPath string, args []string) error {
+	fs := flag.NewFlagSet("oracle", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	projectID := fs.String("project", "", "project id")
-	query := fs.String("query", "", "optional search query")
-	entityID := fs.String("entity", "", "optional entity id")
-	budget := fs.Int("budget", contextpkg.DefaultTokenBudget, "token budget")
-	agentRunID := fs.String("agent-run-id", "", "optional open AgentRun id")
-	asJSON := fs.Bool("json", false, "print JSON")
+	projectID := fs.String("project", "", "project id (default: project containing the cwd)")
+	zoom := fs.String("zoom", "task", "task, component, domain, or system")
+	budget := fs.Int("budget", 1200, "token budget")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	question := strings.TrimSpace(strings.Join(fs.Args(), " "))
+	if question == "" {
+		return fmt.Errorf("usage: polterware oracle \"<question>\" [--zoom task|component|domain|system] [--budget N]")
 	}
 	c, err := dial(dbPath)
 	if err != nil {
 		return err
 	}
-	res, err := c.Context.CompileContext(context.Background(), connect.NewRequest(&localv1.CompileContextRequest{
-		ProjectId:   *projectID,
-		Query:       *query,
-		EntityId:    *entityID,
-		TokenBudget: int32(*budget),
-		AgentRunId:  *agentRunID,
+	project, err := resolveProject(c, *projectID)
+	if err != nil {
+		return err
+	}
+	query := fmt.Sprintf("oracle %s zoom:%s budget:%d", question, *zoom, *budget)
+	res, err := c.Work.QueryPolter(context.Background(), connect.NewRequest(&localv1.QueryPolterRequest{
+		ProjectId: project.Id, Query: query,
 	}))
 	if err != nil {
 		return err
 	}
-	pkg := res.Msg
-	if *asJSON {
-		return writeProtoJSON(pkg)
-	}
-	fmt.Printf("context project=%s items=%d tokens=%d truncated=%v\n",
-		pkg.ProjectId, len(pkg.Items), pkg.TokensUsed, pkg.Truncated)
-	for _, item := range pkg.Items {
-		fmt.Printf("- [%s] %s (%s)\n", item.Kind, item.Title, item.Id)
-	}
+	fmt.Print(res.Msg.Text)
 	return nil
+}
+
+// runContext is polterware oracle. The PPM context.get compiler stays on its RPC.
+func runContext(dbPath string, args []string) error {
+	return runOracle(dbPath, args)
 }

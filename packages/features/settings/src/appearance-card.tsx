@@ -1,10 +1,11 @@
-import { CheckboxRow } from "@polterware/frontend-design-system";
+import { SwitchRow } from "@polterware/frontend-design-system";
 import { createSignal, onMount } from "solid-js";
 import {
   hydrateAppearancePreferences,
   persistReduceTransparency,
   readShellChromeMode,
 } from "./appearance-persist";
+import { SettingsRow, SettingsSection } from "./settings-section";
 
 /**
  * App-level window chrome: frosted (macOS vibrancy) vs solid fill.
@@ -23,23 +24,23 @@ export function AppearanceCard() {
   });
 
   return (
-    <div class="space-y-2">
-      <p class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">Appearance</p>
-      <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
-        On macOS, the title bar and sidebar can show a frosted glass view of windows behind
-        Polterware. Reduce transparency uses a solid fill instead.
-      </p>
-      <CheckboxRow
-        checked={reduceTransparency()}
-        disabled={!ready()}
+    <SettingsSection title="Appearance">
+      <SettingsRow
         label="Reduce transparency"
-        onCheckedChange={(checked) => {
-          setReduceTransparency(checked);
-          void persistReduceTransparency(checked).then((preferences) => {
-            setReduceTransparency(preferences.reduceTransparency);
-          });
-        }}
-      />
-    </div>
+        description="On macOS, the title bar and sidebar can show a frosted glass view of windows behind Polterware. This uses a solid fill instead."
+      >
+        <SwitchRow
+          checked={reduceTransparency()}
+          disabled={!ready()}
+          label={<span class="sr-only">Reduce transparency</span>}
+          onCheckedChange={(checked) => {
+            setReduceTransparency(checked);
+            void persistReduceTransparency(checked).then((preferences) => {
+              setReduceTransparency(preferences.reduceTransparency);
+            });
+          }}
+        />
+      </SettingsRow>
+    </SettingsSection>
   );
 }

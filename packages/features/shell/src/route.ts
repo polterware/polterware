@@ -4,7 +4,7 @@ import {
   type PlatformContext,
 } from "@polterware/frontend-platform";
 
-/** Project surfaces: Inbox, Atlas, Work, Decisions, Reality, Agents, plus Integrations and Settings. */
+/** Project surfaces: Inbox, Work, Atlas, Decisions, Reality, Agents, plus Integrations. Settings is a dialog, not a section. */
 export type NavSectionId =
   | "inbox"
   | "atlas"
@@ -12,8 +12,7 @@ export type NavSectionId =
   | "decisions"
   | "reality"
   | "agents"
-  | "integrations"
-  | "settings";
+  | "integrations";
 
 /** Full pages reachable outside the sidebar (e.g. from the Help menu). */
 export type PageSectionId = "cli";
@@ -30,6 +29,7 @@ export type DialogState =
   | { type: "arch-node-create" }
   | { type: "integration-connect"; providerId?: string }
   | { type: "create-view" }
+  | { type: "settings"; tab: ProjectSettingsTabId }
   | { type: "confirm"; message: string }
   | null;
 
@@ -57,15 +57,17 @@ export type NavItem = {
   requiredCapability?: PlatformCapability;
 };
 
+/** Landing surface for a fresh session, a project switch, and an unknown route. */
+const DEFAULT_SECTION = "inbox" as const satisfies NavSectionId;
+
 export const DEFAULT_TABS = {
   inbox: "all",
-  atlas: "canvas",
+  atlas: "map",
   work: "board",
-  decisions: "adrs",
+  decisions: "active",
   reality: "inventory",
   agents: "access",
   integrations: "connected",
-  settings: "general",
   cli: "reference",
 } satisfies Record<SectionId, string>;
 
@@ -73,15 +75,21 @@ export const SECTION_TABS = {
   // Route id only — Inbox is a flat page (no tab rail).
   inbox: [{ id: "all", label: "All" }],
   atlas: [
-    { id: "canvas", label: "Canvas" },
+    { id: "map", label: "Map" },
+    { id: "hierarchy", label: "Hierarchy" },
     { id: "views", label: "Views" },
   ],
   work: [
     { id: "board", label: "Board" },
-    { id: "specs", label: "Specs" },
+    { id: "specs", label: "Register" },
   ],
-  // Route id only — Decisions is a flat ADR list (no tab rail).
-  decisions: [{ id: "adrs", label: "ADRs" }],
+  // One tab per ADR lifecycle state.
+  decisions: [
+    { id: "active", label: "Active" },
+    { id: "challenged", label: "Challenged" },
+    { id: "proposed", label: "Proposed" },
+    { id: "superseded", label: "Superseded" },
+  ],
   reality: [
     { id: "inventory", label: "Inventory" },
     { id: "sources", label: "Sources" },
@@ -90,18 +98,13 @@ export const SECTION_TABS = {
   ],
   agents: [
     { id: "access", label: "Access" },
+    { id: "sessions", label: "Sessions" },
     { id: "history", label: "History" },
     { id: "context", label: "Context" },
   ],
   integrations: [
     { id: "connected", label: "Connected" },
     { id: "catalog", label: "Catalog" },
-  ],
-  settings: [
-    { id: "general", label: "General" },
-    { id: "environments", label: "Environments" },
-    { id: "shortcuts", label: "Shortcuts" },
-    { id: "advanced", label: "Advanced" },
   ],
 } satisfies Partial<Record<SectionId, { id: string; label: string }[]>>;
 
@@ -113,7 +116,6 @@ const NAV_SECTIONS = {
   reality: true,
   agents: true,
   integrations: true,
-  settings: true,
 } satisfies Record<string, boolean>;
 
 const ROUTE_CAPABILITIES: Partial<Record<SectionId, PlatformCapability>> = {};
@@ -167,12 +169,12 @@ export function resolveRoute(
     section === "logs"
   ) {
     section = "atlas";
-    tab = "canvas";
+    tab = "map";
   }
   // Pre-Atlas sections map onto their new homes.
   if (section === "architecture") {
     section = "atlas";
-    if (tab === "components") tab = "canvas";
+    if (tab === "components") tab = "map";
   }
   if (
     section === "resources" ||
@@ -191,15 +193,16 @@ export function resolveRoute(
       tab = "docs";
     } else if (tab === "library" || tab === "adrs") {
       section = "decisions";
-      tab = "adrs";
+      tab = "active";
     } else {
       section = "work";
       tab = "specs";
     }
   }
-  if (section === "sync") {
-    section = "settings";
-    tab = "advanced";
+  // Settings is a dialog; the legacy Sync section lands on the default surface.
+  if (section === "sync" || section === "settings") {
+    section = DEFAULT_SECTION;
+    tab = undefined;
   }
   if (section === "agents") {
     // Retired Agents Compile / Drift tabs → Context; Facts moved to Reality.
@@ -210,12 +213,12 @@ export function resolveRoute(
   if (isSectionId(section) && sectionAvailable(section, platform)) {
     return { section, tab: normalizeTab(section, tab) };
   }
-  return { section: "atlas", tab: "canvas" };
+  return { section: DEFAULT_SECTION, tab: DEFAULT_TABS[DEFAULT_SECTION] };
 }
 
 export function resolveSection(raw: string, platform?: PlatformContext): NavSectionId {
   const route = resolveRoute(raw, undefined, platform);
-  return isNavSectionId(route.section) ? route.section : "atlas";
+  return isNavSectionId(route.section) ? route.section : DEFAULT_SECTION;
 }
 
 export function defaultTabFor(section: string, platform?: PlatformContext): string {
@@ -223,7 +226,7 @@ export function defaultTabFor(section: string, platform?: PlatformContext): stri
 }
 
 export function createDefaultRoute(
-  section = "atlas",
+  section: NavSectionId = DEFAULT_SECTION,
   platform?: PlatformContext,
 ): ClientRoute {
   const resolved = resolveRoute(section, undefined, platform);
@@ -240,7 +243,7 @@ export function enterProject(
   projectId: string,
   options?: { environmentId?: string; section?: NavSectionId; tab?: string },
 ): ClientRoute {
-  const resolved = resolveRoute(options?.section ?? "atlas", options?.tab);
+  const resolved = resolveRoute(options?.section ?? DEFAULT_SECTION, options?.tab);
   return {
     ...route,
     ...resolved,

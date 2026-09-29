@@ -6,27 +6,22 @@ This document defines the active visual and interaction contract for the first v
 
 Polterware is a dense local operator workspace, not a generic dashboard. Prefer calm hierarchy, compact controls, opaque surfaces, restrained borders, and minimal decorative effects. Use the shared design tokens and primitives in `@polterware/frontend-design-system`.
 
-The application opens on Architecture / Canvas. The project sidebar is fixed:
+The application opens on Inbox. The project sidebar is fixed:
 
 ```text
-SYSTEM
-  Architecture
-  Resources
-  Knowledge
-
-EXECUTION
-  Operations
-  Terminal
-
-MANAGEMENT
-  Agents
-  Integrations
+Inbox
+Work
+Atlas
+Decisions
+Reality
+Agents
+Integrations
 
 FOOTER
   Settings
 ```
 
-The title bar contains history controls, one ghost project switcher, one environment kind switcher, Commander, and quick Terminal access. There are no unrelated title-bar actions.
+The title bar contains history controls, one ghost project switcher, one environment kind switcher, Commander, and a Help menu. There are no unrelated title-bar actions.
 
 ## Shared primitives
 
@@ -89,6 +84,6 @@ Use `control-field`, `.surface-panel`, `.surface-panel-float`, `.menu-panel`, an
 
 ## Execution honesty
 
-Every screen must communicate whether an action is live, queued, completed, failed, unavailable, preview-only, or based on seeded demonstration data. Terminal and integration CLI sessions use the same terminal visual primitive but report their actual core-owned state. A bounded inventory sync must not imply a complete provider graph, and no local action may imply a remote deployment or Cloud operation.
+Every screen must communicate whether an action is live, queued, completed, failed, unavailable, preview-only, or based on seeded demonstration data. Integration connect sessions report their actual core-owned state. A bounded inventory sync must not imply a complete provider graph, and no local action may imply a remote deployment or Cloud operation.
 
-Run `pnpm design:lint` after UI changes. `tooling/check-ui-opacity.mjs` is the enforcement source; update this document and the Constitution before broadening its allowlist.
+Run `pnpm design:lint` after UI changes. `tooling/check-ui-opacity.mjs` is the enforcement source; update this document before broadening its allowlist.

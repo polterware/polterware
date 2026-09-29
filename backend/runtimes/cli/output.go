@@ -56,14 +56,26 @@ func usage() {
   polterware [-db path] repo list --project <id> [--json]
   polterware [-db path] repo add --project <id> --name <name> --path <dir> [--json]
   polterware [-db path] repo remove --project <id> --name <name>
-  polterware [-db path] context --project <id> [--query ...] [--entity ...] [--budget N] [--agent-run-id ...] [--json]
+  polterware [-db path] context "<question>" [--zoom task|component|domain|system] [--budget N] [--project <id>]
+  polterware [-db path] oracle "<question>" [--zoom task|component|domain|system] [--budget N] [--project <id>]
+  polterware [-db path] atlas [--node <path>] [--at <point>] [--project <id>]
+  polterware [-db path] atlas history [--project <id>]
+  polterware [-db path] export [--dry-run] [--json] [--project <id>]
   polterware [-db path] drift --project <id> [--entity ...] [--agent-run-id ...] [--json]
   polterware [-db path] apply <file|-> [--dry-run] [--project <id>] [--summary ...] [--rationale ...] [--agent-run-id ...]
   polterware [-db path] lint <file|dir|-> [--project <id>]   (silent on success)
   polterware [-db path] format                               (print the Polter format spec)
-  polterware [-db path] query "cards" | "card <slug>" | "status" | "handoff <slug>" [--project <id>]
+  polterware [-db path] query "cards" | "card <slug>" | "status" | "inbox" | "handoff <slug>" | "oracle <path>" | "atlas [<path>] [at <point>]" | "atlas history" | "decisions [state]" | "decision <adr>" | "feature <slug> [step]" | "verify <slug>" [--project <id>]
   polterware [-db path] status [--project <id>]
   polterware [-db path] handoff [--card <slug>] [--note "..."] [--project <id>]
+  polterware [-db path] task claim|done|release <slug>#T2 [--agent name] [--project <id>]
+  polterware [-db path] decision list [state] | show <adr> | propose "<title>" | activate <adr> | challenge <adr> --reason "..." | supersede <adr> (--by <adr> | --title "...") | trigger <adr> "..." [--project <id>]
+  polterware [-db path] feature new "<intent>" [--title "..."] [--under <node>] [--architecture] [--project <id>]
+  polterware [-db path] feature shape <slug> | contract <slug> [--accept] | plan <slug> [--approve] [--project <id>]
+  polterware [-db path] verify <slug|slug#T2> [--project <id>]   (exit 1 when a check fails)
+  polterware [-db path] inbox [<id> decide "<answer>" | delegate | defer | fix-code | update-intent | ignore | verify | reject] [--agent name] [--project <id>]
+  polterware [-db path] setup [doctor] | claude [--uninstall | --enable | --disable | --skill-only] | codex [--uninstall] [--project <id>]
+  polterware [-db path] hooks [list] | enable|disable <status|stop|lint|session|all>
   polterware [-db path] hook session-start [--label name] | session-end | lint | status | stop   (Claude Code hooks; JSON on stdin)
   polterware [-db path] serve [--listen addr] [--token token]   (local core server for the Desktop)
   polterware [-db path] mcp                                     (MCP server over stdio for coding agents)

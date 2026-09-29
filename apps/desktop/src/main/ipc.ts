@@ -12,10 +12,13 @@ import type {
   AppearancePreferencesPatch,
   StoredAppearancePreferences,
 } from "../shared/appearance-preferences.js";
+import { isCoreIdleOption, type CorePreferencesPatch, type StoredCorePreferences } from "../shared/core-preferences.js";
+import type { QuitPreferencesPatch, StoredQuitPreferences } from "../shared/quit-preferences.js";
 import type {
   StoredShortcutOverrides,
   StoredShortcutPreferences,
 } from "../shared/shortcut-preferences.js";
+import type { CoreStatus } from "../shared/core-status.js";
 import type { McpServerStatus } from "../shared/mcp-status.js";
 import type { CoreDomainControllers } from "./core/controllers/domain.js";
 
@@ -37,6 +40,10 @@ export interface PolterwareIpcControllers {
     getPreferences(): StoredShortcutPreferences;
     setPreferences(overrides: StoredShortcutOverrides): StoredShortcutPreferences;
   };
+  quitPreferences?: {
+    getPreferences(): StoredQuitPreferences;
+    setPreferences(patch: QuitPreferencesPatch): StoredQuitPreferences;
+  };
   appearancePreferences?: {
     getPreferences(): StoredAppearancePreferences;
     setPreferences(patch: AppearancePreferencesPatch): StoredAppearancePreferences;
@@ -45,6 +52,17 @@ export interface PolterwareIpcControllers {
     getStatus(): McpServerStatus;
     start(): Promise<McpServerStatus> | McpServerStatus;
     stop(): Promise<McpServerStatus> | McpServerStatus;
+  };
+  corePreferences?: {
+    getPreferences(): StoredCorePreferences;
+    setPreferences(patch: CorePreferencesPatch): StoredCorePreferences;
+  };
+  coreLifecycle?: {
+    getStatus(): CoreStatus;
+    start(): Promise<CoreStatus>;
+    stop(): Promise<CoreStatus>;
+    restart(): Promise<CoreStatus>;
+    revealLogs(): Promise<{ ok: boolean }> | { ok: boolean };
   };
   appShell?: {
     openExternal(url: string): Promise<{ ok: boolean }> | { ok: boolean };
@@ -127,6 +145,44 @@ function parseAppearancePreferencesPayload(
   return { reduceTransparency: value === true };
 }
 
+function parseQuitPreferencesPayload(payload: JsonValue | undefined): QuitPreferencesPatch {
+  if (!payload || !isJsonObject(payload)) {
+    throw new Error("Quit preferences are required.");
+  }
+  const patch: QuitPreferencesPatch = {};
+  if (payload.confirmOnQuit !== undefined) {
+    if (Object.prototype.toString.call(payload.confirmOnQuit) !== "[object Boolean]") {
+      throw new Error("confirmOnQuit must be a boolean.");
+    }
+    patch.confirmOnQuit = payload.confirmOnQuit === true;
+  }
+  if (payload.quitAction !== undefined) {
+    if (payload.quitAction !== "keep" && payload.quitAction !== "stop") {
+      throw new Error("quitAction must be keep or stop.");
+    }
+    patch.quitAction = payload.quitAction;
+  }
+  return patch;
+}
+
+function parseCorePreferencesPayload(payload: JsonValue | undefined): CorePreferencesPatch {
+  if (!payload || !isJsonObject(payload)) {
+    throw new Error("Core preferences are required.");
+  }
+  const patch: CorePreferencesPatch = {};
+  if (payload.idle !== undefined) {
+    if (!isCoreIdleOption(payload.idle)) throw new Error("idle must be never, 10m, 30m, or 1h.");
+    patch.idle = payload.idle;
+  }
+  if (payload.autoStart !== undefined) {
+    if (Object.prototype.toString.call(payload.autoStart) !== "[object Boolean]") {
+      throw new Error("autoStart must be a boolean.");
+    }
+    patch.autoStart = payload.autoStart === true;
+  }
+  return patch;
+}
+
 function coreHandler(
   controllers: PolterwareIpcControllers,
   key: keyof CoreDomainControllers,
@@ -158,6 +214,15 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
         parseShortcutPreferencesPayload(payload),
       );
     },
+    [IPC_CHANNELS.app.getQuitPreferences]: async () =>
+      controllers.quitPreferences?.getPreferences()
+      ?? missing(IPC_CHANNELS.app.getQuitPreferences),
+    [IPC_CHANNELS.app.setQuitPreferences]: async (_event, payload) => {
+      if (!controllers.quitPreferences) {
+        missing(IPC_CHANNELS.app.setQuitPreferences);
+      }
+      return controllers.quitPreferences.setPreferences(parseQuitPreferencesPayload(payload));
+    },
     [IPC_CHANNELS.app.getAppearancePreferences]: async () =>
       controllers.appearancePreferences?.getPreferences()
       ?? missing(IPC_CHANNELS.app.getAppearancePreferences),
@@ -178,6 +243,30 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.app.stopMcp]: async () => {
       if (!controllers.mcp) missing(IPC_CHANNELS.app.stopMcp);
       return controllers.mcp.stop();
+    },
+    [IPC_CHANNELS.app.getCorePreferences]: async () =>
+      controllers.corePreferences?.getPreferences() ?? missing(IPC_CHANNELS.app.getCorePreferences),
+    [IPC_CHANNELS.app.setCorePreferences]: async (_event, payload) => {
+      if (!controllers.corePreferences) missing(IPC_CHANNELS.app.setCorePreferences);
+      return controllers.corePreferences.setPreferences(parseCorePreferencesPayload(payload));
+    },
+    [IPC_CHANNELS.app.getCoreStatus]: async () =>
+      controllers.coreLifecycle?.getStatus() ?? missing(IPC_CHANNELS.app.getCoreStatus),
+    [IPC_CHANNELS.app.startCore]: async () => {
+      if (!controllers.coreLifecycle) missing(IPC_CHANNELS.app.startCore);
+      return controllers.coreLifecycle.start();
+    },
+    [IPC_CHANNELS.app.stopCore]: async () => {
+      if (!controllers.coreLifecycle) missing(IPC_CHANNELS.app.stopCore);
+      return controllers.coreLifecycle.stop();
+    },
+    [IPC_CHANNELS.app.restartCore]: async () => {
+      if (!controllers.coreLifecycle) missing(IPC_CHANNELS.app.restartCore);
+      return controllers.coreLifecycle.restart();
+    },
+    [IPC_CHANNELS.app.revealCoreLogs]: async () => {
+      if (!controllers.coreLifecycle) missing(IPC_CHANNELS.app.revealCoreLogs);
+      return controllers.coreLifecycle.revealLogs();
     },
     [IPC_CHANNELS.app.openExternal]: async (_event, payload) => {
       if (!controllers.appShell) missing(IPC_CHANNELS.app.openExternal);
@@ -234,7 +323,16 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.saveKnowledgeLink]: coreHandler(controllers, "saveKnowledgeLink"),
     [IPC_CHANNELS.core.deleteKnowledgeLink]: coreHandler(controllers, "deleteKnowledgeLink"),
     [IPC_CHANNELS.core.listWorkCards]: coreHandler(controllers, "listWorkCards"),
+    [IPC_CHANNELS.core.listAtlas]: coreHandler(controllers, "listAtlas"),
+    [IPC_CHANNELS.core.listAtlasHistory]: coreHandler(controllers, "listAtlasHistory"),
+    [IPC_CHANNELS.core.listAgentSessions]: coreHandler(controllers, "listAgentSessions"),
+    [IPC_CHANNELS.core.queryPolter]: coreHandler(controllers, "queryPolter"),
     [IPC_CHANNELS.core.applyPolter]: coreHandler(controllers, "applyPolter"),
+    [IPC_CHANNELS.core.listInbox]: coreHandler(controllers, "listInbox"),
+    [IPC_CHANNELS.core.resolveInboxItem]: coreHandler(controllers, "resolveInboxItem"),
+    [IPC_CHANNELS.core.reviewFeature]: coreHandler(controllers, "reviewFeature"),
+    [IPC_CHANNELS.core.createFeature]: coreHandler(controllers, "createFeature"),
+    [IPC_CHANNELS.core.advanceFeature]: coreHandler(controllers, "advanceFeature"),
     [IPC_CHANNELS.core.listPpmEntities]: coreHandler(controllers, "listPpmEntities"),
     [IPC_CHANNELS.core.syncProjectModel]: coreHandler(controllers, "syncProjectModel"),
     [IPC_CHANNELS.core.importProjectSources]: coreHandler(controllers, "importProjectSources"),
@@ -249,6 +347,8 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.checkDrift]: coreHandler(controllers, "checkDrift"),
     [IPC_CHANNELS.core.getAgentRun]: coreHandler(controllers, "getAgentRun"),
     [IPC_CHANNELS.core.listChanges]: coreHandler(controllers, "listChanges"),
+    [IPC_CHANNELS.core.getAgentSetup]: coreHandler(controllers, "getAgentSetup"),
+    [IPC_CHANNELS.core.setHookSwitch]: coreHandler(controllers, "setHookSwitch"),
     [IPC_CHANNELS.core.listCliProviders]: coreHandler(controllers, "listCliProviders"),
     [IPC_CHANNELS.core.listIntegrationConnections]: coreHandler(controllers, "listIntegrationConnections"),
     [IPC_CHANNELS.core.saveIntegrationConnection]: coreHandler(controllers, "saveIntegrationConnection"),

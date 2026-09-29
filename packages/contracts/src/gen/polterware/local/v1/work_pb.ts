@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/work.proto.
  */
 export const file_polterware_local_v1_work: GenFile = /*@__PURE__*/
-  fileDesc("Ch5wb2x0ZXJ3YXJlL2xvY2FsL3YxL3dvcmsucHJvdG8SE3BvbHRlcndhcmUubG9jYWwudjEiUwoIV29ya1Rhc2sSCgoCaWQYASABKAkSDgoGbnVtYmVyGAIgASgFEg0KBXRpdGxlGAMgASgJEg0KBXN0YXRlGAQgASgJEg0KBXNjb3BlGAUgASgJImoKDFdvcmtRdWVzdGlvbhIKCgJpZBgBIAEoCRIMCgR0ZXh0GAIgASgJEhAKCGJsb2NraW5nGAMgASgIEg8KB29wdGlvbnMYBCADKAkSDQoFc3RhdGUYBSABKAkSDgoGYW5zd2VyGAYgASgJIikKDVdvcmtJbnZhcmlhbnQSCgoCaWQYASABKAkSDAoEdGV4dBgCIAEoCSLbAgoIV29ya0NhcmQSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIMCgRzbHVnGAMgASgJEg0KBXRpdGxlGAQgASgJEg4KBmludGVudBgFIAEoCRINCgVzdGFnZRgGIAEoCRINCgVvd25lchgHIAEoCRINCgV1bmRlchgIIAEoCRIRCglkZWNpc2lvbnMYCSADKAkSEgoKY3JlYXRlZF9hdBgKIAEoCRISCgp1cGRhdGVkX2F0GAsgASgJEiwKBXRhc2tzGAwgAygLMh0ucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrVGFzaxI0CglxdWVzdGlvbnMYDSADKAsyIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLldvcmtRdWVzdGlvbhI2CgppbnZhcmlhbnRzGA4gAygLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrSW52YXJpYW50IkMKEFBvbHRlckRpYWdub3N0aWMSDAoEbGluZRgBIAEoBRIQCghzZXZlcml0eRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJIioKFExpc3RXb3JrQ2FyZHNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkiRQoVTGlzdFdvcmtDYXJkc1Jlc3BvbnNlEiwKBWNhcmRzGAEgAygLMh0ucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrQ2FyZCKnAQoSQXBwbHlQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDAoEdGV4dBgCIAEoCRIPCgdkcnlfcnVuGAMgASgIEjMKBmNoYW5nZRgEIAEoCzIjLnBvbHRlcndhcmUubG9jYWwudjEuQ2hhbmdlRW52ZWxvcGUSEgoKc2Vzc2lvbl9pZBgFIAEoCRIVCg1zZXNzaW9uX2xhYmVsGAYgASgJIqgBChNBcHBseVBvbHRlclJlc3BvbnNlEg8KB2FwcGxpZWQYASABKAgSCwoDb3BzGAIgAygJEg8KB3N1bW1hcnkYAyABKAkSOgoLZGlhZ25vc3RpY3MYBCADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMSFAoMYWdlbnRfcnVuX2lkGAUgASgJEhAKCGJhdGNoX2lkGAYgASgJIjUKEUxpbnRQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDAoEdGV4dBgCIAEoCSJQChJMaW50UG9sdGVyUmVzcG9uc2USOgoLZGlhZ25vc3RpY3MYASADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMiNwoSUXVlcnlQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFcXVlcnkYAiABKAkiIwoTUXVlcnlQb2x0ZXJSZXNwb25zZRIMCgR0ZXh0GAEgASgJIrkBChNXcml0ZUhhbmRvZmZSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJY2FyZF9zbHVnGAIgASgJEgwKBG5vdGUYAyABKAkSDQoFYWdlbnQYBCABKAkSEgoKc2Vzc2lvbl9pZBgFIAEoCRIVCg1zZXNzaW9uX2xhYmVsGAYgASgJEjMKBmNoYW5nZRgHIAEoCzIjLnBvbHRlcndhcmUubG9jYWwudjEuQ2hhbmdlRW52ZWxvcGUiqQEKFFdyaXRlSGFuZG9mZlJlc3BvbnNlEg8KB2FwcGxpZWQYASABKAgSCwoDb3BzGAIgAygJEg8KB3N1bW1hcnkYAyABKAkSOgoLZGlhZ25vc3RpY3MYBCADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMSFAoMYWdlbnRfcnVuX2lkGAUgASgJEhAKCGJhdGNoX2lkGAYgASgJIicKEUVuZFNlc3Npb25SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkiLAoSRW5kU2Vzc2lvblJlc3BvbnNlEhYKDmNvbXBsZXRlZF9ydW5zGAEgASgFMtwECgtXb3JrU2VydmljZRJmCg1MaXN0V29ya0NhcmRzEikucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0V29ya0NhcmRzUmVxdWVzdBoqLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdFdvcmtDYXJkc1Jlc3BvbnNlEmAKC0FwcGx5UG9sdGVyEicucG9sdGVyd2FyZS5sb2NhbC52MS5BcHBseVBvbHRlclJlcXVlc3QaKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFwcGx5UG9sdGVyUmVzcG9uc2USXQoKTGludFBvbHRlchImLnBvbHRlcndhcmUubG9jYWwudjEuTGludFBvbHRlclJlcXVlc3QaJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpbnRQb2x0ZXJSZXNwb25zZRJgCgtRdWVyeVBvbHRlchInLnBvbHRlcndhcmUubG9jYWwudjEuUXVlcnlQb2x0ZXJSZXF1ZXN0GigucG9sdGVyd2FyZS5sb2NhbC52MS5RdWVyeVBvbHRlclJlc3BvbnNlEmMKDFdyaXRlSGFuZG9mZhIoLnBvbHRlcndhcmUubG9jYWwudjEuV3JpdGVIYW5kb2ZmUmVxdWVzdBopLnBvbHRlcndhcmUubG9jYWwudjEuV3JpdGVIYW5kb2ZmUmVzcG9uc2USXQoKRW5kU2Vzc2lvbhImLnBvbHRlcndhcmUubG9jYWwudjEuRW5kU2Vzc2lvblJlcXVlc3QaJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkVuZFNlc3Npb25SZXNwb25zZULlAQoXY29tLnBvbHRlcndhcmUubG9jYWwudjFCCVdvcmtQcm90b1ABWlFnaXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9iYWNrZW5kL3BsYXRmb3JtL2dlbi9wb2x0ZXJ3YXJlL2xvY2FsL3YxO2xvY2FsdjGiAgNQTFiqAhNQb2x0ZXJ3YXJlLkxvY2FsLlYxygITUG9sdGVyd2FyZVxMb2NhbFxWMeICH1BvbHRlcndhcmVcTG9jYWxcVjFcR1BCTWV0YWRhdGHqAhVQb2x0ZXJ3YXJlOjpMb2NhbDo6VjFiBnByb3RvMw", [file_polterware_local_v1_agentrun]);
+  fileDesc("Ch5wb2x0ZXJ3YXJlL2xvY2FsL3YxL3dvcmsucHJvdG8SE3BvbHRlcndhcmUubG9jYWwudjEiaQoIV29ya1Rhc2sSCgoCaWQYASABKAkSDgoGbnVtYmVyGAIgASgFEg0KBXRpdGxlGAMgASgJEg0KBXN0YXRlGAQgASgJEg0KBXNjb3BlGAUgASgJEhQKDGNsYWltX2hvbGRlchgGIAEoCSJqCgxXb3JrUXVlc3Rpb24SCgoCaWQYASABKAkSDAoEdGV4dBgCIAEoCRIQCghibG9ja2luZxgDIAEoCBIPCgdvcHRpb25zGAQgAygJEg0KBXN0YXRlGAUgASgJEg4KBmFuc3dlchgGIAEoCSIpCg1Xb3JrSW52YXJpYW50EgoKAmlkGAEgASgJEgwKBHRleHQYAiABKAki6QIKCFdvcmtDYXJkEgoKAmlkGAEgASgJEhIKCnByb2plY3RfaWQYAiABKAkSDAoEc2x1ZxgDIAEoCRINCgV0aXRsZRgEIAEoCRIOCgZpbnRlbnQYBSABKAkSDQoFc3RhZ2UYBiABKAkSDQoFb3duZXIYByABKAkSDQoFdW5kZXIYCCABKAkSEQoJZGVjaXNpb25zGAkgAygJEhIKCmNyZWF0ZWRfYXQYCiABKAkSEgoKdXBkYXRlZF9hdBgLIAEoCRIsCgV0YXNrcxgMIAMoCzIdLnBvbHRlcndhcmUubG9jYWwudjEuV29ya1Rhc2sSNAoJcXVlc3Rpb25zGA0gAygLMiEucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrUXVlc3Rpb24SNgoKaW52YXJpYW50cxgOIAMoCzIiLnBvbHRlcndhcmUubG9jYWwudjEuV29ya0ludmFyaWFudBIMCgRraW5kGA8gASgJIkMKEFBvbHRlckRpYWdub3N0aWMSDAoEbGluZRgBIAEoBRIQCghzZXZlcml0eRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJIioKFExpc3RXb3JrQ2FyZHNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkiRQoVTGlzdFdvcmtDYXJkc1Jlc3BvbnNlEiwKBWNhcmRzGAEgAygLMh0ucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrQ2FyZCKnAQoSQXBwbHlQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDAoEdGV4dBgCIAEoCRIPCgdkcnlfcnVuGAMgASgIEjMKBmNoYW5nZRgEIAEoCzIjLnBvbHRlcndhcmUubG9jYWwudjEuQ2hhbmdlRW52ZWxvcGUSEgoKc2Vzc2lvbl9pZBgFIAEoCRIVCg1zZXNzaW9uX2xhYmVsGAYgASgJIqgBChNBcHBseVBvbHRlclJlc3BvbnNlEg8KB2FwcGxpZWQYASABKAgSCwoDb3BzGAIgAygJEg8KB3N1bW1hcnkYAyABKAkSOgoLZGlhZ25vc3RpY3MYBCADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMSFAoMYWdlbnRfcnVuX2lkGAUgASgJEhAKCGJhdGNoX2lkGAYgASgJIjUKEUxpbnRQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDAoEdGV4dBgCIAEoCSJQChJMaW50UG9sdGVyUmVzcG9uc2USOgoLZGlhZ25vc3RpY3MYASADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMiNwoSUXVlcnlQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFcXVlcnkYAiABKAkiIwoTUXVlcnlQb2x0ZXJSZXNwb25zZRIMCgR0ZXh0GAEgASgJIrkBChNXcml0ZUhhbmRvZmZSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJY2FyZF9zbHVnGAIgASgJEgwKBG5vdGUYAyABKAkSDQoFYWdlbnQYBCABKAkSEgoKc2Vzc2lvbl9pZBgFIAEoCRIVCg1zZXNzaW9uX2xhYmVsGAYgASgJEjMKBmNoYW5nZRgHIAEoCzIjLnBvbHRlcndhcmUubG9jYWwudjEuQ2hhbmdlRW52ZWxvcGUiqQEKFFdyaXRlSGFuZG9mZlJlc3BvbnNlEg8KB2FwcGxpZWQYASABKAgSCwoDb3BzGAIgAygJEg8KB3N1bW1hcnkYAyABKAkSOgoLZGlhZ25vc3RpY3MYBCADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMSFAoMYWdlbnRfcnVuX2lkGAUgASgJEhAKCGJhdGNoX2lkGAYgASgJIicKEUVuZFNlc3Npb25SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkiLAoSRW5kU2Vzc2lvblJlc3BvbnNlEhYKDmNvbXBsZXRlZF9ydW5zGAEgASgFIqYBCglJbmJveEl0ZW0SCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIQCghibG9ja2luZxgDIAEoCBINCgV0aXRsZRgEIAEoCRIOCgZkZXRhaWwYBSABKAkSDwoHb3B0aW9ucxgGIAMoCRINCgV3aGVyZRgHIAEoCRIOCgZzb3VyY2UYCCABKAkSDQoFc3RhdGUYCSABKAkSDwoHYWN0aW9ucxgKIAMoCSJPCg9Sb3V0ZWRJbmJveEl0ZW0SLAoEaXRlbRgBIAEoCzIeLnBvbHRlcndhcmUubG9jYWwudjEuSW5ib3hJdGVtEg4KBmFjdGlvbhgCIAEoCSImChBMaXN0SW5ib3hSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkipAEKEUxpc3RJbmJveFJlc3BvbnNlEi0KBWl0ZW1zGAEgAygLMh4ucG9sdGVyd2FyZS5sb2NhbC52MS5JbmJveEl0ZW0SNAoGcm91dGVkGAIgAygLMiQucG9sdGVyd2FyZS5sb2NhbC52MS5Sb3V0ZWRJbmJveEl0ZW0SEgoKb3Blbl9jb3VudBgDIAEoBRIWCg5ibG9ja2luZ19jb3VudBgEIAEoBSJ1ChdSZXNvbHZlSW5ib3hJdGVtUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg8KB2l0ZW1faWQYAiABKAkSDgoGYWN0aW9uGAMgASgJEg4KBmFuc3dlchgEIAEoCRIVCg1zZXNzaW9uX2xhYmVsGAUgASgJIqEBChhSZXNvbHZlSW5ib3hJdGVtUmVzcG9uc2USLAoEaXRlbRgBIAEoCzIeLnBvbHRlcndhcmUubG9jYWwudjEuSW5ib3hJdGVtEg4KBmFjdGlvbhgCIAEoCRILCgNvcHMYAyADKAkSOgoLZGlhZ25vc3RpY3MYBCADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMiKgoOQXRsYXNJbnZhcmlhbnQSCgoCaWQYASABKAkSDAoEdGV4dBgCIAEoCSLgAgoJQXRsYXNOb2RlEgoKAmlkGAEgASgJEhEKCXBhcmVudF9pZBgCIAEoCRINCgVsZXZlbBgDIAEoCRIMCgRzbHVnGAQgASgJEgwKBHBhdGgYBSABKAkSDQoFdGl0bGUYBiABKAkSDgoGaW50ZW50GAcgASgJEhEKCWRlY2lzaW9ucxgIIAMoCRI3CgppbnZhcmlhbnRzGAkgAygLMiMucG9sdGVyd2FyZS5sb2NhbC52MS5BdGxhc0ludmFyaWFudBIOCgZzdGF0dXMYCiABKAkSEwoLY2hpbGRfY291bnQYCyABKAUSFQoNZmVhdHVyZV9jb3VudBgMIAEoBRIWCg5vcGVuX3F1ZXN0aW9ucxgNIAEoBRIMCgRyZXBvGA4gASgJEg4KBmZvbGRlchgPIAEoCRIWCg5taWdyYXRpb25fZnJvbRgQIAEoCRIUCgxtaWdyYXRpb25fdG8YESABKAkiNQoQTGlzdEF0bGFzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEg0KBWFzX29mGAIgASgJImsKEUxpc3RBdGxhc1Jlc3BvbnNlEi0KBW5vZGVzGAEgAygLMh4ucG9sdGVyd2FyZS5sb2NhbC52MS5BdGxhc05vZGUSEwoLZHJpZnRfc2x1Z3MYAiADKAkSEgoKaGlzdG9yaWNhbBgDIAEoCCJqChFBdGxhc0hpc3RvcnlFbnRyeRIQCghiYXRjaF9pZBgBIAEoCRIKCgJhdBgCIAEoCRIUCgxhZ2VudF9ydW5faWQYAyABKAkSEAoIbm9kZV9vcHMYBCABKAUSDwoHc3VtbWFyeRgFIAEoCSJKCgxTZXNzaW9uQ2xhaW0SDAoEc2x1ZxgBIAEoCRIOCgZudW1iZXIYAiABKAUSDQoFdGl0bGUYAyABKAkSDQoFc2NvcGUYBCABKAkiggEKDEFnZW50U2Vzc2lvbhIOCgZydW5faWQYASABKAkSDQoFYWdlbnQYAiABKAkSDAoEdGFzaxgDIAEoCRISCgpzdGFydGVkX2F0GAQgASgJEjEKBmNsYWltcxgFIAMoCzIhLnBvbHRlcndhcmUubG9jYWwudjEuU2Vzc2lvbkNsYWltIogBCg5TZXNzaW9uSGFuZG9mZhIMCgRzbHVnGAEgASgJEg4KBmJyYW5jaBgCIAEoCRIMCgRnb2FsGAMgASgJEgwKBGRvbmUYBCABKAkSEwoLaW5fcHJvZ3Jlc3MYBSABKAkSDAoEbmV4dBgGIAEoCRINCgVhZ2VudBgHIAEoCRIKCgJhdBgIIAEoCSIuChhMaXN0QWdlbnRTZXNzaW9uc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSKXAQoZTGlzdEFnZW50U2Vzc2lvbnNSZXNwb25zZRIzCghzZXNzaW9ucxgBIAMoCzIhLnBvbHRlcndhcmUubG9jYWwudjEuQWdlbnRTZXNzaW9uEjUKCGhhbmRvZmZzGAIgAygLMiMucG9sdGVyd2FyZS5sb2NhbC52MS5TZXNzaW9uSGFuZG9mZhIOCgZicmFuY2gYAyABKAkiLQoXTGlzdEF0bGFzSGlzdG9yeVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSJTChhMaXN0QXRsYXNIaXN0b3J5UmVzcG9uc2USNwoHZW50cmllcxgBIAMoCzImLnBvbHRlcndhcmUubG9jYWwudjEuQXRsYXNIaXN0b3J5RW50cnkiPwoYRXhwb3J0UHJvamVjdGlvbnNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDwoHZHJ5X3J1bhgCIAEoCCJMCg5Qcm9qZWN0aW9uRmlsZRIMCgRyZXBvGAEgASgJEgwKBHBhdGgYAiABKAkSDgoGYWN0aW9uGAMgASgJEg4KBnJlYXNvbhgEIAEoCSJPChlFeHBvcnRQcm9qZWN0aW9uc1Jlc3BvbnNlEjIKBWZpbGVzGAEgAygLMiMucG9sdGVyd2FyZS5sb2NhbC52MS5Qcm9qZWN0aW9uRmlsZSI6CgxGZWF0dXJlVG91Y2gSDAoEcGF0aBgBIAEoCRINCgVsZXZlbBgCIAEoCRINCgV0aXRsZRgDIAEoCSJXCg9GZWF0dXJlRGVjaXNpb24SCwoDcmVmGAEgASgJEgoKAmlkGAIgASgJEg0KBXRpdGxlGAMgASgJEg4KBnN0YXR1cxgEIAEoCRIMCgRmcm9tGAUgASgJIi4KEEZlYXR1cmVJbnZhcmlhbnQSDAoEdGV4dBgBIAEoCRIMCgRmcm9tGAIgASgJIm0KD0ZlYXR1cmVRdWVzdGlvbhIKCgJpZBgBIAEoCRIMCgR0ZXh0GAIgASgJEhAKCGJsb2NraW5nGAMgASgIEg8KB29wdGlvbnMYBCADKAkSDQoFcm91dGUYBSABKAkSDgoGYW5zd2VyGAYgASgJIj8KDEZlYXR1cmVDaGVjaxIMCgRzdGVwGAEgASgJEhAKCHNldmVyaXR5GAIgASgJEg8KB21lc3NhZ2UYAyABKAkiiwMKDUZlYXR1cmVSZXZpZXcSKwoEY2FyZBgBIAEoCzIdLnBvbHRlcndhcmUubG9jYWwudjEuV29ya0NhcmQSEgoKdW5kZXJfcGF0aBgCIAEoCRITCgt1bmRlcl90aXRsZRgDIAEoCRIRCglzdWdnZXN0ZWQYBCADKAkSMgoHdG91Y2hlcxgFIAMoCzIhLnBvbHRlcndhcmUubG9jYWwudjEuRmVhdHVyZVRvdWNoEjcKCWRlY2lzaW9ucxgGIAMoCzIkLnBvbHRlcndhcmUubG9jYWwudjEuRmVhdHVyZURlY2lzaW9uEjgKCWluaGVyaXRlZBgHIAMoCzIlLnBvbHRlcndhcmUubG9jYWwudjEuRmVhdHVyZUludmFyaWFudBI3CglxdWVzdGlvbnMYCCADKAsyJC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkZlYXR1cmVRdWVzdGlvbhIxCgZjaGVja3MYCSADKAsyIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkZlYXR1cmVDaGVjayI4ChRSZXZpZXdGZWF0dXJlUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJEgwKBHNsdWcYAiABKAkiSwoVUmV2aWV3RmVhdHVyZVJlc3BvbnNlEjIKBnJldmlldxgBIAEoCzIiLnBvbHRlcndhcmUubG9jYWwudjEuRmVhdHVyZVJldmlldyLGAQoUQ3JlYXRlRmVhdHVyZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIOCgZpbnRlbnQYAiABKAkSDQoFdGl0bGUYAyABKAkSDQoFdW5kZXIYBCABKAkSMwoGY2hhbmdlGAUgASgLMiMucG9sdGVyd2FyZS5sb2NhbC52MS5DaGFuZ2VFbnZlbG9wZRISCgpzZXNzaW9uX2lkGAYgASgJEhUKDXNlc3Npb25fbGFiZWwYByABKAkSDAoEa2luZBgIIAEoCSKSAQoVQ3JlYXRlRmVhdHVyZVJlc3BvbnNlEgwKBHNsdWcYASABKAkSNwoFYXBwbHkYAiABKAsyKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFwcGx5UG9sdGVyUmVzcG9uc2USMgoGcmV2aWV3GAMgASgLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5GZWF0dXJlUmV2aWV3IqcBChVBZHZhbmNlRmVhdHVyZVJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIMCgRzbHVnGAIgASgJEgwKBHN0ZXAYAyABKAkSMwoGY2hhbmdlGAQgASgLMiMucG9sdGVyd2FyZS5sb2NhbC52MS5DaGFuZ2VFbnZlbG9wZRISCgpzZXNzaW9uX2lkGAUgASgJEhUKDXNlc3Npb25fbGFiZWwYBiABKAkilAEKFkFkdmFuY2VGZWF0dXJlUmVzcG9uc2USDQoFc3RhZ2UYASABKAkSNwoFYXBwbHkYAiABKAsyKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFwcGx5UG9sdGVyUmVzcG9uc2USMgoGcmV2aWV3GAMgASgLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5GZWF0dXJlUmV2aWV3IjoKFFZlcmlmeUZlYXR1cmVSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDgoGdGFyZ2V0GAIgASgJIi4KC1ZlcmlmeUNoZWNrEg4KBnN0YXR1cxgBIAEoCRIPCgdtZXNzYWdlGAIgASgJImkKFVZlcmlmeUZlYXR1cmVSZXNwb25zZRIOCgZ0YXJnZXQYASABKAkSDgoGcGFzc2VkGAIgASgIEjAKBmNoZWNrcxgDIAMoCzIgLnBvbHRlcndhcmUubG9jYWwudjEuVmVyaWZ5Q2hlY2sygQ0KC1dvcmtTZXJ2aWNlEmYKDUxpc3RXb3JrQ2FyZHMSKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RXb3JrQ2FyZHNSZXF1ZXN0GioucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0V29ya0NhcmRzUmVzcG9uc2USWgoJTGlzdEF0bGFzEiUucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0QXRsYXNSZXF1ZXN0GiYucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0QXRsYXNSZXNwb25zZRJvChBMaXN0QXRsYXNIaXN0b3J5EiwucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0QXRsYXNIaXN0b3J5UmVxdWVzdBotLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEF0bGFzSGlzdG9yeVJlc3BvbnNlEnIKEUxpc3RBZ2VudFNlc3Npb25zEi0ucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0QWdlbnRTZXNzaW9uc1JlcXVlc3QaLi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RBZ2VudFNlc3Npb25zUmVzcG9uc2USYAoLQXBwbHlQb2x0ZXISJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFwcGx5UG9sdGVyUmVxdWVzdBooLnBvbHRlcndhcmUubG9jYWwudjEuQXBwbHlQb2x0ZXJSZXNwb25zZRJdCgpMaW50UG9sdGVyEiYucG9sdGVyd2FyZS5sb2NhbC52MS5MaW50UG9sdGVyUmVxdWVzdBonLnBvbHRlcndhcmUubG9jYWwudjEuTGludFBvbHRlclJlc3BvbnNlEmAKC1F1ZXJ5UG9sdGVyEicucG9sdGVyd2FyZS5sb2NhbC52MS5RdWVyeVBvbHRlclJlcXVlc3QaKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlF1ZXJ5UG9sdGVyUmVzcG9uc2USYwoMV3JpdGVIYW5kb2ZmEigucG9sdGVyd2FyZS5sb2NhbC52MS5Xcml0ZUhhbmRvZmZSZXF1ZXN0GikucG9sdGVyd2FyZS5sb2NhbC52MS5Xcml0ZUhhbmRvZmZSZXNwb25zZRJdCgpFbmRTZXNzaW9uEiYucG9sdGVyd2FyZS5sb2NhbC52MS5FbmRTZXNzaW9uUmVxdWVzdBonLnBvbHRlcndhcmUubG9jYWwudjEuRW5kU2Vzc2lvblJlc3BvbnNlEloKCUxpc3RJbmJveBIlLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEluYm94UmVxdWVzdBomLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdEluYm94UmVzcG9uc2USbwoQUmVzb2x2ZUluYm94SXRlbRIsLnBvbHRlcndhcmUubG9jYWwudjEuUmVzb2x2ZUluYm94SXRlbVJlcXVlc3QaLS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlJlc29sdmVJbmJveEl0ZW1SZXNwb25zZRJyChFFeHBvcnRQcm9qZWN0aW9ucxItLnBvbHRlcndhcmUubG9jYWwudjEuRXhwb3J0UHJvamVjdGlvbnNSZXF1ZXN0Gi4ucG9sdGVyd2FyZS5sb2NhbC52MS5FeHBvcnRQcm9qZWN0aW9uc1Jlc3BvbnNlEmYKDVJldmlld0ZlYXR1cmUSKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlJldmlld0ZlYXR1cmVSZXF1ZXN0GioucG9sdGVyd2FyZS5sb2NhbC52MS5SZXZpZXdGZWF0dXJlUmVzcG9uc2USZgoNQ3JlYXRlRmVhdHVyZRIpLnBvbHRlcndhcmUubG9jYWwudjEuQ3JlYXRlRmVhdHVyZVJlcXVlc3QaKi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkNyZWF0ZUZlYXR1cmVSZXNwb25zZRJpCg5BZHZhbmNlRmVhdHVyZRIqLnBvbHRlcndhcmUubG9jYWwudjEuQWR2YW5jZUZlYXR1cmVSZXF1ZXN0GisucG9sdGVyd2FyZS5sb2NhbC52MS5BZHZhbmNlRmVhdHVyZVJlc3BvbnNlEmYKDVZlcmlmeUZlYXR1cmUSKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlZlcmlmeUZlYXR1cmVSZXF1ZXN0GioucG9sdGVyd2FyZS5sb2NhbC52MS5WZXJpZnlGZWF0dXJlUmVzcG9uc2VC5QEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQglXb3JrUHJvdG9QAVpRZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvYmFja2VuZC9wbGF0Zm9ybS9nZW4vcG9sdGVyd2FyZS9sb2NhbC92MTtsb2NhbHYxogIDUExYqgITUG9sdGVyd2FyZS5Mb2NhbC5WMcoCE1BvbHRlcndhcmVcTG9jYWxcVjHiAh9Qb2x0ZXJ3YXJlXExvY2FsXFYxXEdQQk1ldGFkYXRh6gIVUG9sdGVyd2FyZTo6TG9jYWw6OlYxYgZwcm90bzM", [file_polterware_local_v1_agentrun]);
 
 /**
  * Work model (ADR 0006): cards with tasks, questions, and invariants.
@@ -46,6 +46,13 @@ export type WorkTask = Message<"polterware.local.v1.WorkTask"> & {
    * @generated from field: string scope = 5;
    */
   scope: string;
+
+  /**
+   * claim_holder is the agent label holding the task's claim; empty when free.
+   *
+   * @generated from field: string claim_holder = 6;
+   */
+  claimHolder: string;
 };
 
 /**
@@ -196,6 +203,13 @@ export type WorkCard = Message<"polterware.local.v1.WorkCard"> & {
    * @generated from field: repeated polterware.local.v1.WorkInvariant invariants = 14;
    */
   invariants: WorkInvariant[];
+
+  /**
+   * kind is "feature" or "architecture" (a structural Atlas change).
+   *
+   * @generated from field: string kind = 15;
+   */
+  kind: string;
 };
 
 /**
@@ -307,6 +321,9 @@ export type ApplyPolterRequest = Message<"polterware.local.v1.ApplyPolterRequest
   sessionId: string;
 
   /**
+   * session_label is the agent label claim, done, and release lines act for.
+   * It applies with or without session_id; the Desktop ignores it.
+   *
    * @generated from field: string session_label = 6;
    */
   sessionLabel: string;
@@ -406,8 +423,9 @@ export const LintPolterResponseSchema: GenMessage<LintPolterResponse> = /*@__PUR
   messageDesc(file_polterware_local_v1_work, 10);
 
 /**
- * QueryPolter answers "cards", "card <slug>", "status", or "handoff <slug>"
- * in Polter text. "status" is the short session-start summary.
+ * QueryPolter answers "cards", "card <slug>", "status", "inbox",
+ * "handoff <slug>", "oracle <path>", or "atlas" in text.
+ * "status" is the short session-start summary.
  *
  * @generated from message polterware.local.v1.QueryPolterRequest
  */
@@ -576,6 +594,1242 @@ export const EndSessionResponseSchema: GenMessage<EndSessionResponse> = /*@__PUR
   messageDesc(file_polterware_local_v1_work, 16);
 
 /**
+ * InboxItem is one derived item that needs a person: a Decision (open
+ * question), Drift (drift finding), or Verify (fact with no evidence).
+ *
+ * @generated from message polterware.local.v1.InboxItem
+ */
+export type InboxItem = Message<"polterware.local.v1.InboxItem"> & {
+  /**
+   * id is the short id people type; it is stable while the item is the same.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * kind is "decision", "drift", or "verify".
+   *
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: bool blocking = 3;
+   */
+  blocking: boolean;
+
+  /**
+   * @generated from field: string title = 4;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string detail = 5;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: repeated string options = 6;
+   */
+  options: string[];
+
+  /**
+   * where is the card slug and task, commit, path, or fact source.
+   *
+   * @generated from field: string where = 7;
+   */
+  where: string;
+
+  /**
+   * @generated from field: string source = 8;
+   */
+  source: string;
+
+  /**
+   * state is "open" or "deferred".
+   *
+   * @generated from field: string state = 9;
+   */
+  state: string;
+
+  /**
+   * actions are the item's action ids, primary first: decide, delegate,
+   * defer, fix_code, update_intent, ignore, verify, reject.
+   *
+   * @generated from field: repeated string actions = 10;
+   */
+  actions: string[];
+};
+
+/**
+ * Describes the message polterware.local.v1.InboxItem.
+ * Use `create(InboxItemSchema)` to create a new message.
+ */
+export const InboxItemSchema: GenMessage<InboxItem> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 17);
+
+/**
+ * RoutedInboxItem is an item a person handed to agents (delegate, fix_code,
+ * update_intent); `polterware status` shows it until the source changes.
+ *
+ * @generated from message polterware.local.v1.RoutedInboxItem
+ */
+export type RoutedInboxItem = Message<"polterware.local.v1.RoutedInboxItem"> & {
+  /**
+   * @generated from field: polterware.local.v1.InboxItem item = 1;
+   */
+  item?: InboxItem | undefined;
+
+  /**
+   * @generated from field: string action = 2;
+   */
+  action: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.RoutedInboxItem.
+ * Use `create(RoutedInboxItemSchema)` to create a new message.
+ */
+export const RoutedInboxItemSchema: GenMessage<RoutedInboxItem> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 18);
+
+/**
+ * ListInbox derives the project's Inbox: open items (blocking first), then
+ * deferred ones. Reading it writes nothing.
+ *
+ * @generated from message polterware.local.v1.ListInboxRequest
+ */
+export type ListInboxRequest = Message<"polterware.local.v1.ListInboxRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListInboxRequest.
+ * Use `create(ListInboxRequestSchema)` to create a new message.
+ */
+export const ListInboxRequestSchema: GenMessage<ListInboxRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 19);
+
+/**
+ * @generated from message polterware.local.v1.ListInboxResponse
+ */
+export type ListInboxResponse = Message<"polterware.local.v1.ListInboxResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.InboxItem items = 1;
+   */
+  items: InboxItem[];
+
+  /**
+   * @generated from field: repeated polterware.local.v1.RoutedInboxItem routed = 2;
+   */
+  routed: RoutedInboxItem[];
+
+  /**
+   * @generated from field: int32 open_count = 3;
+   */
+  openCount: number;
+
+  /**
+   * @generated from field: int32 blocking_count = 4;
+   */
+  blockingCount: number;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListInboxResponse.
+ * Use `create(ListInboxResponseSchema)` to create a new message.
+ */
+export const ListInboxResponseSchema: GenMessage<ListInboxResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 20);
+
+/**
+ * ResolveInboxItem applies one action. decide writes `? question -> answer`
+ * as Polter text; verify marks the fact verified; the rest record a
+ * disposition.
+ *
+ * @generated from message polterware.local.v1.ResolveInboxItemRequest
+ */
+export type ResolveInboxItemRequest = Message<"polterware.local.v1.ResolveInboxItemRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string item_id = 2;
+   */
+  itemId: string;
+
+  /**
+   * @generated from field: string action = 3;
+   */
+  action: string;
+
+  /**
+   * @generated from field: string answer = 4;
+   */
+  answer: string;
+
+  /**
+   * session_label is the acting agent; the Desktop acts as "desktop".
+   *
+   * @generated from field: string session_label = 5;
+   */
+  sessionLabel: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ResolveInboxItemRequest.
+ * Use `create(ResolveInboxItemRequestSchema)` to create a new message.
+ */
+export const ResolveInboxItemRequestSchema: GenMessage<ResolveInboxItemRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 21);
+
+/**
+ * @generated from message polterware.local.v1.ResolveInboxItemResponse
+ */
+export type ResolveInboxItemResponse = Message<"polterware.local.v1.ResolveInboxItemResponse"> & {
+  /**
+   * @generated from field: polterware.local.v1.InboxItem item = 1;
+   */
+  item?: InboxItem | undefined;
+
+  /**
+   * @generated from field: string action = 2;
+   */
+  action: string;
+
+  /**
+   * ops is set for decide: the Polter operations it applied.
+   *
+   * @generated from field: repeated string ops = 3;
+   */
+  ops: string[];
+
+  /**
+   * @generated from field: repeated polterware.local.v1.PolterDiagnostic diagnostics = 4;
+   */
+  diagnostics: PolterDiagnostic[];
+};
+
+/**
+ * Describes the message polterware.local.v1.ResolveInboxItemResponse.
+ * Use `create(ResolveInboxItemResponseSchema)` to create a new message.
+ */
+export const ResolveInboxItemResponseSchema: GenMessage<ResolveInboxItemResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 22);
+
+/**
+ * @generated from message polterware.local.v1.AtlasInvariant
+ */
+export type AtlasInvariant = Message<"polterware.local.v1.AtlasInvariant"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string text = 2;
+   */
+  text: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.AtlasInvariant.
+ * Use `create(AtlasInvariantSchema)` to create a new message.
+ */
+export const AtlasInvariantSchema: GenMessage<AtlasInvariant> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 23);
+
+/**
+ * AtlasNode is a system, domain, or component. status is derived:
+ * proposed, in_progress, delivered, or drift.
+ *
+ * @generated from message polterware.local.v1.AtlasNode
+ */
+export type AtlasNode = Message<"polterware.local.v1.AtlasNode"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string parent_id = 2;
+   */
+  parentId: string;
+
+  /**
+   * @generated from field: string level = 3;
+   */
+  level: string;
+
+  /**
+   * @generated from field: string slug = 4;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: string path = 5;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string title = 6;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string intent = 7;
+   */
+  intent: string;
+
+  /**
+   * @generated from field: repeated string decisions = 8;
+   */
+  decisions: string[];
+
+  /**
+   * @generated from field: repeated polterware.local.v1.AtlasInvariant invariants = 9;
+   */
+  invariants: AtlasInvariant[];
+
+  /**
+   * @generated from field: string status = 10;
+   */
+  status: string;
+
+  /**
+   * @generated from field: int32 child_count = 11;
+   */
+  childCount: number;
+
+  /**
+   * @generated from field: int32 feature_count = 12;
+   */
+  featureCount: number;
+
+  /**
+   * @generated from field: int32 open_questions = 13;
+   */
+  openQuestions: number;
+
+  /**
+   * repo is a project_repos name; empty is the project root checkout.
+   *
+   * @generated from field: string repo = 14;
+   */
+  repo: string;
+
+  /**
+   * folder is a directory inside that checkout. path stays the node identity.
+   *
+   * @generated from field: string folder = 15;
+   */
+  folder: string;
+
+  /**
+   * migration_from and migration_to are both empty unless the node is moving
+   * between designs.
+   *
+   * @generated from field: string migration_from = 16;
+   */
+  migrationFrom: string;
+
+  /**
+   * @generated from field: string migration_to = 17;
+   */
+  migrationTo: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.AtlasNode.
+ * Use `create(AtlasNodeSchema)` to create a new message.
+ */
+export const AtlasNodeSchema: GenMessage<AtlasNode> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 24);
+
+/**
+ * ListAtlas reads the live graph, or the graph replayed at as_of (an RFC3339
+ * date, a YYYY-MM-DD day, a change batch id, or a commit sha). A past graph
+ * has no derived status: every node reports "proposed" and historical is true.
+ *
+ * @generated from message polterware.local.v1.ListAtlasRequest
+ */
+export type ListAtlasRequest = Message<"polterware.local.v1.ListAtlasRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string as_of = 2;
+   */
+  asOf: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListAtlasRequest.
+ * Use `create(ListAtlasRequestSchema)` to create a new message.
+ */
+export const ListAtlasRequestSchema: GenMessage<ListAtlasRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 25);
+
+/**
+ * @generated from message polterware.local.v1.ListAtlasResponse
+ */
+export type ListAtlasResponse = Message<"polterware.local.v1.ListAtlasResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.AtlasNode nodes = 1;
+   */
+  nodes: AtlasNode[];
+
+  /**
+   * @generated from field: repeated string drift_slugs = 2;
+   */
+  driftSlugs: string[];
+
+  /**
+   * @generated from field: bool historical = 3;
+   */
+  historical: boolean;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListAtlasResponse.
+ * Use `create(ListAtlasResponseSchema)` to create a new message.
+ */
+export const ListAtlasResponseSchema: GenMessage<ListAtlasResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 26);
+
+/**
+ * AtlasHistoryEntry is one applied change batch that touched Atlas nodes.
+ *
+ * @generated from message polterware.local.v1.AtlasHistoryEntry
+ */
+export type AtlasHistoryEntry = Message<"polterware.local.v1.AtlasHistoryEntry"> & {
+  /**
+   * @generated from field: string batch_id = 1;
+   */
+  batchId: string;
+
+  /**
+   * @generated from field: string at = 2;
+   */
+  at: string;
+
+  /**
+   * @generated from field: string agent_run_id = 3;
+   */
+  agentRunId: string;
+
+  /**
+   * @generated from field: int32 node_ops = 4;
+   */
+  nodeOps: number;
+
+  /**
+   * summary is the first node title or path the batch touched.
+   *
+   * @generated from field: string summary = 5;
+   */
+  summary: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.AtlasHistoryEntry.
+ * Use `create(AtlasHistoryEntrySchema)` to create a new message.
+ */
+export const AtlasHistoryEntrySchema: GenMessage<AtlasHistoryEntry> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 27);
+
+/**
+ * @generated from message polterware.local.v1.SessionClaim
+ */
+export type SessionClaim = Message<"polterware.local.v1.SessionClaim"> & {
+  /**
+   * @generated from field: string slug = 1;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: int32 number = 2;
+   */
+  number: number;
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string scope = 4;
+   */
+  scope: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.SessionClaim.
+ * Use `create(SessionClaimSchema)` to create a new message.
+ */
+export const SessionClaimSchema: GenMessage<SessionClaim> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 28);
+
+/**
+ * AgentSession is one agent working now: an open agent run plus the claims
+ * its label holds. run_id is empty for a label that holds claims without an
+ * open run.
+ *
+ * @generated from message polterware.local.v1.AgentSession
+ */
+export type AgentSession = Message<"polterware.local.v1.AgentSession"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string agent = 2;
+   */
+  agent: string;
+
+  /**
+   * @generated from field: string task = 3;
+   */
+  task: string;
+
+  /**
+   * @generated from field: string started_at = 4;
+   */
+  startedAt: string;
+
+  /**
+   * @generated from field: repeated polterware.local.v1.SessionClaim claims = 5;
+   */
+  claims: SessionClaim[];
+};
+
+/**
+ * Describes the message polterware.local.v1.AgentSession.
+ * Use `create(AgentSessionSchema)` to create a new message.
+ */
+export const AgentSessionSchema: GenMessage<AgentSession> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 29);
+
+/**
+ * @generated from message polterware.local.v1.SessionHandoff
+ */
+export type SessionHandoff = Message<"polterware.local.v1.SessionHandoff"> & {
+  /**
+   * @generated from field: string slug = 1;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: string branch = 2;
+   */
+  branch: string;
+
+  /**
+   * @generated from field: string goal = 3;
+   */
+  goal: string;
+
+  /**
+   * @generated from field: string done = 4;
+   */
+  done: string;
+
+  /**
+   * @generated from field: string in_progress = 5;
+   */
+  inProgress: string;
+
+  /**
+   * @generated from field: string next = 6;
+   */
+  next: string;
+
+  /**
+   * @generated from field: string agent = 7;
+   */
+  agent: string;
+
+  /**
+   * @generated from field: string at = 8;
+   */
+  at: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.SessionHandoff.
+ * Use `create(SessionHandoffSchema)` to create a new message.
+ */
+export const SessionHandoffSchema: GenMessage<SessionHandoff> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 30);
+
+/**
+ * ListAgentSessions returns live sessions and the newest handoffs. branch is
+ * the project checkout's branch, shared by every session.
+ *
+ * @generated from message polterware.local.v1.ListAgentSessionsRequest
+ */
+export type ListAgentSessionsRequest = Message<"polterware.local.v1.ListAgentSessionsRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListAgentSessionsRequest.
+ * Use `create(ListAgentSessionsRequestSchema)` to create a new message.
+ */
+export const ListAgentSessionsRequestSchema: GenMessage<ListAgentSessionsRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 31);
+
+/**
+ * @generated from message polterware.local.v1.ListAgentSessionsResponse
+ */
+export type ListAgentSessionsResponse = Message<"polterware.local.v1.ListAgentSessionsResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.AgentSession sessions = 1;
+   */
+  sessions: AgentSession[];
+
+  /**
+   * @generated from field: repeated polterware.local.v1.SessionHandoff handoffs = 2;
+   */
+  handoffs: SessionHandoff[];
+
+  /**
+   * @generated from field: string branch = 3;
+   */
+  branch: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListAgentSessionsResponse.
+ * Use `create(ListAgentSessionsResponseSchema)` to create a new message.
+ */
+export const ListAgentSessionsResponseSchema: GenMessage<ListAgentSessionsResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 32);
+
+/**
+ * @generated from message polterware.local.v1.ListAtlasHistoryRequest
+ */
+export type ListAtlasHistoryRequest = Message<"polterware.local.v1.ListAtlasHistoryRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ListAtlasHistoryRequest.
+ * Use `create(ListAtlasHistoryRequestSchema)` to create a new message.
+ */
+export const ListAtlasHistoryRequestSchema: GenMessage<ListAtlasHistoryRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 33);
+
+/**
+ * @generated from message polterware.local.v1.ListAtlasHistoryResponse
+ */
+export type ListAtlasHistoryResponse = Message<"polterware.local.v1.ListAtlasHistoryResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.AtlasHistoryEntry entries = 1;
+   */
+  entries: AtlasHistoryEntry[];
+};
+
+/**
+ * Describes the message polterware.local.v1.ListAtlasHistoryResponse.
+ * Use `create(ListAtlasHistoryResponseSchema)` to create a new message.
+ */
+export const ListAtlasHistoryResponseSchema: GenMessage<ListAtlasHistoryResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 34);
+
+/**
+ * ExportProjections writes ADR files into docs/adr/ of each governing checkout
+ * and the generated AGENTS.md block of every checkout. The store stays the
+ * source of truth; nothing is read back from the files.
+ *
+ * @generated from message polterware.local.v1.ExportProjectionsRequest
+ */
+export type ExportProjectionsRequest = Message<"polterware.local.v1.ExportProjectionsRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: bool dry_run = 2;
+   */
+  dryRun: boolean;
+};
+
+/**
+ * Describes the message polterware.local.v1.ExportProjectionsRequest.
+ * Use `create(ExportProjectionsRequestSchema)` to create a new message.
+ */
+export const ExportProjectionsRequestSchema: GenMessage<ExportProjectionsRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 35);
+
+/**
+ * ProjectionFile is one file export wrote, kept, removed, or skipped.
+ * action: write, unchanged, remove, or skip. path is relative to the checkout;
+ * repo is empty for the project root.
+ *
+ * @generated from message polterware.local.v1.ProjectionFile
+ */
+export type ProjectionFile = Message<"polterware.local.v1.ProjectionFile"> & {
+  /**
+   * @generated from field: string repo = 1;
+   */
+  repo: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string action = 3;
+   */
+  action: string;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ProjectionFile.
+ * Use `create(ProjectionFileSchema)` to create a new message.
+ */
+export const ProjectionFileSchema: GenMessage<ProjectionFile> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 36);
+
+/**
+ * @generated from message polterware.local.v1.ExportProjectionsResponse
+ */
+export type ExportProjectionsResponse = Message<"polterware.local.v1.ExportProjectionsResponse"> & {
+  /**
+   * @generated from field: repeated polterware.local.v1.ProjectionFile files = 1;
+   */
+  files: ProjectionFile[];
+};
+
+/**
+ * Describes the message polterware.local.v1.ExportProjectionsResponse.
+ * Use `create(ExportProjectionsResponseSchema)` to create a new message.
+ */
+export const ExportProjectionsResponseSchema: GenMessage<ExportProjectionsResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 37);
+
+/**
+ * Feature flow (slice 9): Intent creates a card in shape, Shape shows its
+ * impact, and the contract (shape → plan) and plan (plan → build) gates move
+ * the stage. An open blocking question stops a gate; other checks are hints.
+ *
+ * @generated from message polterware.local.v1.FeatureTouch
+ */
+export type FeatureTouch = Message<"polterware.local.v1.FeatureTouch"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string level = 2;
+   */
+  level: string;
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.FeatureTouch.
+ * Use `create(FeatureTouchSchema)` to create a new message.
+ */
+export const FeatureTouchSchema: GenMessage<FeatureTouch> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 38);
+
+/**
+ * from is "card" or the node path that cites the decision; status is empty
+ * when no ADR matches the reference.
+ *
+ * @generated from message polterware.local.v1.FeatureDecision
+ */
+export type FeatureDecision = Message<"polterware.local.v1.FeatureDecision"> & {
+  /**
+   * @generated from field: string ref = 1;
+   */
+  ref: string;
+
+  /**
+   * @generated from field: string id = 2;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string status = 4;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string from = 5;
+   */
+  from: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.FeatureDecision.
+ * Use `create(FeatureDecisionSchema)` to create a new message.
+ */
+export const FeatureDecisionSchema: GenMessage<FeatureDecision> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 39);
+
+/**
+ * @generated from message polterware.local.v1.FeatureInvariant
+ */
+export type FeatureInvariant = Message<"polterware.local.v1.FeatureInvariant"> & {
+  /**
+   * @generated from field: string text = 1;
+   */
+  text: string;
+
+  /**
+   * @generated from field: string from = 2;
+   */
+  from: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.FeatureInvariant.
+ * Use `create(FeatureInvariantSchema)` to create a new message.
+ */
+export const FeatureInvariantSchema: GenMessage<FeatureInvariant> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 40);
+
+/**
+ * route is "inbox", "deferred", "delegated", or "answered".
+ *
+ * @generated from message polterware.local.v1.FeatureQuestion
+ */
+export type FeatureQuestion = Message<"polterware.local.v1.FeatureQuestion"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string text = 2;
+   */
+  text: string;
+
+  /**
+   * @generated from field: bool blocking = 3;
+   */
+  blocking: boolean;
+
+  /**
+   * @generated from field: repeated string options = 4;
+   */
+  options: string[];
+
+  /**
+   * @generated from field: string route = 5;
+   */
+  route: string;
+
+  /**
+   * @generated from field: string answer = 6;
+   */
+  answer: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.FeatureQuestion.
+ * Use `create(FeatureQuestionSchema)` to create a new message.
+ */
+export const FeatureQuestionSchema: GenMessage<FeatureQuestion> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 41);
+
+/**
+ * step is "shape", "contract", or "plan"; severity is "error" or "hint".
+ *
+ * @generated from message polterware.local.v1.FeatureCheck
+ */
+export type FeatureCheck = Message<"polterware.local.v1.FeatureCheck"> & {
+  /**
+   * @generated from field: string step = 1;
+   */
+  step: string;
+
+  /**
+   * @generated from field: string severity = 2;
+   */
+  severity: string;
+
+  /**
+   * @generated from field: string message = 3;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.FeatureCheck.
+ * Use `create(FeatureCheckSchema)` to create a new message.
+ */
+export const FeatureCheckSchema: GenMessage<FeatureCheck> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 42);
+
+/**
+ * @generated from message polterware.local.v1.FeatureReview
+ */
+export type FeatureReview = Message<"polterware.local.v1.FeatureReview"> & {
+  /**
+   * @generated from field: polterware.local.v1.WorkCard card = 1;
+   */
+  card?: WorkCard | undefined;
+
+  /**
+   * under_path is set when the card's under: names a node.
+   *
+   * @generated from field: string under_path = 2;
+   */
+  underPath: string;
+
+  /**
+   * @generated from field: string under_title = 3;
+   */
+  underTitle: string;
+
+  /**
+   * suggested lists component paths for a card without under:.
+   *
+   * @generated from field: repeated string suggested = 4;
+   */
+  suggested: string[];
+
+  /**
+   * @generated from field: repeated polterware.local.v1.FeatureTouch touches = 5;
+   */
+  touches: FeatureTouch[];
+
+  /**
+   * @generated from field: repeated polterware.local.v1.FeatureDecision decisions = 6;
+   */
+  decisions: FeatureDecision[];
+
+  /**
+   * @generated from field: repeated polterware.local.v1.FeatureInvariant inherited = 7;
+   */
+  inherited: FeatureInvariant[];
+
+  /**
+   * @generated from field: repeated polterware.local.v1.FeatureQuestion questions = 8;
+   */
+  questions: FeatureQuestion[];
+
+  /**
+   * @generated from field: repeated polterware.local.v1.FeatureCheck checks = 9;
+   */
+  checks: FeatureCheck[];
+};
+
+/**
+ * Describes the message polterware.local.v1.FeatureReview.
+ * Use `create(FeatureReviewSchema)` to create a new message.
+ */
+export const FeatureReviewSchema: GenMessage<FeatureReview> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 43);
+
+/**
+ * @generated from message polterware.local.v1.ReviewFeatureRequest
+ */
+export type ReviewFeatureRequest = Message<"polterware.local.v1.ReviewFeatureRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string slug = 2;
+   */
+  slug: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.ReviewFeatureRequest.
+ * Use `create(ReviewFeatureRequestSchema)` to create a new message.
+ */
+export const ReviewFeatureRequestSchema: GenMessage<ReviewFeatureRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 44);
+
+/**
+ * @generated from message polterware.local.v1.ReviewFeatureResponse
+ */
+export type ReviewFeatureResponse = Message<"polterware.local.v1.ReviewFeatureResponse"> & {
+  /**
+   * @generated from field: polterware.local.v1.FeatureReview review = 1;
+   */
+  review?: FeatureReview | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.ReviewFeatureResponse.
+ * Use `create(ReviewFeatureResponseSchema)` to create a new message.
+ */
+export const ReviewFeatureResponseSchema: GenMessage<ReviewFeatureResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 45);
+
+/**
+ * CreateFeature writes a card in shape from an intent. title defaults to the
+ * intent's first sentence; under is written only when set.
+ *
+ * @generated from message polterware.local.v1.CreateFeatureRequest
+ */
+export type CreateFeatureRequest = Message<"polterware.local.v1.CreateFeatureRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string intent = 2;
+   */
+  intent: string;
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string under = 4;
+   */
+  under: string;
+
+  /**
+   * Empty summary or rationale fall back to a generated envelope.
+   *
+   * @generated from field: polterware.local.v1.ChangeEnvelope change = 5;
+   */
+  change?: ChangeEnvelope | undefined;
+
+  /**
+   * @generated from field: string session_id = 6;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string session_label = 7;
+   */
+  sessionLabel: string;
+
+  /**
+   * kind is "feature" (default) or "architecture".
+   *
+   * @generated from field: string kind = 8;
+   */
+  kind: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.CreateFeatureRequest.
+ * Use `create(CreateFeatureRequestSchema)` to create a new message.
+ */
+export const CreateFeatureRequestSchema: GenMessage<CreateFeatureRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 46);
+
+/**
+ * @generated from message polterware.local.v1.CreateFeatureResponse
+ */
+export type CreateFeatureResponse = Message<"polterware.local.v1.CreateFeatureResponse"> & {
+  /**
+   * @generated from field: string slug = 1;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: polterware.local.v1.ApplyPolterResponse apply = 2;
+   */
+  apply?: ApplyPolterResponse | undefined;
+
+  /**
+   * @generated from field: polterware.local.v1.FeatureReview review = 3;
+   */
+  review?: FeatureReview | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.CreateFeatureResponse.
+ * Use `create(CreateFeatureResponseSchema)` to create a new message.
+ */
+export const CreateFeatureResponseSchema: GenMessage<CreateFeatureResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 47);
+
+/**
+ * AdvanceFeature passes one gate: step "contract" (shape → plan) or "plan"
+ * (plan → build). A refused gate is InvalidArgument with diagnostics.
+ *
+ * @generated from message polterware.local.v1.AdvanceFeatureRequest
+ */
+export type AdvanceFeatureRequest = Message<"polterware.local.v1.AdvanceFeatureRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string slug = 2;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: string step = 3;
+   */
+  step: string;
+
+  /**
+   * @generated from field: polterware.local.v1.ChangeEnvelope change = 4;
+   */
+  change?: ChangeEnvelope | undefined;
+
+  /**
+   * @generated from field: string session_id = 5;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string session_label = 6;
+   */
+  sessionLabel: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.AdvanceFeatureRequest.
+ * Use `create(AdvanceFeatureRequestSchema)` to create a new message.
+ */
+export const AdvanceFeatureRequestSchema: GenMessage<AdvanceFeatureRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 48);
+
+/**
+ * @generated from message polterware.local.v1.AdvanceFeatureResponse
+ */
+export type AdvanceFeatureResponse = Message<"polterware.local.v1.AdvanceFeatureResponse"> & {
+  /**
+   * @generated from field: string stage = 1;
+   */
+  stage: string;
+
+  /**
+   * @generated from field: polterware.local.v1.ApplyPolterResponse apply = 2;
+   */
+  apply?: ApplyPolterResponse | undefined;
+
+  /**
+   * @generated from field: polterware.local.v1.FeatureReview review = 3;
+   */
+  review?: FeatureReview | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.AdvanceFeatureResponse.
+ * Use `create(AdvanceFeatureResponseSchema)` to create a new message.
+ */
+export const AdvanceFeatureResponseSchema: GenMessage<AdvanceFeatureResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 49);
+
+/**
+ * VerifyFeature reads whether a card (slug) or task (slug#T2) is finished.
+ * status is "pass", "fail", "info", or "manual". It never writes.
+ *
+ * @generated from message polterware.local.v1.VerifyFeatureRequest
+ */
+export type VerifyFeatureRequest = Message<"polterware.local.v1.VerifyFeatureRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string target = 2;
+   */
+  target: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.VerifyFeatureRequest.
+ * Use `create(VerifyFeatureRequestSchema)` to create a new message.
+ */
+export const VerifyFeatureRequestSchema: GenMessage<VerifyFeatureRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 50);
+
+/**
+ * @generated from message polterware.local.v1.VerifyCheck
+ */
+export type VerifyCheck = Message<"polterware.local.v1.VerifyCheck"> & {
+  /**
+   * @generated from field: string status = 1;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.VerifyCheck.
+ * Use `create(VerifyCheckSchema)` to create a new message.
+ */
+export const VerifyCheckSchema: GenMessage<VerifyCheck> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 51);
+
+/**
+ * @generated from message polterware.local.v1.VerifyFeatureResponse
+ */
+export type VerifyFeatureResponse = Message<"polterware.local.v1.VerifyFeatureResponse"> & {
+  /**
+   * @generated from field: string target = 1;
+   */
+  target: string;
+
+  /**
+   * @generated from field: bool passed = 2;
+   */
+  passed: boolean;
+
+  /**
+   * @generated from field: repeated polterware.local.v1.VerifyCheck checks = 3;
+   */
+  checks: VerifyCheck[];
+};
+
+/**
+ * Describes the message polterware.local.v1.VerifyFeatureResponse.
+ * Use `create(VerifyFeatureResponseSchema)` to create a new message.
+ */
+export const VerifyFeatureResponseSchema: GenMessage<VerifyFeatureResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 52);
+
+/**
  * @generated from service polterware.local.v1.WorkService
  */
 export const WorkService: GenService<{
@@ -586,6 +1840,30 @@ export const WorkService: GenService<{
     methodKind: "unary";
     input: typeof ListWorkCardsRequestSchema;
     output: typeof ListWorkCardsResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.ListAtlas
+   */
+  listAtlas: {
+    methodKind: "unary";
+    input: typeof ListAtlasRequestSchema;
+    output: typeof ListAtlasResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.ListAtlasHistory
+   */
+  listAtlasHistory: {
+    methodKind: "unary";
+    input: typeof ListAtlasHistoryRequestSchema;
+    output: typeof ListAtlasHistoryResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.ListAgentSessions
+   */
+  listAgentSessions: {
+    methodKind: "unary";
+    input: typeof ListAgentSessionsRequestSchema;
+    output: typeof ListAgentSessionsResponseSchema;
   },
   /**
    * @generated from rpc polterware.local.v1.WorkService.ApplyPolter
@@ -626,6 +1904,62 @@ export const WorkService: GenService<{
     methodKind: "unary";
     input: typeof EndSessionRequestSchema;
     output: typeof EndSessionResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.ListInbox
+   */
+  listInbox: {
+    methodKind: "unary";
+    input: typeof ListInboxRequestSchema;
+    output: typeof ListInboxResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.ResolveInboxItem
+   */
+  resolveInboxItem: {
+    methodKind: "unary";
+    input: typeof ResolveInboxItemRequestSchema;
+    output: typeof ResolveInboxItemResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.ExportProjections
+   */
+  exportProjections: {
+    methodKind: "unary";
+    input: typeof ExportProjectionsRequestSchema;
+    output: typeof ExportProjectionsResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.ReviewFeature
+   */
+  reviewFeature: {
+    methodKind: "unary";
+    input: typeof ReviewFeatureRequestSchema;
+    output: typeof ReviewFeatureResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.CreateFeature
+   */
+  createFeature: {
+    methodKind: "unary";
+    input: typeof CreateFeatureRequestSchema;
+    output: typeof CreateFeatureResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.AdvanceFeature
+   */
+  advanceFeature: {
+    methodKind: "unary";
+    input: typeof AdvanceFeatureRequestSchema;
+    output: typeof AdvanceFeatureResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.VerifyFeature
+   */
+  verifyFeature: {
+    methodKind: "unary";
+    input: typeof VerifyFeatureRequestSchema;
+    output: typeof VerifyFeatureResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_polterware_local_v1_work, 0);

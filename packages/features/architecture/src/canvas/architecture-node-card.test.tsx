@@ -1,9 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { renderToString } from "solid-js/web";
+import type { JSX } from "solid-js";
+import { render } from "solid-js/web";
 import { readFileSync } from "node:fs";
 import { ARCH_CANVAS_FIXTURE } from "../fixtures";
 import { ArchitectureNodeCard } from "./architecture-node-card";
 import { nodeStatusLabel } from "../domain/node-lifecycle";
+
+/** Mounts the view in jsdom and returns its markup (renderToString is server-only). */
+function renderToString(view: () => JSX.Element): string {
+  const host = document.createElement("div");
+  const dispose = render(view, host);
+  const html = host.innerHTML;
+  dispose();
+  return html;
+}
+
+const here = (name: string) => new URL(name, import.meta.url);
 
 describe("ArchitectureNodeCard", () => {
   it("exports the card component", () => {
@@ -19,9 +31,7 @@ describe("ArchitectureNodeCard", () => {
     expect(nodeStatusLabel("unknown")).toBe("Unknown");
   });
 
-  it.skip("renders accessible card chrome (requires DOM/client design-system)", () => {
-    // Solid client components from design-system are not SSR-safe under node env.
-    // Lifecycle labels are covered in domain/node-lifecycle.test.ts
+  it("renders accessible card chrome", () => {
     const html = renderToString(() => (
       <ArchitectureNodeCard
         name="API"
@@ -90,14 +100,8 @@ describe("ArchitectureNodeCard", () => {
   });
 
   it("checks single entry animation completion, 0.97 scale CSS, no opacity entry, and reduced-motion removal", () => {
-    const css = readFileSync(
-      "packages/features/architecture/src/canvas/architecture-canvas-host.css",
-      "utf8",
-    );
-    const source = readFileSync(
-      "packages/features/architecture/src/canvas/architecture-node-card.tsx",
-      "utf8",
-    );
+    const css = readFileSync(here("./architecture-canvas-host.css"), "utf8");
+    const source = readFileSync(here("./architecture-node-card.tsx"), "utf8");
     const html = renderToString(() => (
       <ArchitectureNodeCard
         name="API"
@@ -138,10 +142,7 @@ describe("ArchitectureNodeCard", () => {
   });
 
   it("keeps selection instant while dimming surface, text, and icon over 120ms", () => {
-    const css = readFileSync(
-      "packages/features/architecture/src/canvas/architecture-canvas-host.css",
-      "utf8",
-    );
+    const css = readFileSync(here("./architecture-canvas-host.css"), "utf8");
     const selectedRule = css.match(
       /\.architecture-node-card\[data-selected\]\s*{[^}]*}/,
     )?.[0] ?? "";

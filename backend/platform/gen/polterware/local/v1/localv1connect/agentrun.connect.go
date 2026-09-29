@@ -33,6 +33,15 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AgentRunServiceGetAgentSetupProcedure is the fully-qualified name of the AgentRunService's
+	// GetAgentSetup RPC.
+	AgentRunServiceGetAgentSetupProcedure = "/polterware.local.v1.AgentRunService/GetAgentSetup"
+	// AgentRunServiceListHookSwitchesProcedure is the fully-qualified name of the AgentRunService's
+	// ListHookSwitches RPC.
+	AgentRunServiceListHookSwitchesProcedure = "/polterware.local.v1.AgentRunService/ListHookSwitches"
+	// AgentRunServiceSetHookSwitchProcedure is the fully-qualified name of the AgentRunService's
+	// SetHookSwitch RPC.
+	AgentRunServiceSetHookSwitchProcedure = "/polterware.local.v1.AgentRunService/SetHookSwitch"
 	// AgentRunServiceListMcpSessionsProcedure is the fully-qualified name of the AgentRunService's
 	// ListMcpSessions RPC.
 	AgentRunServiceListMcpSessionsProcedure = "/polterware.local.v1.AgentRunService/ListMcpSessions"
@@ -49,6 +58,9 @@ const (
 
 // AgentRunServiceClient is a client for the polterware.local.v1.AgentRunService service.
 type AgentRunServiceClient interface {
+	GetAgentSetup(context.Context, *connect.Request[v1.GetAgentSetupRequest]) (*connect.Response[v1.GetAgentSetupResponse], error)
+	ListHookSwitches(context.Context, *connect.Request[v1.ListHookSwitchesRequest]) (*connect.Response[v1.ListHookSwitchesResponse], error)
+	SetHookSwitch(context.Context, *connect.Request[v1.SetHookSwitchRequest]) (*connect.Response[v1.SetHookSwitchResponse], error)
 	ListMcpSessions(context.Context, *connect.Request[v1.ListMcpSessionsRequest]) (*connect.Response[v1.ListMcpSessionsResponse], error)
 	ListAgentRuns(context.Context, *connect.Request[v1.ListAgentRunsRequest]) (*connect.Response[v1.ListAgentRunsResponse], error)
 	GetAgentRun(context.Context, *connect.Request[v1.GetAgentRunRequest]) (*connect.Response[v1.GetAgentRunResponse], error)
@@ -66,6 +78,24 @@ func NewAgentRunServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	agentRunServiceMethods := v1.File_polterware_local_v1_agentrun_proto.Services().ByName("AgentRunService").Methods()
 	return &agentRunServiceClient{
+		getAgentSetup: connect.NewClient[v1.GetAgentSetupRequest, v1.GetAgentSetupResponse](
+			httpClient,
+			baseURL+AgentRunServiceGetAgentSetupProcedure,
+			connect.WithSchema(agentRunServiceMethods.ByName("GetAgentSetup")),
+			connect.WithClientOptions(opts...),
+		),
+		listHookSwitches: connect.NewClient[v1.ListHookSwitchesRequest, v1.ListHookSwitchesResponse](
+			httpClient,
+			baseURL+AgentRunServiceListHookSwitchesProcedure,
+			connect.WithSchema(agentRunServiceMethods.ByName("ListHookSwitches")),
+			connect.WithClientOptions(opts...),
+		),
+		setHookSwitch: connect.NewClient[v1.SetHookSwitchRequest, v1.SetHookSwitchResponse](
+			httpClient,
+			baseURL+AgentRunServiceSetHookSwitchProcedure,
+			connect.WithSchema(agentRunServiceMethods.ByName("SetHookSwitch")),
+			connect.WithClientOptions(opts...),
+		),
 		listMcpSessions: connect.NewClient[v1.ListMcpSessionsRequest, v1.ListMcpSessionsResponse](
 			httpClient,
 			baseURL+AgentRunServiceListMcpSessionsProcedure,
@@ -95,10 +125,28 @@ func NewAgentRunServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // agentRunServiceClient implements AgentRunServiceClient.
 type agentRunServiceClient struct {
-	listMcpSessions *connect.Client[v1.ListMcpSessionsRequest, v1.ListMcpSessionsResponse]
-	listAgentRuns   *connect.Client[v1.ListAgentRunsRequest, v1.ListAgentRunsResponse]
-	getAgentRun     *connect.Client[v1.GetAgentRunRequest, v1.GetAgentRunResponse]
-	listChanges     *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
+	getAgentSetup    *connect.Client[v1.GetAgentSetupRequest, v1.GetAgentSetupResponse]
+	listHookSwitches *connect.Client[v1.ListHookSwitchesRequest, v1.ListHookSwitchesResponse]
+	setHookSwitch    *connect.Client[v1.SetHookSwitchRequest, v1.SetHookSwitchResponse]
+	listMcpSessions  *connect.Client[v1.ListMcpSessionsRequest, v1.ListMcpSessionsResponse]
+	listAgentRuns    *connect.Client[v1.ListAgentRunsRequest, v1.ListAgentRunsResponse]
+	getAgentRun      *connect.Client[v1.GetAgentRunRequest, v1.GetAgentRunResponse]
+	listChanges      *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
+}
+
+// GetAgentSetup calls polterware.local.v1.AgentRunService.GetAgentSetup.
+func (c *agentRunServiceClient) GetAgentSetup(ctx context.Context, req *connect.Request[v1.GetAgentSetupRequest]) (*connect.Response[v1.GetAgentSetupResponse], error) {
+	return c.getAgentSetup.CallUnary(ctx, req)
+}
+
+// ListHookSwitches calls polterware.local.v1.AgentRunService.ListHookSwitches.
+func (c *agentRunServiceClient) ListHookSwitches(ctx context.Context, req *connect.Request[v1.ListHookSwitchesRequest]) (*connect.Response[v1.ListHookSwitchesResponse], error) {
+	return c.listHookSwitches.CallUnary(ctx, req)
+}
+
+// SetHookSwitch calls polterware.local.v1.AgentRunService.SetHookSwitch.
+func (c *agentRunServiceClient) SetHookSwitch(ctx context.Context, req *connect.Request[v1.SetHookSwitchRequest]) (*connect.Response[v1.SetHookSwitchResponse], error) {
+	return c.setHookSwitch.CallUnary(ctx, req)
 }
 
 // ListMcpSessions calls polterware.local.v1.AgentRunService.ListMcpSessions.
@@ -123,6 +171,9 @@ func (c *agentRunServiceClient) ListChanges(ctx context.Context, req *connect.Re
 
 // AgentRunServiceHandler is an implementation of the polterware.local.v1.AgentRunService service.
 type AgentRunServiceHandler interface {
+	GetAgentSetup(context.Context, *connect.Request[v1.GetAgentSetupRequest]) (*connect.Response[v1.GetAgentSetupResponse], error)
+	ListHookSwitches(context.Context, *connect.Request[v1.ListHookSwitchesRequest]) (*connect.Response[v1.ListHookSwitchesResponse], error)
+	SetHookSwitch(context.Context, *connect.Request[v1.SetHookSwitchRequest]) (*connect.Response[v1.SetHookSwitchResponse], error)
 	ListMcpSessions(context.Context, *connect.Request[v1.ListMcpSessionsRequest]) (*connect.Response[v1.ListMcpSessionsResponse], error)
 	ListAgentRuns(context.Context, *connect.Request[v1.ListAgentRunsRequest]) (*connect.Response[v1.ListAgentRunsResponse], error)
 	GetAgentRun(context.Context, *connect.Request[v1.GetAgentRunRequest]) (*connect.Response[v1.GetAgentRunResponse], error)
@@ -136,6 +187,24 @@ type AgentRunServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAgentRunServiceHandler(svc AgentRunServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	agentRunServiceMethods := v1.File_polterware_local_v1_agentrun_proto.Services().ByName("AgentRunService").Methods()
+	agentRunServiceGetAgentSetupHandler := connect.NewUnaryHandler(
+		AgentRunServiceGetAgentSetupProcedure,
+		svc.GetAgentSetup,
+		connect.WithSchema(agentRunServiceMethods.ByName("GetAgentSetup")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentRunServiceListHookSwitchesHandler := connect.NewUnaryHandler(
+		AgentRunServiceListHookSwitchesProcedure,
+		svc.ListHookSwitches,
+		connect.WithSchema(agentRunServiceMethods.ByName("ListHookSwitches")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentRunServiceSetHookSwitchHandler := connect.NewUnaryHandler(
+		AgentRunServiceSetHookSwitchProcedure,
+		svc.SetHookSwitch,
+		connect.WithSchema(agentRunServiceMethods.ByName("SetHookSwitch")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentRunServiceListMcpSessionsHandler := connect.NewUnaryHandler(
 		AgentRunServiceListMcpSessionsProcedure,
 		svc.ListMcpSessions,
@@ -162,6 +231,12 @@ func NewAgentRunServiceHandler(svc AgentRunServiceHandler, opts ...connect.Handl
 	)
 	return "/polterware.local.v1.AgentRunService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AgentRunServiceGetAgentSetupProcedure:
+			agentRunServiceGetAgentSetupHandler.ServeHTTP(w, r)
+		case AgentRunServiceListHookSwitchesProcedure:
+			agentRunServiceListHookSwitchesHandler.ServeHTTP(w, r)
+		case AgentRunServiceSetHookSwitchProcedure:
+			agentRunServiceSetHookSwitchHandler.ServeHTTP(w, r)
 		case AgentRunServiceListMcpSessionsProcedure:
 			agentRunServiceListMcpSessionsHandler.ServeHTTP(w, r)
 		case AgentRunServiceListAgentRunsProcedure:
@@ -178,6 +253,18 @@ func NewAgentRunServiceHandler(svc AgentRunServiceHandler, opts ...connect.Handl
 
 // UnimplementedAgentRunServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAgentRunServiceHandler struct{}
+
+func (UnimplementedAgentRunServiceHandler) GetAgentSetup(context.Context, *connect.Request[v1.GetAgentSetupRequest]) (*connect.Response[v1.GetAgentSetupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.AgentRunService.GetAgentSetup is not implemented"))
+}
+
+func (UnimplementedAgentRunServiceHandler) ListHookSwitches(context.Context, *connect.Request[v1.ListHookSwitchesRequest]) (*connect.Response[v1.ListHookSwitchesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.AgentRunService.ListHookSwitches is not implemented"))
+}
+
+func (UnimplementedAgentRunServiceHandler) SetHookSwitch(context.Context, *connect.Request[v1.SetHookSwitchRequest]) (*connect.Response[v1.SetHookSwitchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.AgentRunService.SetHookSwitch is not implemented"))
+}
 
 func (UnimplementedAgentRunServiceHandler) ListMcpSessions(context.Context, *connect.Request[v1.ListMcpSessionsRequest]) (*connect.Response[v1.ListMcpSessionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.AgentRunService.ListMcpSessions is not implemented"))

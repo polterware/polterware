@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createSignal } from "solid-js";
 import { render } from "solid-js/web";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { detailPanelDefaultState, detailPanelStore } from "@polterware/frontend-state";
 
 import {
@@ -25,7 +25,7 @@ import {
   type DataTableSortState,
 } from "./table";
 
-const tableSource = readFileSync(fileURLToPath(new URL("./table.tsx", import.meta.url)), "utf8");
+const tableSource = readFileSync(resolve(import.meta.dirname, "./table.tsx"), "utf8");
 
 describe("DataTable", () => {
   it("exports the complete compound component contract", () => {

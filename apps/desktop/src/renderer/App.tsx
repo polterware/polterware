@@ -1,4 +1,4 @@
-import { Match, Switch, Suspense, createEffect, createSignal, lazy, onCleanup, onMount } from "solid-js";
+import { Match, Show, Switch, Suspense, createEffect, createSignal, lazy, onCleanup, onMount } from "solid-js";
 import {
   Shell,
   CliReferencePage,
@@ -19,9 +19,18 @@ import {
   routesEqual,
   SECTION_TABS,
   type ClientRoute,
+  type DecisionState,
   type EnvironmentItem,
+  type FeatureFlowStep,
+  type ProjectSettingsTabId,
+  type WorkspaceAtlas,
+  type WorkspaceAtlasHistoryEntry,
+  type WorkspaceFeatureReview,
+  type LocalCoreStatus,
+  type WorkspaceInboxAction,
+  type WorkspaceInboxItem,
 } from "@polterware/feature-shell";
-import { ArchitectureView } from "@polterware/feature-architecture";
+import { ArchitectureView, AtlasCanvas } from "@polterware/feature-architecture";
 import {
   ChangeEnvelopeDialogHost,
   requestChangeEnvelope,
@@ -29,7 +38,7 @@ import {
 } from "@polterware/feature-knowledge/change-envelope";
 import { hydrateAppearancePreferences, hydrateShortcutPreferences } from "@polterware/feature-settings/boot";
 import { CommandPalette } from "@polterware/feature-commander";
-import { PageLoading, pushToast, type TabItem } from "@polterware/frontend-design-system";
+import { PageLoading, pushToast, type SelectOption, type TabItem } from "@polterware/frontend-design-system";
 import { detailPanelStore, matchesShortcut } from "@polterware/frontend-state";
 import { hideBootSplash } from "./boot-splash";
 import { bootstrapPlatform } from "./platform-bootstrap";
@@ -46,6 +55,9 @@ const IntegrationsView = lazy(() =>
 const SettingsView = lazy(() =>
   import("@polterware/feature-settings").then((m) => ({ default: m.SettingsView })),
 );
+const NewFeatureFlow = lazy(() =>
+  import("@polterware/feature-knowledge").then((m) => ({ default: m.NewFeatureFlow })),
+);
 const AgentsPage = lazy(() =>
   import("@polterware/feature-settings").then((m) => ({ default: m.AgentsPage })),
 );
@@ -54,6 +66,9 @@ import {
   emptyWorkspace,
   loadProjects,
   loadWorkCards,
+  loadAtlas,
+  loadAtlasHistory,
+  loadInbox,
   loadWorkspaceExtensions,
   loadWorkspaceShell,
   pickWorkspaceExtensions,
@@ -61,6 +76,7 @@ import {
   type WorkspaceSnapshot,
 } from "./workspace/load";
 import { createChangeRefresher } from "./workspace/live-refresh";
+import { gateErrorLines } from "./workspace/map-feature-review";
 import { shouldOpenCreateProject } from "./workspace/first-project";
 import {
   persistCreatedProject,
@@ -85,7 +101,12 @@ import {
   persistRemoveProjectRepo,
   persistResource,
   persistView,
+  persistDecisionAction,
   persistWorkCreateCard,
+  persistFeatureAdvance,
+  persistFeatureCreate,
+  persistFeatureLine,
+  loadFeatureReview,
   persistWorkRemoveCard,
   persistWorkSetStage,
   resetLocalStore,
@@ -137,11 +158,12 @@ function isEnvironmentKind(kind: string): kind is EnvironmentItem["kind"] {
 }
 
 export function App() {
-  const initialRoute = createDefaultRoute("atlas", PLATFORM_CONTEXT);
+  const initialRoute = createDefaultRoute("inbox", PLATFORM_CONTEXT);
   const [route, setRoute] = createSignal<ClientRoute>(initialRoute);
   const [history, setHistory] = createSignal<ClientRoute[]>([historySnapshot(initialRoute)]);
   const [historyIndex, setHistoryIndex] = createSignal(0);
   const [paletteOpen, setPaletteOpen] = createSignal(false);
+  const [coreStatus, setCoreStatus] = createSignal<LocalCoreStatus | null>(null);
   const [createProjectOpen, setCreateProjectOpen] = createSignal(false);
   const [importSourcesBusy, setImportSourcesBusy] = createSignal(false);
   const [workspace, setWorkspace] = createSignal<WorkspaceSnapshot>(emptyWorkspace());
@@ -291,16 +313,26 @@ export function App() {
         setWorkspace((current) => ({ ...current, ...extensions, extensionsReady: true }));
       },
       refreshWork: async (projectId) => {
-        const workCards = await loadWorkCards(projectId);
+        const [workCards, atlas, inbox] = await Promise.all([
+          loadWorkCards(projectId),
+          loadAtlas(projectId),
+          loadInbox(projectId),
+        ]);
         if (currentProjectId() !== projectId) return;
-        setWorkspace((current) => ({ ...current, workCards }));
+        setWorkspace((current) => ({ ...current, workCards, atlas, inbox }));
       },
       onError: (error) => {
         console.warn("Live refresh failed.", error);
       },
     });
     const unsubscribeChanges = window.polterware.core.onChange(refresher.push);
+    const unsubscribeCoreStatus = window.polterware.core.onStatusChange?.(setCoreStatus);
+    void window.polterware.app
+      .getCoreStatus?.()
+      .then(setCoreStatus)
+      .catch((error: unknown) => console.warn("Core status unavailable.", error));
     onCleanup(() => {
+      unsubscribeCoreStatus?.();
       window.removeEventListener("keydown", onKeyDown);
       unsubscribeExecute();
       unsubscribeChanges();
@@ -309,6 +341,11 @@ export function App() {
   });
 
   type NavigationMode = "push" | "replace" | "silent";
+
+  const settingsDialogTab = () => {
+    const dialog = route().dialog;
+    return dialog?.type === "settings" ? dialog.tab : null;
+  };
 
   function applyRoute(next: ClientRoute, mode: NavigationMode = "push") {
     const availableRoute = ensureRouteAvailable(next, PLATFORM_CONTEXT);
@@ -370,12 +407,16 @@ export function App() {
   }
 
   function handlePaletteCommand(id: string) {
+    if (id === "nav.settings") {
+      applyRoute(openDialog(route(), { type: "settings", tab: "general" }), "silent");
+      return;
+    }
     if (id.startsWith("nav.")) {
       navigateSection(id.slice(4));
       return;
     }
     if (id === "action.open-sync") {
-      applyRoute(setTab(goSection(route(), "settings"), "advanced"));
+      applyRoute(openDialog(route(), { type: "settings", tab: "advanced" }), "silent");
       return;
     }
     if (id === "action.create-node") {
@@ -398,11 +439,69 @@ export function App() {
   }
 
   const currentProjectId = () => route().projectId ?? workspace().settings.projectId;
+
+  // Atlas timeline: "" is Now (the live graph the change events keep fresh).
+  // A past point is replayed once and pinned until the person picks another.
+  const [atlasAsOf, setAtlasAsOf] = createSignal("");
+  const [pastAtlas, setPastAtlas] = createSignal<WorkspaceAtlas | null>(null);
+  const [atlasHistory, setAtlasHistory] = createSignal<WorkspaceAtlasHistoryEntry[]>([]);
+  let atlasTimelineProject = "";
+
+  createEffect(() => {
+    const projectId = currentProjectId();
+    if (route().section !== "atlas" || !projectId) return;
+    if (projectId !== atlasTimelineProject) {
+      atlasTimelineProject = projectId;
+      setAtlasAsOf("");
+      setPastAtlas(null);
+    }
+    // Re-read the batch list when live Atlas data changes (a new write is a new batch).
+    void workspace().atlas;
+    void loadAtlasHistory(projectId).then((entries) => {
+      if (currentProjectId() === projectId) setAtlasHistory(entries);
+    });
+  });
+
+  async function selectAtlasPoint(point: string) {
+    const projectId = currentProjectId();
+    setAtlasAsOf(point);
+    if (!point) {
+      setPastAtlas(null);
+      return;
+    }
+    const atlas = await loadAtlas(projectId, point);
+    if (currentProjectId() === projectId && atlasAsOf() === point) setPastAtlas(atlas);
+  }
+
+  const atlasTimelineOptions = (): SelectOption[] => [
+    { value: "", label: "Now" },
+    ...atlasHistory().map((entry) => ({
+      value: entry.batchId,
+      label: `${entry.at}${entry.summary ? ` · ${entry.summary}` : ""}`,
+    })),
+  ];
   const dataMode = () => {
     if (!workspace().available) return "offline" as const;
     if (workspace().quarantined) return "offline" as const;
     return "local" as const;
   };
+
+  /** One Inbox action from the Desktop; the core records it as "desktop". */
+  async function resolveInboxItem(item: WorkspaceInboxItem, action: WorkspaceInboxAction, answer?: string) {
+    const projectId = currentProjectId();
+    try {
+      await window.polterware.core.work.resolveInboxItem({ projectId, itemId: item.id, action, answer: answer ?? "" });
+      const [workCards, atlas, inbox] = await Promise.all([
+        loadWorkCards(projectId),
+        loadAtlas(projectId),
+        loadInbox(projectId),
+      ]);
+      if (currentProjectId() === projectId) setWorkspace((current) => ({ ...current, workCards, atlas, inbox }));
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "Could not update the Inbox item.", "danger");
+      throw error;
+    }
+  }
 
   /** Cards open in the Board or Specs detail scope, matching the visible Work tab. */
   const cardScopeId = () =>
@@ -429,6 +528,66 @@ export function App() {
     });
   }
 
+  const [flowOpen, setFlowOpen] = createSignal(false);
+  const [flowStep, setFlowStep] = createSignal<FeatureFlowStep>("intent");
+  const [flowReview, setFlowReview] = createSignal<WorkspaceFeatureReview | null>(null);
+  const [flowBusy, setFlowBusy] = createSignal(false);
+  const [flowErrors, setFlowErrors] = createSignal<string[]>([]);
+  const flowComponents = () =>
+    workspace().atlas.nodes
+      .filter((node) => node.level === "component")
+      .map((node) => ({ path: node.path, title: node.title }));
+
+  function openFeatureFlow() {
+    setFlowReview(null);
+    setFlowErrors([]);
+    setFlowStep("intent");
+    setFlowOpen(true);
+  }
+
+  function continueFeatureFlow(slug: string) {
+    void loadFeatureReview(currentProjectId(), slug)
+      .then((review) => {
+        setFlowReview(review);
+        setFlowErrors([]);
+        setFlowStep(review.card.stage === "plan" ? "plan" : "shape");
+        setFlowOpen(true);
+      })
+      .catch((error: unknown) => {
+        pushToast(error instanceof Error ? error.message : "Could not load the feature.", "danger");
+      });
+  }
+
+  function closeFeatureFlow() {
+    const slug = flowReview()?.card.slug;
+    setFlowOpen(false);
+    if (slug) activateDetail(cardScopeId(), slug, "card");
+  }
+
+  /** One justified flow write; a refusal stays in the dialog as check lines. */
+  async function runFlowWrite(
+    justify: { title: string; defaultSummary: string },
+    write: (change: ChangeEnvelope) => Promise<WorkspaceFeatureReview>,
+  ): Promise<WorkspaceFeatureReview | null> {
+    const change = await justifyChange(justify);
+    if (!change) return null;
+    setFlowBusy(true);
+    setFlowErrors([]);
+    try {
+      const review = await write(change);
+      setFlowReview(review);
+      await refreshWorkspace(currentProjectId());
+      return review;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "The feature write failed.";
+      setFlowErrors(gateErrorLines(message));
+      if (flowStep() === "intent") pushToast(message, "danger");
+      return null;
+    } finally {
+      setFlowBusy(false);
+    }
+  }
+
   /** Knowledge content hosted by Work, Decisions, and Reality with their own tab rails. */
   function KnowledgeSurface(surface: {
     tab: string;
@@ -436,6 +595,7 @@ export function App() {
     activeTab?: string;
     tabsLabel: string;
     libraryKinds?: ("doc" | "adr" | "runbook")[];
+    libraryDecisionState?: DecisionState;
   }) {
     return (
       <KnowledgeView
@@ -451,17 +611,43 @@ export function App() {
         activeTab={surface.activeTab}
         tabsLabel={surface.tabsLabel}
         libraryKinds={surface.libraryKinds}
+        libraryDecisionState={surface.libraryDecisionState}
         loading={loading() || !workspace().extensionsReady}
         onTabChange={(tab) => applyRoute(setTab(route(), tab))}
         onOpenDoc={(id) => activateDetail("knowledge:library", id, "document")}
         onOpenAdr={(id) => activateDetail("knowledge:library", id, "adr")}
+        onDecisionAction={(adrId, action) => {
+          const adr = workspace().adrs.find((item) => item.id === adrId);
+          if (!adr) return;
+          const successor = action.kind === "supersede"
+            ? workspace().adrs.find((item) => item.id === action.byId)
+            : undefined;
+          const summaries = {
+            activate: `Activate decision: ${adr.title}`,
+            reactivate: `Keep decision active after review: ${adr.title}`,
+            challenge: `Open review of decision: ${adr.title}`,
+            supersede: `Supersede ${adr.title} with ${successor?.title ?? "another decision"}`,
+          } as const;
+          void justifyChange({
+            title: "Justify decision change",
+            defaultSummary: summaries[action.kind],
+          }).then((change) => {
+            if (!change) return;
+            return persistDecisionAction({ projectId: currentProjectId(), adr, action, change }).then(async () => {
+              await refreshWorkspace(currentProjectId());
+              pushToast("Decision updated.", "success");
+            });
+          }).catch((error: unknown) => {
+            pushToast(error instanceof Error ? error.message : "Could not update the decision.", "danger");
+          });
+        }}
         onOpenRunbook={(id) => activateDetail("knowledge:library", id, "runbook")}
         onOpenSource={(id) => activateDetail("knowledge:sources", id, "source")}
         onOpenCard={(slug) => activateDetail(cardScopeId(), slug, "card")}
         onOpenConstitution={(id) => activateDetail("knowledge:specs", id, "constitution")}
         onOpenEntity={(_entityId, refId, kind) => {
           if (kind === "component") {
-            applyRoute(setTab(goSection(route(), "atlas"), "canvas"));
+            applyRoute(setTab(goSection(route(), "atlas"), "map"));
             activateDetail("architecture:canvas", refId, "arch-node");
           } else if (kind === "resource") {
             applyRoute(setTab(goSection(route(), "reality"), "inventory"));
@@ -654,6 +840,8 @@ export function App() {
           });
         }}
         onCreateCard={(title) => createWorkCard(title)}
+        onNewFeature={openFeatureFlow}
+        onContinueFeature={continueFeatureFlow}
         onEnsureConstitution={() => {
           void justifyChange({
             title: "Justify constitution",
@@ -747,7 +935,7 @@ export function App() {
         }}
         onOpenComponent={(id) =>
           navigateToDetail(
-            setTab(goSection(route(), "atlas"), "canvas"),
+            setTab(goSection(route(), "atlas"), "map"),
             "architecture:canvas",
             id,
             "arch-node",
@@ -769,22 +957,42 @@ export function App() {
         applyRoute(setEnvironment(route(), environmentId))
       }
       onOpenCommander={() => setPaletteOpen(true)}
-      onOpenSettings={() => applyRoute(setTab(goSection(route(), "settings"), "general"))}
+      onOpenSettings={() => applyRoute(openDialog(route(), { type: "settings", tab: "general" }), "silent")}
+      settingsOpen={settingsDialogTab() !== null}
       onOpenCliReference={() => navigateSection("cli")}
+      coreStatus={{
+        status: coreStatus(),
+        onStart: async () => setCoreStatus(await window.polterware.app.startCore()),
+        onStop: async () => setCoreStatus(await window.polterware.app.stopCore()),
+        onRestart: async () => setCoreStatus(await window.polterware.app.restartCore()),
+        onRevealLogs: () => window.polterware.app.revealCoreLogs(),
+        onCopy: (text) => navigator.clipboard.writeText(text),
+      }}
       canGoBack={historyIndex() > 0}
       canGoForward={historyIndex() < history().length - 1}
       onBack={goBack}
       onForward={goForward}
       status={{ dataMode: dataMode() }}
       platform={PLATFORM_CONTEXT}
+      navCounts={{
+        inbox: {
+          count: workspace().inbox.openCount,
+          tone: workspace().inbox.blockingCount > 0 ? "danger" : "muted",
+          label: `${workspace().inbox.openCount} open Inbox items, ${workspace().inbox.blockingCount} blocking`,
+        },
+      }}
     >
       <Suspense fallback={<PageLoading layout="page" label="Loading…" />}>
       <Switch>
         <Match when={route().section === "inbox"}>
-          <InboxPage />
+          <InboxPage
+            inbox={workspace().inbox}
+            loading={loading() || !workspace().extensionsReady}
+            onResolve={resolveInboxItem}
+          />
         </Match>
 
-        <Match when={route().section === "atlas"}>
+        <Match when={route().section === "atlas" && (route().tab === "map" || route().tab === "views")}>
           <ArchitectureView
             systems={[{ id: SYSTEM_ID, name: workspace().settings.name || "Polterware" }]}
             resources={workspace().resources.map((resource) => ({
@@ -886,6 +1094,24 @@ export function App() {
           />
         </Match>
 
+        <Match when={route().section === "atlas"}>
+          <AtlasCanvas
+            projectName={workspace().settings.name || "Project"}
+            nodes={pastAtlas()?.nodes ?? workspace().atlas.nodes}
+            driftSlugs={pastAtlas() ? [] : workspace().atlas.driftSlugs}
+            historical={pastAtlas() !== null}
+            timeline={
+              atlasHistory().length > 0
+                ? { value: atlasAsOf(), options: atlasTimelineOptions(), onChange: (point) => void selectAtlasPoint(point) }
+                : undefined
+            }
+            cards={workspace().workCards}
+            loading={loading() || !workspace().extensionsReady}
+            tab={route().tab}
+            onTabChange={(tab) => applyRoute(setTab(route(), tab))}
+          />
+        </Match>
+
         <Match when={route().section === "reality" && route().tab === "inventory"}>
           <ResourcesView
             tabs={[...SECTION_TABS.reality]}
@@ -906,7 +1132,7 @@ export function App() {
             onOpen={(id) => activateDetail("resources:inventory", id, "resource")}
             onOpenArchitecture={(nodeId) =>
               navigateToDetail(
-                setSelectedNode(setTab(goSection(route(), "atlas"), "canvas"), nodeId),
+                setSelectedNode(setTab(goSection(route(), "atlas"), "map"), nodeId),
                 "architecture:canvas",
                 nodeId,
                 "arch-node",
@@ -943,8 +1169,10 @@ export function App() {
           <KnowledgeSurface
             tab="library"
             tabs={[...SECTION_TABS.decisions]}
+            activeTab={route().tab}
             tabsLabel="Decisions"
             libraryKinds={["adr"]}
+            libraryDecisionState={route().tab as DecisionState}
           />
         </Match>
 
@@ -1038,16 +1266,21 @@ export function App() {
         <Match when={route().section === "cli"}>
           <CliReferencePage />
         </Match>
+      </Switch>
+      </Suspense>
 
-        <Match when={route().section === "settings"}>
+      <Show when={settingsDialogTab()}>
+        <Suspense>
           <SettingsView
-            tab={route().tab}
+            open
+            tab={settingsDialogTab() ?? undefined}
+            onClose={() => applyRoute(closeDialog(route()), "silent")}
             projectId={currentProjectId()}
             general={workspace().settings}
             environments={workspace().settingsEnvironments}
             repositories={workspace().repositories}
             loading={loading()}
-            onTabChange={(tab) => applyRoute(setTab(route(), tab))}
+            onTabChange={(tab) => applyRoute(openDialog(route(), { type: "settings", tab: tab as ProjectSettingsTabId }), "silent")}
             onAddRepository={async (draft) => {
               try {
                 await persistAddProjectRepo(currentProjectId(), draft.name, draft.path);
@@ -1149,16 +1382,15 @@ export function App() {
             onResetLocalStore={() => {
               void resetLocalStore().then(async () => {
                 pushToast("Local store reset to the demonstration project.", "success");
-                applyRoute(createDefaultRoute("atlas", PLATFORM_CONTEXT), "replace");
+                applyRoute(createDefaultRoute("inbox", PLATFORM_CONTEXT), "replace");
                 await refreshWorkspace("proj-polter");
               }).catch((error: unknown) => {
                 pushToast(error instanceof Error ? error.message : "Could not reset the local store.", "danger");
               });
             }}
           />
-        </Match>
-      </Switch>
-      </Suspense>
+        </Suspense>
+      </Show>
 
       <CreateProjectDialog
         open={createProjectOpen()}
@@ -1193,6 +1425,60 @@ export function App() {
         }}
       />
 
+      <Show when={flowOpen()}>
+        <Suspense>
+          <NewFeatureFlow
+            open={flowOpen()}
+            step={flowStep()}
+            review={flowReview()}
+            components={flowComponents()}
+            busy={flowBusy()}
+            errors={flowErrors()}
+            onStepChange={(step) => {
+              setFlowErrors([]);
+              setFlowStep(step);
+            }}
+            onClose={closeFeatureFlow}
+            onCreate={(input) => {
+              void runFlowWrite(
+                { title: "Justify new feature", defaultSummary: `Create feature: ${input.title || input.intent.slice(0, 60)}` },
+                (change) => persistFeatureCreate({ projectId: currentProjectId(), ...input, change }),
+              ).then((review) => {
+                if (review) setFlowStep("shape");
+              });
+            }}
+            onAddLine={(line) => {
+              const slug = flowReview()?.card.slug;
+              if (!slug) return;
+              const summary =
+                line.kind === "under"
+                  ? `Place ${slug} under ${line.path}`
+                  : line.kind === "task"
+                    ? `Add task to ${slug}: ${line.text}`
+                    : line.kind === "question"
+                      ? `Ask on ${slug}: ${line.text}`
+                      : `Add invariant to ${slug}: ${line.text}`;
+              void runFlowWrite(
+                { title: "Justify feature change", defaultSummary: summary },
+                (change) => persistFeatureLine(currentProjectId(), slug, line, change),
+              );
+            }}
+            onAdvance={(step) => {
+              const slug = flowReview()?.card.slug;
+              if (!slug) return;
+              void runFlowWrite(
+                {
+                  title: step === "contract" ? "Justify accepting the contract" : "Justify approving the plan",
+                  defaultSummary: step === "contract" ? `Accept contract for ${slug}` : `Approve plan for ${slug}`,
+                },
+                (change) => persistFeatureAdvance({ projectId: currentProjectId(), slug, step, change }),
+              ).then((review) => {
+                if (review) setFlowStep("plan");
+              });
+            }}
+          />
+        </Suspense>
+      </Show>
       <ChangeEnvelopeDialogHost />
 
       <CommandPalette

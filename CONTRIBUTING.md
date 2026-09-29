@@ -4,12 +4,11 @@ Thank you for helping improve Polterware.
 
 ## Before you start
 
-- Read `docs/spec.md` for the active product scope.
-- Read `docs/architecture/deployment-model.md` and `docs/architecture/repository-map.md` before changing deployment or repository boundaries.
+- Read `AGENTS.md` for the active product boundary and architecture rules, and `docs/future.md` for what is planned but not implemented.
 - Open an issue before starting a large feature or architecture change.
 - Never include credentials, real tokens, personal data, production configuration, or customer data.
 
-The active product is a local SQLite-backed Desktop with the local `polterware` core. A contribution must not imply that self-hosted or Polterware Cloud functionality exists unless an accepted specification introduces it.
+The active product is a local SQLite-backed Desktop with the local `polterware` core. A contribution must not imply that self-hosted or Polterware Cloud functionality exists unless an accepted decision introduces it.
 
 ## Development
 
@@ -26,7 +25,7 @@ Keep changes focused, preserve the public/private boundary, and add risk-proport
 ## Pull requests
 
 - Explain the user-visible or architectural outcome.
-- Link the relevant issue or specification when one exists.
+- Link the relevant issue when one exists.
 - List the validation commands that were run.
 - Call out skipped validation and known limitations.
 - Keep hosted control-plane implementation and production infrastructure out of this repository.

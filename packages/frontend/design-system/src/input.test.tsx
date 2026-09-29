@@ -1,13 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { Input, Textarea } from "./input";
 import { Select } from "./select";
 import { Field } from "./field";
 import { MenuItem, MenuPanel } from "./menu";
 
-const inputSourcePath = resolve(fileURLToPath(new URL(".", import.meta.url)), "./input.tsx");
+const inputSourcePath = resolve(import.meta.dirname, "./input.tsx");
 
 describe("form and menu primitives", () => {
   it("exports Input / Select / Textarea / Field / Menu", () => {

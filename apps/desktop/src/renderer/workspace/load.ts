@@ -13,12 +13,16 @@ import type {
   WorkspaceIntegrationSyncRun,
   WorkspaceRunbook,
   WorkspaceSource,
+  WorkspaceInbox,
+  WorkspaceAtlas,
+  WorkspaceAtlasHistoryEntry,
   WorkspaceWorkCard,
   WorkspaceConstitution,
 } from "@polterware/feature-shell";
 import { asNumber, asObjectArray, asRecord, asString } from "./format";
 import {
   mapAdrs,
+  mapAtlasHistory,
   mapConnections,
   mapDocuments,
   mapEnvironments,
@@ -35,6 +39,8 @@ import {
   mapConstitution,
   mapSources,
   mapSyncRuns,
+  mapInbox,
+  mapAtlas,
   mapWorkCards,
   mapViews,
 } from "./map-records";
@@ -55,6 +61,8 @@ export type WorkspaceSnapshot = {
   runbooks: WorkspaceRunbook[];
   sources: WorkspaceSource[];
   workCards: WorkspaceWorkCard[];
+  atlas: WorkspaceAtlas;
+  inbox: WorkspaceInbox;
   constitution: WorkspaceConstitution | null;
   ppmEntities: WorkspacePpmEntity[];
   providers: WorkspaceCatalogProvider[];
@@ -75,6 +83,8 @@ export type WorkspaceExtensions = Pick<
   | "runbooks"
   | "sources"
   | "workCards"
+  | "atlas"
+  | "inbox"
   | "constitution"
   | "ppmEntities"
   | "providers"
@@ -110,6 +120,8 @@ export function emptyWorkspaceExtensions(): WorkspaceExtensions {
     runbooks: [],
     sources: [],
     workCards: [],
+    atlas: emptyAtlas(),
+    inbox: emptyInbox(),
     constitution: null,
     ppmEntities: [],
     providers: [],
@@ -143,9 +155,47 @@ function core() {
   return window.polterware.core;
 }
 
+export function emptyInbox(): WorkspaceInbox {
+  return { items: [], openCount: 0, blockingCount: 0 };
+}
+
+export function emptyAtlas(): WorkspaceAtlas {
+  return { nodes: [], driftSlugs: [], historical: false };
+}
+
 /** Work cards only — the slice a Work change event refreshes. */
 export async function loadWorkCards(projectId: string): Promise<WorkspaceWorkCard[]> {
   return mapWorkCards(asObjectArray(asRecord(await core().work.listCards({ projectId })).cards));
+}
+
+/** Atlas nodes for the canvas. A failed read keeps the page usable with no nodes. */
+export async function loadAtlas(projectId: string, asOf = "", api = core()): Promise<WorkspaceAtlas> {
+  try {
+    return mapAtlas(asRecord(await api.work.listAtlas({ projectId, asOf })));
+  } catch (error) {
+    console.warn("Atlas read failed.", error);
+    return emptyAtlas();
+  }
+}
+
+/** Change batches that touched the Atlas. A failed read leaves the timeline with only Now. */
+export async function loadAtlasHistory(projectId: string, api = core()): Promise<WorkspaceAtlasHistoryEntry[]> {
+  try {
+    return mapAtlasHistory(asRecord(await api.work.listAtlasHistory({ projectId })));
+  } catch (error) {
+    console.warn("Atlas history read failed.", error);
+    return [];
+  }
+}
+
+/** The derived Inbox. A failed read keeps the page usable with no items. */
+export async function loadInbox(projectId: string, api = core()): Promise<WorkspaceInbox> {
+  try {
+    return mapInbox(asRecord(await api.work.listInbox({ projectId })));
+  } catch (error) {
+    console.warn("Inbox read failed.", error);
+    return emptyInbox();
+  }
 }
 
 /** The extension fields of a snapshot, to keep them across a shell reload. */
@@ -175,7 +225,7 @@ export async function loadProjects(currentProjectId?: string): Promise<ProjectCa
 }
 
 /**
- * Architecture + project shell — enough for the default route paint.
+ * Architecture + project shell — enough for the first workspace paint.
  * Extension domains (Knowledge / PPM / Integrations) load separately.
  */
 export async function loadWorkspaceShell(
@@ -239,6 +289,8 @@ export async function loadWorkspaceExtensions(
   const settled = await Promise.all([
     api.knowledge.list({ projectId }),
     api.work.listCards({ projectId }),
+    loadInbox(projectId, api),
+    loadAtlas(projectId, "", api),
     api.ppm.listEntities({ projectId }).catch(() => ({ entities: [] })),
     api.knowledge.listLinks({ projectId }).catch(() => ({ links: [] })),
     api.integrations.listProviders(),
@@ -250,6 +302,8 @@ export async function loadWorkspaceExtensions(
   const [
     knowledgeRes,
     workRes,
+    inbox,
+    atlas,
     entitiesRes,
     linksRes,
     providersRes,
@@ -257,7 +311,7 @@ export async function loadWorkspaceExtensions(
     integrationResourcesRes,
     syncRunsRes,
   ] = settled;
-  const environments: EnvironmentItem[] = settled[8];
+  const environments: EnvironmentItem[] = settled[10];
 
   const projectEnvironments = environments.filter((item) => item.projectId === projectId);
 
@@ -267,7 +321,7 @@ export async function loadWorkspaceExtensions(
   const ppmEntities = mapPpmEntities(asObjectArray(asRecord(entitiesRes).entities));
   const linksByKnowledge = mapKnowledgeEntityLinks(asObjectArray(asRecord(linksRes).links), ppmEntities);
   const documents = mapDocuments(knowledgeItems, linksByKnowledge);
-  const adrs = mapAdrs(knowledgeItems, linksByKnowledge);
+  const adrs = mapAdrs(knowledgeItems, linksByKnowledge, atlas.nodes);
   const runbooks = mapRunbooks(knowledgeItems, linksByKnowledge);
   const sources = mapSources(knowledgeItems, linksByKnowledge);
   const workCards = mapWorkCards(asObjectArray(asRecord(workRes).cards));
@@ -295,6 +349,8 @@ export async function loadWorkspaceExtensions(
     runbooks,
     sources,
     workCards,
+    atlas,
+    inbox,
     constitution,
     ppmEntities,
     providers,

@@ -47,6 +47,12 @@ func main() {
 		err = runRepo(*dbPath, rest)
 	case "context":
 		err = runContext(*dbPath, rest)
+	case "oracle":
+		err = runOracle(*dbPath, rest)
+	case "atlas":
+		err = runAtlas(*dbPath, rest)
+	case "export":
+		err = runExport(*dbPath, rest)
 	case "drift":
 		err = runDrift(*dbPath, rest)
 	case "apply":
@@ -61,6 +67,20 @@ func main() {
 		err = runStatus(*dbPath, rest)
 	case "handoff":
 		err = runHandoff(*dbPath, rest)
+	case "task":
+		err = runTask(*dbPath, rest)
+	case "decision":
+		err = runDecision(*dbPath, rest)
+	case "feature":
+		err = runFeature(*dbPath, rest)
+	case "verify":
+		err = runVerify(*dbPath, rest)
+	case "inbox":
+		err = runInbox(*dbPath, rest)
+	case "setup":
+		err = runSetup(*dbPath, rest)
+	case "hooks":
+		err = runHooks(*dbPath, rest)
 	case "hook":
 		err = runHook(*dbPath, rest)
 	case "help", "-h", "--help":

@@ -1,6 +1,9 @@
 import type { AppIconOption, AppIconSelection } from "./app-icons.js";
+import type { CoreStatus } from "./core-status.js";
+import type { StoredCorePreferences } from "./core-preferences.js";
 import type { McpServerStatus } from "./mcp-status.js";
 import type { StoredAppearancePreferences } from "./appearance-preferences.js";
+import type { StoredQuitPreferences } from "./quit-preferences.js";
 import type { StoredShortcutPreferences } from "./shortcut-preferences.js";
 
 export interface AppInfo {
@@ -23,9 +26,18 @@ export const IPC_CHANNELS = {
     setShortcutPreferences: "app:set-shortcut-preferences",
     getAppearancePreferences: "app:get-appearance-preferences",
     setAppearancePreferences: "app:set-appearance-preferences",
+    getQuitPreferences: "app:get-quit-preferences",
+    setQuitPreferences: "app:set-quit-preferences",
     getMcpStatus: "app:get-mcp-status",
     startMcp: "app:start-mcp",
     stopMcp: "app:stop-mcp",
+    getCorePreferences: "app:get-core-preferences",
+    setCorePreferences: "app:set-core-preferences",
+    getCoreStatus: "app:get-core-status",
+    startCore: "app:start-core",
+    stopCore: "app:stop-core",
+    restartCore: "app:restart-core",
+    revealCoreLogs: "app:reveal-core-logs",
     openExternal: "app:open-external",
     selectDirectory: "app:select-directory",
   },
@@ -64,7 +76,16 @@ export const IPC_CHANNELS = {
     saveKnowledgeLink: "core:save-knowledge-link",
     deleteKnowledgeLink: "core:delete-knowledge-link",
     listWorkCards: "core:list-work-cards",
+    listAtlas: "core:list-atlas",
+    listAtlasHistory: "core:list-atlas-history",
+    listAgentSessions: "core:list-agent-sessions",
+    queryPolter: "core:query-polter",
     applyPolter: "core:apply-polter",
+    listInbox: "core:list-inbox",
+    resolveInboxItem: "core:resolve-inbox-item",
+    reviewFeature: "core:review-feature",
+    createFeature: "core:create-feature",
+    advanceFeature: "core:advance-feature",
     listPpmEntities: "core:list-ppm-entities",
     syncProjectModel: "core:sync-project-model",
     importProjectSources: "core:import-project-sources",
@@ -79,6 +100,8 @@ export const IPC_CHANNELS = {
     checkDrift: "core:check-drift",
     getAgentRun: "core:get-agent-run",
     listChanges: "core:list-changes",
+    getAgentSetup: "core:get-agent-setup",
+    setHookSwitch: "core:set-hook-switch",
     listCliProviders: "core:list-cli-providers",
     listIntegrationConnections: "core:list-integration-connections",
     saveIntegrationConnection: "core:save-integration-connection",
@@ -106,6 +129,7 @@ export const IPC_EVENTS = {
   },
   core: {
     changed: "core:changed",
+    statusChanged: "core:status-changed",
   },
 } as const;
 
@@ -132,9 +156,18 @@ export type AppIpcRequests = {
   [IPC_CHANNELS.app.setShortcutPreferences]: JsonValue;
   [IPC_CHANNELS.app.getAppearancePreferences]: undefined;
   [IPC_CHANNELS.app.setAppearancePreferences]: JsonValue;
+  [IPC_CHANNELS.app.getQuitPreferences]: undefined;
+  [IPC_CHANNELS.app.setQuitPreferences]: JsonValue;
   [IPC_CHANNELS.app.getMcpStatus]: undefined;
   [IPC_CHANNELS.app.startMcp]: undefined;
   [IPC_CHANNELS.app.stopMcp]: undefined;
+  [IPC_CHANNELS.app.getCorePreferences]: undefined;
+  [IPC_CHANNELS.app.setCorePreferences]: JsonValue;
+  [IPC_CHANNELS.app.getCoreStatus]: undefined;
+  [IPC_CHANNELS.app.startCore]: undefined;
+  [IPC_CHANNELS.app.stopCore]: undefined;
+  [IPC_CHANNELS.app.restartCore]: undefined;
+  [IPC_CHANNELS.app.revealCoreLogs]: undefined;
   [IPC_CHANNELS.app.openExternal]: { url: string };
   [IPC_CHANNELS.app.selectDirectory]: undefined;
   [IPC_CHANNELS.commander.hideOverlay]: undefined;
@@ -151,9 +184,18 @@ export type AppIpcResponses = {
   [IPC_CHANNELS.app.setShortcutPreferences]: StoredShortcutPreferences;
   [IPC_CHANNELS.app.getAppearancePreferences]: StoredAppearancePreferences;
   [IPC_CHANNELS.app.setAppearancePreferences]: StoredAppearancePreferences;
+  [IPC_CHANNELS.app.getQuitPreferences]: StoredQuitPreferences;
+  [IPC_CHANNELS.app.setQuitPreferences]: StoredQuitPreferences;
   [IPC_CHANNELS.app.getMcpStatus]: McpServerStatus;
   [IPC_CHANNELS.app.startMcp]: McpServerStatus;
   [IPC_CHANNELS.app.stopMcp]: McpServerStatus;
+  [IPC_CHANNELS.app.getCorePreferences]: StoredCorePreferences;
+  [IPC_CHANNELS.app.setCorePreferences]: StoredCorePreferences;
+  [IPC_CHANNELS.app.getCoreStatus]: CoreStatus;
+  [IPC_CHANNELS.app.startCore]: CoreStatus;
+  [IPC_CHANNELS.app.stopCore]: CoreStatus;
+  [IPC_CHANNELS.app.restartCore]: CoreStatus;
+  [IPC_CHANNELS.app.revealCoreLogs]: { ok: boolean };
   [IPC_CHANNELS.app.openExternal]: { ok: boolean };
   [IPC_CHANNELS.app.selectDirectory]: { path: string | null };
   [IPC_CHANNELS.commander.hideOverlay]: void;

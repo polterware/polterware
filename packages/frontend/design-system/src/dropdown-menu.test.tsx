@@ -7,6 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./dropdown-menu";
+import { repoPath } from "../test/repo-path";
 
 describe("DropdownMenu", () => {
   it("exports compound components", () => {
@@ -19,7 +20,7 @@ describe("DropdownMenu", () => {
 
   it("forwards custom positioning to Ark Menu.Root", () => {
     const source = readFileSync(
-      "packages/frontend/design-system/src/dropdown-menu.tsx",
+      repoPath("packages/frontend/design-system/src/dropdown-menu.tsx"),
       "utf8",
     );
     expect(source).toContain('positioning?: MenuRootProps["positioning"]');
@@ -27,7 +28,7 @@ describe("DropdownMenu", () => {
   });
 
   it("applies placement direction selectors for origin and transform", () => {
-    const css = readFileSync("packages/frontend/design-system/src/dropdown-menu.css", "utf8");
+    const css = readFileSync(repoPath("packages/frontend/design-system/src/dropdown-menu.css"), "utf8");
     expect(css).toContain('[data-placement^="bottom"] .pw-dropdown-surface { transform: translateY(-4px)');
     expect(css).toContain('[data-placement^="top"] .pw-dropdown-surface { transform: translateY(4px)');
     expect(css).toContain('[data-placement^="right"] .pw-dropdown-surface { transform: translateX(-4px)');
@@ -35,14 +36,14 @@ describe("DropdownMenu", () => {
   });
 
   it("splits no-paint presence clock from inner visual motion", () => {
-    const css = readFileSync("packages/frontend/design-system/src/dropdown-menu.css", "utf8");
+    const css = readFileSync(repoPath("packages/frontend/design-system/src/dropdown-menu.css"), "utf8");
     expect(css).toMatch(/@keyframes pw-dropdown-presence {[\s\S]*--pw-dropdown-presence-clock: 1;/);
     expect(css).toMatch(/\.pw-dropdown-presence\s*{[^}]*animation: pw-dropdown-presence/);
     expect(css).toMatch(/\.pw-dropdown-surface\s*{[^}]*transition: transform/);
   });
 
   it("uses exact enter/exit durations", () => {
-    const css = readFileSync("packages/frontend/design-system/src/dropdown-menu.css", "utf8");
+    const css = readFileSync(repoPath("packages/frontend/design-system/src/dropdown-menu.css"), "utf8");
     expect(css).toContain("var(--duration-control, 160ms)");
     expect(css).toContain("var(--duration-fast, 120ms)");
     expect(css).toContain("transition-duration: var(--duration-control, 160ms)");
@@ -50,7 +51,7 @@ describe("DropdownMenu", () => {
   });
 
   it("provides reduced-motion opacity-only behavior", () => {
-    const css = readFileSync("packages/frontend/design-system/src/dropdown-menu.css", "utf8");
+    const css = readFileSync(repoPath("packages/frontend/design-system/src/dropdown-menu.css"), "utf8");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
     expect(css).toMatch(/transform: none !important;/);
     expect(css).toMatch(/transition: opacity var\(--duration-fast, 120ms\)/);

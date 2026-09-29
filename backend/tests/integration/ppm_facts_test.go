@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/polterware/polterware/backend/domains/ppm"
-	"github.com/polterware/polterware/backend/providers/seed"
+	"github.com/polterware/polterware/backend/providers/demoseed"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
@@ -15,15 +15,15 @@ func TestPPMFactsEvidenceProvenance(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	if err := seed.Defaults(store); err != nil {
+	if err := demoseed.Defaults(store); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.SyncProjectModel(seed.ProjectID); err != nil {
+	if _, err := store.SyncProjectModel(demoseed.ProjectID); err != nil {
 		t.Fatal(err)
 	}
 
 	fact, err := ppm.NewFact(
-		seed.ProjectID,
+		demoseed.ProjectID,
 		"polterware-core is the local authority binary",
 		ppm.TruthObserved,
 		"import:README",
@@ -38,7 +38,7 @@ func TestPPMFactsEvidenceProvenance(t *testing.T) {
 	}
 
 	evidence, err := ppm.NewEvidence(
-		seed.ProjectID,
+		demoseed.ProjectID,
 		ppm.EvidenceKindFile,
 		"README describes polterware-core",
 		"fs",
@@ -51,7 +51,7 @@ func TestPPMFactsEvidenceProvenance(t *testing.T) {
 	if err := store.UpsertPpmEvidence(evidence); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.LinkPpmEvidenceToFact(seed.ProjectID, fact.ID, evidence.ID); err != nil {
+	if err := store.LinkPpmEvidenceToFact(demoseed.ProjectID, fact.ID, evidence.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -70,7 +70,7 @@ func TestPPMFactsEvidenceProvenance(t *testing.T) {
 		t.Fatalf("unexpected evidence: %+v", linked)
 	}
 
-	_, err = ppm.NewFact(seed.ProjectID, "verified claim", ppm.TruthVerified, "human", "system", "")
+	_, err = ppm.NewFact(demoseed.ProjectID, "verified claim", ppm.TruthVerified, "human", "system", "")
 	if err != ppm.ErrVerifiedRequiresActor {
 		t.Fatalf("expected verified actor error, got %v", err)
 	}

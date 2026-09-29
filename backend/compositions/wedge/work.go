@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/polterware/polterware/backend/domains/agentrun"
+	"github.com/polterware/polterware/backend/domains/decision"
+	"github.com/polterware/polterware/backend/domains/inbox"
 	"github.com/polterware/polterware/backend/domains/polter"
 	"github.com/polterware/polterware/backend/domains/projects"
 	"github.com/polterware/polterware/backend/domains/work"
@@ -75,9 +77,9 @@ func polterReferences(store *storepkg.Store, snapshot work.Snapshot) (*polter.Re
 	if err != nil {
 		return nil, err
 	}
-	refs := &polter.References{Cards: snapshot.Cards}
+	refs := &polter.References{Cards: snapshot.Cards, Nodes: snapshot.Nodes, Repos: snapshot.Repos}
 	for _, adr := range adrs {
-		refs.ADRs = append(refs.ADRs, polter.ADRRef{ID: adr.ID, Title: adr.Title})
+		refs.ADRs = append(refs.ADRs, polter.ADRRef{ID: adr.ID, Title: adr.Title, Status: adr.Status})
 	}
 	view := ProjectGit(store, snapshot.ProjectID)
 	refs.Git = &view
@@ -110,6 +112,9 @@ type ApplyInput struct {
 	// the Desktop passes a human actor and its own tool name.
 	ActorKind string
 	Tool      string
+	// Agent is the session agent label that claim, done, and release lines
+	// act for. Empty rejects those lines.
+	Agent string
 }
 
 type ApplyResult struct {
@@ -138,8 +143,8 @@ func ApplyPolter(store *storepkg.Store, in ApplyInput) (ApplyResult, error) {
 		return result, err
 	}
 	doc, diags := polter.Lint(in.Text, refs)
-	ops, planDiags := polter.Plan(doc, snapshot)
-	result.Diagnostics = append(diags, planDiags...)
+	ops, planDiags := polter.PlanAs(doc, snapshot, in.Agent)
+	result.Diagnostics = mergeDiagnostics(diags, planDiags)
 	if polter.HasErrors(result.Diagnostics) {
 		return result, ErrPolterInvalid
 	}
@@ -182,7 +187,9 @@ func ApplyPolter(store *storepkg.Store, in ApplyInput) (ApplyResult, error) {
 	return result, nil
 }
 
-// QueryPolter answers a v1 query ("cards", "card <slug>", "status", "handoff <slug>") in Polter text.
+// QueryPolter answers a v1 query ("cards", "card <slug>", "status", "inbox",
+// "handoff <slug>", "oracle", "atlas", "decisions [state]", "decision <adr>",
+// "feature <slug>", "verify <target>") in text.
 func QueryPolter(store *storepkg.Store, projectID, text string) (string, error) {
 	query, err := polter.ParseQuery(text)
 	if err != nil {
@@ -203,6 +210,45 @@ func QueryPolter(store *storepkg.Store, projectID, text string) (string, error) 
 		return queryHandoff(store, snapshot, query.Slug)
 	case polter.QueryStatus:
 		return queryStatus(store, snapshot), nil
+	case polter.QueryInbox:
+		result, err := listInbox(store, snapshot)
+		if err != nil {
+			return "", err
+		}
+		return inbox.List(result), nil
+	case polter.QueryOracle:
+		return polter.Oracle(snapshot.Nodes, snapshot.Cards, query.Slug, query.Zoom, query.Budget)
+	case polter.QueryDecisions:
+		return polter.EncodeDecisions(snapshot.Decisions, query.Slug), nil
+	case polter.QueryDecision:
+		target, ok := decision.Find(snapshot.Decisions, query.Slug)
+		if !ok {
+			return "", fmt.Errorf("unknown decision %q: list decisions with polterware decision list", query.Slug)
+		}
+		return polter.EncodeDecision(target, snapshot.Decisions, polter.NodesCiting(snapshot.Nodes, target)), nil
+	case polter.QueryFeature, polter.QueryVerify:
+		return queryFeature(store, snapshot, query)
+	case polter.QueryAtlas:
+		project, err := store.GetProject(projectID)
+		if err != nil {
+			return "", err
+		}
+		if query.History {
+			entries, err := AtlasHistory(store, projectID)
+			if err != nil {
+				return "", err
+			}
+			return encodeAtlasHistory(entries), nil
+		}
+		if query.At != "" {
+			rows, err := AtlasAt(context.Background(), store, projectID, query.At)
+			if err != nil {
+				return "", err
+			}
+			return "Atlas at " + query.At + " (structure only: status, features, and drift are live)\n" +
+				polter.EncodeAtlas(project.Name, rows, nil, query.Slug), nil
+		}
+		return polter.EncodeAtlas(project.Name, atlasRows(store, snapshot), snapshot.Cards, query.Slug), nil
 	default:
 		return polter.EncodeList(snapshot), nil
 	}
@@ -225,17 +271,45 @@ func queryHandoff(store *storepkg.Store, snapshot work.Snapshot, slug string) (s
 }
 
 func queryStatus(store *storepkg.Store, snapshot work.Snapshot) string {
+	// The Inbox is a best-effort addition: a drift read that fails leaves
+	// status without its inbox lines rather than failing the session start.
+	inboxLines := ""
+	if result, err := listInbox(store, snapshot); err == nil {
+		inboxLines = inbox.StatusLines(result)
+	}
 	view := ProjectGit(store, snapshot.ProjectID)
 	card, slugs, err := SelectWorkCard(snapshot, "", view.Branch)
 	if err != nil {
-		return polter.EncodeStatusUnresolved(view.Branch, slugs)
+		return polter.EncodeStatusUnresolved(view.Branch, slugs) + polter.EncodeStatusClaims("", snapshot) + inboxLines
 	}
 	var current *work.Handoff
 	if handoff, ok := card.LatestHandoff(view.Branch); ok && view.Branch != "" && view.Branch != "HEAD" {
 		current = &handoff
 	}
 	stage := polter.DisplayStage(card.Stage, view.Delivered)
-	return polter.EncodeStatus(card, view.Branch, stage, current)
+	return polter.EncodeStatus(card, view.Branch, stage, current) + polter.EncodeStatusClaims(card.Slug, snapshot) + inboxLines
+}
+
+// mergeDiagnostics keeps lint output, then plan diagnostics that lint did not
+// already report (CheckGraph runs in both).
+func mergeDiagnostics(lint, plan []polter.Diagnostic) []polter.Diagnostic {
+	seen := map[string]bool{}
+	out := make([]polter.Diagnostic, 0, len(lint)+len(plan))
+	add := func(diag polter.Diagnostic) {
+		key := fmt.Sprintf("%d\x00%s\x00%s", diag.Line, diag.Severity, diag.Message)
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		out = append(out, diag)
+	}
+	for _, diag := range lint {
+		add(diag)
+	}
+	for _, diag := range plan {
+		add(diag)
+	}
+	return out
 }
 
 func firstNonEmpty(values ...string) string {

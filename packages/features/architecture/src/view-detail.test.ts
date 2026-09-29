@@ -92,7 +92,7 @@ describe("ArchitectureViewDetail composition contract", () => {
     expect(architectureIndex).toContain("openEditView");
     expect(architectureIndex).toContain('setDeepMode("view-edit")');
     expect(architectureIndex).toContain("setActiveViewId");
-    expect(architectureIndex).toContain('props.onTabChange?.("canvas")');
+    expect(architectureIndex).toContain('props.onTabChange?.("map")');
   });
 });
 

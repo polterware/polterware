@@ -58,7 +58,18 @@ export function createCoreDomainControllers(clients: CoreClients) {
     saveKnowledgeLink: async (input?: JsonObject) => toJsonObject(await clients.knowledge.saveKnowledgeLink(requestMessage(input))),
     deleteKnowledgeLink: async (input?: JsonObject) => toJsonObject(await clients.knowledge.deleteKnowledgeLink(requestMessage(input))),
     listWorkCards: async (input?: JsonObject) => toJsonObject(await clients.work.listWorkCards(requestMessage(input))),
+    listAtlas: async (input?: JsonObject) => toJsonObject(await clients.work.listAtlas(requestMessage(input))),
+    listAgentSessions: async (input?: JsonObject) =>
+      toJsonObject(await clients.work.listAgentSessions(requestMessage(input))),
+    listAtlasHistory: async (input?: JsonObject) =>
+      toJsonObject(await clients.work.listAtlasHistory(requestMessage(input))),
+    queryPolter: async (input?: JsonObject) => toJsonObject(await clients.work.queryPolter(requestMessage(input))),
     applyPolter: async (input?: JsonObject) => toJsonObject(await clients.work.applyPolter(requestMessage(input))),
+    listInbox: async (input?: JsonObject) => toJsonObject(await clients.work.listInbox(requestMessage(input))),
+    resolveInboxItem: async (input?: JsonObject) => toJsonObject(await clients.work.resolveInboxItem(requestMessage(input))),
+    reviewFeature: async (input?: JsonObject) => toJsonObject(await clients.work.reviewFeature(requestMessage(input))),
+    createFeature: async (input?: JsonObject) => toJsonObject(await clients.work.createFeature(requestMessage(input))),
+    advanceFeature: async (input?: JsonObject) => toJsonObject(await clients.work.advanceFeature(requestMessage(input))),
     listPpmEntities: async (input?: JsonObject) => toJsonObject(await clients.ppm.listEntities(requestMessage(input))),
     syncProjectModel: async (input?: JsonObject) => toJsonObject(await clients.ppm.syncProjectModel(requestMessage(input))),
     importProjectSources: async (input?: JsonObject) =>
@@ -75,6 +86,8 @@ export function createCoreDomainControllers(clients: CoreClients) {
     checkDrift: async (input?: JsonObject) => toJsonObject(await clients.context.checkDrift(requestMessage(input))),
     getAgentRun: async (input?: JsonObject) => toJsonObject(await clients.agentRuns.getAgentRun(requestMessage(input))),
     listChanges: async (input?: JsonObject) => toJsonObject(await clients.agentRuns.listChanges(requestMessage(input))),
+    getAgentSetup: async (input?: JsonObject) => toJsonObject(await clients.agentRuns.getAgentSetup(requestMessage(input))),
+    setHookSwitch: async (input?: JsonObject) => toJsonObject(await clients.agentRuns.setHookSwitch(requestMessage(input))),
     listCliProviders: async () => toJsonObject(await clients.integrations.listCliProviders({})),
     listIntegrationConnections: async (input?: JsonObject) => toJsonObject(await clients.integrations.listIntegrationConnections(requestMessage(input))),
     saveIntegrationConnection: async (input?: JsonObject) => toJsonObject(await clients.integrations.saveIntegrationConnection(requestMessage(input))),

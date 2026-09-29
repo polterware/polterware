@@ -76,8 +76,8 @@ export function libraryRowsFromWorkspace(input: {
     entityKind: "adr",
     title: adr.title,
     categoryLabel: LIBRARY_CATEGORY_LABEL.adr,
-    statusLabel: adr.status,
-    statusTone: "ok",
+    statusLabel: adr.state,
+    statusTone: decisionStateTone(adr.state),
     meta: adr.owner,
     updatedAt: adr.updatedAt,
     hasLinks: adr.entityLinks.length > 0,
@@ -147,4 +147,16 @@ export function toggleFilterValue<T extends string>(
   checked: boolean,
 ): T[] {
   return checked ? [...current, id] : current.filter((value) => value !== id);
+}
+
+/** Tone of an ADR lifecycle state chip. */
+export function decisionStateTone(state: WorkspaceAdr["state"]): StatusTone {
+  switch (state) {
+    case "active":
+      return "ok";
+    case "challenged":
+      return "warn";
+    default:
+      return "muted";
+  }
 }

@@ -1,10 +1,11 @@
 import { ChevronLeft, ChevronRight, Search } from "@polterware/frontend-design-system";
 import { createShortcutLabel } from "@polterware/frontend-state";
-import { createSignal } from "solid-js";
+import { Show, createSignal } from "solid-js";
 import {
   WorkspaceContextBar,
   type WorkspaceContext,
 } from "./context-switchers";
+import { CoreStatusMenu, type CoreStatusMenuProps } from "./core-status-menu";
 import { HelpMenu } from "./help-menu";
 import { HelpTopicDialog } from "./help-topic-dialog";
 import type { HelpTopicId } from "./help-topics";
@@ -24,6 +25,7 @@ export type TitleBarProps = {
   onCreateProject?: () => void;
   onOpenCommander?: () => void;
   onOpenCliReference?: () => void;
+  coreStatus?: CoreStatusMenuProps;
 };
 
 export function TitleBar(props: TitleBarProps) {
@@ -79,6 +81,7 @@ export function TitleBar(props: TitleBarProps) {
           >
             <Search size={14} />
           </button>
+          <Show when={props.coreStatus}>{(coreStatus) => <CoreStatusMenu {...coreStatus()} />}</Show>
           <HelpMenu
             onSelectTopic={(topicId) => setActiveTopicId(topicId)}
             onOpenCliReference={props.onOpenCliReference}

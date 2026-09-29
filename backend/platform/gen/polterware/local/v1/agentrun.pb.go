@@ -838,6 +838,475 @@ func (x *ListMcpSessionsResponse) GetSessions() []*McpSession {
 	return nil
 }
 
+// HookSwitch is one plugin hook the operator can turn off. hooks.json is
+// fixed; `polterware hook <name>` exits 0 when its switch is off.
+type HookSwitch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Note          string                 `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
+	Enabled       bool                   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HookSwitch) Reset() {
+	*x = HookSwitch{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HookSwitch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HookSwitch) ProtoMessage() {}
+
+func (x *HookSwitch) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HookSwitch.ProtoReflect.Descriptor instead.
+func (*HookSwitch) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *HookSwitch) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *HookSwitch) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *HookSwitch) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+func (x *HookSwitch) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+// AgentSetup is the setup doctor's view: the hook switches, the Claude Code
+// plugin against this binary, and the Codex / other agents path.
+type AgentSetup struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Hooks           []*HookSwitch          `protobuf:"bytes,1,rep,name=hooks,proto3" json:"hooks,omitempty"`
+	PolterwarePath  string                 `protobuf:"bytes,2,opt,name=polterware_path,json=polterwarePath,proto3" json:"polterware_path,omitempty"`
+	ClaudePath      string                 `protobuf:"bytes,3,opt,name=claude_path,json=claudePath,proto3" json:"claude_path,omitempty"`
+	PluginInstalled bool                   `protobuf:"varint,4,opt,name=plugin_installed,json=pluginInstalled,proto3" json:"plugin_installed,omitempty"`
+	PluginEnabled   bool                   `protobuf:"varint,5,opt,name=plugin_enabled,json=pluginEnabled,proto3" json:"plugin_enabled,omitempty"`
+	PluginVersion   string                 `protobuf:"bytes,6,opt,name=plugin_version,json=pluginVersion,proto3" json:"plugin_version,omitempty"`
+	EmbeddedVersion string                 `protobuf:"bytes,7,opt,name=embedded_version,json=embeddedVersion,proto3" json:"embedded_version,omitempty"`
+	MarketplaceDir  string                 `protobuf:"bytes,8,opt,name=marketplace_dir,json=marketplaceDir,proto3" json:"marketplace_dir,omitempty"`
+	Problem         string                 `protobuf:"bytes,9,opt,name=problem,proto3" json:"problem,omitempty"`
+	SkillPath       string                 `protobuf:"bytes,10,opt,name=skill_path,json=skillPath,proto3" json:"skill_path,omitempty"`
+	SkillReady      bool                   `protobuf:"varint,11,opt,name=skill_ready,json=skillReady,proto3" json:"skill_ready,omitempty"`
+	AgentsLineReady bool                   `protobuf:"varint,12,opt,name=agents_line_ready,json=agentsLineReady,proto3" json:"agents_line_ready,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AgentSetup) Reset() {
+	*x = AgentSetup{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSetup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSetup) ProtoMessage() {}
+
+func (x *AgentSetup) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSetup.ProtoReflect.Descriptor instead.
+func (*AgentSetup) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *AgentSetup) GetHooks() []*HookSwitch {
+	if x != nil {
+		return x.Hooks
+	}
+	return nil
+}
+
+func (x *AgentSetup) GetPolterwarePath() string {
+	if x != nil {
+		return x.PolterwarePath
+	}
+	return ""
+}
+
+func (x *AgentSetup) GetClaudePath() string {
+	if x != nil {
+		return x.ClaudePath
+	}
+	return ""
+}
+
+func (x *AgentSetup) GetPluginInstalled() bool {
+	if x != nil {
+		return x.PluginInstalled
+	}
+	return false
+}
+
+func (x *AgentSetup) GetPluginEnabled() bool {
+	if x != nil {
+		return x.PluginEnabled
+	}
+	return false
+}
+
+func (x *AgentSetup) GetPluginVersion() string {
+	if x != nil {
+		return x.PluginVersion
+	}
+	return ""
+}
+
+func (x *AgentSetup) GetEmbeddedVersion() string {
+	if x != nil {
+		return x.EmbeddedVersion
+	}
+	return ""
+}
+
+func (x *AgentSetup) GetMarketplaceDir() string {
+	if x != nil {
+		return x.MarketplaceDir
+	}
+	return ""
+}
+
+func (x *AgentSetup) GetProblem() string {
+	if x != nil {
+		return x.Problem
+	}
+	return ""
+}
+
+func (x *AgentSetup) GetSkillPath() string {
+	if x != nil {
+		return x.SkillPath
+	}
+	return ""
+}
+
+func (x *AgentSetup) GetSkillReady() bool {
+	if x != nil {
+		return x.SkillReady
+	}
+	return false
+}
+
+func (x *AgentSetup) GetAgentsLineReady() bool {
+	if x != nil {
+		return x.AgentsLineReady
+	}
+	return false
+}
+
+type GetAgentSetupRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentSetupRequest) Reset() {
+	*x = GetAgentSetupRequest{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentSetupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentSetupRequest) ProtoMessage() {}
+
+func (x *GetAgentSetupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentSetupRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentSetupRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetAgentSetupRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+type GetAgentSetupResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Setup         *AgentSetup            `protobuf:"bytes,1,opt,name=setup,proto3" json:"setup,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentSetupResponse) Reset() {
+	*x = GetAgentSetupResponse{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentSetupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentSetupResponse) ProtoMessage() {}
+
+func (x *GetAgentSetupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentSetupResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentSetupResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetAgentSetupResponse) GetSetup() *AgentSetup {
+	if x != nil {
+		return x.Setup
+	}
+	return nil
+}
+
+// ListHookSwitches is the cheap read hooks use; GetAgentSetup also runs the doctor.
+type ListHookSwitchesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListHookSwitchesRequest) Reset() {
+	*x = ListHookSwitchesRequest{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListHookSwitchesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListHookSwitchesRequest) ProtoMessage() {}
+
+func (x *ListHookSwitchesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListHookSwitchesRequest.ProtoReflect.Descriptor instead.
+func (*ListHookSwitchesRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{17}
+}
+
+type ListHookSwitchesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Hooks         []*HookSwitch          `protobuf:"bytes,1,rep,name=hooks,proto3" json:"hooks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListHookSwitchesResponse) Reset() {
+	*x = ListHookSwitchesResponse{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListHookSwitchesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListHookSwitchesResponse) ProtoMessage() {}
+
+func (x *ListHookSwitchesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListHookSwitchesResponse.ProtoReflect.Descriptor instead.
+func (*ListHookSwitchesResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ListHookSwitchesResponse) GetHooks() []*HookSwitch {
+	if x != nil {
+		return x.Hooks
+	}
+	return nil
+}
+
+type SetHookSwitchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Enabled       bool                   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetHookSwitchRequest) Reset() {
+	*x = SetHookSwitchRequest{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetHookSwitchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetHookSwitchRequest) ProtoMessage() {}
+
+func (x *SetHookSwitchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetHookSwitchRequest.ProtoReflect.Descriptor instead.
+func (*SetHookSwitchRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SetHookSwitchRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SetHookSwitchRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+type SetHookSwitchResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Hooks         []*HookSwitch          `protobuf:"bytes,1,rep,name=hooks,proto3" json:"hooks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetHookSwitchResponse) Reset() {
+	*x = SetHookSwitchResponse{}
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetHookSwitchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetHookSwitchResponse) ProtoMessage() {}
+
+func (x *SetHookSwitchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_agentrun_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetHookSwitchResponse.ProtoReflect.Descriptor instead.
+func (*SetHookSwitchResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_agentrun_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SetHookSwitchResponse) GetHooks() []*HookSwitch {
+	if x != nil {
+		return x.Hooks
+	}
+	return nil
+}
+
 var File_polterware_local_v1_agentrun_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_agentrun_proto_rawDesc = "" +
@@ -919,8 +1388,48 @@ const file_polterware_local_v1_agentrun_proto_rawDesc = "" +
 	"lastSeenAt\"\x18\n" +
 	"\x16ListMcpSessionsRequest\"V\n" +
 	"\x17ListMcpSessionsResponse\x12;\n" +
-	"\bsessions\x18\x01 \x03(\v2\x1f.polterware.local.v1.McpSessionR\bsessions2\xab\x03\n" +
-	"\x0fAgentRunService\x12l\n" +
+	"\bsessions\x18\x01 \x03(\v2\x1f.polterware.local.v1.McpSessionR\bsessions\"d\n" +
+	"\n" +
+	"HookSwitch\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x12\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note\x12\x18\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\"\xe0\x03\n" +
+	"\n" +
+	"AgentSetup\x125\n" +
+	"\x05hooks\x18\x01 \x03(\v2\x1f.polterware.local.v1.HookSwitchR\x05hooks\x12'\n" +
+	"\x0fpolterware_path\x18\x02 \x01(\tR\x0epolterwarePath\x12\x1f\n" +
+	"\vclaude_path\x18\x03 \x01(\tR\n" +
+	"claudePath\x12)\n" +
+	"\x10plugin_installed\x18\x04 \x01(\bR\x0fpluginInstalled\x12%\n" +
+	"\x0eplugin_enabled\x18\x05 \x01(\bR\rpluginEnabled\x12%\n" +
+	"\x0eplugin_version\x18\x06 \x01(\tR\rpluginVersion\x12)\n" +
+	"\x10embedded_version\x18\a \x01(\tR\x0fembeddedVersion\x12'\n" +
+	"\x0fmarketplace_dir\x18\b \x01(\tR\x0emarketplaceDir\x12\x18\n" +
+	"\aproblem\x18\t \x01(\tR\aproblem\x12\x1d\n" +
+	"\n" +
+	"skill_path\x18\n" +
+	" \x01(\tR\tskillPath\x12\x1f\n" +
+	"\vskill_ready\x18\v \x01(\bR\n" +
+	"skillReady\x12*\n" +
+	"\x11agents_line_ready\x18\f \x01(\bR\x0fagentsLineReady\"5\n" +
+	"\x14GetAgentSetupRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"N\n" +
+	"\x15GetAgentSetupResponse\x125\n" +
+	"\x05setup\x18\x01 \x01(\v2\x1f.polterware.local.v1.AgentSetupR\x05setup\"\x19\n" +
+	"\x17ListHookSwitchesRequest\"Q\n" +
+	"\x18ListHookSwitchesResponse\x125\n" +
+	"\x05hooks\x18\x01 \x03(\v2\x1f.polterware.local.v1.HookSwitchR\x05hooks\"D\n" +
+	"\x14SetHookSwitchRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
+	"\aenabled\x18\x02 \x01(\bR\aenabled\"N\n" +
+	"\x15SetHookSwitchResponse\x125\n" +
+	"\x05hooks\x18\x01 \x03(\v2\x1f.polterware.local.v1.HookSwitchR\x05hooks2\xec\x05\n" +
+	"\x0fAgentRunService\x12f\n" +
+	"\rGetAgentSetup\x12).polterware.local.v1.GetAgentSetupRequest\x1a*.polterware.local.v1.GetAgentSetupResponse\x12o\n" +
+	"\x10ListHookSwitches\x12,.polterware.local.v1.ListHookSwitchesRequest\x1a-.polterware.local.v1.ListHookSwitchesResponse\x12f\n" +
+	"\rSetHookSwitch\x12).polterware.local.v1.SetHookSwitchRequest\x1a*.polterware.local.v1.SetHookSwitchResponse\x12l\n" +
 	"\x0fListMcpSessions\x12+.polterware.local.v1.ListMcpSessionsRequest\x1a,.polterware.local.v1.ListMcpSessionsResponse\x12f\n" +
 	"\rListAgentRuns\x12).polterware.local.v1.ListAgentRunsRequest\x1a*.polterware.local.v1.ListAgentRunsResponse\x12`\n" +
 	"\vGetAgentRun\x12'.polterware.local.v1.GetAgentRunRequest\x1a(.polterware.local.v1.GetAgentRunResponse\x12`\n" +
@@ -939,21 +1448,29 @@ func file_polterware_local_v1_agentrun_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_agentrun_proto_rawDescData
 }
 
-var file_polterware_local_v1_agentrun_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_polterware_local_v1_agentrun_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_polterware_local_v1_agentrun_proto_goTypes = []any{
-	(*AgentRun)(nil),                // 0: polterware.local.v1.AgentRun
-	(*AgentRunStep)(nil),            // 1: polterware.local.v1.AgentRunStep
-	(*ChangeEnvelope)(nil),          // 2: polterware.local.v1.ChangeEnvelope
-	(*ListAgentRunsRequest)(nil),    // 3: polterware.local.v1.ListAgentRunsRequest
-	(*ListAgentRunsResponse)(nil),   // 4: polterware.local.v1.ListAgentRunsResponse
-	(*GetAgentRunRequest)(nil),      // 5: polterware.local.v1.GetAgentRunRequest
-	(*GetAgentRunResponse)(nil),     // 6: polterware.local.v1.GetAgentRunResponse
-	(*ProjectChange)(nil),           // 7: polterware.local.v1.ProjectChange
-	(*ListChangesRequest)(nil),      // 8: polterware.local.v1.ListChangesRequest
-	(*ListChangesResponse)(nil),     // 9: polterware.local.v1.ListChangesResponse
-	(*McpSession)(nil),              // 10: polterware.local.v1.McpSession
-	(*ListMcpSessionsRequest)(nil),  // 11: polterware.local.v1.ListMcpSessionsRequest
-	(*ListMcpSessionsResponse)(nil), // 12: polterware.local.v1.ListMcpSessionsResponse
+	(*AgentRun)(nil),                 // 0: polterware.local.v1.AgentRun
+	(*AgentRunStep)(nil),             // 1: polterware.local.v1.AgentRunStep
+	(*ChangeEnvelope)(nil),           // 2: polterware.local.v1.ChangeEnvelope
+	(*ListAgentRunsRequest)(nil),     // 3: polterware.local.v1.ListAgentRunsRequest
+	(*ListAgentRunsResponse)(nil),    // 4: polterware.local.v1.ListAgentRunsResponse
+	(*GetAgentRunRequest)(nil),       // 5: polterware.local.v1.GetAgentRunRequest
+	(*GetAgentRunResponse)(nil),      // 6: polterware.local.v1.GetAgentRunResponse
+	(*ProjectChange)(nil),            // 7: polterware.local.v1.ProjectChange
+	(*ListChangesRequest)(nil),       // 8: polterware.local.v1.ListChangesRequest
+	(*ListChangesResponse)(nil),      // 9: polterware.local.v1.ListChangesResponse
+	(*McpSession)(nil),               // 10: polterware.local.v1.McpSession
+	(*ListMcpSessionsRequest)(nil),   // 11: polterware.local.v1.ListMcpSessionsRequest
+	(*ListMcpSessionsResponse)(nil),  // 12: polterware.local.v1.ListMcpSessionsResponse
+	(*HookSwitch)(nil),               // 13: polterware.local.v1.HookSwitch
+	(*AgentSetup)(nil),               // 14: polterware.local.v1.AgentSetup
+	(*GetAgentSetupRequest)(nil),     // 15: polterware.local.v1.GetAgentSetupRequest
+	(*GetAgentSetupResponse)(nil),    // 16: polterware.local.v1.GetAgentSetupResponse
+	(*ListHookSwitchesRequest)(nil),  // 17: polterware.local.v1.ListHookSwitchesRequest
+	(*ListHookSwitchesResponse)(nil), // 18: polterware.local.v1.ListHookSwitchesResponse
+	(*SetHookSwitchRequest)(nil),     // 19: polterware.local.v1.SetHookSwitchRequest
+	(*SetHookSwitchResponse)(nil),    // 20: polterware.local.v1.SetHookSwitchResponse
 }
 var file_polterware_local_v1_agentrun_proto_depIdxs = []int32{
 	0,  // 0: polterware.local.v1.ListAgentRunsResponse.runs:type_name -> polterware.local.v1.AgentRun
@@ -961,19 +1478,29 @@ var file_polterware_local_v1_agentrun_proto_depIdxs = []int32{
 	1,  // 2: polterware.local.v1.GetAgentRunResponse.steps:type_name -> polterware.local.v1.AgentRunStep
 	7,  // 3: polterware.local.v1.ListChangesResponse.changes:type_name -> polterware.local.v1.ProjectChange
 	10, // 4: polterware.local.v1.ListMcpSessionsResponse.sessions:type_name -> polterware.local.v1.McpSession
-	11, // 5: polterware.local.v1.AgentRunService.ListMcpSessions:input_type -> polterware.local.v1.ListMcpSessionsRequest
-	3,  // 6: polterware.local.v1.AgentRunService.ListAgentRuns:input_type -> polterware.local.v1.ListAgentRunsRequest
-	5,  // 7: polterware.local.v1.AgentRunService.GetAgentRun:input_type -> polterware.local.v1.GetAgentRunRequest
-	8,  // 8: polterware.local.v1.AgentRunService.ListChanges:input_type -> polterware.local.v1.ListChangesRequest
-	12, // 9: polterware.local.v1.AgentRunService.ListMcpSessions:output_type -> polterware.local.v1.ListMcpSessionsResponse
-	4,  // 10: polterware.local.v1.AgentRunService.ListAgentRuns:output_type -> polterware.local.v1.ListAgentRunsResponse
-	6,  // 11: polterware.local.v1.AgentRunService.GetAgentRun:output_type -> polterware.local.v1.GetAgentRunResponse
-	9,  // 12: polterware.local.v1.AgentRunService.ListChanges:output_type -> polterware.local.v1.ListChangesResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	13, // 5: polterware.local.v1.AgentSetup.hooks:type_name -> polterware.local.v1.HookSwitch
+	14, // 6: polterware.local.v1.GetAgentSetupResponse.setup:type_name -> polterware.local.v1.AgentSetup
+	13, // 7: polterware.local.v1.ListHookSwitchesResponse.hooks:type_name -> polterware.local.v1.HookSwitch
+	13, // 8: polterware.local.v1.SetHookSwitchResponse.hooks:type_name -> polterware.local.v1.HookSwitch
+	15, // 9: polterware.local.v1.AgentRunService.GetAgentSetup:input_type -> polterware.local.v1.GetAgentSetupRequest
+	17, // 10: polterware.local.v1.AgentRunService.ListHookSwitches:input_type -> polterware.local.v1.ListHookSwitchesRequest
+	19, // 11: polterware.local.v1.AgentRunService.SetHookSwitch:input_type -> polterware.local.v1.SetHookSwitchRequest
+	11, // 12: polterware.local.v1.AgentRunService.ListMcpSessions:input_type -> polterware.local.v1.ListMcpSessionsRequest
+	3,  // 13: polterware.local.v1.AgentRunService.ListAgentRuns:input_type -> polterware.local.v1.ListAgentRunsRequest
+	5,  // 14: polterware.local.v1.AgentRunService.GetAgentRun:input_type -> polterware.local.v1.GetAgentRunRequest
+	8,  // 15: polterware.local.v1.AgentRunService.ListChanges:input_type -> polterware.local.v1.ListChangesRequest
+	16, // 16: polterware.local.v1.AgentRunService.GetAgentSetup:output_type -> polterware.local.v1.GetAgentSetupResponse
+	18, // 17: polterware.local.v1.AgentRunService.ListHookSwitches:output_type -> polterware.local.v1.ListHookSwitchesResponse
+	20, // 18: polterware.local.v1.AgentRunService.SetHookSwitch:output_type -> polterware.local.v1.SetHookSwitchResponse
+	12, // 19: polterware.local.v1.AgentRunService.ListMcpSessions:output_type -> polterware.local.v1.ListMcpSessionsResponse
+	4,  // 20: polterware.local.v1.AgentRunService.ListAgentRuns:output_type -> polterware.local.v1.ListAgentRunsResponse
+	6,  // 21: polterware.local.v1.AgentRunService.GetAgentRun:output_type -> polterware.local.v1.GetAgentRunResponse
+	9,  // 22: polterware.local.v1.AgentRunService.ListChanges:output_type -> polterware.local.v1.ListChangesResponse
+	16, // [16:23] is the sub-list for method output_type
+	9,  // [9:16] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_agentrun_proto_init() }
@@ -987,7 +1514,7 @@ func file_polterware_local_v1_agentrun_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_agentrun_proto_rawDesc), len(file_polterware_local_v1_agentrun_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

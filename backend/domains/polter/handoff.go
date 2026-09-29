@@ -191,6 +191,34 @@ func EncodeStatus(card work.Card, branch, stage string, handoff *work.Handoff) s
 	return b.String()
 }
 
+// EncodeStatusClaims lists active claims for status: `claim: T2 codex (scope)`
+// for the current card, then one short line per claim on other cards so an
+// agent sees a conflict before it claims. An empty current slug lists every
+// claim as an other-card line.
+func EncodeStatusClaims(current string, snapshot work.Snapshot) string {
+	var mine, others strings.Builder
+	for _, card := range snapshot.Cards {
+		if card.Status != work.CardActive {
+			continue
+		}
+		for _, task := range card.Tasks {
+			if task.Claim == nil {
+				continue
+			}
+			scope := ""
+			if task.Claim.Scope != "" {
+				scope = " (" + task.Claim.Scope + ")"
+			}
+			if card.Slug == current {
+				fmt.Fprintf(&mine, "claim: T%d %s%s\n", task.Number, task.Claim.Holder, scope)
+			} else {
+				fmt.Fprintf(&others, "claimed: %s T%d %s%s\n", card.Slug, task.Number, task.Claim.Holder, scope)
+			}
+		}
+	}
+	return mine.String() + others.String()
+}
+
 // EncodeStatusUnresolved is status when no single card can be chosen.
 func EncodeStatusUnresolved(branch string, slugs []string) string {
 	var b strings.Builder

@@ -1,7 +1,7 @@
 import type { JSX } from "solid-js";
-import { For, Show } from "solid-js";
+import { Index, Show } from "solid-js";
 import { Button } from "./button";
-import { CheckboxRow } from "./checkbox-row";
+import { SwitchRow } from "./switch";
 import { MenuItem } from "./menu";
 
 export type FilterOptionsPanelOption = {
@@ -59,9 +59,6 @@ export function FilterOptionsPanel(props: {
   onMouseLeave?: JSX.EventHandler<HTMLDivElement, MouseEvent>;
   onKeyDown?: JSX.EventHandler<HTMLDivElement, KeyboardEvent>;
 }) {
-  const inputType = () =>
-    props.group.selectionMode === "single" ? "radio" : "checkbox";
-
   return (
     <div
       class="flex min-h-0 flex-col"
@@ -71,26 +68,20 @@ export function FilterOptionsPanel(props: {
     >
       {props.header}
       <div class="min-h-0 overflow-y-auto p-2" role="group" aria-label={props.group.label}>
-        <For each={props.group.options}>
+        {/* Index, not For: options are rebuilt on every change, and For would replace each
+            switch instead of letting its thumb animate. */}
+        <Index each={props.group.options}>
           {(option) => (
-            <CheckboxRow
-              type={inputType()}
-              name={inputType() === "radio" ? `filter-${props.group.id}` : undefined}
-              checked={Boolean(option.checked)}
-              disabled={option.disabled}
-              label={option.label}
-              leading={option.leading}
-              trailing={option.trailing}
-              onCheckedChange={(checked) => option.onCheckedChange(checked)}
-              onClick={(event) => {
-                if (inputType() === "radio" && option.checked) {
-                  event.preventDefault();
-                  option.onCheckedChange(false);
-                }
-              }}
+            <SwitchRow
+              checked={Boolean(option().checked)}
+              disabled={option().disabled}
+              label={option().label}
+              leading={option().leading}
+              trailing={option().trailing}
+              onCheckedChange={(checked) => option().onCheckedChange(checked)}
             />
           )}
-        </For>
+        </Index>
         <Show when={props.group.action}>
           {(action) => (
             <>

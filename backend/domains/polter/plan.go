@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/polterware/polterware/backend/domains/atlas"
 	"github.com/polterware/polterware/backend/domains/work"
 	"github.com/polterware/polterware/backend/platform/ids"
 )
@@ -13,7 +14,35 @@ import (
 // operations that make the store match. A text only touches what it mentions:
 // absent cards, fields, and items are left as they are. Removal is explicit.
 func Plan(doc Document, snapshot work.Snapshot) ([]work.Op, []Diagnostic) {
-	p := planner{snapshot: snapshot, nextPosition: len(snapshot.Cards)}
+	return PlanAs(doc, snapshot, "")
+}
+
+// PlanAs is Plan for a session agent: holder is the label claim, done, and
+// release lines act for. Without a holder those lines are errors.
+func PlanAs(doc Document, snapshot work.Snapshot, holder string) ([]work.Op, []Diagnostic) {
+	p := planner{
+		snapshot:     snapshot,
+		nextPosition: len(snapshot.Cards),
+		nextNode:     len(snapshot.Nodes),
+		holder:       strings.TrimSpace(holder),
+		claims:       map[string]heldClaim{},
+		taskState:    map[string]string{},
+		removedCards: map[string]bool{},
+		nodes:        map[string]atlas.Node{},
+	}
+	for _, node := range snapshot.Nodes {
+		p.nodes[node.Path] = node
+	}
+	for _, card := range snapshot.Cards {
+		for _, task := range card.Tasks {
+			if task.Claim != nil {
+				p.claims[task.ID] = heldClaim{claim: *task.Claim, cardSlug: card.Slug, cardID: card.ID, number: task.Number}
+			}
+		}
+	}
+	p.diags = append(p.diags, CheckGraph(doc, snapshot.Nodes, snapshot.Cards)...)
+	p.diags = append(p.diags, CheckRepos(doc, snapshot.Repos)...)
+	p.planNodes(doc)
 	for _, node := range doc.Cards {
 		if existing, ok := snapshot.Card(node.Slug); ok {
 			p.updateCard(node, existing)
@@ -21,6 +50,7 @@ func Plan(doc Document, snapshot work.Snapshot) ([]work.Op, []Diagnostic) {
 			p.createCard(node)
 		}
 	}
+	p.planDecisions(doc)
 	return p.ops, p.diags
 }
 
@@ -29,10 +59,241 @@ type planner struct {
 	ops          []work.Op
 	diags        []Diagnostic
 	nextPosition int
+	nextNode     int
+	holder       string
+	// nodes is the project's atlas nodes by path, including ones this text creates.
+	nodes map[string]atlas.Node
+	// claims is the project's active claims by task id, updated as ops are planned.
+	claims map[string]heldClaim
+	// taskState holds task states this text changes, by task id.
+	taskState    map[string]string
+	removedCards map[string]bool
+}
+
+type heldClaim struct {
+	claim    work.Claim
+	cardSlug string
+	cardID   string
+	number   int
 }
 
 func (p *planner) errorf(line int, format string, args ...any) {
 	p.diags = append(p.diags, Diagnostic{Line: line, Severity: SeverityError, Message: fmt.Sprintf(format, args...)})
+}
+
+func (p *planner) hintf(line int, format string, args ...any) {
+	p.diags = append(p.diags, Diagnostic{Line: line, Severity: SeverityHint, Message: fmt.Sprintf(format, args...)})
+}
+
+func (p *planner) failed(line int) bool {
+	for _, diag := range p.diags {
+		if diag.Line == line && diag.Severity == SeverityError {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *planner) planNodes(doc Document) {
+	for _, node := range doc.Nodes {
+		if p.failed(node.Line) {
+			continue
+		}
+		under, hasUnder := node.MetaValue("under")
+		path, parent, message := ResolveNode(node.Path, under, hasUnder)
+		if message != "" {
+			continue
+		}
+		level, _ := node.MetaValue("level")
+		existing, exists := p.nodes[path]
+		if level == "" && exists {
+			level = existing.Level
+		}
+		parentID := ""
+		if parent != "" {
+			parentNode, ok := p.nodes[parent]
+			if !ok || parentNode.Status == atlas.NodeRemoved {
+				continue
+			}
+			parentID = parentNode.ID
+		}
+		if !exists {
+			p.createNode(node, path, level, parentID)
+			continue
+		}
+		p.updateNode(node, existing, path, level, parentID)
+	}
+}
+
+func (p *planner) createNode(node AtlasNode, path, level, parentID string) {
+	if node.Title == "" {
+		p.errorf(node.Line, "unknown node %q: add a title (# %s: Title)", path, node.Path)
+		return
+	}
+	if status, _ := node.MetaValue("status"); status == atlas.NodeRemoved {
+		p.errorf(node.Line, "cannot remove unknown node %q: check the path", path)
+		return
+	}
+	decisions, _ := node.MetaValue("decisions")
+	repo, _ := node.MetaValue("repo")
+	folder, _ := node.MetaValue("path")
+	migrating, _ := node.MetaValue("migrating")
+	migrationFrom, migrationTo, _ := ParseMigration(migrating)
+	id := ids.NewULID()
+	created := atlas.Node{
+		ID: id, Slug: node.Slug, Path: path, Title: node.Title, Intent: node.Intent,
+		Level: level, Status: atlas.NodeActive, ParentID: parentID, Position: p.nextNode,
+		Repo: repo, Folder: folder, MigrationFrom: migrationFrom, MigrationTo: migrationTo,
+	}
+	p.ops = append(p.ops, work.Op{
+		Entity: work.EntityNode, Kind: work.OpCreate, EntityID: id, CardSlug: path, Label: node.Title,
+		Fields: map[string]any{
+			"slug": node.Slug, "title": node.Title, "intent": node.Intent, "level": level,
+			"status": atlas.NodeActive, "path": path, "parent_id": parentID,
+			"decisions": splitList(decisions), "position": p.nextNode,
+			"repo": repo, "folder": folder,
+			"migration_from": migrationFrom, "migration_to": migrationTo,
+		},
+	})
+	p.nextNode++
+	p.nodes[path] = created
+	p.nodeInvariants(node, &created)
+	p.nodes[path] = created
+}
+
+func (p *planner) updateNode(node AtlasNode, existing atlas.Node, path, level, parentID string) {
+	fields, before := map[string]any{}, map[string]any{}
+	set := func(key string, old, value any) {
+		fields[key], before[key] = value, old
+	}
+	if node.Title != "" && node.Title != existing.Title {
+		set("title", existing.Title, node.Title)
+	}
+	if node.IntentSet && node.Intent != existing.Intent {
+		set("intent", existing.Intent, node.Intent)
+	}
+	if level != "" && level != existing.Level {
+		set("level", existing.Level, level)
+	}
+	if parentID != existing.ParentID {
+		set("parent_id", existing.ParentID, parentID)
+	}
+	if path != existing.Path {
+		set("path", existing.Path, path)
+	}
+	if decisions, ok := node.MetaValue("decisions"); ok {
+		if list := splitList(decisions); !slices.Equal(list, existing.Decisions) {
+			set("decisions", existing.Decisions, list)
+		}
+	}
+	// A present repo: or path: is authoritative, so an empty value moves the
+	// node back to the project root or the checkout root.
+	if repo, ok := node.MetaValue("repo"); ok && repo != existing.Repo {
+		set("repo", existing.Repo, repo)
+	}
+	if folder, ok := node.MetaValue("path"); ok && folder != existing.Folder {
+		set("folder", existing.Folder, folder)
+	}
+	// A present migrating: is authoritative; an empty value clears the state.
+	migrationFrom, migrationTo := existing.MigrationFrom, existing.MigrationTo
+	if value, ok := node.MetaValue("migrating"); ok {
+		from, to, _ := ParseMigration(value)
+		if from != existing.MigrationFrom {
+			set("migration_from", existing.MigrationFrom, from)
+		}
+		if to != existing.MigrationTo {
+			set("migration_to", existing.MigrationTo, to)
+		}
+		migrationFrom, migrationTo = from, to
+	}
+	status, hasStatus := node.MetaValue("status")
+	if hasStatus && status != existing.Status {
+		set("status", existing.Status, status)
+	}
+	if len(fields) > 0 {
+		kind := work.OpUpdate
+		if fields["status"] == atlas.NodeRemoved {
+			kind = work.OpRemove
+		}
+		p.ops = append(p.ops, work.Op{
+			Entity: work.EntityNode, Kind: kind, EntityID: existing.ID, CardSlug: path,
+			Label: existing.Title, Fields: fields, Before: before,
+		})
+	}
+	if status == atlas.NodeRemoved {
+		existing.Status = atlas.NodeRemoved
+		p.nodes[path] = existing
+		return
+	}
+	if level != "" {
+		existing.Level = level
+	}
+	existing.ParentID = parentID
+	existing.Path = path
+	if repo, ok := node.MetaValue("repo"); ok {
+		existing.Repo = repo
+	}
+	if folder, ok := node.MetaValue("path"); ok {
+		existing.Folder = folder
+	}
+	existing.MigrationFrom, existing.MigrationTo = migrationFrom, migrationTo
+	p.nodeInvariants(node, &existing)
+	p.nodes[path] = existing
+}
+
+func (p *planner) nodeInvariants(node AtlasNode, stored *atlas.Node) {
+	maxPosition := -1
+	for _, inv := range stored.Invariants {
+		maxPosition = max(maxPosition, inv.Position)
+	}
+	for _, inv := range node.Invariants {
+		key := work.NormalizeText(inv.Text)
+		var existing *atlas.Invariant
+		for i := range stored.Invariants {
+			if work.NormalizeText(stored.Invariants[i].Text) == key {
+				existing = &stored.Invariants[i]
+				break
+			}
+		}
+		if existing == nil {
+			if inv.Removed {
+				continue
+			}
+			maxPosition++
+			id := ids.NewULID()
+			stored.Invariants = append(stored.Invariants, atlas.Invariant{
+				ID: id, NodeID: stored.ID, Text: inv.Text, State: work.InvariantActive, Position: maxPosition,
+			})
+			p.ops = append(p.ops, work.Op{
+				Entity: work.EntityNode, Kind: work.OpCreate, EntityID: id, NodeID: stored.ID,
+				CardSlug: stored.Path, Label: inv.Text,
+				Fields: map[string]any{"text": inv.Text, "state": work.InvariantActive, "position": maxPosition},
+			})
+			continue
+		}
+		fields, before := map[string]any{}, map[string]any{}
+		if inv.Removed {
+			if existing.State != work.InvariantRemoved {
+				fields["state"], before["state"] = work.InvariantRemoved, existing.State
+			}
+		} else if existing.State == work.InvariantRemoved {
+			fields["state"], before["state"] = work.InvariantActive, existing.State
+		}
+		if inv.Text != existing.Text {
+			fields["text"], before["text"] = inv.Text, existing.Text
+		}
+		if len(fields) == 0 {
+			continue
+		}
+		kind := work.OpUpdate
+		if inv.Removed {
+			kind = work.OpRemove
+		}
+		p.ops = append(p.ops, work.Op{
+			Entity: work.EntityNode, Kind: kind, EntityID: existing.ID, NodeID: stored.ID,
+			CardSlug: stored.Path, Label: existing.Text, Fields: fields, Before: before,
+		})
+	}
 }
 
 func (p *planner) createCard(node CardNode) {
@@ -51,6 +312,10 @@ func (p *planner) createCard(node CardNode) {
 	owner, _ := node.MetaValue("owner")
 	under, _ := node.MetaValue("under")
 	decisions, _ := node.MetaValue("decisions")
+	kind, ok := node.MetaValue("kind")
+	if !ok {
+		kind = work.KindFeature
+	}
 	card := work.Card{ID: ids.NewULID(), Slug: node.Slug}
 	p.ops = append(p.ops, work.Op{
 		Entity:   work.EntityCard,
@@ -66,6 +331,7 @@ func (p *planner) createCard(node CardNode) {
 			"stage":     stage,
 			"status":    work.CardActive,
 			"owner":     owner,
+			"kind":      kind,
 			"under":     under,
 			"decisions": splitList(decisions),
 			"position":  p.nextPosition,
@@ -104,6 +370,10 @@ func (p *planner) updateCard(node CardNode, card work.Card) {
 			if value != card.Owner {
 				set(key, card.Owner, value)
 			}
+		case "kind":
+			if value != card.Kind {
+				set(key, card.Kind, value)
+			}
 		case "under":
 			if value != card.Under {
 				set(key, card.Under, value)
@@ -123,6 +393,12 @@ func (p *planner) updateCard(node CardNode, card work.Card) {
 			Entity: work.EntityCard, Kind: kind, EntityID: card.ID, CardID: card.ID,
 			CardSlug: card.Slug, Label: card.Title, Fields: fields, Before: before,
 		})
+		if kind == work.OpRemove {
+			p.removedCards[card.ID] = true
+			for _, task := range card.Tasks {
+				p.releaseClaim(task.ID)
+			}
+		}
 	}
 	p.children(node, card)
 }
@@ -132,6 +408,130 @@ func (p *planner) children(node CardNode, card work.Card) {
 	p.questions(node, card)
 	p.invariants(node, card)
 	p.handoff(node, card)
+	p.coordination(node, card)
+}
+
+// coordination plans claim, done, and release lines against stored tasks.
+func (p *planner) coordination(node CardNode, card work.Card) {
+	for _, line := range node.Coordination {
+		if p.holder == "" {
+			p.errorf(line.Line, "%s needs an agent: pass --agent or set POLTERWARE_AGENT_LABEL", line.Action)
+			continue
+		}
+		var task work.Task
+		found := false
+		for _, t := range card.Tasks {
+			if t.Number == line.Number {
+				task, found = t, true
+				break
+			}
+		}
+		if !found {
+			p.errorf(line.Line, "unknown task T%d in %q: apply the task before you %s it", line.Number, card.Slug, line.Action)
+			continue
+		}
+		if card.ID == "" || card.Status == work.CardRemoved || p.removedCards[card.ID] {
+			p.errorf(line.Line, "cannot %s T%d: card %q is removed", line.Action, line.Number, card.Slug)
+			continue
+		}
+		state := task.State
+		if planned, ok := p.taskState[task.ID]; ok {
+			state = planned
+		}
+		held, claimed := p.claims[task.ID]
+		switch line.Action {
+		case CoordClaim:
+			p.claim(line, card, task, state, held, claimed)
+		case CoordDone:
+			if state == work.TaskDropped {
+				p.errorf(line.Line, "cannot mark T%d done: it is dropped", line.Number)
+				continue
+			}
+			if claimed && held.claim.Holder != p.holder {
+				p.errorf(line.Line, "cannot mark %s T%d done: %s", card.Slug, line.Number, describeClaim(held))
+				continue
+			}
+			if state != work.TaskDone {
+				p.taskState[task.ID] = work.TaskDone
+				p.ops = append(p.ops, work.Op{
+					Entity: work.EntityTask, Kind: work.OpUpdate, EntityID: task.ID, CardID: card.ID,
+					CardSlug: card.Slug, Label: fmt.Sprintf("T%d", task.Number),
+					Fields: map[string]any{"state": work.TaskDone}, Before: map[string]any{"state": state},
+				})
+			}
+			p.releaseClaim(task.ID)
+		case CoordRelease:
+			if !claimed {
+				continue
+			}
+			if held.claim.Holder != p.holder {
+				p.errorf(line.Line, "cannot release %s T%d: %s", card.Slug, line.Number, describeClaim(held))
+				continue
+			}
+			p.releaseClaim(task.ID)
+		}
+	}
+}
+
+func (p *planner) claim(line CoordNode, card work.Card, task work.Task, state string, held heldClaim, claimed bool) {
+	if state != work.TaskOpen {
+		p.errorf(line.Line, "cannot claim %s T%d: it is %s", card.Slug, line.Number, state)
+		return
+	}
+	if claimed {
+		if held.claim.Holder != p.holder {
+			p.errorf(line.Line, "cannot claim %s T%d: %s", card.Slug, line.Number, describeClaim(held))
+		}
+		return
+	}
+	scope := work.QualifyScope(task.Repo, task.Scope)
+	if scope != "" {
+		otherIDs := make([]string, 0, len(p.claims))
+		for otherID := range p.claims {
+			otherIDs = append(otherIDs, otherID)
+		}
+		slices.Sort(otherIDs)
+		for _, otherID := range otherIDs {
+			other := p.claims[otherID]
+			if otherID == task.ID || other.claim.Holder == p.holder {
+				continue
+			}
+			if work.ScopesOverlap(scope, other.claim.Scope) {
+				p.errorf(line.Line, "cannot claim %s T%d: scope %s overlaps %s T%d held by %s (%s)",
+					card.Slug, line.Number, scope, other.cardSlug, other.number, other.claim.Holder, other.claim.Scope)
+				return
+			}
+		}
+	}
+	claim := work.Claim{ID: ids.NewULID(), ProjectID: p.snapshot.ProjectID, TaskID: task.ID, Holder: p.holder, Scope: scope}
+	p.claims[task.ID] = heldClaim{claim: claim, cardSlug: card.Slug, cardID: card.ID, number: task.Number}
+	p.ops = append(p.ops, work.Op{
+		Entity: work.EntityClaim, Kind: work.OpCreate, EntityID: claim.ID, CardID: card.ID,
+		CardSlug: card.Slug, Label: fmt.Sprintf("T%d", task.Number),
+		Fields: map[string]any{"task_id": task.ID, "holder": claim.Holder, "scope": claim.Scope},
+	})
+}
+
+// releaseClaim plans the removal of taskID's claim, if it has one.
+func (p *planner) releaseClaim(taskID string) {
+	held, ok := p.claims[taskID]
+	if !ok {
+		return
+	}
+	delete(p.claims, taskID)
+	p.ops = append(p.ops, work.Op{
+		Entity: work.EntityClaim, Kind: work.OpRemove, EntityID: held.claim.ID, CardID: held.cardID,
+		CardSlug: held.cardSlug, Label: fmt.Sprintf("T%d", held.number),
+		Fields: map[string]any{"holder": held.claim.Holder, "scope": held.claim.Scope},
+	})
+}
+
+func describeClaim(held heldClaim) string {
+	scope := held.claim.Scope
+	if scope == "" {
+		scope = "no scope"
+	}
+	return fmt.Sprintf("claimed by %s (%s)", held.claim.Holder, scope)
 }
 
 func (p *planner) handoff(node CardNode, card work.Card) {
@@ -214,7 +614,7 @@ func (p *planner) tasks(node CardNode, card work.Card) {
 				Entity: work.EntityTask, Kind: work.OpCreate, EntityID: id, CardID: card.ID,
 				CardSlug: card.Slug, Label: fmt.Sprintf("T%d", number),
 				Fields: map[string]any{
-					"number": number, "title": t.Title, "state": t.State, "scope": t.Scope, "position": maxPosition,
+					"number": number, "title": t.Title, "state": t.State, "repo": t.Repo, "scope": t.Scope, "position": maxPosition,
 				},
 			})
 			continue
@@ -231,6 +631,9 @@ func (p *planner) tasks(node CardNode, card work.Card) {
 		if t.Scope != "" && t.Scope != existing.Scope {
 			fields["scope"], before["scope"] = t.Scope, existing.Scope
 		}
+		if t.Repo != "" && t.Repo != existing.Repo {
+			fields["repo"], before["repo"] = t.Repo, existing.Repo
+		}
 		if len(fields) == 0 {
 			continue
 		}
@@ -242,6 +645,13 @@ func (p *planner) tasks(node CardNode, card work.Card) {
 			Entity: work.EntityTask, Kind: kind, EntityID: existing.ID, CardID: card.ID,
 			CardSlug: card.Slug, Label: fmt.Sprintf("T%d", existing.Number), Fields: fields, Before: before,
 		})
+		if state, ok := fields["state"].(string); ok {
+			p.taskState[existing.ID] = state
+			// A task leaves its claim when the checkbox closes it.
+			if state != work.TaskOpen {
+				p.releaseClaim(existing.ID)
+			}
+		}
 	}
 }
 
@@ -265,14 +675,22 @@ func (p *planner) questions(node CardNode, card work.Card) {
 			}
 			maxPosition++
 			id := ids.NewULID()
-			card.Questions = append(card.Questions, work.Question{ID: id, Text: q.Text, Blocking: q.Blocking, Options: q.Options, State: work.QuestionOpen})
+			state := work.QuestionOpen
+			if q.Answer != "" {
+				state = work.QuestionAnswered
+				p.answerHint(q, q.Options)
+			}
+			card.Questions = append(card.Questions, work.Question{ID: id, Text: q.Text, Blocking: q.Blocking, Options: q.Options, State: state, Answer: q.Answer})
+			fields := map[string]any{
+				"text": q.Text, "blocking": q.Blocking, "options": nonNil(q.Options),
+				"state": state, "position": maxPosition,
+			}
+			if q.Answer != "" {
+				fields["answer"] = q.Answer
+			}
 			p.ops = append(p.ops, work.Op{
 				Entity: work.EntityQuestion, Kind: work.OpCreate, EntityID: id, CardID: card.ID,
-				CardSlug: card.Slug, Label: q.Text,
-				Fields: map[string]any{
-					"text": q.Text, "blocking": q.Blocking, "options": nonNil(q.Options),
-					"state": work.QuestionOpen, "position": maxPosition,
-				},
+				CardSlug: card.Slug, Label: q.Text, Fields: fields,
 			})
 			continue
 		}
@@ -282,7 +700,23 @@ func (p *planner) questions(node CardNode, card work.Card) {
 				fields["state"], before["state"] = work.QuestionRemoved, existing.State
 			}
 		} else {
-			if existing.State == work.QuestionRemoved {
+			switch {
+			case q.Answer != "":
+				// A line without an answer never reopens a decided question.
+				if existing.State != work.QuestionAnswered {
+					fields["state"], before["state"] = work.QuestionAnswered, existing.State
+				}
+				if q.Answer != existing.Answer {
+					fields["answer"], before["answer"] = q.Answer, existing.Answer
+				}
+				if len(fields) > 0 {
+					options := q.Options
+					if len(options) == 0 {
+						options = existing.Options
+					}
+					p.answerHint(q, options)
+				}
+			case existing.State == work.QuestionRemoved:
 				fields["state"], before["state"] = work.QuestionOpen, existing.State
 			}
 			if q.Text != existing.Text {
@@ -307,6 +741,20 @@ func (p *planner) questions(node CardNode, card work.Card) {
 			CardSlug: card.Slug, Label: existing.Text, Fields: fields, Before: before,
 		})
 	}
+}
+
+// answerHint flags an answer that is none of the question's options. Free
+// answers are allowed; the hint catches a typo.
+func (p *planner) answerHint(q QuestionNode, options []string) {
+	if len(options) == 0 {
+		return
+	}
+	for _, option := range options {
+		if work.NormalizeText(option) == work.NormalizeText(q.Answer) {
+			return
+		}
+	}
+	p.hintf(q.Line, "answer %q is not one of the options (%s)", q.Answer, strings.Join(options, " | "))
 }
 
 func (p *planner) invariants(node CardNode, card work.Card) {
@@ -399,11 +847,26 @@ func FormatPlan(ops []work.Op) string {
 			if op.Kind == work.OpCreate {
 				fmt.Fprintf(&b, " %q [%v]", op.Label, op.Fields["stage"])
 			}
+		case work.EntityNode:
+			if _, invariant := op.Fields["text"]; invariant {
+				fmt.Fprintf(&b, " %q", op.Label)
+				break
+			}
+			if op.Kind == work.OpCreate {
+				fmt.Fprintf(&b, " %q [%v]", op.Label, op.Fields["level"])
+			}
 		case work.EntityTask:
 			fmt.Fprintf(&b, " %s", op.Label)
 			if op.Kind == work.OpCreate {
 				fmt.Fprintf(&b, " %q", op.Fields["title"])
 			}
+		case work.EntityClaim:
+			fmt.Fprintf(&b, " %s %v", op.Label, op.Fields["holder"])
+			if scope, _ := op.Fields["scope"].(string); scope != "" {
+				fmt.Fprintf(&b, " (%s)", scope)
+			}
+			b.WriteString("\n")
+			continue
 		default:
 			fmt.Fprintf(&b, " %q", op.Label)
 			if op.Kind == work.OpCreate && op.Fields["blocking"] == true {
@@ -449,7 +912,7 @@ func Summarize(ops []work.Op) string {
 		counts[op.Entity]++
 	}
 	var parts []string
-	for _, entity := range []string{work.EntityCard, work.EntityTask, work.EntityQuestion, work.EntityInvariant, work.EntityHandoff} {
+	for _, entity := range []string{work.EntityCard, work.EntityTask, work.EntityQuestion, work.EntityInvariant, work.EntityHandoff, work.EntityClaim, work.EntityNode} {
 		if n := counts[entity]; n > 0 {
 			noun := entity
 			if n > 1 {

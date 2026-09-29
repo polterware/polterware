@@ -43,6 +43,7 @@ import { CreateKnowledgeDialog, type CreateKnowledgeKind } from "./create-knowle
 import { CreateSourceDialog } from "./create-source-dialog";
 import type { KnowledgeCreateTemplate } from "./create-templates";
 import { createDocumentAutosave } from "./document-autosave";
+import { DecisionDetail, type DecisionAction } from "./decision-detail";
 import { DocumentDetail } from "./document-detail";
 import { EntityLinks } from "./entity-links";
 import { LibraryEmpty, libraryFilterEmpty } from "./library-empty";
@@ -88,7 +89,9 @@ export {
 } from "./create-templates";
 export { CONSTITUTION_BODY_TEMPLATE } from "./constitution-template";
 export { ChangeEnvelopeDialogHost } from "./change-envelope-dialog";
+export type { DecisionAction } from "./decision-detail";
 export { WORK_STAGES, workStageLabel } from "./work-stage";
+export { NewFeatureFlow, type FeatureFlowLine } from "./new-feature-flow";
 export {
   requestChangeEnvelope,
   type ChangeEnvelope,
@@ -98,9 +101,9 @@ export {
 const TABS: TabItem[] = [
   {
     id: "specs",
-    label: "Specs",
+    label: "Register",
     tooltip: {
-      title: "Specs",
+      title: "Register",
       description:
         "One Constitution per project, plus every Work card as a list. Agents write cards with polterware apply.",
       icon: ListChecks,
@@ -172,11 +175,15 @@ export function KnowledgeView(props: {
   tabsLabel?: string;
   /** Restrict Library to these kinds (e.g. ADRs only). */
   libraryKinds?: readonly LibraryCategory[];
+  /** Restrict ADR rows to one lifecycle state (Decisions tabs). */
+  libraryDecisionState?: WorkspaceAdr["state"];
   loading?: boolean;
   error?: string;
   onTabChange?: (tab: string) => void;
   onOpenDoc?: (id: string) => void;
   onOpenAdr?: (id: string) => void;
+  /** Writes one ADR lifecycle move. */
+  onDecisionAction?: (adrId: string, action: DecisionAction) => void;
   onOpenRunbook?: (id: string) => void;
   onOpenSource?: (id: string) => void;
   onOpenCard?: (slug: string) => void;
@@ -192,6 +199,10 @@ export function KnowledgeView(props: {
   onImportProjectSources?: () => void;
   importBusy?: boolean;
   onCreateCard?: (title: string) => void;
+  /** Opens the new-feature flow; when set it replaces the plain card dialog. */
+  onNewFeature?: () => void;
+  /** Reopens the flow for a card in shape or plan. */
+  onContinueFeature?: (slug: string) => void;
   onCreateFromTemplate?: (template: KnowledgeCreateTemplate) => void;
   onEnsureConstitution?: () => void;
   onArchive?: (id: string) => void;
@@ -269,9 +280,11 @@ export function KnowledgeView(props: {
       runbooks: props.runbooks,
     });
     const kinds = props.libraryKinds;
-    return kinds && kinds.length > 0
+    const state = props.libraryDecisionState;
+    const byKind = kinds && kinds.length > 0
       ? rows.filter((row) => kinds.includes(row.category))
       : rows;
+    return state ? byKind.filter((row) => row.category !== "adr" || row.statusLabel === state) : byKind;
   });
 
   /** Filter kinds when set, otherwise the locked kinds, for create and empty copy. */
@@ -501,8 +514,10 @@ export function KnowledgeView(props: {
         options: [
           { id: "published", label: "Published" },
           { id: "draft", label: "Draft" },
-          { id: "accepted", label: "Accepted" },
+          { id: "active", label: "Active" },
+          { id: "challenged", label: "Challenged" },
           { id: "proposed", label: "Proposed" },
+          { id: "superseded", label: "Superseded" },
         ].map((option) => ({
           ...option,
           leading: <StatusDot tone={libraryStatusTone(option.id)} showLabel={false} />,
@@ -911,7 +926,7 @@ export function KnowledgeView(props: {
             <Show when={tab() !== "sources" && (cardTab() ? props.onCreateCard : props.onCreate)}>
               <ToolbarIconButton
                 label={createLabel()}
-                onClick={() => setCreateOpen(true)}
+                onClick={() => (cardTab() && props.onNewFeature ? props.onNewFeature() : setCreateOpen(true))}
               >
                 <Plus size={14} />
               </ToolbarIconButton>
@@ -989,7 +1004,7 @@ export function KnowledgeView(props: {
               when={(props.workCards ?? []).length > 0}
               fallback={
                 <WorkCardsEmpty
-                  onCreate={props.onCreateCard ? () => setCreateOpen(true) : undefined}
+                  onCreate={props.onNewFeature ?? (props.onCreateCard ? () => setCreateOpen(true) : undefined)}
                   onCreateFromTemplate={props.onCreateFromTemplate}
                 />
               }
@@ -1036,7 +1051,7 @@ export function KnowledgeView(props: {
               when={(props.workCards ?? []).length > 0}
               fallback={
                 <WorkCardsEmpty
-                  onCreate={props.onCreateCard ? () => setCreateOpen(true) : undefined}
+                  onCreate={props.onNewFeature ?? (props.onCreateCard ? () => setCreateOpen(true) : undefined)}
                   onCreateFromTemplate={props.onCreateFromTemplate}
                 />
               }
@@ -1105,27 +1120,14 @@ export function KnowledgeView(props: {
       </Show>
       <Show when={adr()}>
         {(item) => (
-          <DocumentDetail
-            document={{
-              id: item().id,
-              title: item().title,
-              summary: item().summary,
-              bodyMarkdown: item().bodyMarkdown,
-              author: item().owner,
-              updatedAt: item().updatedAt,
-              tags: item().tags,
-              componentIds: [],
-              componentNames: [],
-              environment: "",
-              status: "published",
-              owner: item().owner,
-              entityLinks: item().entityLinks,
-            }}
+          <DecisionDetail
+            adr={item()}
+            allAdrs={props.adrs ?? []}
             bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
             onBodyChange={(markdown) => {
               noteBodyChange(item().id, markdown, item().bodyMarkdown);
             }}
-            onArchive={props.onArchive ? () => props.onArchive?.(item().id) : undefined}
+            onAction={props.onDecisionAction ? (action) => props.onDecisionAction?.(item().id, action) : undefined}
             links={linksFor(item().id, item().entityLinks)}
           />
         )}
@@ -1178,6 +1180,11 @@ export function KnowledgeView(props: {
             onRemove={
               props.onRemoveCard
                 ? () => props.onRemoveCard?.(item().slug)
+                : undefined
+            }
+            onContinueFlow={
+              props.onContinueFeature
+                ? () => props.onContinueFeature?.(item().slug)
                 : undefined
             }
           />

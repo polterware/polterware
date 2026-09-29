@@ -36,6 +36,14 @@ const (
 	// WorkServiceListWorkCardsProcedure is the fully-qualified name of the WorkService's ListWorkCards
 	// RPC.
 	WorkServiceListWorkCardsProcedure = "/polterware.local.v1.WorkService/ListWorkCards"
+	// WorkServiceListAtlasProcedure is the fully-qualified name of the WorkService's ListAtlas RPC.
+	WorkServiceListAtlasProcedure = "/polterware.local.v1.WorkService/ListAtlas"
+	// WorkServiceListAtlasHistoryProcedure is the fully-qualified name of the WorkService's
+	// ListAtlasHistory RPC.
+	WorkServiceListAtlasHistoryProcedure = "/polterware.local.v1.WorkService/ListAtlasHistory"
+	// WorkServiceListAgentSessionsProcedure is the fully-qualified name of the WorkService's
+	// ListAgentSessions RPC.
+	WorkServiceListAgentSessionsProcedure = "/polterware.local.v1.WorkService/ListAgentSessions"
 	// WorkServiceApplyPolterProcedure is the fully-qualified name of the WorkService's ApplyPolter RPC.
 	WorkServiceApplyPolterProcedure = "/polterware.local.v1.WorkService/ApplyPolter"
 	// WorkServiceLintPolterProcedure is the fully-qualified name of the WorkService's LintPolter RPC.
@@ -47,16 +55,46 @@ const (
 	WorkServiceWriteHandoffProcedure = "/polterware.local.v1.WorkService/WriteHandoff"
 	// WorkServiceEndSessionProcedure is the fully-qualified name of the WorkService's EndSession RPC.
 	WorkServiceEndSessionProcedure = "/polterware.local.v1.WorkService/EndSession"
+	// WorkServiceListInboxProcedure is the fully-qualified name of the WorkService's ListInbox RPC.
+	WorkServiceListInboxProcedure = "/polterware.local.v1.WorkService/ListInbox"
+	// WorkServiceResolveInboxItemProcedure is the fully-qualified name of the WorkService's
+	// ResolveInboxItem RPC.
+	WorkServiceResolveInboxItemProcedure = "/polterware.local.v1.WorkService/ResolveInboxItem"
+	// WorkServiceExportProjectionsProcedure is the fully-qualified name of the WorkService's
+	// ExportProjections RPC.
+	WorkServiceExportProjectionsProcedure = "/polterware.local.v1.WorkService/ExportProjections"
+	// WorkServiceReviewFeatureProcedure is the fully-qualified name of the WorkService's ReviewFeature
+	// RPC.
+	WorkServiceReviewFeatureProcedure = "/polterware.local.v1.WorkService/ReviewFeature"
+	// WorkServiceCreateFeatureProcedure is the fully-qualified name of the WorkService's CreateFeature
+	// RPC.
+	WorkServiceCreateFeatureProcedure = "/polterware.local.v1.WorkService/CreateFeature"
+	// WorkServiceAdvanceFeatureProcedure is the fully-qualified name of the WorkService's
+	// AdvanceFeature RPC.
+	WorkServiceAdvanceFeatureProcedure = "/polterware.local.v1.WorkService/AdvanceFeature"
+	// WorkServiceVerifyFeatureProcedure is the fully-qualified name of the WorkService's VerifyFeature
+	// RPC.
+	WorkServiceVerifyFeatureProcedure = "/polterware.local.v1.WorkService/VerifyFeature"
 )
 
 // WorkServiceClient is a client for the polterware.local.v1.WorkService service.
 type WorkServiceClient interface {
 	ListWorkCards(context.Context, *connect.Request[v1.ListWorkCardsRequest]) (*connect.Response[v1.ListWorkCardsResponse], error)
+	ListAtlas(context.Context, *connect.Request[v1.ListAtlasRequest]) (*connect.Response[v1.ListAtlasResponse], error)
+	ListAtlasHistory(context.Context, *connect.Request[v1.ListAtlasHistoryRequest]) (*connect.Response[v1.ListAtlasHistoryResponse], error)
+	ListAgentSessions(context.Context, *connect.Request[v1.ListAgentSessionsRequest]) (*connect.Response[v1.ListAgentSessionsResponse], error)
 	ApplyPolter(context.Context, *connect.Request[v1.ApplyPolterRequest]) (*connect.Response[v1.ApplyPolterResponse], error)
 	LintPolter(context.Context, *connect.Request[v1.LintPolterRequest]) (*connect.Response[v1.LintPolterResponse], error)
 	QueryPolter(context.Context, *connect.Request[v1.QueryPolterRequest]) (*connect.Response[v1.QueryPolterResponse], error)
 	WriteHandoff(context.Context, *connect.Request[v1.WriteHandoffRequest]) (*connect.Response[v1.WriteHandoffResponse], error)
 	EndSession(context.Context, *connect.Request[v1.EndSessionRequest]) (*connect.Response[v1.EndSessionResponse], error)
+	ListInbox(context.Context, *connect.Request[v1.ListInboxRequest]) (*connect.Response[v1.ListInboxResponse], error)
+	ResolveInboxItem(context.Context, *connect.Request[v1.ResolveInboxItemRequest]) (*connect.Response[v1.ResolveInboxItemResponse], error)
+	ExportProjections(context.Context, *connect.Request[v1.ExportProjectionsRequest]) (*connect.Response[v1.ExportProjectionsResponse], error)
+	ReviewFeature(context.Context, *connect.Request[v1.ReviewFeatureRequest]) (*connect.Response[v1.ReviewFeatureResponse], error)
+	CreateFeature(context.Context, *connect.Request[v1.CreateFeatureRequest]) (*connect.Response[v1.CreateFeatureResponse], error)
+	AdvanceFeature(context.Context, *connect.Request[v1.AdvanceFeatureRequest]) (*connect.Response[v1.AdvanceFeatureResponse], error)
+	VerifyFeature(context.Context, *connect.Request[v1.VerifyFeatureRequest]) (*connect.Response[v1.VerifyFeatureResponse], error)
 }
 
 // NewWorkServiceClient constructs a client for the polterware.local.v1.WorkService service. By
@@ -74,6 +112,24 @@ func NewWorkServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+WorkServiceListWorkCardsProcedure,
 			connect.WithSchema(workServiceMethods.ByName("ListWorkCards")),
+			connect.WithClientOptions(opts...),
+		),
+		listAtlas: connect.NewClient[v1.ListAtlasRequest, v1.ListAtlasResponse](
+			httpClient,
+			baseURL+WorkServiceListAtlasProcedure,
+			connect.WithSchema(workServiceMethods.ByName("ListAtlas")),
+			connect.WithClientOptions(opts...),
+		),
+		listAtlasHistory: connect.NewClient[v1.ListAtlasHistoryRequest, v1.ListAtlasHistoryResponse](
+			httpClient,
+			baseURL+WorkServiceListAtlasHistoryProcedure,
+			connect.WithSchema(workServiceMethods.ByName("ListAtlasHistory")),
+			connect.WithClientOptions(opts...),
+		),
+		listAgentSessions: connect.NewClient[v1.ListAgentSessionsRequest, v1.ListAgentSessionsResponse](
+			httpClient,
+			baseURL+WorkServiceListAgentSessionsProcedure,
+			connect.WithSchema(workServiceMethods.ByName("ListAgentSessions")),
 			connect.WithClientOptions(opts...),
 		),
 		applyPolter: connect.NewClient[v1.ApplyPolterRequest, v1.ApplyPolterResponse](
@@ -106,22 +162,89 @@ func NewWorkServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(workServiceMethods.ByName("EndSession")),
 			connect.WithClientOptions(opts...),
 		),
+		listInbox: connect.NewClient[v1.ListInboxRequest, v1.ListInboxResponse](
+			httpClient,
+			baseURL+WorkServiceListInboxProcedure,
+			connect.WithSchema(workServiceMethods.ByName("ListInbox")),
+			connect.WithClientOptions(opts...),
+		),
+		resolveInboxItem: connect.NewClient[v1.ResolveInboxItemRequest, v1.ResolveInboxItemResponse](
+			httpClient,
+			baseURL+WorkServiceResolveInboxItemProcedure,
+			connect.WithSchema(workServiceMethods.ByName("ResolveInboxItem")),
+			connect.WithClientOptions(opts...),
+		),
+		exportProjections: connect.NewClient[v1.ExportProjectionsRequest, v1.ExportProjectionsResponse](
+			httpClient,
+			baseURL+WorkServiceExportProjectionsProcedure,
+			connect.WithSchema(workServiceMethods.ByName("ExportProjections")),
+			connect.WithClientOptions(opts...),
+		),
+		reviewFeature: connect.NewClient[v1.ReviewFeatureRequest, v1.ReviewFeatureResponse](
+			httpClient,
+			baseURL+WorkServiceReviewFeatureProcedure,
+			connect.WithSchema(workServiceMethods.ByName("ReviewFeature")),
+			connect.WithClientOptions(opts...),
+		),
+		createFeature: connect.NewClient[v1.CreateFeatureRequest, v1.CreateFeatureResponse](
+			httpClient,
+			baseURL+WorkServiceCreateFeatureProcedure,
+			connect.WithSchema(workServiceMethods.ByName("CreateFeature")),
+			connect.WithClientOptions(opts...),
+		),
+		advanceFeature: connect.NewClient[v1.AdvanceFeatureRequest, v1.AdvanceFeatureResponse](
+			httpClient,
+			baseURL+WorkServiceAdvanceFeatureProcedure,
+			connect.WithSchema(workServiceMethods.ByName("AdvanceFeature")),
+			connect.WithClientOptions(opts...),
+		),
+		verifyFeature: connect.NewClient[v1.VerifyFeatureRequest, v1.VerifyFeatureResponse](
+			httpClient,
+			baseURL+WorkServiceVerifyFeatureProcedure,
+			connect.WithSchema(workServiceMethods.ByName("VerifyFeature")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // workServiceClient implements WorkServiceClient.
 type workServiceClient struct {
-	listWorkCards *connect.Client[v1.ListWorkCardsRequest, v1.ListWorkCardsResponse]
-	applyPolter   *connect.Client[v1.ApplyPolterRequest, v1.ApplyPolterResponse]
-	lintPolter    *connect.Client[v1.LintPolterRequest, v1.LintPolterResponse]
-	queryPolter   *connect.Client[v1.QueryPolterRequest, v1.QueryPolterResponse]
-	writeHandoff  *connect.Client[v1.WriteHandoffRequest, v1.WriteHandoffResponse]
-	endSession    *connect.Client[v1.EndSessionRequest, v1.EndSessionResponse]
+	listWorkCards     *connect.Client[v1.ListWorkCardsRequest, v1.ListWorkCardsResponse]
+	listAtlas         *connect.Client[v1.ListAtlasRequest, v1.ListAtlasResponse]
+	listAtlasHistory  *connect.Client[v1.ListAtlasHistoryRequest, v1.ListAtlasHistoryResponse]
+	listAgentSessions *connect.Client[v1.ListAgentSessionsRequest, v1.ListAgentSessionsResponse]
+	applyPolter       *connect.Client[v1.ApplyPolterRequest, v1.ApplyPolterResponse]
+	lintPolter        *connect.Client[v1.LintPolterRequest, v1.LintPolterResponse]
+	queryPolter       *connect.Client[v1.QueryPolterRequest, v1.QueryPolterResponse]
+	writeHandoff      *connect.Client[v1.WriteHandoffRequest, v1.WriteHandoffResponse]
+	endSession        *connect.Client[v1.EndSessionRequest, v1.EndSessionResponse]
+	listInbox         *connect.Client[v1.ListInboxRequest, v1.ListInboxResponse]
+	resolveInboxItem  *connect.Client[v1.ResolveInboxItemRequest, v1.ResolveInboxItemResponse]
+	exportProjections *connect.Client[v1.ExportProjectionsRequest, v1.ExportProjectionsResponse]
+	reviewFeature     *connect.Client[v1.ReviewFeatureRequest, v1.ReviewFeatureResponse]
+	createFeature     *connect.Client[v1.CreateFeatureRequest, v1.CreateFeatureResponse]
+	advanceFeature    *connect.Client[v1.AdvanceFeatureRequest, v1.AdvanceFeatureResponse]
+	verifyFeature     *connect.Client[v1.VerifyFeatureRequest, v1.VerifyFeatureResponse]
 }
 
 // ListWorkCards calls polterware.local.v1.WorkService.ListWorkCards.
 func (c *workServiceClient) ListWorkCards(ctx context.Context, req *connect.Request[v1.ListWorkCardsRequest]) (*connect.Response[v1.ListWorkCardsResponse], error) {
 	return c.listWorkCards.CallUnary(ctx, req)
+}
+
+// ListAtlas calls polterware.local.v1.WorkService.ListAtlas.
+func (c *workServiceClient) ListAtlas(ctx context.Context, req *connect.Request[v1.ListAtlasRequest]) (*connect.Response[v1.ListAtlasResponse], error) {
+	return c.listAtlas.CallUnary(ctx, req)
+}
+
+// ListAtlasHistory calls polterware.local.v1.WorkService.ListAtlasHistory.
+func (c *workServiceClient) ListAtlasHistory(ctx context.Context, req *connect.Request[v1.ListAtlasHistoryRequest]) (*connect.Response[v1.ListAtlasHistoryResponse], error) {
+	return c.listAtlasHistory.CallUnary(ctx, req)
+}
+
+// ListAgentSessions calls polterware.local.v1.WorkService.ListAgentSessions.
+func (c *workServiceClient) ListAgentSessions(ctx context.Context, req *connect.Request[v1.ListAgentSessionsRequest]) (*connect.Response[v1.ListAgentSessionsResponse], error) {
+	return c.listAgentSessions.CallUnary(ctx, req)
 }
 
 // ApplyPolter calls polterware.local.v1.WorkService.ApplyPolter.
@@ -149,14 +272,59 @@ func (c *workServiceClient) EndSession(ctx context.Context, req *connect.Request
 	return c.endSession.CallUnary(ctx, req)
 }
 
+// ListInbox calls polterware.local.v1.WorkService.ListInbox.
+func (c *workServiceClient) ListInbox(ctx context.Context, req *connect.Request[v1.ListInboxRequest]) (*connect.Response[v1.ListInboxResponse], error) {
+	return c.listInbox.CallUnary(ctx, req)
+}
+
+// ResolveInboxItem calls polterware.local.v1.WorkService.ResolveInboxItem.
+func (c *workServiceClient) ResolveInboxItem(ctx context.Context, req *connect.Request[v1.ResolveInboxItemRequest]) (*connect.Response[v1.ResolveInboxItemResponse], error) {
+	return c.resolveInboxItem.CallUnary(ctx, req)
+}
+
+// ExportProjections calls polterware.local.v1.WorkService.ExportProjections.
+func (c *workServiceClient) ExportProjections(ctx context.Context, req *connect.Request[v1.ExportProjectionsRequest]) (*connect.Response[v1.ExportProjectionsResponse], error) {
+	return c.exportProjections.CallUnary(ctx, req)
+}
+
+// ReviewFeature calls polterware.local.v1.WorkService.ReviewFeature.
+func (c *workServiceClient) ReviewFeature(ctx context.Context, req *connect.Request[v1.ReviewFeatureRequest]) (*connect.Response[v1.ReviewFeatureResponse], error) {
+	return c.reviewFeature.CallUnary(ctx, req)
+}
+
+// CreateFeature calls polterware.local.v1.WorkService.CreateFeature.
+func (c *workServiceClient) CreateFeature(ctx context.Context, req *connect.Request[v1.CreateFeatureRequest]) (*connect.Response[v1.CreateFeatureResponse], error) {
+	return c.createFeature.CallUnary(ctx, req)
+}
+
+// AdvanceFeature calls polterware.local.v1.WorkService.AdvanceFeature.
+func (c *workServiceClient) AdvanceFeature(ctx context.Context, req *connect.Request[v1.AdvanceFeatureRequest]) (*connect.Response[v1.AdvanceFeatureResponse], error) {
+	return c.advanceFeature.CallUnary(ctx, req)
+}
+
+// VerifyFeature calls polterware.local.v1.WorkService.VerifyFeature.
+func (c *workServiceClient) VerifyFeature(ctx context.Context, req *connect.Request[v1.VerifyFeatureRequest]) (*connect.Response[v1.VerifyFeatureResponse], error) {
+	return c.verifyFeature.CallUnary(ctx, req)
+}
+
 // WorkServiceHandler is an implementation of the polterware.local.v1.WorkService service.
 type WorkServiceHandler interface {
 	ListWorkCards(context.Context, *connect.Request[v1.ListWorkCardsRequest]) (*connect.Response[v1.ListWorkCardsResponse], error)
+	ListAtlas(context.Context, *connect.Request[v1.ListAtlasRequest]) (*connect.Response[v1.ListAtlasResponse], error)
+	ListAtlasHistory(context.Context, *connect.Request[v1.ListAtlasHistoryRequest]) (*connect.Response[v1.ListAtlasHistoryResponse], error)
+	ListAgentSessions(context.Context, *connect.Request[v1.ListAgentSessionsRequest]) (*connect.Response[v1.ListAgentSessionsResponse], error)
 	ApplyPolter(context.Context, *connect.Request[v1.ApplyPolterRequest]) (*connect.Response[v1.ApplyPolterResponse], error)
 	LintPolter(context.Context, *connect.Request[v1.LintPolterRequest]) (*connect.Response[v1.LintPolterResponse], error)
 	QueryPolter(context.Context, *connect.Request[v1.QueryPolterRequest]) (*connect.Response[v1.QueryPolterResponse], error)
 	WriteHandoff(context.Context, *connect.Request[v1.WriteHandoffRequest]) (*connect.Response[v1.WriteHandoffResponse], error)
 	EndSession(context.Context, *connect.Request[v1.EndSessionRequest]) (*connect.Response[v1.EndSessionResponse], error)
+	ListInbox(context.Context, *connect.Request[v1.ListInboxRequest]) (*connect.Response[v1.ListInboxResponse], error)
+	ResolveInboxItem(context.Context, *connect.Request[v1.ResolveInboxItemRequest]) (*connect.Response[v1.ResolveInboxItemResponse], error)
+	ExportProjections(context.Context, *connect.Request[v1.ExportProjectionsRequest]) (*connect.Response[v1.ExportProjectionsResponse], error)
+	ReviewFeature(context.Context, *connect.Request[v1.ReviewFeatureRequest]) (*connect.Response[v1.ReviewFeatureResponse], error)
+	CreateFeature(context.Context, *connect.Request[v1.CreateFeatureRequest]) (*connect.Response[v1.CreateFeatureResponse], error)
+	AdvanceFeature(context.Context, *connect.Request[v1.AdvanceFeatureRequest]) (*connect.Response[v1.AdvanceFeatureResponse], error)
+	VerifyFeature(context.Context, *connect.Request[v1.VerifyFeatureRequest]) (*connect.Response[v1.VerifyFeatureResponse], error)
 }
 
 // NewWorkServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -170,6 +338,24 @@ func NewWorkServiceHandler(svc WorkServiceHandler, opts ...connect.HandlerOption
 		WorkServiceListWorkCardsProcedure,
 		svc.ListWorkCards,
 		connect.WithSchema(workServiceMethods.ByName("ListWorkCards")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workServiceListAtlasHandler := connect.NewUnaryHandler(
+		WorkServiceListAtlasProcedure,
+		svc.ListAtlas,
+		connect.WithSchema(workServiceMethods.ByName("ListAtlas")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workServiceListAtlasHistoryHandler := connect.NewUnaryHandler(
+		WorkServiceListAtlasHistoryProcedure,
+		svc.ListAtlasHistory,
+		connect.WithSchema(workServiceMethods.ByName("ListAtlasHistory")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workServiceListAgentSessionsHandler := connect.NewUnaryHandler(
+		WorkServiceListAgentSessionsProcedure,
+		svc.ListAgentSessions,
+		connect.WithSchema(workServiceMethods.ByName("ListAgentSessions")),
 		connect.WithHandlerOptions(opts...),
 	)
 	workServiceApplyPolterHandler := connect.NewUnaryHandler(
@@ -202,10 +388,58 @@ func NewWorkServiceHandler(svc WorkServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(workServiceMethods.ByName("EndSession")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workServiceListInboxHandler := connect.NewUnaryHandler(
+		WorkServiceListInboxProcedure,
+		svc.ListInbox,
+		connect.WithSchema(workServiceMethods.ByName("ListInbox")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workServiceResolveInboxItemHandler := connect.NewUnaryHandler(
+		WorkServiceResolveInboxItemProcedure,
+		svc.ResolveInboxItem,
+		connect.WithSchema(workServiceMethods.ByName("ResolveInboxItem")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workServiceExportProjectionsHandler := connect.NewUnaryHandler(
+		WorkServiceExportProjectionsProcedure,
+		svc.ExportProjections,
+		connect.WithSchema(workServiceMethods.ByName("ExportProjections")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workServiceReviewFeatureHandler := connect.NewUnaryHandler(
+		WorkServiceReviewFeatureProcedure,
+		svc.ReviewFeature,
+		connect.WithSchema(workServiceMethods.ByName("ReviewFeature")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workServiceCreateFeatureHandler := connect.NewUnaryHandler(
+		WorkServiceCreateFeatureProcedure,
+		svc.CreateFeature,
+		connect.WithSchema(workServiceMethods.ByName("CreateFeature")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workServiceAdvanceFeatureHandler := connect.NewUnaryHandler(
+		WorkServiceAdvanceFeatureProcedure,
+		svc.AdvanceFeature,
+		connect.WithSchema(workServiceMethods.ByName("AdvanceFeature")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workServiceVerifyFeatureHandler := connect.NewUnaryHandler(
+		WorkServiceVerifyFeatureProcedure,
+		svc.VerifyFeature,
+		connect.WithSchema(workServiceMethods.ByName("VerifyFeature")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/polterware.local.v1.WorkService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case WorkServiceListWorkCardsProcedure:
 			workServiceListWorkCardsHandler.ServeHTTP(w, r)
+		case WorkServiceListAtlasProcedure:
+			workServiceListAtlasHandler.ServeHTTP(w, r)
+		case WorkServiceListAtlasHistoryProcedure:
+			workServiceListAtlasHistoryHandler.ServeHTTP(w, r)
+		case WorkServiceListAgentSessionsProcedure:
+			workServiceListAgentSessionsHandler.ServeHTTP(w, r)
 		case WorkServiceApplyPolterProcedure:
 			workServiceApplyPolterHandler.ServeHTTP(w, r)
 		case WorkServiceLintPolterProcedure:
@@ -216,6 +450,20 @@ func NewWorkServiceHandler(svc WorkServiceHandler, opts ...connect.HandlerOption
 			workServiceWriteHandoffHandler.ServeHTTP(w, r)
 		case WorkServiceEndSessionProcedure:
 			workServiceEndSessionHandler.ServeHTTP(w, r)
+		case WorkServiceListInboxProcedure:
+			workServiceListInboxHandler.ServeHTTP(w, r)
+		case WorkServiceResolveInboxItemProcedure:
+			workServiceResolveInboxItemHandler.ServeHTTP(w, r)
+		case WorkServiceExportProjectionsProcedure:
+			workServiceExportProjectionsHandler.ServeHTTP(w, r)
+		case WorkServiceReviewFeatureProcedure:
+			workServiceReviewFeatureHandler.ServeHTTP(w, r)
+		case WorkServiceCreateFeatureProcedure:
+			workServiceCreateFeatureHandler.ServeHTTP(w, r)
+		case WorkServiceAdvanceFeatureProcedure:
+			workServiceAdvanceFeatureHandler.ServeHTTP(w, r)
+		case WorkServiceVerifyFeatureProcedure:
+			workServiceVerifyFeatureHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -227,6 +475,18 @@ type UnimplementedWorkServiceHandler struct{}
 
 func (UnimplementedWorkServiceHandler) ListWorkCards(context.Context, *connect.Request[v1.ListWorkCardsRequest]) (*connect.Response[v1.ListWorkCardsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.ListWorkCards is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) ListAtlas(context.Context, *connect.Request[v1.ListAtlasRequest]) (*connect.Response[v1.ListAtlasResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.ListAtlas is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) ListAtlasHistory(context.Context, *connect.Request[v1.ListAtlasHistoryRequest]) (*connect.Response[v1.ListAtlasHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.ListAtlasHistory is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) ListAgentSessions(context.Context, *connect.Request[v1.ListAgentSessionsRequest]) (*connect.Response[v1.ListAgentSessionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.ListAgentSessions is not implemented"))
 }
 
 func (UnimplementedWorkServiceHandler) ApplyPolter(context.Context, *connect.Request[v1.ApplyPolterRequest]) (*connect.Response[v1.ApplyPolterResponse], error) {
@@ -247,4 +507,32 @@ func (UnimplementedWorkServiceHandler) WriteHandoff(context.Context, *connect.Re
 
 func (UnimplementedWorkServiceHandler) EndSession(context.Context, *connect.Request[v1.EndSessionRequest]) (*connect.Response[v1.EndSessionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.EndSession is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) ListInbox(context.Context, *connect.Request[v1.ListInboxRequest]) (*connect.Response[v1.ListInboxResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.ListInbox is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) ResolveInboxItem(context.Context, *connect.Request[v1.ResolveInboxItemRequest]) (*connect.Response[v1.ResolveInboxItemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.ResolveInboxItem is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) ExportProjections(context.Context, *connect.Request[v1.ExportProjectionsRequest]) (*connect.Response[v1.ExportProjectionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.ExportProjections is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) ReviewFeature(context.Context, *connect.Request[v1.ReviewFeatureRequest]) (*connect.Response[v1.ReviewFeatureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.ReviewFeature is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) CreateFeature(context.Context, *connect.Request[v1.CreateFeatureRequest]) (*connect.Response[v1.CreateFeatureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.CreateFeature is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) AdvanceFeature(context.Context, *connect.Request[v1.AdvanceFeatureRequest]) (*connect.Response[v1.AdvanceFeatureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.AdvanceFeature is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) VerifyFeature(context.Context, *connect.Request[v1.VerifyFeatureRequest]) (*connect.Response[v1.VerifyFeatureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.VerifyFeature is not implemented"))
 }

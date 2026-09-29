@@ -84,7 +84,46 @@ message McpSession {
 message ListMcpSessionsRequest {}
 message ListMcpSessionsResponse { repeated McpSession sessions = 1; }
 
+// HookSwitch is one plugin hook the operator can turn off. hooks.json is
+// fixed; `polterware hook <name>` exits 0 when its switch is off.
+message HookSwitch {
+  string name = 1;
+  string label = 2;
+  string note = 3;
+  bool enabled = 4;
+}
+
+// AgentSetup is the setup doctor's view: the hook switches, the Claude Code
+// plugin against this binary, and the Codex / other agents path.
+message AgentSetup {
+  repeated HookSwitch hooks = 1;
+  string polterware_path = 2;
+  string claude_path = 3;
+  bool plugin_installed = 4;
+  bool plugin_enabled = 5;
+  string plugin_version = 6;
+  string embedded_version = 7;
+  string marketplace_dir = 8;
+  string problem = 9;
+  string skill_path = 10;
+  bool skill_ready = 11;
+  bool agents_line_ready = 12;
+}
+message GetAgentSetupRequest { string project_id = 1; }
+message GetAgentSetupResponse { AgentSetup setup = 1; }
+// ListHookSwitches is the cheap read hooks use; GetAgentSetup also runs the doctor.
+message ListHookSwitchesRequest {}
+message ListHookSwitchesResponse { repeated HookSwitch hooks = 1; }
+message SetHookSwitchRequest {
+  string name = 1;
+  bool enabled = 2;
+}
+message SetHookSwitchResponse { repeated HookSwitch hooks = 1; }
+
 service AgentRunService {
+  rpc GetAgentSetup(GetAgentSetupRequest) returns (GetAgentSetupResponse);
+  rpc ListHookSwitches(ListHookSwitchesRequest) returns (ListHookSwitchesResponse);
+  rpc SetHookSwitch(SetHookSwitchRequest) returns (SetHookSwitchResponse);
   rpc ListMcpSessions(ListMcpSessionsRequest) returns (ListMcpSessionsResponse);
   rpc ListAgentRuns(ListAgentRunsRequest) returns (ListAgentRunsResponse);
   rpc GetAgentRun(GetAgentRunRequest) returns (GetAgentRunResponse);

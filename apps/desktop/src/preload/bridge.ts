@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { CoreStatus } from "../shared/core-status.js";
 import {
   IPC_CHANNELS,
   IPC_EVENTS,
@@ -32,9 +33,20 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
       getAppearancePreferences: () => ipc.invoke(IPC_CHANNELS.app.getAppearancePreferences),
       setAppearancePreferences: (preferences: { reduceTransparency: boolean }) =>
         ipc.invoke(IPC_CHANNELS.app.setAppearancePreferences, preferences),
+      getQuitPreferences: () => ipc.invoke(IPC_CHANNELS.app.getQuitPreferences),
+      setQuitPreferences: (preferences: { confirmOnQuit?: boolean; quitAction?: "keep" | "stop" }) =>
+        ipc.invoke(IPC_CHANNELS.app.setQuitPreferences, preferences),
       getMcpStatus: () => ipc.invoke(IPC_CHANNELS.app.getMcpStatus),
       startMcp: () => ipc.invoke(IPC_CHANNELS.app.startMcp),
       stopMcp: () => ipc.invoke(IPC_CHANNELS.app.stopMcp),
+      getCorePreferences: () => ipc.invoke(IPC_CHANNELS.app.getCorePreferences),
+      setCorePreferences: (preferences: { idle?: "never" | "10m" | "30m" | "1h"; autoStart?: boolean }) =>
+        ipc.invoke(IPC_CHANNELS.app.setCorePreferences, preferences),
+      getCoreStatus: () => ipc.invoke(IPC_CHANNELS.app.getCoreStatus),
+      startCore: () => ipc.invoke(IPC_CHANNELS.app.startCore),
+      stopCore: () => ipc.invoke(IPC_CHANNELS.app.stopCore),
+      restartCore: () => ipc.invoke(IPC_CHANNELS.app.restartCore),
+      revealCoreLogs: () => ipc.invoke(IPC_CHANNELS.app.revealCoreLogs),
       openExternal: (url: string) => ipc.invoke(IPC_CHANNELS.app.openExternal, { url }),
       selectDirectory: () => ipc.invoke(IPC_CHANNELS.app.selectDirectory),
     },
@@ -60,6 +72,14 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
       },
     },
     core: {
+      /** Local core lifecycle changes (running, stopped, restarting); returns unsubscribe. */
+      onStatusChange: (callback: (status: CoreStatus) => void) => {
+        const listener: BridgeListener = (_event, payload) => {
+          if (payload && typeof payload === "object") callback(payload as CoreStatus);
+        };
+        ipc.on?.(IPC_EVENTS.core.statusChanged, listener);
+        return () => ipc.removeListener?.(IPC_EVENTS.core.statusChanged, listener);
+      },
       /** Store changes from any client (CLI, MCP, other windows); returns unsubscribe. */
       onChange: (callback: (event: CoreChangeEvent) => void) => {
         const listener: BridgeListener = (_event, payload) => {
@@ -106,7 +126,16 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
       },
       work: {
         listCards: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listWorkCards, payload),
+        listAtlas: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listAtlas, payload),
+        listAtlasHistory: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listAtlasHistory, payload),
+        listAgentSessions: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listAgentSessions, payload),
+        query: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.queryPolter, payload),
         apply: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.applyPolter, payload),
+        listInbox: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listInbox, payload),
+        resolveInboxItem: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.resolveInboxItem, payload),
+        reviewFeature: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.reviewFeature, payload),
+        createFeature: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.createFeature, payload),
+        advanceFeature: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.advanceFeature, payload),
       },
       ppm: {
         listEntities: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listPpmEntities, payload),
@@ -131,6 +160,10 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
           coreCall(ipc, IPC_CHANNELS.core.getAgentRun, payload),
         listChanges: (payload: JsonObject) =>
           coreCall(ipc, IPC_CHANNELS.core.listChanges, payload),
+        getAgentSetup: (payload: JsonObject) =>
+          coreCall(ipc, IPC_CHANNELS.core.getAgentSetup, payload),
+        setHookSwitch: (payload: JsonObject) =>
+          coreCall(ipc, IPC_CHANNELS.core.setHookSwitch, payload),
       },
       integrations: {
         listProviders: () => coreCall(ipc, IPC_CHANNELS.core.listCliProviders),

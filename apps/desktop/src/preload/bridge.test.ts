@@ -1,6 +1,22 @@
 import { describe, expect, it, vi } from "vitest";
-import { createPolterwareBridge } from "./bridge.js";
 import { IPC_CHANNELS } from "../shared/ipc.js";
+
+const electron = vi.hoisted(() => ({
+  exposeInMainWorld: vi.fn(),
+  invoke: vi.fn(),
+  on: vi.fn(),
+  removeListener: vi.fn(),
+}));
+
+vi.mock("electron", () => ({
+  contextBridge: { exposeInMainWorld: electron.exposeInMainWorld },
+  ipcRenderer: { invoke: electron.invoke, on: electron.on, removeListener: electron.removeListener },
+}));
+
+const { createPolterwareBridge } = await import("./bridge.js");
+
+// Importing the preload script exposes the API once; read it before any test can reset the mock.
+const exposeCalls = [...electron.exposeInMainWorld.mock.calls];
 
 describe("createPolterwareBridge", () => {
   it("routes local chrome calls through the expected IPC channels", async () => {
@@ -103,5 +119,20 @@ describe("createPolterwareBridge", () => {
       "commander:execute-command",
       listeners.get("commander:execute-command"),
     );
+  });
+
+  it("exposes only window.polterware, never the raw ipcRenderer", () => {
+    expect(exposeCalls).toHaveLength(1);
+    const [name, api] = exposeCalls[0] as [string, Record<string, unknown>];
+    expect(name).toBe("polterware");
+    expect(Object.keys(api)).not.toContain("ipcRenderer");
+    expect(JSON.stringify(Object.keys(api))).not.toMatch(/ipc|electron|require|process/i);
+  });
+
+  it("forwards the real ipcRenderer through the wrapper", async () => {
+    electron.invoke.mockResolvedValueOnce([]);
+    const [, api] = exposeCalls[0] as [string, ReturnType<typeof createPolterwareBridge>];
+    await api.app.listIcons();
+    expect(electron.invoke).toHaveBeenCalledWith(IPC_CHANNELS.app.listIcons, undefined);
   });
 });

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -17,8 +18,9 @@ import (
 )
 
 // defaultIdle is how long the core waits without requests or open change
-// streams before it exits (ADR 0007: daemon with idle exit).
-const defaultIdle = 10 * time.Minute
+// streams before it exits. Zero keeps the core running until it is stopped
+// (ADR 0007); --idle or POLTERWARE_CORE_IDLE opt in to idle exit.
+const defaultIdle time.Duration = 0
 
 // runServe runs the core: the only process that opens the store. The Desktop,
 // CLI, TUI, and MCP bridge attach to it through core.json.
@@ -26,7 +28,7 @@ func runServe(dbPath string, args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
 	listenAddress := fs.String("listen", "127.0.0.1:0", "loopback listen address")
 	sessionToken := fs.String("token", os.Getenv("POLTERWARE_SESSION_TOKEN"), "session bearer token (default: minted)")
-	idle := fs.Duration("idle", idleFromEnv(), "exit after this long without clients (0 keeps running)")
+	idle := fs.Duration("idle", idleFromEnv(), "exit after this long without clients (0, the default, keeps running)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -64,6 +66,7 @@ func runServe(dbPath string, args []string) error {
 	fmt.Fprintf(os.Stderr, "polterware core listening on %s with session-token authentication\n", endpoint)
 
 	core := localcore.NewCore(store, token)
+	core.DBDir = filepath.Dir(dbPath)
 	if exe, err := coreclient.Executable(); err == nil {
 		core.Build = coreclient.BuildID(exe)
 	}

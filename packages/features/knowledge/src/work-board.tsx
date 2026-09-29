@@ -66,6 +66,7 @@ function WorkCard(props: {
 }) {
   const progress = createMemo(() => cardTaskProgress(props.card));
   const openQuestions = createMemo(() => cardOpenQuestions(props.card));
+  const tasks = createMemo(() => props.card.tasks.filter((task) => task.state !== "dropped"));
 
   return (
     <Card
@@ -102,6 +103,29 @@ function WorkCard(props: {
           {props.card.owner ? `${props.card.owner} · ${props.card.updatedAt}` : props.card.updatedAt}
         </span>
       </button>
+      <Show when={tasks().length > 0}>
+        <ul class="pw-work-card__tasks" aria-label={`${props.card.title} tasks`}>
+          <For each={tasks()}>
+            {(task) => (
+              <li class="pw-work-card__task" data-state={task.state}>
+                <span class="pw-work-card__task-number font-mono">T{task.number}</span>
+                <span class="min-w-0 flex-1 truncate">
+                  {task.state === "done"
+                    ? "Done"
+                    : task.claimHolder
+                      ? task.claimHolder
+                      : "Open"}
+                </span>
+                <Show when={task.state === "open" && task.claimHolder && task.scope}>
+                  <span class="pw-work-card__task-scope font-mono" title={task.scope}>
+                    {task.scope}
+                  </span>
+                </Show>
+              </li>
+            )}
+          </For>
+        </ul>
+      </Show>
     </Card>
   );
 }

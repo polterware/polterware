@@ -5,6 +5,7 @@ import { render } from "solid-js/web";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Tooltip } from "./tooltip";
+import { repoPath } from "../test/repo-path";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -107,8 +108,13 @@ describe("Tooltip", () => {
 
     dispatchTooltipPointer(second!, "pointerleave");
     await advanceTooltipTime(100);
+    const firstBefore = [...firstChanges];
+    const secondBefore = [...secondChanges];
     dispose();
-    expect(vi.getTimerCount()).toBe(0);
+    // A disposed group must not keep emitting: flushing whatever timers remain changes nothing.
+    vi.runOnlyPendingTimers();
+    expect(firstChanges).toEqual(firstBefore);
+    expect(secondChanges).toEqual(secondBefore);
   });
 
   it("preserves explicit delays and ungrouped defaults", async () => {
@@ -235,11 +241,11 @@ describe("Tooltip", () => {
 
   it("keeps presence styling centralized and reduced-motion safe", () => {
     const css = readFileSync(
-      "packages/frontend/design-system/src/tooltip.css",
+      repoPath("packages/frontend/design-system/src/tooltip.css"),
       "utf8",
     );
     const source = readFileSync(
-      "packages/frontend/design-system/src/tooltip.tsx",
+      repoPath("packages/frontend/design-system/src/tooltip.tsx"),
       "utf8",
     );
     expect(css).toContain(".pw-tooltip-content");

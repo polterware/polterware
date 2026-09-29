@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { dirname } from "node:path";
 import { app, BrowserWindow, dialog, globalShortcut, shell, Menu } from "electron";
 import log from "electron-log/main";
 import { getElectronAppIconController } from "./electron-app-icons.js";
@@ -15,11 +17,15 @@ import { setupAutoUpdater } from "./updater.js";
 import { registerPolterwareIpcHandlers } from "./ipc.js";
 import { createCoreClients, waitForHealth, type CoreClients } from "./core/client.js";
 import { createCoreDomainControllers } from "./core/controllers/domain.js";
-import { ensureCore, resolveUserDatabasePath } from "./core/process-supervisor.js";
+import { ensureCore, readCoreState, resolveUserDatabasePath, stopCore, type CoreProcessHandle } from "./core/process-supervisor.js";
+import { createCorePreferencesController } from "./core-preferences.js";
+import { idleToFlag } from "../shared/core-preferences.js";
+import { createCoreLifecycle } from "./core/core-lifecycle.js";
 import { startChangeWatcher } from "./core/change-watcher.js";
 import { IPC_EVENTS } from "../shared/ipc.js";
 import { createShortcutPreferencesController } from "./shortcut-preferences.js";
 import { createAppearancePreferencesController } from "./appearance-preferences.js";
+import { createQuitPreferencesController, type QuitPreferencesController } from "./quit-preferences.js";
 import { createMcpSupervisor } from "./mcp-supervisor.js";
 import { installApplicationMenu } from "./application-menu.js";
 
@@ -33,6 +39,35 @@ function configureLogging() {
   process.on("unhandledRejection", (reason) => {
     log.error("Unhandled rejection in main process.", reason);
   });
+}
+
+type QuitChoice = "quit" | "stop-core" | "cancel";
+
+async function confirmQuit(preferences: QuitPreferencesController): Promise<QuitChoice> {
+  const options = {
+    type: "question" as const,
+    title: "Quit Polterware",
+    message: "Quit Polterware?",
+    detail:
+      "The local core keeps running in the background after you quit, so the CLI and MCP clients stay connected. " +
+      "Choose \"Quit and stop core\" to shut it down.",
+    buttons: ["Quit", "Quit and stop core", "Cancel"],
+    defaultId: 0,
+    cancelId: 2,
+    checkboxLabel: "Don't ask again",
+    checkboxChecked: false,
+  };
+  const parent = getMainWindow();
+  const result = parent
+    ? await dialog.showMessageBox(parent, options)
+    : await dialog.showMessageBox(options);
+  if (result.checkboxChecked && result.response !== 2) {
+    preferences.setPreferences({
+      confirmOnQuit: false,
+      quitAction: result.response === 1 ? "stop" : "keep",
+    });
+  }
+  return (["quit", "stop-core", "cancel"] as const)[result.response] ?? "cancel";
 }
 
 async function bootstrap() {
@@ -73,6 +108,15 @@ async function bootstrap() {
     },
   });
 
+  const quitPreferences = createQuitPreferencesController({
+    userDataDirectory: app.getPath("userData"),
+  });
+
+  const corePreferences = createCorePreferencesController({
+    userDataDirectory: app.getPath("userData"),
+  });
+  const coreIdleFlag = () => idleToFlag(corePreferences.getPreferences().idle);
+
   const mcpSupervisor = createMcpSupervisor({
     log: (message) => log.debug(message),
   });
@@ -99,6 +143,15 @@ async function bootstrap() {
       getPreferences: () => appearancePreferences.getPreferences(),
       setPreferences: (patch: { reduceTransparency?: boolean }) =>
         appearancePreferences.setPreferences(patch),
+    },
+    corePreferences: {
+      getPreferences: () => corePreferences.getPreferences(),
+      setPreferences: (patch: { idle?: "never" | "10m" | "30m" | "1h"; autoStart?: boolean }) =>
+        corePreferences.setPreferences(patch),
+    },
+    quitPreferences: {
+      getPreferences: () => quitPreferences.getPreferences(),
+      setPreferences: (patch: { confirmOnQuit?: boolean; quitAction?: "keep" | "stop" }) => quitPreferences.setPreferences(patch),
     },
     mcp: {
       getStatus: () => mcpSupervisor.getStatus(),
@@ -136,41 +189,80 @@ async function bootstrap() {
   // The core is a shared daemon (ADR 0007): attach or start it, never stop it
   // on quit. Clients are swapped in place when the core restarts.
   let stopChangeWatcher = () => {};
+  const dbPath = resolveUserDatabasePath();
+  const coreLog = (message: string) => log.debug(message);
+  let handle: CoreProcessHandle | undefined;
+  let current: CoreClients | undefined;
+  const useHandle = (next: CoreProcessHandle) => {
+    handle = next;
+    current = createCoreClients(next.endpoint, next.token);
+  };
+  const coreLifecycle = createCoreLifecycle({
+    dbPath,
+    log: coreLog,
+    getIdle: coreIdleFlag,
+    onHandle: useHandle,
+    emit: (status) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) window.webContents.send(IPC_EVENTS.core.statusChanged, status);
+      }
+    },
+  });
+  const clients = new Proxy({} as CoreClients, {
+    get: (_target, key) => {
+      if (!current) throw new Error("The local core is not running.");
+      return current[key as keyof CoreClients];
+    },
+  });
+  const coreLifecycleController = {
+    getStatus: () => coreLifecycle.getStatus(),
+    start: () => coreLifecycle.start(),
+    stop: () => coreLifecycle.stop(),
+    restart: () => coreLifecycle.restart(),
+    revealLogs: async () => {
+      const { logPath } = coreLifecycle.getStatus();
+      if (existsSync(logPath)) shell.showItemInFolder(logPath);
+      else await shell.openPath(dirname(logPath));
+      return { ok: true };
+    },
+  };
   try {
-    const dbPath = resolveUserDatabasePath();
-    const coreLog = (message: string) => log.debug(message);
-    let handle = await ensureCore({ dbPath, log: coreLog });
-    let current = createCoreClients(handle.endpoint, handle.token);
-    await waitForHealth(current);
-    const clients = new Proxy({} as CoreClients, {
-      get: (_target, key) => current[key as keyof CoreClients],
-    });
-    registerPolterwareIpcHandlers({
-      ...shellControllers,
-      core: createCoreDomainControllers(clients),
-    });
-    stopChangeWatcher = startChangeWatcher({
-      getClients: () => current,
-      reconnect: async () => {
-        const next = await ensureCore({ dbPath, log: coreLog });
-        const replaced = next.endpoint !== handle.endpoint || next.token !== handle.token;
-        if (replaced) {
-          handle = next;
-          current = createCoreClients(next.endpoint, next.token);
-        }
-        return replaced;
-      },
-      emit: (event) => {
-        for (const window of BrowserWindow.getAllWindows()) {
-          if (!window.isDestroyed()) window.webContents.send(IPC_EVENTS.core.changed, event);
-        }
-      },
-      log: coreLog,
-    });
+    if (corePreferences.getPreferences().autoStart) {
+      useHandle(await ensureCore({ dbPath, idle: coreIdleFlag(), log: coreLog }));
+    } else {
+      // Attach to a core that is already running, but never start one.
+      const existing = readCoreState(dbPath);
+      if (existing) useHandle({ endpoint: existing.endpoint, token: existing.token, pid: existing.pid });
+    }
+    if (current) await waitForHealth(current);
   } catch (error) {
     log.error("Failed to start Polterware core.", error);
-    registerPolterwareIpcHandlers(shellControllers);
   }
+  registerPolterwareIpcHandlers({
+    ...shellControllers,
+    coreLifecycle: coreLifecycleController,
+    core: createCoreDomainControllers(clients),
+  });
+  stopChangeWatcher = startChangeWatcher({
+    getClients: () => clients,
+    reconnect: async () => {
+      // A core the user stopped must stay stopped until they start it again.
+      if (coreLifecycle.isPaused()) throw new Error("Core stopped by the user.");
+      if (!corePreferences.getPreferences().autoStart && !readCoreState(dbPath)) {
+        throw new Error("Core is stopped and auto-start is off.");
+      }
+      const next = await ensureCore({ dbPath, idle: coreIdleFlag(), log: coreLog });
+      const replaced = !handle || next.endpoint !== handle.endpoint || next.token !== handle.token;
+      if (replaced) useHandle(next);
+      return replaced;
+    },
+    emit: (event) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) window.webContents.send(IPC_EVENTS.core.changed, event);
+      }
+    },
+    log: coreLog,
+  });
 
   applyGlobalCommanderAccelerator(shortcutPreferences.getGlobalCommanderAccelerator());
 
@@ -179,10 +271,39 @@ async function bootstrap() {
   });
   setupAutoUpdater();
 
-  app.on("before-quit", () => {
+  let quitConfirmed = false;
+  app.on("before-quit", (event) => {
+    if (!quitConfirmed) {
+      const quitSettings = quitPreferences.getPreferences();
+      if (!quitSettings.confirmOnQuit) {
+        quitConfirmed = true;
+        if (quitSettings.quitAction === "stop") {
+          event.preventDefault();
+          void stopCore({ dbPath: resolveUserDatabasePath() })
+            .catch((error) => log.error("Failed to stop Polterware core.", error))
+            .finally(() => app.quit());
+          return;
+        }
+      } else {
+        event.preventDefault();
+        void confirmQuit(quitPreferences).then((choice) => {
+          if (choice === "cancel") return;
+          quitConfirmed = true;
+          const stop =
+            choice === "stop-core"
+              ? stopCore({ dbPath: resolveUserDatabasePath() }).catch((error) =>
+                  log.error("Failed to stop Polterware core.", error),
+                )
+              : Promise.resolve();
+          void stop.finally(() => app.quit());
+        });
+        return;
+      }
+    }
     unregisterCommanderShortcut();
     void mcpSupervisor.stop();
     stopChangeWatcher();
+    coreLifecycle.dispose();
   });
 }
 

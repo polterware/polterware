@@ -28,8 +28,10 @@ type WorkTask struct {
 	Number int32                  `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
 	Title  string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	// state is "open", "done", or "dropped".
-	State         string `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
-	Scope         string `protobuf:"bytes,5,opt,name=scope,proto3" json:"scope,omitempty"`
+	State string `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
+	Scope string `protobuf:"bytes,5,opt,name=scope,proto3" json:"scope,omitempty"`
+	// claim_holder is the agent label holding the task's claim; empty when free.
+	ClaimHolder   string `protobuf:"bytes,6,opt,name=claim_holder,json=claimHolder,proto3" json:"claim_holder,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -95,6 +97,13 @@ func (x *WorkTask) GetState() string {
 func (x *WorkTask) GetScope() string {
 	if x != nil {
 		return x.Scope
+	}
+	return ""
+}
+
+func (x *WorkTask) GetClaimHolder() string {
+	if x != nil {
+		return x.ClaimHolder
 	}
 	return ""
 }
@@ -244,15 +253,17 @@ type WorkCard struct {
 	Title     string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
 	Intent    string                 `protobuf:"bytes,5,opt,name=intent,proto3" json:"intent,omitempty"`
 	// stage is "shape", "plan", "build", "verify", or "delivered".
-	Stage         string           `protobuf:"bytes,6,opt,name=stage,proto3" json:"stage,omitempty"`
-	Owner         string           `protobuf:"bytes,7,opt,name=owner,proto3" json:"owner,omitempty"`
-	Under         string           `protobuf:"bytes,8,opt,name=under,proto3" json:"under,omitempty"`
-	Decisions     []string         `protobuf:"bytes,9,rep,name=decisions,proto3" json:"decisions,omitempty"`
-	CreatedAt     string           `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     string           `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	Tasks         []*WorkTask      `protobuf:"bytes,12,rep,name=tasks,proto3" json:"tasks,omitempty"`
-	Questions     []*WorkQuestion  `protobuf:"bytes,13,rep,name=questions,proto3" json:"questions,omitempty"`
-	Invariants    []*WorkInvariant `protobuf:"bytes,14,rep,name=invariants,proto3" json:"invariants,omitempty"`
+	Stage      string           `protobuf:"bytes,6,opt,name=stage,proto3" json:"stage,omitempty"`
+	Owner      string           `protobuf:"bytes,7,opt,name=owner,proto3" json:"owner,omitempty"`
+	Under      string           `protobuf:"bytes,8,opt,name=under,proto3" json:"under,omitempty"`
+	Decisions  []string         `protobuf:"bytes,9,rep,name=decisions,proto3" json:"decisions,omitempty"`
+	CreatedAt  string           `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt  string           `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Tasks      []*WorkTask      `protobuf:"bytes,12,rep,name=tasks,proto3" json:"tasks,omitempty"`
+	Questions  []*WorkQuestion  `protobuf:"bytes,13,rep,name=questions,proto3" json:"questions,omitempty"`
+	Invariants []*WorkInvariant `protobuf:"bytes,14,rep,name=invariants,proto3" json:"invariants,omitempty"`
+	// kind is "feature" or "architecture" (a structural Atlas change).
+	Kind          string `protobuf:"bytes,15,opt,name=kind,proto3" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -383,6 +394,13 @@ func (x *WorkCard) GetInvariants() []*WorkInvariant {
 		return x.Invariants
 	}
 	return nil
+}
+
+func (x *WorkCard) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
 }
 
 type PolterDiagnostic struct {
@@ -546,7 +564,9 @@ type ApplyPolterRequest struct {
 	Change *ChangeEnvelope `protobuf:"bytes,4,opt,name=change,proto3" json:"change,omitempty"`
 	// session_id joins an agent session's run (Claude Code session id); without
 	// it and without change.agent_run_id, an agent client opens a one-off run.
-	SessionId     string `protobuf:"bytes,5,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SessionId string `protobuf:"bytes,5,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	// session_label is the agent label claim, done, and release lines act for.
+	// It applies with or without session_id; the Desktop ignores it.
 	SessionLabel  string `protobuf:"bytes,6,opt,name=session_label,json=sessionLabel,proto3" json:"session_label,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -807,8 +827,9 @@ func (x *LintPolterResponse) GetDiagnostics() []*PolterDiagnostic {
 	return nil
 }
 
-// QueryPolter answers "cards", "card <slug>", "status", or "handoff <slug>"
-// in Polter text. "status" is the short session-start summary.
+// QueryPolter answers "cards", "card <slug>", "status", "inbox",
+// "handoff <slug>", "oracle <path>", or "atlas" in text.
+// "status" is the short session-start summary.
 type QueryPolterRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
@@ -1172,17 +1193,2514 @@ func (x *EndSessionResponse) GetCompletedRuns() int32 {
 	return 0
 }
 
+// InboxItem is one derived item that needs a person: a Decision (open
+// question), Drift (drift finding), or Verify (fact with no evidence).
+type InboxItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// id is the short id people type; it is stable while the item is the same.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// kind is "decision", "drift", or "verify".
+	Kind     string   `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Blocking bool     `protobuf:"varint,3,opt,name=blocking,proto3" json:"blocking,omitempty"`
+	Title    string   `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Detail   string   `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	Options  []string `protobuf:"bytes,6,rep,name=options,proto3" json:"options,omitempty"`
+	// where is the card slug and task, commit, path, or fact source.
+	Where  string `protobuf:"bytes,7,opt,name=where,proto3" json:"where,omitempty"`
+	Source string `protobuf:"bytes,8,opt,name=source,proto3" json:"source,omitempty"`
+	// state is "open" or "deferred".
+	State string `protobuf:"bytes,9,opt,name=state,proto3" json:"state,omitempty"`
+	// actions are the item's action ids, primary first: decide, delegate,
+	// defer, fix_code, update_intent, ignore, verify, reject.
+	Actions       []string `protobuf:"bytes,10,rep,name=actions,proto3" json:"actions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InboxItem) Reset() {
+	*x = InboxItem{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InboxItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InboxItem) ProtoMessage() {}
+
+func (x *InboxItem) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InboxItem.ProtoReflect.Descriptor instead.
+func (*InboxItem) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *InboxItem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *InboxItem) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *InboxItem) GetBlocking() bool {
+	if x != nil {
+		return x.Blocking
+	}
+	return false
+}
+
+func (x *InboxItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *InboxItem) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *InboxItem) GetOptions() []string {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+func (x *InboxItem) GetWhere() string {
+	if x != nil {
+		return x.Where
+	}
+	return ""
+}
+
+func (x *InboxItem) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *InboxItem) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *InboxItem) GetActions() []string {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+// RoutedInboxItem is an item a person handed to agents (delegate, fix_code,
+// update_intent); `polterware status` shows it until the source changes.
+type RoutedInboxItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Item          *InboxItem             `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	Action        string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoutedInboxItem) Reset() {
+	*x = RoutedInboxItem{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoutedInboxItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoutedInboxItem) ProtoMessage() {}
+
+func (x *RoutedInboxItem) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoutedInboxItem.ProtoReflect.Descriptor instead.
+func (*RoutedInboxItem) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *RoutedInboxItem) GetItem() *InboxItem {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+func (x *RoutedInboxItem) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+// ListInbox derives the project's Inbox: open items (blocking first), then
+// deferred ones. Reading it writes nothing.
+type ListInboxRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListInboxRequest) Reset() {
+	*x = ListInboxRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListInboxRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListInboxRequest) ProtoMessage() {}
+
+func (x *ListInboxRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListInboxRequest.ProtoReflect.Descriptor instead.
+func (*ListInboxRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListInboxRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+type ListInboxResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*InboxItem           `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Routed        []*RoutedInboxItem     `protobuf:"bytes,2,rep,name=routed,proto3" json:"routed,omitempty"`
+	OpenCount     int32                  `protobuf:"varint,3,opt,name=open_count,json=openCount,proto3" json:"open_count,omitempty"`
+	BlockingCount int32                  `protobuf:"varint,4,opt,name=blocking_count,json=blockingCount,proto3" json:"blocking_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListInboxResponse) Reset() {
+	*x = ListInboxResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListInboxResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListInboxResponse) ProtoMessage() {}
+
+func (x *ListInboxResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListInboxResponse.ProtoReflect.Descriptor instead.
+func (*ListInboxResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ListInboxResponse) GetItems() []*InboxItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListInboxResponse) GetRouted() []*RoutedInboxItem {
+	if x != nil {
+		return x.Routed
+	}
+	return nil
+}
+
+func (x *ListInboxResponse) GetOpenCount() int32 {
+	if x != nil {
+		return x.OpenCount
+	}
+	return 0
+}
+
+func (x *ListInboxResponse) GetBlockingCount() int32 {
+	if x != nil {
+		return x.BlockingCount
+	}
+	return 0
+}
+
+// ResolveInboxItem applies one action. decide writes `? question -> answer`
+// as Polter text; verify marks the fact verified; the rest record a
+// disposition.
+type ResolveInboxItemRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	ItemId    string                 `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	Action    string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	Answer    string                 `protobuf:"bytes,4,opt,name=answer,proto3" json:"answer,omitempty"`
+	// session_label is the acting agent; the Desktop acts as "desktop".
+	SessionLabel  string `protobuf:"bytes,5,opt,name=session_label,json=sessionLabel,proto3" json:"session_label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveInboxItemRequest) Reset() {
+	*x = ResolveInboxItemRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveInboxItemRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveInboxItemRequest) ProtoMessage() {}
+
+func (x *ResolveInboxItemRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveInboxItemRequest.ProtoReflect.Descriptor instead.
+func (*ResolveInboxItemRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ResolveInboxItemRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ResolveInboxItemRequest) GetItemId() string {
+	if x != nil {
+		return x.ItemId
+	}
+	return ""
+}
+
+func (x *ResolveInboxItemRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *ResolveInboxItemRequest) GetAnswer() string {
+	if x != nil {
+		return x.Answer
+	}
+	return ""
+}
+
+func (x *ResolveInboxItemRequest) GetSessionLabel() string {
+	if x != nil {
+		return x.SessionLabel
+	}
+	return ""
+}
+
+type ResolveInboxItemResponse struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Item   *InboxItem             `protobuf:"bytes,1,opt,name=item,proto3" json:"item,omitempty"`
+	Action string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	// ops is set for decide: the Polter operations it applied.
+	Ops           []string            `protobuf:"bytes,3,rep,name=ops,proto3" json:"ops,omitempty"`
+	Diagnostics   []*PolterDiagnostic `protobuf:"bytes,4,rep,name=diagnostics,proto3" json:"diagnostics,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveInboxItemResponse) Reset() {
+	*x = ResolveInboxItemResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveInboxItemResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveInboxItemResponse) ProtoMessage() {}
+
+func (x *ResolveInboxItemResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveInboxItemResponse.ProtoReflect.Descriptor instead.
+func (*ResolveInboxItemResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ResolveInboxItemResponse) GetItem() *InboxItem {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+func (x *ResolveInboxItemResponse) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *ResolveInboxItemResponse) GetOps() []string {
+	if x != nil {
+		return x.Ops
+	}
+	return nil
+}
+
+func (x *ResolveInboxItemResponse) GetDiagnostics() []*PolterDiagnostic {
+	if x != nil {
+		return x.Diagnostics
+	}
+	return nil
+}
+
+type AtlasInvariant struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AtlasInvariant) Reset() {
+	*x = AtlasInvariant{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AtlasInvariant) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AtlasInvariant) ProtoMessage() {}
+
+func (x *AtlasInvariant) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AtlasInvariant.ProtoReflect.Descriptor instead.
+func (*AtlasInvariant) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *AtlasInvariant) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AtlasInvariant) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+// AtlasNode is a system, domain, or component. status is derived:
+// proposed, in_progress, delivered, or drift.
+type AtlasNode struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ParentId      string                 `protobuf:"bytes,2,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
+	Level         string                 `protobuf:"bytes,3,opt,name=level,proto3" json:"level,omitempty"`
+	Slug          string                 `protobuf:"bytes,4,opt,name=slug,proto3" json:"slug,omitempty"`
+	Path          string                 `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
+	Title         string                 `protobuf:"bytes,6,opt,name=title,proto3" json:"title,omitempty"`
+	Intent        string                 `protobuf:"bytes,7,opt,name=intent,proto3" json:"intent,omitempty"`
+	Decisions     []string               `protobuf:"bytes,8,rep,name=decisions,proto3" json:"decisions,omitempty"`
+	Invariants    []*AtlasInvariant      `protobuf:"bytes,9,rep,name=invariants,proto3" json:"invariants,omitempty"`
+	Status        string                 `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
+	ChildCount    int32                  `protobuf:"varint,11,opt,name=child_count,json=childCount,proto3" json:"child_count,omitempty"`
+	FeatureCount  int32                  `protobuf:"varint,12,opt,name=feature_count,json=featureCount,proto3" json:"feature_count,omitempty"`
+	OpenQuestions int32                  `protobuf:"varint,13,opt,name=open_questions,json=openQuestions,proto3" json:"open_questions,omitempty"`
+	// repo is a project_repos name; empty is the project root checkout.
+	Repo string `protobuf:"bytes,14,opt,name=repo,proto3" json:"repo,omitempty"`
+	// folder is a directory inside that checkout. path stays the node identity.
+	Folder string `protobuf:"bytes,15,opt,name=folder,proto3" json:"folder,omitempty"`
+	// migration_from and migration_to are both empty unless the node is moving
+	// between designs.
+	MigrationFrom string `protobuf:"bytes,16,opt,name=migration_from,json=migrationFrom,proto3" json:"migration_from,omitempty"`
+	MigrationTo   string `protobuf:"bytes,17,opt,name=migration_to,json=migrationTo,proto3" json:"migration_to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AtlasNode) Reset() {
+	*x = AtlasNode{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AtlasNode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AtlasNode) ProtoMessage() {}
+
+func (x *AtlasNode) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AtlasNode.ProtoReflect.Descriptor instead.
+func (*AtlasNode) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *AtlasNode) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetParentId() string {
+	if x != nil {
+		return x.ParentId
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetIntent() string {
+	if x != nil {
+		return x.Intent
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetDecisions() []string {
+	if x != nil {
+		return x.Decisions
+	}
+	return nil
+}
+
+func (x *AtlasNode) GetInvariants() []*AtlasInvariant {
+	if x != nil {
+		return x.Invariants
+	}
+	return nil
+}
+
+func (x *AtlasNode) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetChildCount() int32 {
+	if x != nil {
+		return x.ChildCount
+	}
+	return 0
+}
+
+func (x *AtlasNode) GetFeatureCount() int32 {
+	if x != nil {
+		return x.FeatureCount
+	}
+	return 0
+}
+
+func (x *AtlasNode) GetOpenQuestions() int32 {
+	if x != nil {
+		return x.OpenQuestions
+	}
+	return 0
+}
+
+func (x *AtlasNode) GetRepo() string {
+	if x != nil {
+		return x.Repo
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetFolder() string {
+	if x != nil {
+		return x.Folder
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetMigrationFrom() string {
+	if x != nil {
+		return x.MigrationFrom
+	}
+	return ""
+}
+
+func (x *AtlasNode) GetMigrationTo() string {
+	if x != nil {
+		return x.MigrationTo
+	}
+	return ""
+}
+
+// ListAtlas reads the live graph, or the graph replayed at as_of (an RFC3339
+// date, a YYYY-MM-DD day, a change batch id, or a commit sha). A past graph
+// has no derived status: every node reports "proposed" and historical is true.
+type ListAtlasRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	AsOf          string                 `protobuf:"bytes,2,opt,name=as_of,json=asOf,proto3" json:"as_of,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAtlasRequest) Reset() {
+	*x = ListAtlasRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAtlasRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAtlasRequest) ProtoMessage() {}
+
+func (x *ListAtlasRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAtlasRequest.ProtoReflect.Descriptor instead.
+func (*ListAtlasRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListAtlasRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ListAtlasRequest) GetAsOf() string {
+	if x != nil {
+		return x.AsOf
+	}
+	return ""
+}
+
+type ListAtlasResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Nodes         []*AtlasNode           `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	DriftSlugs    []string               `protobuf:"bytes,2,rep,name=drift_slugs,json=driftSlugs,proto3" json:"drift_slugs,omitempty"`
+	Historical    bool                   `protobuf:"varint,3,opt,name=historical,proto3" json:"historical,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAtlasResponse) Reset() {
+	*x = ListAtlasResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAtlasResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAtlasResponse) ProtoMessage() {}
+
+func (x *ListAtlasResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAtlasResponse.ProtoReflect.Descriptor instead.
+func (*ListAtlasResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *ListAtlasResponse) GetNodes() []*AtlasNode {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+func (x *ListAtlasResponse) GetDriftSlugs() []string {
+	if x != nil {
+		return x.DriftSlugs
+	}
+	return nil
+}
+
+func (x *ListAtlasResponse) GetHistorical() bool {
+	if x != nil {
+		return x.Historical
+	}
+	return false
+}
+
+// AtlasHistoryEntry is one applied change batch that touched Atlas nodes.
+type AtlasHistoryEntry struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	BatchId    string                 `protobuf:"bytes,1,opt,name=batch_id,json=batchId,proto3" json:"batch_id,omitempty"`
+	At         string                 `protobuf:"bytes,2,opt,name=at,proto3" json:"at,omitempty"`
+	AgentRunId string                 `protobuf:"bytes,3,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
+	NodeOps    int32                  `protobuf:"varint,4,opt,name=node_ops,json=nodeOps,proto3" json:"node_ops,omitempty"`
+	// summary is the first node title or path the batch touched.
+	Summary       string `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AtlasHistoryEntry) Reset() {
+	*x = AtlasHistoryEntry{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AtlasHistoryEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AtlasHistoryEntry) ProtoMessage() {}
+
+func (x *AtlasHistoryEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AtlasHistoryEntry.ProtoReflect.Descriptor instead.
+func (*AtlasHistoryEntry) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *AtlasHistoryEntry) GetBatchId() string {
+	if x != nil {
+		return x.BatchId
+	}
+	return ""
+}
+
+func (x *AtlasHistoryEntry) GetAt() string {
+	if x != nil {
+		return x.At
+	}
+	return ""
+}
+
+func (x *AtlasHistoryEntry) GetAgentRunId() string {
+	if x != nil {
+		return x.AgentRunId
+	}
+	return ""
+}
+
+func (x *AtlasHistoryEntry) GetNodeOps() int32 {
+	if x != nil {
+		return x.NodeOps
+	}
+	return 0
+}
+
+func (x *AtlasHistoryEntry) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+type SessionClaim struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	Number        int32                  `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
+	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Scope         string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionClaim) Reset() {
+	*x = SessionClaim{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionClaim) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionClaim) ProtoMessage() {}
+
+func (x *SessionClaim) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionClaim.ProtoReflect.Descriptor instead.
+func (*SessionClaim) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *SessionClaim) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *SessionClaim) GetNumber() int32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+func (x *SessionClaim) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *SessionClaim) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+// AgentSession is one agent working now: an open agent run plus the claims
+// its label holds. run_id is empty for a label that holds claims without an
+// open run.
+type AgentSession struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Agent         string                 `protobuf:"bytes,2,opt,name=agent,proto3" json:"agent,omitempty"`
+	Task          string                 `protobuf:"bytes,3,opt,name=task,proto3" json:"task,omitempty"`
+	StartedAt     string                 `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	Claims        []*SessionClaim        `protobuf:"bytes,5,rep,name=claims,proto3" json:"claims,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentSession) Reset() {
+	*x = AgentSession{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentSession) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentSession) ProtoMessage() {}
+
+func (x *AgentSession) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentSession.ProtoReflect.Descriptor instead.
+func (*AgentSession) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *AgentSession) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *AgentSession) GetAgent() string {
+	if x != nil {
+		return x.Agent
+	}
+	return ""
+}
+
+func (x *AgentSession) GetTask() string {
+	if x != nil {
+		return x.Task
+	}
+	return ""
+}
+
+func (x *AgentSession) GetStartedAt() string {
+	if x != nil {
+		return x.StartedAt
+	}
+	return ""
+}
+
+func (x *AgentSession) GetClaims() []*SessionClaim {
+	if x != nil {
+		return x.Claims
+	}
+	return nil
+}
+
+type SessionHandoff struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	Branch        string                 `protobuf:"bytes,2,opt,name=branch,proto3" json:"branch,omitempty"`
+	Goal          string                 `protobuf:"bytes,3,opt,name=goal,proto3" json:"goal,omitempty"`
+	Done          string                 `protobuf:"bytes,4,opt,name=done,proto3" json:"done,omitempty"`
+	InProgress    string                 `protobuf:"bytes,5,opt,name=in_progress,json=inProgress,proto3" json:"in_progress,omitempty"`
+	Next          string                 `protobuf:"bytes,6,opt,name=next,proto3" json:"next,omitempty"`
+	Agent         string                 `protobuf:"bytes,7,opt,name=agent,proto3" json:"agent,omitempty"`
+	At            string                 `protobuf:"bytes,8,opt,name=at,proto3" json:"at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionHandoff) Reset() {
+	*x = SessionHandoff{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionHandoff) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionHandoff) ProtoMessage() {}
+
+func (x *SessionHandoff) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionHandoff.ProtoReflect.Descriptor instead.
+func (*SessionHandoff) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *SessionHandoff) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *SessionHandoff) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *SessionHandoff) GetGoal() string {
+	if x != nil {
+		return x.Goal
+	}
+	return ""
+}
+
+func (x *SessionHandoff) GetDone() string {
+	if x != nil {
+		return x.Done
+	}
+	return ""
+}
+
+func (x *SessionHandoff) GetInProgress() string {
+	if x != nil {
+		return x.InProgress
+	}
+	return ""
+}
+
+func (x *SessionHandoff) GetNext() string {
+	if x != nil {
+		return x.Next
+	}
+	return ""
+}
+
+func (x *SessionHandoff) GetAgent() string {
+	if x != nil {
+		return x.Agent
+	}
+	return ""
+}
+
+func (x *SessionHandoff) GetAt() string {
+	if x != nil {
+		return x.At
+	}
+	return ""
+}
+
+// ListAgentSessions returns live sessions and the newest handoffs. branch is
+// the project checkout's branch, shared by every session.
+type ListAgentSessionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentSessionsRequest) Reset() {
+	*x = ListAgentSessionsRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentSessionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentSessionsRequest) ProtoMessage() {}
+
+func (x *ListAgentSessionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentSessionsRequest.ProtoReflect.Descriptor instead.
+func (*ListAgentSessionsRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *ListAgentSessionsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+type ListAgentSessionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sessions      []*AgentSession        `protobuf:"bytes,1,rep,name=sessions,proto3" json:"sessions,omitempty"`
+	Handoffs      []*SessionHandoff      `protobuf:"bytes,2,rep,name=handoffs,proto3" json:"handoffs,omitempty"`
+	Branch        string                 `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAgentSessionsResponse) Reset() {
+	*x = ListAgentSessionsResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAgentSessionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAgentSessionsResponse) ProtoMessage() {}
+
+func (x *ListAgentSessionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAgentSessionsResponse.ProtoReflect.Descriptor instead.
+func (*ListAgentSessionsResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *ListAgentSessionsResponse) GetSessions() []*AgentSession {
+	if x != nil {
+		return x.Sessions
+	}
+	return nil
+}
+
+func (x *ListAgentSessionsResponse) GetHandoffs() []*SessionHandoff {
+	if x != nil {
+		return x.Handoffs
+	}
+	return nil
+}
+
+func (x *ListAgentSessionsResponse) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+type ListAtlasHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAtlasHistoryRequest) Reset() {
+	*x = ListAtlasHistoryRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAtlasHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAtlasHistoryRequest) ProtoMessage() {}
+
+func (x *ListAtlasHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAtlasHistoryRequest.ProtoReflect.Descriptor instead.
+func (*ListAtlasHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *ListAtlasHistoryRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+type ListAtlasHistoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entries       []*AtlasHistoryEntry   `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListAtlasHistoryResponse) Reset() {
+	*x = ListAtlasHistoryResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListAtlasHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListAtlasHistoryResponse) ProtoMessage() {}
+
+func (x *ListAtlasHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListAtlasHistoryResponse.ProtoReflect.Descriptor instead.
+func (*ListAtlasHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *ListAtlasHistoryResponse) GetEntries() []*AtlasHistoryEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+// ExportProjections writes ADR files into docs/adr/ of each governing checkout
+// and the generated AGENTS.md block of every checkout. The store stays the
+// source of truth; nothing is read back from the files.
+type ExportProjectionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	DryRun        bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExportProjectionsRequest) Reset() {
+	*x = ExportProjectionsRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExportProjectionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExportProjectionsRequest) ProtoMessage() {}
+
+func (x *ExportProjectionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExportProjectionsRequest.ProtoReflect.Descriptor instead.
+func (*ExportProjectionsRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ExportProjectionsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ExportProjectionsRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+// ProjectionFile is one file export wrote, kept, removed, or skipped.
+// action: write, unchanged, remove, or skip. path is relative to the checkout;
+// repo is empty for the project root.
+type ProjectionFile struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Repo          string                 `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Action        string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectionFile) Reset() {
+	*x = ProjectionFile{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectionFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectionFile) ProtoMessage() {}
+
+func (x *ProjectionFile) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectionFile.ProtoReflect.Descriptor instead.
+func (*ProjectionFile) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ProjectionFile) GetRepo() string {
+	if x != nil {
+		return x.Repo
+	}
+	return ""
+}
+
+func (x *ProjectionFile) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ProjectionFile) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *ProjectionFile) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type ExportProjectionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Files         []*ProjectionFile      `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExportProjectionsResponse) Reset() {
+	*x = ExportProjectionsResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExportProjectionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExportProjectionsResponse) ProtoMessage() {}
+
+func (x *ExportProjectionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExportProjectionsResponse.ProtoReflect.Descriptor instead.
+func (*ExportProjectionsResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ExportProjectionsResponse) GetFiles() []*ProjectionFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+// Feature flow (slice 9): Intent creates a card in shape, Shape shows its
+// impact, and the contract (shape → plan) and plan (plan → build) gates move
+// the stage. An open blocking question stops a gate; other checks are hints.
+type FeatureTouch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Level         string                 `protobuf:"bytes,2,opt,name=level,proto3" json:"level,omitempty"`
+	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FeatureTouch) Reset() {
+	*x = FeatureTouch{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FeatureTouch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FeatureTouch) ProtoMessage() {}
+
+func (x *FeatureTouch) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FeatureTouch.ProtoReflect.Descriptor instead.
+func (*FeatureTouch) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *FeatureTouch) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *FeatureTouch) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *FeatureTouch) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+// from is "card" or the node path that cites the decision; status is empty
+// when no ADR matches the reference.
+type FeatureDecision struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ref           string                 `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	From          string                 `protobuf:"bytes,5,opt,name=from,proto3" json:"from,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FeatureDecision) Reset() {
+	*x = FeatureDecision{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FeatureDecision) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FeatureDecision) ProtoMessage() {}
+
+func (x *FeatureDecision) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FeatureDecision.ProtoReflect.Descriptor instead.
+func (*FeatureDecision) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *FeatureDecision) GetRef() string {
+	if x != nil {
+		return x.Ref
+	}
+	return ""
+}
+
+func (x *FeatureDecision) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *FeatureDecision) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *FeatureDecision) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *FeatureDecision) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+type FeatureInvariant struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	From          string                 `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FeatureInvariant) Reset() {
+	*x = FeatureInvariant{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FeatureInvariant) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FeatureInvariant) ProtoMessage() {}
+
+func (x *FeatureInvariant) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FeatureInvariant.ProtoReflect.Descriptor instead.
+func (*FeatureInvariant) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *FeatureInvariant) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *FeatureInvariant) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+// route is "inbox", "deferred", "delegated", or "answered".
+type FeatureQuestion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Text          string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	Blocking      bool                   `protobuf:"varint,3,opt,name=blocking,proto3" json:"blocking,omitempty"`
+	Options       []string               `protobuf:"bytes,4,rep,name=options,proto3" json:"options,omitempty"`
+	Route         string                 `protobuf:"bytes,5,opt,name=route,proto3" json:"route,omitempty"`
+	Answer        string                 `protobuf:"bytes,6,opt,name=answer,proto3" json:"answer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FeatureQuestion) Reset() {
+	*x = FeatureQuestion{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FeatureQuestion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FeatureQuestion) ProtoMessage() {}
+
+func (x *FeatureQuestion) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FeatureQuestion.ProtoReflect.Descriptor instead.
+func (*FeatureQuestion) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *FeatureQuestion) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *FeatureQuestion) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *FeatureQuestion) GetBlocking() bool {
+	if x != nil {
+		return x.Blocking
+	}
+	return false
+}
+
+func (x *FeatureQuestion) GetOptions() []string {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+func (x *FeatureQuestion) GetRoute() string {
+	if x != nil {
+		return x.Route
+	}
+	return ""
+}
+
+func (x *FeatureQuestion) GetAnswer() string {
+	if x != nil {
+		return x.Answer
+	}
+	return ""
+}
+
+// step is "shape", "contract", or "plan"; severity is "error" or "hint".
+type FeatureCheck struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Step          string                 `protobuf:"bytes,1,opt,name=step,proto3" json:"step,omitempty"`
+	Severity      string                 `protobuf:"bytes,2,opt,name=severity,proto3" json:"severity,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FeatureCheck) Reset() {
+	*x = FeatureCheck{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FeatureCheck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FeatureCheck) ProtoMessage() {}
+
+func (x *FeatureCheck) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FeatureCheck.ProtoReflect.Descriptor instead.
+func (*FeatureCheck) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *FeatureCheck) GetStep() string {
+	if x != nil {
+		return x.Step
+	}
+	return ""
+}
+
+func (x *FeatureCheck) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *FeatureCheck) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type FeatureReview struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Card  *WorkCard              `protobuf:"bytes,1,opt,name=card,proto3" json:"card,omitempty"`
+	// under_path is set when the card's under: names a node.
+	UnderPath  string `protobuf:"bytes,2,opt,name=under_path,json=underPath,proto3" json:"under_path,omitempty"`
+	UnderTitle string `protobuf:"bytes,3,opt,name=under_title,json=underTitle,proto3" json:"under_title,omitempty"`
+	// suggested lists component paths for a card without under:.
+	Suggested     []string            `protobuf:"bytes,4,rep,name=suggested,proto3" json:"suggested,omitempty"`
+	Touches       []*FeatureTouch     `protobuf:"bytes,5,rep,name=touches,proto3" json:"touches,omitempty"`
+	Decisions     []*FeatureDecision  `protobuf:"bytes,6,rep,name=decisions,proto3" json:"decisions,omitempty"`
+	Inherited     []*FeatureInvariant `protobuf:"bytes,7,rep,name=inherited,proto3" json:"inherited,omitempty"`
+	Questions     []*FeatureQuestion  `protobuf:"bytes,8,rep,name=questions,proto3" json:"questions,omitempty"`
+	Checks        []*FeatureCheck     `protobuf:"bytes,9,rep,name=checks,proto3" json:"checks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FeatureReview) Reset() {
+	*x = FeatureReview{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FeatureReview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FeatureReview) ProtoMessage() {}
+
+func (x *FeatureReview) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FeatureReview.ProtoReflect.Descriptor instead.
+func (*FeatureReview) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *FeatureReview) GetCard() *WorkCard {
+	if x != nil {
+		return x.Card
+	}
+	return nil
+}
+
+func (x *FeatureReview) GetUnderPath() string {
+	if x != nil {
+		return x.UnderPath
+	}
+	return ""
+}
+
+func (x *FeatureReview) GetUnderTitle() string {
+	if x != nil {
+		return x.UnderTitle
+	}
+	return ""
+}
+
+func (x *FeatureReview) GetSuggested() []string {
+	if x != nil {
+		return x.Suggested
+	}
+	return nil
+}
+
+func (x *FeatureReview) GetTouches() []*FeatureTouch {
+	if x != nil {
+		return x.Touches
+	}
+	return nil
+}
+
+func (x *FeatureReview) GetDecisions() []*FeatureDecision {
+	if x != nil {
+		return x.Decisions
+	}
+	return nil
+}
+
+func (x *FeatureReview) GetInherited() []*FeatureInvariant {
+	if x != nil {
+		return x.Inherited
+	}
+	return nil
+}
+
+func (x *FeatureReview) GetQuestions() []*FeatureQuestion {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
+func (x *FeatureReview) GetChecks() []*FeatureCheck {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
+}
+
+type ReviewFeatureRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Slug          string                 `protobuf:"bytes,2,opt,name=slug,proto3" json:"slug,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReviewFeatureRequest) Reset() {
+	*x = ReviewFeatureRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewFeatureRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewFeatureRequest) ProtoMessage() {}
+
+func (x *ReviewFeatureRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewFeatureRequest.ProtoReflect.Descriptor instead.
+func (*ReviewFeatureRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *ReviewFeatureRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ReviewFeatureRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+type ReviewFeatureResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Review        *FeatureReview         `protobuf:"bytes,1,opt,name=review,proto3" json:"review,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReviewFeatureResponse) Reset() {
+	*x = ReviewFeatureResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReviewFeatureResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReviewFeatureResponse) ProtoMessage() {}
+
+func (x *ReviewFeatureResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReviewFeatureResponse.ProtoReflect.Descriptor instead.
+func (*ReviewFeatureResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *ReviewFeatureResponse) GetReview() *FeatureReview {
+	if x != nil {
+		return x.Review
+	}
+	return nil
+}
+
+// CreateFeature writes a card in shape from an intent. title defaults to the
+// intent's first sentence; under is written only when set.
+type CreateFeatureRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Intent    string                 `protobuf:"bytes,2,opt,name=intent,proto3" json:"intent,omitempty"`
+	Title     string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	Under     string                 `protobuf:"bytes,4,opt,name=under,proto3" json:"under,omitempty"`
+	// Empty summary or rationale fall back to a generated envelope.
+	Change       *ChangeEnvelope `protobuf:"bytes,5,opt,name=change,proto3" json:"change,omitempty"`
+	SessionId    string          `protobuf:"bytes,6,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SessionLabel string          `protobuf:"bytes,7,opt,name=session_label,json=sessionLabel,proto3" json:"session_label,omitempty"`
+	// kind is "feature" (default) or "architecture".
+	Kind          string `protobuf:"bytes,8,opt,name=kind,proto3" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateFeatureRequest) Reset() {
+	*x = CreateFeatureRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateFeatureRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateFeatureRequest) ProtoMessage() {}
+
+func (x *CreateFeatureRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateFeatureRequest.ProtoReflect.Descriptor instead.
+func (*CreateFeatureRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *CreateFeatureRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *CreateFeatureRequest) GetIntent() string {
+	if x != nil {
+		return x.Intent
+	}
+	return ""
+}
+
+func (x *CreateFeatureRequest) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *CreateFeatureRequest) GetUnder() string {
+	if x != nil {
+		return x.Under
+	}
+	return ""
+}
+
+func (x *CreateFeatureRequest) GetChange() *ChangeEnvelope {
+	if x != nil {
+		return x.Change
+	}
+	return nil
+}
+
+func (x *CreateFeatureRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *CreateFeatureRequest) GetSessionLabel() string {
+	if x != nil {
+		return x.SessionLabel
+	}
+	return ""
+}
+
+func (x *CreateFeatureRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+type CreateFeatureResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	Apply         *ApplyPolterResponse   `protobuf:"bytes,2,opt,name=apply,proto3" json:"apply,omitempty"`
+	Review        *FeatureReview         `protobuf:"bytes,3,opt,name=review,proto3" json:"review,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateFeatureResponse) Reset() {
+	*x = CreateFeatureResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateFeatureResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateFeatureResponse) ProtoMessage() {}
+
+func (x *CreateFeatureResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateFeatureResponse.ProtoReflect.Descriptor instead.
+func (*CreateFeatureResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *CreateFeatureResponse) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *CreateFeatureResponse) GetApply() *ApplyPolterResponse {
+	if x != nil {
+		return x.Apply
+	}
+	return nil
+}
+
+func (x *CreateFeatureResponse) GetReview() *FeatureReview {
+	if x != nil {
+		return x.Review
+	}
+	return nil
+}
+
+// AdvanceFeature passes one gate: step "contract" (shape → plan) or "plan"
+// (plan → build). A refused gate is InvalidArgument with diagnostics.
+type AdvanceFeatureRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Slug          string                 `protobuf:"bytes,2,opt,name=slug,proto3" json:"slug,omitempty"`
+	Step          string                 `protobuf:"bytes,3,opt,name=step,proto3" json:"step,omitempty"`
+	Change        *ChangeEnvelope        `protobuf:"bytes,4,opt,name=change,proto3" json:"change,omitempty"`
+	SessionId     string                 `protobuf:"bytes,5,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SessionLabel  string                 `protobuf:"bytes,6,opt,name=session_label,json=sessionLabel,proto3" json:"session_label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdvanceFeatureRequest) Reset() {
+	*x = AdvanceFeatureRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdvanceFeatureRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdvanceFeatureRequest) ProtoMessage() {}
+
+func (x *AdvanceFeatureRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdvanceFeatureRequest.ProtoReflect.Descriptor instead.
+func (*AdvanceFeatureRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *AdvanceFeatureRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *AdvanceFeatureRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *AdvanceFeatureRequest) GetStep() string {
+	if x != nil {
+		return x.Step
+	}
+	return ""
+}
+
+func (x *AdvanceFeatureRequest) GetChange() *ChangeEnvelope {
+	if x != nil {
+		return x.Change
+	}
+	return nil
+}
+
+func (x *AdvanceFeatureRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *AdvanceFeatureRequest) GetSessionLabel() string {
+	if x != nil {
+		return x.SessionLabel
+	}
+	return ""
+}
+
+type AdvanceFeatureResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Stage         string                 `protobuf:"bytes,1,opt,name=stage,proto3" json:"stage,omitempty"`
+	Apply         *ApplyPolterResponse   `protobuf:"bytes,2,opt,name=apply,proto3" json:"apply,omitempty"`
+	Review        *FeatureReview         `protobuf:"bytes,3,opt,name=review,proto3" json:"review,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdvanceFeatureResponse) Reset() {
+	*x = AdvanceFeatureResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdvanceFeatureResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdvanceFeatureResponse) ProtoMessage() {}
+
+func (x *AdvanceFeatureResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdvanceFeatureResponse.ProtoReflect.Descriptor instead.
+func (*AdvanceFeatureResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *AdvanceFeatureResponse) GetStage() string {
+	if x != nil {
+		return x.Stage
+	}
+	return ""
+}
+
+func (x *AdvanceFeatureResponse) GetApply() *ApplyPolterResponse {
+	if x != nil {
+		return x.Apply
+	}
+	return nil
+}
+
+func (x *AdvanceFeatureResponse) GetReview() *FeatureReview {
+	if x != nil {
+		return x.Review
+	}
+	return nil
+}
+
+// VerifyFeature reads whether a card (slug) or task (slug#T2) is finished.
+// status is "pass", "fail", "info", or "manual". It never writes.
+type VerifyFeatureRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Target        string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyFeatureRequest) Reset() {
+	*x = VerifyFeatureRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyFeatureRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyFeatureRequest) ProtoMessage() {}
+
+func (x *VerifyFeatureRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyFeatureRequest.ProtoReflect.Descriptor instead.
+func (*VerifyFeatureRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *VerifyFeatureRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *VerifyFeatureRequest) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+type VerifyCheck struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyCheck) Reset() {
+	*x = VerifyCheck{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyCheck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyCheck) ProtoMessage() {}
+
+func (x *VerifyCheck) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyCheck.ProtoReflect.Descriptor instead.
+func (*VerifyCheck) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *VerifyCheck) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *VerifyCheck) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type VerifyFeatureResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Passed        bool                   `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
+	Checks        []*VerifyCheck         `protobuf:"bytes,3,rep,name=checks,proto3" json:"checks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyFeatureResponse) Reset() {
+	*x = VerifyFeatureResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyFeatureResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyFeatureResponse) ProtoMessage() {}
+
+func (x *VerifyFeatureResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyFeatureResponse.ProtoReflect.Descriptor instead.
+func (*VerifyFeatureResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *VerifyFeatureResponse) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *VerifyFeatureResponse) GetPassed() bool {
+	if x != nil {
+		return x.Passed
+	}
+	return false
+}
+
+func (x *VerifyFeatureResponse) GetChecks() []*VerifyCheck {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
+}
+
 var File_polterware_local_v1_work_proto protoreflect.FileDescriptor
 
 const file_polterware_local_v1_work_proto_rawDesc = "" +
 	"\n" +
-	"\x1epolterware/local/v1/work.proto\x12\x13polterware.local.v1\x1a\"polterware/local/v1/agentrun.proto\"t\n" +
+	"\x1epolterware/local/v1/work.proto\x12\x13polterware.local.v1\x1a\"polterware/local/v1/agentrun.proto\"\x97\x01\n" +
 	"\bWorkTask\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06number\x18\x02 \x01(\x05R\x06number\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\x14\n" +
 	"\x05state\x18\x04 \x01(\tR\x05state\x12\x14\n" +
-	"\x05scope\x18\x05 \x01(\tR\x05scope\"\x96\x01\n" +
+	"\x05scope\x18\x05 \x01(\tR\x05scope\x12!\n" +
+	"\fclaim_holder\x18\x06 \x01(\tR\vclaimHolder\"\x96\x01\n" +
 	"\fWorkQuestion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x12\x1a\n" +
@@ -1192,7 +3710,7 @@ const file_polterware_local_v1_work_proto_rawDesc = "" +
 	"\x06answer\x18\x06 \x01(\tR\x06answer\"3\n" +
 	"\rWorkInvariant\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text\"\xd3\x03\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"\xe7\x03\n" +
 	"\bWorkCard\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1213,7 +3731,8 @@ const file_polterware_local_v1_work_proto_rawDesc = "" +
 	"\tquestions\x18\r \x03(\v2!.polterware.local.v1.WorkQuestionR\tquestions\x12B\n" +
 	"\n" +
 	"invariants\x18\x0e \x03(\v2\".polterware.local.v1.WorkInvariantR\n" +
-	"invariants\"\\\n" +
+	"invariants\x12\x12\n" +
+	"\x04kind\x18\x0f \x01(\tR\x04kind\"\\\n" +
 	"\x10PolterDiagnostic\x12\x12\n" +
 	"\x04line\x18\x01 \x01(\x05R\x04line\x12\x1a\n" +
 	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x18\n" +
@@ -1274,16 +3793,231 @@ const file_polterware_local_v1_work_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\";\n" +
 	"\x12EndSessionResponse\x12%\n" +
-	"\x0ecompleted_runs\x18\x01 \x01(\x05R\rcompletedRuns2\xdc\x04\n" +
+	"\x0ecompleted_runs\x18\x01 \x01(\x05R\rcompletedRuns\"\xf1\x01\n" +
+	"\tInboxItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1a\n" +
+	"\bblocking\x18\x03 \x01(\bR\bblocking\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x16\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\x12\x18\n" +
+	"\aoptions\x18\x06 \x03(\tR\aoptions\x12\x14\n" +
+	"\x05where\x18\a \x01(\tR\x05where\x12\x16\n" +
+	"\x06source\x18\b \x01(\tR\x06source\x12\x14\n" +
+	"\x05state\x18\t \x01(\tR\x05state\x12\x18\n" +
+	"\aactions\x18\n" +
+	" \x03(\tR\aactions\"]\n" +
+	"\x0fRoutedInboxItem\x122\n" +
+	"\x04item\x18\x01 \x01(\v2\x1e.polterware.local.v1.InboxItemR\x04item\x12\x16\n" +
+	"\x06action\x18\x02 \x01(\tR\x06action\"1\n" +
+	"\x10ListInboxRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"\xcd\x01\n" +
+	"\x11ListInboxResponse\x124\n" +
+	"\x05items\x18\x01 \x03(\v2\x1e.polterware.local.v1.InboxItemR\x05items\x12<\n" +
+	"\x06routed\x18\x02 \x03(\v2$.polterware.local.v1.RoutedInboxItemR\x06routed\x12\x1d\n" +
+	"\n" +
+	"open_count\x18\x03 \x01(\x05R\topenCount\x12%\n" +
+	"\x0eblocking_count\x18\x04 \x01(\x05R\rblockingCount\"\xa6\x01\n" +
+	"\x17ResolveInboxItemRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\aitem_id\x18\x02 \x01(\tR\x06itemId\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x12\x16\n" +
+	"\x06answer\x18\x04 \x01(\tR\x06answer\x12#\n" +
+	"\rsession_label\x18\x05 \x01(\tR\fsessionLabel\"\xc1\x01\n" +
+	"\x18ResolveInboxItemResponse\x122\n" +
+	"\x04item\x18\x01 \x01(\v2\x1e.polterware.local.v1.InboxItemR\x04item\x12\x16\n" +
+	"\x06action\x18\x02 \x01(\tR\x06action\x12\x10\n" +
+	"\x03ops\x18\x03 \x03(\tR\x03ops\x12G\n" +
+	"\vdiagnostics\x18\x04 \x03(\v2%.polterware.local.v1.PolterDiagnosticR\vdiagnostics\"4\n" +
+	"\x0eAtlasInvariant\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"\x82\x04\n" +
+	"\tAtlasNode\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\tparent_id\x18\x02 \x01(\tR\bparentId\x12\x14\n" +
+	"\x05level\x18\x03 \x01(\tR\x05level\x12\x12\n" +
+	"\x04slug\x18\x04 \x01(\tR\x04slug\x12\x12\n" +
+	"\x04path\x18\x05 \x01(\tR\x04path\x12\x14\n" +
+	"\x05title\x18\x06 \x01(\tR\x05title\x12\x16\n" +
+	"\x06intent\x18\a \x01(\tR\x06intent\x12\x1c\n" +
+	"\tdecisions\x18\b \x03(\tR\tdecisions\x12C\n" +
+	"\n" +
+	"invariants\x18\t \x03(\v2#.polterware.local.v1.AtlasInvariantR\n" +
+	"invariants\x12\x16\n" +
+	"\x06status\x18\n" +
+	" \x01(\tR\x06status\x12\x1f\n" +
+	"\vchild_count\x18\v \x01(\x05R\n" +
+	"childCount\x12#\n" +
+	"\rfeature_count\x18\f \x01(\x05R\ffeatureCount\x12%\n" +
+	"\x0eopen_questions\x18\r \x01(\x05R\ropenQuestions\x12\x12\n" +
+	"\x04repo\x18\x0e \x01(\tR\x04repo\x12\x16\n" +
+	"\x06folder\x18\x0f \x01(\tR\x06folder\x12%\n" +
+	"\x0emigration_from\x18\x10 \x01(\tR\rmigrationFrom\x12!\n" +
+	"\fmigration_to\x18\x11 \x01(\tR\vmigrationTo\"F\n" +
+	"\x10ListAtlasRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x13\n" +
+	"\x05as_of\x18\x02 \x01(\tR\x04asOf\"\x8a\x01\n" +
+	"\x11ListAtlasResponse\x124\n" +
+	"\x05nodes\x18\x01 \x03(\v2\x1e.polterware.local.v1.AtlasNodeR\x05nodes\x12\x1f\n" +
+	"\vdrift_slugs\x18\x02 \x03(\tR\n" +
+	"driftSlugs\x12\x1e\n" +
+	"\n" +
+	"historical\x18\x03 \x01(\bR\n" +
+	"historical\"\x95\x01\n" +
+	"\x11AtlasHistoryEntry\x12\x19\n" +
+	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x12\x0e\n" +
+	"\x02at\x18\x02 \x01(\tR\x02at\x12 \n" +
+	"\fagent_run_id\x18\x03 \x01(\tR\n" +
+	"agentRunId\x12\x19\n" +
+	"\bnode_ops\x18\x04 \x01(\x05R\anodeOps\x12\x18\n" +
+	"\asummary\x18\x05 \x01(\tR\asummary\"f\n" +
+	"\fSessionClaim\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x16\n" +
+	"\x06number\x18\x02 \x01(\x05R\x06number\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12\x14\n" +
+	"\x05scope\x18\x04 \x01(\tR\x05scope\"\xa9\x01\n" +
+	"\fAgentSession\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x14\n" +
+	"\x05agent\x18\x02 \x01(\tR\x05agent\x12\x12\n" +
+	"\x04task\x18\x03 \x01(\tR\x04task\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x04 \x01(\tR\tstartedAt\x129\n" +
+	"\x06claims\x18\x05 \x03(\v2!.polterware.local.v1.SessionClaimR\x06claims\"\xbf\x01\n" +
+	"\x0eSessionHandoff\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x16\n" +
+	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x12\n" +
+	"\x04goal\x18\x03 \x01(\tR\x04goal\x12\x12\n" +
+	"\x04done\x18\x04 \x01(\tR\x04done\x12\x1f\n" +
+	"\vin_progress\x18\x05 \x01(\tR\n" +
+	"inProgress\x12\x12\n" +
+	"\x04next\x18\x06 \x01(\tR\x04next\x12\x14\n" +
+	"\x05agent\x18\a \x01(\tR\x05agent\x12\x0e\n" +
+	"\x02at\x18\b \x01(\tR\x02at\"9\n" +
+	"\x18ListAgentSessionsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"\xb3\x01\n" +
+	"\x19ListAgentSessionsResponse\x12=\n" +
+	"\bsessions\x18\x01 \x03(\v2!.polterware.local.v1.AgentSessionR\bsessions\x12?\n" +
+	"\bhandoffs\x18\x02 \x03(\v2#.polterware.local.v1.SessionHandoffR\bhandoffs\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\"8\n" +
+	"\x17ListAtlasHistoryRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"\\\n" +
+	"\x18ListAtlasHistoryResponse\x12@\n" +
+	"\aentries\x18\x01 \x03(\v2&.polterware.local.v1.AtlasHistoryEntryR\aentries\"R\n" +
+	"\x18ExportProjectionsRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x17\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"h\n" +
+	"\x0eProjectionFile\x12\x12\n" +
+	"\x04repo\x18\x01 \x01(\tR\x04repo\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"V\n" +
+	"\x19ExportProjectionsResponse\x129\n" +
+	"\x05files\x18\x01 \x03(\v2#.polterware.local.v1.ProjectionFileR\x05files\"N\n" +
+	"\fFeatureTouch\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x14\n" +
+	"\x05level\x18\x02 \x01(\tR\x05level\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\"u\n" +
+	"\x0fFeatureDecision\x12\x10\n" +
+	"\x03ref\x18\x01 \x01(\tR\x03ref\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x12\n" +
+	"\x04from\x18\x05 \x01(\tR\x04from\":\n" +
+	"\x10FeatureInvariant\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x12\x12\n" +
+	"\x04from\x18\x02 \x01(\tR\x04from\"\x99\x01\n" +
+	"\x0fFeatureQuestion\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\x12\x1a\n" +
+	"\bblocking\x18\x03 \x01(\bR\bblocking\x12\x18\n" +
+	"\aoptions\x18\x04 \x03(\tR\aoptions\x12\x14\n" +
+	"\x05route\x18\x05 \x01(\tR\x05route\x12\x16\n" +
+	"\x06answer\x18\x06 \x01(\tR\x06answer\"X\n" +
+	"\fFeatureCheck\x12\x12\n" +
+	"\x04step\x18\x01 \x01(\tR\x04step\x12\x1a\n" +
+	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xe5\x03\n" +
+	"\rFeatureReview\x121\n" +
+	"\x04card\x18\x01 \x01(\v2\x1d.polterware.local.v1.WorkCardR\x04card\x12\x1d\n" +
+	"\n" +
+	"under_path\x18\x02 \x01(\tR\tunderPath\x12\x1f\n" +
+	"\vunder_title\x18\x03 \x01(\tR\n" +
+	"underTitle\x12\x1c\n" +
+	"\tsuggested\x18\x04 \x03(\tR\tsuggested\x12;\n" +
+	"\atouches\x18\x05 \x03(\v2!.polterware.local.v1.FeatureTouchR\atouches\x12B\n" +
+	"\tdecisions\x18\x06 \x03(\v2$.polterware.local.v1.FeatureDecisionR\tdecisions\x12C\n" +
+	"\tinherited\x18\a \x03(\v2%.polterware.local.v1.FeatureInvariantR\tinherited\x12B\n" +
+	"\tquestions\x18\b \x03(\v2$.polterware.local.v1.FeatureQuestionR\tquestions\x129\n" +
+	"\x06checks\x18\t \x03(\v2!.polterware.local.v1.FeatureCheckR\x06checks\"I\n" +
+	"\x14ReviewFeatureRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04slug\x18\x02 \x01(\tR\x04slug\"S\n" +
+	"\x15ReviewFeatureResponse\x12:\n" +
+	"\x06review\x18\x01 \x01(\v2\".polterware.local.v1.FeatureReviewR\x06review\"\x8e\x02\n" +
+	"\x14CreateFeatureRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06intent\x18\x02 \x01(\tR\x06intent\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12\x14\n" +
+	"\x05under\x18\x04 \x01(\tR\x05under\x12;\n" +
+	"\x06change\x18\x05 \x01(\v2#.polterware.local.v1.ChangeEnvelopeR\x06change\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x06 \x01(\tR\tsessionId\x12#\n" +
+	"\rsession_label\x18\a \x01(\tR\fsessionLabel\x12\x12\n" +
+	"\x04kind\x18\b \x01(\tR\x04kind\"\xa7\x01\n" +
+	"\x15CreateFeatureResponse\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12>\n" +
+	"\x05apply\x18\x02 \x01(\v2(.polterware.local.v1.ApplyPolterResponseR\x05apply\x12:\n" +
+	"\x06review\x18\x03 \x01(\v2\".polterware.local.v1.FeatureReviewR\x06review\"\xdf\x01\n" +
+	"\x15AdvanceFeatureRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x12\n" +
+	"\x04step\x18\x03 \x01(\tR\x04step\x12;\n" +
+	"\x06change\x18\x04 \x01(\v2#.polterware.local.v1.ChangeEnvelopeR\x06change\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x05 \x01(\tR\tsessionId\x12#\n" +
+	"\rsession_label\x18\x06 \x01(\tR\fsessionLabel\"\xaa\x01\n" +
+	"\x16AdvanceFeatureResponse\x12\x14\n" +
+	"\x05stage\x18\x01 \x01(\tR\x05stage\x12>\n" +
+	"\x05apply\x18\x02 \x01(\v2(.polterware.local.v1.ApplyPolterResponseR\x05apply\x12:\n" +
+	"\x06review\x18\x03 \x01(\v2\".polterware.local.v1.FeatureReviewR\x06review\"M\n" +
+	"\x14VerifyFeatureRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06target\x18\x02 \x01(\tR\x06target\"?\n" +
+	"\vVerifyCheck\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x81\x01\n" +
+	"\x15VerifyFeatureResponse\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12\x16\n" +
+	"\x06passed\x18\x02 \x01(\bR\x06passed\x128\n" +
+	"\x06checks\x18\x03 \x03(\v2 .polterware.local.v1.VerifyCheckR\x06checks2\x81\r\n" +
 	"\vWorkService\x12f\n" +
-	"\rListWorkCards\x12).polterware.local.v1.ListWorkCardsRequest\x1a*.polterware.local.v1.ListWorkCardsResponse\x12`\n" +
+	"\rListWorkCards\x12).polterware.local.v1.ListWorkCardsRequest\x1a*.polterware.local.v1.ListWorkCardsResponse\x12Z\n" +
+	"\tListAtlas\x12%.polterware.local.v1.ListAtlasRequest\x1a&.polterware.local.v1.ListAtlasResponse\x12o\n" +
+	"\x10ListAtlasHistory\x12,.polterware.local.v1.ListAtlasHistoryRequest\x1a-.polterware.local.v1.ListAtlasHistoryResponse\x12r\n" +
+	"\x11ListAgentSessions\x12-.polterware.local.v1.ListAgentSessionsRequest\x1a..polterware.local.v1.ListAgentSessionsResponse\x12`\n" +
 	"\vApplyPolter\x12'.polterware.local.v1.ApplyPolterRequest\x1a(.polterware.local.v1.ApplyPolterResponse\x12]\n" +
 	"\n" +
 	"LintPolter\x12&.polterware.local.v1.LintPolterRequest\x1a'.polterware.local.v1.LintPolterResponse\x12`\n" +
 	"\vQueryPolter\x12'.polterware.local.v1.QueryPolterRequest\x1a(.polterware.local.v1.QueryPolterResponse\x12c\n" +
 	"\fWriteHandoff\x12(.polterware.local.v1.WriteHandoffRequest\x1a).polterware.local.v1.WriteHandoffResponse\x12]\n" +
 	"\n" +
-	"EndSession\x12&.polterware.local.v1.EndSessionRequest\x1a'.polterware.local.v1.EndSessionResponseB\xe5\x01\n" +
+	"EndSession\x12&.polterware.local.v1.EndSessionRequest\x1a'.polterware.local.v1.EndSessionResponse\x12Z\n" +
+	"\tListInbox\x12%.polterware.local.v1.ListInboxRequest\x1a&.polterware.local.v1.ListInboxResponse\x12o\n" +
+	"\x10ResolveInboxItem\x12,.polterware.local.v1.ResolveInboxItemRequest\x1a-.polterware.local.v1.ResolveInboxItemResponse\x12r\n" +
+	"\x11ExportProjections\x12-.polterware.local.v1.ExportProjectionsRequest\x1a..polterware.local.v1.ExportProjectionsResponse\x12f\n" +
+	"\rReviewFeature\x12).polterware.local.v1.ReviewFeatureRequest\x1a*.polterware.local.v1.ReviewFeatureResponse\x12f\n" +
+	"\rCreateFeature\x12).polterware.local.v1.CreateFeatureRequest\x1a*.polterware.local.v1.CreateFeatureResponse\x12i\n" +
+	"\x0eAdvanceFeature\x12*.polterware.local.v1.AdvanceFeatureRequest\x1a+.polterware.local.v1.AdvanceFeatureResponse\x12f\n" +
+	"\rVerifyFeature\x12).polterware.local.v1.VerifyFeatureRequest\x1a*.polterware.local.v1.VerifyFeatureResponseB\xe5\x01\n" +
 	"\x17com.polterware.local.v1B\tWorkProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
 
 var (
@@ -1298,54 +4032,136 @@ func file_polterware_local_v1_work_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_work_proto_rawDescData
 }
 
-var file_polterware_local_v1_work_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_polterware_local_v1_work_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
 var file_polterware_local_v1_work_proto_goTypes = []any{
-	(*WorkTask)(nil),              // 0: polterware.local.v1.WorkTask
-	(*WorkQuestion)(nil),          // 1: polterware.local.v1.WorkQuestion
-	(*WorkInvariant)(nil),         // 2: polterware.local.v1.WorkInvariant
-	(*WorkCard)(nil),              // 3: polterware.local.v1.WorkCard
-	(*PolterDiagnostic)(nil),      // 4: polterware.local.v1.PolterDiagnostic
-	(*ListWorkCardsRequest)(nil),  // 5: polterware.local.v1.ListWorkCardsRequest
-	(*ListWorkCardsResponse)(nil), // 6: polterware.local.v1.ListWorkCardsResponse
-	(*ApplyPolterRequest)(nil),    // 7: polterware.local.v1.ApplyPolterRequest
-	(*ApplyPolterResponse)(nil),   // 8: polterware.local.v1.ApplyPolterResponse
-	(*LintPolterRequest)(nil),     // 9: polterware.local.v1.LintPolterRequest
-	(*LintPolterResponse)(nil),    // 10: polterware.local.v1.LintPolterResponse
-	(*QueryPolterRequest)(nil),    // 11: polterware.local.v1.QueryPolterRequest
-	(*QueryPolterResponse)(nil),   // 12: polterware.local.v1.QueryPolterResponse
-	(*WriteHandoffRequest)(nil),   // 13: polterware.local.v1.WriteHandoffRequest
-	(*WriteHandoffResponse)(nil),  // 14: polterware.local.v1.WriteHandoffResponse
-	(*EndSessionRequest)(nil),     // 15: polterware.local.v1.EndSessionRequest
-	(*EndSessionResponse)(nil),    // 16: polterware.local.v1.EndSessionResponse
-	(*ChangeEnvelope)(nil),        // 17: polterware.local.v1.ChangeEnvelope
+	(*WorkTask)(nil),                  // 0: polterware.local.v1.WorkTask
+	(*WorkQuestion)(nil),              // 1: polterware.local.v1.WorkQuestion
+	(*WorkInvariant)(nil),             // 2: polterware.local.v1.WorkInvariant
+	(*WorkCard)(nil),                  // 3: polterware.local.v1.WorkCard
+	(*PolterDiagnostic)(nil),          // 4: polterware.local.v1.PolterDiagnostic
+	(*ListWorkCardsRequest)(nil),      // 5: polterware.local.v1.ListWorkCardsRequest
+	(*ListWorkCardsResponse)(nil),     // 6: polterware.local.v1.ListWorkCardsResponse
+	(*ApplyPolterRequest)(nil),        // 7: polterware.local.v1.ApplyPolterRequest
+	(*ApplyPolterResponse)(nil),       // 8: polterware.local.v1.ApplyPolterResponse
+	(*LintPolterRequest)(nil),         // 9: polterware.local.v1.LintPolterRequest
+	(*LintPolterResponse)(nil),        // 10: polterware.local.v1.LintPolterResponse
+	(*QueryPolterRequest)(nil),        // 11: polterware.local.v1.QueryPolterRequest
+	(*QueryPolterResponse)(nil),       // 12: polterware.local.v1.QueryPolterResponse
+	(*WriteHandoffRequest)(nil),       // 13: polterware.local.v1.WriteHandoffRequest
+	(*WriteHandoffResponse)(nil),      // 14: polterware.local.v1.WriteHandoffResponse
+	(*EndSessionRequest)(nil),         // 15: polterware.local.v1.EndSessionRequest
+	(*EndSessionResponse)(nil),        // 16: polterware.local.v1.EndSessionResponse
+	(*InboxItem)(nil),                 // 17: polterware.local.v1.InboxItem
+	(*RoutedInboxItem)(nil),           // 18: polterware.local.v1.RoutedInboxItem
+	(*ListInboxRequest)(nil),          // 19: polterware.local.v1.ListInboxRequest
+	(*ListInboxResponse)(nil),         // 20: polterware.local.v1.ListInboxResponse
+	(*ResolveInboxItemRequest)(nil),   // 21: polterware.local.v1.ResolveInboxItemRequest
+	(*ResolveInboxItemResponse)(nil),  // 22: polterware.local.v1.ResolveInboxItemResponse
+	(*AtlasInvariant)(nil),            // 23: polterware.local.v1.AtlasInvariant
+	(*AtlasNode)(nil),                 // 24: polterware.local.v1.AtlasNode
+	(*ListAtlasRequest)(nil),          // 25: polterware.local.v1.ListAtlasRequest
+	(*ListAtlasResponse)(nil),         // 26: polterware.local.v1.ListAtlasResponse
+	(*AtlasHistoryEntry)(nil),         // 27: polterware.local.v1.AtlasHistoryEntry
+	(*SessionClaim)(nil),              // 28: polterware.local.v1.SessionClaim
+	(*AgentSession)(nil),              // 29: polterware.local.v1.AgentSession
+	(*SessionHandoff)(nil),            // 30: polterware.local.v1.SessionHandoff
+	(*ListAgentSessionsRequest)(nil),  // 31: polterware.local.v1.ListAgentSessionsRequest
+	(*ListAgentSessionsResponse)(nil), // 32: polterware.local.v1.ListAgentSessionsResponse
+	(*ListAtlasHistoryRequest)(nil),   // 33: polterware.local.v1.ListAtlasHistoryRequest
+	(*ListAtlasHistoryResponse)(nil),  // 34: polterware.local.v1.ListAtlasHistoryResponse
+	(*ExportProjectionsRequest)(nil),  // 35: polterware.local.v1.ExportProjectionsRequest
+	(*ProjectionFile)(nil),            // 36: polterware.local.v1.ProjectionFile
+	(*ExportProjectionsResponse)(nil), // 37: polterware.local.v1.ExportProjectionsResponse
+	(*FeatureTouch)(nil),              // 38: polterware.local.v1.FeatureTouch
+	(*FeatureDecision)(nil),           // 39: polterware.local.v1.FeatureDecision
+	(*FeatureInvariant)(nil),          // 40: polterware.local.v1.FeatureInvariant
+	(*FeatureQuestion)(nil),           // 41: polterware.local.v1.FeatureQuestion
+	(*FeatureCheck)(nil),              // 42: polterware.local.v1.FeatureCheck
+	(*FeatureReview)(nil),             // 43: polterware.local.v1.FeatureReview
+	(*ReviewFeatureRequest)(nil),      // 44: polterware.local.v1.ReviewFeatureRequest
+	(*ReviewFeatureResponse)(nil),     // 45: polterware.local.v1.ReviewFeatureResponse
+	(*CreateFeatureRequest)(nil),      // 46: polterware.local.v1.CreateFeatureRequest
+	(*CreateFeatureResponse)(nil),     // 47: polterware.local.v1.CreateFeatureResponse
+	(*AdvanceFeatureRequest)(nil),     // 48: polterware.local.v1.AdvanceFeatureRequest
+	(*AdvanceFeatureResponse)(nil),    // 49: polterware.local.v1.AdvanceFeatureResponse
+	(*VerifyFeatureRequest)(nil),      // 50: polterware.local.v1.VerifyFeatureRequest
+	(*VerifyCheck)(nil),               // 51: polterware.local.v1.VerifyCheck
+	(*VerifyFeatureResponse)(nil),     // 52: polterware.local.v1.VerifyFeatureResponse
+	(*ChangeEnvelope)(nil),            // 53: polterware.local.v1.ChangeEnvelope
 }
 var file_polterware_local_v1_work_proto_depIdxs = []int32{
 	0,  // 0: polterware.local.v1.WorkCard.tasks:type_name -> polterware.local.v1.WorkTask
 	1,  // 1: polterware.local.v1.WorkCard.questions:type_name -> polterware.local.v1.WorkQuestion
 	2,  // 2: polterware.local.v1.WorkCard.invariants:type_name -> polterware.local.v1.WorkInvariant
 	3,  // 3: polterware.local.v1.ListWorkCardsResponse.cards:type_name -> polterware.local.v1.WorkCard
-	17, // 4: polterware.local.v1.ApplyPolterRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	53, // 4: polterware.local.v1.ApplyPolterRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
 	4,  // 5: polterware.local.v1.ApplyPolterResponse.diagnostics:type_name -> polterware.local.v1.PolterDiagnostic
 	4,  // 6: polterware.local.v1.LintPolterResponse.diagnostics:type_name -> polterware.local.v1.PolterDiagnostic
-	17, // 7: polterware.local.v1.WriteHandoffRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	53, // 7: polterware.local.v1.WriteHandoffRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
 	4,  // 8: polterware.local.v1.WriteHandoffResponse.diagnostics:type_name -> polterware.local.v1.PolterDiagnostic
-	5,  // 9: polterware.local.v1.WorkService.ListWorkCards:input_type -> polterware.local.v1.ListWorkCardsRequest
-	7,  // 10: polterware.local.v1.WorkService.ApplyPolter:input_type -> polterware.local.v1.ApplyPolterRequest
-	9,  // 11: polterware.local.v1.WorkService.LintPolter:input_type -> polterware.local.v1.LintPolterRequest
-	11, // 12: polterware.local.v1.WorkService.QueryPolter:input_type -> polterware.local.v1.QueryPolterRequest
-	13, // 13: polterware.local.v1.WorkService.WriteHandoff:input_type -> polterware.local.v1.WriteHandoffRequest
-	15, // 14: polterware.local.v1.WorkService.EndSession:input_type -> polterware.local.v1.EndSessionRequest
-	6,  // 15: polterware.local.v1.WorkService.ListWorkCards:output_type -> polterware.local.v1.ListWorkCardsResponse
-	8,  // 16: polterware.local.v1.WorkService.ApplyPolter:output_type -> polterware.local.v1.ApplyPolterResponse
-	10, // 17: polterware.local.v1.WorkService.LintPolter:output_type -> polterware.local.v1.LintPolterResponse
-	12, // 18: polterware.local.v1.WorkService.QueryPolter:output_type -> polterware.local.v1.QueryPolterResponse
-	14, // 19: polterware.local.v1.WorkService.WriteHandoff:output_type -> polterware.local.v1.WriteHandoffResponse
-	16, // 20: polterware.local.v1.WorkService.EndSession:output_type -> polterware.local.v1.EndSessionResponse
-	15, // [15:21] is the sub-list for method output_type
-	9,  // [9:15] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	17, // 9: polterware.local.v1.RoutedInboxItem.item:type_name -> polterware.local.v1.InboxItem
+	17, // 10: polterware.local.v1.ListInboxResponse.items:type_name -> polterware.local.v1.InboxItem
+	18, // 11: polterware.local.v1.ListInboxResponse.routed:type_name -> polterware.local.v1.RoutedInboxItem
+	17, // 12: polterware.local.v1.ResolveInboxItemResponse.item:type_name -> polterware.local.v1.InboxItem
+	4,  // 13: polterware.local.v1.ResolveInboxItemResponse.diagnostics:type_name -> polterware.local.v1.PolterDiagnostic
+	23, // 14: polterware.local.v1.AtlasNode.invariants:type_name -> polterware.local.v1.AtlasInvariant
+	24, // 15: polterware.local.v1.ListAtlasResponse.nodes:type_name -> polterware.local.v1.AtlasNode
+	28, // 16: polterware.local.v1.AgentSession.claims:type_name -> polterware.local.v1.SessionClaim
+	29, // 17: polterware.local.v1.ListAgentSessionsResponse.sessions:type_name -> polterware.local.v1.AgentSession
+	30, // 18: polterware.local.v1.ListAgentSessionsResponse.handoffs:type_name -> polterware.local.v1.SessionHandoff
+	27, // 19: polterware.local.v1.ListAtlasHistoryResponse.entries:type_name -> polterware.local.v1.AtlasHistoryEntry
+	36, // 20: polterware.local.v1.ExportProjectionsResponse.files:type_name -> polterware.local.v1.ProjectionFile
+	3,  // 21: polterware.local.v1.FeatureReview.card:type_name -> polterware.local.v1.WorkCard
+	38, // 22: polterware.local.v1.FeatureReview.touches:type_name -> polterware.local.v1.FeatureTouch
+	39, // 23: polterware.local.v1.FeatureReview.decisions:type_name -> polterware.local.v1.FeatureDecision
+	40, // 24: polterware.local.v1.FeatureReview.inherited:type_name -> polterware.local.v1.FeatureInvariant
+	41, // 25: polterware.local.v1.FeatureReview.questions:type_name -> polterware.local.v1.FeatureQuestion
+	42, // 26: polterware.local.v1.FeatureReview.checks:type_name -> polterware.local.v1.FeatureCheck
+	43, // 27: polterware.local.v1.ReviewFeatureResponse.review:type_name -> polterware.local.v1.FeatureReview
+	53, // 28: polterware.local.v1.CreateFeatureRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	8,  // 29: polterware.local.v1.CreateFeatureResponse.apply:type_name -> polterware.local.v1.ApplyPolterResponse
+	43, // 30: polterware.local.v1.CreateFeatureResponse.review:type_name -> polterware.local.v1.FeatureReview
+	53, // 31: polterware.local.v1.AdvanceFeatureRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	8,  // 32: polterware.local.v1.AdvanceFeatureResponse.apply:type_name -> polterware.local.v1.ApplyPolterResponse
+	43, // 33: polterware.local.v1.AdvanceFeatureResponse.review:type_name -> polterware.local.v1.FeatureReview
+	51, // 34: polterware.local.v1.VerifyFeatureResponse.checks:type_name -> polterware.local.v1.VerifyCheck
+	5,  // 35: polterware.local.v1.WorkService.ListWorkCards:input_type -> polterware.local.v1.ListWorkCardsRequest
+	25, // 36: polterware.local.v1.WorkService.ListAtlas:input_type -> polterware.local.v1.ListAtlasRequest
+	33, // 37: polterware.local.v1.WorkService.ListAtlasHistory:input_type -> polterware.local.v1.ListAtlasHistoryRequest
+	31, // 38: polterware.local.v1.WorkService.ListAgentSessions:input_type -> polterware.local.v1.ListAgentSessionsRequest
+	7,  // 39: polterware.local.v1.WorkService.ApplyPolter:input_type -> polterware.local.v1.ApplyPolterRequest
+	9,  // 40: polterware.local.v1.WorkService.LintPolter:input_type -> polterware.local.v1.LintPolterRequest
+	11, // 41: polterware.local.v1.WorkService.QueryPolter:input_type -> polterware.local.v1.QueryPolterRequest
+	13, // 42: polterware.local.v1.WorkService.WriteHandoff:input_type -> polterware.local.v1.WriteHandoffRequest
+	15, // 43: polterware.local.v1.WorkService.EndSession:input_type -> polterware.local.v1.EndSessionRequest
+	19, // 44: polterware.local.v1.WorkService.ListInbox:input_type -> polterware.local.v1.ListInboxRequest
+	21, // 45: polterware.local.v1.WorkService.ResolveInboxItem:input_type -> polterware.local.v1.ResolveInboxItemRequest
+	35, // 46: polterware.local.v1.WorkService.ExportProjections:input_type -> polterware.local.v1.ExportProjectionsRequest
+	44, // 47: polterware.local.v1.WorkService.ReviewFeature:input_type -> polterware.local.v1.ReviewFeatureRequest
+	46, // 48: polterware.local.v1.WorkService.CreateFeature:input_type -> polterware.local.v1.CreateFeatureRequest
+	48, // 49: polterware.local.v1.WorkService.AdvanceFeature:input_type -> polterware.local.v1.AdvanceFeatureRequest
+	50, // 50: polterware.local.v1.WorkService.VerifyFeature:input_type -> polterware.local.v1.VerifyFeatureRequest
+	6,  // 51: polterware.local.v1.WorkService.ListWorkCards:output_type -> polterware.local.v1.ListWorkCardsResponse
+	26, // 52: polterware.local.v1.WorkService.ListAtlas:output_type -> polterware.local.v1.ListAtlasResponse
+	34, // 53: polterware.local.v1.WorkService.ListAtlasHistory:output_type -> polterware.local.v1.ListAtlasHistoryResponse
+	32, // 54: polterware.local.v1.WorkService.ListAgentSessions:output_type -> polterware.local.v1.ListAgentSessionsResponse
+	8,  // 55: polterware.local.v1.WorkService.ApplyPolter:output_type -> polterware.local.v1.ApplyPolterResponse
+	10, // 56: polterware.local.v1.WorkService.LintPolter:output_type -> polterware.local.v1.LintPolterResponse
+	12, // 57: polterware.local.v1.WorkService.QueryPolter:output_type -> polterware.local.v1.QueryPolterResponse
+	14, // 58: polterware.local.v1.WorkService.WriteHandoff:output_type -> polterware.local.v1.WriteHandoffResponse
+	16, // 59: polterware.local.v1.WorkService.EndSession:output_type -> polterware.local.v1.EndSessionResponse
+	20, // 60: polterware.local.v1.WorkService.ListInbox:output_type -> polterware.local.v1.ListInboxResponse
+	22, // 61: polterware.local.v1.WorkService.ResolveInboxItem:output_type -> polterware.local.v1.ResolveInboxItemResponse
+	37, // 62: polterware.local.v1.WorkService.ExportProjections:output_type -> polterware.local.v1.ExportProjectionsResponse
+	45, // 63: polterware.local.v1.WorkService.ReviewFeature:output_type -> polterware.local.v1.ReviewFeatureResponse
+	47, // 64: polterware.local.v1.WorkService.CreateFeature:output_type -> polterware.local.v1.CreateFeatureResponse
+	49, // 65: polterware.local.v1.WorkService.AdvanceFeature:output_type -> polterware.local.v1.AdvanceFeatureResponse
+	52, // 66: polterware.local.v1.WorkService.VerifyFeature:output_type -> polterware.local.v1.VerifyFeatureResponse
+	51, // [51:67] is the sub-list for method output_type
+	35, // [35:51] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_work_proto_init() }
@@ -1360,7 +4176,7 @@ func file_polterware_local_v1_work_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_work_proto_rawDesc), len(file_polterware_local_v1_work_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   53,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

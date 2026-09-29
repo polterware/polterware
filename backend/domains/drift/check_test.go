@@ -84,6 +84,58 @@ func TestCheckDeclaredObservedConflict(t *testing.T) {
 	}
 }
 
+func TestCheckCommitTask(t *testing.T) {
+	result := Check(Input{
+		ProjectID:        "proj",
+		GitDeliveryReady: true,
+		DoneTasks: []DoneTask{
+			{ID: "task-done", CardID: "card", Slug: "git-metadata-import", Number: 2},
+			{ID: "task-linked", CardID: "card", Slug: "git-metadata-import", Number: 1},
+		},
+		TaskCommits: []TaskCommit{
+			{TaskID: "task-linked", EvidenceID: "ev-1", Method: LinkMethodExplicit, OnMain: true},
+			{TaskID: "task-done", EvidenceID: "ev-feature", Method: LinkMethodExplicit, OnMain: false},
+			{TaskID: "task-done", EvidenceID: "ev-2", Method: LinkMethodSuggested, OnMain: true},
+		},
+		WindowCommits: []WindowCommit{
+			{EvidenceID: "ev-1", SHA: "aaa", Subject: "linked", OnMain: true},
+			{EvidenceID: "ev-2", SHA: "bbb", Subject: "suggested only", OnMain: true},
+			{EvidenceID: "ev-feature", SHA: "ccc", Subject: "feature", OnMain: false},
+		},
+	})
+	var unmatched, bare int
+	for _, finding := range result.Findings {
+		switch finding.Type {
+		case TypeTaskDoneUnmatched:
+			unmatched++
+			if finding.Severity != SeverityWarning || finding.Summary != "task git-metadata-import T2 is done with no commit on main" {
+				t.Fatalf("unmatched: %+v", finding)
+			}
+		case TypeCommitWithoutTask:
+			bare++
+			if finding.Summary != `commit "suggested only" is on main with no task` || finding.EvidenceIDs[0] != "ev-2" {
+				t.Fatalf("bare commit: %+v", finding)
+			}
+		}
+	}
+	if unmatched != 1 || bare != 1 {
+		t.Fatalf("findings: %+v", result.Findings)
+	}
+
+	skipped := Check(Input{
+		ProjectID: "proj",
+		DoneTasks: []DoneTask{{ID: "task-done", Slug: "git-metadata-import", Number: 2}},
+		WindowCommits: []WindowCommit{
+			{EvidenceID: "ev-2", Subject: "suggested only", OnMain: true},
+		},
+	})
+	for _, finding := range skipped.Findings {
+		if finding.Type == TypeTaskDoneUnmatched || finding.Type == TypeCommitWithoutTask {
+			t.Fatalf("git not ready should skip commit drift: %+v", finding)
+		}
+	}
+}
+
 func TestCheckEntityFilter(t *testing.T) {
 	result := Check(Input{
 		ProjectID: "proj",

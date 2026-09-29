@@ -29,6 +29,7 @@ func (s *Server) polterApply(args map[string]any) (string, error) {
 		Rationale:  stringFrom(args["rationale"]),
 		AgentRunID: stringFrom(args["agent_run_id"]),
 		Tool:       ToolPolterApply,
+		Agent:      s.session.Label,
 	}
 	result, err := wedge.ApplyInSession(s.Store, &s.session, in)
 	if err != nil {

@@ -1,12 +1,14 @@
 import {
   Eye,
+  ListChecks,
   SchemeIcon,
   type TabItem,
 } from "@polterware/frontend-design-system";
 
-/** Canonical Architecture tabs — Canvas + Views (Components list removed). */
+/** Canonical Atlas tabs: the draggable graph, the node hierarchy, and saved views. */
 export const ARCHITECTURE_TABS = [
-  { id: "canvas", label: "Canvas" },
+  { id: "map", label: "Map" },
+  { id: "hierarchy", label: "Hierarchy" },
   { id: "views", label: "Views" },
 ] as const;
 
@@ -15,13 +17,23 @@ export type ArchitectureTabId = (typeof ARCHITECTURE_TABS)[number]["id"];
 /** PageToolbar items with descriptive hover tooltips. */
 export const ARCHITECTURE_TAB_ITEMS: TabItem[] = [
   {
-    id: "canvas",
-    label: "Canvas",
+    id: "map",
+    label: "Map",
     tooltip: {
       title: "System map",
       description:
-        "Draw and arrange the project's components and relationships on a freeform canvas. This is the default landing view after you open a project.",
+        "Draw and arrange the project's components and relationships on a freeform canvas.",
       icon: SchemeIcon,
+    },
+  },
+  {
+    id: "hierarchy",
+    label: "Hierarchy",
+    tooltip: {
+      title: "Hierarchy",
+      description:
+        "Zoom the project from system to domain to component. Status, contract, and work sit in the side panel.",
+      icon: ListChecks,
     },
   },
   {
@@ -37,7 +49,8 @@ export const ARCHITECTURE_TAB_ITEMS: TabItem[] = [
 ];
 
 const ARCHITECTURE_TAB_MAP = {
-  canvas: true,
+  map: true,
+  hierarchy: true,
   views: true,
 } satisfies Record<string, boolean>;
 
@@ -47,11 +60,11 @@ function isArchitectureTabId(value: string): value is ArchitectureTabId {
 
 /**
  * Normalize Architecture in-feature tab ids.
- * Retired Surfaces (Components list, dependencies, changes) map to canvas.
+ * Retired ids (canvas, Components list, dependencies, changes) map to the map.
  */
 export function normalizeArchitectureTab(tab: string | undefined | null): ArchitectureTabId {
-  const t = (tab ?? "canvas").trim().toLowerCase();
+  const t = (tab ?? "map").trim().toLowerCase();
   if (isArchitectureTabId(t)) return t;
-  if (t === "components" || t === "dependencies" || t === "changes") return "canvas";
-  return "canvas";
+  // "canvas" is the retired id of the graph, before the hierarchy took the name.
+  return "map";
 }

@@ -115,6 +115,12 @@ html[data-shell-chrome="solid"] .pw-shell-main-frame {
   flex: 1 1 auto;
 }
 
+.pw-sidebar-item-count {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  font-variant-numeric: tabular-nums;
+}
+
 .pw-sidebar-item--footer {
   margin-bottom: 4px;
 }

@@ -41,6 +41,8 @@ type Core struct {
 
 	// Build identifies the core binary (coreclient.BuildID).
 	Build string
+	// DBDir is the database directory; agent setup keeps its local marketplace there.
+	DBDir string
 	// Bus turns committed SQLite writes into change events (ADR 0007).
 	Bus *events.Bus
 	// MCP serves MCP sessions over HTTP at /mcp.

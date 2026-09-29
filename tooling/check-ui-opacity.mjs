@@ -49,6 +49,7 @@ const PRESENCE_MOTION_PATHS = new Set([
   "packages/frontend/design-system/src/dropdown-menu.css",
   "packages/frontend/design-system/src/popover.css",
   "packages/frontend/design-system/src/toast.css",
+  "packages/features/architecture/src/atlas-tree.css",
 ]);
 const OPAQUE_GRID_PATTERN =
   "radial-gradient(circle, var(--color-border-default) 1px, transparent 1px)";

@@ -28,6 +28,7 @@ type section int
 const (
 	sectionCore section = iota
 	sectionClients
+	sectionHooks
 	sectionRuns
 	sectionCalls
 	sectionHistory
@@ -70,8 +71,27 @@ type snapshot struct {
 	runs     []agentrun.Run
 	calls    []agentaccess.ToolCall
 	changes  []changeRow
+	claims   []claimRow
+	inbox    inboxCount
+	hooks    []hookRow
 	err      error
 }
+
+// hookRow is one plugin hook switch.
+type hookRow struct {
+	Name    string
+	Label   string
+	Enabled bool
+}
+
+// claimRow is one held task claim; inboxCount is the Inbox badge.
+type claimRow struct {
+	Agent string
+	Ref   string
+	Scope string
+}
+
+type inboxCount struct{ Open, Blocking int }
 
 // mcpSession and changeRow are the TUI's views of core responses.
 type mcpSession struct {
@@ -161,6 +181,11 @@ func (m *tuiModel) loadSnapshot() tea.Cmd {
 				snap.sessions = append(snap.sessions, mcpSession{ClientName: item.ClientName, ClientVersion: item.ClientVersion, StartedAt: parseTime(item.StartedAt)})
 			}
 		}
+		if res, err := c.AgentRuns.ListHookSwitches(ctx, connect.NewRequest(&localv1.ListHookSwitchesRequest{})); err == nil {
+			for _, hook := range res.Msg.Hooks {
+				snap.hooks = append(snap.hooks, hookRow{Name: hook.Name, Label: hook.Label, Enabled: hook.Enabled})
+			}
+		}
 		list, err := c.Projects.ListProjects(ctx, connect.NewRequest(&localv1.ListProjectsRequest{}))
 		if err != nil {
 			snap.err = err
@@ -178,6 +203,16 @@ func (m *tuiModel) loadSnapshot() tea.Cmd {
 			for _, run := range res.Msg.Runs {
 				snap.runs = append(snap.runs, agentrun.Run{ID: run.Id, ProjectID: run.ProjectId, Task: run.Task, AgentLabel: run.AgentLabel, Status: run.Status, ActorKind: run.ActorKind, CreatedAt: parseTime(run.CreatedAt)})
 			}
+		}
+		if res, err := c.Work.ListAgentSessions(ctx, connect.NewRequest(&localv1.ListAgentSessionsRequest{ProjectId: projectID})); err == nil {
+			for _, session := range res.Msg.Sessions {
+				for _, claim := range session.Claims {
+					snap.claims = append(snap.claims, claimRow{Agent: session.Agent, Ref: fmt.Sprintf("%s#T%d", claim.Slug, claim.Number), Scope: claim.Scope})
+				}
+			}
+		}
+		if res, err := c.Work.ListInbox(ctx, connect.NewRequest(&localv1.ListInboxRequest{ProjectId: projectID})); err == nil {
+			snap.inbox = inboxCount{Open: int(res.Msg.OpenCount), Blocking: int(res.Msg.BlockingCount)}
 		}
 		if res, err := c.AgentRuns.ListChanges(ctx, connect.NewRequest(&localv1.ListChangesRequest{ProjectId: projectID, Limit: 50})); err != nil {
 			snap.err = err
@@ -315,6 +350,12 @@ func (m *tuiModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch m.focus {
 		case sectionCore:
 			return m, m.askCoreToggle()
+		case sectionHooks:
+			if m.busy != "" || m.cursor >= len(m.snap.hooks) {
+				return m, nil
+			}
+			hook := m.snap.hooks[m.cursor]
+			return m, m.runAction(fmt.Sprintf("hook:%s:%t", hook.Name, !hook.Enabled))
 		case sectionClients:
 			if m.busy != "" || m.coreBin == "" {
 				return m, nil
@@ -385,6 +426,20 @@ func (m *tuiModel) runAction(action string) tea.Cmd {
 				text:      fmt.Sprintf("Registered %s · %d facts, %d sources.", project.Name, scanRes.Msg.FactCount, scanRes.Msg.SourceCount),
 				projectID: project.Id,
 			}
+		}
+	case strings.HasPrefix(action, "hook:"):
+		name, value, _ := strings.Cut(strings.TrimPrefix(action, "hook:"), ":")
+		enabled := value == "true"
+		m.busy = "Saving hook…"
+		return func() tea.Msg {
+			c, err := coreclient.Connect(dbPath, "tui")
+			if err != nil {
+				return actionMsg{err: err}
+			}
+			if _, err := c.AgentRuns.SetHookSwitch(context.Background(), connect.NewRequest(&localv1.SetHookSwitchRequest{Name: name, Enabled: enabled})); err != nil {
+				return actionMsg{err: err}
+			}
+			return actionMsg{text: fmt.Sprintf("Hook %s %s.", name, map[bool]string{true: "on", false: "off"}[enabled])}
 		}
 	case strings.HasPrefix(action, "client:"):
 		index := m.clientIndex(strings.TrimPrefix(action, "client:"))
@@ -488,6 +543,8 @@ func (m *tuiModel) move(delta int) {
 	switch m.focus {
 	case sectionClients:
 		m.cursor = clamp(m.cursor+delta, 0, len(m.clients)-1)
+	case sectionHooks:
+		m.cursor = clamp(m.cursor+delta, 0, max(len(m.snap.hooks)-1, 0))
 	case sectionRuns, sectionCalls, sectionHistory:
 		limit := m.listLen(m.focus) - m.listRows()
 		m.offsets[m.focus] = clamp(m.offsets[m.focus]+delta, 0, max(limit, 0))
@@ -508,7 +565,7 @@ func (m *tuiModel) listLen(s section) int {
 
 func (m *tuiModel) listRows() int {
 	sessions := max(len(m.snap.sessions), 1)
-	fixed := 1 + 2 + 2 + 1 + sessions + 1 + 3*2 + 2
+	fixed := 1 + 2 + 2 + 1 + 1 + sessions + 1 + 3*2 + 2 + m.workRowCount() + 1
 	if m.showGhost() {
 		fixed += ghostHeight - 1
 	}
@@ -525,9 +582,12 @@ func (m *tuiModel) View() string {
 	b.WriteString("\n\n")
 	b.WriteString(m.viewCore())
 	b.WriteString(m.viewClients())
+	b.WriteString(m.viewHooks())
 	b.WriteString("\n")
 	b.WriteString(m.viewSessions())
 	b.WriteString("\n")
+	b.WriteString(m.viewWork())
+	b.WriteString(m.viewInbox())
 	b.WriteString(m.viewRuns())
 	b.WriteString(m.viewCalls())
 	b.WriteString(m.viewHistory())
@@ -615,6 +675,25 @@ func (m *tuiModel) viewClients() string {
 	return m.line(m.label(sectionClients, "Clients") + strings.Join(parts, "   "))
 }
 
+func (m *tuiModel) viewHooks() string {
+	if len(m.snap.hooks) == 0 {
+		return m.line(m.label(sectionHooks, "Hooks") + styleMuted.Render("core stopped"))
+	}
+	parts := make([]string, 0, len(m.snap.hooks))
+	for i, hook := range m.snap.hooks {
+		mark := styleMuted.Render("○")
+		if hook.Enabled {
+			mark = styleSuccess.Render("●")
+		}
+		name := styleSubtle.Render(hook.Name)
+		if m.focus == sectionHooks && i == m.cursor {
+			name = styleAccent.Underline(true).Render(hook.Name)
+		}
+		parts = append(parts, name+" "+mark)
+	}
+	return m.line(m.label(sectionHooks, "Hooks") + strings.Join(parts, "   "))
+}
+
 func (m *tuiModel) viewSessions() string {
 	label := styleLabel.Render("MCP")
 	if len(m.snap.sessions) == 0 {
@@ -647,6 +726,52 @@ func (m *tuiModel) viewSessions() string {
 		b.WriteString(m.line(label + row))
 	}
 	return b.String()
+}
+
+const maxClaimRows = 3
+
+// workRowCount is how many lines viewWork prints.
+func (m *tuiModel) workRowCount() int {
+	n := min(len(m.snap.claims), maxClaimRows)
+	if len(m.snap.claims) > maxClaimRows {
+		n++
+	}
+	return max(n, 1)
+}
+
+// viewWork lists the active task claims, so a person sees who holds what.
+func (m *tuiModel) viewWork() string {
+	label := styleLabel.Render("Work")
+	if len(m.snap.claims) == 0 {
+		return m.line(label + styleMuted.Render(m.emptyText("no active claims")))
+	}
+	var b strings.Builder
+	for i, claim := range m.snap.claims {
+		if i == maxClaimRows {
+			b.WriteString(m.line(styleLabel.Render("") + styleMuted.Render(fmt.Sprintf("+%d more", len(m.snap.claims)-maxClaimRows))))
+			break
+		}
+		row := styleAccent.Render("◐ ") + styleText.Render(pad(claim.Ref, 28)) + " " + styleSubtle.Render(pad(claim.Agent, 12))
+		if claim.Scope != "" {
+			row += " " + styleMuted.Render(claim.Scope)
+		}
+		b.WriteString(m.line(label + row))
+		label = styleLabel.Render("")
+	}
+	return b.String()
+}
+
+// viewInbox prints the same count the sidebar badge and `status` show.
+func (m *tuiModel) viewInbox() string {
+	label := styleLabel.Render("Inbox")
+	if m.projectID == "" || m.snap.inbox.Open == 0 {
+		return m.line(label + styleMuted.Render("clear"))
+	}
+	text := fmt.Sprintf("%d open", m.snap.inbox.Open)
+	if m.snap.inbox.Blocking > 0 {
+		return m.line(label + styleDanger.Render(fmt.Sprintf("%s · %d blocking", text, m.snap.inbox.Blocking)))
+	}
+	return m.line(label + styleWarning.Render(text))
 }
 
 func (m *tuiModel) viewList(s section, title, empty string, rows []string) string {
@@ -764,6 +889,8 @@ func (m *tuiModel) keyHints() string {
 		}
 	case sectionClients:
 		hints = append(hints, "enter configure/remove")
+	case sectionHooks:
+		hints = append(hints, "enter turn on/off")
 	}
 	hints = append(hints, "p project", "i register cwd", "r refresh", "q quit")
 	return styleMuted.Render(strings.Join(hints, " · "))

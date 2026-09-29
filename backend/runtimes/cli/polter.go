@@ -49,11 +49,12 @@ func runApply(dbPath string, args []string) error {
 		Text:      text,
 		DryRun:    *dryRun,
 		Change:    &localv1.ChangeEnvelope{Summary: *summary, Rationale: *rationale, AgentRunId: *agentRunID},
+		// The agent label is who claim, done, and release lines act for.
+		SessionLabel: os.Getenv(envAgentLabel),
 	}
 	// Inside an agent session (hook session-start) writes join the session's run.
 	if sessionID := os.Getenv(envSession); sessionID != "" && *agentRunID == "" {
 		request.SessionId = sessionID
-		request.SessionLabel = os.Getenv(envAgentLabel)
 	}
 	res, err := c.Work.ApplyPolter(context.Background(), connect.NewRequest(request))
 	if diags, ok := polterDiagnostics(err); ok {
@@ -138,7 +139,7 @@ func runQuery(dbPath string, args []string) error {
 		return err
 	}
 	if len(positional) == 0 {
-		return errors.New(`usage: polterware query "cards" | "card <slug>" | "status" | "handoff <slug>"`)
+		return errors.New(`usage: polterware query "cards" | "card <slug>" | "status" | "inbox" | "handoff <slug>" | "oracle <path>" | "atlas" | "decisions [state]" | "decision <adr>" | "feature <slug> [step]" | "verify <slug>"`)
 	}
 	c, err := dial(dbPath)
 	if err != nil {
@@ -300,4 +301,73 @@ func writeDiagnostics(w io.Writer, name string, diags []polter.Diagnostic) {
 			fmt.Fprintf(w, "%s %s\n", name, message)
 		}
 	}
+}
+
+// runTask claims, finishes, or releases one task for the session agent. It
+// writes the matching Polter coordination line through ApplyPolter.
+func runTask(dbPath string, args []string) error {
+	const taskUsage = "usage: polterware task claim|done|release <slug>#T2 [--agent name] [--project <id>]"
+	if len(args) == 0 {
+		return errors.New(taskUsage)
+	}
+	action := args[0]
+	if action != polter.CoordClaim && action != polter.CoordDone && action != polter.CoordRelease {
+		return errors.New(taskUsage)
+	}
+	flags := flag.NewFlagSet("task "+action, flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	projectID := flags.String("project", "", "project id (default: project containing the cwd)")
+	agent := flags.String("agent", "", "agent label holding the claim (default: $"+envAgentLabel+")")
+	positional, err := parseInterspersed(flags, args[1:])
+	if err != nil {
+		return err
+	}
+	if len(positional) == 0 || len(positional) > 2 {
+		return errors.New(taskUsage)
+	}
+	ref, err := polter.ParseTaskRef(strings.Join(positional, " "))
+	if err != nil {
+		return err
+	}
+	holder := strings.TrimSpace(*agent)
+	if holder == "" {
+		holder = strings.TrimSpace(os.Getenv(envAgentLabel))
+	}
+	if holder == "" {
+		return fmt.Errorf("task %s needs an agent: pass --agent or set %s", action, envAgentLabel)
+	}
+	text, err := polter.CoordText(action, ref, holder)
+	if err != nil {
+		return err
+	}
+	c, err := dial(dbPath)
+	if err != nil {
+		return err
+	}
+	project, err := resolveProject(c, *projectID)
+	if err != nil {
+		return err
+	}
+	request := &localv1.ApplyPolterRequest{ProjectId: project.Id, Text: text, SessionLabel: holder}
+	if sessionID := os.Getenv(envSession); sessionID != "" {
+		request.SessionId = sessionID
+	}
+	res, err := c.Work.ApplyPolter(context.Background(), connect.NewRequest(request))
+	if diags, ok := polterDiagnostics(err); ok {
+		// Line numbers point into generated text; print the messages only.
+		for i := range diags {
+			diags[i].Line = 0
+		}
+		printDiagnostics("task", diags)
+		return exitError{code: 1}
+	}
+	if err != nil {
+		return err
+	}
+	if len(res.Msg.Ops) == 0 {
+		fmt.Println("no changes")
+		return nil
+	}
+	fmt.Println(strings.Join(res.Msg.Ops, "\n"))
+	return nil
 }

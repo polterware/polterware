@@ -1,5 +1,6 @@
 import { For, Show, createMemo } from "solid-js";
 import {
+  Button,
   Check,
   DetailPanel,
   ListChecks,
@@ -23,6 +24,8 @@ export function WorkCardDetail(props: {
   notFound?: boolean;
   onSetStage?: (stage: WorkStage) => void;
   onRemove?: () => void;
+  /** Reopens the new-feature flow; shown while the card is in shape or plan. */
+  onContinueFlow?: () => void;
 }) {
   return (
     <Show
@@ -35,16 +38,25 @@ export function WorkCardDetail(props: {
     >
       {(card) => {
         const progress = createMemo(() => cardTaskProgress(card()));
+        const continuable = () =>
+          Boolean(props.onContinueFlow) && (card().stage === "shape" || card().stage === "plan");
         return (
           <DetailPanel.Content>
             <DetailPanel.Header icon={<ListChecks size={16} />} title={card().title}>
-              <Show when={props.onRemove}>
+              <Show when={props.onRemove || continuable()}>
                 <DetailPanel.Actions>
-                  <DetailPanel.Overflow>
-                    <DetailPanel.OverflowItem value="remove" danger onSelect={() => props.onRemove?.()}>
-                      Remove from board
-                    </DetailPanel.OverflowItem>
-                  </DetailPanel.Overflow>
+                  <Show when={continuable()}>
+                    <Button size="sm" variant="secondary" onClick={() => props.onContinueFlow?.()}>
+                      {card().stage === "shape" ? "Continue shaping" : "Continue planning"}
+                    </Button>
+                  </Show>
+                  <Show when={props.onRemove}>
+                    <DetailPanel.Overflow>
+                      <DetailPanel.OverflowItem value="remove" danger onSelect={() => props.onRemove?.()}>
+                        Remove from board
+                      </DetailPanel.OverflowItem>
+                    </DetailPanel.Overflow>
+                  </Show>
                 </DetailPanel.Actions>
               </Show>
             </DetailPanel.Header>
@@ -96,6 +108,11 @@ export function WorkCardDetail(props: {
                               <Show when={task.scope}>
                                 <span class="ml-2 font-mono text-[11px] text-[var(--color-text-muted)]">
                                   {task.scope}
+                                </span>
+                              </Show>
+                              <Show when={task.claimHolder}>
+                                <span class="ml-2 text-[11px] text-[var(--color-text-muted)]">
+                                  claimed by {task.claimHolder}
                                 </span>
                               </Show>
                             </span>
@@ -168,6 +185,7 @@ export function WorkCardDetail(props: {
                       }
                     />
                     <DetailPanel.Property label="Slug" value={card().slug} mono />
+                    <DetailPanel.Property label="Kind" value={card().kind === "architecture" ? "Architecture change" : "Feature"} />
                     <DetailPanel.Property label="Owner" value={card().owner || null} />
                     <DetailPanel.Property label="Under" value={card().under || null} mono />
                     <DetailPanel.Property

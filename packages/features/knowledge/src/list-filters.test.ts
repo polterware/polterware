@@ -15,6 +15,7 @@ const card = {
   title: "Auth",
   intent: "Login",
   stage: "plan",
+  kind: "feature",
   owner: "Ada",
   under: "",
   decisions: [],

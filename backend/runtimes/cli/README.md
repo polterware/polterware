@@ -13,4 +13,4 @@ go build -o ../dist/polterware ./runtimes/cli
 
 Run `../dist/polterware` with no subcommand in a terminal for the status TUI (core start/stop, MCP setup for Claude Code / Codex / Cursor, sessions, runs, history).
 
-`serve` runs the local core server the Desktop attaches to; `mcp` runs the MCP stdio server for coding agents. Other commands open SQLite in-process. See `docs/architecture/cli.md`.
+`serve` runs the local core server the Desktop attaches to; `mcp` runs the MCP stdio server for coding agents. Other commands open SQLite in-process. Run `polterware --help` for every command.

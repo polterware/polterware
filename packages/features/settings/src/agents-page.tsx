@@ -1,4 +1,4 @@
-import { Match, Show, Switch, createMemo, createSignal, onMount } from "solid-js";
+import { Match, Show, Switch, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import {
   Button,
   Boxes,
@@ -15,16 +15,21 @@ import {
 } from "@polterware/frontend-design-system";
 import type {
   AgentRunDetail,
+  AgentSessionsView,
+  AgentSetupView,
   CompilePreviewResult,
   DriftPreviewResult,
   McpStatusView,
   ProjectChangeRow,
 } from "./agents-types";
+import { AgentSessionsCard, mapAgentSessions } from "./agent-sessions-card";
 import { AgentRunHistoryCard, type ChangeActorFilter } from "./agent-run-history-card";
 import { CompilePreviewCard } from "./compile-preview-card";
 import { DriftPreviewCard } from "./drift-preview-card";
+import { AgentSetupCard, mapAgentSetup, mapHookSwitches } from "./agent-setup-card";
 import { McpStatusCard } from "./mcp-status-card";
 import { PpmFactsPanel, type PpmJustifyChange } from "./ppm-facts-panel";
+import { OraclePreviewCard } from "./oracle-preview-card";
 import { SkillCard } from "./skill-card";
 
 const AGENTS_TABS: TabItem[] = [
@@ -49,6 +54,16 @@ const AGENTS_TABS: TabItem[] = [
     },
   },
   {
+    id: "sessions",
+    label: "Sessions",
+    tooltip: {
+      title: "Live sessions",
+      description:
+        "Agents working on this project now, the tasks they claimed, and the most recent handoffs.",
+      icon: Plug,
+    },
+  },
+  {
     id: "history",
     label: "History",
     tooltip: {
@@ -64,13 +79,13 @@ const AGENTS_TABS: TabItem[] = [
     tooltip: {
       title: "Context and drift",
       description:
-        "Preview CompileContext for the current project, then run the Narrow Drift Checker. Findings are advisory; empty means no disagreement under the narrow rules.",
+        "Preview the Oracle text an agent would receive, CompileContext, and the Narrow Drift Checker. Findings are advisory.",
       icon: Layers,
     },
   },
 ];
 
-type AgentsTabId = "access" | "context" | "facts" | "history";
+type AgentsTabId = "access" | "context" | "facts" | "history" | "sessions";
 
 type AgentsBridge = {
   getMcpStatus: () => Promise<unknown>;
@@ -93,6 +108,15 @@ type AgentsBridge = {
   }) => Promise<unknown>;
   getAgentRun: (payload: { id: string }) => Promise<unknown>;
 };
+
+function workQuery():
+  | ((payload: { projectId: string; query: string }) => Promise<unknown>)
+  | undefined {
+  const root = globalThis as {
+    polterware?: { core?: { work?: { query?: (payload: { projectId: string; query: string }) => Promise<unknown> } } };
+  };
+  return root.polterware?.core?.work?.query;
+}
 
 function agentsBridge(): AgentsBridge | undefined {
   const root = globalThis as {
@@ -310,7 +334,7 @@ function mapDriftResult(value: unknown): DriftPreviewResult {
 
 function normalizeAgentsTab(raw?: string): AgentsTabId {
   if (raw === "compile" || raw === "drift") return "context";
-  if (raw === "context" || raw === "facts" || raw === "history" || raw === "access") {
+  if (raw === "context" || raw === "facts" || raw === "history" || raw === "access" || raw === "sessions") {
     return raw;
   }
   return "access";
@@ -347,7 +371,78 @@ export function AgentsPage(props: {
   const [selectedStepId, setSelectedStepId] = createSignal("");
   const [runDetail, setRunDetail] = createSignal<AgentRunDetail | undefined>();
 
+  const [sessionsView, setSessionsView] = createSignal<AgentSessionsView | undefined>();
+  const [sessionsLoaded, setSessionsLoaded] = createSignal(false);
+
+  const [setupView, setSetupView] = createSignal<AgentSetupView | undefined>();
+  const [setupLoaded, setSetupLoaded] = createSignal(false);
+
   const running = () => Boolean(mcpStatus()?.running);
+
+  type SetupBridge = {
+    getAgentSetup?: (payload: { projectId: string }) => Promise<unknown>;
+    setHookSwitch?: (payload: { name: string; enabled: boolean }) => Promise<unknown>;
+  };
+  const setupBridge = () =>
+    (globalThis as { polterware?: { core?: { context?: SetupBridge } } }).polterware?.core?.context;
+
+  const refreshSetup = async () => {
+    const get = setupBridge()?.getAgentSetup;
+    if (!get) {
+      setSetupLoaded(true);
+      return;
+    }
+    try {
+      setSetupView(mapAgentSetup(await get({ projectId: props.projectId.trim() })));
+    } catch (error: unknown) {
+      pushToast(error instanceof Error ? error.message : "Could not read agent setup.", "danger");
+    } finally {
+      setSetupLoaded(true);
+    }
+  };
+
+  const toggleHook = async (name: string, enabled: boolean) => {
+    const set = setupBridge()?.setHookSwitch;
+    if (!set) return;
+    try {
+      const response = (await set({ name, enabled })) as { hooks?: unknown } | undefined;
+      const hooks = mapHookSwitches(response?.hooks);
+      setSetupView((current) => (current ? { ...current, hooks } : current));
+    } catch (error: unknown) {
+      pushToast(error instanceof Error ? error.message : "Could not save the hook switch.", "danger");
+    }
+  };
+
+  createEffect(() => {
+    if (tab() === "access") void refreshSetup();
+  });
+
+  const refreshSessions = async () => {
+    const projectId = props.projectId.trim();
+    const root = globalThis as {
+      polterware?: { core?: { work?: { listAgentSessions?: (payload: { projectId: string }) => Promise<unknown> } } };
+    };
+    const list = root.polterware?.core?.work?.listAgentSessions;
+    if (!list || !projectId) {
+      setSessionsLoaded(true);
+      return;
+    }
+    try {
+      setSessionsView(mapAgentSessions(await list({ projectId })));
+    } catch (error: unknown) {
+      pushToast(error instanceof Error ? error.message : "Could not read sessions.", "danger");
+    } finally {
+      setSessionsLoaded(true);
+    }
+  };
+
+  // Sessions start and end outside the renderer, so poll while the tab is open.
+  createEffect(() => {
+    if (tab() !== "sessions") return;
+    void refreshSessions();
+    const timer = setInterval(() => void refreshSessions(), 5000);
+    onCleanup(() => clearInterval(timer));
+  });
 
   const refreshMcp = async () => {
     const bridge = agentsBridge();
@@ -574,6 +669,16 @@ export function AgentsPage(props: {
               Refresh
             </Button>
           </Show>
+          <Show when={tab() === "sessions"}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void refreshSessions()}
+            >
+              <RefreshCw size={14} />
+              Refresh
+            </Button>
+          </Show>
           <Show when={tab() === "history"}>
             <Button
               size="sm"
@@ -592,12 +697,19 @@ export function AgentsPage(props: {
         <Match when={tab() === "access"}>
           <PageContent class="mx-auto w-full max-w-2xl space-y-3 overflow-auto p-4 text-[12.5px]">
             <McpStatusCard status={mcpStatus()} />
+            <AgentSetupCard setup={setupView()} loaded={setupLoaded()} onToggle={(name, enabled) => void toggleHook(name, enabled)} />
             <SkillCard />
           </PageContent>
         </Match>
 
         <Match when={tab() === "context"}>
           <PageContent class="mx-auto w-full max-w-2xl space-y-8 overflow-auto p-4 text-[12.5px]">
+            <section class="space-y-3">
+              <h2 class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">
+                Oracle
+              </h2>
+              <OraclePreviewCard projectId={props.projectId} query={workQuery()} />
+            </section>
             <section class="space-y-3">
               <h2 class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">
                 Compile
@@ -642,6 +754,12 @@ export function AgentsPage(props: {
               onEntityFilterChange={setEntityId}
               onBusyChange={setFactsBusy}
             />
+          </PageContent>
+        </Match>
+
+        <Match when={tab() === "sessions"}>
+          <PageContent class="mx-auto w-full max-w-2xl overflow-auto p-4 text-[12.5px]">
+            <AgentSessionsCard view={sessionsView()} loaded={sessionsLoaded()} />
           </PageContent>
         </Match>
 

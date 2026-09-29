@@ -9,6 +9,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/polterware/polterware/backend/domains/atlas"
+	"github.com/polterware/polterware/backend/domains/decision"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -19,12 +21,18 @@ const (
 	StageVerify    = "verify"
 	StageDelivered = "delivered"
 
+	KindFeature      = "feature"
+	KindArchitecture = "architecture"
+
 	CardActive  = "active"
 	CardRemoved = "removed"
 
 	TaskOpen    = "open"
 	TaskDone    = "done"
 	TaskDropped = "dropped"
+
+	LinkExplicit  = "explicit"
+	LinkSuggested = "suggested"
 
 	QuestionOpen     = "open"
 	QuestionAnswered = "answered"
@@ -80,15 +88,22 @@ func NormalizeText(value string) string {
 	return b.String()
 }
 
+// ValidKind reports whether kind is a card kind.
+func ValidKind(kind string) bool {
+	return kind == KindFeature || kind == KindArchitecture
+}
+
 type Card struct {
-	ID         string
-	ProjectID  string
-	Slug       string
-	Title      string
-	Intent     string
-	Stage      string
-	Status     string
-	Owner      string
+	ID        string
+	ProjectID string
+	Slug      string
+	Title     string
+	Intent    string
+	Stage     string
+	Status    string
+	Owner     string
+	// Kind is feature or architecture (a structural Atlas change).
+	Kind       string
 	Under      string
 	Decisions  []string
 	Position   int
@@ -122,13 +137,28 @@ func (c Card) LatestHandoffAny() (Handoff, bool) {
 }
 
 type Task struct {
-	ID       string
-	CardID   string
-	Number   int
-	Title    string
-	State    string
+	ID     string
+	CardID string
+	Number int
+	Title  string
+	State  string
+	// Repo is a project_repos name; empty is the project root checkout.
+	Repo     string
 	Scope    string
 	Position int
+	// Claim is the task's active claim, or nil when the task is free.
+	Claim *Claim
+}
+
+// CommitLink joins one git commit evidence row to one task.
+// Suggested links come from full-text search and are not a delivery match.
+type CommitLink struct {
+	ID         string
+	ProjectID  string
+	EvidenceID string
+	TaskID     string
+	Method     string
+	CreatedAt  time.Time
 }
 
 type Question struct {
@@ -166,10 +196,39 @@ type Handoff struct {
 	CreatedAt  time.Time
 }
 
-// Snapshot is the current Work graph of one project.
+// Snapshot is the current Work graph of one project, plus its Atlas nodes.
 type Snapshot struct {
 	ProjectID string
 	Cards     []Card
+	Nodes     []atlas.Node
+	// Repos names the project's extra checkouts (project_repos). The
+	// project root is the unnamed default and is not listed.
+	Repos []string
+	// Decisions are the project's ADRs with their lifecycle state.
+	Decisions []decision.Decision
+}
+
+// HasRepo reports whether name is a registered checkout. Empty is the root.
+func (s Snapshot) HasRepo(name string) bool {
+	if name == "" {
+		return true
+	}
+	for _, repo := range s.Repos {
+		if repo == name {
+			return true
+		}
+	}
+	return false
+}
+
+// NodeByPath returns the node with path, including removed nodes.
+func (s Snapshot) NodeByPath(path string) (atlas.Node, bool) {
+	for _, node := range s.Nodes {
+		if node.Path == path {
+			return node, true
+		}
+	}
+	return atlas.Node{}, false
 }
 
 // Card returns the card with slug, if present.
@@ -188,6 +247,9 @@ const (
 	EntityQuestion  = "question"
 	EntityInvariant = "invariant"
 	EntityHandoff   = "handoff"
+	EntityClaim     = "claim"
+	EntityNode      = "node"
+	EntityDecision  = "decision"
 
 	OpCreate = "create"
 	OpUpdate = "update"
@@ -202,6 +264,8 @@ type Op struct {
 	EntityID string
 	CardID   string
 	CardSlug string
+	// NodeID is the atlas node an invariant belongs to. CardID stays empty.
+	NodeID string
 	// Label is the human handle used in plan output: the task number ("T2"),
 	// or the question/invariant text.
 	Label  string

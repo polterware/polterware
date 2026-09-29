@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -18,8 +19,17 @@ func TestOpenMigrateVersions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(vers) != 5 || vers[0] != 1 || vers[1] != 2 || vers[2] != 3 || vers[3] != 4 || vers[4] != 5 {
-		t.Fatalf("want [1 2 3 4 5] got %v", vers)
+	files, err := os.ReadDir("migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(vers) != len(files) {
+		t.Fatalf("applied %d migrations, embedded %d: %v", len(vers), len(files), vers)
+	}
+	for i, ver := range vers {
+		if ver != i+1 {
+			t.Fatalf("versions must be contiguous from 1, got %v", vers)
+		}
 	}
 	// idempotent
 	if err := Migrate(db); err != nil {

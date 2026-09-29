@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	contextpkg "github.com/polterware/polterware/backend/domains/context"
-	"github.com/polterware/polterware/backend/providers/seed"
+	"github.com/polterware/polterware/backend/providers/demoseed"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
@@ -15,24 +15,24 @@ func TestPPMKnowledgeSearchAndContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	if err := seed.Defaults(store); err != nil {
+	if err := demoseed.Defaults(store); err != nil {
 		t.Fatal(err)
 	}
-	count, err := store.SyncProjectModel(seed.ProjectID)
+	count, err := store.SyncProjectModel(demoseed.ProjectID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if count == 0 {
 		t.Fatal("expected entities")
 	}
-	hits, err := store.SearchKnowledge(seed.ProjectID, "architecture", "", 10)
+	hits, err := store.SearchKnowledge(demoseed.ProjectID, "architecture", "", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(hits) == 0 {
 		t.Fatal("expected fts hits")
 	}
-	links, err := store.ListKnowledgeLinks(seed.ProjectID, "doc-architecture", "")
+	links, err := store.ListKnowledgeLinks(demoseed.ProjectID, "doc-architecture", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func TestPPMKnowledgeSearchAndContext(t *testing.T) {
 		t.Fatal("expected knowledge links")
 	}
 	pkg, err := store.CompileContext(contextpkg.Request{
-		ProjectID:   seed.ProjectID,
+		ProjectID:   demoseed.ProjectID,
 		Query:       "architecture",
 		TokenBudget: 800,
 	})

@@ -5,10 +5,19 @@ const CheckerNarrow = "narrow"
 
 // Finding types for the narrow checker contract.
 const (
-	TypeDependencyAdded           = "dependency_added"
-	TypeDependencyRemoved         = "dependency_removed"
-	TypeEdgeDecisionConflict      = "edge_decision_conflict"
-	TypeDeclaredObservedConflict  = "declared_observed_conflict"
+	TypeDependencyAdded          = "dependency_added"
+	TypeDependencyRemoved        = "dependency_removed"
+	TypeEdgeDecisionConflict     = "edge_decision_conflict"
+	TypeDeclaredObservedConflict = "declared_observed_conflict"
+	TypeTaskDoneUnmatched        = "task_done_unmatched"
+	TypeCommitWithoutTask        = "commit_without_task"
+)
+
+// LinkMethodExplicit is a commit subject citation. LinkMethodSuggested is an
+// FTS guess and does not satisfy delivery.
+const (
+	LinkMethodExplicit  = "explicit"
+	LinkMethodSuggested = "suggested"
 )
 
 const (
@@ -45,15 +54,21 @@ type Input struct {
 	ParsedDeps    []ParsedDep
 	Relationships []RelationshipRef
 	AcceptedADRs  []AcceptedADR
+	// GitDeliveryReady is true when at least one checkout has local main or master.
+	// The commit-task findings are skipped when it is false.
+	GitDeliveryReady bool
+	DoneTasks        []DoneTask
+	TaskCommits      []TaskCommit
+	WindowCommits    []WindowCommit
 }
 
 // FactRef is a stored PPM fact used for drift comparison.
 type FactRef struct {
-	ID         string
-	Statement  string
-	TruthClass string
-	Source     string
-	EntityID   string
+	ID          string
+	Statement   string
+	TruthClass  string
+	Source      string
+	EntityID    string
 	EvidenceIDs []string
 }
 
@@ -81,4 +96,29 @@ type AcceptedADR struct {
 	ID        string
 	Title     string
 	EntityIDs []string
+}
+
+// DoneTask is a task whose stored state is done on an active card.
+type DoneTask struct {
+	ID     string
+	CardID string
+	Slug   string
+	Number int
+	Title  string
+}
+
+// TaskCommit is one stored link, with OnMain already resolved for that checkout.
+type TaskCommit struct {
+	TaskID     string
+	EvidenceID string
+	Method     string
+	OnMain     bool
+}
+
+// WindowCommit is one commit in the current import window.
+type WindowCommit struct {
+	EvidenceID string
+	SHA        string
+	Subject    string
+	OnMain     bool
 }

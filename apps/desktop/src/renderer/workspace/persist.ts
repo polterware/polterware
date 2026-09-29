@@ -4,10 +4,11 @@ import type {
   ProjectGeneralSettings,
   ProtectionLevel,
 } from "@polterware/feature-settings";
-import type { WorkspaceCatalogProvider, WorkStage } from "@polterware/feature-shell";
-import type { ChangeEnvelope } from "@polterware/feature-knowledge";
+import type { WorkspaceAdr, WorkspaceCatalogProvider, WorkspaceFeatureReview, WorkCardKind, WorkStage } from "@polterware/feature-shell";
+import type { ChangeEnvelope, DecisionAction, FeatureFlowLine } from "@polterware/feature-knowledge";
 import { asNumber, asObjectArray, asRecord, asString } from "./format";
 import type { WorkspaceSnapshot } from "./load";
+import { mapFeatureReview } from "./map-feature-review";
 import { CONSTITUTION_BODY_TEMPLATE, uniqueCardSlug } from "@polterware/feature-knowledge";
 
 function core() {
@@ -228,6 +229,38 @@ async function applyPolter(projectId: string, text: string, change: ChangeEnvelo
   await core().work.apply({ projectId, text, change: changePayload(change) });
 }
 
+/** Metadata values must not contain the separators a `key: value` line splits on. */
+function polterValue(value: string): string {
+  return value.replace(/\s+/g, " ").replace(/ [·•] /g, ", ").replace(/ - /g, " – ").trim();
+}
+
+/**
+ * Move an ADR through its lifecycle as a Polter decision block. The core
+ * enforces the legal transitions; a refusal comes back as the error message.
+ */
+export async function persistDecisionAction(input: {
+  projectId: string;
+  adr: WorkspaceAdr;
+  action: DecisionAction;
+  change: ChangeEnvelope;
+}): Promise<void> {
+  const reason = polterValue(input.change.rationale);
+  let block: string;
+  switch (input.action.kind) {
+    case "activate":
+    case "reactivate":
+      block = `### ${input.adr.id}\nstatus: active`;
+      break;
+    case "challenge":
+      block = `### ${input.adr.id}\nstatus: challenged · reason: ${reason}`;
+      break;
+    case "supersede":
+      block = `### ${input.action.byId}\nsupersedes: ${input.adr.id} · reason: ${reason}`;
+      break;
+  }
+  await applyPolter(input.projectId, `---\npolter: 1\n---\n\n${block}\n`, input.change);
+}
+
 /** Create a Work card in Shape; returns its slug. */
 export async function persistWorkCreateCard(input: {
   workspace: WorkspaceSnapshot;
@@ -243,6 +276,82 @@ export async function persistWorkCreateCard(input: {
     input.change,
   );
   return slug;
+}
+
+function requireReview(raw: unknown): WorkspaceFeatureReview {
+  const review = mapFeatureReview(asRecord(asRecord(raw).review));
+  if (!review) throw new Error("The core returned no feature review.");
+  return review;
+}
+
+/** Shape impact and gate checks of one card. */
+export async function loadFeatureReview(projectId: string, slug: string): Promise<WorkspaceFeatureReview> {
+  return requireReview(await core().work.reviewFeature({ projectId, slug }));
+}
+
+/** New-feature flow: write a card in shape from an intent; under is only the picked value. */
+export async function persistFeatureCreate(input: {
+  projectId: string;
+  intent: string;
+  title: string;
+  under: string;
+  kind?: WorkCardKind;
+  change: ChangeEnvelope;
+}): Promise<WorkspaceFeatureReview> {
+  return requireReview(await core().work.createFeature({
+    projectId: input.projectId,
+    intent: input.intent,
+    title: input.title,
+    under: input.under,
+    kind: input.kind ?? "feature",
+    change: changePayload(input.change),
+  }));
+}
+
+/** Pass the contract (shape → plan) or plan (plan → build) gate. */
+export async function persistFeatureAdvance(input: {
+  projectId: string;
+  slug: string;
+  step: "contract" | "plan";
+  change: ChangeEnvelope;
+}): Promise<WorkspaceFeatureReview> {
+  return requireReview(await core().work.advanceFeature({
+    projectId: input.projectId,
+    slug: input.slug,
+    step: input.step,
+    change: changePayload(input.change),
+  }));
+}
+
+function oneLine(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/** Polter text that adds one line to a card (or sets under:) without touching the rest. */
+export function featureLineText(slug: string, line: FeatureFlowLine): string {
+  const header = `---\npolter: 1\n---\n\n## ${slug}\n`;
+  switch (line.kind) {
+    case "invariant":
+      return `${header}! ${oneLine(line.text)}\n`;
+    case "question":
+      return `${header}? ${oneLine(line.text)}${line.blocking ? " [blocking]" : ""}\n`;
+    case "task": {
+      const scope = oneLine(line.scope).replace(/`/g, "");
+      return `${header}- [ ] ${oneLine(line.text)}${scope ? ` \`${scope}\`` : ""}\n`;
+    }
+    case "under":
+      return `${header}under: ${oneLine(line.path)}\n`;
+  }
+}
+
+export async function persistFeatureLine(
+  projectId: string,
+  slug: string,
+  line: FeatureFlowLine,
+  change: ChangeEnvelope,
+): Promise<WorkspaceFeatureReview> {
+  await applyPolter(projectId, featureLineText(slug, line), change);
+  return loadFeatureReview(projectId, slug);
 }
 
 export async function persistWorkSetStage(

@@ -9,7 +9,7 @@ import (
 
 	"github.com/polterware/polterware/backend/domains/drift"
 	"github.com/polterware/polterware/backend/domains/ppm"
-	"github.com/polterware/polterware/backend/providers/seed"
+	"github.com/polterware/polterware/backend/providers/demoseed"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
@@ -20,10 +20,10 @@ func testServer(t *testing.T) *Server {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	if err := seed.Defaults(store); err != nil {
+	if err := demoseed.Defaults(store); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.SyncProjectModel(seed.ProjectID); err != nil {
+	if _, err := store.SyncProjectModel(demoseed.ProjectID); err != nil {
 		t.Fatal(err)
 	}
 	return &Server{Store: store, In: bytes.NewReader(nil), Out: &bytes.Buffer{}, Err: &bytes.Buffer{}}
@@ -89,19 +89,19 @@ func TestInitializeStableVersion(t *testing.T) {
 func TestContextGetHappyPath(t *testing.T) {
 	server := testServer(t)
 	text, err := server.callTool(ToolContextGet, map[string]any{
-		"project_id": seed.ProjectID,
+		"project_id": demoseed.ProjectID,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(text, seed.ProjectID) || !strings.Contains(text, `"Items"`) {
+	if !strings.Contains(text, demoseed.ProjectID) || !strings.Contains(text, `"Items"`) {
 		t.Fatalf("unexpected package: %s", text)
 	}
 }
 
 func TestEntityGetHappyPath(t *testing.T) {
 	server := testServer(t)
-	entities, err := server.Store.ListPpmEntities(seed.ProjectID, "")
+	entities, err := server.Store.ListPpmEntities(demoseed.ProjectID, "")
 	if err != nil || len(entities) == 0 {
 		t.Fatalf("need seeded entities: %v len=%d", err, len(entities))
 	}
@@ -117,7 +117,7 @@ func TestEntityGetHappyPath(t *testing.T) {
 func TestEvidenceGetHappyPath(t *testing.T) {
 	server := testServer(t)
 	evidence, err := ppm.NewEvidence(
-		seed.ProjectID,
+		demoseed.ProjectID,
 		ppm.EvidenceKindFile,
 		"README describes polterware-core",
 		"fs",
@@ -142,7 +142,7 @@ func TestEvidenceGetHappyPath(t *testing.T) {
 func TestDriftCheckNarrow(t *testing.T) {
 	server := testServer(t)
 	text, err := server.callTool(ToolDriftCheck, map[string]any{
-		"project_id": seed.ProjectID,
+		"project_id": demoseed.ProjectID,
 		"entity_id":  "ent-example",
 	})
 	if err != nil {
@@ -155,7 +155,7 @@ func TestDriftCheckNarrow(t *testing.T) {
 	if result.Status != "ok" || result.Checker != drift.CheckerNarrow {
 		t.Fatalf("unexpected result: %+v", result)
 	}
-	if result.ProjectID != seed.ProjectID || result.EntityID != "ent-example" {
+	if result.ProjectID != demoseed.ProjectID || result.EntityID != "ent-example" {
 		t.Fatalf("unexpected ids: %+v", result)
 	}
 	if result.Findings == nil {
@@ -163,7 +163,7 @@ func TestDriftCheckNarrow(t *testing.T) {
 	}
 
 	// Put an inferred DEPENDS_ON involving n-pg (ADR-linked) into the layout so Sync keeps it.
-	layout, err := server.Store.GetLayout(seed.ProjectID)
+	layout, err := server.Store.GetLayout(demoseed.ProjectID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,16 +175,16 @@ func TestDriftCheckNarrow(t *testing.T) {
 	if body == layout.BodyJSON {
 		t.Fatal("failed to patch layout edge e6")
 	}
-	if _, err := server.Store.UpdateLayout(seed.ProjectID, layout.Revision, body); err != nil {
+	if _, err := server.Store.UpdateLayout(demoseed.ProjectID, layout.Revision, body); err != nil {
 		t.Fatal(err)
 	}
 
-	pg, err := server.Store.GetPpmEntityByRef(seed.ProjectID, ppm.RefArchitectureNode, "n-pg")
+	pg, err := server.Store.GetPpmEntityByRef(demoseed.ProjectID, ppm.RefArchitectureNode, "n-pg")
 	if err != nil {
 		t.Fatal(err)
 	}
 	text, err = server.callTool(ToolDriftCheck, map[string]any{
-		"project_id": seed.ProjectID,
+		"project_id": demoseed.ProjectID,
 		"entity_id":  pg.ID,
 	})
 	if err != nil {
@@ -208,7 +208,7 @@ func TestDriftCheckNarrow(t *testing.T) {
 func TestUnknownAndLegacyToolsRejected(t *testing.T) {
 	server := testServer(t)
 	for _, name := range []string{"search", "compile_context", "get_entity", "unknown"} {
-		_, err := server.invokeTool(name, map[string]any{"project_id": seed.ProjectID})
+		_, err := server.invokeTool(name, map[string]any{"project_id": demoseed.ProjectID})
 		if err == nil {
 			t.Fatalf("expected error for %q", name)
 		}
@@ -222,7 +222,7 @@ func TestAgentRunAuditChain(t *testing.T) {
 	server := testServer(t)
 
 	startText, err := server.callTool(ToolAgentRunStart, map[string]any{
-		"project_id":  seed.ProjectID,
+		"project_id":  demoseed.ProjectID,
 		"task":        "Validate import drift",
 		"agent_label": "test",
 	})
@@ -239,7 +239,7 @@ func TestAgentRunAuditChain(t *testing.T) {
 	}
 
 	if _, err := server.callTool(ToolContextGet, map[string]any{
-		"project_id":   seed.ProjectID,
+		"project_id":   demoseed.ProjectID,
 		"agent_run_id": runID,
 	}); err != nil {
 		t.Fatal(err)
@@ -256,7 +256,7 @@ func TestAgentRunAuditChain(t *testing.T) {
 	}
 
 	evidence, err := ppm.NewEvidence(
-		seed.ProjectID,
+		demoseed.ProjectID,
 		ppm.EvidenceKindFile,
 		"ADR text",
 		"fs",
@@ -278,7 +278,7 @@ func TestAgentRunAuditChain(t *testing.T) {
 	}
 
 	if _, err := server.callTool(ToolDriftCheck, map[string]any{
-		"project_id":   seed.ProjectID,
+		"project_id":   demoseed.ProjectID,
 		"agent_run_id": runID,
 	}); err != nil {
 		t.Fatal(err)
@@ -318,7 +318,7 @@ func TestAgentRunAuditChain(t *testing.T) {
 	}
 
 	listText, err := server.callTool(ToolAgentRunList, map[string]any{
-		"project_id": seed.ProjectID,
+		"project_id": demoseed.ProjectID,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -332,7 +332,7 @@ func TestAuditedWritesRequireEnvelopeAndMutate(t *testing.T) {
 	server := testServer(t)
 
 	startText, err := server.callTool(ToolAgentRunStart, map[string]any{
-		"project_id": seed.ProjectID,
+		"project_id": demoseed.ProjectID,
 		"task":       "Record ADR fact",
 	})
 	if err != nil {
@@ -345,7 +345,7 @@ func TestAuditedWritesRequireEnvelopeAndMutate(t *testing.T) {
 	runID, _ := started["id"].(string)
 
 	_, err = server.callTool(ToolFactUpsert, map[string]any{
-		"project_id": seed.ProjectID,
+		"project_id": demoseed.ProjectID,
 		"statement":  "SQLite is the local store",
 	})
 	if err == nil {
@@ -353,7 +353,7 @@ func TestAuditedWritesRequireEnvelopeAndMutate(t *testing.T) {
 	}
 
 	factText, err := server.callTool(ToolFactUpsert, map[string]any{
-		"project_id":   seed.ProjectID,
+		"project_id":   demoseed.ProjectID,
 		"agent_run_id": runID,
 		"summary":      "Add local store fact",
 		"rationale":    "Matches accepted ADR",
@@ -374,7 +374,7 @@ func TestAuditedWritesRequireEnvelopeAndMutate(t *testing.T) {
 	}
 
 	evText, err := server.callTool(ToolEvidenceUpsert, map[string]any{
-		"project_id":       seed.ProjectID,
+		"project_id":       demoseed.ProjectID,
 		"agent_run_id":     runID,
 		"summary":          "Attach ADR evidence",
 		"rationale":        "File backs the fact",
@@ -392,7 +392,7 @@ func TestAuditedWritesRequireEnvelopeAndMutate(t *testing.T) {
 	evidenceID, _ := evOut["result"].(map[string]any)["id"].(string)
 
 	if _, err := server.callTool(ToolEvidenceLink, map[string]any{
-		"project_id":   seed.ProjectID,
+		"project_id":   demoseed.ProjectID,
 		"agent_run_id": runID,
 		"summary":      "Link evidence to fact",
 		"rationale":    "Provenance chain",
@@ -403,7 +403,7 @@ func TestAuditedWritesRequireEnvelopeAndMutate(t *testing.T) {
 	}
 
 	knowText, err := server.callTool(ToolKnowledgeUpsert, map[string]any{
-		"project_id":   seed.ProjectID,
+		"project_id":   demoseed.ProjectID,
 		"agent_run_id": runID,
 		"summary":      "Add ADR library item",
 		"rationale":    "Document the decision",
@@ -424,12 +424,12 @@ func TestAuditedWritesRequireEnvelopeAndMutate(t *testing.T) {
 		t.Fatalf("missing knowledge id: %s", knowText)
 	}
 
-	entities, err := server.Store.ListPpmEntities(seed.ProjectID, "")
+	entities, err := server.Store.ListPpmEntities(demoseed.ProjectID, "")
 	if err != nil || len(entities) == 0 {
 		t.Fatalf("need entities: %v", err)
 	}
 	if _, err := server.callTool(ToolKnowledgeLink, map[string]any{
-		"project_id":   seed.ProjectID,
+		"project_id":   demoseed.ProjectID,
 		"agent_run_id": runID,
 		"summary":      "Link ADR to entity",
 		"rationale":    "Documents the component",
@@ -474,7 +474,7 @@ func TestAuditedWritesRequireEnvelopeAndMutate(t *testing.T) {
 func TestAuditedWriteRejectsClosedRun(t *testing.T) {
 	server := testServer(t)
 	startText, err := server.callTool(ToolAgentRunStart, map[string]any{
-		"project_id": seed.ProjectID,
+		"project_id": demoseed.ProjectID,
 		"task":       "closed write",
 	})
 	if err != nil {
@@ -487,7 +487,7 @@ func TestAuditedWriteRejectsClosedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = server.callTool(ToolFactUpsert, map[string]any{
-		"project_id":   seed.ProjectID,
+		"project_id":   demoseed.ProjectID,
 		"agent_run_id": runID,
 		"summary":      "late",
 		"rationale":    "should fail",

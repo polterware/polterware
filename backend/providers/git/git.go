@@ -50,10 +50,8 @@ func Observe(ctx context.Context, root string) Observation {
 		obs.Branch = branch
 	}
 	main := ""
-	if _, ok := gitOut(ctx, root, "rev-parse", "--verify", "--quiet", "refs/heads/main"); ok {
-		main = "refs/heads/main"
-	} else if _, ok := gitOut(ctx, root, "rev-parse", "--verify", "--quiet", "refs/heads/master"); ok {
-		main = "refs/heads/master"
+	if base, ok := DeliveryBase(ctx, root); ok {
+		main = base
 	}
 	var files []string
 	if main != "" {
@@ -126,6 +124,53 @@ func ReadMetadata(ctx context.Context, root string) Metadata {
 	return meta
 }
 
+// DeliveryBase is the local branch a commit must be an ancestor of before
+// drift treats it as delivered: refs/heads/main, or refs/heads/master when
+// main is absent. ok is false outside a work tree and when neither ref exists.
+func DeliveryBase(ctx context.Context, root string) (string, bool) {
+	if strings.TrimSpace(root) == "" {
+		return "", false
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if _, ok := gitOut(ctx, root, "rev-parse", "--verify", "--quiet", "refs/heads/main"); ok {
+		return "refs/heads/main", true
+	}
+	if _, ok := gitOut(ctx, root, "rev-parse", "--verify", "--quiet", "refs/heads/master"); ok {
+		return "refs/heads/master", true
+	}
+	return "", false
+}
+
+// AncestorsOf reports which shas are ancestors of base, including base itself.
+// A sha that cannot be resolved is false. The read is local.
+func AncestorsOf(ctx context.Context, root, base string, shas []string) map[string]bool {
+	out := map[string]bool{}
+	if strings.TrimSpace(root) == "" || strings.TrimSpace(base) == "" {
+		return out
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	for _, sha := range shas {
+		sha = strings.TrimSpace(sha)
+		if sha == "" {
+			continue
+		}
+		if _, seen := out[sha]; seen {
+			continue
+		}
+		_, ok := gitOut(ctx, root, "merge-base", "--is-ancestor", sha, base)
+		out[sha] = ok
+	}
+	return out
+}
+
 func gitOut(ctx context.Context, root string, args ...string) (string, bool) {
 	res := execpkg.Run(ctx, "git", args, root)
 	if res.ExitCode != 0 {
@@ -155,4 +200,15 @@ func uniquePaths(paths []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// CommitTime returns the committer time of ref (a sha, branch, or tag). It
+// reports false outside a work tree or when ref does not name a commit.
+func CommitTime(ctx context.Context, root, ref string) (time.Time, bool) {
+	out, ok := gitOut(ctx, root, "log", "-1", "--format=%cI", ref+"^{commit}", "--")
+	if !ok || out == "" {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(time.RFC3339, out)
+	return t, err == nil
 }

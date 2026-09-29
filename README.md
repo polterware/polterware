@@ -1,55 +1,48 @@
 # Polterware
 
-Polterware is a local-first source of truth for understanding and maintaining software systems. The current Desktop keeps system architecture, local resources, operational knowledge, visual operations, terminal sessions, CLI-oriented integrations, and project settings in one Electron application.
+Polterware is a local-first project context and change-intelligence tool for AI coding. It keeps one evidence-backed model of a software project (what it is, what was decided, what is in progress, what was delivered) so every coding agent and person starts from the same state, and it flags when changes drift from declared intent.
 
 ## Current product
 
-The Desktop opens at **Architecture / Canvas** and supports multiple local projects and environments. Its project navigation is:
+A local SQLite-backed Desktop (Electron + Solid) over a single Go binary, `polterware`. Project navigation:
 
-- Architecture — Canvas, Components, Views
-- Resources — Inventory, Nodes, Processes
-- Knowledge — Docs, Runbooks
-- Operations — Runs, Workflows, Schedules
-- Terminal — live local sessions (page and drawer)
-- Integrations — Connected, Catalog
-- Settings — General, Environments, Advanced
+- **Inbox** — items that need a person: open card questions, drift findings, and facts with no evidence
+- **Work** — Board (cards by stage: Shape, Plan, Build, Verify, Delivered) and Specs (the project Constitution above the same cards)
+- **Atlas** — Map, Hierarchy, and Views of the system, domain, and component graph
+- **Decisions** — ADRs by lifecycle state (Active, Challenged, Proposed, Superseded)
+- **Reality** — Inventory, Sources, Facts, and Docs, all with provenance
+- **Agents** — Access (MCP setup), Sessions, History, and Context (what an agent sees at a zoom and token budget)
+- **Integrations** — Connected and Catalog (GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, Docker); evidence and provider login only
+- **Settings** — General, Environments, Shortcuts, Advanced
 
-The Electron Main process starts the local core (`polterware serve`). The renderer reads and writes only through `window.polterware`. Project data persists in local SQLite (projects, environments, architecture layout, resources and nodes, knowledge, operations, workflows, schedules, and integration connections).
+Agents talk to Polterware in the Polter format (markdown that writes Work cards, Atlas nodes, and decisions) through the CLI or MCP (`polter.apply`, `polter.query`, `polter.format`, plus context, drift, and AgentRun tools). Every write carries a summary and rationale and lands in one change history.
 
-Terminal opens interactive local PTY sessions on the Terminal page and in the quick drawer; Expand hands the live session off to the full page. Integrations detect CLI binaries, run provider login in an in-app PTY from the setup wizard, and probe connection status. Credentials stay in the OS/CLI credential store; the app has no provider-token field and does not persist provider credentials in SQLite. Raw terminal output is not a sanitized credential view.
+One local core process (`polterware serve`) per database is the only process that opens SQLite. Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes only through `window.polterware`. Provider credentials stay in the OS or CLI credential store and are never persisted in SQLite.
 
-Operations run locally through the core. Active schedules are evaluated by the core runner while the core is running; missed times while the core was offline are skipped.
+Only the local deployment mode exists. Cloud, Jev, and other unshipped direction are listed in [docs/future.md](docs/future.md).
 
-Integration Sync imports a bounded inventory through the local authenticated CLI (replace-on-success; failures leave prior resources). Processes support real Start/Stop on the local host only. Sync does not auto-create Architecture inventory rows, crawl full cloud graphs, or run on a background ticker.
+## Using it with agents
 
-The only active deployment mode is **local**. The public architecture defines possible `self-hosted` and `cloud` modes, but neither is implemented today. See [the deployment model](docs/architecture/deployment-model.md) and [repository map](docs/architecture/repository-map.md).
+```bash
+polterware status                 # current card, branch, last handoff, open questions
+polterware format                 # Polter grammar
+polterware query cards            # one line per card
+polterware apply plan.pw.md       # write cards (frontmatter needs summary and rationale)
+polterware handoff --note "..."   # end a session
+polterware setup claude           # install the Claude Code plugin (or: setup codex)
+```
 
-## Open-source and Cloud
-
-This repository contains the public product, including local and self-hosted foundations, public contracts, and UI that may be used by the hosted product. Unavailable surfaces are hidden according to backend-provided capabilities.
-
-Polterware Cloud is a managed service built on a separate private control plane. Its identity, organization, billing, metering, tenant provisioning, internal administration, production infrastructure, and operational runbooks are not part of this repository. Frontend flags never grant authorization.
-
-Polterware ships one Desktop product rather than separate Tiny and Pro
-editions. The local Community experience works without an account; optional
-sign-in connects the same Desktop to server-authorized Cloud capabilities.
-The public Polterware Website and future authenticated Polterware Web App live
-in the separate `polterware-web` repository. Pricing and free-tier policy remain
-independent commercial decisions. See [ADR 0002](docs/adr/0002-single-desktop-and-cloud-connection.md)
-and [ADR 0003](docs/adr/0003-web-repository-boundary.md).
+Run `polterware` with no arguments in a terminal for the status TUI. Run `polterware --help` for every command.
 
 ## Repository
 
 - `apps/desktop` — Electron Main, preload bridge, and Solid renderer
-- `packages/features` — retained product surfaces
+- `packages/features` — product surfaces
 - `packages/frontend` — shared design system, canvas, and state
-- `backend` — local Go runtime (single `polterware` binary: CLI, TUI, `serve`, `mcp`)
+- `backend` — Go runtime (single `polterware` binary: CLI, TUI, `serve`, `mcp`)
 - `schemas` — Protobuf contracts and generated Go/TypeScript messages
-- `docs/spec.md` — normative product scope
-- `docs/product-vision.md` — normative product direction
-- `docs/architecture` — deployment and repository boundaries
-- `docs/adr` — architecture decisions
-- `docs/future` — superseded and historical specifications
+- `DESIGN.md` — visual and interaction contract
+- `docs/future.md` — planned work, not implemented
 
 ## Development
 
@@ -74,8 +67,10 @@ cd ../backend && go vet ./...
 git diff --check
 ```
 
+## Open source and Cloud
+
+This repository is the public product: Desktop, local runtime, contracts, and shared UI. Polterware Cloud is a separate managed service on a private control plane and is not implemented here. The public website and future Web App live in `polterware-web`.
+
 ## Contributing and security
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [TRADEMARKS.md](TRADEMARKS.md), and [SECURITY.md](SECURITY.md).
-
-The selective migration policy for hosted-only interface is documented in [docs/architecture/hosted-ui-porting.md](docs/architecture/hosted-ui-porting.md).

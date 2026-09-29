@@ -22,9 +22,17 @@ func Format(doc Document) string {
 		fmt.Fprintf(&b, "rationale: %s\n", doc.Rationale)
 	}
 	b.WriteString("---\n")
+	for _, node := range doc.Nodes {
+		b.WriteString("\n")
+		writeAtlasNode(&b, node)
+	}
 	for _, card := range doc.Cards {
 		b.WriteString("\n")
 		writeCard(&b, card)
+	}
+	for _, dec := range doc.Decisions {
+		b.WriteString("\n")
+		writeDecision(&b, dec)
 	}
 	return b.String()
 }
@@ -49,6 +57,9 @@ func NodeFromCard(card work.Card) CardNode {
 	if card.Under != "" {
 		node.Meta = append(node.Meta, MetaEntry{Key: "under", Value: card.Under})
 	}
+	if card.Kind == work.KindArchitecture {
+		node.Meta = append(node.Meta, MetaEntry{Key: "kind", Value: card.Kind})
+	}
 	if len(card.Decisions) > 0 {
 		node.Meta = append(node.Meta, MetaEntry{Key: "decisions", Value: strings.Join(card.Decisions, ", ")})
 	}
@@ -56,13 +67,15 @@ func NodeFromCard(card work.Card) CardNode {
 		node.Meta = append(node.Meta, MetaEntry{Key: "status", Value: work.CardRemoved})
 	}
 	for _, task := range card.Tasks {
-		node.Tasks = append(node.Tasks, TaskNode{Number: task.Number, Title: task.Title, State: task.State, Scope: task.Scope})
+		node.Tasks = append(node.Tasks, TaskNode{Number: task.Number, Title: task.Title, State: task.State, Repo: task.Repo, Scope: task.Scope})
 	}
 	for _, q := range card.Questions {
-		if q.State != work.QuestionOpen {
-			continue
+		switch q.State {
+		case work.QuestionOpen:
+			node.Questions = append(node.Questions, QuestionNode{Text: q.Text, Blocking: q.Blocking, Options: q.Options})
+		case work.QuestionAnswered:
+			node.Questions = append(node.Questions, QuestionNode{Text: q.Text, Blocking: q.Blocking, Options: q.Options, Answer: q.Answer})
 		}
-		node.Questions = append(node.Questions, QuestionNode{Text: q.Text, Blocking: q.Blocking, Options: q.Options})
 	}
 	for _, inv := range card.Invariants {
 		if inv.State != work.InvariantActive {
@@ -81,6 +94,41 @@ func HandoffNodeFrom(handoff work.Handoff) *HandoffNode {
 	return &HandoffNode{
 		Branch: handoff.Branch, Agent: handoff.Agent, Goal: handoff.Goal, Done: handoff.Done,
 		InProgress: handoff.InProgress, Next: handoff.Next, Touched: append([]string(nil), handoff.Touched...),
+	}
+}
+
+func writeAtlasNode(b *strings.Builder, node AtlasNode) {
+	path := node.Path
+	if path == "" {
+		path = node.Slug
+	}
+	fmt.Fprintf(b, "# %s: %s\n", path, node.Title)
+	var meta []string
+	for _, key := range NodeMetaKeys {
+		value, ok := node.MetaValue(key)
+		if ok && value != "" {
+			meta = append(meta, key+": "+value)
+		}
+	}
+	if len(meta) > 0 {
+		b.WriteString(strings.Join(meta, " · "))
+		b.WriteString("\n")
+	}
+	if node.Intent != "" {
+		b.WriteString("\n")
+		b.WriteString(node.Intent)
+		b.WriteString("\n")
+	}
+	if len(node.Invariants) > 0 && (node.Intent != "" || len(meta) > 0) {
+		b.WriteString("\n")
+	}
+	for _, inv := range node.Invariants {
+		b.WriteString("! ")
+		b.WriteString(inv.Text)
+		if inv.Removed {
+			b.WriteString(" [removed]")
+		}
+		b.WriteString("\n")
 	}
 }
 
@@ -123,6 +171,9 @@ func writeCard(b *strings.Builder, card CardNode) {
 			fmt.Fprintf(b, "T%d ", task.Number)
 		}
 		b.WriteString(task.Title)
+		if task.Repo != "" {
+			fmt.Fprintf(b, " [repo: %s]", task.Repo)
+		}
 		if task.Scope != "" {
 			fmt.Fprintf(b, " `%s`", task.Scope)
 		}
@@ -139,6 +190,9 @@ func writeCard(b *strings.Builder, card CardNode) {
 		}
 		if len(q.Options) > 0 {
 			fmt.Fprintf(b, " (%s)", strings.Join(q.Options, " | "))
+		}
+		if q.Answer != "" {
+			fmt.Fprintf(b, " -> %s", q.Answer)
 		}
 		b.WriteString("\n")
 	}
@@ -240,4 +294,27 @@ func OpenQuestions(card work.Card) int {
 		}
 	}
 	return n
+}
+
+func writeDecision(b *strings.Builder, dec DecisionNode) {
+	if dec.Title != "" {
+		fmt.Fprintf(b, "### %s: %s\n", dec.Ref, dec.Title)
+	} else {
+		fmt.Fprintf(b, "### %s\n", dec.Ref)
+	}
+	var meta []string
+	for _, key := range DecisionMetaKeys {
+		if value, ok := dec.MetaValue(key); ok && value != "" {
+			meta = append(meta, key+": "+value)
+		}
+	}
+	if len(meta) > 0 {
+		b.WriteString(strings.Join(meta, " · "))
+		b.WriteString("\n")
+	}
+	if dec.Body != "" {
+		b.WriteString("\n")
+		b.WriteString(dec.Body)
+		b.WriteString("\n")
+	}
 }

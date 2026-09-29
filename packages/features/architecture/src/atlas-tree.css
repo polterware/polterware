@@ -1,0 +1,42 @@
+/*
+ * Hierarchy tree. Each node owns a group of child rows. The group's height is animated in atlas-tree.ts;
+ * everything else is a CSS transition keyed on data-state, so a toggle during a run retargets instead of
+ * restarting. Opening is the deliberate phase (slower, staggered); closing snaps.
+ */
+.atlas-tree-group > ul {
+  margin-left: 12px;
+  padding: 4px 0 0 12px;
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+.atlas-tree-group > ul > li {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 100ms var(--ease-standard),
+    transform 100ms var(--ease-standard);
+}
+
+.atlas-tree-group[data-state="open"] > ul > li {
+  opacity: 1;
+  transform: translateY(0);
+  transition-duration: 180ms;
+  transition-timing-function: var(--ease-enter);
+  /* Stagger is decorative: 24ms per row, capped at six rows. */
+  transition-delay: calc(var(--i, 0) * 24ms);
+}
+
+/* Expand all / Collapse all: no motion for a deliberate reset. */
+[data-bulk="true"] .atlas-tree-group > ul > li {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-tree-group > ul > li {
+    transform: none;
+    transition: opacity 120ms var(--ease-standard);
+  }
+  .atlas-tree-group[data-state="open"] > ul > li {
+    transition-delay: 0ms;
+  }
+}

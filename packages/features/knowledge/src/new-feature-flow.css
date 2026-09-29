@@ -1,0 +1,124 @@
+/* New-feature flow — Intent → Shape → Contract → Plan inside the shared dialog. */
+
+.pw-feature-flow {
+  display: grid;
+  gap: 14px;
+}
+
+.pw-feature-flow__steps {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pw-feature-flow__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-item);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pw-feature-flow__step:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-text-secondary);
+}
+
+.pw-feature-flow__step:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.pw-feature-flow__step:disabled {
+  border-color: var(--color-border-subtle);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.pw-feature-flow__step[aria-current="step"] {
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.pw-feature-flow__step-number {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-item);
+  background: var(--color-surface-raised);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pw-feature-flow__step[aria-current="step"] .pw-feature-flow__step-number {
+  background: var(--color-brand);
+  color: var(--color-surface);
+}
+
+.pw-feature-flow__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.pw-feature-flow__section {
+  display: grid;
+  gap: 6px;
+}
+
+.pw-feature-flow__section-title {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pw-feature-flow__list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pw-feature-flow__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+}
+
+.pw-feature-flow__text {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  white-space: pre-wrap;
+}
+
+.pw-feature-flow__muted,
+.pw-feature-flow__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.pw-feature-flow__add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

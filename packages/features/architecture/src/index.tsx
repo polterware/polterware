@@ -118,6 +118,8 @@ export type InspectorSnapshot = {
 
 export type { ArchitectureNodeView } from "./types";
 export { ArchitectureCanvas } from "./architecture-canvas";
+export { AtlasCanvas } from "./atlas-canvas";
+export type { AtlasCanvasCard, AtlasCanvasNode } from "./atlas-canvas";
 export { ArchitectureNodeDetail } from "./node-detail";
 export { ArchitectureViewDetail } from "./view-detail";
 export { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
@@ -392,7 +394,7 @@ export function ArchitectureView(props: {
   }
 
   function select(id: string | null) {
-    if (tab() === "canvas") {
+    if (tab() === "map") {
       if (id) {
         detailPanelStore.getState().activateTarget({
           scopeId: nodeScopeId(),
@@ -427,7 +429,7 @@ export function ArchitectureView(props: {
   }
 
   function openNodeOnCanvas(id: string) {
-    props.onTabChange?.("canvas");
+    props.onTabChange?.("map");
     setSessionSnapshot(systemId(), {
       viewport: doc().viewport,
       selection: {
@@ -750,12 +752,12 @@ export function ArchitectureView(props: {
               />
             </PageToolbar.Tabs>
             <PageToolbar.Actions>
-              <Show when={tab() === "canvas" && props.onSaveLayout && saveStatus() === "error"}>
+              <Show when={tab() === "map" && props.onSaveLayout && saveStatus() === "error"}>
                 <Button variant="secondary" size="sm" onClick={() => saveManual()}>
                   Retry save
                 </Button>
               </Show>
-              <Show when={tab() === "canvas"}>
+              <Show when={tab() === "map"}>
                 <FilterPopover
                   ariaLabel="Saved view filters"
                   title="Saved views"
@@ -819,7 +821,7 @@ export function ArchitectureView(props: {
             </PageToolbar.Actions>
           </PageToolbar.Root>
           <div class="relative flex min-h-0 flex-1 flex-col">
-            <Show when={tab() === "canvas"}>
+            <Show when={tab() === "map"}>
               {canvasPanel()}
             </Show>
             <Show when={tab() === "views"}>
@@ -906,7 +908,7 @@ export function ArchitectureView(props: {
           notFound={!detailView()}
           onOpen={(viewId) => {
             setActiveViewId(viewId);
-            props.onTabChange?.("canvas");
+            props.onTabChange?.("map");
           }}
           onEdit={openEditView}
           onDelete={
@@ -920,7 +922,7 @@ export function ArchitectureView(props: {
               : undefined
           }
           onOpenMember={(memberId) => {
-            props.onTabChange?.("canvas");
+            props.onTabChange?.("map");
             props.onSelect?.(memberId);
           }}
         />

@@ -7,6 +7,7 @@ import type {
   ProjectSwitcherItem,
   WorkspaceCatalogProvider,
   WorkspaceDocument,
+  DecisionState,
   WorkspaceAdr,
   WorkspaceConstitution,
   WorkspaceEntityLink,
@@ -16,6 +17,14 @@ import type {
   WorkspaceIntegrationSyncRun,
   WorkspaceRunbook,
   WorkspaceSource,
+  WorkspaceInbox,
+  WorkspaceInboxAction,
+  WorkspaceInboxKind,
+  WorkspaceAtlas,
+  WorkspaceAtlasHistoryEntry,
+  WorkspaceAtlasNode,
+  AtlasLevel,
+  AtlasStatus,
   WorkspaceWorkCard,
   WorkStage,
 } from "@polterware/feature-shell";
@@ -201,20 +210,56 @@ export function mapDocuments(
   });
 }
 
+const DECISION_STATES: DecisionState[] = ["proposed", "active", "challenged", "superseded"];
+
+/** Lifecycle state of a stored ADR status; legacy "accepted" reads as active. */
+export function decisionState(status: string): DecisionState {
+  const value = status.trim().toLowerCase();
+  if (value === "accepted") return "active";
+  return DECISION_STATES.includes(value as DecisionState) ? (value as DecisionState) : "proposed";
+}
+
+function adrNumber(text: string): number | null {
+  const match = /\badr[\s\-_]*0*(\d+)\b/i.exec(text);
+  return match ? Number(match[1]) : null;
+}
+
+/** True when a `decisions:` entry names the ADR by id or ADR number. */
+function citesAdr(ref: string, id: string, title: string): boolean {
+  if (ref.trim().toLowerCase() === id.toLowerCase()) return true;
+  const wanted = adrNumber(ref);
+  return wanted !== null && wanted === adrNumber(title);
+}
+
 export function mapAdrs(
   items: Record<string, unknown>[],
   linksByKnowledge: Map<string, WorkspaceEntityLink[]> = new Map(),
+  nodes: { path: string; decisions: string[]; status?: string }[] = [],
 ): WorkspaceAdr[] {
-  return items.filter((item) => asString(item.kind) === "adr").map((item) => {
+  const adrItems = items.filter((item) => asString(item.kind) === "adr");
+  const titleById = new Map(adrItems.map((item) => [asString(item.id), asString(item.title)]));
+  const supersededBy = (item: Record<string, unknown>) =>
+    asString(parseJsonObject(asString(item.extraJson)).supersededBy);
+  return adrItems.map((item) => {
     const id = asString(item.id);
+    const title = asString(item.title);
+    const extra = parseJsonObject(asString(item.extraJson));
     return {
       id,
-      title: asString(item.title),
+      title,
       summary: asString(item.summary),
       bodyMarkdown: asString(item.body),
       updatedAt: formatInstant(asString(item.updatedAt)),
       tags: asStringArray(item.tags),
-      status: asString(item.status, "accepted"),
+      status: asString(item.status, "proposed"),
+      state: decisionState(asString(item.status)),
+      supersededBy: titleById.get(asString(extra.supersededBy)) ?? "",
+      supersedes: adrItems.filter((other) => supersededBy(other) === id).map((other) => asString(other.title)),
+      reviewTrigger: asString(extra.reviewTrigger),
+      statusReason: asString(extra.statusReason),
+      governs: nodes
+        .filter((node) => node.status !== "removed" && node.decisions.some((ref) => citesAdr(ref, id, title)))
+        .map((node) => node.path),
       owner: asString(item.owner, "Platform"),
       entityLinks: linksByKnowledge.get(id) ?? [],
     };
@@ -303,6 +348,7 @@ export function mapWorkCards(items: Record<string, unknown>[]): WorkspaceWorkCar
     title: asString(item.title, asString(item.slug)),
     intent: asString(item.intent),
     stage: asWorkStage(asString(item.stage)),
+    kind: asString(item.kind) === "architecture" ? "architecture" : "feature",
     owner: asString(item.owner),
     under: asString(item.under),
     decisions: asStringArray(item.decisions),
@@ -315,6 +361,7 @@ export function mapWorkCards(items: Record<string, unknown>[]): WorkspaceWorkCar
         title: asString(task.title),
         state: state === "done" || state === "dropped" ? state : "open",
         scope: asString(task.scope),
+        claimHolder: asString(task.claimHolder),
       };
     }),
     questions: asObjectArray(item.questions).map((question) => ({
@@ -330,6 +377,93 @@ export function mapWorkCards(items: Record<string, unknown>[]): WorkspaceWorkCar
       text: asString(invariant.text),
     })),
   }));
+}
+
+const ATLAS_LEVELS: AtlasLevel[] = ["system", "domain", "component"];
+const ATLAS_STATUSES: AtlasStatus[] = ["proposed", "in_progress", "delivered", "drift"];
+
+/** Atlas hierarchy from WorkService.ListAtlas. Unknown levels and statuses are dropped. */
+export function mapAtlas(raw: Record<string, unknown>): WorkspaceAtlas {
+  const nodes: WorkspaceAtlasNode[] = [];
+  for (const item of asObjectArray(raw.nodes)) {
+    const level = asString(item.level);
+    const status = asString(item.status);
+    if (!ATLAS_LEVELS.includes(level as AtlasLevel) || !ATLAS_STATUSES.includes(status as AtlasStatus)) {
+      continue;
+    }
+    nodes.push({
+      id: asString(item.id),
+      parentId: asString(item.parentId),
+      level: level as AtlasLevel,
+      slug: asString(item.slug),
+      path: asString(item.path),
+      title: asString(item.title, asString(item.slug)),
+      intent: asString(item.intent),
+      decisions: asStringArray(item.decisions),
+      invariants: asObjectArray(item.invariants).map((invariant) => ({
+        id: asString(invariant.id),
+        text: asString(invariant.text),
+      })),
+      status: status as AtlasStatus,
+      childCount: asNumber(item.childCount),
+      featureCount: asNumber(item.featureCount),
+      openQuestions: asNumber(item.openQuestions),
+      repo: asString(item.repo),
+      folder: asString(item.folder),
+      migrationFrom: asString(item.migrationFrom),
+      migrationTo: asString(item.migrationTo),
+    });
+  }
+  return { nodes, driftSlugs: asStringArray(raw.driftSlugs), historical: asBoolean(raw.historical) };
+}
+
+/** Change batches that touched the Atlas, newest first. */
+export function mapAtlasHistory(raw: Record<string, unknown>): WorkspaceAtlasHistoryEntry[] {
+  return asObjectArray(raw.entries).map((item) => ({
+    batchId: asString(item.batchId),
+    at: formatInstant(asString(item.at)),
+    nodeOps: asNumber(item.nodeOps),
+    summary: asString(item.summary),
+  }));
+}
+
+const INBOX_KINDS: WorkspaceInboxKind[] = ["decision", "drift", "verify"];
+const INBOX_ACTIONS: WorkspaceInboxAction[] = [
+  "decide",
+  "delegate",
+  "defer",
+  "fix_code",
+  "update_intent",
+  "ignore",
+  "verify",
+  "reject",
+];
+
+/** Inbox from WorkService.ListInbox; unknown kinds and actions are dropped. */
+export function mapInbox(response: Record<string, unknown>): WorkspaceInbox {
+  const items = asObjectArray(response.items).flatMap((item) => {
+    const kind = asString(item.kind) as WorkspaceInboxKind;
+    if (!INBOX_KINDS.includes(kind)) return [];
+    return [{
+      id: asString(item.id),
+      kind,
+      blocking: asBoolean(item.blocking),
+      title: asString(item.title),
+      detail: asString(item.detail),
+      options: asStringArray(item.options),
+      where: asString(item.where),
+      source: asString(item.source),
+      state: asString(item.state) === "deferred" ? "deferred" as const : "open" as const,
+      actions: asStringArray(item.actions).filter((action): action is WorkspaceInboxAction =>
+        INBOX_ACTIONS.includes(action as WorkspaceInboxAction),
+      ),
+    }];
+  });
+  return {
+    items,
+    openCount: asNumber(response.openCount),
+    blockingCount: asNumber(response.blockingCount),
+  };
 }
 
 export function mapProviders(

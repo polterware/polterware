@@ -14,6 +14,9 @@ func Check(input Input) Result {
 	}
 	findings = append(findings, checkEdgeDecisions(input.Relationships, input.AcceptedADRs)...)
 	findings = append(findings, checkDeclaredObserved(input.StoredFacts)...)
+	if input.GitDeliveryReady {
+		findings = append(findings, checkCommitTasks(input.DoneTasks, input.TaskCommits, input.WindowCommits)...)
+	}
 
 	if input.EntityID != "" {
 		findings = filterByEntity(findings, input.EntityID, input.StoredFacts, input.Relationships)

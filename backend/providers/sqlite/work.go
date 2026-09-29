@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/polterware/polterware/backend/domains/atlas"
 	"github.com/polterware/polterware/backend/domains/work"
 	"github.com/polterware/polterware/backend/platform/ids"
 )
@@ -15,7 +16,7 @@ import (
 // and invariants, ordered by position.
 func (s *Store) LoadWorkSnapshot(projectID string) (work.Snapshot, error) {
 	snapshot := work.Snapshot{ProjectID: projectID}
-	rows, err := s.DB.Query(`SELECT id,slug,title,intent,stage,status,owner,under,decisions_json,position,created_at,updated_at
+	rows, err := s.DB.Query(`SELECT id,slug,title,intent,stage,status,owner,kind,under,decisions_json,position,created_at,updated_at
 		FROM work_cards WHERE project_id=? ORDER BY position, created_at`, projectID)
 	if err != nil {
 		return snapshot, err
@@ -25,7 +26,7 @@ func (s *Store) LoadWorkSnapshot(projectID string) (work.Snapshot, error) {
 		card := work.Card{ProjectID: projectID}
 		var decisions, created, updated string
 		if err := rows.Scan(&card.ID, &card.Slug, &card.Title, &card.Intent, &card.Stage, &card.Status,
-			&card.Owner, &card.Under, &decisions, &card.Position, &created, &updated); err != nil {
+			&card.Owner, &card.Kind, &card.Under, &decisions, &card.Position, &created, &updated); err != nil {
 			_ = rows.Close()
 			return snapshot, err
 		}
@@ -38,15 +39,22 @@ func (s *Store) LoadWorkSnapshot(projectID string) (work.Snapshot, error) {
 	if err := rows.Close(); err != nil {
 		return snapshot, err
 	}
+	if snapshot.Repos, err = s.loadRepoNames(projectID); err != nil {
+		return snapshot, err
+	}
+	if snapshot.Decisions, err = s.loadDecisions(projectID); err != nil {
+		return snapshot, err
+	}
 	if len(snapshot.Cards) == 0 {
-		return snapshot, nil
+		snapshot.Nodes, err = s.loadAtlasNodes(projectID)
+		return snapshot, err
 	}
 
 	const scope = `card_id IN (SELECT id FROM work_cards WHERE project_id=?)`
-	if err := s.eachRow(`SELECT id,card_id,number,title,state,scope,position FROM work_tasks WHERE `+scope+` ORDER BY position, number`,
+	if err := s.eachRow(`SELECT id,card_id,number,title,state,repo,scope,position FROM work_tasks WHERE `+scope+` ORDER BY position, number`,
 		projectID, func(rows *sql.Rows) error {
 			var t work.Task
-			if err := rows.Scan(&t.ID, &t.CardID, &t.Number, &t.Title, &t.State, &t.Scope, &t.Position); err != nil {
+			if err := rows.Scan(&t.ID, &t.CardID, &t.Number, &t.Title, &t.State, &t.Repo, &t.Scope, &t.Position); err != nil {
 				return err
 			}
 			if i, ok := index[t.CardID]; ok {
@@ -86,6 +94,9 @@ func (s *Store) LoadWorkSnapshot(projectID string) (work.Snapshot, error) {
 		}); err != nil {
 		return snapshot, err
 	}
+	if err := s.loadWorkClaims(projectID, snapshot.Cards); err != nil {
+		return snapshot, err
+	}
 	err = s.eachRow(`SELECT id,project_id,card_id,branch,goal,done,in_progress,next,touched_json,agent,created_at
 		FROM work_handoffs WHERE `+scope+` ORDER BY created_at, id`,
 		projectID, func(rows *sql.Rows) error {
@@ -102,7 +113,48 @@ func (s *Store) LoadWorkSnapshot(projectID string) (work.Snapshot, error) {
 			}
 			return nil
 		})
+	if err != nil {
+		return snapshot, err
+	}
+	snapshot.Nodes, err = s.loadAtlasNodes(projectID)
 	return snapshot, err
+}
+
+// loadRepoNames lists the project's registered checkout names.
+func (s *Store) loadRepoNames(projectID string) ([]string, error) {
+	var names []string
+	err := s.eachRow(`SELECT name FROM project_repos WHERE project_id=? ORDER BY name`, projectID, func(rows *sql.Rows) error {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return err
+		}
+		names = append(names, name)
+		return nil
+	})
+	return names, err
+}
+
+// loadWorkClaims attaches each active claim to its task.
+func (s *Store) loadWorkClaims(projectID string, cards []work.Card) error {
+	tasks := map[string]*work.Task{}
+	for i := range cards {
+		for j := range cards[i].Tasks {
+			tasks[cards[i].Tasks[j].ID] = &cards[i].Tasks[j]
+		}
+	}
+	return s.eachRow(`SELECT id,project_id,task_id,holder,scope,created_at FROM work_claims WHERE project_id=?`,
+		projectID, func(rows *sql.Rows) error {
+			var claim work.Claim
+			var created string
+			if err := rows.Scan(&claim.ID, &claim.ProjectID, &claim.TaskID, &claim.Holder, &claim.Scope, &created); err != nil {
+				return err
+			}
+			claim.CreatedAt, _ = time.Parse(time.RFC3339, created)
+			if task, ok := tasks[claim.TaskID]; ok {
+				task.Claim = &claim
+			}
+			return nil
+		})
 }
 
 func (s *Store) eachRow(query string, arg any, scan func(*sql.Rows) error) error {
@@ -123,10 +175,10 @@ func (s *Store) eachRow(query string, arg any, scan func(*sql.Rows) error) error
 var workColumns = map[string]map[string]string{
 	work.EntityCard: {
 		"slug": "slug", "title": "title", "intent": "intent", "stage": "stage", "status": "status",
-		"owner": "owner", "under": "under", "decisions": "decisions_json", "position": "position",
+		"owner": "owner", "kind": "kind", "under": "under", "decisions": "decisions_json", "position": "position",
 	},
 	work.EntityTask: {
-		"number": "number", "title": "title", "state": "state", "scope": "scope", "position": "position",
+		"number": "number", "title": "title", "state": "state", "repo": "repo", "scope": "scope", "position": "position",
 	},
 	work.EntityQuestion: {
 		"text": "text", "blocking": "blocking", "options": "options_json", "state": "state",
@@ -165,7 +217,12 @@ func (s *Store) ApplyWorkOps(projectID, agentRunID, batchID string, ops []work.O
 		if err := applyWorkOp(tx, projectID, op, now); err != nil {
 			return nil, fmt.Errorf("%s %s %s: %w", op.Kind, op.Entity, op.CardSlug, err)
 		}
-		if op.Entity != work.EntityCard {
+		switch {
+		case op.Entity == work.EntityNode && op.NodeID != "":
+			if _, err := tx.Exec(`UPDATE atlas_nodes SET updated_at=? WHERE id=?`, now, op.NodeID); err != nil {
+				return nil, err
+			}
+		case op.Entity != work.EntityCard && op.Entity != work.EntityNode && op.Entity != work.EntityDecision && op.CardID != "":
 			if _, err := tx.Exec(`UPDATE work_cards SET updated_at=? WHERE id=?`, now, op.CardID); err != nil {
 				return nil, err
 			}
@@ -174,14 +231,19 @@ func (s *Store) ApplyWorkOps(projectID, agentRunID, batchID string, ops []work.O
 		if err != nil {
 			return nil, err
 		}
-		if _, err := tx.Exec(`INSERT INTO change_ops(id,project_id,agent_run_id,batch_id,entity,entity_id,op,data_json,created_at)
-			VALUES(?,?,?,?,?,?,?,?,?)`,
-			ids.NewULID(), projectID, agentRunID, batchID, op.Entity, op.EntityID, op.Kind, string(data), now); err != nil {
+		if _, err := tx.Exec(`INSERT INTO change_ops(id,project_id,agent_run_id,batch_id,entity,entity_id,op,data_json,node_id,created_at)
+			VALUES(?,?,?,?,?,?,?,?,?,?)`,
+			ids.NewULID(), projectID, agentRunID, batchID, op.Entity, op.EntityID, op.Kind, string(data), op.NodeID, now); err != nil {
 			return nil, err
 		}
-		if !seen[op.CardID] {
+		if op.CardID != "" && op.Entity != work.EntityNode && !seen[op.CardID] {
 			seen[op.CardID] = true
 			cardIDs = append(cardIDs, op.CardID)
+		}
+	}
+	for _, cardID := range cardIDs {
+		if err := reindexWorkCardFTS(tx, cardID); err != nil {
+			return nil, err
 		}
 	}
 	if err := tx.Commit(); err != nil {
@@ -191,6 +253,15 @@ func (s *Store) ApplyWorkOps(projectID, agentRunID, batchID string, ops []work.O
 }
 
 func applyWorkOp(tx *sql.Tx, projectID string, op work.Op, now string) error {
+	if op.Entity == work.EntityClaim {
+		return applyClaimOp(tx, projectID, op, now)
+	}
+	if op.Entity == work.EntityNode {
+		return applyAtlasOp(tx, projectID, op, now)
+	}
+	if op.Entity == work.EntityDecision {
+		return applyDecisionOp(tx, projectID, op, now)
+	}
 	table, ok := workTables[op.Entity]
 	if !ok {
 		return fmt.Errorf("unknown entity %q", op.Entity)
@@ -266,4 +337,68 @@ func columnValue(value any) (any, error) {
 	default:
 		return v, nil
 	}
+}
+
+// applyClaimOp inserts or deletes one work_claims row. The planner already
+// arbitrated; the checks here only catch a claim another write committed in
+// between (the task_id unique key covers the same task).
+func applyClaimOp(tx *sql.Tx, projectID string, op work.Op, now string) error {
+	holder, _ := op.Fields["holder"].(string)
+	switch op.Kind {
+	case work.OpCreate:
+		taskID, _ := op.Fields["task_id"].(string)
+		scope, _ := op.Fields["scope"].(string)
+		if scope != "" {
+			rows, err := tx.Query(`SELECT holder,scope FROM work_claims WHERE project_id=? AND holder<>? AND scope<>''`, projectID, holder)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var otherHolder, otherScope string
+				if err := rows.Scan(&otherHolder, &otherScope); err != nil {
+					return err
+				}
+				if work.ScopesOverlap(scope, otherScope) {
+					return fmt.Errorf("scope %s overlaps %s held by %s", scope, otherScope, otherHolder)
+				}
+			}
+			if err := rows.Err(); err != nil {
+				return err
+			}
+		}
+		_, err := tx.Exec(`INSERT INTO work_claims(id,project_id,task_id,holder,scope,created_at) VALUES(?,?,?,?,?,?)`,
+			op.EntityID, projectID, taskID, holder, scope, now)
+		return err
+	case work.OpRemove:
+		result, err := tx.Exec(`DELETE FROM work_claims WHERE id=?`, op.EntityID)
+		if err != nil {
+			return err
+		}
+		if n, _ := result.RowsAffected(); n == 0 {
+			return fmt.Errorf("claim %s not found", op.EntityID)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported claim op %q", op.Kind)
+	}
+}
+
+// ListAtlasChangeOps returns the change_ops rows that touched Atlas nodes and
+// invariants, oldest first.
+func (s *Store) ListAtlasChangeOps(projectID string) ([]atlas.HistoryOp, error) {
+	var ops []atlas.HistoryOp
+	err := s.eachRow(`SELECT rowid,batch_id,agent_run_id,op,entity_id,node_id,data_json,created_at
+		FROM change_ops WHERE project_id=? AND entity='node' ORDER BY rowid`, projectID, func(rows *sql.Rows) error {
+		var op atlas.HistoryOp
+		var data, created string
+		if err := rows.Scan(&op.Seq, &op.BatchID, &op.AgentRunID, &op.Kind, &op.EntityID, &op.NodeID, &data, &created); err != nil {
+			return err
+		}
+		_ = json.Unmarshal([]byte(data), &op.Fields)
+		op.CreatedAt, _ = time.Parse(time.RFC3339, created)
+		ops = append(ops, op)
+		return nil
+	})
+	return ops, err
 }

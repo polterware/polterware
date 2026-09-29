@@ -94,3 +94,56 @@ export type McpStatusView = {
   command: string;
   cursorConfig: string;
 };
+
+export type SessionClaimRow = {
+  slug: string;
+  number: number;
+  title: string;
+  scope: string;
+};
+
+/** One agent working now: an open run plus the tasks its label has claimed. */
+export type AgentSessionRow = {
+  runId: string;
+  agent: string;
+  task: string;
+  startedAt: string;
+  claims: SessionClaimRow[];
+};
+
+export type SessionHandoffRow = {
+  slug: string;
+  branch: string;
+  goal: string;
+  done: string;
+  inProgress: string;
+  next: string;
+  agent: string;
+  at: string;
+};
+
+export type AgentSessionsView = {
+  branch: string;
+  sessions: AgentSessionRow[];
+  handoffs: SessionHandoffRow[];
+};
+
+export type HookSwitchRow = {
+  name: string;
+  label: string;
+  note: string;
+  enabled: boolean;
+};
+
+export type AgentSetupView = {
+  hooks: HookSwitchRow[];
+  polterwarePath: string;
+  claudePath: string;
+  pluginInstalled: boolean;
+  pluginEnabled: boolean;
+  pluginVersion: string;
+  embeddedVersion: string;
+  problem: string;
+  skillReady: boolean;
+  agentsLineReady: boolean;
+};

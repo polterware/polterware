@@ -11,6 +11,7 @@ import {
   type DetailPanelPresence,
 } from "./detail-panel";
 import { Pencil } from "./hugeicons";
+import { repoPath } from "../test/repo-path";
 
 function dispatchPanelTransition(
   panel: HTMLElement,
@@ -101,7 +102,7 @@ describe("DetailPanel", () => {
     expect(onAdd).toHaveBeenCalledOnce();
 
     const css = readFileSync(
-      "packages/frontend/design-system/src/detail-panel.css",
+      repoPath("packages/frontend/design-system/src/detail-panel.css"),
       "utf8",
     );
     expect(css).toMatch(
@@ -117,11 +118,11 @@ describe("DetailPanel", () => {
 
   it("mirrors bottom geometry on the X axis for side placement", () => {
     const css = readFileSync(
-      "packages/frontend/design-system/src/detail-panel.css",
+      repoPath("packages/frontend/design-system/src/detail-panel.css"),
       "utf8",
     );
     const source = readFileSync(
-      "packages/frontend/design-system/src/detail-panel.tsx",
+      repoPath("packages/frontend/design-system/src/detail-panel.tsx"),
       "utf8",
     );
     expect(source).toContain('data-panel-placement={props.placement ?? "bottom"}');
@@ -136,7 +137,7 @@ describe("DetailPanel", () => {
 
   it("disables layout transitions for reduced motion", () => {
     const css = readFileSync(
-      "packages/frontend/design-system/src/detail-panel.css",
+      repoPath("packages/frontend/design-system/src/detail-panel.css"),
       "utf8",
     );
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
@@ -145,7 +146,7 @@ describe("DetailPanel", () => {
 
   it("nests DataTable rows without dark surface fills inside sections", () => {
     const css = readFileSync(
-      "packages/frontend/design-system/src/detail-panel.css",
+      repoPath("packages/frontend/design-system/src/detail-panel.css"),
       "utf8",
     );
     expect(css).toMatch(
@@ -168,15 +169,15 @@ describe("DetailPanel", () => {
 
   it("keeps discrete button-driven geometry with progressive chrome", () => {
     const css = readFileSync(
-      "packages/frontend/design-system/src/detail-panel.css",
+      repoPath("packages/frontend/design-system/src/detail-panel.css"),
       "utf8",
     );
     const source = readFileSync(
-      "packages/frontend/design-system/src/detail-panel.tsx",
+      repoPath("packages/frontend/design-system/src/detail-panel.tsx"),
       "utf8",
     );
     const materials = readFileSync(
-      "packages/frontend/design-system/src/materials.css",
+      repoPath("packages/frontend/design-system/src/materials.css"),
       "utf8",
     );
     expect(css).toMatch(
@@ -352,8 +353,11 @@ describe("DetailPanel", () => {
       /<Tooltip\.Group>\s*{props\.children}\s*<div class="pw-detail-panel__global-actions">/,
     );
     expect(source).toContain('openDelay={DETAIL_PANEL_ACTION_TOOLTIP_DELAY}');
-    expect(source).toContain('shortcut={DETAIL_PANEL_TOGGLE_SHORTCUT}');
-    expect(source).toContain('shortcut={DETAIL_PANEL_MAXIMIZE_SHORTCUT}');
+    // Labels come from the configurable shortcut store, not hard-coded constants.
+    expect(source).toContain('createShortcutLabel("shell.toggle_detail")');
+    expect(source).toContain('createShortcutLabel("shell.maximize_detail")');
+    expect(source).toContain("shortcut={toggleShortcut()}");
+    expect(source).toContain("shortcut={maximizeShortcut()}");
     expect(source).toContain("<Kbd>{local.shortcut}</Kbd>");
     expect(css).toContain(".pw-detail-panel__action-tooltip");
     expect(materials).toContain("--material-fade-edge-bottom: linear-gradient(");
@@ -692,12 +696,11 @@ describe("DetailPanel", () => {
 
   it("keeps retained entity surfaces on the shared DetailPanel", () => {
     const featureFiles = [
-      "packages/features/architecture/src/node-detail.tsx",
-      "packages/features/architecture/src/view-detail.tsx",
-      "packages/features/integrations/src/integration-detail.tsx",
-      "packages/features/knowledge/src/knowledge-document-shell.tsx",
-      "packages/features/resources/src/resource-detail.tsx",
-      "packages/features/settings/src/environment-detail.tsx",
+      repoPath("packages/features/architecture/src/node-detail.tsx"),
+      repoPath("packages/features/architecture/src/view-detail.tsx"),
+      repoPath("packages/features/integrations/src/integration-detail.tsx"),
+      repoPath("packages/features/knowledge/src/knowledge-document-shell.tsx"),
+      repoPath("packages/features/resources/src/resource-detail.tsx"),
     ];
 
     for (const file of featureFiles) {
