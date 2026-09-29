@@ -43,6 +43,8 @@ func main() {
 		err = runInit(*dbPath, rest)
 	case "scan":
 		err = runScan(*dbPath, rest)
+	case "repo":
+		err = runRepo(*dbPath, rest)
 	case "context":
 		err = runContext(*dbPath, rest)
 	case "drift":

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/polterware/polterware/backend/domains/knowledge"
@@ -52,6 +53,34 @@ func ScanProject(store *storepkg.Store, projectID string) (ScanResult, error) {
 	skipped := int32(discovered.Skipped)
 	importedFiles := 0
 
+	headID, gitEvidence, gitNote, err := recordGitMetadata(store, projectID, rootPath, "", now)
+	if err != nil {
+		return ScanResult{}, err
+	}
+	evidenceCount += gitEvidence
+	gitNotes := []string{}
+	if gitNote != "" {
+		gitNotes = append(gitNotes, gitNote)
+	}
+	repos, err := store.ListProjectRepos(projectID)
+	if err != nil {
+		return ScanResult{}, err
+	}
+	for _, repo := range repos {
+		repoPath := ExpandRootPath(repo.Path)
+		if repoPath == "" || samePath(repoPath, rootPath) {
+			continue
+		}
+		_, extraEvidence, note, err := recordGitMetadata(store, projectID, repoPath, repo.Name, now)
+		if err != nil {
+			return ScanResult{}, err
+		}
+		evidenceCount += extraEvidence
+		if note != "" {
+			gitNotes = append(gitNotes, note)
+		}
+	}
+
 	existingSources, err := store.ListKnowledge(projectID, "source")
 	if err != nil {
 		return ScanResult{}, err
@@ -89,6 +118,11 @@ func ScanProject(store *storepkg.Store, projectID string) (ScanResult, error) {
 			if err := store.LinkPpmEvidenceToFact(projectID, fact.ID, evidence.ID); err != nil {
 				return ScanResult{}, err
 			}
+			if headID != "" {
+				if err := store.LinkPpmEvidenceToFact(projectID, fact.ID, headID); err != nil {
+					return ScanResult{}, err
+				}
+			}
 			factCount++
 		}
 		if err := upsertImportedKnowledgeSource(store, projectID, file, sourceByPath, now); err != nil {
@@ -101,6 +135,9 @@ func ScanProject(store *storepkg.Store, projectID string) (ScanResult, error) {
 	message := "No matching MVP sources found under project root."
 	if importedFiles > 0 {
 		message = fmt.Sprintf("Imported %d facts from %d files.", factCount, importedFiles)
+	}
+	if len(gitNotes) > 0 {
+		message += " " + strings.Join(gitNotes, " ")
 	}
 	return ScanResult{
 		FactCount:     factCount,

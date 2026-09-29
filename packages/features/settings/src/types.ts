@@ -18,6 +18,12 @@ export type ProjectEnvironment = {
   dataSource: DataSource;
 };
 
+export type ProjectRepository = {
+  id: string;
+  name: string;
+  path: string;
+};
+
 export type ProjectGeneralSettings = {
   name: string;
   description: string;

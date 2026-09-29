@@ -26,6 +26,7 @@ var tableKinds = map[string]string{
 	"projects":                  KindProjects,
 	"environments":              KindEnvironments,
 	"project_settings":          KindSettings,
+	"project_repos":             KindSettings,
 	"work_cards":                KindWork,
 	"work_tasks":                KindWork,
 	"work_questions":            KindWork,

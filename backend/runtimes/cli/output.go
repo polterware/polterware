@@ -53,6 +53,9 @@ func usage() {
   polterware [-db path]                (interactive status and MCP setup; requires a terminal)
   polterware [-db path] init --name <name> [--path <root>] [--id <id>] [--json]
   polterware [-db path] scan --project <id> [--json]
+  polterware [-db path] repo list --project <id> [--json]
+  polterware [-db path] repo add --project <id> --name <name> --path <dir> [--json]
+  polterware [-db path] repo remove --project <id> --name <name>
   polterware [-db path] context --project <id> [--query ...] [--entity ...] [--budget N] [--agent-run-id ...] [--json]
   polterware [-db path] drift --project <id> [--entity ...] [--agent-run-id ...] [--json]
   polterware [-db path] apply <file|-> [--dry-run] [--project <id>] [--summary ...] [--rationale ...] [--agent-run-id ...]

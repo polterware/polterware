@@ -80,7 +80,9 @@ import {
   persistConstitutionEnsure,
   persistConstitutionArchive,
   persistLayout,
+  persistAddProjectRepo,
   persistProjectSettings,
+  persistRemoveProjectRepo,
   persistResource,
   persistView,
   persistWorkCreateCard,
@@ -1043,8 +1045,33 @@ export function App() {
             projectId={currentProjectId()}
             general={workspace().settings}
             environments={workspace().settingsEnvironments}
+            repositories={workspace().repositories}
             loading={loading()}
             onTabChange={(tab) => applyRoute(setTab(route(), tab))}
+            onAddRepository={async (draft) => {
+              try {
+                await persistAddProjectRepo(currentProjectId(), draft.name, draft.path);
+                pushToast(`Repository "${draft.name}" added.`, "success");
+                await refreshWorkspace(currentProjectId());
+              } catch (error: unknown) {
+                pushToast(error instanceof Error ? error.message : "Could not add repository.", "danger");
+                throw error;
+              }
+            }}
+            onRemoveRepository={async (name) => {
+              try {
+                await persistRemoveProjectRepo(currentProjectId(), name);
+                pushToast(`Repository "${name}" removed.`, "success");
+                await refreshWorkspace(currentProjectId());
+              } catch (error: unknown) {
+                pushToast(error instanceof Error ? error.message : "Could not remove repository.", "danger");
+                throw error;
+              }
+            }}
+            onBrowseRepository={async () => {
+              const selected = await window.polterware.app.selectDirectory();
+              return selected.path;
+            }}
             onSaveGeneral={(settings) => {
               void persistProjectSettings(
                 currentProjectId(),

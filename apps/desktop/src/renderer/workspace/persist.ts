@@ -320,6 +320,14 @@ export async function persistKnowledgeDuplicate(
   return id;
 }
 
+export async function persistAddProjectRepo(projectId: string, name: string, path: string): Promise<void> {
+  await core().projects.addRepo({ projectId, name, path });
+}
+
+export async function persistRemoveProjectRepo(projectId: string, name: string): Promise<void> {
+  await core().projects.removeRepo({ projectId, name });
+}
+
 export async function persistProjectSettings(
   projectId: string,
   settings: ProjectGeneralSettings,

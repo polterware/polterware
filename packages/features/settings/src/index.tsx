@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, onCleanup, Show, type JSX } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show, type JSX } from "solid-js";
 import {
   A11yDialog,
   Button,
@@ -23,7 +23,7 @@ import { CreateEnvironmentDialog, type CreateEnvironmentDraft } from "./create-e
 import { EnvironmentsEmpty } from "./environments-empty";
 import { EnvironmentDetail } from "./environment-detail";
 import { environmentKindLabel, environmentKindTone, protectionLabel, protectionTone, archiveProjectToast, saveGeneralSettingsToast } from "./environment-status";
-import type { ProjectEnvironment, ProjectGeneralSettings } from "./types";
+import type { ProjectEnvironment, ProjectGeneralSettings, ProjectRepository } from "./types";
 import {
   findEnvironmentById,
 } from "./fixtures";
@@ -38,7 +38,7 @@ import { ShortcutsPage } from "./shortcuts-page";
 import { AppearanceCard } from "./appearance-card";
 import { PrivacyCard } from "./privacy-card";
 
-export type { EnvironmentKind, ProjectEnvironment, ProjectGeneralSettings, ProtectionLevel, SettingsTabId } from "./types";
+export type { EnvironmentKind, ProjectEnvironment, ProjectGeneralSettings, ProjectRepository, ProtectionLevel, SettingsTabId } from "./types";
 export type { CreateEnvironmentDraft } from "./create-environment-dialog";
 export { SETTINGS_ENVIRONMENT_MOCKS, PROJECT_GENERAL_SETTINGS_MOCK } from "./fixtures";
 export {
@@ -63,9 +63,13 @@ export function SettingsView(props: {
   projectId?: string;
   general?: ProjectGeneralSettings;
   environments?: ProjectEnvironment[];
+  repositories?: ProjectRepository[];
   loading?: boolean;
   onTabChange?: (t: string) => void;
   onSaveGeneral?: (settings: ProjectGeneralSettings) => void;
+  onAddRepository?: (draft: { name: string; path: string }) => Promise<void> | void;
+  onRemoveRepository?: (name: string) => Promise<void> | void;
+  onBrowseRepository?: () => Promise<string | null | undefined>;
   onCreateEnvironment?: (draft: CreateEnvironmentDraft) => void;
   onSetDefaultEnvironment?: (environmentId: string) => void;
   onDeleteEnvironment?: (environmentId: string) => void;
@@ -83,6 +87,9 @@ export function SettingsView(props: {
   const [description, setDescription] = createSignal(general()?.description ?? "");
   const [defaultEnvironmentId, setDefaultEnvironmentId] = createSignal(general()?.defaultEnvironmentId ?? "");
   const [repository, setRepository] = createSignal(general()?.repository ?? "");
+  const [repoName, setRepoName] = createSignal("");
+  const [repoPath, setRepoPath] = createSignal("");
+  const [repoBusy, setRepoBusy] = createSignal(false);
   const [archiveOpen, setArchiveOpen] = createSignal(false);
   const [resetOpen, setResetOpen] = createSignal(false);
   const [createOpen, setCreateOpen] = createSignal(false);
@@ -123,6 +130,39 @@ export function SettingsView(props: {
 
   function activate(entityId: string) {
     detailPanelStore.getState().activateTarget(environmentDetailTarget(entityId));
+  }
+
+  async function handleAddRepository() {
+    const name = repoName().trim();
+    const path = repoPath().trim();
+    if (!name || !path || !props.onAddRepository) return;
+    setRepoBusy(true);
+    try {
+      await props.onAddRepository({ name, path });
+      setRepoName("");
+      setRepoPath("");
+    } catch {
+      // The caller reports the error.
+    } finally {
+      setRepoBusy(false);
+    }
+  }
+
+  async function handleBrowseRepository() {
+    const picked = await props.onBrowseRepository?.();
+    if (picked) setRepoPath(picked);
+  }
+
+  async function handleRemoveRepository(name: string) {
+    if (!props.onRemoveRepository) return;
+    setRepoBusy(true);
+    try {
+      await props.onRemoveRepository(name);
+    } catch {
+      // The caller reports the error.
+    } finally {
+      setRepoBusy(false);
+    }
   }
 
   function handleSaveGeneral() {
@@ -213,6 +253,52 @@ export function SettingsView(props: {
                   onInput={(e) => setRepository(e.currentTarget.value)}
                 />
               </Field>
+              <div class="space-y-2">
+                <p class="m-0 text-[11px] font-medium tracking-wide text-[var(--color-text-muted)]">
+                  Local repositories
+                </p>
+                <p class="m-0 text-[11px] text-[var(--color-text-muted)]">
+                  Extra Git checkouts. The project directory stays the checkpoint used by status. Each path here is read on scan.
+                </p>
+                <For each={props.repositories ?? []}>
+                  {(repo) => (
+                    <div class="flex items-center justify-between gap-2">
+                      <p class="m-0 min-w-0 truncate font-mono text-[12px] text-[var(--color-text-primary)]" title={repo.path}>
+                        {repo.name} · {repo.path}
+                      </p>
+                      <Button size="sm" variant="ghost" disabled={repoBusy()} onClick={() => void handleRemoveRepository(repo.name)}>
+                        Remove
+                      </Button>
+                    </div>
+                  )}
+                </For>
+                <Field label="Name" for="settings-repo-name">
+                  <Input
+                    id="settings-repo-name"
+                    size="md"
+                    placeholder="api"
+                    value={repoName()}
+                    onInput={(e) => setRepoName(e.currentTarget.value)}
+                  />
+                </Field>
+                <Field label="Path" for="settings-repo-path">
+                  <Input
+                    id="settings-repo-path"
+                    size="md"
+                    placeholder="/path/to/checkout"
+                    value={repoPath()}
+                    onInput={(e) => setRepoPath(e.currentTarget.value)}
+                  />
+                </Field>
+                <div class="flex justify-end gap-2">
+                  <Button size="sm" variant="ghost" disabled={repoBusy()} onClick={() => void handleBrowseRepository()}>
+                    Browse
+                  </Button>
+                  <Button size="sm" variant="secondary" disabled={repoBusy() || !repoName().trim() || !repoPath().trim()} onClick={() => void handleAddRepository()}>
+                    Add repository
+                  </Button>
+                </div>
+              </div>
               <Field label="Default environment" for="settings-default-env">
                 <Select
                   id="settings-default-env"

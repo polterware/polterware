@@ -1,6 +1,6 @@
 import type { ArchViewCard } from "@polterware/feature-architecture";
 import type { Resource, ResourceStatus } from "@polterware/feature-resources";
-import type { ProjectEnvironment, ProjectGeneralSettings, ProtectionLevel } from "@polterware/feature-settings";
+import type { ProjectEnvironment, ProjectGeneralSettings, ProjectRepository, ProtectionLevel } from "@polterware/feature-settings";
 import type {
   EnvironmentItem,
   EnvironmentKind,
@@ -99,6 +99,15 @@ export function mapSettings(
     repository: asString(settings.repository),
     dataSource: "empty",
   };
+}
+
+export function mapProjectRepos(records: Record<string, unknown>[]): ProjectRepository[] {
+  return records.flatMap((item) => {
+    const name = asString(item.name);
+    const path = asString(item.path);
+    if (!name || !path) return [];
+    return [{ id: asString(item.id), name, path }];
+  });
 }
 
 export function mapResources(

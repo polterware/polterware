@@ -103,6 +103,8 @@ Known leftovers: some UI copy still says "Architecture" (Atlas canvas tab label,
 
 Recommended order: 3 (foundation every later slice reads and writes), then 3d (single core + live sync), then 4 (continuity test), then 5 and 6. Slices 3a–3c are done; 3d is implemented and awaits end-to-end validation; slice 4 is next.
 
+Git is two local reads that do not share results. The checklist is [Git — verify at the end](#git--verify-at-the-end). Slice 5 has local Git evidence and the revision stamp; commit links and the new drift case are still open.
+
 ### Slice 3a — Work model + Polter codec + CLI
 
 Goal: an agent creates a roadmap or Work cards with one `polterware apply` call, cheaply. Design: [`polter-format.md`](polter-format.md).
@@ -163,10 +165,48 @@ Touched: backend/.../import.go, docs/spec.md
 
 ### Slice 5 — Git metadata import
 
-- [ ] Import HEAD, branch, and recent commits as evidence (deterministic, no network).
-- [ ] Stamp revision on observed facts.
+- [x] Import HEAD, branch, and recent commits as evidence (deterministic, no network). One HEAD row and up to 20 first-parent commits on `ImportProjectSources` / `polterware scan`, at the single project `root_path`. Not a work tree: skip, scan still succeeds.
+- [x] Stamp revision on observed facts. Each file fact from that scan links to the HEAD evidence row (`ppm_fact_evidence`); no new column.
 - [ ] Commit ↔ task links by explicit reference convention (`git-metadata-import T2`); FTS5 match only as a suggestion.
 - [ ] "Delivered" = commit on main; new drift case: task marked done with no matching commit, or code delivered with no task.
+
+### Git — verify at the end
+
+Check this when the Atlas slices are far enough to exercise, or before calling slices 4 and 5 done. Both reads are local. Neither fetches, and neither looks at GitHub, Vercel, or AWS.
+
+**A. Session** (`providers/git.Observe`, used by `polterware status` and `polterware handoff`):
+
+- [ ] Inside a work tree, `polterware status` prints the current branch.
+- [ ] Outside a work tree, status still runs. The branch prints as unknown. Handoff file hints are skipped.
+- [ ] A card whose stage is `delivered` prints `delivered` only when `HEAD` is an ancestor of local `main` or `master`. On a feature branch it prints `verify`.
+- [ ] Git does not move a card to `delivered`. The stored stage has to already be `delivered`.
+- [ ] `handoff` compares `touched:` and `branch:` with the local diff and `HEAD`. A mismatch is a hint, not an error.
+- [ ] Changed paths are `merge-base(HEAD, main|master)..HEAD`, plus unstaged, staged, and untracked files.
+
+**B. Import** (`providers/git.ReadMetadata`, used by `polterware scan` / `ImportProjectSources`, one project `root_path`):
+
+- [ ] Work tree with commits: the scan message includes `Git branch <name>.` Evidence gains one `source = git:HEAD` row (summary is the branch, path is the full SHA) and up to 20 `source = git:commit` rows (summary is the subject, path is the SHA, first-parent only).
+- [ ] A second scan updates that same HEAD row when the SHA changes. Commit rows that fall out of the window of 20 stay in the database.
+- [ ] Each file fact from that scan is linked to the HEAD evidence row. Reality can show that link. There is no revision column.
+- [ ] Not a work tree, or a repository with no commits: the message includes `Git metadata skipped.` File import still succeeds. No commit rows are written.
+- [ ] Detached `HEAD`: the HEAD row summary is `HEAD`.
+- [ ] `polterware repo add --name api --path <other-checkout>` then `scan`: the message also includes `Git api branch <name>.` Reality shows a separate `git:api:HEAD` row. File facts stay linked to the project-root HEAD.
+- [ ] `polterware status` still prints the branch of the project directory, not the extra checkout.
+- [ ] Settings → General → Local repositories adds and removes the same rows.
+
+**Not built. Do not look for these:**
+
+- A commit subject does not link to a Work task (`slug T2` / `polter: slug#T2`).
+- A task marked done does not require a commit, and a commit does not create drift.
+- `delivered` in status is the display rule in A. It is not "this commit is on main and matches a task".
+- Atlas nodes do not carry `repo:` yet. A project can register extra local checkouts; that is not the Slice 8 node model.
+- FTS5 suggestions from commit text are not implemented.
+
+Tests are written and have not been run: `backend/providers/git/git_test.go`, `backend/compositions/wedge/scan_git_test.go`, `backend/domains/polter/handoff_test.go`. From `backend`:
+
+```sh
+go test ./providers/git/ ./domains/polter/ ./compositions/wedge/ -count=1 -run 'TestReadMetadata|TestScanSkipsGit|TestScanStampsHead|TestDisplayStage'
+```
 
 ### Slice 6 — Claims
 

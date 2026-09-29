@@ -16,14 +16,15 @@ A single local Go binary serves the local core (`serve`), the MCP stdio bridge (
 | Build | `pnpm build:cli` → `dist/polterware` |
 | Database | `-db` (default: the Desktop database path) |
 
-Only `serve` opens SQLite. `init`, `scan`, `context`, `drift`, `apply`, `lint`, `query`, `hook`, `mcp`, and the TUI call the core over loopback Connect (`backend/platform/coreclient`), starting it when none is running; they do not require the Desktop. `format` is local.
+Only `serve` opens SQLite. `init`, `scan`, `repo`, `context`, `drift`, `apply`, `lint`, `query`, `hook`, `mcp`, and the TUI call the core over loopback Connect (`backend/platform/coreclient`), starting it when none is running; they do not require the Desktop. `format` is local. Extra checkouts registered with `repo` are read only by `scan`.
 
 ## Commands
 
 | Command | Behavior |
 |---------|----------|
 | `init` | Register a project (`SaveProject` + empty layout/settings seed) and a default `local` environment |
-| `scan` | Deterministic MVP import (`ImportProjectSources` / B2) |
+| `scan` | Deterministic MVP import (`ImportProjectSources` / B2). Git checkpoint of the project root, plus each checkout registered with `repo` |
+| `repo` | `list`, `add --name <slug> --path <dir>`, `remove --name <slug>`. Extra local checkouts for one project. The project directory stays the primary checkout |
 | `context` | Context Compiler package (B3/B4 shape) |
 | `drift` | Narrow Drift Checker result (`checker: "narrow"`) |
 | `apply` | Polter text → plan → one audited write to the Work model ([ADR 0006](../adr/0006-polter-format-and-work-model.md)) |

@@ -21,6 +21,28 @@ func StableSourceID(projectID, relPath string) string {
 	return "src-import-" + shortHash(projectID+"|"+relPath)
 }
 
+// StableGitHeadEvidenceID is the single current-HEAD evidence row for a project.
+// Rescans replace its SHA in place.
+func StableGitHeadEvidenceID(projectID string) string {
+	return "ev-git-head-" + shortHash(projectID)
+}
+
+// StableGitCommitEvidenceID is one commit evidence row. Rows are kept after
+// they leave the recent-commit window.
+func StableGitCommitEvidenceID(projectID, sha string) string {
+	return "ev-git-" + shortHash(projectID+"|"+sha)
+}
+
+// StableGitRepoHeadEvidenceID is the current-HEAD row for one named checkout.
+func StableGitRepoHeadEvidenceID(projectID, repoName string) string {
+	return "ev-git-head-" + shortHash(projectID+"|"+repoName)
+}
+
+// StableGitRepoCommitEvidenceID is one commit row for a named checkout.
+func StableGitRepoCommitEvidenceID(projectID, repoName, sha string) string {
+	return "ev-git-" + shortHash(projectID+"|"+repoName+"|"+sha)
+}
+
 // ImportSource tags provenance as import:<relpath>.
 func ImportSource(relPath string) string {
 	return fmt.Sprintf("import:%s", relPath)

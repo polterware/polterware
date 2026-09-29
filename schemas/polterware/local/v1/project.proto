@@ -67,6 +67,28 @@ message InitProjectRequest {
 }
 message InitProjectResponse { Project project = 1; }
 
+// ProjectRepo is an extra local Git checkout. The project root_path is not a row.
+message ProjectRepo {
+  string id = 1;
+  string project_id = 2;
+  string name = 3;
+  string path = 4;
+}
+
+message ListProjectReposRequest { string project_id = 1; }
+message ListProjectReposResponse { repeated ProjectRepo repos = 1; }
+message AddProjectRepoRequest {
+  string project_id = 1;
+  string name = 2;
+  string path = 3;
+}
+message AddProjectRepoResponse { ProjectRepo repo = 1; }
+message RemoveProjectRepoRequest {
+  string project_id = 1;
+  string name = 2;
+}
+message RemoveProjectRepoResponse {}
+
 service ProjectService {
   rpc ResolveProject(ResolveProjectRequest) returns (ResolveProjectResponse);
   rpc InitProject(InitProjectRequest) returns (InitProjectResponse);
@@ -78,4 +100,7 @@ service ProjectService {
   rpc DeleteEnvironment(DeleteEnvironmentRequest) returns (DeleteEnvironmentResponse);
   rpc GetProjectSettings(GetProjectSettingsRequest) returns (GetProjectSettingsResponse);
   rpc SaveProjectSettings(SaveProjectSettingsRequest) returns (SaveProjectSettingsResponse);
+  rpc ListProjectRepos(ListProjectReposRequest) returns (ListProjectReposResponse);
+  rpc AddProjectRepo(AddProjectRepoRequest) returns (AddProjectRepoResponse);
+  rpc RemoveProjectRepo(RemoveProjectRepoRequest) returns (RemoveProjectRepoResponse);
 }

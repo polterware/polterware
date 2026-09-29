@@ -1,6 +1,6 @@
 import type { ArchViewCard } from "@polterware/feature-architecture";
 import type { Resource } from "@polterware/feature-resources";
-import type { ProjectEnvironment, ProjectGeneralSettings } from "@polterware/feature-settings";
+import type { ProjectEnvironment, ProjectGeneralSettings, ProjectRepository } from "@polterware/feature-settings";
 import type {
   EnvironmentItem,
   ProjectSwitcherItem,
@@ -29,6 +29,7 @@ import {
   mapProviders,
   mapResources,
   mapRunbooks,
+  mapProjectRepos,
   mapSettings,
   mapSettingsEnvironments,
   mapConstitution,
@@ -47,6 +48,7 @@ export type WorkspaceSnapshot = {
   environments: EnvironmentItem[];
   settingsEnvironments: ProjectEnvironment[];
   settings: ProjectGeneralSettings;
+  repositories: ProjectRepository[];
   resources: Resource[];
   documents: WorkspaceDocument[];
   adrs: WorkspaceAdr[];
@@ -128,6 +130,7 @@ export function emptyWorkspace(): WorkspaceSnapshot {
     environments: [],
     settingsEnvironments: [],
     settings: emptySettings,
+    repositories: [],
     resources: [],
     ...emptyWorkspaceExtensions(),
     views: [],
@@ -183,12 +186,13 @@ export async function loadWorkspaceShell(
   const metadataPromise: Promise<ProjectMetadata> = catalog
     ? Promise.resolve(catalog)
     : loadProjectMetadata(api);
-  const [healthRes, settingsRes, layoutRes, resourcesRes, viewsRes] = await Promise.all([
+  const [healthRes, settingsRes, layoutRes, resourcesRes, viewsRes, reposRes] = await Promise.all([
     api.health.getStoreHealth(),
     api.projects.getSettings({ projectId }),
     api.architecture.getLayout({ projectId }).catch(() => ({})),
     api.architecture.listResources({ projectId }),
     api.architecture.listViews({ projectId }),
+    api.projects.listRepos({ projectId }).catch(() => ({ repos: [] })),
   ] as const);
 
   const metadata = await metadataPromise;
@@ -215,6 +219,7 @@ export async function loadWorkspaceShell(
     environments,
     settingsEnvironments,
     settings,
+    repositories: mapProjectRepos(asObjectArray(asRecord(reposRes).repos)),
     resources,
     ...emptyWorkspaceExtensions(),
     views,
