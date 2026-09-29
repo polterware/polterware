@@ -94,6 +94,7 @@ An agent working on a task gets the full task, the component summarized, the dom
 - [x] **Slice 3c — Hints** (uncommitted). `domains/polter/hints.go`: `Lint` with `References.Cards` reports non-blocking `hint` diagnostics for new cards, questions, and invariants similar to active ones (normalized word sets, Jaccard), and suggests `under:` for new cards from existing `under:` values. `wedge.ApplyPolter` reuses its snapshot for references; CLI `lint`/`apply`, `hook lint` (exit 2), and MCP `polter.apply` print hints prefixed `hint:`; the Desktop already receives them as `PolterDiagnostic`. FTS5 index deferred to the first ranked-search consumer (see `polter-format.md`). Test `TestLintHints` written, not run.
 
 - [x] **Slice 3d — Single local core + live sync** (uncommitted). [ADR 0007](../adr/0007-single-local-core.md). Only `polterware serve` opens SQLite (lock `run/core.lock`, idle exit, build handshake). Commit hooks → `platform/events` bus → `ChangeService.WatchChanges`; Desktop Main forwards to `window.polterware.core.onChange`, renderer refreshes affected slices (`renderer/workspace/live-refresh.ts`). MCP moved into the core (`/mcp`), `polterware mcp` is a bridge; CLI and TUI use `platform/coreclient`. New RPCs: `ResolveProject`, `InitProject`, `LintPolter`, `QueryPolter`, `EndSession`, `ListMcpSessions`, `Shutdown`. Removed: per-process MCP presence files, session state files, core `owner`. Not run end to end.
+- [x] **Slice 4 — Continuity loop** (uncommitted, measure still open). Handoff rows in `work_handoffs` (migration `0015`), written as a `handoff:` block through `ApplyPolter` / `change_ops` and `WorkService.WriteHandoff`. `polterware status` and `polterware handoff [--card] [--note]`. `polter.query` answers `status` and `handoff <slug>`; `polter.apply` writes the block. Local Git in the core (branch, diff against merge base, `delivered` only when `HEAD` is on `main` or `master`). Claude Code `SessionStart` prints status; `Stop` reminds the agent to hand off and does not fail the session. AGENTS.md line. Tests written, not run. The two-week measure stays open under Next slices.
 
 Validation so far: typecheck passed; `git diff --check` clean; `pnpm design:lint` fails only on files this work did not touch. Tests and browser not run.
 
@@ -101,9 +102,9 @@ Known leftovers: some UI copy still says "Architecture" (Atlas canvas tab label,
 
 ## Next slices
 
-Recommended order: 3 (foundation every later slice reads and writes), then 3d (single core + live sync), then 4 (continuity test), then 5 and 6. Slices 3a–3c are done; 3d is implemented and awaits end-to-end validation; slice 4 is next.
+Recommended order: 3 (foundation every later slice reads and writes), then 3d (single core + live sync), then 4 (continuity test), then 5 and 6. Slices 3a–3c are done; 3d is implemented and awaits end-to-end validation; slice 4 is implemented except the two-week measure. Slice 5 has local Git evidence and the revision stamp; commit links and the new drift case are still open.
 
-Git is two local reads that do not share results. The checklist is [Git — verify at the end](#git--verify-at-the-end). Slice 5 has local Git evidence and the revision stamp; commit links and the new drift case are still open.
+Git is two local reads that do not share results. The checklist is [Git — verify at the end](#git--verify-at-the-end).
 
 ### Slice 3a — Work model + Polter codec + CLI
 
@@ -137,18 +138,18 @@ Goal: every surface shows the same state without a manual reload. Decided in [AD
 - [x] Desktop Main attaches or starts the core detached, swaps clients on restart, and forwards events (`window.polterware.core.onChange`); the renderer reloads only affected slices and skips its own writes.
 - [x] MCP runs in the core (`/mcp`, `providers/mcp/http.go`); `polterware mcp` is a stdio bridge.
 - [x] CLI commands and the TUI are core clients (`platform/coreclient`); agent session runs live in the core (`WorkService.EndSession`).
-- [ ] Validate end to end (Desktop open, `polterware apply` from a terminal, MCP from Claude Code) and measure start latency of the first CLI call.
+- [x] Validated end to end (2026-09-28): CLI `apply` and MCP `polter.apply` through the bridge reach the Desktop's core and emit events with origins `cli` / `mcp`; a rebuilt CLI replaced the older core in about 0.9 s and Desktop Main reattached. A CLI call takes about 25 ms attached and about 250 ms when it starts the core. Fixed on the way: the dev Desktop used a different database than the CLI (now both use `<appData>/polterware/local.db`), and a question tag after its options (`? … (a | b) [removed]`) was ignored. Idle exit not observed.
 
 ### Slice 4 — Continuity loop (the two-week test)
 
 Goal: switch between Codex and Claude on Polterware's own development without re-explaining context.
 
-- [ ] Handoff record in Polter format (see slice 3), indexed by the core: feature, branch, goal, done, in progress, next, open questions (with blocking flag), touched files, agent, timestamp. Keyed per feature, linked to branch.
-- [ ] `polterware handoff [--note "..."]` writes the record (short, structured; cross-checked against the real diff).
-- [ ] `polterware status`: current node/feature, branch, active claims, open questions, next step, "delivered" only when Git confirms.
-- [ ] Exposed through `polter.apply` / `polter.query` (no new MCP tool names).
-- [ ] Claude Code hooks: `SessionStart` → `polterware status` (+ Oracle at task zoom when available); `Stop` → `polterware handoff`.
-- [ ] One line in `AGENTS.md` for Codex and others: start with `polterware status`, end with `polterware handoff`.
+- [x] Handoff record in Polter format (see slice 3), indexed by the core: feature, branch, goal, done, in progress, next, open questions (with blocking flag, read from the card), touched files, agent, timestamp. Keyed per feature, linked to branch (`work_handoffs`, migration `0015`).
+- [x] `polterware handoff [--card <slug>] [--note "..."]` writes the record (short, structured; cross-checked against the real diff; a mismatch is a hint).
+- [x] `polterware status`: current card, branch, last handoff (done / in progress / next), open questions (blocking first), stage. "delivered" only when the card stage is delivered and Git confirms (`HEAD` ancestor of local `main` or `master`). Active claims stay in slice 6. No arguments still opens the TUI.
+- [x] Exposed through `polter.apply` / `polter.query` (`status`, `handoff <slug>`; no new MCP tool names).
+- [x] Claude Code hooks: `SessionStart` runs `polterware status` as context (Oracle at task zoom waits for slice 8); `Stop` reminds the agent to run `polterware handoff` and does not fail the session.
+- [x] One line in `AGENTS.md` for Codex and others: start with `polterware status`, end with `polterware handoff`.
 - [ ] Measure for two weeks: how often context had to be re-explained; whether the agent started from the right point; whether Erick opened `status` himself.
 
 Expected handoff shape:

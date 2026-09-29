@@ -120,7 +120,7 @@ func (s *Server) dispatch(req rpcRequest) (any, error) {
 			"protocolVersion": "2024-11-05",
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      map[string]any{"name": "polterware-mcp", "version": "0.5.0"},
-			"instructions":    "Polterware MCP. Work cards: read polter.format once, then polter.query and polter.apply (Polter text with summary and rationale; the session run is implicit). Also context.get, entity.get, evidence.get, drift.check; AgentRun audit (agent_run.start|append|complete|get|list); audited writes (fact.upsert, evidence.upsert, evidence.link, knowledge.upsert, knowledge.link) requiring summary, rationale, and open agent_run_id. Prefer context.get for bounded project context.",
+			"instructions":    "Polterware MCP. Work cards: read polter.format once, then polter.query and polter.apply (Polter text with summary and rationale; the session run is implicit). polter.query also answers \"status\" and \"handoff <slug>\"; a handoff: block in polter.apply writes the session record. Also context.get, entity.get, evidence.get, drift.check; AgentRun audit (agent_run.start|append|complete|get|list); audited writes (fact.upsert, evidence.upsert, evidence.link, knowledge.upsert, knowledge.link) requiring summary, rationale, and open agent_run_id. Prefer context.get for bounded project context.",
 		}, nil
 	case "tools/list":
 		return map[string]any{"tools": toolDefinitions()}, nil

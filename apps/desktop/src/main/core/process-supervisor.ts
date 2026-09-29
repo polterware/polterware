@@ -12,8 +12,12 @@ export type CoreProcessHandle = {
   pid?: number;
 };
 
+/**
+ * The database shared with the CLI, the TUI, and MCP: <appData>/polterware/local.db.
+ * Not userData, which differs between dev ("@polterware/desktop") and packaged builds.
+ */
 export function resolveUserDatabasePath(): string {
-  return join(app.getPath("userData"), "local.db");
+  return join(app.getPath("appData"), "polterware", "local.db");
 }
 
 /** Resolves the `polterware` CLI, which serves the core (`serve`) and MCP (`mcp`). */

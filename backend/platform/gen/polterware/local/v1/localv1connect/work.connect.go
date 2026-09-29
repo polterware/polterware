@@ -42,6 +42,9 @@ const (
 	WorkServiceLintPolterProcedure = "/polterware.local.v1.WorkService/LintPolter"
 	// WorkServiceQueryPolterProcedure is the fully-qualified name of the WorkService's QueryPolter RPC.
 	WorkServiceQueryPolterProcedure = "/polterware.local.v1.WorkService/QueryPolter"
+	// WorkServiceWriteHandoffProcedure is the fully-qualified name of the WorkService's WriteHandoff
+	// RPC.
+	WorkServiceWriteHandoffProcedure = "/polterware.local.v1.WorkService/WriteHandoff"
 	// WorkServiceEndSessionProcedure is the fully-qualified name of the WorkService's EndSession RPC.
 	WorkServiceEndSessionProcedure = "/polterware.local.v1.WorkService/EndSession"
 )
@@ -52,6 +55,7 @@ type WorkServiceClient interface {
 	ApplyPolter(context.Context, *connect.Request[v1.ApplyPolterRequest]) (*connect.Response[v1.ApplyPolterResponse], error)
 	LintPolter(context.Context, *connect.Request[v1.LintPolterRequest]) (*connect.Response[v1.LintPolterResponse], error)
 	QueryPolter(context.Context, *connect.Request[v1.QueryPolterRequest]) (*connect.Response[v1.QueryPolterResponse], error)
+	WriteHandoff(context.Context, *connect.Request[v1.WriteHandoffRequest]) (*connect.Response[v1.WriteHandoffResponse], error)
 	EndSession(context.Context, *connect.Request[v1.EndSessionRequest]) (*connect.Response[v1.EndSessionResponse], error)
 }
 
@@ -90,6 +94,12 @@ func NewWorkServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(workServiceMethods.ByName("QueryPolter")),
 			connect.WithClientOptions(opts...),
 		),
+		writeHandoff: connect.NewClient[v1.WriteHandoffRequest, v1.WriteHandoffResponse](
+			httpClient,
+			baseURL+WorkServiceWriteHandoffProcedure,
+			connect.WithSchema(workServiceMethods.ByName("WriteHandoff")),
+			connect.WithClientOptions(opts...),
+		),
 		endSession: connect.NewClient[v1.EndSessionRequest, v1.EndSessionResponse](
 			httpClient,
 			baseURL+WorkServiceEndSessionProcedure,
@@ -105,6 +115,7 @@ type workServiceClient struct {
 	applyPolter   *connect.Client[v1.ApplyPolterRequest, v1.ApplyPolterResponse]
 	lintPolter    *connect.Client[v1.LintPolterRequest, v1.LintPolterResponse]
 	queryPolter   *connect.Client[v1.QueryPolterRequest, v1.QueryPolterResponse]
+	writeHandoff  *connect.Client[v1.WriteHandoffRequest, v1.WriteHandoffResponse]
 	endSession    *connect.Client[v1.EndSessionRequest, v1.EndSessionResponse]
 }
 
@@ -128,6 +139,11 @@ func (c *workServiceClient) QueryPolter(ctx context.Context, req *connect.Reques
 	return c.queryPolter.CallUnary(ctx, req)
 }
 
+// WriteHandoff calls polterware.local.v1.WorkService.WriteHandoff.
+func (c *workServiceClient) WriteHandoff(ctx context.Context, req *connect.Request[v1.WriteHandoffRequest]) (*connect.Response[v1.WriteHandoffResponse], error) {
+	return c.writeHandoff.CallUnary(ctx, req)
+}
+
 // EndSession calls polterware.local.v1.WorkService.EndSession.
 func (c *workServiceClient) EndSession(ctx context.Context, req *connect.Request[v1.EndSessionRequest]) (*connect.Response[v1.EndSessionResponse], error) {
 	return c.endSession.CallUnary(ctx, req)
@@ -139,6 +155,7 @@ type WorkServiceHandler interface {
 	ApplyPolter(context.Context, *connect.Request[v1.ApplyPolterRequest]) (*connect.Response[v1.ApplyPolterResponse], error)
 	LintPolter(context.Context, *connect.Request[v1.LintPolterRequest]) (*connect.Response[v1.LintPolterResponse], error)
 	QueryPolter(context.Context, *connect.Request[v1.QueryPolterRequest]) (*connect.Response[v1.QueryPolterResponse], error)
+	WriteHandoff(context.Context, *connect.Request[v1.WriteHandoffRequest]) (*connect.Response[v1.WriteHandoffResponse], error)
 	EndSession(context.Context, *connect.Request[v1.EndSessionRequest]) (*connect.Response[v1.EndSessionResponse], error)
 }
 
@@ -173,6 +190,12 @@ func NewWorkServiceHandler(svc WorkServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(workServiceMethods.ByName("QueryPolter")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workServiceWriteHandoffHandler := connect.NewUnaryHandler(
+		WorkServiceWriteHandoffProcedure,
+		svc.WriteHandoff,
+		connect.WithSchema(workServiceMethods.ByName("WriteHandoff")),
+		connect.WithHandlerOptions(opts...),
+	)
 	workServiceEndSessionHandler := connect.NewUnaryHandler(
 		WorkServiceEndSessionProcedure,
 		svc.EndSession,
@@ -189,6 +212,8 @@ func NewWorkServiceHandler(svc WorkServiceHandler, opts ...connect.HandlerOption
 			workServiceLintPolterHandler.ServeHTTP(w, r)
 		case WorkServiceQueryPolterProcedure:
 			workServiceQueryPolterHandler.ServeHTTP(w, r)
+		case WorkServiceWriteHandoffProcedure:
+			workServiceWriteHandoffHandler.ServeHTTP(w, r)
 		case WorkServiceEndSessionProcedure:
 			workServiceEndSessionHandler.ServeHTTP(w, r)
 		default:
@@ -214,6 +239,10 @@ func (UnimplementedWorkServiceHandler) LintPolter(context.Context, *connect.Requ
 
 func (UnimplementedWorkServiceHandler) QueryPolter(context.Context, *connect.Request[v1.QueryPolterRequest]) (*connect.Response[v1.QueryPolterResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.QueryPolter is not implemented"))
+}
+
+func (UnimplementedWorkServiceHandler) WriteHandoff(context.Context, *connect.Request[v1.WriteHandoffRequest]) (*connect.Response[v1.WriteHandoffResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.WorkService.WriteHandoff is not implemented"))
 }
 
 func (UnimplementedWorkServiceHandler) EndSession(context.Context, *connect.Request[v1.EndSessionRequest]) (*connect.Response[v1.EndSessionResponse], error) {

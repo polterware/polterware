@@ -138,7 +138,7 @@ func runQuery(dbPath string, args []string) error {
 		return err
 	}
 	if len(positional) == 0 {
-		return errors.New(`usage: polterware query "cards" | "card <slug>"`)
+		return errors.New(`usage: polterware query "cards" | "card <slug>" | "status" | "handoff <slug>"`)
 	}
 	c, err := dial(dbPath)
 	if err != nil {
@@ -153,6 +153,78 @@ func runQuery(dbPath string, args []string) error {
 		return err
 	}
 	fmt.Print(res.Msg.Text)
+	return nil
+}
+
+func runStatus(dbPath string, args []string) error {
+	flags := flag.NewFlagSet("status", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	projectID := flags.String("project", "", "project id (default: project containing the cwd)")
+	if _, err := parseInterspersed(flags, args); err != nil {
+		return err
+	}
+	c, err := dial(dbPath)
+	if err != nil {
+		return err
+	}
+	project, err := resolveProject(c, *projectID)
+	if err != nil {
+		return err
+	}
+	res, err := c.Work.QueryPolter(context.Background(), connect.NewRequest(&localv1.QueryPolterRequest{ProjectId: project.Id, Query: polter.QueryStatus}))
+	if err != nil {
+		return err
+	}
+	fmt.Print(res.Msg.Text)
+	return nil
+}
+
+func runHandoff(dbPath string, args []string) error {
+	flags := flag.NewFlagSet("handoff", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	projectID := flags.String("project", "", "project id (default: project containing the cwd)")
+	card := flags.String("card", "", "work card slug (default: the card for this branch, or the only card)")
+	note := flags.String("note", "", "session note (Goal/Done/In progress/Next/Touched/Open question, or free text)")
+	if _, err := parseInterspersed(flags, args); err != nil {
+		return err
+	}
+	c, err := dial(dbPath)
+	if err != nil {
+		return err
+	}
+	project, err := resolveProject(c, *projectID)
+	if err != nil {
+		return err
+	}
+	agent := os.Getenv(envAgentLabel)
+	if agent == "" {
+		agent = "cli"
+	}
+	request := &localv1.WriteHandoffRequest{
+		ProjectId: project.Id,
+		CardSlug:  *card,
+		Note:      *note,
+		Agent:     agent,
+	}
+	if sessionID := os.Getenv(envSession); sessionID != "" {
+		request.SessionId = sessionID
+		request.SessionLabel = os.Getenv(envAgentLabel)
+	}
+	res, err := c.Work.WriteHandoff(context.Background(), connect.NewRequest(request))
+	if diags, ok := polterDiagnostics(err); ok {
+		printDiagnostics("handoff", diags)
+		return exitError{code: 1}
+	}
+	if err != nil {
+		return err
+	}
+	printDiagnostics("handoff", diagnosticsFrom(res.Msg.Diagnostics))
+	switch {
+	case len(res.Msg.Ops) == 0:
+		fmt.Println("no changes")
+	default:
+		fmt.Printf("applied %s\n", res.Msg.Summary)
+	}
 	return nil
 }
 

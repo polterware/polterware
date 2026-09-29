@@ -5,6 +5,18 @@
         "hooks": [
           { "type": "command", "command": "command -v polterware >/dev/null 2>&1 || exit 0; polterware hook session-start" }
         ]
+      },
+      {
+        "hooks": [
+          { "type": "command", "command": "command -v polterware >/dev/null 2>&1 || exit 0; polterware hook status" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "command -v polterware >/dev/null 2>&1 || exit 0; polterware hook stop" }
+        ]
       }
     ],
     "SessionEnd": [

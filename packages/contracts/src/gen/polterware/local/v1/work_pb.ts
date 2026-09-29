@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/work.proto.
  */
 export const file_polterware_local_v1_work: GenFile = /*@__PURE__*/
-  fileDesc("Ch5wb2x0ZXJ3YXJlL2xvY2FsL3YxL3dvcmsucHJvdG8SE3BvbHRlcndhcmUubG9jYWwudjEiUwoIV29ya1Rhc2sSCgoCaWQYASABKAkSDgoGbnVtYmVyGAIgASgFEg0KBXRpdGxlGAMgASgJEg0KBXN0YXRlGAQgASgJEg0KBXNjb3BlGAUgASgJImoKDFdvcmtRdWVzdGlvbhIKCgJpZBgBIAEoCRIMCgR0ZXh0GAIgASgJEhAKCGJsb2NraW5nGAMgASgIEg8KB29wdGlvbnMYBCADKAkSDQoFc3RhdGUYBSABKAkSDgoGYW5zd2VyGAYgASgJIikKDVdvcmtJbnZhcmlhbnQSCgoCaWQYASABKAkSDAoEdGV4dBgCIAEoCSLbAgoIV29ya0NhcmQSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIMCgRzbHVnGAMgASgJEg0KBXRpdGxlGAQgASgJEg4KBmludGVudBgFIAEoCRINCgVzdGFnZRgGIAEoCRINCgVvd25lchgHIAEoCRINCgV1bmRlchgIIAEoCRIRCglkZWNpc2lvbnMYCSADKAkSEgoKY3JlYXRlZF9hdBgKIAEoCRISCgp1cGRhdGVkX2F0GAsgASgJEiwKBXRhc2tzGAwgAygLMh0ucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrVGFzaxI0CglxdWVzdGlvbnMYDSADKAsyIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLldvcmtRdWVzdGlvbhI2CgppbnZhcmlhbnRzGA4gAygLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrSW52YXJpYW50IkMKEFBvbHRlckRpYWdub3N0aWMSDAoEbGluZRgBIAEoBRIQCghzZXZlcml0eRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJIioKFExpc3RXb3JrQ2FyZHNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkiRQoVTGlzdFdvcmtDYXJkc1Jlc3BvbnNlEiwKBWNhcmRzGAEgAygLMh0ucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrQ2FyZCKnAQoSQXBwbHlQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDAoEdGV4dBgCIAEoCRIPCgdkcnlfcnVuGAMgASgIEjMKBmNoYW5nZRgEIAEoCzIjLnBvbHRlcndhcmUubG9jYWwudjEuQ2hhbmdlRW52ZWxvcGUSEgoKc2Vzc2lvbl9pZBgFIAEoCRIVCg1zZXNzaW9uX2xhYmVsGAYgASgJIqgBChNBcHBseVBvbHRlclJlc3BvbnNlEg8KB2FwcGxpZWQYASABKAgSCwoDb3BzGAIgAygJEg8KB3N1bW1hcnkYAyABKAkSOgoLZGlhZ25vc3RpY3MYBCADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMSFAoMYWdlbnRfcnVuX2lkGAUgASgJEhAKCGJhdGNoX2lkGAYgASgJIjUKEUxpbnRQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDAoEdGV4dBgCIAEoCSJQChJMaW50UG9sdGVyUmVzcG9uc2USOgoLZGlhZ25vc3RpY3MYASADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMiNwoSUXVlcnlQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFcXVlcnkYAiABKAkiIwoTUXVlcnlQb2x0ZXJSZXNwb25zZRIMCgR0ZXh0GAEgASgJIicKEUVuZFNlc3Npb25SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkiLAoSRW5kU2Vzc2lvblJlc3BvbnNlEhYKDmNvbXBsZXRlZF9ydW5zGAEgASgFMvcDCgtXb3JrU2VydmljZRJmCg1MaXN0V29ya0NhcmRzEikucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0V29ya0NhcmRzUmVxdWVzdBoqLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdFdvcmtDYXJkc1Jlc3BvbnNlEmAKC0FwcGx5UG9sdGVyEicucG9sdGVyd2FyZS5sb2NhbC52MS5BcHBseVBvbHRlclJlcXVlc3QaKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFwcGx5UG9sdGVyUmVzcG9uc2USXQoKTGludFBvbHRlchImLnBvbHRlcndhcmUubG9jYWwudjEuTGludFBvbHRlclJlcXVlc3QaJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpbnRQb2x0ZXJSZXNwb25zZRJgCgtRdWVyeVBvbHRlchInLnBvbHRlcndhcmUubG9jYWwudjEuUXVlcnlQb2x0ZXJSZXF1ZXN0GigucG9sdGVyd2FyZS5sb2NhbC52MS5RdWVyeVBvbHRlclJlc3BvbnNlEl0KCkVuZFNlc3Npb24SJi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkVuZFNlc3Npb25SZXF1ZXN0GicucG9sdGVyd2FyZS5sb2NhbC52MS5FbmRTZXNzaW9uUmVzcG9uc2VC5QEKF2NvbS5wb2x0ZXJ3YXJlLmxvY2FsLnYxQglXb3JrUHJvdG9QAVpRZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvYmFja2VuZC9wbGF0Zm9ybS9nZW4vcG9sdGVyd2FyZS9sb2NhbC92MTtsb2NhbHYxogIDUExYqgITUG9sdGVyd2FyZS5Mb2NhbC5WMcoCE1BvbHRlcndhcmVcTG9jYWxcVjHiAh9Qb2x0ZXJ3YXJlXExvY2FsXFYxXEdQQk1ldGFkYXRh6gIVUG9sdGVyd2FyZTo6TG9jYWw6OlYxYgZwcm90bzM", [file_polterware_local_v1_agentrun]);
+  fileDesc("Ch5wb2x0ZXJ3YXJlL2xvY2FsL3YxL3dvcmsucHJvdG8SE3BvbHRlcndhcmUubG9jYWwudjEiUwoIV29ya1Rhc2sSCgoCaWQYASABKAkSDgoGbnVtYmVyGAIgASgFEg0KBXRpdGxlGAMgASgJEg0KBXN0YXRlGAQgASgJEg0KBXNjb3BlGAUgASgJImoKDFdvcmtRdWVzdGlvbhIKCgJpZBgBIAEoCRIMCgR0ZXh0GAIgASgJEhAKCGJsb2NraW5nGAMgASgIEg8KB29wdGlvbnMYBCADKAkSDQoFc3RhdGUYBSABKAkSDgoGYW5zd2VyGAYgASgJIikKDVdvcmtJbnZhcmlhbnQSCgoCaWQYASABKAkSDAoEdGV4dBgCIAEoCSLbAgoIV29ya0NhcmQSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIMCgRzbHVnGAMgASgJEg0KBXRpdGxlGAQgASgJEg4KBmludGVudBgFIAEoCRINCgVzdGFnZRgGIAEoCRINCgVvd25lchgHIAEoCRINCgV1bmRlchgIIAEoCRIRCglkZWNpc2lvbnMYCSADKAkSEgoKY3JlYXRlZF9hdBgKIAEoCRISCgp1cGRhdGVkX2F0GAsgASgJEiwKBXRhc2tzGAwgAygLMh0ucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrVGFzaxI0CglxdWVzdGlvbnMYDSADKAsyIS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLldvcmtRdWVzdGlvbhI2CgppbnZhcmlhbnRzGA4gAygLMiIucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrSW52YXJpYW50IkMKEFBvbHRlckRpYWdub3N0aWMSDAoEbGluZRgBIAEoBRIQCghzZXZlcml0eRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJIioKFExpc3RXb3JrQ2FyZHNSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkiRQoVTGlzdFdvcmtDYXJkc1Jlc3BvbnNlEiwKBWNhcmRzGAEgAygLMh0ucG9sdGVyd2FyZS5sb2NhbC52MS5Xb3JrQ2FyZCKnAQoSQXBwbHlQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDAoEdGV4dBgCIAEoCRIPCgdkcnlfcnVuGAMgASgIEjMKBmNoYW5nZRgEIAEoCzIjLnBvbHRlcndhcmUubG9jYWwudjEuQ2hhbmdlRW52ZWxvcGUSEgoKc2Vzc2lvbl9pZBgFIAEoCRIVCg1zZXNzaW9uX2xhYmVsGAYgASgJIqgBChNBcHBseVBvbHRlclJlc3BvbnNlEg8KB2FwcGxpZWQYASABKAgSCwoDb3BzGAIgAygJEg8KB3N1bW1hcnkYAyABKAkSOgoLZGlhZ25vc3RpY3MYBCADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMSFAoMYWdlbnRfcnVuX2lkGAUgASgJEhAKCGJhdGNoX2lkGAYgASgJIjUKEUxpbnRQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDAoEdGV4dBgCIAEoCSJQChJMaW50UG9sdGVyUmVzcG9uc2USOgoLZGlhZ25vc3RpY3MYASADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMiNwoSUXVlcnlQb2x0ZXJSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSDQoFcXVlcnkYAiABKAkiIwoTUXVlcnlQb2x0ZXJSZXNwb25zZRIMCgR0ZXh0GAEgASgJIrkBChNXcml0ZUhhbmRvZmZSZXF1ZXN0EhIKCnByb2plY3RfaWQYASABKAkSEQoJY2FyZF9zbHVnGAIgASgJEgwKBG5vdGUYAyABKAkSDQoFYWdlbnQYBCABKAkSEgoKc2Vzc2lvbl9pZBgFIAEoCRIVCg1zZXNzaW9uX2xhYmVsGAYgASgJEjMKBmNoYW5nZRgHIAEoCzIjLnBvbHRlcndhcmUubG9jYWwudjEuQ2hhbmdlRW52ZWxvcGUiqQEKFFdyaXRlSGFuZG9mZlJlc3BvbnNlEg8KB2FwcGxpZWQYASABKAgSCwoDb3BzGAIgAygJEg8KB3N1bW1hcnkYAyABKAkSOgoLZGlhZ25vc3RpY3MYBCADKAsyJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlBvbHRlckRpYWdub3N0aWMSFAoMYWdlbnRfcnVuX2lkGAUgASgJEhAKCGJhdGNoX2lkGAYgASgJIicKEUVuZFNlc3Npb25SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkiLAoSRW5kU2Vzc2lvblJlc3BvbnNlEhYKDmNvbXBsZXRlZF9ydW5zGAEgASgFMtwECgtXb3JrU2VydmljZRJmCg1MaXN0V29ya0NhcmRzEikucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0V29ya0NhcmRzUmVxdWVzdBoqLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdFdvcmtDYXJkc1Jlc3BvbnNlEmAKC0FwcGx5UG9sdGVyEicucG9sdGVyd2FyZS5sb2NhbC52MS5BcHBseVBvbHRlclJlcXVlc3QaKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFwcGx5UG9sdGVyUmVzcG9uc2USXQoKTGludFBvbHRlchImLnBvbHRlcndhcmUubG9jYWwudjEuTGludFBvbHRlclJlcXVlc3QaJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpbnRQb2x0ZXJSZXNwb25zZRJgCgtRdWVyeVBvbHRlchInLnBvbHRlcndhcmUubG9jYWwudjEuUXVlcnlQb2x0ZXJSZXF1ZXN0GigucG9sdGVyd2FyZS5sb2NhbC52MS5RdWVyeVBvbHRlclJlc3BvbnNlEmMKDFdyaXRlSGFuZG9mZhIoLnBvbHRlcndhcmUubG9jYWwudjEuV3JpdGVIYW5kb2ZmUmVxdWVzdBopLnBvbHRlcndhcmUubG9jYWwudjEuV3JpdGVIYW5kb2ZmUmVzcG9uc2USXQoKRW5kU2Vzc2lvbhImLnBvbHRlcndhcmUubG9jYWwudjEuRW5kU2Vzc2lvblJlcXVlc3QaJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkVuZFNlc3Npb25SZXNwb25zZULlAQoXY29tLnBvbHRlcndhcmUubG9jYWwudjFCCVdvcmtQcm90b1ABWlFnaXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9iYWNrZW5kL3BsYXRmb3JtL2dlbi9wb2x0ZXJ3YXJlL2xvY2FsL3YxO2xvY2FsdjGiAgNQTFiqAhNQb2x0ZXJ3YXJlLkxvY2FsLlYxygITUG9sdGVyd2FyZVxMb2NhbFxWMeICH1BvbHRlcndhcmVcTG9jYWxcVjFcR1BCTWV0YWRhdGHqAhVQb2x0ZXJ3YXJlOjpMb2NhbDo6VjFiBnByb3RvMw", [file_polterware_local_v1_agentrun]);
 
 /**
  * Work model (ADR 0006): cards with tasks, questions, and invariants.
@@ -406,7 +406,8 @@ export const LintPolterResponseSchema: GenMessage<LintPolterResponse> = /*@__PUR
   messageDesc(file_polterware_local_v1_work, 10);
 
 /**
- * QueryPolter answers "cards" or "card <slug>" in Polter text.
+ * QueryPolter answers "cards", "card <slug>", "status", or "handoff <slug>"
+ * in Polter text. "status" is the short session-start summary.
  *
  * @generated from message polterware.local.v1.QueryPolterRequest
  */
@@ -447,6 +448,98 @@ export const QueryPolterResponseSchema: GenMessage<QueryPolterResponse> = /*@__P
   messageDesc(file_polterware_local_v1_work, 12);
 
 /**
+ * WriteHandoff builds a handoff record for one card (branch and touched
+ * files come from the local Git repository) and applies it as Polter text.
+ *
+ * @generated from message polterware.local.v1.WriteHandoffRequest
+ */
+export type WriteHandoffRequest = Message<"polterware.local.v1.WriteHandoffRequest"> & {
+  /**
+   * @generated from field: string project_id = 1;
+   */
+  projectId: string;
+
+  /**
+   * @generated from field: string card_slug = 2;
+   */
+  cardSlug: string;
+
+  /**
+   * @generated from field: string note = 3;
+   */
+  note: string;
+
+  /**
+   * @generated from field: string agent = 4;
+   */
+  agent: string;
+
+  /**
+   * @generated from field: string session_id = 5;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string session_label = 6;
+   */
+  sessionLabel: string;
+
+  /**
+   * @generated from field: polterware.local.v1.ChangeEnvelope change = 7;
+   */
+  change?: ChangeEnvelope | undefined;
+};
+
+/**
+ * Describes the message polterware.local.v1.WriteHandoffRequest.
+ * Use `create(WriteHandoffRequestSchema)` to create a new message.
+ */
+export const WriteHandoffRequestSchema: GenMessage<WriteHandoffRequest> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 13);
+
+/**
+ * @generated from message polterware.local.v1.WriteHandoffResponse
+ */
+export type WriteHandoffResponse = Message<"polterware.local.v1.WriteHandoffResponse"> & {
+  /**
+   * @generated from field: bool applied = 1;
+   */
+  applied: boolean;
+
+  /**
+   * @generated from field: repeated string ops = 2;
+   */
+  ops: string[];
+
+  /**
+   * @generated from field: string summary = 3;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: repeated polterware.local.v1.PolterDiagnostic diagnostics = 4;
+   */
+  diagnostics: PolterDiagnostic[];
+
+  /**
+   * @generated from field: string agent_run_id = 5;
+   */
+  agentRunId: string;
+
+  /**
+   * @generated from field: string batch_id = 6;
+   */
+  batchId: string;
+};
+
+/**
+ * Describes the message polterware.local.v1.WriteHandoffResponse.
+ * Use `create(WriteHandoffResponseSchema)` to create a new message.
+ */
+export const WriteHandoffResponseSchema: GenMessage<WriteHandoffResponse> = /*@__PURE__*/
+  messageDesc(file_polterware_local_v1_work, 14);
+
+/**
  * EndSession completes the runs an agent session opened.
  *
  * @generated from message polterware.local.v1.EndSessionRequest
@@ -463,7 +556,7 @@ export type EndSessionRequest = Message<"polterware.local.v1.EndSessionRequest">
  * Use `create(EndSessionRequestSchema)` to create a new message.
  */
 export const EndSessionRequestSchema: GenMessage<EndSessionRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_work, 13);
+  messageDesc(file_polterware_local_v1_work, 15);
 
 /**
  * @generated from message polterware.local.v1.EndSessionResponse
@@ -480,7 +573,7 @@ export type EndSessionResponse = Message<"polterware.local.v1.EndSessionResponse
  * Use `create(EndSessionResponseSchema)` to create a new message.
  */
 export const EndSessionResponseSchema: GenMessage<EndSessionResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_work, 14);
+  messageDesc(file_polterware_local_v1_work, 16);
 
 /**
  * @generated from service polterware.local.v1.WorkService
@@ -517,6 +610,14 @@ export const WorkService: GenService<{
     methodKind: "unary";
     input: typeof QueryPolterRequestSchema;
     output: typeof QueryPolterResponseSchema;
+  },
+  /**
+   * @generated from rpc polterware.local.v1.WorkService.WriteHandoff
+   */
+  writeHandoff: {
+    methodKind: "unary";
+    input: typeof WriteHandoffRequestSchema;
+    output: typeof WriteHandoffResponseSchema;
   },
   /**
    * @generated from rpc polterware.local.v1.WorkService.EndSession

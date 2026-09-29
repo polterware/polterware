@@ -56,19 +56,19 @@ func toolDefinitions() []map[string]any {
 		},
 		{
 			"name":        ToolPolterQuery,
-			"description": "Read Work cards in Polter format: \"cards\" lists one line per card; \"card <slug>\" returns the whole card.",
+			"description": "Read Work state in Polter format: \"cards\", \"card <slug>\", \"status\" (current card, branch, last handoff), or \"handoff <slug>\".",
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"project_id": map[string]any{"type": "string"},
-					"query":      map[string]any{"type": "string", "description": "\"cards\" (default) or \"card <slug>\""},
+					"query":      map[string]any{"type": "string", "description": "\"cards\" (default), \"card <slug>\", \"status\", or \"handoff <slug>\""},
 				},
 				"required": []string{"project_id"},
 			},
 		},
 		{
 			"name":        ToolPolterApply,
-			"description": "Create or update Work cards, tasks, questions, and invariants from Polter text in one audited write. Needs summary and rationale (frontmatter or arguments). Without agent_run_id the write joins this session's run; no agent_run.start/complete needed. dry_run returns the plan.",
+			"description": "Create or update Work cards, tasks, questions, invariants, and handoff blocks from Polter text in one audited write. Needs summary and rationale (frontmatter or arguments). Without agent_run_id the write joins this session's run; no agent_run.start/complete needed. dry_run returns the plan.",
 			"inputSchema": map[string]any{
 				"type": "object",
 				"properties": map[string]any{

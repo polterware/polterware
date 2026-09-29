@@ -73,7 +73,7 @@ func (s *Store) LoadWorkSnapshot(projectID string) (work.Snapshot, error) {
 		}); err != nil {
 		return snapshot, err
 	}
-	err = s.eachRow(`SELECT id,card_id,text,state,position FROM work_invariants WHERE `+scope+` ORDER BY position`,
+	if err := s.eachRow(`SELECT id,card_id,text,state,position FROM work_invariants WHERE `+scope+` ORDER BY position`,
 		projectID, func(rows *sql.Rows) error {
 			var inv work.Invariant
 			if err := rows.Scan(&inv.ID, &inv.CardID, &inv.Text, &inv.State, &inv.Position); err != nil {
@@ -81,6 +81,24 @@ func (s *Store) LoadWorkSnapshot(projectID string) (work.Snapshot, error) {
 			}
 			if i, ok := index[inv.CardID]; ok {
 				snapshot.Cards[i].Invariants = append(snapshot.Cards[i].Invariants, inv)
+			}
+			return nil
+		}); err != nil {
+		return snapshot, err
+	}
+	err = s.eachRow(`SELECT id,project_id,card_id,branch,goal,done,in_progress,next,touched_json,agent,created_at
+		FROM work_handoffs WHERE `+scope+` ORDER BY created_at, id`,
+		projectID, func(rows *sql.Rows) error {
+			var handoff work.Handoff
+			var touched, created string
+			if err := rows.Scan(&handoff.ID, &handoff.ProjectID, &handoff.CardID, &handoff.Branch, &handoff.Goal,
+				&handoff.Done, &handoff.InProgress, &handoff.Next, &touched, &handoff.Agent, &created); err != nil {
+				return err
+			}
+			_ = json.Unmarshal([]byte(touched), &handoff.Touched)
+			handoff.CreatedAt, _ = time.Parse(time.RFC3339, created)
+			if i, ok := index[handoff.CardID]; ok {
+				snapshot.Cards[i].Handoffs = append(snapshot.Cards[i].Handoffs, handoff)
 			}
 			return nil
 		})
@@ -117,6 +135,10 @@ var workColumns = map[string]map[string]string{
 	work.EntityInvariant: {
 		"text": "text", "state": "state", "position": "position",
 	},
+	work.EntityHandoff: {
+		"branch": "branch", "agent": "agent", "goal": "goal", "done": "done",
+		"in_progress": "in_progress", "next": "next", "touched": "touched_json",
+	},
 }
 
 var workTables = map[string]string{
@@ -124,6 +146,7 @@ var workTables = map[string]string{
 	work.EntityTask:      "work_tasks",
 	work.EntityQuestion:  "work_questions",
 	work.EntityInvariant: "work_invariants",
+	work.EntityHandoff:   "work_handoffs",
 }
 
 // ApplyWorkOps writes ops in one transaction and appends one change_ops row per
@@ -189,14 +212,19 @@ func applyWorkOp(tx *sql.Tx, projectID string, op work.Op, now string) error {
 	}
 
 	if op.Kind == work.OpCreate {
-		names = append(names, "id", "created_at", "updated_at")
-		values = append(values, op.EntityID, now, now)
-		if op.Entity == work.EntityCard {
-			names = append(names, "project_id")
-			values = append(values, projectID)
+		if op.Entity == work.EntityHandoff {
+			names = append(names, "id", "project_id", "card_id", "created_at")
+			values = append(values, op.EntityID, projectID, op.CardID, now)
 		} else {
-			names = append(names, "card_id")
-			values = append(values, op.CardID)
+			names = append(names, "id", "created_at", "updated_at")
+			values = append(values, op.EntityID, now, now)
+			if op.Entity == work.EntityCard {
+				names = append(names, "project_id")
+				values = append(values, projectID)
+			} else {
+				names = append(names, "card_id")
+				values = append(values, op.CardID)
+			}
 		}
 		marks := strings.TrimSuffix(strings.Repeat("?,", len(names)), ",")
 		_, err := tx.Exec(`INSERT INTO `+table+`(`+strings.Join(names, ",")+`) VALUES(`+marks+`)`, values...)

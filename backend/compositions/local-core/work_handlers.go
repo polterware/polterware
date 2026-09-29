@@ -129,6 +129,70 @@ func (core *Core) ApplyPolter(_ context.Context, request *connect.Request[localv
 	if err != nil {
 		return nil, mapAuditedErr(err)
 	}
+	return connect.NewResponse(applyResponse(result)), nil
+}
+
+func (core *Core) WriteHandoff(_ context.Context, request *connect.Request[localv1.WriteHandoffRequest]) (*connect.Response[localv1.WriteHandoffResponse], error) {
+	msg := request.Msg
+	if msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	change := msg.GetChange()
+	agent := strings.TrimSpace(msg.Agent)
+	if agent == "" {
+		agent = strings.TrimSpace(msg.SessionLabel)
+	}
+	in := wedge.HandoffInput{
+		ProjectID: msg.ProjectId,
+		CardSlug:  msg.CardSlug,
+		Note:      msg.Note,
+		Agent:     agent,
+		Summary:   change.GetSummary(),
+		Rationale: change.GetRationale(),
+	}
+	in.Apply.AgentRunID = change.GetAgentRunId()
+	client := clientOf(request.Header())
+	if client == "desktop" {
+		in.Apply.ActorKind = agentrun.ActorKindHuman
+		in.Apply.Tool = "desktop.work.handoff"
+	} else {
+		in.Apply.AutoStartLabel = client
+		in.Apply.Tool = "polter.handoff"
+	}
+	applyIn, hints, err := wedge.ComposeHandoff(core.Store, in)
+	if err != nil {
+		return nil, invalid(err.Error())
+	}
+	var result wedge.ApplyResult
+	if msg.SessionId != "" && client != "desktop" {
+		err = core.sessions.apply(msg.SessionId, msg.SessionLabel, func(session *wedge.SessionRuns) error {
+			var applyErr error
+			applyIn.AutoStartLabel = ""
+			result, applyErr = wedge.ApplyInSession(core.Store, session, applyIn)
+			return applyErr
+		})
+	} else {
+		result, err = wedge.ApplyPolter(core.Store, applyIn)
+	}
+	result.Diagnostics = append(hints, result.Diagnostics...)
+	if errors.Is(err, wedge.ErrPolterInvalid) {
+		return nil, invalidPolter(result.Diagnostics)
+	}
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
+	applied := applyResponse(result)
+	return connect.NewResponse(&localv1.WriteHandoffResponse{
+		Applied:     applied.Applied,
+		Ops:         applied.Ops,
+		Summary:     applied.Summary,
+		Diagnostics: applied.Diagnostics,
+		AgentRunId:  applied.AgentRunId,
+		BatchId:     applied.BatchId,
+	}), nil
+}
+
+func applyResponse(result wedge.ApplyResult) *localv1.ApplyPolterResponse {
 	response := &localv1.ApplyPolterResponse{
 		Applied:    result.Applied,
 		AgentRunId: result.AgentRunID,
@@ -139,7 +203,7 @@ func (core *Core) ApplyPolter(_ context.Context, request *connect.Request[localv
 		response.Summary = polter.Summarize(result.Ops)
 	}
 	response.Diagnostics = diagnosticsProto(result.Diagnostics)
-	return connect.NewResponse(response), nil
+	return response
 }
 
 // diagnosticsMessage joins error diagnostics into one line-numbered message.

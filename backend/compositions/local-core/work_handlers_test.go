@@ -55,6 +55,23 @@ func TestWorkServiceApplyAndList(t *testing.T) {
 		t.Fatalf("card = %+v", card)
 	}
 
+	handoff, err := apply("---\npolter: 1\n---\n## git-import\nhandoff:\nbranch: feat/git-import\nagent: codex\ndone: parser\nin_progress: status\nnext: docs\ntouched: docs/spec.md\n")
+	if err != nil || !handoff.Applied {
+		t.Fatalf("handoff apply: err=%v msg=%+v", err, handoff)
+	}
+	var entity string
+	if err := store.DB.QueryRow(`SELECT entity FROM change_ops WHERE batch_id=? AND entity='handoff'`, handoff.BatchId).Scan(&entity); err != nil || entity != "handoff" {
+		t.Fatalf("change_ops handoff: entity=%q err=%v", entity, err)
+	}
+	queried, err := core.QueryPolter(ctx, connect.NewRequest(&localv1.QueryPolterRequest{ProjectId: project.ID, Query: "handoff git-import"}))
+	if err != nil || !strings.Contains(queried.Msg.Text, "branch: feat/git-import") || !strings.Contains(queried.Msg.Text, "Merge commits? [blocking]") {
+		t.Fatalf("query handoff: err=%v resp=%+v", err, queried)
+	}
+	again, err := apply("---\npolter: 1\n---\n## git-import\nhandoff:\nbranch: feat/git-import\nagent: codex\ndone: parser\nin_progress: status\nnext: docs\ntouched: docs/spec.md\n")
+	if err != nil || again.Applied || len(again.Ops) != 0 {
+		t.Fatalf("re-apply handoff should be a no-op: err=%v msg=%+v", err, again)
+	}
+
 	if _, err := apply("---\npolter: 1\n---\n## git-import\nstatus: removed\n"); err != nil {
 		t.Fatal(err)
 	}

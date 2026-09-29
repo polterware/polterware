@@ -1,6 +1,7 @@
 package wedge
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/polterware/polterware/backend/domains/projects"
 	"github.com/polterware/polterware/backend/domains/work"
 	"github.com/polterware/polterware/backend/platform/ids"
+	gitpkg "github.com/polterware/polterware/backend/providers/git"
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
@@ -77,7 +79,20 @@ func polterReferences(store *storepkg.Store, snapshot work.Snapshot) (*polter.Re
 	for _, adr := range adrs {
 		refs.ADRs = append(refs.ADRs, polter.ADRRef{ID: adr.ID, Title: adr.Title})
 	}
+	view := ProjectGit(store, snapshot.ProjectID)
+	refs.Git = &view
 	return refs, nil
+}
+
+// ProjectGit reads the project's repository from its root. A missing
+// repository returns an empty view; callers still answer.
+func ProjectGit(store *storepkg.Store, projectID string) polter.GitView {
+	project, err := store.GetProject(projectID)
+	if err != nil {
+		return polter.GitView{}
+	}
+	obs := gitpkg.Observe(context.Background(), ExpandRootPath(project.RootPath))
+	return polter.GitView{Available: obs.Available, Branch: obs.Branch, Files: obs.Files, Delivered: obs.Delivered}
 }
 
 // ApplyInput is one `polterware apply` / polter.apply call.
@@ -167,7 +182,7 @@ func ApplyPolter(store *storepkg.Store, in ApplyInput) (ApplyResult, error) {
 	return result, nil
 }
 
-// QueryPolter answers a v1 query ("cards" or "card <slug>") in Polter text.
+// QueryPolter answers a v1 query ("cards", "card <slug>", "status", "handoff <slug>") in Polter text.
 func QueryPolter(store *storepkg.Store, projectID, text string) (string, error) {
 	query, err := polter.ParseQuery(text)
 	if err != nil {
@@ -184,9 +199,43 @@ func QueryPolter(store *storepkg.Store, projectID, text string) (string, error) 
 			return "", fmt.Errorf("unknown card %q: list cards with polterware query cards", query.Slug)
 		}
 		return polter.EncodeCard(card), nil
+	case polter.QueryHandoff:
+		return queryHandoff(store, snapshot, query.Slug)
+	case polter.QueryStatus:
+		return queryStatus(store, snapshot), nil
 	default:
 		return polter.EncodeList(snapshot), nil
 	}
+}
+
+func queryHandoff(store *storepkg.Store, snapshot work.Snapshot, slug string) (string, error) {
+	card, ok := snapshot.Card(slug)
+	if !ok {
+		return "", fmt.Errorf("unknown card %q: list cards with polterware query cards", slug)
+	}
+	view := ProjectGit(store, snapshot.ProjectID)
+	handoff, ok := card.LatestHandoff(view.Branch)
+	if !ok || view.Branch == "" || view.Branch == "HEAD" {
+		handoff, ok = card.LatestHandoffAny()
+	}
+	if !ok {
+		return "", fmt.Errorf("no handoff for %q: write one with polterware handoff --card %s", slug, slug)
+	}
+	return polter.EncodeHandoff(card, handoff), nil
+}
+
+func queryStatus(store *storepkg.Store, snapshot work.Snapshot) string {
+	view := ProjectGit(store, snapshot.ProjectID)
+	card, slugs, err := SelectWorkCard(snapshot, "", view.Branch)
+	if err != nil {
+		return polter.EncodeStatusUnresolved(view.Branch, slugs)
+	}
+	var current *work.Handoff
+	if handoff, ok := card.LatestHandoff(view.Branch); ok && view.Branch != "" && view.Branch != "HEAD" {
+		current = &handoff
+	}
+	stage := polter.DisplayStage(card.Stage, view.Delivered)
+	return polter.EncodeStatus(card, view.Branch, stage, current)
 }
 
 func firstNonEmpty(values ...string) string {

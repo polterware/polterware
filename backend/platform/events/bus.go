@@ -31,6 +31,7 @@ var tableKinds = map[string]string{
 	"work_tasks":                KindWork,
 	"work_questions":            KindWork,
 	"work_invariants":           KindWork,
+	"work_handoffs":             KindWork,
 	"change_ops":                KindWork,
 	"knowledge_items":           KindKnowledge,
 	"knowledge_entity_links":    KindKnowledge,

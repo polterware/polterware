@@ -33,13 +33,13 @@ SQLite local.db
 
 ## Boot
 
-1. Electron Main mints a session token and resolves `userData/local.db` ([`apps/desktop/src/main/core/process-supervisor.ts`](../../../apps/desktop/src/main/core/process-supervisor.ts)).
+1. Electron Main mints a session token and resolves `<appData>/polterware/local.db` ([`apps/desktop/src/main/core/process-supervisor.ts`](../../../apps/desktop/src/main/core/process-supervisor.ts)).
 2. Main spawns `polterware-core` with `-listen 127.0.0.1:0` and `-db`. In development, if the binary is missing, it falls back to `go run ./backend/runtimes/core`.
 3. The core opens SQLite, runs migrations, and listens ([`backend/runtimes/core/main.go`](../../../backend/runtimes/core/main.go)). Main reads the listen URL from stderr.
 4. Main holds ConnectRPC clients and sends `Authorization: Bearer <token>`. The core rejects any other token.
 5. The Solid renderer calls `window.polterware` only. Preload forwards IPC to Main.
 
-`POLTERWARE_CORE_ENDPOINT` and `POLTERWARE_CORE_TOKEN` can point Main at an already running core. Otherwise Main attaches to the live core for its database (`<db dir>/run/core.json`) or starts one detached, and never stops it on quit ([ADR 0007](../adr/0007-single-local-core.md); the boot steps above predate it). See [`cli.md`](cli.md#run-state). The Desktop passes Electron `userData/local.db` (product name Polterware). A core or CLI started on its own defaults to `~/Library/Application Support/polterware/local.db`. They share a model only when `-db` is the same file.
+`POLTERWARE_CORE_ENDPOINT` and `POLTERWARE_CORE_TOKEN` can point Main at an already running core. Otherwise Main attaches to the live core for its database (`<db dir>/run/core.json`) or starts one detached, and never stops it on quit ([ADR 0007](../adr/0007-single-local-core.md); the boot steps above predate it). See [`cli.md`](cli.md#run-state). The Desktop, the CLI, the TUI, and the MCP bridge default to the same database, `<user config dir>/polterware/local.db` (Electron `appData`, Go `os.UserConfigDir`; `~/Library/Application Support/polterware/local.db` on macOS), in dev and packaged builds alike. `-db` selects another file.
 
 ## Process boundary
 
@@ -120,7 +120,7 @@ flowchart LR
 
 | Client | Entry | Auth | Store |
 | --- | --- | --- | --- |
-| Desktop | Connect through Electron Main | Session bearer | `userData/local.db` |
+| Desktop | Connect through Electron Main | Session bearer | `<appData>/polterware/local.db` |
 | CLI `polterware` | In-process store | None (local process) | `-db`, same default family as the core |
 | MCP | `polterware-core mcp` on stdio | Local process | Same store the core opened |
 

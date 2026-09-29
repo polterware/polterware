@@ -89,12 +89,33 @@ message LintPolterRequest {
 }
 message LintPolterResponse { repeated PolterDiagnostic diagnostics = 1; }
 
-// QueryPolter answers "cards" or "card <slug>" in Polter text.
+// QueryPolter answers "cards", "card <slug>", "status", or "handoff <slug>"
+// in Polter text. "status" is the short session-start summary.
 message QueryPolterRequest {
   string project_id = 1;
   string query = 2;
 }
 message QueryPolterResponse { string text = 1; }
+
+// WriteHandoff builds a handoff record for one card (branch and touched
+// files come from the local Git repository) and applies it as Polter text.
+message WriteHandoffRequest {
+  string project_id = 1;
+  string card_slug = 2;
+  string note = 3;
+  string agent = 4;
+  string session_id = 5;
+  string session_label = 6;
+  ChangeEnvelope change = 7;
+}
+message WriteHandoffResponse {
+  bool applied = 1;
+  repeated string ops = 2;
+  string summary = 3;
+  repeated PolterDiagnostic diagnostics = 4;
+  string agent_run_id = 5;
+  string batch_id = 6;
+}
 
 // EndSession completes the runs an agent session opened.
 message EndSessionRequest { string session_id = 1; }
@@ -105,5 +126,6 @@ service WorkService {
   rpc ApplyPolter(ApplyPolterRequest) returns (ApplyPolterResponse);
   rpc LintPolter(LintPolterRequest) returns (LintPolterResponse);
   rpc QueryPolter(QueryPolterRequest) returns (QueryPolterResponse);
+  rpc WriteHandoff(WriteHandoffRequest) returns (WriteHandoffResponse);
   rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
 }

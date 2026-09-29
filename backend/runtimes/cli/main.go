@@ -57,6 +57,10 @@ func main() {
 		err = runFormat(rest)
 	case "query":
 		err = runQuery(*dbPath, rest)
+	case "status":
+		err = runStatus(*dbPath, rest)
+	case "handoff":
+		err = runHandoff(*dbPath, rest)
 	case "hook":
 		err = runHook(*dbPath, rest)
 	case "help", "-h", "--help":

@@ -61,8 +61,10 @@ func usage() {
   polterware [-db path] apply <file|-> [--dry-run] [--project <id>] [--summary ...] [--rationale ...] [--agent-run-id ...]
   polterware [-db path] lint <file|dir|-> [--project <id>]   (silent on success)
   polterware [-db path] format                               (print the Polter format spec)
-  polterware [-db path] query "cards" | "card <slug>" [--project <id>]
-  polterware [-db path] hook session-start [--label name] | session-end | lint   (Claude Code hooks; JSON on stdin)
+  polterware [-db path] query "cards" | "card <slug>" | "status" | "handoff <slug>" [--project <id>]
+  polterware [-db path] status [--project <id>]
+  polterware [-db path] handoff [--card <slug>] [--note "..."] [--project <id>]
+  polterware [-db path] hook session-start [--label name] | session-end | lint | status | stop   (Claude Code hooks; JSON on stdin)
   polterware [-db path] serve [--listen addr] [--token token]   (local core server for the Desktop)
   polterware [-db path] mcp                                     (MCP server over stdio for coding agents)
 `)

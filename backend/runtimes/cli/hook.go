@@ -35,11 +35,25 @@ type hookInput struct {
 
 func runHook(dbPath string, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: polterware hook session-start [--label name] | session-end | lint")
+		return errors.New("usage: polterware hook session-start [--label name] | session-end | lint | status | stop")
 	}
-	input, err := readHookInput(os.Stdin)
-	if err != nil {
-		return err
+	input, inputErr := readHookInput(os.Stdin)
+	switch args[0] {
+	case "status":
+		if inputErr != nil {
+			return nil
+		}
+		hookStatus(dbPath, input)
+		return nil
+	case "stop":
+		if inputErr != nil {
+			input = hookInput{}
+		}
+		hookStop(dbPath, input)
+		return nil
+	}
+	if inputErr != nil {
+		return inputErr
 	}
 	switch args[0] {
 	case "session-start":
@@ -55,7 +69,7 @@ func runHook(dbPath string, args []string) error {
 	case "lint":
 		return hookLint(dbPath, input)
 	default:
-		return fmt.Errorf("unknown hook %q: use session-start, session-end, or lint", args[0])
+		return fmt.Errorf("unknown hook %q: use session-start, session-end, lint, status, or stop", args[0])
 	}
 }
 
@@ -135,6 +149,70 @@ func hookLint(dbPath string, input hookInput) error {
 	}
 	writeDiagnostics(os.Stderr, file, diags)
 	return exitError{code: 2}
+}
+
+// hookStatus prints the project status as Claude Code session context.
+// A missing core or project leaves the session alone.
+func hookStatus(dbPath string, input hookInput) {
+	text, err := hookQueryStatus(dbPath, input.Cwd)
+	if err != nil || strings.TrimSpace(text) == "" {
+		return
+	}
+	_ = writeHookContext("SessionStart", text)
+}
+
+// hookStop reminds the agent to write a handoff. It never blocks the session.
+func hookStop(dbPath string, input hookInput) {
+	slug := ""
+	if text, err := hookQueryStatus(dbPath, input.Cwd); err == nil {
+		slug = statusCardSlug(text)
+	}
+	reminder := `Write a handoff before ending: polterware handoff --note "Goal: … Done: … In progress: … Next: … Touched: …"`
+	if slug != "" {
+		reminder = fmt.Sprintf("Write a handoff before ending: polterware handoff --card %s --note \"Goal: … Done: … In progress: … Next: … Touched: …\"", slug)
+	}
+	_ = writeHookContext("Stop", reminder)
+}
+
+func hookQueryStatus(dbPath, dir string) (string, error) {
+	c, err := dial(dbPath)
+	if err != nil {
+		return "", err
+	}
+	if dir == "" {
+		dir, err = os.Getwd()
+		if err != nil {
+			return "", err
+		}
+	}
+	project, err := resolveProjectIn(c, "", dir)
+	if err != nil {
+		return "", err
+	}
+	res, err := c.Work.QueryPolter(context.Background(), connect.NewRequest(&localv1.QueryPolterRequest{ProjectId: project.Id, Query: "status"}))
+	if err != nil {
+		return "", err
+	}
+	return res.Msg.Text, nil
+}
+
+func statusCardSlug(text string) string {
+	line, _, _ := strings.Cut(text, "\n")
+	fields := strings.Fields(line)
+	if len(fields) == 0 || fields[0] == "branch" || fields[0] == "no" {
+		return ""
+	}
+	return fields[0]
+}
+
+func writeHookContext(event, text string) error {
+	payload := map[string]any{
+		"hookSpecificOutput": map[string]any{
+			"hookEventName":     event,
+			"additionalContext": text,
+		},
+	}
+	return json.NewEncoder(os.Stdout).Encode(payload)
 }
 
 func shellQuote(value string) string {

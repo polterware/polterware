@@ -62,6 +62,19 @@ type CardNode struct {
 	Tasks      []TaskNode
 	Questions  []QuestionNode
 	Invariants []InvariantNode
+	Handoff    *HandoffNode
+}
+
+// HandoffNode is one handoff block inside a card. Branch is required.
+type HandoffNode struct {
+	Line       int
+	Branch     string
+	Agent      string
+	Goal       string
+	Done       string
+	InProgress string
+	Next       string
+	Touched    []string
 }
 
 // MetaValue returns the last value given for key.
@@ -128,6 +141,7 @@ type decoder struct {
 
 	card       *CardNode
 	inMeta     bool
+	inHandoff  bool
 	inFence    bool
 	intent     []string
 	slugLines  map[string]int
@@ -204,15 +218,24 @@ func (d *decoder) line(n int, raw string) {
 
 	switch {
 	case strings.HasPrefix(trimmed, "## "):
+		d.endHandoff()
 		d.heading(n, strings.TrimSpace(trimmed[3:]))
 		return
 	case strings.HasPrefix(trimmed, "# "):
 		// A document title is allowed and carries no state.
+		d.endHandoff()
 		d.inMeta = false
 		return
 	case strings.HasPrefix(trimmed, "#"):
+		d.endHandoff()
 		d.errorf(n, `unsupported heading: cards use "## slug: title"`)
 		return
+	}
+
+	if d.inHandoff && d.card != nil {
+		if d.handoffLine(n, trimmed) {
+			return
+		}
 	}
 
 	if d.card == nil {
@@ -223,6 +246,8 @@ func (d *decoder) line(n int, raw string) {
 			d.errorf(n, `question outside a card: move under a "## slug: title"`)
 		case strings.HasPrefix(trimmed, "! "):
 			d.errorf(n, `invariant outside a card: move under a "## slug: title"`)
+		case trimmed == "handoff:" || strings.HasPrefix(trimmed, "handoff:"):
+			d.errorf(n, `handoff outside a card: move under a "## slug: title"`)
 		}
 		return
 	}
@@ -242,6 +267,8 @@ func (d *decoder) line(n int, raw string) {
 	}
 
 	switch {
+	case trimmed == "handoff:" || strings.HasPrefix(trimmed, "handoff:"):
+		d.startHandoff(n, trimmed)
 	case taskLine.MatchString(trimmed):
 		d.task(n, trimmed)
 	case badTaskLine.MatchString(trimmed):
@@ -286,6 +313,13 @@ func (d *decoder) meta(n int, line string) {
 			continue
 		}
 		key, value := m[1], strings.TrimSpace(m[2])
+		if key == "handoff" {
+			d.startHandoff(n, "handoff:")
+			if value != "" {
+				d.errorf(n, `handoff block starts with "handoff:" on its own line`)
+			}
+			continue
+		}
 		switch key {
 		case "stage":
 			value = strings.ToLower(value)
@@ -303,6 +337,72 @@ func (d *decoder) meta(n int, line string) {
 			continue
 		}
 		d.card.Meta = append(d.card.Meta, MetaEntry{Key: key, Value: value, Line: n})
+	}
+}
+
+func (d *decoder) startHandoff(n int, trimmed string) {
+	d.inMeta = false
+	value := ""
+	if strings.HasPrefix(trimmed, "handoff:") {
+		value = strings.TrimSpace(strings.TrimPrefix(trimmed, "handoff:"))
+	}
+	if d.card.Handoff != nil {
+		d.errorf(n, "duplicate handoff in %q: one handoff block per card", d.card.Slug)
+		d.inHandoff = true
+		return
+	}
+	if value != "" {
+		d.errorf(n, `handoff block starts with "handoff:" on its own line`)
+	}
+	d.card.Handoff = &HandoffNode{Line: n}
+	d.inHandoff = true
+}
+
+// handoffLine consumes a line inside a handoff block. It reports false when
+// the line ends the block and the caller should parse it as a normal line.
+func (d *decoder) handoffLine(n int, trimmed string) bool {
+	if trimmed == "" || taskLine.MatchString(trimmed) || badTaskLine.MatchString(trimmed) ||
+		strings.HasPrefix(trimmed, "? ") || strings.HasPrefix(trimmed, "! ") || strings.HasPrefix(trimmed, "```") {
+		d.endHandoff()
+		return false
+	}
+	m := metaKey.FindStringSubmatch(trimmed)
+	if m == nil {
+		d.endHandoff()
+		return false
+	}
+	key, value := m[1], strings.TrimSpace(m[2])
+	switch key {
+	case "branch":
+		d.card.Handoff.Branch = value
+	case "agent":
+		d.card.Handoff.Agent = value
+	case "goal":
+		d.card.Handoff.Goal = value
+	case "done":
+		d.card.Handoff.Done = value
+	case "in_progress":
+		d.card.Handoff.InProgress = value
+	case "next":
+		d.card.Handoff.Next = value
+	case "touched":
+		d.card.Handoff.Touched = splitList(value)
+	default:
+		d.errorf(n, "unknown handoff key %q: use branch, agent, goal, done, in_progress, next, touched", key)
+	}
+	return true
+}
+
+func (d *decoder) endHandoff() {
+	if !d.inHandoff {
+		return
+	}
+	d.inHandoff = false
+	if d.card == nil || d.card.Handoff == nil {
+		return
+	}
+	if strings.TrimSpace(d.card.Handoff.Branch) == "" {
+		d.errorf(d.card.Handoff.Line, `handoff needs branch: add "branch: <name>"`)
 	}
 }
 
@@ -342,15 +442,7 @@ func (d *decoder) task(n int, line string) {
 
 func (d *decoder) question(n int, body string) {
 	node := QuestionNode{Line: n}
-	if om := trailingOpts.FindStringSubmatch(body); om != nil {
-		body = strings.TrimSpace(om[1])
-		for _, option := range strings.Split(om[2], "|") {
-			if option = strings.TrimSpace(option); option != "" {
-				node.Options = append(node.Options, option)
-			}
-		}
-	}
-	body = d.tags(n, body, func(tag string) bool {
+	accept := func(tag string) bool {
 		switch tag {
 		case "blocking":
 			node.Blocking = true
@@ -360,7 +452,18 @@ func (d *decoder) question(n int, body string) {
 			return false
 		}
 		return true
-	}, "blocking or removed")
+	}
+	// Tags may follow the options too: `? Text (a | b) [removed]`.
+	body = d.tags(n, body, accept, "blocking or removed")
+	if om := trailingOpts.FindStringSubmatch(body); om != nil {
+		body = strings.TrimSpace(om[1])
+		for _, option := range strings.Split(om[2], "|") {
+			if option = strings.TrimSpace(option); option != "" {
+				node.Options = append(node.Options, option)
+			}
+		}
+	}
+	body = d.tags(n, body, accept, "blocking or removed")
 	if body == "" {
 		d.errorf(n, "question without text: write it after ?")
 	}
@@ -403,6 +506,7 @@ func (d *decoder) closeCard() {
 	if d.card == nil {
 		return
 	}
+	d.endHandoff()
 	if d.inFence {
 		d.errorf(d.card.Line, "unclosed code fence in card %q: close it with ```", d.card.Slug)
 		d.inFence = false

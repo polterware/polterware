@@ -807,7 +807,8 @@ func (x *LintPolterResponse) GetDiagnostics() []*PolterDiagnostic {
 	return nil
 }
 
-// QueryPolter answers "cards" or "card <slug>" in Polter text.
+// QueryPolter answers "cards", "card <slug>", "status", or "handoff <slug>"
+// in Polter text. "status" is the short session-start summary.
 type QueryPolterRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
@@ -904,6 +905,184 @@ func (x *QueryPolterResponse) GetText() string {
 	return ""
 }
 
+// WriteHandoff builds a handoff record for one card (branch and touched
+// files come from the local Git repository) and applies it as Polter text.
+type WriteHandoffRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	CardSlug      string                 `protobuf:"bytes,2,opt,name=card_slug,json=cardSlug,proto3" json:"card_slug,omitempty"`
+	Note          string                 `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
+	Agent         string                 `protobuf:"bytes,4,opt,name=agent,proto3" json:"agent,omitempty"`
+	SessionId     string                 `protobuf:"bytes,5,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SessionLabel  string                 `protobuf:"bytes,6,opt,name=session_label,json=sessionLabel,proto3" json:"session_label,omitempty"`
+	Change        *ChangeEnvelope        `protobuf:"bytes,7,opt,name=change,proto3" json:"change,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteHandoffRequest) Reset() {
+	*x = WriteHandoffRequest{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteHandoffRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteHandoffRequest) ProtoMessage() {}
+
+func (x *WriteHandoffRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteHandoffRequest.ProtoReflect.Descriptor instead.
+func (*WriteHandoffRequest) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *WriteHandoffRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *WriteHandoffRequest) GetCardSlug() string {
+	if x != nil {
+		return x.CardSlug
+	}
+	return ""
+}
+
+func (x *WriteHandoffRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+func (x *WriteHandoffRequest) GetAgent() string {
+	if x != nil {
+		return x.Agent
+	}
+	return ""
+}
+
+func (x *WriteHandoffRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *WriteHandoffRequest) GetSessionLabel() string {
+	if x != nil {
+		return x.SessionLabel
+	}
+	return ""
+}
+
+func (x *WriteHandoffRequest) GetChange() *ChangeEnvelope {
+	if x != nil {
+		return x.Change
+	}
+	return nil
+}
+
+type WriteHandoffResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Applied       bool                   `protobuf:"varint,1,opt,name=applied,proto3" json:"applied,omitempty"`
+	Ops           []string               `protobuf:"bytes,2,rep,name=ops,proto3" json:"ops,omitempty"`
+	Summary       string                 `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
+	Diagnostics   []*PolterDiagnostic    `protobuf:"bytes,4,rep,name=diagnostics,proto3" json:"diagnostics,omitempty"`
+	AgentRunId    string                 `protobuf:"bytes,5,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
+	BatchId       string                 `protobuf:"bytes,6,opt,name=batch_id,json=batchId,proto3" json:"batch_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteHandoffResponse) Reset() {
+	*x = WriteHandoffResponse{}
+	mi := &file_polterware_local_v1_work_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteHandoffResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteHandoffResponse) ProtoMessage() {}
+
+func (x *WriteHandoffResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_polterware_local_v1_work_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteHandoffResponse.ProtoReflect.Descriptor instead.
+func (*WriteHandoffResponse) Descriptor() ([]byte, []int) {
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *WriteHandoffResponse) GetApplied() bool {
+	if x != nil {
+		return x.Applied
+	}
+	return false
+}
+
+func (x *WriteHandoffResponse) GetOps() []string {
+	if x != nil {
+		return x.Ops
+	}
+	return nil
+}
+
+func (x *WriteHandoffResponse) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *WriteHandoffResponse) GetDiagnostics() []*PolterDiagnostic {
+	if x != nil {
+		return x.Diagnostics
+	}
+	return nil
+}
+
+func (x *WriteHandoffResponse) GetAgentRunId() string {
+	if x != nil {
+		return x.AgentRunId
+	}
+	return ""
+}
+
+func (x *WriteHandoffResponse) GetBatchId() string {
+	if x != nil {
+		return x.BatchId
+	}
+	return ""
+}
+
 // EndSession completes the runs an agent session opened.
 type EndSessionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -914,7 +1093,7 @@ type EndSessionRequest struct {
 
 func (x *EndSessionRequest) Reset() {
 	*x = EndSessionRequest{}
-	mi := &file_polterware_local_v1_work_proto_msgTypes[13]
+	mi := &file_polterware_local_v1_work_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -926,7 +1105,7 @@ func (x *EndSessionRequest) String() string {
 func (*EndSessionRequest) ProtoMessage() {}
 
 func (x *EndSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_work_proto_msgTypes[13]
+	mi := &file_polterware_local_v1_work_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -939,7 +1118,7 @@ func (x *EndSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EndSessionRequest.ProtoReflect.Descriptor instead.
 func (*EndSessionRequest) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{13}
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *EndSessionRequest) GetSessionId() string {
@@ -958,7 +1137,7 @@ type EndSessionResponse struct {
 
 func (x *EndSessionResponse) Reset() {
 	*x = EndSessionResponse{}
-	mi := &file_polterware_local_v1_work_proto_msgTypes[14]
+	mi := &file_polterware_local_v1_work_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -970,7 +1149,7 @@ func (x *EndSessionResponse) String() string {
 func (*EndSessionResponse) ProtoMessage() {}
 
 func (x *EndSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_polterware_local_v1_work_proto_msgTypes[14]
+	mi := &file_polterware_local_v1_work_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -983,7 +1162,7 @@ func (x *EndSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EndSessionResponse.ProtoReflect.Descriptor instead.
 func (*EndSessionResponse) Descriptor() ([]byte, []int) {
-	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{14}
+	return file_polterware_local_v1_work_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *EndSessionResponse) GetCompletedRuns() int32 {
@@ -1072,18 +1251,37 @@ const file_polterware_local_v1_work_proto_rawDesc = "" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\")\n" +
 	"\x13QueryPolterResponse\x12\x12\n" +
-	"\x04text\x18\x01 \x01(\tR\x04text\"2\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\"\xfc\x01\n" +
+	"\x13WriteHandoffRequest\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
+	"\tcard_slug\x18\x02 \x01(\tR\bcardSlug\x12\x12\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note\x12\x14\n" +
+	"\x05agent\x18\x04 \x01(\tR\x05agent\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x05 \x01(\tR\tsessionId\x12#\n" +
+	"\rsession_label\x18\x06 \x01(\tR\fsessionLabel\x12;\n" +
+	"\x06change\x18\a \x01(\v2#.polterware.local.v1.ChangeEnvelopeR\x06change\"\xe2\x01\n" +
+	"\x14WriteHandoffResponse\x12\x18\n" +
+	"\aapplied\x18\x01 \x01(\bR\aapplied\x12\x10\n" +
+	"\x03ops\x18\x02 \x03(\tR\x03ops\x12\x18\n" +
+	"\asummary\x18\x03 \x01(\tR\asummary\x12G\n" +
+	"\vdiagnostics\x18\x04 \x03(\v2%.polterware.local.v1.PolterDiagnosticR\vdiagnostics\x12 \n" +
+	"\fagent_run_id\x18\x05 \x01(\tR\n" +
+	"agentRunId\x12\x19\n" +
+	"\bbatch_id\x18\x06 \x01(\tR\abatchId\"2\n" +
 	"\x11EndSessionRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\";\n" +
 	"\x12EndSessionResponse\x12%\n" +
-	"\x0ecompleted_runs\x18\x01 \x01(\x05R\rcompletedRuns2\xf7\x03\n" +
+	"\x0ecompleted_runs\x18\x01 \x01(\x05R\rcompletedRuns2\xdc\x04\n" +
 	"\vWorkService\x12f\n" +
 	"\rListWorkCards\x12).polterware.local.v1.ListWorkCardsRequest\x1a*.polterware.local.v1.ListWorkCardsResponse\x12`\n" +
 	"\vApplyPolter\x12'.polterware.local.v1.ApplyPolterRequest\x1a(.polterware.local.v1.ApplyPolterResponse\x12]\n" +
 	"\n" +
 	"LintPolter\x12&.polterware.local.v1.LintPolterRequest\x1a'.polterware.local.v1.LintPolterResponse\x12`\n" +
-	"\vQueryPolter\x12'.polterware.local.v1.QueryPolterRequest\x1a(.polterware.local.v1.QueryPolterResponse\x12]\n" +
+	"\vQueryPolter\x12'.polterware.local.v1.QueryPolterRequest\x1a(.polterware.local.v1.QueryPolterResponse\x12c\n" +
+	"\fWriteHandoff\x12(.polterware.local.v1.WriteHandoffRequest\x1a).polterware.local.v1.WriteHandoffResponse\x12]\n" +
 	"\n" +
 	"EndSession\x12&.polterware.local.v1.EndSessionRequest\x1a'.polterware.local.v1.EndSessionResponseB\xe5\x01\n" +
 	"\x17com.polterware.local.v1B\tWorkProtoP\x01ZQgithub.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1\xa2\x02\x03PLX\xaa\x02\x13Polterware.Local.V1\xca\x02\x13Polterware\\Local\\V1\xe2\x02\x1fPolterware\\Local\\V1\\GPBMetadata\xea\x02\x15Polterware::Local::V1b\x06proto3"
@@ -1100,7 +1298,7 @@ func file_polterware_local_v1_work_proto_rawDescGZIP() []byte {
 	return file_polterware_local_v1_work_proto_rawDescData
 }
 
-var file_polterware_local_v1_work_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_polterware_local_v1_work_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_polterware_local_v1_work_proto_goTypes = []any{
 	(*WorkTask)(nil),              // 0: polterware.local.v1.WorkTask
 	(*WorkQuestion)(nil),          // 1: polterware.local.v1.WorkQuestion
@@ -1115,33 +1313,39 @@ var file_polterware_local_v1_work_proto_goTypes = []any{
 	(*LintPolterResponse)(nil),    // 10: polterware.local.v1.LintPolterResponse
 	(*QueryPolterRequest)(nil),    // 11: polterware.local.v1.QueryPolterRequest
 	(*QueryPolterResponse)(nil),   // 12: polterware.local.v1.QueryPolterResponse
-	(*EndSessionRequest)(nil),     // 13: polterware.local.v1.EndSessionRequest
-	(*EndSessionResponse)(nil),    // 14: polterware.local.v1.EndSessionResponse
-	(*ChangeEnvelope)(nil),        // 15: polterware.local.v1.ChangeEnvelope
+	(*WriteHandoffRequest)(nil),   // 13: polterware.local.v1.WriteHandoffRequest
+	(*WriteHandoffResponse)(nil),  // 14: polterware.local.v1.WriteHandoffResponse
+	(*EndSessionRequest)(nil),     // 15: polterware.local.v1.EndSessionRequest
+	(*EndSessionResponse)(nil),    // 16: polterware.local.v1.EndSessionResponse
+	(*ChangeEnvelope)(nil),        // 17: polterware.local.v1.ChangeEnvelope
 }
 var file_polterware_local_v1_work_proto_depIdxs = []int32{
 	0,  // 0: polterware.local.v1.WorkCard.tasks:type_name -> polterware.local.v1.WorkTask
 	1,  // 1: polterware.local.v1.WorkCard.questions:type_name -> polterware.local.v1.WorkQuestion
 	2,  // 2: polterware.local.v1.WorkCard.invariants:type_name -> polterware.local.v1.WorkInvariant
 	3,  // 3: polterware.local.v1.ListWorkCardsResponse.cards:type_name -> polterware.local.v1.WorkCard
-	15, // 4: polterware.local.v1.ApplyPolterRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	17, // 4: polterware.local.v1.ApplyPolterRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
 	4,  // 5: polterware.local.v1.ApplyPolterResponse.diagnostics:type_name -> polterware.local.v1.PolterDiagnostic
 	4,  // 6: polterware.local.v1.LintPolterResponse.diagnostics:type_name -> polterware.local.v1.PolterDiagnostic
-	5,  // 7: polterware.local.v1.WorkService.ListWorkCards:input_type -> polterware.local.v1.ListWorkCardsRequest
-	7,  // 8: polterware.local.v1.WorkService.ApplyPolter:input_type -> polterware.local.v1.ApplyPolterRequest
-	9,  // 9: polterware.local.v1.WorkService.LintPolter:input_type -> polterware.local.v1.LintPolterRequest
-	11, // 10: polterware.local.v1.WorkService.QueryPolter:input_type -> polterware.local.v1.QueryPolterRequest
-	13, // 11: polterware.local.v1.WorkService.EndSession:input_type -> polterware.local.v1.EndSessionRequest
-	6,  // 12: polterware.local.v1.WorkService.ListWorkCards:output_type -> polterware.local.v1.ListWorkCardsResponse
-	8,  // 13: polterware.local.v1.WorkService.ApplyPolter:output_type -> polterware.local.v1.ApplyPolterResponse
-	10, // 14: polterware.local.v1.WorkService.LintPolter:output_type -> polterware.local.v1.LintPolterResponse
-	12, // 15: polterware.local.v1.WorkService.QueryPolter:output_type -> polterware.local.v1.QueryPolterResponse
-	14, // 16: polterware.local.v1.WorkService.EndSession:output_type -> polterware.local.v1.EndSessionResponse
-	12, // [12:17] is the sub-list for method output_type
-	7,  // [7:12] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	17, // 7: polterware.local.v1.WriteHandoffRequest.change:type_name -> polterware.local.v1.ChangeEnvelope
+	4,  // 8: polterware.local.v1.WriteHandoffResponse.diagnostics:type_name -> polterware.local.v1.PolterDiagnostic
+	5,  // 9: polterware.local.v1.WorkService.ListWorkCards:input_type -> polterware.local.v1.ListWorkCardsRequest
+	7,  // 10: polterware.local.v1.WorkService.ApplyPolter:input_type -> polterware.local.v1.ApplyPolterRequest
+	9,  // 11: polterware.local.v1.WorkService.LintPolter:input_type -> polterware.local.v1.LintPolterRequest
+	11, // 12: polterware.local.v1.WorkService.QueryPolter:input_type -> polterware.local.v1.QueryPolterRequest
+	13, // 13: polterware.local.v1.WorkService.WriteHandoff:input_type -> polterware.local.v1.WriteHandoffRequest
+	15, // 14: polterware.local.v1.WorkService.EndSession:input_type -> polterware.local.v1.EndSessionRequest
+	6,  // 15: polterware.local.v1.WorkService.ListWorkCards:output_type -> polterware.local.v1.ListWorkCardsResponse
+	8,  // 16: polterware.local.v1.WorkService.ApplyPolter:output_type -> polterware.local.v1.ApplyPolterResponse
+	10, // 17: polterware.local.v1.WorkService.LintPolter:output_type -> polterware.local.v1.LintPolterResponse
+	12, // 18: polterware.local.v1.WorkService.QueryPolter:output_type -> polterware.local.v1.QueryPolterResponse
+	14, // 19: polterware.local.v1.WorkService.WriteHandoff:output_type -> polterware.local.v1.WriteHandoffResponse
+	16, // 20: polterware.local.v1.WorkService.EndSession:output_type -> polterware.local.v1.EndSessionResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_polterware_local_v1_work_proto_init() }
@@ -1156,7 +1360,7 @@ func file_polterware_local_v1_work_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polterware_local_v1_work_proto_rawDesc), len(file_polterware_local_v1_work_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

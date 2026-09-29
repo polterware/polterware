@@ -16,6 +16,9 @@ type References struct {
 	ADRs []ADRRef
 	// Cards is the project's current Work graph, for similarity hints.
 	Cards []work.Card
+	// Git is the local repository view used to hint on handoff mismatches.
+	// Nil skips that check.
+	Git *GitView
 }
 
 type ADRRef struct {
@@ -32,6 +35,9 @@ func Lint(text string, refs *References) (Document, []Diagnostic) {
 	if refs != nil {
 		diags = append(diags, checkReferences(doc, *refs)...)
 		diags = append(diags, checkHints(doc, refs.Cards)...)
+		if refs.Git != nil {
+			diags = append(diags, HandoffHints(doc, *refs.Git)...)
+		}
 	}
 	return doc, diags
 }

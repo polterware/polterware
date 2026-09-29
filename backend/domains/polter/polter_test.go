@@ -169,6 +169,86 @@ func TestLintReferences(t *testing.T) {
 	}
 }
 
+func TestHandoffDecodePlanRoundTrip(t *testing.T) {
+	text := `---
+polter: 1
+summary: Handoff for git import
+rationale: Session handoff
+---
+
+## git-metadata-import: Git metadata import
+stage: build
+
+handoff:
+branch: feat/git-import
+agent: codex
+goal: import HEAD as evidence
+done: commit upsert
+in_progress: stamp revision
+next: wire import
+touched: backend/import.go, docs/spec.md
+
+- [ ] T1 Wire import
+? Include merge commits? [blocking]
+`
+	doc, diags := Decode(text)
+	if HasErrors(diags) {
+		t.Fatalf("diags = %+v", diags)
+	}
+	h := doc.Cards[0].Handoff
+	if h == nil || h.Branch != "feat/git-import" || h.Agent != "codex" || h.InProgress != "stamp revision" {
+		t.Fatalf("handoff = %+v", h)
+	}
+	if len(h.Touched) != 2 || h.Touched[1] != "docs/spec.md" {
+		t.Fatalf("touched = %+v", h.Touched)
+	}
+	ops, planDiags := Plan(doc, work.Snapshot{})
+	if len(planDiags) > 0 {
+		t.Fatalf("plan diags = %+v", planDiags)
+	}
+	var handoffs int
+	for _, op := range ops {
+		if op.Entity == work.EntityHandoff && op.Kind == work.OpCreate {
+			handoffs++
+		}
+	}
+	if handoffs != 1 {
+		t.Fatalf("ops = %s", FormatPlan(ops))
+	}
+	snapshot := snapshotFromOps(ops)
+	again, planDiags := Plan(doc, snapshot)
+	if len(planDiags) > 0 || len(again) != 0 {
+		t.Fatalf("re-apply should be a no-op: %s diags=%+v", FormatPlan(again), planDiags)
+	}
+	encoded, diags := Decode(EncodeCard(snapshot.Cards[0]))
+	if HasErrors(diags) {
+		t.Fatalf("encode diags = %+v\n%s", diags, EncodeCard(snapshot.Cards[0]))
+	}
+	if back, _ := Plan(encoded, snapshot); len(back) != 0 {
+		t.Fatalf("encode round trip should be a no-op, got %s", FormatPlan(back))
+	}
+	once := Format(doc)
+	twice := Format(mustDecode(t, once))
+	if twice != once {
+		t.Fatalf("round trip differs:\n%s\n---\n%s", once, twice)
+	}
+}
+
+func TestHandoffDiagnostics(t *testing.T) {
+	_, diags := Decode("---\npolter: 1\n---\n## a: A\nhandoff:\ngoal: missing branch\n")
+	if !hasDiag(diags, 5, "handoff needs branch") {
+		t.Fatalf("diags = %+v", diags)
+	}
+	_, diags = Decode("---\npolter: 1\n---\n## a: A\nhandoff:\nbranch: feat\nowner: erick\n")
+	if !hasDiag(diags, 7, "unknown handoff key") {
+		t.Fatalf("diags = %+v", diags)
+	}
+	_, diags = Decode("---\npolter: 1\n---\nhandoff:\nbranch: feat\n")
+	if !hasDiag(diags, 4, "handoff outside a card") {
+		t.Fatalf("diags = %+v", diags)
+	}
+}
+
 func TestLintHints(t *testing.T) {
 	cards := []work.Card{
 		{
@@ -267,6 +347,13 @@ func snapshotFromOps(ops []work.Op) work.Snapshot {
 			c.Invariants = append(c.Invariants, work.Invariant{
 				ID: op.EntityID, CardID: op.CardID, Text: f["text"].(string), State: f["state"].(string),
 				Position: f["position"].(int),
+			})
+		case work.EntityHandoff:
+			c := &snapshot.Cards[index[op.CardID]]
+			c.Handoffs = append(c.Handoffs, work.Handoff{
+				ID: op.EntityID, CardID: op.CardID, Branch: f["branch"].(string), Agent: f["agent"].(string),
+				Goal: f["goal"].(string), Done: f["done"].(string), InProgress: f["in_progress"].(string),
+				Next: f["next"].(string), Touched: f["touched"].([]string),
 			})
 		}
 	}

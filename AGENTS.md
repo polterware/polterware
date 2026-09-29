@@ -11,6 +11,7 @@
 ## Work cards
 
 - Codex and other agents: run `polterware format` once for the Polter grammar, read with `polterware query cards`, and write Work cards with `polterware apply <file|->` (frontmatter `summary` and `rationale`). Claude Code gets the same through the `plugins/polterware` plugin.
+- Codex and other agents: start a session with `polterware status` and end it with `polterware handoff`.
 
 ## Product positioning
 

@@ -131,6 +131,43 @@ func (p *planner) children(node CardNode, card work.Card) {
 	p.tasks(node, card)
 	p.questions(node, card)
 	p.invariants(node, card)
+	p.handoff(node, card)
+}
+
+func (p *planner) handoff(node CardNode, card work.Card) {
+	if node.Handoff == nil {
+		return
+	}
+	h := node.Handoff
+	if strings.TrimSpace(h.Branch) == "" {
+		p.errorf(h.Line, `handoff needs branch: add "branch: <name>"`)
+		return
+	}
+	if existing, ok := card.LatestHandoff(h.Branch); ok && sameHandoff(existing, *h) {
+		return
+	}
+	id := ids.NewULID()
+	p.ops = append(p.ops, work.Op{
+		Entity: work.EntityHandoff, Kind: work.OpCreate, EntityID: id, CardID: card.ID,
+		CardSlug: card.Slug, Label: h.Branch,
+		Fields: map[string]any{
+			"branch": h.Branch, "agent": h.Agent, "goal": h.Goal, "done": h.Done,
+			"in_progress": h.InProgress, "next": h.Next, "touched": nonNil(h.Touched),
+		},
+	})
+}
+
+func sameHandoff(existing work.Handoff, node HandoffNode) bool {
+	return existing.Branch == node.Branch && existing.Agent == node.Agent && existing.Goal == node.Goal &&
+		existing.Done == node.Done && existing.InProgress == node.InProgress && existing.Next == node.Next &&
+		sameStrings(existing.Touched, node.Touched)
+}
+
+func sameStrings(a, b []string) bool {
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	return slices.Equal(a, b)
 }
 
 func (p *planner) tasks(node CardNode, card work.Card) {
@@ -412,7 +449,7 @@ func Summarize(ops []work.Op) string {
 		counts[op.Entity]++
 	}
 	var parts []string
-	for _, entity := range []string{work.EntityCard, work.EntityTask, work.EntityQuestion, work.EntityInvariant} {
+	for _, entity := range []string{work.EntityCard, work.EntityTask, work.EntityQuestion, work.EntityInvariant, work.EntityHandoff} {
 		if n := counts[entity]; n > 0 {
 			noun := entity
 			if n > 1 {

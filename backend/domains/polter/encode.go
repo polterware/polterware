@@ -70,7 +70,18 @@ func NodeFromCard(card work.Card) CardNode {
 		}
 		node.Invariants = append(node.Invariants, InvariantNode{Text: inv.Text})
 	}
+	if handoff, ok := card.LatestHandoffAny(); ok {
+		node.Handoff = HandoffNodeFrom(handoff)
+	}
 	return node
+}
+
+// HandoffNodeFrom converts a stored handoff to its AST block.
+func HandoffNodeFrom(handoff work.Handoff) *HandoffNode {
+	return &HandoffNode{
+		Branch: handoff.Branch, Agent: handoff.Agent, Goal: handoff.Goal, Done: handoff.Done,
+		InProgress: handoff.InProgress, Next: handoff.Next, Touched: append([]string(nil), handoff.Touched...),
+	}
 }
 
 func writeCard(b *strings.Builder, card CardNode) {
@@ -86,6 +97,10 @@ func writeCard(b *strings.Builder, card CardNode) {
 		}
 		b.WriteString(strings.Join(parts, " · "))
 		b.WriteString("\n")
+	}
+	if card.Handoff != nil {
+		b.WriteString("\n")
+		writeHandoff(b, card.Handoff)
 	}
 	if card.IntentSet {
 		b.WriteString("\n")
@@ -138,6 +153,26 @@ func writeCard(b *strings.Builder, card CardNode) {
 }
 
 // canonicalMeta keeps the last value per key, in MetaKeys order.
+func writeHandoff(b *strings.Builder, handoff *HandoffNode) {
+	b.WriteString("handoff:\n")
+	fmt.Fprintf(b, "branch: %s\n", handoff.Branch)
+	writeHandoffField(b, "agent", handoff.Agent)
+	writeHandoffField(b, "goal", handoff.Goal)
+	writeHandoffField(b, "done", handoff.Done)
+	writeHandoffField(b, "in_progress", handoff.InProgress)
+	writeHandoffField(b, "next", handoff.Next)
+	if len(handoff.Touched) > 0 {
+		fmt.Fprintf(b, "touched: %s\n", strings.Join(handoff.Touched, ", "))
+	}
+}
+
+func writeHandoffField(b *strings.Builder, key, value string) {
+	if value == "" {
+		return
+	}
+	fmt.Fprintf(b, "%s: %s\n", key, value)
+}
+
 func canonicalMeta(card CardNode) []MetaEntry {
 	var out []MetaEntry
 	for _, key := range MetaKeys {

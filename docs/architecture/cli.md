@@ -16,7 +16,7 @@ A single local Go binary serves the local core (`serve`), the MCP stdio bridge (
 | Build | `pnpm build:cli` → `dist/polterware` |
 | Database | `-db` (default: the Desktop database path) |
 
-Only `serve` opens SQLite. `init`, `scan`, `repo`, `context`, `drift`, `apply`, `lint`, `query`, `hook`, `mcp`, and the TUI call the core over loopback Connect (`backend/platform/coreclient`), starting it when none is running; they do not require the Desktop. `format` is local. Extra checkouts registered with `repo` are read only by `scan`.
+Only `serve` opens SQLite. `init`, `scan`, `repo`, `context`, `drift`, `apply`, `lint`, `query`, `status`, `handoff`, `hook`, `mcp`, and the TUI call the core over loopback Connect (`backend/platform/coreclient`), starting it when none is running; they do not require the Desktop. `format` is local. Git reads for `status` and `handoff` run inside the core, at the project root, with no network. Extra checkouts registered with `repo` are read only by `scan`.
 
 ## Commands
 
@@ -30,8 +30,10 @@ Only `serve` opens SQLite. `init`, `scan`, `repo`, `context`, `drift`, `apply`, 
 | `apply` | Polter text → plan → one audited write to the Work model ([ADR 0006](../adr/0006-polter-format-and-work-model.md)) |
 | `lint` | Validate Polter text; silent on success, one line per error or `hint:`, exit 1 only on errors |
 | `format` | Print the Polter format spec |
-| `query` | Work state in Polter format (`cards`, `card <slug>`) |
-| `hook` | Claude Code hook entry points (`session-start`, `session-end`, `lint`), reading the hook JSON on stdin |
+| `query` | Work state in Polter format (`cards`, `card <slug>`, `status`, `handoff <slug>`) |
+| `status` | Current card, branch, last handoff on that branch, open questions (blocking first), stage. `delivered` only when the card stage is `delivered` and `HEAD` is an ancestor of local `main` or `master` |
+| `handoff` | Write a handoff for the card and current branch (`--card`, `--note`), cross-checked against the local diff |
+| `hook` | Claude Code hook entry points (`session-start`, `session-end`, `lint`, `status`, `stop`), reading the hook JSON on stdin |
 | `serve` | The local core: Connect services, `ChangeService.WatchChanges`, and MCP at `/mcp`, all behind the bearer session token (`--listen`, default `127.0.0.1:0`; `--token`, default `$POLTERWARE_SESSION_TOKEN` or minted; `--idle`, default 10m or `$POLTERWARE_CORE_IDLE`, `0` never exits). Exits 3 when another core holds the database lock |
 | `mcp` | MCP stdio bridge: forwards each JSON-RPC line to the core's `/mcp` and re-initializes transparently when the core restarted |
 
@@ -45,8 +47,10 @@ polterware [-db path] drift --project <id> [--entity ...] [--agent-run-id ...] [
 polterware [-db path] apply <file|-> [--dry-run] [--project <id>] [--summary ...] [--rationale ...] [--agent-run-id ...]
 polterware [-db path] lint <file|dir|-> [--project <id>]
 polterware [-db path] format
-polterware [-db path] query "cards" | "card <slug>" [--project <id>]
-polterware [-db path] hook session-start [--label <name>] | session-end | lint
+polterware [-db path] query "cards" | "card <slug>" | "status" | "handoff <slug>" [--project <id>]
+polterware [-db path] status [--project <id>]
+polterware [-db path] handoff [--card <slug>] [--note "..."] [--project <id>]
+polterware [-db path] hook session-start [--label <name>] | session-end | lint | status | stop
 polterware [-db path] serve [--listen addr] [--token token] [--idle duration]
 polterware [-db path] mcp
 ```
@@ -55,7 +59,9 @@ polterware [-db path] mcp
 - `init --id` optional; otherwise a `proj-<hex8>` id is minted.
 - `--json` prints one JSON object on stdout (same shapes as MCP for `context` / `drift`).
 - Optional `--agent-run-id` on `context` / `drift` appends a step when the run is open (same rules as MCP).
-- `apply`, `lint`, and `query` resolve the project from `--project` or from the registered project whose root contains the current directory. Flags may follow the file argument.
+- `apply`, `lint`, `query`, `status`, and `handoff` resolve the project from `--project` or from the registered project whose root contains the current directory. Flags may follow the file argument.
+- `handoff` without `--card` uses the only active card that already has a handoff on the current branch, otherwise the only active card. `--note` accepts `Goal:`, `Done:`, `In progress:`, `Next:`, `Touched:`, and `Open question:` lines; a note without those labels is in progress. Branch and, when `Touched:` is absent, touched files come from local Git. A declared `Touched:` or `Branch:` that disagrees with Git is a `hint:`, and the write still lands. The change envelope defaults to `Handoff for <slug>` / `Session handoff`.
+- `hook status` prints `status` as Claude Code `additionalContext` and exits 0 if the core is down. `hook stop` reminds the agent to run `handoff` and does not block the session.
 - `apply` without `--agent-run-id` joins the agent session's run when `POLTERWARE_SESSION` is set (one run per project, opened on the first write); otherwise it opens and completes an agent AgentRun labelled `cli` for the write.
 - `hook session-start` appends `POLTERWARE_SESSION` and `POLTERWARE_AGENT_LABEL` (default `claude-code`) to `$CLAUDE_ENV_FILE`; it opens no run. `hook session-end` asks the core to complete the session's runs (`WorkService.EndSession`). `hook lint` lints the written file when it ends in `.pw.md` and exits 2 with errors and hints on stderr.
 

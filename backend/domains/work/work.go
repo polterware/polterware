@@ -97,6 +97,28 @@ type Card struct {
 	Tasks      []Task
 	Questions  []Question
 	Invariants []Invariant
+	// Handoffs is ordered oldest first. The last row for a branch is current.
+	Handoffs []Handoff
+}
+
+// LatestHandoff returns the newest handoff recorded for branch.
+func (c Card) LatestHandoff(branch string) (Handoff, bool) {
+	var found Handoff
+	ok := false
+	for _, handoff := range c.Handoffs {
+		if handoff.Branch == branch {
+			found, ok = handoff, true
+		}
+	}
+	return found, ok
+}
+
+// LatestHandoffAny returns the newest handoff on the card, any branch.
+func (c Card) LatestHandoffAny() (Handoff, bool) {
+	if len(c.Handoffs) == 0 {
+		return Handoff{}, false
+	}
+	return c.Handoffs[len(c.Handoffs)-1], true
 }
 
 type Task struct {
@@ -128,6 +150,22 @@ type Invariant struct {
 	Position int
 }
 
+// Handoff is one session record for a card on a Git branch. Rows are
+// append-only; the latest row for a card and branch is the current one.
+type Handoff struct {
+	ID         string
+	ProjectID  string
+	CardID     string
+	Branch     string
+	Goal       string
+	Done       string
+	InProgress string
+	Next       string
+	Touched    []string
+	Agent      string
+	CreatedAt  time.Time
+}
+
 // Snapshot is the current Work graph of one project.
 type Snapshot struct {
 	ProjectID string
@@ -149,6 +187,7 @@ const (
 	EntityTask      = "task"
 	EntityQuestion  = "question"
 	EntityInvariant = "invariant"
+	EntityHandoff   = "handoff"
 
 	OpCreate = "create"
 	OpUpdate = "update"
