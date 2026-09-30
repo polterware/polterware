@@ -77,6 +77,7 @@ export const SECTION_TABS = {
   atlas: [
     { id: "map", label: "Map" },
     { id: "components", label: "Components" },
+    { id: "relations", label: "Relations" },
   ],
   work: [
     { id: "board", label: "Board" },

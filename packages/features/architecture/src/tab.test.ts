@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 import { ARCHITECTURE_TABS, normalizeArchitectureTab } from "./tab";
 
 describe("normalizeArchitectureTab", () => {
-  it("exposes Map and Components", () => {
-    expect(ARCHITECTURE_TABS.map((tab) => tab.id)).toEqual(["map", "components"]);
+  it("exposes Map, Components and Relations", () => {
+    expect(ARCHITECTURE_TABS.map((tab) => tab.id)).toEqual(["map", "components", "relations"]);
+  });
+
+  it("keeps Relations", () => {
+    expect(normalizeArchitectureTab("relations")).toBe("relations");
   });
 
   it("keeps Components and maps retired tabs to the map", () => {

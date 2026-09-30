@@ -13,6 +13,7 @@ import {
   FilterPopover,
   PageLoading,
   PageToolbar,
+  SearchBar,
   Tabs,
   ToolbarIconButton,
   pushToast,
@@ -35,6 +36,8 @@ import { absorbNestEdit, mergeAtlasSlots, nestChildren, placeNestRow, projectAtl
 import { ATLAS_LEVEL_KEY, ATLAS_PARENT_KEY, childLevel, hierarchyGroups, nestDropIndex, subtreeIds } from "./nest-layout";
 import { AtlasRecordDetail, type AtlasCanvasCard, type AtlasCanvasNode } from "./atlas-canvas";
 import { ComponentsList } from "./components-list";
+import { RelationsList } from "./relations-list";
+import type { RelationDirection } from "./relations-model";
 import { createAutosaveController } from "./persistence/autosave";
 import { shouldApplyExternalLayout } from "./persistence/layout-reload";
 import { getSessionSnapshot, setSessionSnapshot } from "./canvas/session-viewport";
@@ -238,6 +241,9 @@ export function ArchitectureView(props: {
   }
   const [parentOverrides, setParentOverrides] = createSignal<Record<string, string>>({});
   const [edgeFlow, setEdgeFlow] = createSignal(readEdgeFlowPref());
+  const [relationsQuery, setRelationsQuery] = createSignal("");
+  const [relationsDomains, setRelationsDomains] = createSignal<ReadonlySet<string>>(new Set());
+  const [relationsDirection, setRelationsDirection] = createSignal<RelationDirection | null>(null);
 
   function setEdgeFlowPref(next: boolean) {
     setEdgeFlow(next);
@@ -846,6 +852,59 @@ export function ArchitectureView(props: {
                   Retry save
                 </Button>
               </Show>
+              <Show when={tab() === "relations"}>
+                <SearchBar
+                  placeholder="Search relations"
+                  value={relationsQuery()}
+                  onInput={setRelationsQuery}
+                />
+                <FilterPopover
+                  ariaLabel="Filters"
+                  title="Filters"
+                  active={relationsDomains().size > 0 || relationsDirection() !== null}
+                  onClear={() => {
+                    setRelationsDomains(new Set<string>());
+                    setRelationsDirection(null);
+                  }}
+                  groups={[
+                    {
+                      id: "domain",
+                      label: "Domain",
+                      leading: <Layers size={14} aria-hidden />,
+                      options: hierarchyGroups(props.atlasNodes ?? []).map((node) => ({
+                        id: node.id,
+                        label: node.title,
+                        leading: <Boxes size={14} aria-hidden />,
+                        checked: relationsDomains().has(node.id),
+                        onCheckedChange: (checked: boolean) =>
+                          setRelationsDomains((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(node.id);
+                            else next.delete(node.id);
+                            return next;
+                          }),
+                      })),
+                    },
+                    {
+                      id: "direction",
+                      label: "Direction",
+                      leading: <Workflow size={14} aria-hidden />,
+                      options: (
+                        [
+                          ["uses", "Uses"],
+                          ["usedBy", "Used by"],
+                        ] as const
+                      ).map(([id, label]) => ({
+                        id,
+                        label,
+                        leading: <Route size={14} aria-hidden />,
+                        checked: relationsDirection() === id,
+                        onCheckedChange: (checked: boolean) => setRelationsDirection(checked ? id : null),
+                      })),
+                    },
+                  ]}
+                />
+              </Show>
               <Show when={tab() === "map"}>
                 <FilterPopover
                   ariaLabel="Filters"
@@ -909,6 +968,18 @@ export function ArchitectureView(props: {
                 nodes={props.atlasNodes ?? []}
                 selectedId={props.selectedNodeId}
                 onSelect={select}
+              />
+            </Show>
+            <Show when={tab() === "relations"}>
+              <RelationsList
+                nodes={props.atlasNodes ?? []}
+                selectedId={props.selectedNodeId}
+                onSelect={select}
+                filters={{
+                  query: relationsQuery(),
+                  domainIds: relationsDomains(),
+                  direction: relationsDirection(),
+                }}
               />
             </Show>
           </div>

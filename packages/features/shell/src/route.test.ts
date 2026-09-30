@@ -17,7 +17,7 @@ describe("first version routes", () => {
     expect(isNavSectionId("knowledge")).toBe(false);
     expect(isNavSectionId("operations")).toBe(false);
     expect(isNavSectionId("terminal")).toBe(false);
-    expect(SECTION_TABS.atlas?.map((tab) => tab.id)).toEqual(["map", "components"]);
+    expect(SECTION_TABS.atlas?.map((tab) => tab.id)).toEqual(["map", "components", "relations"]);
     expect(SECTION_TABS.work?.map((tab) => tab.id)).toEqual(["board", "specs"]);
     expect(SECTION_TABS.decisions?.map((tab) => tab.id)).toEqual(["active", "challenged", "proposed", "superseded"]);
     expect(SECTION_TABS.reality?.map((tab) => tab.id)).toEqual([

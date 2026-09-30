@@ -1,5 +1,6 @@
 import {
   ListChecks,
+  Route,
   SchemeIcon,
   type TabItem,
 } from "@polterware/frontend-design-system";
@@ -8,6 +9,7 @@ import {
 export const ARCHITECTURE_TABS = [
   { id: "map", label: "Map" },
   { id: "components", label: "Components" },
+  { id: "relations", label: "Relations" },
 ] as const;
 
 export type ArchitectureTabId = (typeof ARCHITECTURE_TABS)[number]["id"];
@@ -34,11 +36,22 @@ export const ARCHITECTURE_TAB_ITEMS: TabItem[] = [
       icon: ListChecks,
     },
   },
+  {
+    id: "relations",
+    label: "Relations",
+    tooltip: {
+      title: "Relations",
+      description:
+        "Each component or domain with a relation, showing what uses it and what it uses.",
+      icon: Route,
+    },
+  },
 ];
 
 const ARCHITECTURE_TAB_MAP = {
   map: true,
   components: true,
+  relations: true,
 } satisfies Record<string, boolean>;
 
 function isArchitectureTabId(value: string): value is ArchitectureTabId {
