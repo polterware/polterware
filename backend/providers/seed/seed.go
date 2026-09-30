@@ -54,16 +54,13 @@ func Defaults(store *storepkg.Store) error {
 }
 
 // Polterware registers the project at root, its sibling checkouts, and the
-// real Polterware content: ADRs, Atlas, Work cards, docs, facts, and the
+// real Polterware content: ADRs, Atlas nodes and uses edges, Work cards, docs, facts, and the
 // evidence a scan finds in the checkout.
 func Polterware(store *storepkg.Store, root string) error {
 	if _, err := wedge.InitProject(store, wedge.InitInput{ID: ProjectID, Name: ProjectName, RootPath: root}); err != nil {
 		return err
 	}
 	if err := seedSettings(store); err != nil {
-		return err
-	}
-	if err := SeedMap(store); err != nil {
 		return err
 	}
 	registered := map[string]bool{}

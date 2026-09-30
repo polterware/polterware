@@ -72,7 +72,7 @@ func (s *Store) ListProjects(includeArchived bool) ([]projects.Project, error) {
 	if !includeArchived {
 		query += ` WHERE status != 'archived'`
 	}
-	query += ` ORDER BY name`
+	query += ` ORDER BY created_at, rowid`
 	rows, err := s.DB.Query(query)
 	if err != nil {
 		return nil, err

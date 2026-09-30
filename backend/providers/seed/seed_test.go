@@ -114,30 +114,36 @@ func TestDefaultsIsIdempotent(t *testing.T) {
 
 func TestPolterwareMapIsSeeded(t *testing.T) {
 	store := newSeeded(t)
-	layout, err := store.GetLayout(seed.ProjectID)
+	rows, err := store.DB.Query(`SELECT path, uses_json FROM atlas_nodes WHERE project_id=?`, seed.ProjectID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var body struct {
-		Nodes []struct{ ID string }       `json:"nodes"`
-		Edges []struct{ From, To string } `json:"edges"`
+	defer rows.Close()
+	uses := map[string][]string{}
+	for rows.Next() {
+		var path, raw string
+		if err := rows.Scan(&path, &raw); err != nil {
+			t.Fatal(err)
+		}
+		var list []string
+		if err := json.Unmarshal([]byte(raw), &list); err != nil {
+			t.Fatalf("uses of %s is not JSON: %v", path, err)
+		}
+		uses[path] = list
 	}
-	if err := json.Unmarshal([]byte(layout.BodyJSON), &body); err != nil {
-		t.Fatalf("layout is not JSON: %v", err)
-	}
-	if len(body.Nodes) < 10 || len(body.Edges) < 10 {
-		t.Fatalf("want a real map, got %d nodes and %d edges", len(body.Nodes), len(body.Edges))
-	}
-	ids := map[string]bool{}
-	for _, node := range body.Nodes {
-		ids[node.ID] = true
-	}
-	for _, edge := range body.Edges {
-		if !ids[edge.From] || !ids[edge.To] {
-			t.Errorf("edge %s -> %s has a missing endpoint", edge.From, edge.To)
+	edges := 0
+	for from, list := range uses {
+		for _, to := range list {
+			edges++
+			if _, ok := uses[to]; !ok {
+				t.Errorf("%s uses %s, which is not an Atlas node", from, to)
+			}
+			if to == from {
+				t.Errorf("%s uses itself", from)
+			}
 		}
 	}
-	if n := count(t, store, `SELECT COUNT(*) FROM architecture_views WHERE project_id=?`, seed.ProjectID); n != 3 {
-		t.Errorf("want 3 saved views, got %d", n)
+	if len(uses) < 30 || edges < 30 {
+		t.Fatalf("want a real map, got %d nodes and %d uses edges", len(uses), edges)
 	}
 }

@@ -227,7 +227,15 @@ export function ArchitectureView(props: {
   const tab = () => normalizeArchitectureTab(props.tab);
   const systemId = () => props.systems?.[0]?.id ?? SYSTEM_ID_DEFAULT;
   const fixtureMode = () => props.fixtureMode ?? "fallback";
-  const [domainFocus, setDomainFocus] = createSignal<string | null>(null);
+  const [domainFocus, setDomainFocus] = createSignal<ReadonlySet<string>>(new Set());
+  function toggleDomain(id: string, on: boolean) {
+    setDomainFocus((current) => {
+      const next = new Set(current);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
   const [parentOverrides, setParentOverrides] = createSignal<Record<string, string>>({});
   const [edgeFlow, setEdgeFlow] = createSignal(readEdgeFlowPref());
 
@@ -429,9 +437,11 @@ export function ArchitectureView(props: {
   const shownIds = createMemo(() => {
     const atlas = props.atlasNodes;
     const focus = domainFocus();
-    if (!atlas || !focus) return null;
+    if (!atlas || focus.size === 0) return null;
     const parentOf = new Map(atlas.map((node) => [node.id, parentOverrides()[node.id] ?? node.parentId]));
-    return subtreeIds(focus, parentOf);
+    const ids = new Set<string>();
+    for (const id of focus) for (const shown of subtreeIds(id, parentOf)) ids.add(shown);
+    return ids;
   });
 
   function reparentNode(id: string, parentId: string, x: number, y: number) {
@@ -776,7 +786,7 @@ export function ArchitectureView(props: {
               document={worldDoc()}
               nested={Boolean(props.atlasNodes)}
               shownIds={shownIds()}
-              focusKey={domainFocus() ?? ""}
+              focusKey={[...domainFocus()].sort().join(",")}
               arrangeRequest={arrangeRequest()}
               onNestReparent={props.atlasNodes ? reparentNode : undefined}
               onNestConnect={props.atlasNodes && props.onConnectNodes
@@ -840,22 +850,20 @@ export function ArchitectureView(props: {
                 <FilterPopover
                   ariaLabel="Filters"
                   title="Filters"
-                  active={domainFocus() !== null}
-                  onClear={() => setDomainFocus(null)}
+                  active={domainFocus().size > 0}
+                  onClear={() => setDomainFocus(new Set())}
                   groups={[
                     ...(props.atlasNodes
                       ? [{
                           id: "domain",
                           label: "Domain",
                           leading: <Layers size={14} aria-hidden />,
-                          selectionMode: "single" as const,
                           options: hierarchyGroups(props.atlasNodes).map((node) => ({
                             id: node.id,
                             label: node.title,
                             leading: <Boxes size={14} aria-hidden />,
-                            checked: domainFocus() === node.id,
-                            onCheckedChange: (checked: boolean) =>
-                              setDomainFocus(checked ? node.id : null),
+                            checked: domainFocus().has(node.id),
+                            onCheckedChange: (checked: boolean) => toggleDomain(node.id, checked),
                           })),
                         }]
                       : []),
@@ -863,6 +871,7 @@ export function ArchitectureView(props: {
                       id: "flow",
                       label: "Flow",
                       leading: <Workflow size={14} aria-hidden />,
+                      inline: true,
                       options: [{
                         id: "edge-flow",
                         label: "Flow",

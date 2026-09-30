@@ -78,10 +78,10 @@
   position: absolute;
   inset: 0;
   box-sizing: border-box;
-  /* Lighter than the cards it holds, so they read as set into it. */
   border: 1px solid transparent;
-  border-radius: var(--radius-surface);
-  /* Halfway between the card surface and its hover step. */
+  /* One step above the surface radius. */
+  border-radius: calc(var(--radius-surface) + 4px);
+  /* Lighter than the cards it holds, so they read as set into it: halfway to the hover step. */
   background: color-mix(in srgb, var(--color-surface-raised), var(--color-surface-hover));
   pointer-events: none;
 }

@@ -14,6 +14,7 @@ import type {
 } from "./filter-options-panel";
 import { MenuItem, MenuList } from "./menu";
 import { Popover } from "./popover";
+import { SwitchRow } from "./switch";
 import "./filter-popover.css";
 
 export type FilterPopoverOption = FilterOptionsPanelOption;
@@ -98,7 +99,7 @@ export function FilterPopover(props: FilterPopoverProps) {
       .filter((group) => group.options.length > 0);
   });
   const activeGroup = createMemo(() =>
-    visibleGroups().find((group) => group.id === activeGroupId()),
+    visibleGroups().find((group) => group.id === activeGroupId() && !group.inline),
   );
 
   const clearTimers = () => {
@@ -234,6 +235,18 @@ export function FilterPopover(props: FilterPopoverProps) {
                     {(group) => {
                       const checkedCount = () =>
                         group.options.filter((option) => option.checked).length;
+                      const inlineOption = group.inline ? group.options[0] : undefined;
+                      if (inlineOption) {
+                        return (
+                          <SwitchRow
+                            checked={Boolean(inlineOption.checked)}
+                            disabled={inlineOption.disabled}
+                            label={group.label}
+                            leading={group.leading}
+                            onCheckedChange={(checked) => inlineOption.onCheckedChange(checked)}
+                          />
+                        );
+                      }
                       return (
                         <MenuItem
                           ref={(element) => groupRefs.set(group.id, element)}

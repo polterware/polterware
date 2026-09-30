@@ -28,21 +28,56 @@ Electron Main, a typed preload bridge, and a Solid renderer over the local core.
 ! The renderer reads and writes only through window.polterware
 
 # polterware/desktop/main: Electron Main
-level: component · under: polterware/desktop · path: apps/desktop/src/main
+level: component · under: polterware/desktop · path: apps/desktop/src/main · uses: polterware/core/server, polterware/contracts/generated
 
 Thin process: window security, IPC, core supervision, updater.
 
 # polterware/desktop/preload: Preload bridge
-level: component · under: polterware/desktop · path: apps/desktop/src/preload
+level: component · under: polterware/desktop · path: apps/desktop/src/preload · uses: polterware/desktop/main, polterware/contracts/generated
 
 The typed window.polterware surface.
 
 # polterware/desktop/renderer: Solid renderer
-level: component · under: polterware/desktop · path: apps/desktop/src/renderer
+level: component · under: polterware/desktop · path: apps/desktop/src/renderer · uses: polterware/desktop/preload, polterware/frontend/features, polterware/frontend/design-system, polterware/contracts/generated
 
 Product surfaces built from the shared design system and feature packages.
 
 ! Use shared design-system controls, never hand-rolled chrome
+
+# polterware/frontend: Shared frontend
+level: domain · under: polterware · path: packages
+
+Feature packages and the shared frontend infrastructure the Desktop renderer is assembled from.
+
+# polterware/frontend/features: Feature packages
+level: component · under: polterware/frontend · path: packages/features · uses: polterware/frontend/design-system, polterware/frontend/state, polterware/frontend/canvas
+
+Shell, Atlas, Work and Decisions, Reality, Integrations, Settings, and Commander, one package each.
+
+# polterware/frontend/design-system: Design system
+level: component · under: polterware/frontend · path: packages/frontend/design-system · uses: polterware/frontend/state
+
+Shared controls, overlays, tables, and the design tokens in DESIGN.md.
+
+# polterware/frontend/canvas: Canvas
+level: component · under: polterware/frontend · path: packages/frontend/canvas
+
+The graph canvas the Atlas map is drawn on.
+
+# polterware/frontend/state: State and platform
+level: component · under: polterware/frontend · path: packages/frontend/state
+
+Reactive state and the platform adapters the renderer reads through.
+
+# polterware/contracts: Contracts
+level: domain · under: polterware · path: schemas
+
+One schema source for the Go server and the TypeScript clients.
+
+# polterware/contracts/generated: Schemas and generated code
+level: component · under: polterware/contracts · path: schemas
+
+Protobuf schemas, generated Go in backend/platform/gen and TypeScript in packages/contracts.
 
 # polterware/core: Local core
 level: domain · under: polterware · decisions: ADR-0007 · path: backend
@@ -51,27 +86,49 @@ The polterware serve process. It owns SQLite and serves Connect RPC and MCP.
 
 ! Only the core opens SQLite
 
+# polterware/core/server: Core server
+level: component · under: polterware/core · decisions: ADR-0007 · path: backend/compositions/local-core · uses: polterware/core/services, polterware/core/store, polterware/core/mcp, polterware/core/events, polterware/core/integrations, polterware/core/inbox, polterware/core/atlas, polterware/agents/runs, polterware/agents/access, polterware/agents/setup, polterware/contracts/generated
+
+The Connect RPC and MCP HTTP server, the process lock, and the build handshake.
+
+! One core per database
+
+# polterware/core/services: Project services
+level: component · under: polterware/core · decisions: ADR-0004 · path: backend/compositions/wedge · uses: polterware/core/work, polterware/core/import, polterware/core/drift, polterware/core/context, polterware/core/decisions, polterware/core/atlas, polterware/core/inbox, polterware/core/git, polterware/core/facts, polterware/core/store, polterware/agents/runs
+
+Composes the domains into project init, scan, Polter apply, and project model sync.
+
 # polterware/core/store: SQLite store
 level: component · under: polterware/core · decisions: ADR-0007 · path: backend/providers/sqlite
 
 One clean baseline schema and the commit hooks that emit change events.
 
 # polterware/core/work: Work model and Polter codec
-level: component · under: polterware/core · decisions: ADR-0006, ADR-0010 · path: backend/domains/polter
+level: component · under: polterware/core · decisions: ADR-0006, ADR-0010 · path: backend/domains/polter · uses: polterware/core/atlas, polterware/core/decisions, polterware/core/context
 
 Work cards, tasks, questions, invariants, decisions, claims, and the Polter grammar.
 
 ! Polter text is never stored as a blob
 
+# polterware/core/facts: Facts and evidence
+level: component · under: polterware/core · decisions: ADR-0004 · path: backend/domains/ppm
+
+Project facts, their evidence, and the truth class each one carries.
+
 # polterware/core/import: Deterministic import
-level: component · under: polterware/core · decisions: ADR-0004, ADR-0005 · path: backend/compositions/wedge
+level: component · under: polterware/core · decisions: ADR-0004, ADR-0005 · path: backend/providers/importer · uses: polterware/core/facts, polterware/core/git
 
 Reads a fixed set of project files and Git metadata into facts and evidence.
 
 ! No network calls during scan
 
+# polterware/core/git: Git evidence
+level: component · under: polterware/core · decisions: ADR-0005 · path: backend/providers/git
+
+HEAD, branch, and recent commits read from the registered checkouts.
+
 # polterware/core/drift: Drift checker
-level: component · under: polterware/core · decisions: ADR-0004 · path: backend/domains/drift
+level: component · under: polterware/core · decisions: ADR-0004 · path: backend/domains/drift · uses: polterware/core/facts
 
 Reports where declared intent and observed code disagree.
 
@@ -84,8 +141,37 @@ Packs the project graph into a budgeted context for an agent session.
 
 ! The compiled context never includes credentials
 
+# polterware/core/atlas: Atlas model
+level: component · under: polterware/core · decisions: ADR-0008, ADR-0009 · path: backend/domains/atlas
+
+System, domain, and component nodes, their uses edges, derived status, and history.
+
+# polterware/core/decisions: Decision lifecycle
+level: component · under: polterware/core · decisions: ADR-0010 · path: backend/domains/decision
+
+ADR states and the supersede chain.
+
+! A challenge is never automatic
+
+# polterware/core/inbox: Inbox derivation
+level: component · under: polterware/core · path: backend/domains/inbox · uses: polterware/core/drift
+
+Decision, Drift, and Verify items derived on every read.
+
+# polterware/core/events: Change events
+level: component · under: polterware/core · path: backend/platform/events
+
+The bus that tells every attached client the store changed.
+
+# polterware/core/integrations: Integration probes
+level: component · under: polterware/core · path: backend/domains/integrations
+
+Detects provider CLIs and probes connection status; credentials stay in the OS or CLI store.
+
+! Never persist provider credentials in SQLite
+
 # polterware/core/mcp: MCP server and bridge
-level: component · under: polterware/core · decisions: ADR-0007 · path: backend/providers/mcp
+level: component · under: polterware/core · decisions: ADR-0007 · path: backend/providers/mcp · uses: polterware/core/services, polterware/core/store, polterware/core/work, polterware/core/context, polterware/core/drift, polterware/core/facts, polterware/agents/runs, polterware/agents/access
 
 Audited MCP reads and writes inside the core; polterware mcp is a stdio bridge.
 
@@ -97,9 +183,14 @@ level: domain · under: polterware · decisions: ADR-0007 · path: backend/runti
 The single polterware binary: commands, status TUI, serve, and mcp.
 
 # polterware/cli/commands: CLI commands
-level: component · under: polterware/cli · path: backend/runtimes/cli
+level: component · under: polterware/cli · path: backend/runtimes/cli · uses: polterware/cli/coreclient, polterware/core/server, polterware/core/mcp, polterware/core/work, polterware/agents/setup
 
 Thin core clients: apply, query, status, handoff, atlas, oracle, decision, feature, export.
+
+# polterware/cli/coreclient: Core client
+level: component · under: polterware/cli · path: backend/platform/coreclient · uses: polterware/contracts/generated
+
+Finds or starts the local core and attaches to it.
 
 # polterware/agents: Agent integration
 level: domain · under: polterware · decisions: ADR-0006 · path: backend/providers/agentsetup
@@ -107,16 +198,21 @@ level: domain · under: polterware · decisions: ADR-0006 · path: backend/provi
 How Claude Code, Codex, and Cursor reach Polterware, and what a session leaves behind.
 
 # polterware/agents/setup: Agent setup
-level: component · under: polterware/agents · path: backend/providers/agentsetup
+level: component · under: polterware/agents · path: backend/providers/agentsetup · uses: polterware/cli/commands, polterware/core/mcp
 
 Embedded Claude Code plugin, per-hook switches, Codex skill and AGENTS.md line, Cursor MCP entry.
 
 ! The core never edits an agent's own files except through its CLI
 
 # polterware/agents/runs: AgentRun audit
-level: component · under: polterware/agents · decisions: ADR-0004 · path: backend/domains/agentrun
+level: component · under: polterware/agents · decisions: ADR-0004 · path: backend/domains/agentrun · uses: polterware/core/context, polterware/core/drift
 
 One audited run per session, with steps, tool calls, and change batches.
+
+# polterware/agents/access: Agent access
+level: component · under: polterware/agents · path: backend/domains/agentaccess
+
+Which agents may read and write a project.
 
 # polterware/web: Website and Web App
 level: domain · under: polterware · decisions: ADR-0003{web}

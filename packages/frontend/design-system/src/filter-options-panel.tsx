@@ -24,6 +24,8 @@ export type FilterOptionsPanelGroup = {
   label: string;
   leading?: JSX.Element;
   selectionMode?: "multiple" | "single";
+  /** One option shown as a switch in the parent list instead of opening a submenu. */
+  inline?: boolean;
   options: readonly FilterOptionsPanelOption[];
   action?: FilterOptionsPanelAction;
 };
