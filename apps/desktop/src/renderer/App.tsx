@@ -174,7 +174,13 @@ export function App() {
     try {
       const shell = await loadWorkspaceShell(projectId, catalog);
       if (loadedProjectId && loadedProjectId !== projectId) return;
-      setWorkspace(shell);
+      // Same project: keep the loaded extensions until the fresh ones land, so the
+      // Atlas map never merges against an empty node list and loses its layout.
+      setWorkspace((current) =>
+        current.extensionsReady && current.settings.projectId === projectId
+          ? { ...shell, ...pickWorkspaceExtensions(current), extensionsReady: true }
+          : shell,
+      );
       if (shouldOpenCreateProject({
         coreAvailable: shell.available,
         projectCount: shell.projects.length,

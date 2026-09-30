@@ -8,9 +8,12 @@ import {
   NEST_CONTENT_X,
   NEST_CONTENT_Y,
   NEST_LEAF_H,
+  NEST_CHILD_GAP,
   NEST_LEAF_W,
   isNestLevel,
   layoutNest,
+  nestRowOrder,
+  nestSlotX,
   type NestLevel,
   type NestSlot,
 } from "./nest-layout";
@@ -23,7 +26,7 @@ export function isAtlasUsesEdge(edge: Pick<Relationship, "metadata">): boolean {
   return edge.metadata?.[ATLAS_USES_KEY] === true;
 }
 // Room between sibling cards so the edges between them read.
-const CHILD_GAP = NEST_LEAF_W + 56;
+const CHILD_GAP = NEST_CHILD_GAP;
 
 function nestState(status: AtlasCanvasNode["status"]): NodeState {
   if (status === "proposed") return "planned";
@@ -74,6 +77,15 @@ export function mergeAtlasSlots(
   const levelOf = new Map(atlas.map((node) => [node.id, node.level]));
   const childIndex = new Map<string, number>();
   let rootIndex = 0;
+  // Rightmost saved child on the first row of each frame.
+  const savedRight = new Map<string, number>();
+  for (const node of atlas) {
+    const saved = previous.get(node.id);
+    const parentId = parentOverrides[node.id] ?? node.parentId ?? "";
+    if (!saved || !parentId || Math.abs(saved.y) >= NEST_LEAF_H) continue;
+    if (!isNestLevel(String(saved.metadata?.[ATLAS_LEVEL_KEY] ?? ""))) continue;
+    savedRight.set(parentId, Math.max(savedRight.get(parentId) ?? Number.NEGATIVE_INFINITY, saved.x));
+  }
   const nodes: ArchNode[] = atlas.map((node) => {
     const parentId = parentOverrides[node.id] ?? node.parentId ?? "";
     const saved = previous.get(node.id);
@@ -83,7 +95,15 @@ export function mergeAtlasSlots(
     const index = node.level === "system" ? 0 : visualRoot ? rootIndex : (childIndex.get(parentId) ?? 0);
     if (visualRoot) rootIndex += 1;
     else if (node.level !== "system") childIndex.set(parentId, index + 1);
-    const slot = slotOf(saved, node.level, parentId, index, index);
+    let slot = slotOf(saved, node.level, parentId, index, index);
+    // A new card in a frame lands after the last saved sibling, never on top of one.
+    if (!saved && !visualRoot && node.level !== "system") {
+      const taken = savedRight.get(parentId);
+      if (taken !== undefined) {
+        slot = { x: taken + CHILD_GAP, y: 0 };
+        savedRight.set(parentId, slot.x);
+      }
+    }
     const typed = nestType(node.level);
     return {
       id: node.id,
@@ -117,7 +137,7 @@ export function mergeAtlasSlots(
 }
 
 function slotsFrom(local: ArchitectureDocument): NestSlot[] {
-  return local.nodes.flatMap((node) => {
+  const slots = local.nodes.flatMap((node): NestSlot[] => {
     const level = String(node.metadata?.[ATLAS_LEVEL_KEY] ?? "");
     if (!isNestLevel(level)) return [];
     return [{
@@ -128,6 +148,18 @@ function slotsFrom(local: ArchitectureDocument): NestSlot[] {
       y: node.y,
     }];
   });
+  // Cards in a domain sit on fixed row slots; their stored x only orders them.
+  const levelOf = new Map(slots.map((slot) => [slot.id, slot.level]));
+  const rows = new Map<string, NestSlot[]>();
+  for (const slot of slots) {
+    if (levelOf.get(slot.parentId) !== "domain") continue;
+    rows.set(slot.parentId, [...(rows.get(slot.parentId) ?? []), slot]);
+  }
+  const slotted = new Map<string, { x: number; y: number }>();
+  for (const row of rows.values()) {
+    nestRowOrder(row).forEach((slot, index) => slotted.set(slot.id, { x: nestSlotX(index), y: 0 }));
+  }
+  return slots.map((slot) => ({ ...slot, ...(slotted.get(slot.id) ?? {}) }));
 }
 
 /** World positions for the canvas. Stored x/y stay local slots. */
@@ -162,6 +194,12 @@ function nearly(a: number, b: number): boolean {
   return Math.abs(a - b) < 0.5;
 }
 
+function contentOrigin(node: ArchNode | undefined): { x: number; y: number } | undefined {
+  const x = Number(node?.metadata?.[NEST_CONTENT_X]);
+  const y = Number(node?.metadata?.[NEST_CONTENT_Y]);
+  return node && Number.isFinite(x) && Number.isFinite(y) ? { x, y } : undefined;
+}
+
 /** Turn a canvas edit in world space back into local slots. */
 export function absorbNestEdit(
   local: ArchitectureDocument,
@@ -175,8 +213,10 @@ export function absorbNestEdit(
     if (!placed) return node;
     const parentId = String(node.metadata?.[ATLAS_PARENT_KEY] ?? "");
     const parent = parentId ? rects.get(parentId) : undefined;
-    const x = parent ? Math.max(0, placed.x - parent.content.x) : placed.x;
-    const y = parent ? Math.max(0, placed.y - parent.content.y) : placed.y;
+    // The world doc's own parent well, so a parent that moved with its cards keeps their offsets.
+    const well = parent ? contentOrigin(worldById.get(parentId)) ?? parent.content : undefined;
+    const x = well ? Math.max(0, placed.x - well.x) : placed.x;
+    const y = well ? Math.max(0, placed.y - well.y) : placed.y;
     if (!nearly(x, node.x) || !nearly(y, node.y)) moved = true;
     if (nearly(x, node.x) && nearly(y, node.y)) return node;
     return { ...node, x, y };
@@ -208,6 +248,32 @@ export function writeNestSlot(
       const metadata = { ...node.metadata };
       if (parentId !== undefined) metadata[ATLAS_PARENT_KEY] = parentId;
       return { ...node, x: slot.x, y: slot.y, metadata };
+    }),
+  };
+}
+
+/** A domain's child cards in row order, without `exclude`. */
+export function nestChildren(local: ArchitectureDocument, parentId: string, exclude?: string): ArchNode[] {
+  return nestRowOrder(
+    local.nodes.filter(
+      (node) => node.id !== exclude && String(node.metadata?.[ATLAS_PARENT_KEY] ?? "") === parentId,
+    ),
+  );
+}
+
+/** Put a domain's cards on its fixed row slots, in `order`. */
+export function placeNestRow(
+  local: ArchitectureDocument,
+  order: readonly string[],
+): ArchitectureDocument {
+  const index = new Map(order.map((id, position) => [id, position]));
+  return {
+    ...local,
+    nodes: local.nodes.map((node) => {
+      const position = index.get(node.id);
+      if (position === undefined) return node;
+      const x = nestSlotX(position);
+      return node.x === x && node.y === 0 ? node : { ...node, x, y: 0 };
     }),
   };
 }

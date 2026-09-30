@@ -3,6 +3,8 @@ import { createDragMotion, createPlacementMotion, prefersReducedMotion } from "@
 
 export function AtlasDropHighlight(props: {
   target: { x: number; y: number; width: number; height: number } | null;
+  /** The slot a card will take, instead of the frame it enters. */
+  slot?: boolean;
 }) {
   let frame: HTMLDivElement | undefined;
   let seen = false;
@@ -34,9 +36,10 @@ export function AtlasDropHighlight(props: {
   return (
     <div
       ref={frame}
-      class="atlas-card-drop-target"
+      class={props.slot ? "atlas-card-drop-slot" : "atlas-card-drop-target"}
       style={{
-        "z-index": "1",
+        // Above the opaque domain frames (4), under the cards (6).
+        "z-index": "5",
         opacity: "0",
         "pointer-events": "none",
       }}
@@ -52,6 +55,8 @@ export function AtlasCardFrame(props: {
   depth: number;
   concealed: boolean;
   dragging: boolean;
+  /** Raise above the map while dragged (cards, not domain frames). */
+  lift: boolean;
   dragOffset: { dx: number; dy: number } | null;
   entering: boolean;
   onEnterEnd?: () => void;
@@ -132,7 +137,9 @@ export function AtlasCardFrame(props: {
         height: `${props.height}px`,
         transform: `translate3d(${props.x}px, ${props.y}px, 0)`,
         // Even layers: domains paint at 4, components at 6, so edges (5) run between them.
-        "z-index": String(props.depth * 2 + 2),
+        // A card in hand rides above everything else on the map. A domain frame keeps
+        // its layer so the edges (5) stay visible over it while it moves.
+        "z-index": props.dragging && props.lift ? "40" : String(props.depth * 2 + 2),
         "pointer-events": props.concealed ? "none" : undefined,
         opacity: props.concealed ? "0" : undefined,
       }}

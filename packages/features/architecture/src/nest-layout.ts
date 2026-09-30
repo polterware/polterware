@@ -3,10 +3,12 @@ import type { Point, Rect } from "@polterware/frontend-canvas";
 /** Header row of a map card. Children sit in the well below it. */
 export const NEST_HEADER = 56;
 /** Label band of a domain frame. The frame is a border, not a card. */
-export const NEST_FRAME_HEADER = 28;
+export const NEST_FRAME_HEADER = 36;
 export const NEST_PAD = 16;
 export const NEST_LEAF_W = 188;
 export const NEST_LEAF_H = 56;
+/** Distance between sibling cards on a row, so the edges between them read. */
+export const NEST_CHILD_GAP = NEST_LEAF_W + 56;
 
 export const ATLAS_LEVEL_KEY = "atlasLevel";
 export const ATLAS_PARENT_KEY = "atlasParent";
@@ -209,7 +211,12 @@ export function decideDrop(input: {
   /** The system id. Without it a card cannot leave its parent. */
   rootParentId?: string;
 }): DropDecision {
-  const hit = hitNestNode(input.nodes, input.cursor, input.skip);
+  let hit = hitNestNode(input.nodes, input.cursor, input.skip);
+  // Cards in a domain hold fixed slots: over a card means over its domain's row.
+  if (hit && hit.level === "component" && input.dragged.level === "component") {
+    const holder = input.nodes.find((node) => node.id === hit?.parentId);
+    hit = holder ?? null;
+  }
   const isDescendant = descendantIds(input.dragged.id, (id) => input.nodes.find((node) => node.id === id)?.parentId ?? "");
   if (
     hit
@@ -294,4 +301,184 @@ export function viewMemberIds(memberIds: readonly string[], parentOf: ReadonlyMa
     }
   }
   return ids;
+}
+
+type RouteSide = "left" | "right" | "top" | "bottom";
+
+const ROUTE_SIDES: readonly RouteSide[] = ["left", "right", "top", "bottom"];
+/** Straight run out of a card before the first bend. */
+const ROUTE_STUB = 16;
+/** Gap between a detour lane and the cards it clears. */
+const ROUTE_LANE_GAP = 20;
+/** Gap between a detour lane and the domain frames it clears. */
+const ROUTE_FRAME_GAP = 36;
+/** Run an edge may make inside an end's own frame before it costs extra. */
+const ROUTE_OWN_FRAME_RUN = 96;
+/** Clearance kept around cards an edge does not belong to. */
+const ROUTE_CLEARANCE = 8;
+
+function routeAnchor(rect: Rect, side: RouteSide, stub = 0): Point {
+  if (side === "left") return { x: rect.x - stub, y: rect.y + rect.height / 2 };
+  if (side === "right") return { x: rect.x + rect.width + stub, y: rect.y + rect.height / 2 };
+  if (side === "top") return { x: rect.x + rect.width / 2, y: rect.y - stub };
+  return { x: rect.x + rect.width / 2, y: rect.y + rect.height + stub };
+}
+
+function segmentHitsRect(p: Point, q: Point, rect: Rect, inflate: number): boolean {
+  return Math.max(p.x, q.x) > rect.x - inflate
+    && Math.min(p.x, q.x) < rect.x + rect.width + inflate
+    && Math.max(p.y, q.y) > rect.y - inflate
+    && Math.min(p.y, q.y) < rect.y + rect.height + inflate;
+}
+
+/** Length of an axis-aligned segment inside a rect. */
+function lengthInside(p: Point, q: Point, rect: Rect): number {
+  const x0 = Math.max(Math.min(p.x, q.x), rect.x);
+  const x1 = Math.min(Math.max(p.x, q.x), rect.x + rect.width);
+  const y0 = Math.max(Math.min(p.y, q.y), rect.y);
+  const y1 = Math.min(Math.max(p.y, q.y), rect.y + rect.height);
+  if (x1 < x0 || y1 < y0) return 0;
+  return (x1 - x0) + (y1 - y0);
+}
+
+function tidyRoute(points: readonly Point[]): Point[] {
+  const out: Point[] = [];
+  for (const point of points) {
+    const last = out[out.length - 1];
+    if (last && last.x === point.x && last.y === point.y) continue;
+    const prev = out[out.length - 2];
+    if (prev && last && ((prev.x === last.x && last.x === point.x) || (prev.y === last.y && last.y === point.y))) {
+      out[out.length - 1] = { ...point };
+      continue;
+    }
+    out.push({ ...point });
+  }
+  return out;
+}
+
+/**
+ * Orthogonal route from `a` to `b` that goes around the other cards instead of
+ * under them. Tries every side pair with direct elbows and detour lanes, then
+ * keeps the cheapest: crossings cost most, then length, then bends. `bounds`
+ * keeps an edge between siblings inside their frame.
+ */
+export function routeAroundCards(
+  a: Rect,
+  b: Rect,
+  obstacles: readonly Rect[],
+  bounds?: Rect,
+  /** Frames a detour lane should clear too (domains, for edges between them). */
+  frames: readonly Rect[] = [],
+  /** Extra distance for this edge's lanes, so parallel detours do not merge into one line. */
+  laneOffset = 0,
+): Point[] {
+  const minX = Math.min(a.x, b.x);
+  const maxX = Math.max(a.x + a.width, b.x + b.width);
+  const minY = Math.min(a.y, b.y);
+  const maxY = Math.max(a.y + a.height, b.y + b.height);
+  const lanes = [...obstacles, ...frames];
+  const acrossX = lanes.filter((rect) => rect.x < maxX && rect.x + rect.width > minX);
+  const acrossY = lanes.filter((rect) => rect.y < maxY && rect.y + rect.height > minY);
+  const gap = (frames.length ? ROUTE_FRAME_GAP : ROUTE_LANE_GAP) + laneOffset;
+  const laneTop = Math.min(minY, ...acrossX.map((rect) => rect.y)) - gap;
+  const laneBottom = Math.max(maxY, ...acrossX.map((rect) => rect.y + rect.height)) + gap;
+  const laneLeft = Math.min(minX, ...acrossY.map((rect) => rect.x)) - gap;
+  const laneRight = Math.max(maxX, ...acrossY.map((rect) => rect.x + rect.width)) + gap;
+
+  const holds = (frame: Rect, card: Rect) =>
+    card.x >= frame.x && card.y >= frame.y
+    && card.x + card.width <= frame.x + frame.width && card.y + card.height <= frame.y + frame.height;
+  // Frames that hold neither end: running through them reads as belonging there.
+  const foreign = frames.filter((frame) => !holds(frame, a) && !holds(frame, b));
+  const own = frames.filter((frame) => holds(frame, a) || holds(frame, b));
+
+  let best: Point[] | null = null;
+  let bestCost = Number.POSITIVE_INFINITY;
+  for (const sourceSide of ROUTE_SIDES) {
+    for (const targetSide of ROUTE_SIDES) {
+      const start = routeAnchor(a, sourceSide);
+      const end = routeAnchor(b, targetSide);
+      const s = routeAnchor(a, sourceSide, ROUTE_STUB);
+      const t = routeAnchor(b, targetSide, ROUTE_STUB);
+      const midX = (s.x + t.x) / 2;
+      const midY = (s.y + t.y) / 2;
+      const middles: Point[][] = [
+        [{ x: t.x, y: s.y }],
+        [{ x: s.x, y: t.y }],
+        [{ x: midX, y: s.y }, { x: midX, y: t.y }],
+        [{ x: s.x, y: midY }, { x: t.x, y: midY }],
+        [{ x: s.x, y: laneTop }, { x: t.x, y: laneTop }],
+        [{ x: s.x, y: laneBottom }, { x: t.x, y: laneBottom }],
+        [{ x: laneLeft, y: s.y }, { x: laneLeft, y: t.y }],
+        [{ x: laneRight, y: s.y }, { x: laneRight, y: t.y }],
+      ];
+      for (const middle of middles) {
+        const route = tidyRoute([start, s, ...middle, t, end]);
+        let cost = 0;
+        let blocked = false;
+        for (let index = 1; index < route.length; index += 1) {
+          const p = route[index - 1]!;
+          const q = route[index]!;
+          // Never run back through either end card.
+          if (segmentHitsRect(p, q, a, -1) || segmentHitsRect(p, q, b, -1)) {
+            blocked = true;
+            break;
+          }
+          for (const rect of obstacles) {
+            if (segmentHitsRect(p, q, rect, ROUTE_CLEARANCE)) cost += 10_000;
+          }
+          for (const rect of foreign) {
+            if (segmentHitsRect(p, q, rect, 0)) cost += 3_000;
+          }
+          // Inside an end's own frame, a short run to leave it is fine; travelling there is not.
+          for (const rect of own) {
+            cost += Math.max(0, lengthInside(p, q, rect) - ROUTE_OWN_FRAME_RUN) * 20;
+          }
+          cost += Math.abs(q.x - p.x) + Math.abs(q.y - p.y);
+        }
+        if (blocked) continue;
+        cost += Math.max(0, route.length - 2) * 24;
+        if (bounds) {
+          for (const point of route) {
+            if (
+              point.x < bounds.x || point.x > bounds.x + bounds.width
+              || point.y < bounds.y || point.y > bounds.y + bounds.height
+            ) {
+              cost += 2_000;
+            }
+          }
+        }
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = route;
+        }
+      }
+    }
+  }
+  return best ?? [routeAnchor(a, "right"), routeAnchor(b, "left")];
+}
+
+/** Left edge of the card in slot `index` of a domain's row. */
+export function nestSlotX(index: number): number {
+  return index * NEST_CHILD_GAP;
+}
+
+/** A domain's cards in row order. Older free positions read top to bottom, then left to right. */
+export function nestRowOrder<T extends { x: number; y: number }>(cards: readonly T[]): T[] {
+  const row = (card: T) => Math.round(card.y / NEST_LEAF_H);
+  return [...cards].sort((a, b) => row(a) - row(b) || a.x - b.x);
+}
+
+/** The slot a card dropped at local `dropX` takes among its siblings (row order, card excluded). */
+export function nestDropIndex(siblings: readonly { x: number }[], dropX: number): number {
+  return siblings.filter((sibling) => sibling.x < dropX).length;
+}
+
+/** Size of a domain frame holding `count` cards on its row (matches `layoutNest`). */
+export function nestRowFrameSize(count: number): { width: number; height: number } {
+  if (count === 0) return { width: NEST_LEAF_W, height: NEST_FRAME_HEADER + NEST_PAD * 2 };
+  return {
+    width: nestSlotX(count - 1) + NEST_LEAF_W + NEST_PAD * 2,
+    height: NEST_FRAME_HEADER + NEST_PAD * 2 + NEST_LEAF_H,
+  };
 }

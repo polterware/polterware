@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
+import { batch, createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
 import type { ArchitectureDocument, CaptureMode, NodeType } from "@polterware/frontend-canvas";
 import {
   createEmptyDocument,
@@ -7,7 +7,7 @@ import {
   serializeDocument,
   updateNode as docUpdateNode,
 } from "@polterware/frontend-canvas";
-import { Boxes, Layers, Plus, Route, Workflow } from "@polterware/frontend-design-system";
+import { Boxes, ChartRelationshipIcon, Layers, Plus, Route, Workflow } from "@polterware/frontend-design-system";
 import {
   Button,
   FilterPopover,
@@ -30,8 +30,9 @@ import { DEFAULT_PROJECT_ENVIRONMENTS, environmentLabel } from "./domain/project
 import { nodeStatusLabel } from "./domain/node-lifecycle";
 import type { ArchitectureNodeView } from "./types";
 import { loadDocumentFromLayoutBody, documentToLayoutBody } from "./document/load";
-import { absorbNestEdit, mergeAtlasSlots, projectAtlasWorld, withAtlasUses, writeNestSlot } from "./atlas-map";
-import { childLevel, hierarchyGroups, subtreeIds } from "./nest-layout";
+import { arrangeAtlas } from "./atlas-auto-layout";
+import { absorbNestEdit, mergeAtlasSlots, nestChildren, placeNestRow, projectAtlasWorld, withAtlasUses, writeNestSlot } from "./atlas-map";
+import { ATLAS_LEVEL_KEY, ATLAS_PARENT_KEY, childLevel, hierarchyGroups, nestDropIndex, subtreeIds } from "./nest-layout";
 import { AtlasRecordDetail, type AtlasCanvasCard, type AtlasCanvasNode } from "./atlas-canvas";
 import { ComponentsList } from "./components-list";
 import { createAutosaveController } from "./persistence/autosave";
@@ -436,15 +437,49 @@ export function ArchitectureView(props: {
   function reparentNode(id: string, parentId: string, x: number, y: number) {
     const previous = untrack(doc);
     const previousOverrides = untrack(parentOverrides);
-    setParentOverrides((current) => ({ ...current, [id]: parentId }));
-    const next = writeNestSlot(previous, id, { x, y }, parentId);
-    setDoc(next);
-    autosave()?.schedule(() => serializeDocument(next), () => revision());
-    void Promise.resolve(props.onReparentNode?.(id, parentId)).catch(() => {
-      setParentOverrides(previousOverrides);
-      setDoc(previous);
-      pushToast("Could not move the card.", "danger");
+    const moved = previous.nodes.find((node) => node.id === id);
+    const fromId = String(moved?.metadata?.[ATLAS_PARENT_KEY] ?? "");
+    const isDomain = (nodeId: string) =>
+      previous.nodes.find((node) => node.id === nodeId)?.metadata?.[ATLAS_LEVEL_KEY] === "domain";
+    let next = writeNestSlot(previous, id, { x, y }, parentId);
+    // Leaving a domain: the cards behind it close the gap, and the domain shrinks.
+    if (isDomain(fromId)) next = placeNestRow(next, nestChildren(next, fromId).map((node) => node.id));
+    // Entering a domain: the card takes the slot under the drop and the siblings make room.
+    if (isDomain(parentId)) {
+      const siblings = nestChildren(next, parentId, id);
+      const order = siblings.map((node) => node.id);
+      order.splice(nestDropIndex(siblings, x), 0, id);
+      next = placeNestRow(next, order);
+    }
+    // Together, so the slot merge never sees the new parent with the old local slot.
+    batch(() => {
+      setDoc(next);
+      setParentOverrides((current) => ({ ...current, [id]: parentId }));
     });
+    // Save the drop point before the workspace refresh can bring back the old layout.
+    const saved = autosave()?.flush(() => documentToLayoutBody(next), () => revision(), { force: true });
+    // A failed layout save still lets the move land; autosave reports its own status.
+    void Promise.resolve(saved?.catch(() => undefined))
+      .then(() => props.onReparentNode?.(id, parentId))
+      .catch(() => {
+        batch(() => {
+          setParentOverrides(previousOverrides);
+          setDoc(previous);
+        });
+        autosave()?.schedule(() => serializeDocument(previous), () => revision());
+        pushToast("Could not move the card.", "danger");
+      });
+  }
+
+  const [arrangeRequest, setArrangeRequest] = createSignal<{ key: number; world: ArchitectureDocument } | null>(null);
+
+  function arrange() {
+    const atlas = props.atlasNodes;
+    if (!atlas) return;
+    const next = arrangeAtlas(untrack(doc), untrack(worldDoc).relationships);
+    const world = withAtlasUses(projectAtlasWorld(next), atlas);
+    setArrangeRequest((current) => ({ key: (current?.key ?? 0) + 1, world }));
+    pushToast("Map arranged. Undo to go back.", "success");
   }
 
   function createNested() {
@@ -742,6 +777,7 @@ export function ArchitectureView(props: {
               nested={Boolean(props.atlasNodes)}
               shownIds={shownIds()}
               focusKey={domainFocus() ?? ""}
+              arrangeRequest={arrangeRequest()}
               onNestReparent={props.atlasNodes ? reparentNode : undefined}
               onNestConnect={props.atlasNodes && props.onConnectNodes
                 ? (sourceId, targetId) => {
@@ -837,6 +873,15 @@ export function ArchitectureView(props: {
                     },
                   ]}
                 />
+                <Show when={props.atlasNodes}>
+                  <ToolbarIconButton
+                    label="Auto layout"
+                    disabled={props.loading || doc().nodes.length === 0}
+                    onClick={() => arrange()}
+                  >
+                    <ChartRelationshipIcon size={14} />
+                  </ToolbarIconButton>
+                </Show>
                 <ToolbarIconButton
                   label="Add component"
                   onClick={() => createNested()}

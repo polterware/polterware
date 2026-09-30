@@ -1,6 +1,7 @@
 import {
   For,
   Show,
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -81,10 +82,17 @@ import {
   NEST_CONTENT_W,
   NEST_CONTENT_X,
   NEST_CONTENT_Y,
-  clampRouteToContent,
   decideDrop,
   descendantIds,
+  NEST_LEAF_H,
+  NEST_LEAF_W,
   isNestLevel,
+  nestDropIndex,
+  nestRowFrameSize,
+  nestRowOrder,
+  nestSlotX,
+  routeAroundCards,
+  type DropDecision,
   type NestHitNode,
   type NestLevel,
 } from "../nest-layout";
@@ -95,7 +103,7 @@ import {
   shouldShowConnectionHandles,
   type HandleSide,
 } from "./connection-handles";
-import { nodeAccentColor } from "./architecture-node-icon";
+import { ArchitectureNodeIcon, nodeAccentColor, resolveNodeIconName } from "./architecture-node-icon";
 import {
   relationshipMarkers,
   resolveRelationshipAppearance,
@@ -194,6 +202,8 @@ export function ArchitectureCanvasHost(props: {
   /** Atlas edges are the model's `uses:`: drawing one writes it, deleting one clears it. */
   onNestConnect?: (sourceId: string, targetId: string) => void;
   onNestDisconnect?: (sourceId: string, targetId: string) => void;
+  /** A new key applies `world` as one undoable edit (Auto layout), then fits the map. */
+  arrangeRequest?: { key: number; world: ArchitectureDocument } | null;
 }) {
   const projectEnvironments = () =>
     props.projectEnvironments && props.projectEnvironments.length > 0
@@ -255,6 +265,94 @@ export function ArchitectureCanvasHost(props: {
   const [nodeDragOffset, setNodeDragOffset] = createSignal<{ dx: number; dy: number } | null>(null);
   const [draggedNodeIds, setDraggedNodeIds] = createSignal<ReadonlySet<string>>(new Set());
   const [dropTargetId, setDropTargetId] = createSignal<string | null>(null);
+  /**
+   * While a card is dragged: where the domain cards slide to (fixed row slots),
+   * the size the domains take, and the slot the dragged card will land in.
+   */
+  const [nestPreview, setNestPreview] = createSignal<{
+    key: string;
+    cards: ReadonlyMap<string, Point>;
+    frames: ReadonlyMap<string, { x: number; y: number; width: number; height: number }>;
+    slot: { x: number; y: number; width: number; height: number } | null;
+  } | null>(null);
+  const activePreview = () => (draggedNodeIds().size ? nestPreview() : null);
+  const previewCard = (id: string) => activePreview()?.cards.get(id);
+  const previewFrame = (id: string) => activePreview()?.frames.get(id);
+
+  function planNestPreview(dragged: NestHitNode, decision: DropDecision, topLeft: Point) {
+    if (dragged.level !== "component") {
+      setNestPreview(null);
+      return;
+    }
+    const nodeOf = (id: string) => props.document.nodes.find((node) => node.id === id);
+    const isDomain = (id: string) => nestLevelOf(nodeOf(id)) === "domain";
+    const rowOf = (domainId: string) =>
+      nestRowOrder(props.document.nodes.filter((node) => node.id !== dragged.id && nestParentId(node) === domainId));
+    const into = decision.kind === "reparent" ? decision.parentId : decision.kind === "move" ? dragged.parentId : null;
+    const cards = new Map<string, Point>();
+    const frames = new Map<string, { x: number; y: number; width: number; height: number }>();
+    const keys: string[] = [];
+    const lay = (domainId: string, order: readonly string[]) => {
+      const domain = nodeOf(domainId);
+      const content = nestContent(domain);
+      if (!domain || !content) return;
+      order.forEach((id, index) => cards.set(id, { x: content.x + nestSlotX(index), y: content.y }));
+      frames.set(domainId, { x: domain.x, y: domain.y, ...nestRowFrameSize(order.length) });
+      keys.push(`${domainId}:${order.join(",")}`);
+    };
+    // The domain it leaves closes the gap.
+    if (isDomain(dragged.parentId) && into !== dragged.parentId) {
+      lay(dragged.parentId, rowOf(dragged.parentId).map((node) => node.id));
+    }
+    let slot: { x: number; y: number; width: number; height: number } | null = null;
+    // The domain it lands in makes room at the slot under the drop.
+    const content = into && isDomain(into) ? nestContent(nodeOf(into)) : null;
+    if (into && content) {
+      const siblings = rowOf(into);
+      const order = siblings.map((node) => node.id);
+      order.splice(
+        nestDropIndex(siblings.map((node) => ({ x: node.x - content.x })), topLeft.x - content.x),
+        0,
+        dragged.id,
+      );
+      lay(into, order);
+      const at = cards.get(dragged.id);
+      cards.delete(dragged.id);
+      if (at) slot = { ...at, width: NEST_LEAF_W, height: NEST_LEAF_H };
+    }
+    const key = keys.join("|");
+    if (!key) {
+      setNestPreview(null);
+      return;
+    }
+    if (untrack(nestPreview)?.key === key) return;
+    setNestPreview({ key, cards, frames, slot });
+  }
+
+  /** Drop inside the card's own domain: it takes its slot and the row keeps fixed places. */
+  function commitNestReorder(id: string): boolean {
+    const plan = nestPreview();
+    if (!plan?.slot) return false;
+    const slot = plan.slot;
+    batch(() => {
+      applyDoc(
+        {
+          ...props.document,
+          nodes: props.document.nodes.map((node) => {
+            if (node.id === id) return { ...node, x: slot.x, y: slot.y };
+            const at = plan.cards.get(node.id);
+            return at ? { ...node, x: at.x, y: at.y } : node;
+          }),
+        },
+        "immediately",
+      );
+      setNodeDragOffset(null);
+      setDraggedNodeIds(new Set<string>());
+      setDropTargetId(null);
+    });
+    nextDragOffset = { dx: 0, dy: 0 };
+    return true;
+  }
   const [enteringNodes, setEnteringNodes] = createSignal<Set<string>>(new Set());
 
   let rootEl: HTMLDivElement | undefined;
@@ -336,16 +434,30 @@ export function ArchitectureCanvasHost(props: {
     return undefined;
   }
 
-  function routeNodes(a: ArchNode, b: ArchNode, manual?: Point[]) {
-    if (props.nested) {
+  function routeNodes(a: ArchNode, b: ArchNode, manual?: Point[], edgeId?: string) {
+    if (props.nested && !manual?.length) {
+      // Go around the other cards so an edge never reads as leaving a card it does not touch.
+      const obstacles = props.document.nodes.flatMap((node) => {
+        if (node.id === a.id || node.id === b.id) return [];
+        if (nestLevelOf(node) !== "component" || concealed(node.id)) return [];
+        const placed = effectiveNode(node);
+        return placed ? [placed] : [];
+      });
       const parentA = nestParentId(a);
-      const parentB = nestParentId(b);
-      if (parentA && parentA === parentB) {
-        const content = nestContent(props.document.nodes.find((node) => node.id === parentA));
-        const automatic = resolveRelationshipRoute(a, b);
-        if (content) return clampRouteToContent(automatic, content);
-        return automatic;
-      }
+      const parent = parentA && parentA === nestParentId(b)
+        ? props.document.nodes.find((node) => node.id === parentA)
+        : undefined;
+      const frame = parent && nestLevelOf(parent) === "domain" ? effectiveNode(parent) : undefined;
+      // Between domains, detours run outside the frames instead of along their borders.
+      const frames = frame
+        ? []
+        : props.document.nodes.flatMap((node) => {
+            if (nestLevelOf(node) !== "domain" || concealed(node.id)) return [];
+            const placed = effectiveNode(node);
+            return placed ? [placed] : [];
+          });
+      const index = edgeId ? props.document.relationships.findIndex((edge) => edge.id === edgeId) : -1;
+      return routeAroundCards(a, b, obstacles, frame, frames, index < 0 ? 0 : (index % 4) * 10);
     }
     return resolveRelationshipRoute(a, b, manual);
   }
@@ -372,19 +484,22 @@ export function ArchitectureCanvasHost(props: {
     for (const [id, origin] of nodeOrigins) {
       positions.set(id, { x: origin.x + off.dx, y: origin.y + off.dy });
     }
-    applyDoc(
-      {
-        ...props.document,
-        nodes: props.document.nodes.map((node) => {
-          const position = positions.get(node.id);
-          return position && !node.locked ? { ...node, x: position.x, y: position.y } : node;
-        }),
-      },
-      "immediately",
-    );
-    setNodeDragOffset(null);
-    setDraggedNodeIds(new Set<string>());
-    setDropTargetId(null);
+    // One update: frames see the new place and the released drag together, so nothing springs back.
+    batch(() => {
+      applyDoc(
+        {
+          ...props.document,
+          nodes: props.document.nodes.map((node) => {
+            const position = positions.get(node.id);
+            return position && !node.locked ? { ...node, x: position.x, y: position.y } : node;
+          }),
+        },
+        "immediately",
+      );
+      setNodeDragOffset(null);
+      setDraggedNodeIds(new Set<string>());
+      setDropTargetId(null);
+    });
     nextDragOffset = { dx: 0, dy: 0 };
   }
 
@@ -901,6 +1016,23 @@ export function ArchitectureCanvasHost(props: {
     props.onViewportChange?.(vp());
   }
 
+  // Auto layout: the cards spring to their new places while the edges, already routed
+  // to the final layout, wait hidden until they land.
+  const [arranging, setArranging] = createSignal(false);
+  let arrangeTimer: ReturnType<typeof setTimeout> | undefined;
+  createEffect(on(() => props.arrangeRequest?.key, (key) => {
+    const request = untrack(() => props.arrangeRequest);
+    if (key === undefined || !request) return;
+    applyDoc(request.world, "immediately");
+    clearTimeout(arrangeTimer);
+    if (!prefersReducedMotion()) {
+      setArranging(true);
+      arrangeTimer = setTimeout(() => setArranging(false), 480);
+    }
+    requestAnimationFrame(() => fitDoc(true));
+  }, { defer: true }));
+  onCleanup(() => clearTimeout(arrangeTimer));
+
   function doUndo() {
     const r = historyUndo(history(), props.document);
     setHistory(r.history);
@@ -1191,6 +1323,9 @@ export function ArchitectureCanvasHost(props: {
       const off = nodeDragOffset();
       if (off) return { ...n, x: n.x + off.dx, y: n.y + off.dy };
     }
+    const card = previewCard(n.id);
+    const frame = previewFrame(n.id);
+    if (card || frame) return { ...n, ...card, ...frame };
     return n;
   };
 
@@ -1346,6 +1481,7 @@ export function ArchitectureCanvasHost(props: {
               }
             }
           }
+          setNestPreview(null);
           setDraggedNodeIds(dragged);
           setDropTargetId(null);
         }
@@ -1483,9 +1619,11 @@ export function ArchitectureCanvasHost(props: {
             rootParentId: nestRootOf(dragged.id),
           });
           // Leaving for the system has no frame to light up.
-          setDropTargetId(
-            decision.kind === "reparent" && decision.parentId !== nestRootOf(dragged.id) ? decision.parentId : null,
-          );
+          const entering = decision.kind === "reparent" && decision.parentId !== nestRootOf(dragged.id)
+            ? decision.parentId
+            : null;
+          planNestPreview(dragged, decision, { x: dragged.x + nextDragOffset.dx, y: dragged.y + nextDragOffset.dy });
+          setDropTargetId(entering);
         }
       } else if (props.nested) {
         setDropTargetId(null);
@@ -1574,14 +1712,20 @@ export function ArchitectureCanvasHost(props: {
             })
           : { kind: "move" as const };
         if (decision.kind === "reject") {
+          setNestPreview(null);
           springDragHome();
           nextDragOffset = { dx: 0, dy: 0 };
         } else if (decision.kind === "reparent") {
-          props.onNestReparent?.( [...nodeOrigins.keys()][0]!, decision.parentId, decision.x, decision.y);
-          setNodeDragOffset(null);
-          setDraggedNodeIds(new Set<string>());
-          setDropTargetId(null);
+          const movedId = [...nodeOrigins.keys()][0]!;
+          batch(() => {
+            props.onNestReparent?.(movedId, decision.parentId, decision.x, decision.y);
+            setNodeDragOffset(null);
+            setDraggedNodeIds(new Set<string>());
+            setDropTargetId(null);
+          });
           nextDragOffset = { dx: 0, dy: 0 };
+        } else if (dragged && commitNestReorder(dragged.id)) {
+          // Settled on its fixed slot.
         } else if (off.dx !== 0 || off.dy !== 0) {
           commitNodeDrag(off);
         } else {
@@ -1856,15 +2000,18 @@ export function ArchitectureCanvasHost(props: {
           <AtlasDropHighlight
             target={(() => {
               const id = dropTargetId();
-              const node = id ? props.document.nodes.find((item) => item.id === id) : undefined;
+              const node = effectiveNode(id ? props.document.nodes.find((item) => item.id === id) : undefined);
               if (!node) return null;
               return { x: node.x, y: node.y, width: node.width, height: node.height };
             })()}
           />
+          <AtlasDropHighlight slot target={activePreview()?.slot ?? null} />
 
           {/* Edges */}
           <svg
             style={{
+              // Auto layout: hidden while the cards settle, then back already routed.
+              visibility: arranging() ? "hidden" : undefined,
               position: "absolute",
               left: 0,
               top: 0,
@@ -1894,7 +2041,7 @@ export function ArchitectureCanvasHost(props: {
                   const A = effectiveNode(a());
                   const B = effectiveNode(b());
                   if (!r || !A || !B) return null;
-                  const pts = routeNodes(A, B, r.manualPoints);
+                  const pts = routeNodes(A, B, r.manualPoints, r.id);
                   return pointsToRoundedSvgPath(pts);
                 });
                 const selected = () => sel().relationshipIds.includes(id);
@@ -2009,7 +2156,7 @@ export function ArchitectureCanvasHost(props: {
                 const A = effectiveNode(a());
                 const B = effectiveNode(b());
                 if (!r || !A || !B) return null;
-                const pts = routeNodes(A, B, r.manualPoints);
+                const pts = routeNodes(A, B, r.manualPoints, r.id);
                 let length = 0;
                 for (let i = 1; i < pts.length; i++) {
                   const curr = pts[i];
@@ -2118,7 +2265,16 @@ export function ArchitectureCanvasHost(props: {
                   data-selected={selected() ? "" : undefined}
                   aria-hidden={concealed(id) ? true : undefined}
                 >
-                  <span class="atlas-domain-frame__label">{n().name}</span>
+                  <span class="atlas-domain-frame__label">
+                    <ArchitectureNodeIcon
+                      name={resolveNodeIconName(n())}
+                      subtype={n().subtype}
+                      provider={n().provider}
+                      compact
+                      dimmed={dim() || concealed(id)}
+                    />
+                    <span class="atlas-domain-frame__title">{n().name}</span>
+                  </span>
                 </div>
               ) : (
                   <ArchitectureNodeCard
@@ -2238,13 +2394,14 @@ export function ArchitectureCanvasHost(props: {
                   }
                 >
                   <AtlasCardFrame
-                    x={n().x}
-                    y={n().y}
-                    width={n().width}
-                    height={n().height}
+                    x={previewCard(id)?.x ?? n().x}
+                    y={previewCard(id)?.y ?? n().y}
+                    width={previewFrame(id)?.width ?? n().width}
+                    height={previewFrame(id)?.height ?? n().height}
                     depth={n().zIndex}
                     concealed={concealed(id)}
                     dragging={draggedNodeIds().has(id)}
+                    lift={nestLevelOf(n()) === "component"}
                     dragOffset={dragOffsetForNode(id) ?? null}
                     entering={enteringNodes().has(id)}
                     onEnterEnd={() => completeNodeEntry(id)}
@@ -2270,7 +2427,7 @@ export function ArchitectureCanvasHost(props: {
                     const A = effectiveNode(a());
                     const B = effectiveNode(b());
                     if (!A || !B) return null;
-                    const pts = routeNodes(A, B, r.manualPoints);
+                    const pts = routeNodes(A, B, r.manualPoints, r.id);
                     const mid = polylineMidpoint(pts);
                     if (!mid) return null;
                     const selected = () => sel().relationshipIds.includes(r.id);
@@ -2443,7 +2600,7 @@ export function ArchitectureCanvasHost(props: {
                   const a = effectiveNode(props.document.nodes.find((n) => n.id === r.sourceNodeId));
                   const b = effectiveNode(props.document.nodes.find((n) => n.id === r.targetNodeId));
                   if (!a || !b) return null;
-                  const pts = routeNodes(a, b, r.manualPoints);
+                  const pts = routeNodes(a, b, r.manualPoints, r.id);
                   const interior = pts.slice(1, -1);
                   return (
                     <For each={interior}>
