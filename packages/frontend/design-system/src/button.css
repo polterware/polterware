@@ -2,6 +2,45 @@
    Ported from main TextureButton; adapted to quiet dark tokens. Always-dark app
    (no .dark gate). No scale bounce (DESIGN.md). */
 
+/*
+ * Press geometry, after fluid-functionalism's Button: every button paints its surface
+ * (fill + rim) on a `::before` that fills the border box, and pressing pulls that layer
+ * 1px in on every side, so the surface shrinks exactly 1px at any width. A scale would
+ * warp (2% of a wide button is several pixels sideways, under 1px vertically). The
+ * press lands on the fast tier; the release eases back slower.
+ */
+.pw-button {
+  position: relative;
+  isolation: isolate;
+}
+
+.pw-button::before {
+  position: absolute;
+  z-index: -1;
+  inset: -1px;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+  transition:
+    inset var(--duration-control) var(--ease-enter),
+    background-color var(--spring-fast-duration, var(--duration-fast)) var(--ease-standard);
+}
+
+.pw-button:active:not(:disabled)::before {
+  inset: 0;
+  transition-duration: var(--spring-fast-duration, var(--duration-fast));
+}
+
+/* Ghost and icon buttons: a flat fill that appears on hover and deepens on press. */
+.pw-button-flat:hover:not(:disabled)::before {
+  background-color: var(--color-surface-hover);
+}
+
+.pw-button-flat:active:not(:disabled)::before {
+  background-color: var(--color-surface-active);
+}
+
 .texture-button-material {
   --texture-button-tone: var(--secondary);
   --texture-button-text: var(--secondary-foreground);
@@ -16,12 +55,15 @@
   --texture-button-edge: rgb(255 255 255 / 0.08);
   --texture-button-hover-highlight: rgb(255 255 255 / 0.16);
   --texture-button-hover-edge: rgb(255 255 255 / 0.12);
+  color: var(--texture-button-text);
+}
+
+.texture-button-material::before {
   background: linear-gradient(
     180deg,
     var(--texture-button-fill-top),
     var(--texture-button-fill-bottom)
   );
-  color: var(--texture-button-text);
   border: 1px solid var(--texture-button-edge);
   border-top-color: var(--texture-button-highlight);
 }
@@ -85,7 +127,7 @@
   --texture-button-hover-edge: color-mix(in oklch, var(--color-brand) 34%, transparent);
 }
 
-.texture-button-material:hover:not(:disabled) {
+.texture-button-material:hover:not(:disabled)::before {
   background: linear-gradient(
     180deg,
     var(--texture-button-hover-fill-top),
@@ -95,7 +137,7 @@
   border-top-color: var(--texture-button-hover-highlight);
 }
 
-.texture-button-material:active:not(:disabled) {
+.texture-button-material:active:not(:disabled)::before {
   background: linear-gradient(
     180deg,
     var(--texture-button-active-fill-top),

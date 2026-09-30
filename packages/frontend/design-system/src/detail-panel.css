@@ -13,8 +13,9 @@
 
 .pw-detail-panel-root {
   --detail-panel-collapsed-height: 68px;
-  --detail-panel-snap-duration: 280ms;
-  --detail-panel-snap-ease: cubic-bezier(0.16, 1.22, 0.3, 1);
+  /* The slow spring tier (0.24s, bounce 0.12), sampled from springs.ts (spring-css.ts). */
+  --detail-panel-snap-duration: var(--spring-slow-duration, var(--duration-enter));
+  --detail-panel-snap-ease: var(--spring-slow-ease, var(--ease-enter));
   --detail-panel-hover-duration: var(--duration-fast);
   --detail-panel-hover-ease: var(--ease-standard);
   --detail-panel-collapse-progress: 0;
@@ -96,8 +97,12 @@
   /* Visible so cast shadow can bleed onto the collection; clip lives on content. */
   overflow: visible;
   pointer-events: none;
+  /*
+   * Resting poses live in CSS (per mode, presence, placement). The travel between them is
+   * a spring in JS (detail-panel.tsx reads the pose and springs an inline transform on
+   * spring.slow), so an interrupted move reverses with its velocity. No CSS transition.
+   */
   transform: translateY(50cqh);
-  transition: transform var(--detail-panel-snap-duration) var(--detail-panel-snap-ease);
 }
 
 /* Promote the layer only while a snap transition is running (see data-settling). */
@@ -824,28 +829,20 @@
 /*
  * Nested DataTables sit on surface-raised section cells. Default table cells
  * paint surface (#0f0f0f), which reads as dark chips. Match overview lists:
- * transparent base, hover/focus paint only.
+ * transparent base; the table's gliding hover highlight paints hover and focus.
  */
 .pw-detail-panel__section .pw-data-table-scroll {
   padding-inline: 0;
 }
 
-.pw-detail-panel__section .pw-data-table-cell,
-.pw-detail-panel__section .pw-data-table-selection-cell {
+.pw-detail-panel__section .pw-data-table-cell::before,
+.pw-detail-panel__section .pw-data-table-selection-cell::before {
   background: transparent;
 }
 
-.pw-detail-panel__section .pw-data-table-row:hover > .pw-data-table-cell,
-.pw-detail-panel__section .pw-data-table-row:hover > .pw-data-table-selection-cell,
-.pw-detail-panel__section .pw-data-table-row:focus-visible > .pw-data-table-cell,
-.pw-detail-panel__section .pw-data-table-row:focus-visible > .pw-data-table-selection-cell {
-  background: var(--color-surface-hover);
-}
-
-.pw-detail-panel__section .pw-data-table-row--active > .pw-data-table-cell,
-.pw-detail-panel__section .pw-data-table-row--active > .pw-data-table-selection-cell,
-.pw-detail-panel__section .pw-data-table-row--selected > .pw-data-table-cell,
-.pw-detail-panel__section .pw-data-table-row--selected > .pw-data-table-selection-cell {
+.pw-detail-panel__section .pw-data-table-active,
+.pw-detail-panel__section .pw-data-table-row--selected > .pw-data-table-cell::before,
+.pw-detail-panel__section .pw-data-table-row--selected > .pw-data-table-selection-cell::before {
   background: var(--color-surface-selected);
 }
 

@@ -2,6 +2,7 @@ import {
   Show,
   createContext,
   createEffect,
+  on,
   createSignal,
   createUniqueId,
   onCleanup,
@@ -12,7 +13,9 @@ import {
   type JSX,
 } from "solid-js";
 import { Portal, isServer } from "solid-js/web";
+import { animate, motionValue } from "motion";
 import { Button, type ButtonProps } from "./button";
+import { spring } from "./springs";
 import {
   ArrowUp,
   CollapseIcon,
@@ -86,7 +89,32 @@ export type DetailPanelActionProps = Omit<
   children: JSX.Element;
 };
 
-const DETAIL_PANEL_SETTLEMENT_SAFETY_MARGIN = 40;
+/** Slack past the slow spring before the fallback settles a run a stalled frame loop never ends. */
+const DETAIL_PANEL_SETTLEMENT_SAFETY_MARGIN = 100;
+
+type PanelPose = { x: number; y: number };
+
+/**
+ * The panel's resting pose for its current data attributes. The poses stay in CSS
+ * (`cqh`/`cqw` geometry per mode, presence, and placement); this reads the computed
+ * transform with the inline (JS-painted) transform lifted for one synchronous style read.
+ */
+export function readDetailPanelPose(panel: HTMLElement): PanelPose {
+  const inline = panel.style.transform;
+  panel.style.transform = "";
+  const transform = window.getComputedStyle(panel).transform;
+  panel.style.transform = inline;
+  return parseTranslate(transform);
+}
+
+/** The translation of a computed `matrix()`/`matrix3d()`; `none` or unknown is the origin. */
+export function parseTranslate(transform: string | null | undefined): PanelPose {
+  const match = /^matrix(3d)?\(([^)]*)\)$/.exec(transform?.trim() ?? "");
+  if (!match) return { x: 0, y: 0 };
+  const values = match[2]!.split(",").map((value) => Number.parseFloat(value));
+  const [x, y] = match[1] ? [values[12], values[13]] : [values[4], values[5]];
+  return { x: Number.isFinite(x) ? x! : 0, y: Number.isFinite(y) ? y! : 0 };
+}
 
 const detailPanelModeRank = {
   collapsed: 0,
@@ -131,6 +159,11 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
   let pendingViewportMode: DetailPanelMode | undefined;
   let activeTransitionMode: DetailPanelMode | undefined;
   let motionQuery: MediaQueryList | undefined;
+  let motionRun = 0;
+  let panelMounted = false;
+  // The panel's travel is a spring in JS (spring.slow), painted as an inline transform.
+  const panelX = motionValue(0);
+  const panelY = motionValue(0);
 
   const mode = () => props.mode;
   const activeEntityId = () => props.activeEntityId ?? null;
@@ -149,21 +182,6 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
     setIsSettling(false);
   }
 
-  function transitionDurationMs() {
-    if (!panelElement || isServer) return 0;
-    return window.getComputedStyle(panelElement).transitionDuration
-      .split(",")
-      .reduce((longest, value) => {
-        const duration = value.trim();
-        const numericDuration = Number.parseFloat(duration);
-        if (!Number.isFinite(numericDuration)) return longest;
-        const milliseconds = duration.endsWith("ms")
-          ? numericDuration
-          : numericDuration * 1000;
-        return Math.max(longest, milliseconds);
-      }, 0);
-  }
-
   function prefersReducedMotion() {
     return reducedMotion();
   }
@@ -178,27 +196,61 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
     clearSettlement();
   }
 
-  function beginSettlement(transitionMode: DetailPanelMode) {
-    clearSettlementTimer();
-    activeTransitionMode = transitionMode;
-    setIsSettling(true);
-    if (isServer) return;
-    settlementTimer = window.setTimeout(
-      () => commitTransition(transitionMode),
-      transitionDurationMs() + DETAIL_PANEL_SETTLEMENT_SAFETY_MARGIN,
-    );
+  function paintPanel() {
+    if (panelElement) {
+      panelElement.style.transform = `translate3d(${panelX.get()}px, ${panelY.get()}px, 0)`;
+    }
   }
 
-  function cancelSettlement() {
-    const cancelledMode = activeTransitionMode;
+  function snapPanel(pose: PanelPose) {
+    panelX.stop();
+    panelY.stop();
+    panelX.set(pose.x);
+    panelY.set(pose.y);
+  }
+
+  /** The spring reached its pose (or the fallback fired): commit the geometry it was sequencing. */
+  function settleRun(run: number) {
+    if (run !== motionRun) return;
+    // Settle once: the spring and the fallback timer may both report.
+    motionRun++;
+    commitTransition(activeTransitionMode ?? mode());
+    if (presence() === "dismissing") props.onDismissComplete?.();
+  }
+
+  /**
+   * Springs the panel to the pose its new attributes resolve to. A new run retargets the
+   * running one from where it is, velocity included (motion values carry it), so an
+   * interrupted collapse reverses instead of restarting. The viewport geometry waits for
+   * the run to settle, exactly as it used to wait for `transitionend`.
+   */
+  function runPanelMotion() {
+    if (!panelElement || isServer) return;
+    const target = readDetailPanelPose(panelElement);
+    const run = ++motionRun;
+    clearSettlementTimer();
+    // Reduced motion commits its geometry in the mode and presence effects; it only snaps here.
     if (prefersReducedMotion()) {
-      pendingViewportMode = undefined;
-      setViewportMode(mode());
-    } else if (pendingViewportMode === cancelledMode) {
-      pendingViewportMode = undefined;
+      snapPanel(target);
+      return;
     }
-    activeTransitionMode = undefined;
-    clearSettlement();
+    activeTransitionMode = mode();
+    // Before the first paint, or with nothing to travel, the pose lands and commits at once.
+    if (!panelMounted || (target.x === panelX.get() && target.y === panelY.get())) {
+      snapPanel(target);
+      settleRun(run);
+      return;
+    }
+    setIsSettling(true);
+    const travel = Promise.all([
+      animate(panelX, target.x, spring.slow).finished,
+      animate(panelY, target.y, spring.slow).finished,
+    ]);
+    void travel.then(() => settleRun(run));
+    settlementTimer = window.setTimeout(
+      () => settleRun(run),
+      spring.slow.duration * 1000 + DETAIL_PANEL_SETTLEMENT_SAFETY_MARGIN,
+    );
   }
 
   function restoreFocus(onRestored?: () => void) {
@@ -336,6 +388,49 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
     });
   });
 
+  // Every change that moves the panel's CSS pose: mode, presence, placement. Declared
+  // after the mode effect, so the viewport sequencing is decided before the run starts.
+  createEffect(
+    on(
+      () => [mode(), presence(), props.placement, prefersReducedMotion()] as const,
+      () => runPanelMotion(),
+    ),
+  );
+
+  onMount(() => {
+    const stopX = panelX.on("change", paintPanel);
+    const stopY = panelY.on("change", paintPanel);
+    // The motion effect already snapped the first pose; springs start after the first paint.
+    paintPanel();
+    const ready = requestAnimationFrame(() => {
+      panelMounted = true;
+    });
+    // A resized container moves the CSS pose (cqh/cqw): snap at rest, retarget mid-run.
+    const resizeObserver =
+      typeof ResizeObserver === "undefined" || !rootElement
+        ? undefined
+        : new ResizeObserver(() => {
+            if (!panelElement) return;
+            const target = readDetailPanelPose(panelElement);
+            if (isSettling() && !prefersReducedMotion()) {
+              animate(panelX, target.x, spring.slow);
+              animate(panelY, target.y, spring.slow);
+            } else {
+              snapPanel(target);
+            }
+          });
+    if (rootElement) resizeObserver?.observe(rootElement);
+    onCleanup(() => {
+      motionRun++;
+      cancelAnimationFrame(ready);
+      resizeObserver?.disconnect();
+      stopX();
+      stopY();
+      panelX.stop();
+      panelY.stop();
+    });
+  });
+
   onMount(() => {
     if (window.matchMedia instanceof Function) {
       motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -388,33 +483,6 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
               panelElement = element;
             }}
             class="pw-detail-panel__panel"
-            onTransitionRun={(event) => {
-              if (
-                event.target === event.currentTarget
-                && event.propertyName === "transform"
-              ) {
-                beginSettlement(mode());
-              }
-            }}
-            onTransitionEnd={(event) => {
-              if (
-                event.target === event.currentTarget
-                && event.propertyName === "transform"
-              ) {
-                commitTransition(activeTransitionMode ?? mode());
-                if (presence() === "dismissing") {
-                  props.onDismissComplete?.();
-                }
-              }
-            }}
-            onTransitionCancel={(event) => {
-              if (
-                event.target === event.currentTarget
-                && event.propertyName === "transform"
-              ) {
-                cancelSettlement();
-              }
-            }}
           >
             <div class="pw-detail-panel__viewport">
               <section

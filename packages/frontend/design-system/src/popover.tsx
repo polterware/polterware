@@ -10,6 +10,7 @@ import { Portal } from "solid-js/web";
  * body so title-bar switchers paint above MainSurface (sibling paint order).
  */
 import { Popover as ArkPopover } from "@ark-ui/solid/popover";
+import { createPopupMotion } from "./popup-motion";
 import "./popover.css";
 
 export type PopoverProps = {
@@ -53,7 +54,8 @@ export type PopoverProps = {
 };
 
 /**
- * Product popover: Ark Popover + Polter tokens + short enter/exit CSS.
+ * Product popover: Ark Popover + Polter tokens + a spring enter / quicker exit
+ * from the anchor side (`createPopupMotion`).
  */
 export function Popover(props: PopoverProps) {
   const resolveAnchor = (): HTMLElement | undefined => {
@@ -110,7 +112,7 @@ export function Popover(props: PopoverProps) {
                   : "top left",
             }}
           >
-            <div
+            <PopoverSurface
               class={[
                 "pw-popover-surface overflow-hidden outline-none surface-panel-float",
                 props.class ?? "",
@@ -131,10 +133,20 @@ export function Popover(props: PopoverProps) {
                 <ArkPopover.Title class="sr-only">{props.title}</ArkPopover.Title>
               </Show>
               {props.children}
-            </div>
+            </PopoverSurface>
           </ArkPopover.Content>
         </ArkPopover.Positioner>
       </Portal>
     </ArkPopover.Root>
+  );
+}
+
+/** The visual surface inside Ark Content; mounts with Content, so motion starts on open. */
+function PopoverSurface(props: { class: string; style: JSX.CSSProperties; children: JSX.Element }) {
+  const motion = createPopupMotion();
+  return (
+    <div ref={motion.ref} class={props.class} style={props.style}>
+      {props.children}
+    </div>
   );
 }

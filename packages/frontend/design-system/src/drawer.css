@@ -1,4 +1,7 @@
-/** Drawer motion on Ark presence. The tokenized scrim fades while the opaque sheet slides. */
+/**
+ * Drawer motion on Ark presence. The tokenized scrim fades while the opaque sheet slides
+ * on the moderate spring tier (spring-css.ts); the exit is the tier's quicker tween.
+ */
 
 @keyframes pw-drawer-backdrop-in {
   from {
@@ -41,13 +44,13 @@
 }
 
 .pw-drawer-backdrop {
-  animation: pw-drawer-backdrop-out var(--duration-control, 160ms)
-    var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+  animation: pw-drawer-backdrop-out var(--spring-moderate-exit-duration, var(--duration-control))
+    var(--ease-standard) forwards;
 }
 
 .pw-drawer-backdrop[data-state="open"] {
-  animation: pw-drawer-backdrop-in var(--duration-enter, 200ms)
-    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+  animation: pw-drawer-backdrop-in var(--spring-moderate-duration, var(--duration-enter))
+    var(--ease-standard) forwards;
 }
 
 .pw-drawer-content {
@@ -61,13 +64,13 @@
   margin-right: var(--pw-drawer-inset);
   transform-origin: right center;
   will-change: transform, opacity;
-  animation: pw-drawer-content-out var(--duration-control, 160ms)
-    var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+  animation: pw-drawer-content-out var(--spring-moderate-exit-duration, var(--duration-control))
+    var(--ease-standard) forwards;
 }
 
 .pw-drawer-content[data-state="open"] {
-  animation: pw-drawer-content-in var(--duration-enter, 200ms)
-    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+  animation: pw-drawer-content-in var(--spring-moderate-duration, var(--duration-enter))
+    var(--spring-moderate-ease, var(--ease-enter)) forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

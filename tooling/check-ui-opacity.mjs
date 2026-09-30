@@ -51,6 +51,12 @@ const PRESENCE_MOTION_PATHS = new Set([
   "packages/frontend/design-system/src/toast.css",
   "packages/features/architecture/src/atlas-tree.css",
 ]);
+// Shared JS motion primitives fade moving highlights and indicators through Motion values.
+const MOTION_VALUE_PATHS = new Set([
+  "packages/frontend/design-system/src/fluid-hover.tsx",
+  "packages/frontend/design-system/src/popup-motion.ts",
+  "packages/frontend/design-system/src/icon-swap.tsx",
+]);
 const OPAQUE_GRID_PATTERN =
   "radial-gradient(circle, var(--color-border-default) 1px, transparent 1px)";
 
@@ -106,7 +112,10 @@ function isAllowed(relativePath, ruleId, match, excerpt) {
     if (declarationPattern?.test(excerpt)) return true;
   }
 
-  if (PRESENCE_MOTION_PATHS.has(relativePath) && ruleId === "element-opacity") {
+  if (
+    (PRESENCE_MOTION_PATHS.has(relativePath) || MOTION_VALUE_PATHS.has(relativePath))
+    && ruleId === "element-opacity"
+  ) {
     return true;
   }
 

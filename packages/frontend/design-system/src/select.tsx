@@ -1,5 +1,5 @@
-import { createSignal, For, Show, type JSX } from "solid-js";
-import { Check, ChevronDown } from "./hugeicons";
+import { createSignal, Index, onCleanup, Show, type JSX } from "solid-js";
+import { ChevronDown } from "./hugeicons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "./dropdown-menu";
 import type { ControlFieldSize } from "./input";
+import { SELECTION_ACK_MS, SelectionCheck } from "./menu-highlight";
 
 function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -16,6 +17,8 @@ function cn(...parts: Array<string | false | null | undefined>) {
 /**
  * Product select — Ark Menu behavior with the shared control-field trigger and
  * menu-panel surface. Use a searchable design-system picker for large datasets.
+ * A pick holds the menu open for `SELECTION_ACK_MS` so the marker glide and the check
+ * drawing in are seen; Escape, outside press, and the trigger close at once.
  */
 export type SelectOption = {
   value: string;
@@ -47,13 +50,32 @@ export function Select(props: SelectProps) {
   const selectedOption = () =>
     props.options.find((option) => option.value === value());
 
+  const [open, setOpen] = createSignal(false);
+  let acknowledgeTimer: ReturnType<typeof setTimeout> | undefined;
+  const clearAcknowledge = () => {
+    if (acknowledgeTimer !== undefined) clearTimeout(acknowledgeTimer);
+    acknowledgeTimer = undefined;
+  };
+  onCleanup(clearAcknowledge);
+
   const select = (nextValue: string) => {
     if (props.value === undefined) setUncontrolledValue(nextValue);
     props.onChange?.(nextValue);
+    clearAcknowledge();
+    acknowledgeTimer = setTimeout(() => {
+      acknowledgeTimer = undefined;
+      setOpen(false);
+    }, SELECTION_ACK_MS);
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      open={open()}
+      onOpenChange={(next) => {
+        clearAcknowledge();
+        setOpen(next);
+      }}
+    >
       <DropdownMenuTrigger
         disabled={props.disabled}
         id={props.id}
@@ -86,30 +108,26 @@ export function Select(props: SelectProps) {
       <DropdownMenuContent
         class="w-[var(--reference-width)] max-w-[calc(100vw-24px)] px-1"
       >
-        <For each={props.options}>
+        <Index each={props.options}>
           {(option) => (
             <>
-              <Show when={option.separatorBefore}>
+              <Show when={option().separatorBefore}>
                 <DropdownMenuSeparator />
               </Show>
               <DropdownMenuItem
-                value={option.value}
-                disabled={option.disabled}
+                value={option().value}
+                disabled={option().disabled}
+                selected={option().value === value()}
+                closeOnSelect={false}
                 class="justify-between"
-                onSelect={() => select(option.value)}
+                onSelect={() => select(option().value)}
               >
-                <span class="min-w-0 truncate">{option.label}</span>
-                <Show when={option.value === value()}>
-                  <Check
-                    size={14}
-                    class="shrink-0 text-[var(--color-text-secondary)]"
-                    aria-hidden
-                  />
-                </Show>
+                <span class="min-w-0 truncate">{option().label}</span>
+                <SelectionCheck checked={option().value === value()} />
               </DropdownMenuItem>
             </>
           )}
-        </For>
+        </Index>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -1,4 +1,9 @@
-/** Compact Ark Menu motion. Zag supplies --transform-origin from placement. */
+/**
+ * Compact Ark Menu presence. The surface's enter/exit is a spring in JS
+ * (popup-motion.ts); Ark unmounts on `animationend`, so the Content runs a no-op
+ * "clock" keyframe that outlasts the exit tween. Zag supplies --transform-origin
+ * from the resolved placement, so the surface grows from its anchor side.
+ */
 
 @keyframes pw-dropdown-presence {
   from {
@@ -14,74 +19,15 @@
   z-index: var(--z-dropdown, 40);
   animation: pw-dropdown-presence var(--duration-fast, 120ms) forwards;
 }
-.pw-dropdown-presence[data-state="open"],
-.pw-dropdown-presence[data-expanded] {
-  animation: pw-dropdown-presence var(--duration-control, 160ms) forwards;
-}
 
 .pw-dropdown-surface {
   transform-origin: var(--transform-origin, top left);
-  transition: transform var(--duration-fast, 120ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
-              opacity var(--duration-fast, 120ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
-  opacity: 0;
-  transform: scale(0.98);
+  will-change: transform;
 }
 
-.pw-dropdown-presence[data-placement^="bottom"] .pw-dropdown-surface { transform: translateY(-4px) scale(0.98); }
-.pw-dropdown-presence[data-placement^="top"] .pw-dropdown-surface { transform: translateY(4px) scale(0.98); }
-.pw-dropdown-presence[data-placement^="right"] .pw-dropdown-surface { transform: translateX(-4px) scale(0.98); }
-.pw-dropdown-presence[data-placement^="left"] .pw-dropdown-surface { transform: translateX(4px) scale(0.98); }
-
-.pw-dropdown-presence[data-state="open"] .pw-dropdown-surface,
-.pw-dropdown-presence[data-expanded] .pw-dropdown-surface {
-  opacity: 1;
-  transform: translateY(0) translateX(0) scale(1);
-  transition-duration: var(--duration-control, 160ms);
-  transition-timing-function: var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1));
-}
-
-@starting-style {
-  .pw-dropdown-presence[data-state="open"] .pw-dropdown-surface,
-  .pw-dropdown-presence[data-expanded] .pw-dropdown-surface {
-    opacity: 0;
-  }
-  .pw-dropdown-presence[data-state="open"][data-placement^="bottom"] .pw-dropdown-surface,
-  .pw-dropdown-presence[data-expanded][data-placement^="bottom"] .pw-dropdown-surface {
-    transform: translateY(-4px) scale(0.98);
-  }
-  .pw-dropdown-presence[data-state="open"][data-placement^="top"] .pw-dropdown-surface,
-  .pw-dropdown-presence[data-expanded][data-placement^="top"] .pw-dropdown-surface {
-    transform: translateY(4px) scale(0.98);
-  }
-  .pw-dropdown-presence[data-state="open"][data-placement^="right"] .pw-dropdown-surface,
-  .pw-dropdown-presence[data-expanded][data-placement^="right"] .pw-dropdown-surface {
-    transform: translateX(-4px) scale(0.98);
-  }
-  .pw-dropdown-presence[data-state="open"][data-placement^="left"] .pw-dropdown-surface,
-  .pw-dropdown-presence[data-expanded][data-placement^="left"] .pw-dropdown-surface {
-    transform: translateX(4px) scale(0.98);
-  }
-}
-
+/* base.css collapses animations under reduced motion; keep the clock so the fade runs. */
 @media (prefers-reduced-motion: reduce) {
   .pw-dropdown-presence {
     animation-duration: var(--duration-fast, 120ms) !important;
-  }
-
-  .pw-dropdown-surface {
-    transition: opacity var(--duration-fast, 120ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
-    transform: none !important;
-  }
-
-  .pw-dropdown-presence[data-state="open"] .pw-dropdown-surface,
-  .pw-dropdown-presence[data-expanded] .pw-dropdown-surface {
-    transition: opacity var(--duration-fast, 120ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
-  }
-
-  @starting-style {
-    .pw-dropdown-presence[data-state="open"] .pw-dropdown-surface,
-    .pw-dropdown-presence[data-expanded] .pw-dropdown-surface {
-      opacity: 0;
-    }
   }
 }

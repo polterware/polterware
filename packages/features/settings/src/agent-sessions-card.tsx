@@ -1,5 +1,5 @@
 import { For, Show } from "solid-js";
-import { StatusChip } from "@polterware/frontend-design-system";
+import { Skeleton, StatusChip } from "@polterware/frontend-design-system";
 import type { AgentSessionsView } from "./agents-types";
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -76,9 +76,17 @@ export function AgentSessionsCard(props: { view: AgentSessionsView | undefined; 
         <Show
           when={(view()?.sessions.length ?? 0) > 0}
           fallback={
-            <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
-              {props.loaded ? "No agent is working on this project now." : "Loading sessions…"}
-            </p>
+            <Show
+              when={props.loaded}
+              fallback={
+                <div class="space-y-2" role="status" aria-label="Loading sessions…">
+                  <Skeleton class="h-12 w-full" />
+                  <Skeleton class="h-12 w-full" />
+                </div>
+              }
+            >
+              <p class="m-0 text-[12px] text-[var(--color-text-muted)]">No agent is working on this project now.</p>
+            </Show>
           }
         >
           <For each={view()?.sessions}>

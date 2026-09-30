@@ -1,4 +1,4 @@
-import { Match, Show, Switch, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { Match, Show, Switch, createEffect, createMemo, createSignal, on, onCleanup, onMount } from "solid-js";
 import {
   Button,
   Boxes,
@@ -378,6 +378,28 @@ export function AgentsPage(props: {
   const [setupLoaded, setSetupLoaded] = createSignal(false);
 
   const running = () => Boolean(mcpStatus()?.running);
+
+  // The page stays mounted across project switches: drop the previous project's
+  // views so the cards show their loading state, then reload history. The setup
+  // and sessions effects below refetch on their own because they read projectId.
+  createEffect(
+    on(
+      () => props.projectId,
+      () => {
+        setSetupView(undefined);
+        setSetupLoaded(false);
+        setSessionsView(undefined);
+        setSessionsLoaded(false);
+        setChanges([]);
+        setSelectedStepId("");
+        setRunDetail(undefined);
+        setCompileResult(undefined);
+        setDriftResult(undefined);
+        void refreshHistory();
+      },
+      { defer: true },
+    ),
+  );
 
   type SetupBridge = {
     getAgentSetup?: (payload: { projectId: string }) => Promise<unknown>;

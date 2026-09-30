@@ -1,18 +1,11 @@
-@keyframes pw-tooltip-in {
+/* No-paint clock: Ark unmounts on animationend, so it outlasts the JS exit tween
+ * (popup-motion.ts), which owns the visible enter/exit. */
+@keyframes pw-tooltip-presence {
   from {
-    transform: scale(0.96);
+    --pw-tooltip-presence-clock: 0;
   }
   to {
-    transform: scale(1);
-  }
-}
-
-@keyframes pw-tooltip-out {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(0.96);
+    --pw-tooltip-presence-clock: 1;
   }
 }
 
@@ -33,14 +26,7 @@
   text-align: center;
   white-space: nowrap;
   transform-origin: var(--transform-origin, center);
-  animation: pw-tooltip-out var(--duration-fast, 120ms)
-    var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
-}
-
-.pw-tooltip-content[data-expanded],
-.pw-tooltip-content[data-state="open"] {
-  animation: pw-tooltip-in var(--duration-control, 160ms)
-    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+  animation: pw-tooltip-presence var(--duration-fast, 120ms) forwards;
 }
 
 .pw-tooltip-content.pw-tooltip-content--rich {
@@ -83,8 +69,9 @@
   color: var(--color-text-muted);
 }
 
+/* base.css collapses animations under reduced motion; keep the clock so the fade runs. */
 @media (prefers-reduced-motion: reduce) {
   .pw-tooltip-content {
-    animation: none !important;
+    animation-duration: var(--duration-fast, 120ms) !important;
   }
 }

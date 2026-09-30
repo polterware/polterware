@@ -2,6 +2,7 @@ import { For, Show, createSignal } from "solid-js";
 import {
   HelpCircle,
   MenuItem,
+  MenuList,
   Popover,
   SquareTerminal,
 } from "@polterware/frontend-design-system";
@@ -45,7 +46,7 @@ export function HelpMenu(props: {
         placement="bottom-end"
         anchorRef={() => triggerRef}
       >
-        <div class="min-h-0 flex-1 overflow-auto p-2">
+        <MenuList class="min-h-0 flex-1 overflow-auto p-2">
           <For each={HELP_TOPICS}>
             {(topic) => {
               const Icon = topic.icon;
@@ -79,7 +80,7 @@ export function HelpMenu(props: {
               </MenuItem>
             )}
           </Show>
-        </div>
+        </MenuList>
       </Popover>
     </>
   );

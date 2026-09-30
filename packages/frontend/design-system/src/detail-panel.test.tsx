@@ -7,24 +7,48 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   DetailPanel,
+  parseTranslate,
   type DetailPanelMode,
   type DetailPanelPresence,
 } from "./detail-panel";
 import { Pencil } from "./hugeicons";
 import { repoPath } from "../test/repo-path";
 
-function dispatchPanelTransition(
-  panel: HTMLElement,
-  type: "transitionrun" | "transitionend" | "transitioncancel",
-) {
-  const event = new Event(type, { bubbles: true });
-  Object.defineProperty(event, "propertyName", { value: "transform" });
-  panel.dispatchEvent(event);
+/**
+ * jsdom does not resolve the CSS poses (cqh geometry), so the panel's computed transform
+ * is stubbed per mode and presence; the JS spring then travels between these poses.
+ */
+function stubPanelPoses(root: HTMLElement, panel: HTMLElement) {
+  const original = window.getComputedStyle.bind(window);
+  const offsets: Record<string, number> = { maximized: 0, open: 200, collapsed: 340 };
+  vi.spyOn(window, "getComputedStyle").mockImplementation((element, pseudo) => {
+    if (element !== panel || panel.style.transform !== "") return original(element, pseudo);
+    const offscreen = root.dataset.mode === "collapsed" && root.dataset.presence !== "visible";
+    const y = offscreen ? 400 : (offsets[root.dataset.mode ?? "open"] ?? 0);
+    return { transform: `matrix(1, 0, 0, 1, 0, ${y})` } as CSSStyleDeclaration;
+  });
+}
+
+/** Springs start after the panel's first painted frame. */
+function nextFrame() {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   document.body.replaceChildren();
+});
+
+describe("parseTranslate", () => {
+  it("reads the translation of 2D and 3D matrices, and the origin otherwise", () => {
+    expect(parseTranslate("matrix(1, 0, 0, 1, 12, 340)")).toEqual({ x: 12, y: 340 });
+    expect(
+      parseTranslate("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -8, 64, 0, 1)"),
+    ).toEqual({ x: -8, y: 64 });
+    expect(parseTranslate("none")).toEqual({ x: 0, y: 0 });
+    expect(parseTranslate("")).toEqual({ x: 0, y: 0 });
+  });
 });
 
 describe("DetailPanel", () => {
@@ -153,13 +177,12 @@ describe("DetailPanel", () => {
       /\.pw-detail-panel__section \.pw-data-table-scroll\s*{[^}]*padding-inline: 0;/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__section \.pw-data-table-cell[\s\S]*?background: transparent;/,
+      /\.pw-detail-panel__section \.pw-data-table-cell::before[\s\S]*?background: transparent;/,
     );
+    // Hover is the table's gliding highlight; rows carry no :hover fill.
+    expect(css).not.toMatch(/\.pw-detail-panel__section \.pw-data-table-row:hover/);
     expect(css).toMatch(
-      /\.pw-detail-panel__section \.pw-data-table-row:hover > \.pw-data-table-cell[\s\S]*?background: var\(--color-surface-hover\);/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__section \.pw-data-table-row--active > \.pw-data-table-cell[\s\S]*?background: var\(--color-surface-selected\);/,
+      /\.pw-detail-panel__section \.pw-data-table-active,[\s\S]*?background: var\(--color-surface-selected\);/,
     );
     // Nested override must not reintroduce page-level surface chips.
     expect(css).not.toMatch(
@@ -193,8 +216,10 @@ describe("DetailPanel", () => {
       /\.pw-detail-panel-root\s*{[^}]*container-type: size;/,
     );
     expect(css).toMatch(
-      /\.pw-detail-panel__panel\s*{[^}]*inset: 0;[^}]*height: 100%;[^}]*transform: translateY\(50cqh\);[^}]*transition: transform/,
+      /\.pw-detail-panel__panel\s*{[^}]*inset: 0;[^}]*height: 100%;[^}]*transform: translateY\(50cqh\);/,
     );
+    // The travel is a JS spring; the poses stay in CSS without a transform transition.
+    expect(css).not.toMatch(/\.pw-detail-panel__panel\s*{[^}]*transition: transform/);
     expect(css).toMatch(
       /\.pw-detail-panel-root\[data-settling="true"\] \.pw-detail-panel__panel\s*{[^}]*will-change: transform;/,
     );
@@ -327,8 +352,9 @@ describe("DetailPanel", () => {
     expect(source).not.toContain("Resizable.Handle");
     expect(source).not.toContain("settleDetailPanelSize");
     expect(source).not.toContain("DETAIL_PANEL_SETTLEMENT_DURATION");
-    expect(source).toContain("getComputedStyle(panelElement).transitionDuration");
-    expect(source).toContain('event.propertyName === "transform"');
+    expect(source).toContain("readDetailPanelPose(panelElement)");
+    expect(source).toContain("animate(panelY, target.y, spring.slow)");
+    expect(source).not.toContain("onTransitionEnd");
     expect(css).not.toContain("row-resize");
     expect(css).not.toContain("pw-detail-panel__resize-handle");
     expect(css).toMatch(
@@ -364,7 +390,7 @@ describe("DetailPanel", () => {
     expect(materials).toContain("--material-fade-edge-top: linear-gradient(to top");
   });
 
-  it("sequences viewport geometry around transform settlement and retargeting", async () => {
+  it("sequences viewport geometry around the panel spring and retargeting", async () => {
     const host = document.createElement("div");
     document.body.append(host);
     const [mode, setMode] = createSignal<DetailPanelMode>("maximized");
@@ -390,50 +416,42 @@ describe("DetailPanel", () => {
     const root = host.querySelector<HTMLElement>(".pw-detail-panel-root")!;
     const panel = host.querySelector<HTMLElement>(".pw-detail-panel__panel")!;
     const body = host.querySelector<HTMLElement>(".pw-detail-panel__body")!;
+    stubPanelPoses(root, panel);
+    await nextFrame();
     expect(root.dataset.viewportMode).toBe("maximized");
 
     setMode("open");
     await vi.waitFor(() => expect(root.dataset.mode).toBe("open"));
     expect(root.dataset.viewportMode).toBe("maximized");
-    expect(body.hidden).toBe(false);
-    dispatchPanelTransition(panel, "transitionrun");
     expect(root.dataset.settling).toBe("true");
-    dispatchPanelTransition(panel, "transitionend");
+    expect(body.hidden).toBe(false);
+    await vi.waitFor(() => expect(root.dataset.settling).toBe("false"));
     expect(root.dataset.viewportMode).toBe("open");
-    expect(root.dataset.settling).toBe("false");
 
     setMode("collapsed");
     await vi.waitFor(() => expect(root.dataset.mode).toBe("collapsed"));
     expect(root.dataset.viewportMode).toBe("open");
     expect(body.hidden).toBe(false);
-    dispatchPanelTransition(panel, "transitionrun");
-    expect(body.hidden).toBe(false);
-    dispatchPanelTransition(panel, "transitionend");
-    expect(root.dataset.viewportMode).toBe("collapsed");
+    await vi.waitFor(() => expect(root.dataset.viewportMode).toBe("collapsed"));
     expect(body.hidden).toBe(true);
 
     setMode("open");
     await vi.waitFor(() => expect(root.dataset.viewportMode).toBe("open"));
     expect(body.hidden).toBe(false);
-    dispatchPanelTransition(panel, "transitionrun");
-    dispatchPanelTransition(panel, "transitionend");
+    await vi.waitFor(() => expect(root.dataset.settling).toBe("false"));
 
     setMode("maximized");
     await vi.waitFor(() => expect(root.dataset.viewportMode).toBe("maximized"));
-    dispatchPanelTransition(panel, "transitionrun");
-    dispatchPanelTransition(panel, "transitionend");
+    await vi.waitFor(() => expect(root.dataset.settling).toBe("false"));
 
+    // Interrupted: a collapse retargeted to open before it lands never commits.
     setMode("collapsed");
-    await vi.waitFor(() => expect(root.dataset.mode).toBe("collapsed"));
-    dispatchPanelTransition(panel, "transitionrun");
+    expect(root.dataset.settling).toBe("true");
     setMode("open");
     await vi.waitFor(() => expect(root.dataset.mode).toBe("open"));
-    dispatchPanelTransition(panel, "transitioncancel");
     expect(root.dataset.viewportMode).toBe("maximized");
+    await vi.waitFor(() => expect(root.dataset.viewportMode).toBe("open"));
     expect(root.dataset.settling).toBe("false");
-    dispatchPanelTransition(panel, "transitionrun");
-    dispatchPanelTransition(panel, "transitionend");
-    expect(root.dataset.viewportMode).toBe("open");
 
     dispose();
     host.remove();
@@ -484,7 +502,7 @@ describe("DetailPanel", () => {
     host.remove();
   });
 
-  it("restores fallback focus before disabling a dismissing detail and completes on transform end", async () => {
+  it("restores fallback focus before disabling a dismissing detail and completes when the spring settles", async () => {
     const host = document.createElement("div");
     document.body.append(host);
     const [mode, setMode] = createSignal<DetailPanelMode>("open");
@@ -520,6 +538,9 @@ describe("DetailPanel", () => {
     const surface = host.querySelector<HTMLElement>(".pw-detail-panel__surface")!;
     const fallback = host.querySelector<HTMLButtonElement>("[data-detail-focus-fallback]")!;
     const panel = host.querySelector<HTMLElement>(".pw-detail-panel__panel")!;
+    const root = host.querySelector<HTMLElement>(".pw-detail-panel-root")!;
+    stubPanelPoses(root, panel);
+    await nextFrame();
 
     setMode("collapsed");
     setPresence("dismissing");
@@ -531,13 +552,11 @@ describe("DetailPanel", () => {
     expect(surface.getAttribute("aria-hidden")).toBe("true");
     expect(onDismissComplete).not.toHaveBeenCalled();
 
-    dispatchPanelTransition(panel, "transitionrun");
-    dispatchPanelTransition(panel, "transitionend");
-    expect(onDismissComplete).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(onDismissComplete).toHaveBeenCalledOnce());
 
     setPresence("visible");
     setMode("open");
-    dispatchPanelTransition(panel, "transitionend");
+    await vi.waitFor(() => expect(root.dataset.settling).toBe("false"));
     expect(onDismissComplete).toHaveBeenCalledOnce();
 
     dispose();
@@ -624,6 +643,9 @@ describe("DetailPanel", () => {
     );
 
     await vi.waitFor(() => expect(host.textContent).toContain("Complete detail"));
+    const panel = host.querySelector<HTMLElement>(".pw-detail-panel__panel")!;
+    stubPanelPoses(host.querySelector<HTMLElement>(".pw-detail-panel-root")!, panel);
+    await nextFrame();
     expect(host.querySelector(".pw-detail-panel__surface")?.classList.contains("surface-panel-float"))
       .toBe(true);
     expect(host.querySelector("[aria-label^='Dock details']")).toBeNull();
@@ -670,10 +692,7 @@ describe("DetailPanel", () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await vi.waitFor(() => expect(mode()).toBe("open"));
     expect(collection?.inert).toBe(true);
-    const panel = host.querySelector<HTMLElement>(".pw-detail-panel__panel")!;
-    dispatchPanelTransition(panel, "transitionrun");
-    dispatchPanelTransition(panel, "transitionend");
-    expect(collection?.inert).toBe(false);
+    await vi.waitFor(() => expect(collection?.inert).toBe(false));
 
     const row = host.querySelector<HTMLButtonElement>("[data-detail-target-id='alpha']")!;
     host.querySelector<HTMLButtonElement>("[aria-label='Collapse details']")!.click();
@@ -733,6 +752,11 @@ describe("DetailPanel", () => {
       host,
     );
 
+    stubPanelPoses(
+      host.querySelector<HTMLElement>(".pw-detail-panel-root")!,
+      host.querySelector<HTMLElement>(".pw-detail-panel__panel")!,
+    );
+    await nextFrame();
     const collapseButton = host.querySelector<HTMLButtonElement>(
       "[aria-label='Collapse details']",
     );
@@ -741,13 +765,9 @@ describe("DetailPanel", () => {
 
     await vi.waitFor(() => expect(mode()).toBe("collapsed"));
     expect(host.textContent).toContain("Persistent detail header");
-    const panel = host.querySelector<HTMLElement>(".pw-detail-panel__panel")!;
     const body = host.querySelector<HTMLElement>(".pw-detail-panel__body")!;
     expect(body.hidden).toBe(false);
-    dispatchPanelTransition(panel, "transitionrun");
-    expect(body.hidden).toBe(false);
-    dispatchPanelTransition(panel, "transitionend");
-    expect(body.hidden).toBe(true);
+    await vi.waitFor(() => expect(body.hidden).toBe(true));
     expect(host.querySelector<HTMLElement>(".pw-detail-panel__surface")?.hidden).toBe(false);
 
     const collapsedTrigger = host.querySelector<HTMLButtonElement>(

@@ -9,12 +9,15 @@ import {
   createMemo,
   createSignal,
   onCleanup,
+  onMount,
   useContext,
   type Accessor,
   type JSX,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { createVirtualizer } from "@tanstack/solid-virtual";
+import { createFluidHover, FluidHoverHighlight, type FluidHover } from "./fluid-hover";
+import { spring } from "./springs";
 import "./table.css";
 
 export type DataTableSortDirection = "ascending" | "descending";
@@ -116,6 +119,9 @@ type DataTableContextValue<T> = {
 
 const DataTableContext = createContext<DataTableContextValue<never>>();
 const DataTableSelectionToolbarHostContext = createContext<Accessor<HTMLElement | undefined>>();
+/** The table's one row highlight; interactive rows join it by their position in the body. */
+const DataTableHoverContext = createContext<FluidHover>();
+const DataTableRowIndexContext = createContext<Accessor<number>>();
 
 function bridgeDataTableContext<From, To>(
   context: DataTableContextValue<From>,
@@ -489,22 +495,66 @@ function DataTableTable(props: {
   "aria-label"?: string;
 }) {
   const context = useDataTable("Table");
+  let scroll: HTMLDivElement | undefined;
+  // A click on the empty background collapses the detail panel, so gaps stay inert.
+  const hover = createFluidHover(() => scroll, { gapClick: false });
+  const entryAt = (index: number | null) =>
+    index === null ? undefined : context.rows()[index];
+  // Over a selected row the highlight takes the selected fill, so hover never hides selection.
+  const hoverClass = () => {
+    const entry = entryAt(hover.activeIndex());
+    return entry && context.selectedRowIds().has(entry.id)
+      ? "pw-data-table-hover pw-data-table-hover--selected"
+      : "pw-data-table-hover";
+  };
+  const activeIndex = () => {
+    const rowId = context.activeEnabled() ? context.activeRowId() : null;
+    if (rowId === null) return null;
+    const index = context.rows().findIndex((entry) => entry.id === rowId);
+    return index < 0 ? null : index;
+  };
+  const activeRect = () => {
+    const index = activeIndex();
+    return index === null ? null : (hover.rects()[index] ?? null);
+  };
+
   return (
-    <div
-      ref={context.setScrollElement}
-      class="pw-data-table-scroll"
-      data-virtualized={context.virtualized() ? "true" : undefined}
-      onClick={(event) => {
-        const target = event.target;
-        if (!(target instanceof Element)) return;
-        if (target.closest("tr")) return;
-        collapseDetailPanelFromCollectionBackground();
-      }}
-    >
-      <table class={`pw-data-table ${props.class ?? ""}`} aria-label={props["aria-label"]}>
-        {props.children}
-      </table>
-    </div>
+    <DataTableHoverContext.Provider value={hover}>
+      <div
+        ref={(element) => {
+          scroll = element;
+          context.setScrollElement(element);
+        }}
+        class="pw-data-table-scroll"
+        data-virtualized={context.virtualized() ? "true" : undefined}
+        onClick={(event) => {
+          const target = event.target;
+          if (!(target instanceof Element)) return;
+          if (target.closest("tr")) return;
+          collapseDetailPanelFromCollectionBackground();
+        }}
+      >
+        <FluidHoverHighlight hover={hover} class={hoverClass()} />
+        {/* The active row's marker travels between rows; a re-sort that moves it snaps. */}
+        <FluidHoverHighlight
+          class="pw-data-table-active"
+          rect={activeRect()}
+          targetKey={context.activeRowId()}
+          transition={spring.moderate}
+        />
+        <table
+          class={`pw-data-table ${props.class ?? ""}`}
+          aria-label={props["aria-label"]}
+          onPointerEnter={hover.handlers.onPointerEnter}
+          onPointerMove={hover.handlers.onPointerMove}
+          onPointerLeave={hover.handlers.onPointerLeave}
+          onFocusIn={hover.handlers.onFocusIn}
+          onFocusOut={hover.handlers.onFocusOut}
+        >
+          {props.children}
+        </table>
+      </div>
+    </DataTableHoverContext.Provider>
   );
 }
 
@@ -593,8 +643,11 @@ function DataTableBody<T = any>(props: {
     const last = virtualItems().at(-1);
     return last ? Math.max(0, virtualizer.getTotalSize() - last.end) : 0;
   };
-  const renderEntry = (entry: IndexedRow<T>, index: number) =>
-    props.children(entry.row, () => index);
+  const renderEntry = (entry: IndexedRow<T>, index: Accessor<number>) => (
+    <DataTableRowIndexContext.Provider value={index}>
+      {props.children(entry.row, index)}
+    </DataTableRowIndexContext.Provider>
+  );
 
   return (
     <tbody class={props.class}>
@@ -603,7 +656,7 @@ function DataTableBody<T = any>(props: {
           when={context.virtualized()}
           fallback={
             <For each={context.rows()}>
-              {(entry, index) => renderEntry(entry, index())}
+              {(entry, index) => renderEntry(entry, index)}
             </For>
           }
         >
@@ -617,7 +670,7 @@ function DataTableBody<T = any>(props: {
               const entry = () => context.rows()[virtualRow.index];
               return (
                 <Show when={entry()}>
-                  {(current) => renderEntry(current(), virtualRow.index)}
+                  {(current) => renderEntry(current(), () => virtualRow.index)}
                 </Show>
               );
             }}
@@ -674,9 +727,22 @@ function DataTableRow<T = any>(props: {
     if (context.activeEnabled()) context.activateRow(rowId());
     props.onActivate?.(props.row);
   };
+  // Only rows a click can land on join the highlight.
+  const hover = useContext(DataTableHoverContext);
+  const bodyIndex = useContext(DataTableRowIndexContext);
+  let rowElement: HTMLTableRowElement | undefined;
+  onMount(() => {
+    const element = rowElement;
+    if (!hover || !bodyIndex || !element) return;
+    createEffect(() => {
+      if (!interactive()) return;
+      onCleanup(hover.registerItem(bodyIndex(), element));
+    });
+  });
 
   return (
     <tr
+      ref={rowElement}
       class={`pw-data-table-row ${props.class ?? ""}`}
       classList={{
         "pw-data-table-row--interactive": interactive(),

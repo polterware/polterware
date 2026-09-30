@@ -11,6 +11,7 @@ import {
   type JSX,
 } from "solid-js";
 import { Portal } from "solid-js/web";
+import { createPopupMotion } from "./popup-motion";
 import "./tooltip.css";
 
 const DEFAULT_TOOLTIP_OPEN_DELAY = 400;
@@ -154,10 +155,13 @@ function TooltipTrigger(props: TooltipTriggerProps) {
 }
 
 function TooltipContent(props: TooltipContentProps) {
+  // Fast-tier spring in with a 4px slide from the trigger side; quicker tween out.
+  const motion = createPopupMotion();
   return (
     <Portal>
       <ArkTooltip.Positioner class="pw-tooltip-positioner">
         <ArkTooltip.Content
+          ref={motion.ref}
           class={`pw-tooltip-content menu-panel ${props.class ?? ""}`}
         >
           {props.children}

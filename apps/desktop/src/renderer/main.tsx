@@ -5,6 +5,8 @@ import { CommanderApp } from "./CommanderApp";
 import { attachDesktopDropGuards } from "./desktop-drop-guards.js";
 import { hideBootSplash } from "./boot-splash.js";
 import { applyShellChromeFromBootQuery } from "./shell-chrome-boot.js";
+// Inter with wght + opsz axes: weight changes without reflow (--font-variation-*).
+import "@fontsource-variable/inter/opsz.css";
 import "./styles.css";
 
 attachDesktopDropGuards();

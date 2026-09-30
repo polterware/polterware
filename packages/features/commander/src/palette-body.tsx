@@ -1,5 +1,23 @@
-import { createSignal, For, Show, type Accessor, type JSX } from "solid-js";
-import { Search } from "@polterware/frontend-design-system";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  createUniqueId,
+  Index,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+  type Accessor,
+  type JSX,
+} from "solid-js";
+import {
+  centerItemInView,
+  createFluidHover,
+  FluidHoverHighlight,
+  Search,
+  type FluidHover,
+} from "@polterware/frontend-design-system";
 import {
   capabilityEnabled,
   type PlatformContext,
@@ -59,13 +77,19 @@ export function usePaletteFilter(
   return { q, setQ, filtered, groups };
 }
 
+/** Returns true when it handled the key (the caller prevents the default). */
+type ResultsKeyHandler = (event: KeyboardEvent) => boolean;
+
 /** Shared search + results list for in-app palette and global Commander window. */
 export function PaletteBody(props: PaletteBodyProps) {
   const items = () =>
     (props.items ?? DEFAULT_PALETTE_ITEMS).filter((item) =>
       capabilityEnabled(props.platform, item.requiredCapability),
     );
-  const { q, setQ, filtered, groups } = usePaletteFilter(items, props.onQueryChange);
+  const { q, setQ, groups } = usePaletteFilter(items, props.onQueryChange);
+  const listId = createUniqueId();
+  const [activeRowId, setActiveRowId] = createSignal<string>();
+  let handleResultsKey: ResultsKeyHandler | undefined;
 
   function select(id: string) {
     props.onCommand?.(id);
@@ -90,6 +114,11 @@ export function PaletteBody(props: PaletteBodyProps) {
           placeholder="Search projects, resources, commands…"
           value={q()}
           onInput={(e) => setQ(e.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (handleResultsKey?.(event)) event.preventDefault();
+          }}
+          aria-controls={props.hideResults ? undefined : listId}
+          aria-activedescendant={props.hideResults ? undefined : activeRowId()}
           autofocus
           autocomplete="off"
           spellcheck={false}
@@ -102,54 +131,212 @@ export function PaletteBody(props: PaletteBodyProps) {
       </div>
       {props.belowSearch}
       <Show when={!props.hideResults}>
-        <div class="commander-results-scroll min-h-0 flex-1 overflow-y-auto pt-3 pb-1">
-          {props.scrollLeading}
-          <For each={groups()}>
-            {([group, list]) => (
-              <div class="mb-4 last:mb-0">
-                <p class="m-0 px-2 py-1 text-[10px] font-medium tracking-wide text-[var(--color-text-disabled)] uppercase">
-                  {group}
-                </p>
-                <For each={list}>
-                  {(c) => {
-                    const hint = c.shortcutId ? formatShortcut(c.shortcutId) : "";
-                    return (
-                      <button
-                        type="button"
-                        class="flex w-full items-center justify-between rounded-[var(--radius-item)] px-2 py-2 text-left text-[13px] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          select(c.id);
-                        }}
-                      >
-                        <span>{c.label}</span>
-                        {hint ? (
-                          <span class="text-[11px] text-[var(--color-text-disabled)]">{hint}</span>
-                        ) : null}
-                      </button>
-                    );
-                  }}
-                </For>
-              </div>
-            )}
-          </For>
-          <Show when={filtered().length === 0}>
-            <p class="px-2 py-4 text-center text-[12px] text-[var(--color-text-muted)]">No matches</p>
-          </Show>
-          <Show when={q().trim().length > 0}>
-            <button
-              type="button"
-              class="mt-2 w-full rounded-[var(--radius-item)] px-2 py-2 text-left text-[12px] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                select(`action.search-all:${q()}`);
-              }}
-            >
-              Show all results for “{q()}”
-            </button>
-          </Show>
-        </div>
+        <PaletteResults
+          listId={listId}
+          query={q()}
+          groups={groups()}
+          leading={props.scrollLeading}
+          onSelect={select}
+          onActiveRowId={setActiveRowId}
+          bindKeys={(handler) => {
+            handleResultsKey = handler;
+            onCleanup(() => {
+              if (handleResultsKey === handler) handleResultsKey = undefined;
+              setActiveRowId(undefined);
+            });
+          }}
+        />
       </Show>
     </div>
+  );
+}
+
+/**
+ * The results list, after fluid-functionalism's CommandMenu: the search field keeps DOM
+ * focus and points at the lit row through `aria-activedescendant`. The highlight is the
+ * fluid hover fill and nothing else; the pointer moves it, ↑/↓ move it (wrapping), and
+ * Enter runs what it sits on. A new row set re-lights the first row, so Enter always has
+ * a target, and the pointer leaving keeps the highlight where it was.
+ */
+function PaletteResults(props: {
+  listId: string;
+  query: string;
+  groups: [string, PaletteItem[]][];
+  leading?: JSX.Element;
+  onSelect: (id: string) => void;
+  onActiveRowId: (id: string | undefined) => void;
+  bindKeys: (handler: ResultsKeyHandler) => void;
+}) {
+  let scroller: HTMLDivElement | undefined;
+  const hover = createFluidHover(() => scroller, {
+    keepOnLeave: true,
+    // Group headings sit between rows; a click there only runs a row it nearly touches.
+    gapClick: { maxDistance: 8 },
+  });
+  const commands = createMemo(() => props.groups.flatMap(([, list]) => list));
+  const groupOffsets = createMemo(() => {
+    let offset = 0;
+    return props.groups.map(([, list]) => {
+      const start = offset;
+      offset += list.length;
+      return start;
+    });
+  });
+  const showSearchAll = () => props.query.trim().length > 0;
+  const rowCount = () => commands().length + (showSearchAll() ? 1 : 0);
+  const rowElementId = (index: number) => `${props.listId}-row-${index}`;
+
+  const runRow = (index: number) => {
+    const command = commands()[index];
+    if (command) props.onSelect(command.id);
+    else if (index === commands().length && showSearchAll()) {
+      props.onSelect(`action.search-all:${props.query}`);
+    }
+  };
+
+  const moveTo = (index: number) => {
+    hover.releasePointer();
+    hover.setActiveIndex(index);
+    const rect = hover.rects()[index];
+    if (scroller && rect) centerItemInView(scroller, rect, { toTop: index === 0 });
+  };
+
+  // A changed row set re-lights the first row and returns to the top.
+  const rowSetKey = createMemo(() =>
+    [...commands().map((command) => command.id), showSearchAll() ? "\0search-all" : ""].join("\0"),
+  );
+  createEffect(
+    on(rowSetKey, () => {
+      hover.setActiveIndex(rowCount() > 0 ? 0 : null);
+      if (scroller) scroller.scrollTop = 0;
+    }),
+  );
+
+  createEffect(() => {
+    const index = hover.activeIndex();
+    props.onActiveRowId(index === null ? undefined : rowElementId(index));
+  });
+
+  onMount(() => {
+    props.bindKeys((event) => {
+      // IME composition and modified arrows keep their editing meaning.
+      if (event.isComposing || event.keyCode === 229) return false;
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return false;
+      const count = rowCount();
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        if (count === 0) return false;
+        const current = hover.activeIndex();
+        const step = event.key === "ArrowDown" ? 1 : -1;
+        moveTo(current === null ? (step > 0 ? 0 : count - 1) : (current + step + count) % count);
+        return true;
+      }
+      if (event.key === "Enter") {
+        const current = hover.activeIndex();
+        if (current === null) return false;
+        runRow(current);
+        return true;
+      }
+      return false;
+    });
+  });
+
+  const rowClass =
+    "relative flex w-full items-center justify-between rounded-[var(--radius-item)] px-2 py-2 text-left text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-fast)] data-[fluid-hover-active]:text-[var(--color-text-primary)]";
+
+  return (
+    <div
+      ref={scroller}
+      class="commander-results-scroll relative min-h-0 flex-1 overflow-y-auto pt-3 pb-1"
+      {...hover.handlers}
+    >
+      <FluidHoverHighlight hover={hover} class="commander-result-highlight" />
+      {props.leading}
+      {/* Mousedown anywhere in the list keeps focus in the search field. */}
+      <div id={props.listId} role="listbox" aria-label="Commands" onMouseDown={(event) => event.preventDefault()}>
+        <Index each={props.groups}>
+          {(group, groupIndex) => {
+            const headingId = `${props.listId}-group-${groupIndex}`;
+            return (
+              <div class="mb-4 last:mb-0" role="group" aria-labelledby={headingId}>
+                <p
+                  id={headingId}
+                  class="relative m-0 px-2 py-1 text-[10px] font-medium tracking-wide text-[var(--color-text-disabled)] uppercase"
+                >
+                  {group()[0]}
+                </p>
+                <Index each={group()[1]}>
+                  {(command, index) => {
+                    const rowIndex = () => (groupOffsets()[groupIndex] ?? 0) + index;
+                    const hint = () =>
+                      command().shortcutId ? formatShortcut(command().shortcutId!) : "";
+                    return (
+                      <PaletteRow
+                        hover={hover}
+                        index={rowIndex()}
+                        id={rowElementId(rowIndex())}
+                        class={`${rowClass} text-[13px]`}
+                        onRun={() => runRow(rowIndex())}
+                      >
+                        <span>{command().label}</span>
+                        <Show when={hint()}>
+                          <span class="text-[11px] text-[var(--color-text-disabled)]">{hint()}</span>
+                        </Show>
+                      </PaletteRow>
+                    );
+                  }}
+                </Index>
+              </div>
+            );
+          }}
+        </Index>
+        <Show when={commands().length === 0}>
+          <p role="presentation" class="px-2 py-4 text-center text-[12px] text-[var(--color-text-muted)]">
+            No matches
+          </p>
+        </Show>
+        <Show when={showSearchAll()}>
+          <PaletteRow
+            hover={hover}
+            index={commands().length}
+            id={rowElementId(commands().length)}
+            class={`${rowClass} mt-2 text-[12px]`}
+            onRun={() => runRow(commands().length)}
+          >
+            Show all results for “{props.query}”
+          </PaletteRow>
+        </Show>
+      </div>
+    </div>
+  );
+}
+
+function PaletteRow(props: {
+  hover: FluidHover;
+  index: number;
+  id: string;
+  class: string;
+  onRun: () => void;
+  children: JSX.Element;
+}) {
+  let element: HTMLButtonElement | undefined;
+  onMount(() => {
+    const row = element;
+    if (!row) return;
+    // Re-joins at its new position when filtering moves it.
+    createEffect(() => onCleanup(props.hover.registerItem(props.index, row)));
+  });
+  return (
+    <button
+      ref={element}
+      type="button"
+      role="option"
+      tabIndex={-1}
+      id={props.id}
+      aria-selected={props.hover.activeIndex() === props.index}
+      class={props.class}
+      onClick={() => props.onRun()}
+    >
+      {props.children}
+    </button>
   );
 }

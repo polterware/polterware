@@ -52,7 +52,8 @@
   color: var(--color-text-primary);
   font-family: inherit;
   font-size: 12.5px;
-  font-weight: 550;
+  /* Same axes as the active tab label (wght 550, opsz 18). */
+  font-variation-settings: var(--font-variation-semibold);
   letter-spacing: -0.01em;
   line-height: 1.2;
   white-space: nowrap;
@@ -65,8 +66,11 @@
   gap: 8px;
 }
 
-/* Standalone tablist (inside PageToolbar or alone) */
+/* Standalone tablist (inside PageToolbar or alone). Positioned: it is the coordinate
+ * space of the gliding pills (tabs.tsx, fluid-hover.tsx). */
 .pw-tabs {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -105,27 +109,63 @@
   padding: 5px 14px;
   margin: 0;
   border-radius: 999px;
-  border: 1px solid var(--edge-light-field-rim);
-  border-top-color: var(--edge-light-field-highlight);
-  background: var(--color-surface-subtle);
+  /* Transparent rim keeps the tab the same size as the active pill that sits behind it. */
+  border: 1px solid transparent;
+  background: transparent;
   color: var(--color-text-muted);
   font-family: inherit;
   font-size: 12.5px;
-  font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
-  transition:
-    color var(--duration-fast, 120ms) var(--ease-standard, ease),
-    background-color var(--duration-fast, 120ms) var(--ease-standard, ease),
-    border-color var(--duration-fast, 120ms) var(--ease-standard, ease);
+  transition: color var(--duration-fast, 120ms) var(--ease-standard, ease);
 }
 
+/* Tabs sit above the pills. */
 .pw-tab-item {
   position: relative;
+  z-index: 1;
   display: inline-flex;
   flex-shrink: 0;
+}
+
+/* The one active pill: glides between tabs on spring.moderate. */
+.pw-fluid-hover-highlight.pw-tab-indicator {
+  border: 1px solid var(--edge-light-surface-rim);
+  border-top-color: var(--edge-light-surface-highlight);
+  border-radius: 999px;
+  background: var(--color-surface-active);
+}
+
+/* The one hover pill: born at the active pill, follows pointer and keyboard focus. */
+.pw-fluid-hover-highlight.pw-tab-hover {
+  border-radius: 999px;
+  background: var(--color-surface-hover);
+}
+
+/* Weight without reflow: a hidden copy at the active weight reserves the width. */
+.pw-tab__label {
+  display: inline-grid;
+}
+
+.pw-tab__label-sizer,
+.pw-tab__label-text {
+  grid-area: 1 / 1;
+}
+
+.pw-tab__label-sizer {
+  visibility: hidden;
+  font-variation-settings: var(--font-variation-semibold);
+}
+
+.pw-tab__label-text {
+  font-variation-settings: var(--font-variation-medium);
+  transition: font-variation-settings var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+
+.pw-tab--active .pw-tab__label-text {
+  font-variation-settings: var(--font-variation-semibold);
 }
 
 .pw-tab--closable {
@@ -163,29 +203,14 @@
   outline-offset: 1px;
 }
 
-/* Inactive — muted control surface with a quiet edge-light rim. */
-.pw-tab:not(.pw-tab--active):not(.pw-tab--disabled) {
-  color: var(--color-text-muted);
-  background: var(--color-surface-subtle);
-}
-
-.pw-tab:not(.pw-tab--active):not(.pw-tab--disabled):hover {
+/* Inactive — muted text only; the shared hover pill lights the tab under the pointer. */
+.pw-tab[data-fluid-hover-active]:not(.pw-tab--active):not(.pw-tab--disabled) {
   color: var(--color-text-secondary);
-  background: var(--color-surface-hover);
 }
 
-/* Active — stronger neutral fill and the same shared edge-light family. */
+/* Active — primary text over the gliding pill. */
 .pw-tab--active {
   color: var(--color-text-primary);
-  font-weight: 550;
-  background: var(--color-surface-active);
-  border-color: var(--edge-light-surface-rim);
-  border-top-color: var(--edge-light-surface-highlight);
-}
-
-.pw-tab--active:hover {
-  color: var(--color-text-primary);
-  background: var(--color-surface-selected);
 }
 
 /* Icon-only tabs (e.g. Grid / Table view switch) */
@@ -214,7 +239,6 @@
 
 .pw-tab--disabled {
   color: var(--color-text-disabled);
-  background: var(--color-surface);
   cursor: not-allowed;
   pointer-events: none;
 }

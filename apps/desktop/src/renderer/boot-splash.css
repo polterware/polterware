@@ -39,55 +39,53 @@ html.commander-surface #boot-splash {
   opacity: 0;
 }
 
-.boot-splash-body {
-  position: relative;
-  display: block;
-  width: 44px;
-}
-
 /*
- * Frosted mark: slightly translucent so the window vibrancy reads through.
- * drop-shadow follows the ghost silhouette, so the shadow sits behind the whole shape.
+ * Echo ring: 5x5 dot matrix, diamond rings by Manhattan distance (--r) with a
+ * softer echo pulse. Static HTML/CSS so it paints before the JS bundle.
  */
-.boot-splash-mark {
+.boot-splash-ring {
+  --boot-splash-dot-rest: color-mix(in srgb, var(--color-text-muted, #6f6f6f) 45%, var(--color-surface-selected, #232323));
+  display: grid;
+  grid-template-columns: repeat(5, 4px);
+  grid-auto-rows: 4px;
+  gap: 4px;
+}
+
+/* Negative delays start the ripple mid-cycle so the first painted frame already shows it. */
+.boot-splash-ring > i {
   display: block;
-  width: 100%;
-  height: auto;
-  opacity: 0.88;
-  filter:
-    drop-shadow(0 1px 0 rgb(255 255 255 / 0.3))
-    drop-shadow(0 10px 24px rgb(0 0 0 / 0.28));
+  background-color: var(--boot-splash-dot-rest);
+  animation: boot-splash-echo 1500ms ease-in-out infinite;
+  animation-delay: calc((var(--r) * 0.14 + var(--p) * 0.03 - 1) * 1500ms);
 }
 
-/* Specular sweep clipped to the ghost silhouette. */
-.boot-splash-sheen {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    115deg,
-    rgb(255 255 255 / 0) 30%,
-    rgb(255 255 255 / 0.9) 48%,
-    rgb(255 255 255 / 0) 66%
-  );
-  background-size: 260% 100%;
-  -webkit-mask: url("./assets/polterware-ghost-mark.png") center / contain no-repeat;
-  mask: url("./assets/polterware-ghost-mark.png") center / contain no-repeat;
-  animation: boot-splash-sheen 2.4s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes boot-splash-sheen {
-  0% {
-    background-position: 100% 0;
-  }
-  60%,
+@keyframes boot-splash-echo {
+  0%,
   100% {
-    background-position: 0% 0;
+    background-color: var(--boot-splash-dot-rest);
+  }
+  28% {
+    background-color: var(--color-text-primary, #ececec);
+  }
+  56% {
+    background-color: var(--color-text-muted, #6f6f6f);
+  }
+  78% {
+    background-color: color-mix(
+      in srgb,
+      var(--color-text-primary, #ececec) 60%,
+      var(--color-text-muted, #6f6f6f)
+    );
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .boot-splash-sheen {
+  .boot-splash-ring > i {
     animation: none;
+    background-color: color-mix(
+      in srgb,
+      var(--color-text-muted, #6f6f6f) calc(100% - var(--r) * 22%),
+      var(--color-surface-selected, #232323)
+    );
   }
 }

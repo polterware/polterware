@@ -277,6 +277,8 @@ export function App() {
     if (createProjectOpen() && workspace().projects.length === 0) return;
     const projectId = route().projectId;
     if (!projectId || projectId === loadedProjectId) return;
+    // A switch away from a loaded project shows skeletons until the new shell lands.
+    if (loadedProjectId) setLoading(true);
     loadedProjectId = projectId;
     void refreshWorkspace(projectId);
   });

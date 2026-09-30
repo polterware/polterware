@@ -12,7 +12,7 @@ import type {
   FilterOptionsPanelGroup,
   FilterOptionsPanelOption,
 } from "./filter-options-panel";
-import { MenuItem } from "./menu";
+import { MenuItem, MenuList } from "./menu";
 import { Popover } from "./popover";
 import "./filter-popover.css";
 
@@ -221,7 +221,7 @@ export function FilterPopover(props: FilterPopoverProps) {
           fallback={
             <div class="flex min-h-0 flex-col">
               {searchHeader()}
-              <div class="min-h-0 overflow-y-auto p-2">
+              <MenuList class="min-h-0 overflow-y-auto p-2">
                 <Show
                   when={visibleGroups().length > 0}
                   fallback={
@@ -271,7 +271,7 @@ export function FilterPopover(props: FilterPopoverProps) {
                     }}
                   </For>
                 </Show>
-              </div>
+              </MenuList>
             </div>
           }
         >

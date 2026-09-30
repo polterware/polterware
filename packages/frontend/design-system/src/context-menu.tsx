@@ -1,7 +1,7 @@
 import type { JSX } from "solid-js";
 import { Portal } from "solid-js/web";
 import { Menu as ArkMenu } from "@ark-ui/solid/menu";
-import { DropdownMenuItem, DropdownMenuSeparator } from "./dropdown-menu";
+import { DropdownMenuItem, DropdownMenuSeparator, MenuSurface } from "./dropdown-menu";
 import "./dropdown-menu.css";
 
 function cn(...parts: Array<string | false | null | undefined>) {
@@ -42,14 +42,7 @@ function ContextMenuContent(props: { children: JSX.Element; class?: string }) {
     <Portal>
       <ArkMenu.Positioner class="pw-dropdown-positioner">
         <ArkMenu.Content class="pw-dropdown-presence outline-none">
-          <div
-            class={cn(
-              "pw-dropdown-surface menu-panel min-w-[160px] py-1 text-[12px] text-[var(--color-text-primary)] outline-none",
-              props.class,
-            )}
-          >
-            {props.children}
-          </div>
+          <MenuSurface class={cn("min-w-[160px]", props.class)}>{props.children}</MenuSurface>
         </ArkMenu.Content>
       </ArkMenu.Positioner>
     </Portal>

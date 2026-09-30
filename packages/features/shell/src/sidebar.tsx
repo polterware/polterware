@@ -1,14 +1,26 @@
-import { For, Show, type JSX } from "solid-js";
+import {
+  Index,
+  Show,
+  createEffect,
+  createMemo,
+  onCleanup,
+  onMount,
+  type JSX,
+} from "solid-js";
 import {
   Badge,
   Bot,
   Briefcase06Icon,
   ChartRelationshipIcon,
   ConnectIcon,
+  createFluidHover,
+  FluidHoverHighlight,
   Inbox,
   Layers,
   RadioButtonIcon,
   Settings,
+  spring,
+  type FluidHover,
 } from "@polterware/frontend-design-system";
 import {
   capabilityEnabled,
@@ -42,7 +54,11 @@ export function SidebarNav(props: {
   platform?: PlatformContext;
   counts?: Partial<Record<string, SidebarCount>>;
 }) {
-  const groups = () => {
+  let nav: HTMLElement | undefined;
+  // Group labels sit between rows; a click there only lands on a row it nearly touches.
+  const hover = createFluidHover(() => nav, { gapClick: { maxDistance: 8 } });
+
+  const groups = createMemo(() => {
     const map = new Map<string, NavItem[]>();
     for (const item of props.items.filter((candidate) =>
       capabilityEnabled(props.platform, candidate.requiredCapability),
@@ -53,49 +69,98 @@ export function SidebarNav(props: {
       if (arr) arr.push(item);
     }
     return [...map.entries()];
+  });
+  const groupOffsets = createMemo(() => {
+    let offset = 0;
+    return groups().map(([, items]) => {
+      const start = offset;
+      offset += items.length;
+      return start;
+    });
+  });
+  // Settings lives in the footer, outside this list: the marker fades out rather than travel.
+  const activeRect = () => {
+    const index = groups()
+      .flatMap(([, items]) => items)
+      .findIndex((item) => item.id === props.activeId);
+    return index < 0 ? null : (hover.rects()[index] ?? null);
   };
 
   return (
-    <nav class="pw-sidebar-nav" aria-label="Primary">
-      <For each={groups()}>
-        {([group, items]) => (
+    <nav ref={nav} class="pw-sidebar-nav" aria-label="Primary" {...hover.handlers}>
+      {/* The active marker glides between destinations; the hover pill rides above it and a
+          fresh entry grows from the active route. */}
+      <FluidHoverHighlight
+        class="pw-sidebar-active"
+        rect={activeRect()}
+        targetKey={props.activeId}
+        transition={spring.moderate}
+      />
+      <FluidHoverHighlight hover={hover} class="pw-sidebar-hover" from={activeRect()} />
+      <Index each={groups()}>
+        {(group, groupIndex) => (
           <div class="pw-sidebar-group">
-            <p class="pw-sidebar-group-label">{group}</p>
-            <For each={items}>
-              {(item) => {
-                const active = () => props.activeId === item.id;
-                const renderIcon = icons[item.id] ?? icons.atlas!;
-                return (
-                  <button
-                    type="button"
-                    aria-current={active() ? "page" : undefined}
-                    classList={{
-                      "pw-sidebar-item": true,
-                      "pw-sidebar-item--active": active(),
-                    }}
-                    onClick={() => props.onSelect(item.id)}
-                  >
-                    <span class="pw-sidebar-item-icon">{renderIcon({ size: 14 })}</span>
-                    <span class="pw-sidebar-item-label">{item.label}</span>
-                    <Show when={props.counts?.[item.id]?.count}>
-                      {(count) => (
-                        <Badge
-                          class="pw-sidebar-item-count"
-                          tone={props.counts?.[item.id]?.tone ?? "muted"}
-                          aria-label={props.counts?.[item.id]?.label ?? `${count()} items`}
-                        >
-                          {count()}
-                        </Badge>
-                      )}
-                    </Show>
-                  </button>
-                );
-              }}
-            </For>
+            <p class="pw-sidebar-group-label">{group()[0]}</p>
+            <Index each={group()[1]}>
+              {(item, index) => (
+                <SidebarNavItem
+                  item={item()}
+                  hover={hover}
+                  index={(groupOffsets()[groupIndex] ?? 0) + index}
+                  active={props.activeId === item().id}
+                  count={props.counts?.[item().id]}
+                  onSelect={() => props.onSelect(item().id)}
+                />
+              )}
+            </Index>
           </div>
         )}
-      </For>
+      </Index>
     </nav>
+  );
+}
+
+function SidebarNavItem(props: {
+  item: NavItem;
+  hover: FluidHover;
+  index: number;
+  active: boolean;
+  count?: SidebarCount;
+  onSelect: () => void;
+}) {
+  let element: HTMLButtonElement | undefined;
+  onMount(() => {
+    const row = element;
+    if (!row) return;
+    createEffect(() => onCleanup(props.hover.registerItem(props.index, row)));
+  });
+  const renderIcon = () => icons[props.item.id] ?? icons.atlas!;
+  return (
+    <button
+      ref={element}
+      type="button"
+      aria-current={props.active ? "page" : undefined}
+      classList={{
+        "pw-sidebar-item": true,
+        "pw-sidebar-item--nav": true,
+        "pw-sidebar-item--active": props.active,
+      }}
+      onClick={() => props.onSelect()}
+    >
+      <span class="pw-sidebar-item-icon">{renderIcon()({ size: 14 })}</span>
+      <span class="pw-sidebar-item-label">{props.item.label}</span>
+      <Show when={props.count?.count}>
+        {(count) => (
+          <Badge
+            class="pw-sidebar-item-count"
+            tone={props.count?.tone ?? "muted"}
+            aria-label={props.count?.label ?? `${count()} items`}
+          >
+            {count()}
+          </Badge>
+        )}
+      </Show>
+    </button>
   );
 }
 

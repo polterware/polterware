@@ -2,7 +2,7 @@ import { For, Show, createMemo, createSignal, type JSX } from "solid-js";
 import { Button } from "./button";
 import { Plus, X } from "./hugeicons";
 import { Input } from "./input";
-import { MenuItem } from "./menu";
+import { MenuItem, MenuList } from "./menu";
 import { Popover } from "./popover";
 
 export type DetailPanelLinkedEntity = {
@@ -114,7 +114,7 @@ export function DetailPanelLinkedEntities(props: DetailPanelLinkedEntitiesProps)
                 autofocus
               />
             </div>
-            <div class="max-h-[240px] overflow-auto px-1 pb-1">
+            <MenuList class="max-h-[240px] overflow-auto px-1 pb-1">
               <Show
                 when={filtered().length > 0}
                 fallback={
@@ -141,7 +141,7 @@ export function DetailPanelLinkedEntities(props: DetailPanelLinkedEntitiesProps)
                   )}
                 </For>
               </Show>
-            </div>
+            </MenuList>
           </Popover>
         </Show>
       </div>

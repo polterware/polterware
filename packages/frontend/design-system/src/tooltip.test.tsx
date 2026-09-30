@@ -251,7 +251,8 @@ describe("Tooltip", () => {
     expect(css).toContain(".pw-tooltip-content");
     expect(source).toContain("pw-tooltip-content menu-panel");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(css).toContain("animation: none !important");
+    expect(css).toContain("animation-duration: var(--duration-fast, 120ms) !important;");
+    expect(source).toContain("ref={motion.ref}");
     expect(source).toContain("const DEFAULT_TOOLTIP_OPEN_DELAY = 400;");
     expect(source).toContain("const DEFAULT_TOOLTIP_CLOSE_DELAY = 100;");
     expect(source).toContain("if (group?.isWarm()) return 0;");

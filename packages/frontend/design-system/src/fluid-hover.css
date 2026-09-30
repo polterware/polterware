@@ -1,0 +1,14 @@
+/**
+ * The one hover highlight of a fluid list (fluid-hover.tsx). Pinned to the container's
+ * padding corner; position, size, and fade are painted from Motion values in JS.
+ * Items sit above it with `position: relative` and carry no `:hover` fill of their own.
+ */
+.pw-fluid-hover-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--color-surface-hover);
+  will-change: transform;
+}

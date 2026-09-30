@@ -11,7 +11,7 @@ export type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const base =
-  "inline-flex shrink-0 cursor-pointer items-center justify-center font-medium select-none outline-hidden transition-[background,border-color,color] duration-[var(--duration-control)] ease-[var(--ease-standard)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-[var(--color-text-disabled)] [&_svg]:pointer-events-none [&_svg]:shrink-0";
+  "pw-button inline-flex border border-transparent bg-transparent shrink-0 cursor-pointer items-center justify-center font-medium select-none outline-hidden transition-[background,border-color,color] duration-[var(--duration-control)] ease-[var(--ease-standard)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:text-[var(--color-text-disabled)] [&_svg]:pointer-events-none [&_svg]:shrink-0";
 
 /** Solid / textured variants use main-era material; ghost + icon stay flat. */
 const variantClass = {
@@ -20,9 +20,9 @@ const variantClass = {
   danger: "texture-button-material texture-button-material-destructive",
   brand: "texture-button-material texture-button-material-brand",
   ghost:
-    "bg-transparent text-[var(--color-text-secondary)] border border-transparent hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]",
+    "pw-button-flat text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
   icon:
-    "bg-transparent text-[var(--color-text-secondary)] border border-transparent hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]",
+    "pw-button-flat text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
 } satisfies Record<ButtonVariant, string>;
 
 const sizeClass = {

@@ -1,6 +1,9 @@
 /* Work board — five stage columns of Work cards. */
 
+/* Positioned and isolated: the cards' offset space, and the stack their surfaces sit in. */
 .pw-work-board {
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: repeat(5, minmax(200px, 1fr));
   gap: 12px;
@@ -30,23 +33,41 @@
   gap: 8px;
 }
 
-.pw-work-card {
-  transition:
-    background-color var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
-    border-color var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)),
-    box-shadow var(--duration-control, 160ms) var(--ease-standard, cubic-bezier(0.2, 0, 0, 1));
+/*
+ * Layers, bottom to top: each card's `.card-panel` surface (moved to a `::before` at
+ * z-index -1), the board's one hover highlight, the active card's travelling marker, then
+ * card content (positioned cards paint after both highlights).
+ */
+.card-panel.pw-work-card {
+  position: relative;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
-/* Beat `.card-panel` fill — same tone as DataTable active row. */
-.card-panel.pw-work-card--active {
-  background: var(--color-surface-raised);
-  border-color: var(--color-border-subtle);
+.card-panel.pw-work-card::before {
+  position: absolute;
+  z-index: -1;
+  inset: -1px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: inherit;
+  background: var(--color-surface-subtle);
   box-shadow: 0 1px 2px var(--color-shadow-subtle);
+  content: "";
+  pointer-events: none;
 }
 
-.card-panel.pw-work-card:hover:not(.pw-work-card--active) {
-  background: var(--color-surface-hover);
-  border-color: var(--color-border-default);
+.pw-work-board-hover {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+}
+
+/* Same tone as the DataTable active row. */
+.pw-work-board-active {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-raised);
+  box-shadow: 0 1px 2px var(--color-shadow-subtle);
 }
 
 .pw-work-card__button {
@@ -69,9 +90,11 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--color-text-secondary);
+  transition: color var(--duration-fast) var(--ease-standard);
 }
 
-.pw-work-card--active .pw-work-card__title {
+.pw-work-card--active .pw-work-card__title,
+.pw-work-card[data-fluid-hover-active] .pw-work-card__title {
   color: var(--color-text-primary);
 }
 

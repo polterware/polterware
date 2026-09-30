@@ -2,8 +2,8 @@
  * Dialog open/close motion (Ark presence).
  * Exit keyframes run as default; open state uses [data-expanded] / [data-state=open].
  *
- * Tokens: --duration-enter / --duration-control, --ease-enter / --ease-standard.
- * No bounce (DESIGN.md). prefers-reduced-motion handled in base.css.
+ * Slow spring tier (spring-css.ts, sampled from springs.ts): the panel fades and scales
+ * 0.97 -> 1 on the spring; the exit is the tier's quicker tween. Reduced motion fades only.
  *
  * Size scale (data-size):
  * - sm — compact forms / confirms (create project)
@@ -71,51 +71,70 @@
   }
 }
 
+/* Opacity is its own animation below: a spring overshoot must not push it past 1. */
 @keyframes pw-dialog-content-in {
   from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.97);
+    transform: scale(0.97);
   }
   to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1);
   }
 }
 
 @keyframes pw-dialog-content-out {
   from {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1);
   }
   to {
     opacity: 0;
-    transform: translateY(6px) scale(0.98);
+    transform: scale(0.97);
   }
 }
 
 .pw-dialog-overlay {
   /* Exit (closing / unmount hold) */
-  animation: pw-dialog-overlay-out var(--duration-control, 160ms)
-    var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+  animation: pw-dialog-overlay-out var(--spring-slow-exit-duration, var(--duration-control))
+    var(--ease-standard) forwards;
 }
 
 .pw-dialog-overlay[data-expanded],
 .pw-dialog-overlay[data-state="open"] {
-  animation: pw-dialog-overlay-in var(--duration-enter, 200ms)
-    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+  animation: pw-dialog-overlay-in var(--spring-slow-duration, var(--duration-enter))
+    var(--ease-standard) forwards;
 }
 
 .pw-dialog-content {
   transform-origin: center center;
-  animation: pw-dialog-content-out var(--duration-control, 160ms)
-    var(--ease-standard, cubic-bezier(0.2, 0, 0, 1)) forwards;
+  animation: pw-dialog-content-out var(--spring-slow-exit-duration, var(--duration-control))
+    var(--ease-standard) forwards;
 }
 
 .pw-dialog-content[data-expanded],
 .pw-dialog-content[data-state="open"] {
-  animation: pw-dialog-content-in 220ms
-    var(--ease-enter, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+  animation:
+    pw-dialog-content-in var(--spring-slow-duration, var(--duration-enter))
+      var(--spring-slow-ease, var(--ease-enter)) forwards,
+    pw-dialog-overlay-in var(--spring-slow-duration, var(--duration-enter))
+      var(--ease-standard) forwards;
 }
 
-/* base.css already shortens animation-duration under prefers-reduced-motion;
-   keep named keyframes so solid-presence still receives animationend. */
+/*
+ * Reduced motion fades instead of scaling. base.css collapses animation durations, so
+ * the fade keeps its own (and Ark still receives animationend).
+ */
+@media (prefers-reduced-motion: reduce) {
+  .pw-dialog-content {
+    animation-name: pw-dialog-overlay-out;
+  }
+
+  .pw-dialog-content[data-expanded],
+  .pw-dialog-content[data-state="open"] {
+    animation-name: pw-dialog-overlay-in;
+  }
+
+  .pw-dialog-overlay,
+  .pw-dialog-content {
+    animation-duration: var(--duration-fast) !important;
+  }
+}

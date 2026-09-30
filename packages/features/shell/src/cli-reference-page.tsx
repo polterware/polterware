@@ -1,8 +1,10 @@
 import { For, Show, createSignal, onCleanup, onMount, type JSX } from "solid-js";
 import {
   Button,
+  Check,
   Copy,
   DataTable,
+  IconSwap,
   Kbd,
   PageContent,
   PageToolbar,
@@ -19,14 +21,19 @@ import {
   type CliKey,
 } from "./cli-reference";
 
-async function copyText(text: string, what: string) {
+async function copyText(text: string, what: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     pushToast(`${what} copied.`, "success");
+    return true;
   } catch {
     pushToast(`Could not copy ${what.toLowerCase()}.`, "danger");
+    return false;
   }
 }
+
+/** How long a copy button shows its check before returning to the copy glyph. */
+const COPIED_HOLD_MS = 1500;
 
 function SectionHeading(props: { children: string }) {
   return (
@@ -53,6 +60,15 @@ function Prose(props: { children: JSX.Element }) {
 }
 
 function CodeBlock(props: { command: string; prompt?: boolean }) {
+  const [copied, setCopied] = createSignal(false);
+  let resetTimer: number | undefined;
+  onCleanup(() => window.clearTimeout(resetTimer));
+  const copy = async () => {
+    if (!(await copyText(props.command, "Command"))) return;
+    window.clearTimeout(resetTimer);
+    setCopied(true);
+    resetTimer = window.setTimeout(() => setCopied(false), COPIED_HOLD_MS);
+  };
   return (
     <div class="flex items-center justify-between gap-3 rounded-[var(--radius-control)] border border-[var(--color-border-subtle)] bg-[var(--color-surface)] py-1 pl-3 pr-1">
       <code class="min-w-0 break-words font-mono pw-selectable text-[12px] text-[var(--color-text-primary)]">
@@ -63,9 +79,9 @@ function CodeBlock(props: { command: string; prompt?: boolean }) {
         size="sm"
         variant="ghost"
         aria-label={`Copy ${props.command}`}
-        onClick={() => void copyText(props.command, "Command")}
+        onClick={() => void copy()}
       >
-        <Copy size={14} />
+        <IconSwap swapped={copied()} from={<Copy size={14} />} to={<Check size={14} />} />
         Copy
       </Button>
     </div>

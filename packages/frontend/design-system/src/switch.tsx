@@ -8,6 +8,7 @@ import { Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
  */
 import { Switch as ArkSwitch } from "@ark-ui/solid/switch";
 import { animate, motionValue } from "motion";
+import { prefersReducedMotion } from "./reduced-motion";
 import { spring } from "./springs";
 import "./switch.css";
 
@@ -41,9 +42,6 @@ const METRICS = {
   default: { track: 34, thumb: 16, offset: 2, hoverExtend: 2, pressExtend: 4, squash: 4 },
   sm: { track: 28, thumb: 12, offset: 2, hoverExtend: 2, pressExtend: 3, squash: 3 },
 } as const;
-
-const prefersReducedMotion = () =>
-  typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * Fluid switch gesture, after fluid-functionalism. The thumb's x, y, width, and height are

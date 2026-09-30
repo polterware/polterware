@@ -1,5 +1,5 @@
 import { For, Index, Show } from "solid-js";
-import { Button, SwitchRow, StatusChip, pushToast } from "@polterware/frontend-design-system";
+import { Button, Skeleton, SwitchRow, StatusChip, pushToast } from "@polterware/frontend-design-system";
 import type { AgentSetupView, HookSwitchRow } from "./agents-types";
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -104,9 +104,18 @@ export function AgentSetupCard(props: {
       <Show
         when={props.setup}
         fallback={
-          <p class="m-0 mt-1.5 text-[12px] text-[var(--color-text-muted)]">
-            {props.loaded ? "Setup state is unavailable." : "Checking setup…"}
-          </p>
+          <Show
+            when={props.loaded}
+            fallback={
+              <div class="mt-2 space-y-2" role="status" aria-label="Checking setup…">
+                <Skeleton class="h-3 w-[60%]" />
+                <Skeleton class="h-3 w-[45%]" />
+                <Skeleton class="h-3 w-[52%]" />
+              </div>
+            }
+          >
+            <p class="m-0 mt-1.5 text-[12px] text-[var(--color-text-muted)]">Setup state is unavailable.</p>
+          </Show>
         }
       >
         {(setup) => (

@@ -51,6 +51,11 @@
   color: var(--color-text-primary);
 }
 
+/* The results' one gliding highlight (fluid hover); rows carry no hover fill. */
+.commander-result-highlight {
+  border-radius: var(--radius-item);
+}
+
 /* Results flush to panel edge; padding matches both hosts (no dialog px-5). */
 .commander-results-scroll {
   box-sizing: border-box;

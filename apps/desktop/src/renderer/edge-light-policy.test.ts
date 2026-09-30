@@ -76,7 +76,8 @@ describe("edge-light policy", () => {
     expect(ruleBody(materials, ".control-field")).toContain(
       "border: 1px solid var(--edge-light-field-rim)",
     );
-    expect(ruleBody(button, ".texture-button-material")).toContain(
+    // The rim rides the press layer, so the whole surface shrinks 1px when pressed.
+    expect(ruleBody(button, ".texture-button-material::before")).toContain(
       "border: 1px solid var(--texture-button-edge)",
     );
   });

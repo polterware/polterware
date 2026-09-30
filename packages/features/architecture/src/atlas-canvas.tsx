@@ -1,5 +1,6 @@
 import { For, Show, createEffect, createMemo, createSignal, on, onCleanup, untrack } from "solid-js";
 import {
+  animateCollapse,
   Button,
   ChevronRight,
   DetailPanel,
@@ -14,12 +15,12 @@ import {
   type SelectOption,
   StatusChip,
   Tabs,
+  type CollapseControls,
   type StatusTone,
 } from "@polterware/frontend-design-system";
 import { detailPanelStore, createDetailPanelSelector } from "@polterware/frontend-state";
 import "./atlas-tree.css";
 import {
-  animateGroupHeight,
   buildTree,
   entityIdOf,
   expandableKeys,
@@ -322,11 +323,11 @@ type TreeContext = {
   onDetails: (item: TreeItem) => void;
 };
 
-/** A node and, below it, its group of child rows. The group animates its own height; see atlas-tree.ts. */
+/** A node and, below it, its group of child rows. The group springs to its measured height (`animateCollapse`). */
 function TreeNode(props: TreeContext & { item: TreeItem; index: number; depth: number }) {
   const open = () => props.item.hasChildren && !props.collapsed().has(props.item.key);
   let group: HTMLDivElement | undefined;
-  let running: Animation | undefined;
+  let running: CollapseControls | undefined;
 
   const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   createEffect(
@@ -334,7 +335,7 @@ function TreeNode(props: TreeContext & { item: TreeItem; index: number; depth: n
       open,
       (isOpen) => {
         if (!group) return;
-        running = animateGroupHeight(group, isOpen, {
+        running = animateCollapse(group, isOpen, {
           previous: running,
           instant: props.bulk() || reducedMotion(),
         });

@@ -48,10 +48,8 @@ async function confirmQuit(preferences: QuitPreferencesController): Promise<Quit
     type: "question" as const,
     title: "Quit Polterware",
     message: "Quit Polterware?",
-    detail:
-      "The local core keeps running in the background after you quit, so the CLI and MCP clients stay connected. " +
-      "Choose \"Quit and stop core\" to shut it down.",
-    buttons: ["Quit", "Quit and stop core", "Cancel"],
+    detail: "The core stays on for the CLI and MCP.",
+    buttons: ["Quit", "Quit & Stop Core", "Cancel"],
     defaultId: 0,
     cancelId: 2,
     checkboxLabel: "Don't ask again",
@@ -68,6 +66,21 @@ async function confirmQuit(preferences: QuitPreferencesController): Promise<Quit
     });
   }
   return (["quit", "stop-core", "cancel"] as const)[result.response] ?? "cancel";
+}
+
+/** Delays every core domain call until the startup attempt has settled. */
+function afterCoreStartup<T extends Record<string, (...args: never[]) => unknown>>(
+  controllers: T,
+  settled: Promise<void>,
+): T {
+  const gated: Record<string, unknown> = {};
+  for (const [name, call] of Object.entries(controllers)) {
+    gated[name] = async (...args: never[]) => {
+      await settled;
+      return call(...args);
+    };
+  }
+  return gated as T;
 }
 
 async function bootstrap() {
@@ -226,6 +239,22 @@ async function bootstrap() {
       return { ok: true };
     },
   };
+  // Open the window before the core is up so the boot splash paints at once.
+  // Core domain calls wait for the startup attempt below, then run as before.
+  let markCoreStartupSettled = () => {};
+  const coreStartupSettled = new Promise<void>((resolve) => {
+    markCoreStartupSettled = resolve;
+  });
+  registerPolterwareIpcHandlers({
+    ...shellControllers,
+    coreLifecycle: coreLifecycleController,
+    core: afterCoreStartup(createCoreDomainControllers(clients), coreStartupSettled),
+  });
+  applyGlobalCommanderAccelerator(shortcutPreferences.getGlobalCommanderAccelerator());
+  createMainWindow({
+    reduceTransparency: appearancePreferences.getPreferences().reduceTransparency,
+  });
+
   try {
     if (corePreferences.getPreferences().autoStart) {
       useHandle(await ensureCore({ dbPath, idle: coreIdleFlag(), log: coreLog }));
@@ -237,12 +266,9 @@ async function bootstrap() {
     if (current) await waitForHealth(current);
   } catch (error) {
     log.error("Failed to start Polterware core.", error);
+  } finally {
+    markCoreStartupSettled();
   }
-  registerPolterwareIpcHandlers({
-    ...shellControllers,
-    coreLifecycle: coreLifecycleController,
-    core: createCoreDomainControllers(clients),
-  });
   stopChangeWatcher = startChangeWatcher({
     getClients: () => clients,
     reconnect: async () => {
@@ -264,11 +290,6 @@ async function bootstrap() {
     log: coreLog,
   });
 
-  applyGlobalCommanderAccelerator(shortcutPreferences.getGlobalCommanderAccelerator());
-
-  createMainWindow({
-    reduceTransparency: appearancePreferences.getPreferences().reduceTransparency,
-  });
   setupAutoUpdater();
 
   let quitConfirmed = false;

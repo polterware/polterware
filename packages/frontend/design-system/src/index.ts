@@ -1,5 +1,9 @@
 /* Shared materials (edge-light tokens + utilities) — load with package entry */
 import "./materials.css";
+import { installSpringCssProperties } from "./spring-css";
+
+/* Spring tiers as CSS custom properties (--spring-<tier>-*), sampled from springs.ts. */
+if (typeof document !== "undefined") installSpringCssProperties();
 
 export { Button } from "./button";
 export type { ButtonProps, ButtonVariant, ButtonSize } from "./button";
@@ -57,6 +61,26 @@ export type {
 export { Kbd } from "./kbd";
 export type { KbdProps } from "./kbd";
 export { spring } from "./springs";
+export { springCssProperties, springLinearEasing } from "./spring-css";
+export { prefersReducedMotion } from "./reduced-motion";
+export { animateCollapse } from "./collapse";
+export { IconSwap } from "./icon-swap";
+export type { IconSwapProps } from "./icon-swap";
+export type { CollapseControls } from "./collapse";
+export {
+  centerItemInView,
+  createFluidHover,
+  FluidHoverHighlight,
+  FLUID_HOVER_ACTIVE_ATTR,
+  pickNearest,
+} from "./fluid-hover";
+export type {
+  FluidHover,
+  FluidHoverAxis,
+  FluidHoverHighlightProps,
+  FluidHoverOptions,
+  ItemRect,
+} from "./fluid-hover";
 export { Switch, SwitchRow } from "./switch";
 export type { SwitchProps, SwitchRowProps, SwitchSize } from "./switch";
 export { FilterPopover, FilterCategoryPopover } from "./filter-popover";
@@ -119,7 +143,8 @@ export type { InputProps, TextareaProps, ControlFieldSize } from "./input";
 export { Select } from "./select";
 export type { SelectProps, SelectOption } from "./select";
 export { Field } from "./field";
-export { MenuPanel, MenuItem } from "./menu";
+export { MenuPanel, MenuList, MenuItem } from "./menu";
+export { SelectionCheck, SELECTION_ACK_MS } from "./menu-highlight";
 export type { MenuItemProps } from "./menu";
 export {
   DropdownMenu,

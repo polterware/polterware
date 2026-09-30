@@ -1,6 +1,13 @@
-import { For, Show, createMemo, createSignal } from "solid-js";
-import { Check, Plus } from "@polterware/frontend-design-system";
-import { MenuItem, Popover, StatusChip } from "@polterware/frontend-design-system";
+import { For, Show, createMemo, createSignal, onCleanup } from "solid-js";
+import { Plus } from "@polterware/frontend-design-system";
+import {
+  MenuItem,
+  MenuList,
+  Popover,
+  SELECTION_ACK_MS,
+  SelectionCheck,
+  StatusChip,
+} from "@polterware/frontend-design-system";
 import type { EnvironmentItem, EnvironmentKind, ProjectSwitcherItem } from "./types";
 import { ENVIRONMENT_FIXTURES, PROJECT_SWITCHER_FIXTURES } from "./fixtures";
 import { PopoverSearchField } from "./popover-search";
@@ -54,11 +61,26 @@ export function WorkspaceContextBar(props: {
     if (!normalized) return projects();
     return projects().filter((project) => project.name.toLowerCase().includes(normalized));
   });
+  // A pick holds the popover open briefly so the marker glide and check are seen.
+  let acknowledgeTimer: ReturnType<typeof setTimeout> | undefined;
+  const clearAcknowledge = () => {
+    if (acknowledgeTimer !== undefined) clearTimeout(acknowledgeTimer);
+    acknowledgeTimer = undefined;
+  };
+  onCleanup(clearAcknowledge);
+  const closeAfterAcknowledge = () => {
+    clearAcknowledge();
+    acknowledgeTimer = setTimeout(() => {
+      acknowledgeTimer = undefined;
+      close();
+    }, SELECTION_ACK_MS);
+  };
   const projectEnvironments = createMemo(() =>
     environments().filter((environment) => environment.projectId === props.context.projectId),
   );
 
   function close() {
+    clearAcknowledge();
     setOpenMenu(null);
     setQuery("");
   }
@@ -117,24 +139,23 @@ export function WorkspaceContextBar(props: {
           onInput={setQuery}
           autofocus
         />
-        <div class="min-h-0 flex-1 overflow-auto p-2">
+        <MenuList class="min-h-0 flex-1 overflow-auto p-2">
           <For each={filteredProjects()}>
             {(project) => (
               <MenuItem
                 class="justify-between py-2 text-[13.5px]"
+                selected={project.projectId === props.context.projectId}
                 onClick={() => {
                   props.onSelectProject?.(project.projectId);
-                  close();
+                  closeAfterAcknowledge();
                 }}
               >
                 <span class="truncate text-[var(--color-text-primary)]">{project.name}</span>
-                <Show when={project.projectId === props.context.projectId}>
-                  <Check size={15} />
-                </Show>
+                <SelectionCheck checked={project.projectId === props.context.projectId} size={15} />
               </MenuItem>
             )}
           </For>
-        </div>
+        </MenuList>
         <div class="border-t border-[var(--color-border-subtle)] p-2">
           <MenuItem
             class="gap-2 py-2 text-[13px]"
@@ -157,14 +178,15 @@ export function WorkspaceContextBar(props: {
         placement="bottom-start"
         anchorRef={() => environmentTrigger}
       >
-        <div class="min-h-0 flex-1 overflow-auto p-2">
+        <MenuList class="min-h-0 flex-1 overflow-auto p-2">
           <For each={projectEnvironments()}>
             {(environment) => (
               <MenuItem
                 class="justify-between py-2 text-[13.5px]"
+                selected={environment.id === props.context.environmentId}
                 onClick={() => {
                   props.onSelectEnvironment?.(environment.id);
-                  close();
+                  closeAfterAcknowledge();
                 }}
               >
                 <StatusChip
@@ -175,13 +197,11 @@ export function WorkspaceContextBar(props: {
                 <span class="min-w-0 flex-1 truncate text-[var(--color-text-secondary)]">
                   {environment.name}
                 </span>
-                <Show when={environment.id === props.context.environmentId}>
-                  <Check size={14} />
-                </Show>
+                <SelectionCheck checked={environment.id === props.context.environmentId} />
               </MenuItem>
             )}
           </For>
-        </div>
+        </MenuList>
       </Popover>
     </div>
   );

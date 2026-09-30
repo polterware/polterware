@@ -13,7 +13,10 @@
   gap: 8px;
 }
 
+/* Positioned and isolated: the rows' offset space, and the stack their surfaces sit in. */
 .pw-data-table-scroll {
+  position: relative;
+  isolation: isolate;
   min-height: 0;
   min-width: 0;
   flex: 1 1 auto;
@@ -93,13 +96,30 @@
   padding: 0 8px;
 }
 
+/*
+ * Layers, bottom to top: each row's opaque surface (a cell `::before` at z-index -1), the
+ * table's one hover highlight, the active row's travelling marker, then cell content
+ * (positioned cells paint after both highlights). Rows carry no hover fill of their own.
+ */
 .pw-data-table-cell,
 .pw-data-table-selection-cell {
-  background: var(--color-surface);
+  position: relative;
   padding: 5px 12px;
   color: var(--color-text-secondary);
   vertical-align: middle;
-  transition: background-color var(--motion-fast) var(--ease-standard);
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.pw-data-table-cell::before,
+.pw-data-table-selection-cell::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-surface);
+  content: "";
+  pointer-events: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
 .pw-data-table-row > :first-child {
@@ -110,21 +130,28 @@
   border-radius: 0 var(--radius-item) var(--radius-item) 0;
 }
 
-.pw-data-table-row:hover > .pw-data-table-cell,
-.pw-data-table-row:hover > .pw-data-table-selection-cell,
-.pw-data-table-row:focus-visible > .pw-data-table-cell,
-.pw-data-table-row:focus-visible > .pw-data-table-selection-cell {
-  background: var(--color-surface-hover);
-}
-
-.pw-data-table-row--selected > .pw-data-table-cell,
-.pw-data-table-row--selected > .pw-data-table-selection-cell {
+.pw-data-table-row--selected > .pw-data-table-cell::before,
+.pw-data-table-row--selected > .pw-data-table-selection-cell::before {
   background: var(--color-surface-selected);
 }
 
-.pw-data-table-row--active > .pw-data-table-cell,
-.pw-data-table-row--active > .pw-data-table-selection-cell {
+.pw-data-table-hover {
+  border-radius: var(--radius-item);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.pw-data-table-hover--selected {
+  background: var(--color-surface-selected);
+}
+
+.pw-data-table-active {
+  border-radius: var(--radius-item);
   background: var(--color-surface-raised);
+}
+
+/* The lit row's text lifts with the highlight. */
+.pw-data-table-row[data-fluid-hover-active] > .pw-data-table-cell {
+  color: var(--color-text-primary);
 }
 
 .pw-data-table-row--interactive {
@@ -133,11 +160,6 @@
 
 .pw-data-table-row:focus-visible {
   outline: none;
-}
-
-.pw-data-table-row:focus-visible > .pw-data-table-cell,
-.pw-data-table-row:focus-visible > .pw-data-table-selection-cell {
-  background: var(--color-surface-hover);
 }
 
 .pw-data-table-selection-input {
@@ -358,11 +380,4 @@
 
 .pw-data-table-spacer > td {
   padding: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pw-data-table-cell,
-  .pw-data-table-selection-cell {
-    transition: none;
-  }
 }

@@ -4,8 +4,16 @@ import type { JSX } from "solid-js";
  * Quiet nested card — hairline + whisper outer lift (`.card-panel`).
  * Prefer this over ad-hoc border + bg cards in features.
  */
-export function Card(props: { children: JSX.Element; class?: string }) {
-  return <div class={`card-panel p-3 ${props.class ?? ""}`}>{props.children}</div>;
+export function Card(props: {
+  children: JSX.Element;
+  class?: string;
+  ref?: HTMLDivElement | ((element: HTMLDivElement) => void);
+}) {
+  return (
+    <div ref={props.ref} class={`card-panel p-3 ${props.class ?? ""}`}>
+      {props.children}
+    </div>
+  );
 }
 
 /**

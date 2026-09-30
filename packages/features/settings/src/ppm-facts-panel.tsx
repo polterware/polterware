@@ -5,6 +5,7 @@ import {
   Field,
   Input,
   PageEmpty,
+  Skeleton,
   StatusChip,
   pushToast,
 } from "@polterware/frontend-design-system";
@@ -457,7 +458,22 @@ export function PpmFactsPanel(props: {
                 )}
               </DataTable.Body>
               <DataTable.Empty>
-                <Show when={!props.busy}>
+                <Show
+                  when={!props.busy}
+                  fallback={
+                    <div class="pw-page-skeleton__rows p-3" role="status" aria-label="Loading…">
+                      <For each={[0, 1, 2, 3]}>
+                        {() => (
+                          <div class="pw-page-skeleton__row">
+                            <Skeleton class="h-3 w-[30%]" />
+                            <Skeleton class="h-3 w-[20%]" />
+                            <Skeleton class="ml-auto h-3 w-[12%]" />
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  }
+                >
                   <PageEmpty
                     title="No facts yet"
                     description="Import project sources or create a declared fact. Agent MCP writes also appear here."

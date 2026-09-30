@@ -7,6 +7,7 @@ import {
   Input,
   PageContent,
   PageEmpty,
+  PageLoading,
   PageToolbar,
   Select,
   StatusChip,
@@ -159,12 +160,17 @@ export function InboxPage(props: {
         <Show
           when={visible().length > 0}
           fallback={
-            <div class="flex h-full min-h-[200px] w-full items-center justify-center p-8">
-              <PageEmpty
-                title={props.loading ? "Loading the Inbox…" : "Nothing needs you right now."}
-                description="Open questions, drift findings, and facts to verify collect here."
-              />
-            </div>
+            <Show
+              when={!props.loading}
+              fallback={<PageLoading layout="table" label="Loading the Inbox…" />}
+            >
+              <div class="flex h-full min-h-[200px] w-full items-center justify-center p-8">
+                <PageEmpty
+                  title="Nothing needs you right now."
+                  description="Open questions, drift findings, and facts to verify collect here."
+                />
+              </div>
+            </Show>
           }
         >
           <ul class="pw-inbox-list">

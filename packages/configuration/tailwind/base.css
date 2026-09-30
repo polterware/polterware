@@ -180,6 +180,11 @@
   --z-toast: 50;
   --z-dialog: 100;
   --z-tooltip: 110;
+
+  /* Inter Variable weight + optical size pairs (after fluid-functionalism): a heavier
+   * wght is paired with a tighter opsz so a weight change barely moves advance width. */
+  --font-variation-medium: "wght" 450, "opsz" 15;
+  --font-variation-semibold: "wght" 550, "opsz" 18;
 }
 
 /*

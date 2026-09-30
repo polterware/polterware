@@ -1,0 +1,27 @@
+/**
+ * Menu row motion (menu-highlight.tsx). The list is the rows' offsetParent and the
+ * layers' coordinate space; rows are positioned so they paint above both layers.
+ */
+.pw-menu-rows {
+  position: relative;
+  isolation: isolate;
+}
+
+.pw-fluid-hover-highlight.pw-menu-hover {
+  border-radius: var(--radius-item);
+  background: var(--color-surface-hover);
+}
+
+/* Painted after the hover layer, so a hovered checked row keeps its selected fill. */
+.pw-fluid-hover-highlight.pw-menu-selected {
+  border-radius: var(--radius-item);
+  background: var(--color-surface-selected);
+}
+
+.pw-selection-check {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}

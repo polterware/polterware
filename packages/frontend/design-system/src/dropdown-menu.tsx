@@ -1,13 +1,20 @@
 import type { JSX } from "solid-js";
+import { createEffect, untrack } from "solid-js";
 import { Portal } from "solid-js/web";
 /**
  * Compact dropdown: **Ark UI Menu** (behavior) + `.menu-panel` Polter rows (look).
- * For searchable switchers use Popover + presentational MenuItem instead.
+ * For searchable switchers use Popover + `MenuList` / `MenuItem` instead.
+ *
+ * Motion (fluid-functionalism): the surface springs in from its anchor side
+ * (`createPopupMotion`); one hover highlight glides between rows, driven by the pointer
+ * and by Ark's keyboard highlight alike; checked rows share one sliding marker.
  *
  * Portal + Content z-index: Zag floating positioners take z-index from Content
  * via `--z-index`; without a portal, panels stack under later shell siblings.
  */
-import { Menu as ArkMenu, type MenuRootProps } from "@ark-ui/solid/menu";
+import { Menu as ArkMenu, useMenuContext, type MenuRootProps } from "@ark-ui/solid/menu";
+import { createMenuRows, MenuRowsLayer, MenuRowsProvider, useMenuRow } from "./menu-highlight";
+import { createPopupMotion } from "./popup-motion";
 import "./dropdown-menu.css";
 
 function cn(...parts: Array<string | false | null | undefined>) {
@@ -62,6 +69,51 @@ export function DropdownMenuTrigger(props: {
   );
 }
 
+/**
+ * The menu surface inside Ark Content: popup presence, the shared row highlight, and the
+ * two-way sync between it and Ark's highlighted item (so the keyboard moves the same
+ * highlight as the pointer, and Enter picks what is lit).
+ */
+export function MenuSurface(props: { children: JSX.Element; class?: string }) {
+  let surface: HTMLDivElement | undefined;
+  const rows = createMenuRows(() => surface);
+  const menu = useMenuContext();
+  const motion = createPopupMotion({ scale: true });
+
+  createEffect(() => {
+    rows.hover.rects(); // rows may register after Ark highlights one on open
+    const value = menu().highlightedValue;
+    if (value == null) return;
+    const id = rows.idOf(value);
+    if (id !== undefined) rows.hover.setActiveIndex(id);
+  });
+
+  createEffect(() => {
+    const id = rows.hover.activeIndex();
+    if (id === null) return;
+    const value = rows.valueOf(id);
+    const api = untrack(menu);
+    if (value !== undefined && api.highlightedValue !== value) api.setHighlightedValue(value);
+  });
+
+  return (
+    <div
+      ref={(element) => {
+        surface = element;
+        motion.ref(element);
+      }}
+      class={cn(
+        "pw-dropdown-surface pw-menu-rows menu-panel py-1 text-[12px] text-[var(--color-text-primary)] outline-none",
+        props.class,
+      )}
+      {...rows.hover.handlers}
+    >
+      <MenuRowsLayer rows={rows} />
+      <MenuRowsProvider rows={rows}>{props.children}</MenuRowsProvider>
+    </div>
+  );
+}
+
 export function DropdownMenuContent(props: {
   children: JSX.Element;
   class?: string;
@@ -71,14 +123,7 @@ export function DropdownMenuContent(props: {
       {/* z-index on Content: Zag copies it to Positioner via --z-index */}
       <ArkMenu.Positioner class="pw-dropdown-positioner">
         <ArkMenu.Content class="pw-dropdown-presence outline-none">
-          <div
-            class={cn(
-              "pw-dropdown-surface menu-panel py-1 text-[12px] text-[var(--color-text-primary)] outline-none",
-              props.class,
-            )}
-          >
-            {props.children}
-          </div>
+          <MenuSurface class={props.class}>{props.children}</MenuSurface>
         </ArkMenu.Content>
       </ArkMenu.Positioner>
     </Portal>
@@ -92,17 +137,31 @@ export function DropdownMenuItem(props: {
   value: string;
   disabled?: boolean;
   danger?: boolean;
+  /** Checked row: the shared selected marker slides to it. */
+  selected?: boolean;
+  /** Keep the menu open after a pick (the caller closes it, e.g. after acknowledgment). */
+  closeOnSelect?: boolean;
   onSelect?: () => void;
 }) {
+  let element: HTMLDivElement | undefined;
+  const joined = useMenuRow(() => element, {
+    value: () => props.value,
+    selected: () => props.selected,
+  });
   return (
     <ArkMenu.Item
+      ref={element}
       value={props.value}
       disabled={props.disabled}
+      closeOnSelect={props.closeOnSelect}
       class={cn(
-        "flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius-item)] px-2 py-1.5 text-left outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)]",
+        "relative flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius-item)] px-2 py-1.5 text-left outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)]",
         props.danger
           ? "text-[var(--color-danger)]"
-          : "text-[var(--color-text-secondary)] data-[highlighted]:bg-[var(--color-surface-hover)] data-[highlighted]:text-[var(--color-text-primary)]",
+          : joined
+            ? "text-[var(--color-text-secondary)] data-[fluid-hover-active]:text-[var(--color-text-primary)] data-[highlighted]:text-[var(--color-text-primary)]"
+            : "text-[var(--color-text-secondary)] data-[highlighted]:bg-[var(--color-surface-hover)] data-[highlighted]:text-[var(--color-text-primary)]",
+        props.selected && !props.danger && "text-[var(--color-text-primary)]",
         "data-[disabled]:pointer-events-none data-[disabled]:text-[var(--color-text-disabled)]",
         props.class,
       )}

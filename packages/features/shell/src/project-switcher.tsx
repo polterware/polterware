@@ -1,5 +1,5 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { Popover, Button, MenuItem } from "@polterware/frontend-design-system";
+import { Popover, Button, MenuItem, MenuList } from "@polterware/frontend-design-system";
 import type { ProjectSwitcherItem } from "./types";
 import { PROJECT_SWITCHER_FIXTURES } from "./fixtures";
 import { PopoverSearchHeader } from "./popover-search";
@@ -29,7 +29,7 @@ export function ProjectSwitcher(props: {
         autofocus
       />
 
-      <div class="max-h-72 overflow-auto p-2">
+      <MenuList class="max-h-72 overflow-auto p-2">
         <For each={filtered()}>
           {(p) => (
                   <MenuItem
@@ -51,7 +51,7 @@ export function ProjectSwitcher(props: {
         <Show when={filtered().length === 0}>
           <p class="px-2 py-4 text-center text-[12px] text-[var(--color-text-muted)]">No projects match</p>
         </Show>
-      </div>
+      </MenuList>
       <div class="flex flex-col gap-1 border-t border-[var(--color-border-subtle)] p-2">
         <Button
           size="sm"

@@ -13,7 +13,9 @@ html[data-shell-chrome="solid"] .pw-shell-main-frame {
   padding-left: 8px;
 }
 
+/* Positioned: the rows' offset space for the gliding hover pill and active marker. */
 .pw-sidebar-nav {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
@@ -88,6 +90,38 @@ html[data-shell-chrome="solid"] .pw-shell-main-frame {
   color: var(--color-text-primary);
 }
 
+/*
+ * Nav rows carry no fills: the list's one hover pill and one active marker
+ * (fluid-hover.tsx) paint them and glide between rows. The footer Settings row keeps
+ * its own fills above, so the active marker fades out there instead of travelling.
+ */
+.pw-sidebar-item--nav,
+.pw-sidebar-item--nav:hover,
+.pw-sidebar-item--nav:active,
+.pw-sidebar-item--nav.pw-sidebar-item--active {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.pw-sidebar-item--nav:hover {
+  color: var(--color-text-muted);
+}
+
+.pw-sidebar-item--nav[data-fluid-hover-active],
+.pw-sidebar-item--nav.pw-sidebar-item--active {
+  color: var(--color-text-primary);
+}
+
+.pw-sidebar-active {
+  border-radius: var(--radius-item, 8px);
+  background: var(--color-surface-selected);
+}
+
+.pw-sidebar-hover {
+  border-radius: var(--radius-item, 8px);
+}
+
 .pw-sidebar-item:focus {
   outline: none;
 }
@@ -123,11 +157,4 @@ html[data-shell-chrome="solid"] .pw-shell-main-frame {
 
 .pw-sidebar-item--footer {
   margin-bottom: 4px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pw-sidebar-item,
-  .pw-sidebar-item-icon {
-    transition: none;
-  }
 }

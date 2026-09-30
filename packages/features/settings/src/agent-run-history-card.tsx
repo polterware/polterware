@@ -3,6 +3,7 @@ import {
   DataTable,
   FilterChip,
   PageEmpty,
+  Skeleton,
   StatusChip,
 } from "@polterware/frontend-design-system";
 import type {
@@ -116,7 +117,22 @@ export function AgentRunHistoryCard(props: {
                 )}
               </DataTable.Body>
               <DataTable.Empty>
-                <Show when={!props.busy}>
+                <Show
+                  when={!props.busy}
+                  fallback={
+                    <div class="pw-page-skeleton__rows p-3" role="status" aria-label="Loading…">
+                      <For each={[0, 1, 2, 3]}>
+                        {() => (
+                          <div class="pw-page-skeleton__row">
+                            <Skeleton class="h-3 w-[30%]" />
+                            <Skeleton class="h-3 w-[20%]" />
+                            <Skeleton class="ml-auto h-3 w-[12%]" />
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  }
+                >
                   <PageEmpty
                     title="No justified changes yet"
                     description="Human Desktop saves and MCP audited writes appear here with summary and rationale."
