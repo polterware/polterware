@@ -1,6 +1,7 @@
 import { For, Index, Show } from "solid-js";
-import { Button, Skeleton, SwitchRow, StatusChip, pushToast } from "@polterware/frontend-design-system";
+import { Button, Copy, Skeleton, SwitchRow, StatusChip, pushToast } from "@polterware/frontend-design-system";
 import type { AgentSetupView, HookSwitchRow } from "./agents-types";
+import { SettingsRow, SettingsSection } from "./settings-section";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -79,10 +80,6 @@ export function setupChecks(setup: AgentSetupView): Check[] {
   return checks;
 }
 
-const heading = "m-0 text-[12px] font-medium text-[var(--color-text-primary)]";
-const panel =
-  "rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-3 py-2.5";
-
 async function copyCommand(command: string) {
   try {
     await navigator.clipboard.writeText(command);
@@ -92,6 +89,11 @@ async function copyCommand(command: string) {
   }
 }
 
+/** A command hint copies on click; a plain hint is read-only text. */
+function looksLikeCommand(hint: string): boolean {
+  return hint.startsWith("polterware ");
+}
+
 /** Agent setup: doctor state and per-hook switches. Installing runs through `polterware setup`. */
 export function AgentSetupCard(props: {
   setup: AgentSetupView | undefined;
@@ -99,73 +101,86 @@ export function AgentSetupCard(props: {
   onToggle: (name: string, enabled: boolean) => void;
 }) {
   return (
-    <section class={panel}>
-      <p class={heading}>Agent setup</p>
-      <Show
-        when={props.setup}
-        fallback={
-          <Show
-            when={props.loaded}
-            fallback={
-              <div class="mt-2 space-y-2" role="status" aria-label="Checking setup…">
-                <Skeleton class="h-3 w-[60%]" />
-                <Skeleton class="h-3 w-[45%]" />
-                <Skeleton class="h-3 w-[52%]" />
-              </div>
-            }
-          >
-            <p class="m-0 mt-1.5 text-[12px] text-[var(--color-text-muted)]">Setup state is unavailable.</p>
-          </Show>
-        }
+    <>
+      <SettingsSection
+        title="Agent setup"
+        description="What Claude Code and Codex need to read this project. Copy a fix and run it in your terminal."
       >
-        {(setup) => (
-          <>
-            <div class="mt-2 space-y-1.5">
-              <For each={setupChecks(setup())}>
-                {(check) => (
-                  <div class="flex items-center justify-between gap-3">
-                    <span class="text-[12px] text-[var(--color-text-secondary)]">{check.label}</span>
-                    <span class="flex min-w-0 items-center gap-2">
-                      <Show when={check.hint}>
-                        {(hint) => (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            class="max-w-[220px] truncate font-mono"
-                            title="Copy"
-                            onClick={() => void copyCommand(hint())}
-                          >
-                            {hint()}
-                          </Button>
-                        )}
+        <Show
+          when={props.setup}
+          fallback={
+            <Show
+              when={props.loaded}
+              fallback={
+                <div class="flex flex-col gap-3" role="status" aria-label="Checking setup…">
+                  <Skeleton class="h-3 w-[60%]" />
+                  <Skeleton class="h-3 w-[45%]" />
+                  <Skeleton class="h-3 w-[52%]" />
+                </div>
+              }
+            >
+              <p class="m-0 text-[12px] text-[var(--color-text-muted)]">Setup state is unavailable.</p>
+            </Show>
+          }
+        >
+          {(setup) => (
+            <For each={setupChecks(setup())}>
+              {(check) => (
+                <SettingsRow
+                  label={check.label}
+                  description={
+                    check.hint && looksLikeCommand(check.hint)
+                      ? <span class="font-mono pw-selectable">{check.hint}</span>
+                      : check.hint
+                  }
+                >
+                  <Show when={check.hint && looksLikeCommand(check.hint) ? check.hint : undefined}>
+                    {(command) => (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Copy ${command()}`}
+                        onClick={() => void copyCommand(command())}
+                      >
+                        <Copy size={14} />
+                        Copy fix
+                      </Button>
+                    )}
+                  </Show>
+                  <StatusChip tone={check.tone} label={check.state} />
+                </SettingsRow>
+              )}
+            </For>
+          )}
+        </Show>
+      </SettingsSection>
+
+      <Show when={(props.setup?.hooks.length ?? 0) > 0}>
+        <SettingsSection
+          title="Hooks"
+          description="Claude Code hooks shipped with the Polterware plugin."
+        >
+          <div class="flex flex-col gap-1">
+            {/* Index, not For: hooks are rebuilt on refresh, and For would replace each switch. */}
+            <Index each={props.setup?.hooks ?? []}>
+              {(hook) => (
+                <SwitchRow
+                  checked={hook().enabled}
+                  onCheckedChange={(checked) => props.onToggle(hook().name, checked)}
+                  label={
+                    <span class="flex flex-col">
+                      <span class="text-[12.5px] text-[var(--color-text-primary)]">{hook().label}</span>
+                      <Show when={hook().note}>
+                        <span class="text-[11.5px] text-[var(--color-text-muted)]">{hook().note}</span>
                       </Show>
-                      <StatusChip tone={check.tone} label={check.state} />
                     </span>
-                  </div>
-                )}
-              </For>
-            </div>
-            <p class={`${heading} mt-3`}>Hooks</p>
-            <div class="mt-1 space-y-0.5">
-              {/* Index, not For: hooks are rebuilt on refresh, and For would replace each switch. */}
-              <Index each={setup().hooks}>
-                {(hook) => (
-                  <SwitchRow
-                    checked={hook().enabled}
-                    onCheckedChange={(checked) => props.onToggle(hook().name, checked)}
-                    label={
-                      <span class="flex flex-col">
-                        <span class="text-[12px] text-[var(--color-text-primary)]">{hook().label}</span>
-                        <span class="text-[11px] text-[var(--color-text-muted)]">{hook().note}</span>
-                      </span>
-                    }
-                  />
-                )}
-              </Index>
-            </div>
-          </>
-        )}
+                  }
+                />
+              )}
+            </Index>
+          </div>
+        </SettingsSection>
       </Show>
-    </section>
+    </>
   );
 }

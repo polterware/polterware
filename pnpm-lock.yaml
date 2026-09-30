@@ -321,6 +321,9 @@ importers:
       '@polterware/frontend-state':
         specifier: workspace:*
         version: link:../../frontend/state
+      motion:
+        specifier: ^13.4.4
+        version: 13.4.4(react@19.2.5)
       solid-js:
         specifier: ^1.9.15
         version: 1.9.15

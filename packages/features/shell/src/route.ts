@@ -76,8 +76,7 @@ export const SECTION_TABS = {
   inbox: [{ id: "all", label: "All" }],
   atlas: [
     { id: "map", label: "Map" },
-    { id: "hierarchy", label: "Hierarchy" },
-    { id: "views", label: "Views" },
+    { id: "components", label: "Components" },
   ],
   work: [
     { id: "board", label: "Board" },
@@ -174,7 +173,6 @@ export function resolveRoute(
   // Pre-Atlas sections map onto their new homes.
   if (section === "architecture") {
     section = "atlas";
-    if (tab === "components") tab = "map";
   }
   if (
     section === "resources" ||

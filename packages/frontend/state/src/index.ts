@@ -29,11 +29,17 @@ export type DetailCollectionRegistration = {
   targets: readonly DetailTarget[];
   /** Where the shared DetailPanel docks while this collection is active. */
   placement?: DetailPanelPlacement;
+  /**
+   * Closing the panel dismisses it instead of collapsing it to the header strip, and
+   * nothing opens until the user picks an entity. The panel is only open or maximized.
+   */
+  dismissible?: boolean;
 };
 
 type DetailPanelSessionState = {
   mode: DetailPanelMode;
   placement: DetailPanelPlacement;
+  dismissible: boolean;
   activeScope: string | null;
   activeTarget: DetailTarget | null;
   outgoingTarget: DetailTarget | null;
@@ -58,6 +64,7 @@ export type DetailPanelState = DetailPanelSessionState & {
 export const detailPanelDefaultState: DetailPanelSessionState = {
   mode: "open",
   placement: "bottom",
+  dismissible: false,
   activeScope: null,
   activeTarget: null,
   outgoingTarget: null,
@@ -93,8 +100,9 @@ export const detailPanelStore = createStore<DetailPanelState>()(
   (set, get) => ({
       ...detailPanelDefaultState,
 
-      registerCollection: ({ scopeId, status, targets, placement = "bottom" }) => {
+      registerCollection: ({ scopeId, status, targets, placement = "bottom", dismissible = false }) => {
         if (get().placement !== placement) set({ placement });
+        if (get().dismissible !== dismissible) set({ dismissible });
         const state = get();
 
         if (status === "loading") {
@@ -159,7 +167,7 @@ export const detailPanelStore = createStore<DetailPanelState>()(
             && (state.presence === "hidden" || state.presence === "dismissing");
           const nextTarget = pendingTarget
             ?? activeTarget
-            ?? (keepsExplicitEmptySelection ? null : targets[0]!);
+            ?? (keepsExplicitEmptySelection || dismissible ? null : targets[0]!);
 
           if (!nextTarget) {
             set({
@@ -174,14 +182,16 @@ export const detailPanelStore = createStore<DetailPanelState>()(
             return;
           }
 
-          const layoutMode = sessionLayoutMode(state);
+          // A dismissible panel is never shown collapsed: it opens or stays maximized.
+          const layoutMode = dismissible ? "open" : sessionLayoutMode(state);
+          const keptMode = dismissible && state.mode === "collapsed" ? "open" : state.mode;
 
           set({
             activeScope: scopeId,
             activeTarget: nextTarget,
             pendingTarget: pendingTarget ? null : remainingPendingTarget,
             collectionStatus: "ready",
-            mode: isScopeChange ? layoutMode : state.mode,
+            mode: isScopeChange ? layoutMode : keptMode,
             restoreMode: isScopeChange ? layoutMode : state.restoreMode,
             outgoingTarget: null,
             presence: "visible",
@@ -221,6 +231,7 @@ export const detailPanelStore = createStore<DetailPanelState>()(
           outgoingTarget: null,
           pendingTarget,
           placement: "bottom",
+          dismissible: false,
           collectionStatus: "idle",
           mode: pendingTarget ? "open" : layoutMode,
           restoreMode: pendingTarget ? "open" : layoutMode,
@@ -284,6 +295,11 @@ export const detailPanelStore = createStore<DetailPanelState>()(
       },
 
       collapse: () => {
+        const state = get();
+        if (state.dismissible) {
+          if (state.activeScope) state.dismissTarget(state.activeScope);
+          return;
+        }
         set({ mode: "collapsed", restoreMode: "collapsed" });
       },
 

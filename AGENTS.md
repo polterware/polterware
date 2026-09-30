@@ -49,7 +49,7 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
   - The Polterware store, not Polter text, is the source of truth; `.pw.md` files are input only.
   - Board groups Work cards (`work_cards`) by stage (Shape, Plan, Build, Verify, Delivered). The Desktop reads through `WorkService.ListWorkCards` and writes Polter text through `WorkService.ApplyPolter`; agents use `polterware apply`.
   - Specs hold one Constitution per project (`constitution`) above a table of the same cards. The five-document Spec / Plan / Tasks / Clarify / Checklist model is removed.
-- Atlas: Map, Hierarchy, Views (nodes: system, domain, component; a feature is a Work card)
+- Atlas: Map, Components (nodes: system, domain, component; a feature is a Work card shown in the node detail)
 - Decisions: ADRs by lifecycle state (Active, Challenged, Proposed, Superseded)
 - Reality: Inventory, Sources, Facts, Docs
   - Sources lists registered project-relative paths (`kind = source`); Import from project root runs `ImportProjectSources` for the MVP file set. Generic filesystem indexing beyond that set is not shipped.

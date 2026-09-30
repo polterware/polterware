@@ -329,6 +329,7 @@ func atlasNodeProto(row atlas.Row) *localv1.AtlasNode {
 		Folder:        row.Folder,
 		MigrationFrom: row.MigrationFrom,
 		MigrationTo:   row.MigrationTo,
+		Uses:          row.Uses,
 	}
 	for _, inv := range row.Invariants {
 		if inv.State == work.InvariantRemoved {

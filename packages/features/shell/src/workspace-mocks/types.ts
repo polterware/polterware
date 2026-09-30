@@ -260,6 +260,8 @@ export type WorkspaceAtlasNode = {
   /** Both empty unless the node is moving between designs. */
   migrationFrom: string;
   migrationTo: string;
+  /** Node paths this node depends on; the map draws them as edges. */
+  uses?: string[];
 };
 
 export type WorkspaceAtlas = {

@@ -50,6 +50,10 @@ export type ArchitectureNodeCardProps = {
   dragOffset?: { dx: number; dy: number } | null;
   entering?: boolean;
   onEnterEnd?: () => void;
+  /** Fill the placement frame instead of positioning in world space. */
+  fill?: boolean;
+  /** Parent card: the header stays put and the rest is the child well. */
+  nestParent?: boolean;
 };
 
 export function ArchitectureNodeCard(props: ArchitectureNodeCardProps) {
@@ -58,21 +62,28 @@ export function ArchitectureNodeCard(props: ArchitectureNodeCardProps) {
   return (
     <div
       class="architecture-node-positioner"
-      style={{
-        position: "absolute",
-        left: `${props.x}px`,
-        top: `${props.y}px`,
-        width: `${props.width}px`,
-        "min-height": `${props.height}px`,
-        height: `${props.height}px`,
-        transform: props.dragOffset ? `translate3d(${props.dragOffset.dx}px, ${props.dragOffset.dy}px, 0)` : undefined,
-      }}
+      style={
+        props.fill
+          ? { position: "absolute", inset: "0", width: "100%", height: "100%" }
+          : {
+              position: "absolute",
+              left: `${props.x}px`,
+              top: `${props.y}px`,
+              width: `${props.width}px`,
+              "min-height": `${props.height}px`,
+              height: `${props.height}px`,
+              transform: props.dragOffset
+                ? `translate3d(${props.dragOffset.dx}px, ${props.dragOffset.dy}px, 0)`
+                : undefined,
+            }
+      }
     >
       <div
         class="architecture-node-card"
         data-dimmed={props.dimmed ? "" : undefined}
         data-selected={props.selected ? "" : undefined}
-        data-entering={props.entering ? "" : undefined}
+        data-entering={props.entering && !props.fill ? "" : undefined}
+        data-nest-parent={props.nestParent ? "" : undefined}
         onAnimationEnd={(event) => {
           if (
             event.target === event.currentTarget

@@ -100,12 +100,21 @@ func (p *planner) planNodes(doc Document) {
 			continue
 		}
 		under, hasUnder := node.MetaValue("under")
-		path, parent, message := ResolveNode(node.Path, under, hasUnder)
+		path, parent, fromPath, message := ResolveNode(node.Path, under, hasUnder)
 		if message != "" {
 			continue
 		}
+		if fromPath == "" && hasUnder {
+			if _, ok := p.nodes[node.Path]; ok && path != node.Path {
+				fromPath = node.Path
+			}
+		}
 		level, _ := node.MetaValue("level")
-		existing, exists := p.nodes[path]
+		lookup := path
+		if fromPath != "" {
+			lookup = fromPath
+		}
+		existing, exists := p.nodes[lookup]
 		if level == "" && exists {
 			level = existing.Level
 		}
@@ -122,6 +131,10 @@ func (p *planner) planNodes(doc Document) {
 			continue
 		}
 		p.updateNode(node, existing, path, level, parentID)
+		if fromPath != "" && fromPath != path {
+			delete(p.nodes, fromPath)
+			p.rewriteMovedPaths(fromPath, path)
+		}
 	}
 }
 
@@ -135,6 +148,7 @@ func (p *planner) createNode(node AtlasNode, path, level, parentID string) {
 		return
 	}
 	decisions, _ := node.MetaValue("decisions")
+	uses, _ := node.MetaValue("uses")
 	repo, _ := node.MetaValue("repo")
 	folder, _ := node.MetaValue("path")
 	migrating, _ := node.MetaValue("migrating")
@@ -143,14 +157,14 @@ func (p *planner) createNode(node AtlasNode, path, level, parentID string) {
 	created := atlas.Node{
 		ID: id, Slug: node.Slug, Path: path, Title: node.Title, Intent: node.Intent,
 		Level: level, Status: atlas.NodeActive, ParentID: parentID, Position: p.nextNode,
-		Repo: repo, Folder: folder, MigrationFrom: migrationFrom, MigrationTo: migrationTo,
+		Uses: splitList(uses), Repo: repo, Folder: folder, MigrationFrom: migrationFrom, MigrationTo: migrationTo,
 	}
 	p.ops = append(p.ops, work.Op{
 		Entity: work.EntityNode, Kind: work.OpCreate, EntityID: id, CardSlug: path, Label: node.Title,
 		Fields: map[string]any{
 			"slug": node.Slug, "title": node.Title, "intent": node.Intent, "level": level,
 			"status": atlas.NodeActive, "path": path, "parent_id": parentID,
-			"decisions": splitList(decisions), "position": p.nextNode,
+			"decisions": splitList(decisions), "uses": splitList(uses), "position": p.nextNode,
 			"repo": repo, "folder": folder,
 			"migration_from": migrationFrom, "migration_to": migrationTo,
 		},
@@ -184,6 +198,13 @@ func (p *planner) updateNode(node AtlasNode, existing atlas.Node, path, level, p
 	if decisions, ok := node.MetaValue("decisions"); ok {
 		if list := splitList(decisions); !slices.Equal(list, existing.Decisions) {
 			set("decisions", existing.Decisions, list)
+		}
+	}
+	// A present uses: is authoritative; an empty value clears the edges.
+	if value, ok := node.MetaValue("uses"); ok {
+		if list := splitList(value); !slices.Equal(list, nonNil(existing.Uses)) {
+			set("uses", nonNil(existing.Uses), list)
+			existing.Uses = list
 		}
 	}
 	// A present repo: or path: is authoritative, so an empty value moves the
@@ -239,6 +260,47 @@ func (p *planner) updateNode(node AtlasNode, existing atlas.Node, path, level, p
 	existing.MigrationFrom, existing.MigrationTo = migrationFrom, migrationTo
 	p.nodeInvariants(node, &existing)
 	p.nodes[path] = existing
+}
+
+// rewriteMovedPaths updates descendants and work cards after a node changes path.
+func (p *planner) rewriteMovedPaths(oldPath, newPath string) {
+	if oldPath == "" || oldPath == newPath {
+		return
+	}
+	prefix := oldPath + "/"
+	olds := make([]string, 0)
+	for path := range p.nodes {
+		if strings.HasPrefix(path, prefix) {
+			olds = append(olds, path)
+		}
+	}
+	slices.Sort(olds)
+	for _, old := range olds {
+		node := p.nodes[old]
+		next := newPath + old[len(oldPath):]
+		delete(p.nodes, old)
+		node.Path = next
+		p.nodes[next] = node
+		p.ops = append(p.ops, work.Op{
+			Entity: work.EntityNode, Kind: work.OpUpdate, EntityID: node.ID,
+			CardSlug: next, Label: node.Title,
+			Fields: map[string]any{"path": next},
+			Before: map[string]any{"path": old},
+		})
+	}
+	for _, card := range p.snapshot.Cards {
+		under := card.Under
+		if under != oldPath && !strings.HasPrefix(under, prefix) {
+			continue
+		}
+		next := newPath + under[len(oldPath):]
+		p.ops = append(p.ops, work.Op{
+			Entity: work.EntityCard, Kind: work.OpUpdate, EntityID: card.ID, CardID: card.ID,
+			CardSlug: card.Slug, Label: card.Title,
+			Fields: map[string]any{"under": next},
+			Before: map[string]any{"under": under},
+		})
+	}
 }
 
 func (p *planner) nodeInvariants(node AtlasNode, stored *atlas.Node) {

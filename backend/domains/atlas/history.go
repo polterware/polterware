@@ -188,6 +188,8 @@ func applyNodeFields(node *Node, fields map[string]any) {
 			}
 		case "decisions":
 			node.Decisions = stringList(value)
+		case "uses":
+			node.Uses = stringList(value)
 		}
 	}
 }

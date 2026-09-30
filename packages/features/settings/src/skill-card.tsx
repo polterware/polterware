@@ -1,4 +1,5 @@
-import { Button, pushToast } from "@polterware/frontend-design-system";
+import { Button, Copy, Download, pushToast } from "@polterware/frontend-design-system";
+import { SettingsRow, SettingsSection } from "./settings-section";
 import {
   POLTERWARE_AI_SKILL_FILENAME,
   POLTERWARE_AI_SKILL_MARKDOWN,
@@ -14,32 +15,32 @@ function downloadSkill() {
   URL.revokeObjectURL(url);
 }
 
-/** One-line Polterware AI skill export (copy / download). */
+/** Polterware AI skill export (copy / download). */
 export function SkillCard() {
   return (
-    <section class="rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-3 py-2.5">
-      <div class="flex items-center justify-between gap-3">
-        <p class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">
-          Polterware AI skill
-        </p>
-        <div class="flex flex-wrap gap-1.5">
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => {
-              void navigator.clipboard.writeText(POLTERWARE_AI_SKILL_MARKDOWN).then(
-                () => pushToast("Skill copied.", "success"),
-                () => pushToast("Could not copy skill.", "danger"),
-              );
-            }}
-          >
-            Copy skill
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => downloadSkill()}>
-            Download .md
-          </Button>
-        </div>
-      </div>
-    </section>
+    <SettingsSection title="AI skill">
+      <SettingsRow
+        label="Polterware AI skill"
+        description="Markdown that teaches any agent the Polterware MCP tools and local CLI."
+      >
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => {
+            void navigator.clipboard.writeText(POLTERWARE_AI_SKILL_MARKDOWN).then(
+              () => pushToast("Skill copied.", "success"),
+              () => pushToast("Could not copy skill.", "danger"),
+            );
+          }}
+        >
+          <Copy size={14} />
+          Copy
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => downloadSkill()}>
+          <Download size={14} />
+          Download .md
+        </Button>
+      </SettingsRow>
+    </SettingsSection>
   );
 }

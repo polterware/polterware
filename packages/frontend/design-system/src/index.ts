@@ -66,6 +66,8 @@ export { prefersReducedMotion } from "./reduced-motion";
 export { animateCollapse } from "./collapse";
 export { createDragMotion } from "./drag-motion";
 export type { DragMotion } from "./drag-motion";
+export { createPlacementMotion } from "./placement-motion";
+export type { Placement, PlacementMotion } from "./placement-motion";
 export { IconSwap } from "./icon-swap";
 export type { IconSwapProps } from "./icon-swap";
 export type { CollapseControls } from "./collapse";

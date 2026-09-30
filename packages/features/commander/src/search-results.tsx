@@ -21,7 +21,7 @@ export type SearchHit = {
 
 export const SEARCH_HITS: SearchHit[] = [
   { id: "h1", category: "Atlas", title: "Payment Service", subtitle: "Service · Production", section: "atlas", entityKind: "arch-node", entityId: "payment" },
-  { id: "h2", category: "Atlas", title: "Payment flow", subtitle: "Saved view", section: "atlas", tab: "views" },
+  { id: "h2", category: "Atlas", title: "Payment flow", subtitle: "System map", section: "atlas", tab: "map" },
   { id: "h3", category: "Atlas", title: "payment-service", subtitle: "Component · AWS · Healthy", section: "atlas", tab: "map", entityKind: "resource", entityId: "payment-service" },
   { id: "h4", category: "Reality", title: "prod-postgres", subtitle: "Database · AWS RDS · Healthy", section: "reality", tab: "inventory", entityKind: "resource", entityId: "res-rds" },
   { id: "h5", category: "Work", title: "Payment flow", subtitle: "card · Build", section: "work", tab: "board", entityKind: "card", entityId: "payment-flow" },

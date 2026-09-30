@@ -4,6 +4,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  on,
   onCleanup,
   onMount,
   untrack,
@@ -66,10 +67,28 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   pushToast,
+  spring,
   Tooltip,
 } from "@polterware/frontend-design-system";
+import { animate, motionValue } from "motion";
 import { matchesShortcut } from "@polterware/frontend-state";
 import { ArchitectureNodeCard } from "./architecture-node-card";
+import { AtlasCardFrame, AtlasDropHighlight } from "./atlas-card-frame";
+import {
+  ATLAS_LEVEL_KEY,
+  ATLAS_PARENT_KEY,
+  NEST_CONTENT_H,
+  NEST_CONTENT_W,
+  NEST_CONTENT_X,
+  NEST_CONTENT_Y,
+  clampRouteToContent,
+  decideDrop,
+  descendantIds,
+  isNestLevel,
+  type NestHitNode,
+  type NestLevel,
+} from "../nest-layout";
+import { isAtlasUsesEdge } from "../atlas-map";
 import {
   HANDLE_SIDES,
   resolveHandleState,
@@ -165,6 +184,16 @@ export function ArchitectureCanvasHost(props: {
   onAddResource?: () => void;
   /** Operator toggle for the edge flow animation (toolbar). Defaults to on. */
   edgeFlow?: boolean;
+  /** Atlas cards: parent metadata is the group, and drops can reparent. */
+  nested?: boolean;
+  /** Null shows every card. A set fades everyone else and keeps them mounted. */
+  shownIds?: ReadonlySet<string> | null;
+  /** Changes when the focused group or view changes, so the camera can spring to it. */
+  focusKey?: string;
+  onNestReparent?: (id: string, parentId: string, x: number, y: number) => void;
+  /** Atlas edges are the model's `uses:`: drawing one writes it, deleting one clears it. */
+  onNestConnect?: (sourceId: string, targetId: string) => void;
+  onNestDisconnect?: (sourceId: string, targetId: string) => void;
 }) {
   const projectEnvironments = () =>
     props.projectEnvironments && props.projectEnvironments.length > 0
@@ -225,6 +254,7 @@ export function ArchitectureCanvasHost(props: {
   const typePrefs = createLocalStorageTypePrefs();
   const [nodeDragOffset, setNodeDragOffset] = createSignal<{ dx: number; dy: number } | null>(null);
   const [draggedNodeIds, setDraggedNodeIds] = createSignal<ReadonlySet<string>>(new Set());
+  const [dropTargetId, setDropTargetId] = createSignal<string | null>(null);
   const [enteringNodes, setEnteringNodes] = createSignal<Set<string>>(new Set());
 
   let rootEl: HTMLDivElement | undefined;
@@ -253,6 +283,138 @@ export function ArchitectureCanvasHost(props: {
 
   const edgeFlowOn = () =>
     props.edgeFlow !== false && !prefersReducedMotion() && vp().zoom >= 0.45;
+
+  const nestParentId = (node: ArchNode | undefined) =>
+    String(node?.metadata?.[ATLAS_PARENT_KEY] ?? "");
+
+  const nestLevelOf = (node: ArchNode | undefined): NestLevel | null => {
+    const level = String(node?.metadata?.[ATLAS_LEVEL_KEY] ?? "");
+    return isNestLevel(level) ? level : null;
+  };
+
+  const nestContent = (node: ArchNode | undefined) => {
+    const meta = node?.metadata;
+    const x = meta?.[NEST_CONTENT_X];
+    const y = meta?.[NEST_CONTENT_Y];
+    const width = meta?.[NEST_CONTENT_W];
+    const height = meta?.[NEST_CONTENT_H];
+    if (typeof x !== "number" || typeof y !== "number" || typeof width !== "number" || typeof height !== "number") {
+      return null;
+    }
+    return { x, y, width, height };
+  };
+
+  const nestHits = (): NestHitNode[] =>
+    props.document.nodes.flatMap((node) => {
+      const level = nestLevelOf(node);
+      const content = nestContent(node);
+      if (!level || !content) return [];
+      return [{
+        id: node.id,
+        parentId: nestParentId(node),
+        level,
+        depth: node.zIndex,
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+        content,
+      }];
+    });
+
+  /** The system above an Atlas card: where a component lands when it leaves its domain. */
+  function nestRootOf(id: string): string | undefined {
+    const seen = new Set<string>();
+    let current = nestParentId(props.document.nodes.find((node) => node.id === id));
+    while (current && !seen.has(current)) {
+      seen.add(current);
+      const node = props.document.nodes.find((candidate) => candidate.id === current);
+      if (!node) return undefined;
+      if (nestLevelOf(node) === "system") return node.id;
+      current = nestParentId(node);
+    }
+    return undefined;
+  }
+
+  function routeNodes(a: ArchNode, b: ArchNode, manual?: Point[]) {
+    if (props.nested) {
+      const parentA = nestParentId(a);
+      const parentB = nestParentId(b);
+      if (parentA && parentA === parentB) {
+        const content = nestContent(props.document.nodes.find((node) => node.id === parentA));
+        const automatic = resolveRelationshipRoute(a, b);
+        if (content) return clampRouteToContent(automatic, content);
+        return automatic;
+      }
+    }
+    return resolveRelationshipRoute(a, b, manual);
+  }
+
+  function concealed(id: string) {
+    const shown = props.shownIds;
+    return Boolean(shown && !shown.has(id));
+  }
+
+  function hitDocument() {
+    const shown = props.shownIds;
+    return {
+      ...props.document,
+      nodes: props.document.nodes.filter((node) => {
+        if (props.nested && nestLevelOf(node) === "system") return false;
+        if (shown && !shown.has(node.id)) return false;
+        return true;
+      }),
+    };
+  }
+
+  function commitNodeDrag(off: { dx: number; dy: number }) {
+    const positions = new Map<string, { x: number; y: number }>();
+    for (const [id, origin] of nodeOrigins) {
+      positions.set(id, { x: origin.x + off.dx, y: origin.y + off.dy });
+    }
+    applyDoc(
+      {
+        ...props.document,
+        nodes: props.document.nodes.map((node) => {
+          const position = positions.get(node.id);
+          return position && !node.locked ? { ...node, x: position.x, y: position.y } : node;
+        }),
+      },
+      "immediately",
+    );
+    setNodeDragOffset(null);
+    setDraggedNodeIds(new Set<string>());
+    setDropTargetId(null);
+    nextDragOffset = { dx: 0, dy: 0 };
+  }
+
+  function springDragHome() {
+    const from = nextDragOffset;
+    if (prefersReducedMotion() || (from.dx === 0 && from.dy === 0)) {
+      setNodeDragOffset(null);
+      setDraggedNodeIds(new Set<string>());
+      setDropTargetId(null);
+      return;
+    }
+    const x = motionValue(from.dx);
+    const y = motionValue(from.dy);
+    const paint = () => setNodeDragOffset({ dx: x.get(), dy: y.get() });
+    const stopX = x.on("change", paint);
+    const stopY = y.on("change", paint);
+    const done = () => {
+      stopX();
+      stopY();
+      x.stop();
+      y.stop();
+      setNodeDragOffset(null);
+      setDraggedNodeIds(new Set<string>());
+      setDropTargetId(null);
+    };
+    void Promise.all([
+      animate(x, 0, spring.moderate).finished,
+      animate(y, 0, spring.moderate).finished,
+    ]).then(done, done);
+  }
 
   /**
    * Edge flow dots are driven by one shared rAF loop storing absolute distance
@@ -414,6 +576,64 @@ export function ArchitectureCanvasHost(props: {
       // only sync when external load
     }
   });
+
+  let nestSeenIds = new Set<string>();
+  let nestSeenReady = false;
+  createEffect(() => {
+    if (!props.nested) return;
+    const ids = props.document.nodes.map((node) => node.id);
+    if (!nestSeenReady) {
+      nestSeenIds = new Set(ids);
+      nestSeenReady = true;
+      return;
+    }
+    const fresh = ids.filter((id) => !nestSeenIds.has(id));
+    nestSeenIds = new Set(ids);
+    markNodesEntering(fresh);
+  });
+
+  createEffect(on(() => props.focusKey ?? "", (key) => {
+    if (!props.nested || !key) return;
+    const shown = untrack(() => props.shownIds);
+    if (!shown || shown.size === 0) return;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const node of untrack(() => props.document.nodes)) {
+      if (!shown.has(node.id)) continue;
+      minX = Math.min(minX, node.x);
+      minY = Math.min(minY, node.y);
+      maxX = Math.max(maxX, node.x + node.width);
+      maxY = Math.max(maxY, node.y + node.height);
+    }
+    if (!Number.isFinite(minX)) return;
+    const current = untrack(() => vp());
+    const size = untrack(() => viewSize());
+    const target = fitBounds(current, { minX, minY, maxX, maxY }, size.w, size.h);
+    if (prefersReducedMotion()) {
+      setVp(target);
+      props.onViewportChange?.(target);
+      return;
+    }
+    const x = motionValue(current.x);
+    const y = motionValue(current.y);
+    const zoom = motionValue(current.zoom);
+    const paint = () => setVp({ ...untrack(vp), x: x.get(), y: y.get(), zoom: zoom.get() });
+    const stops = [x, y, zoom].map((value) => value.on("change", paint));
+    void Promise.all([
+      animate(x, target.x, spring.moderate).finished,
+      animate(y, target.y, spring.moderate).finished,
+      animate(zoom, target.zoom, spring.moderate).finished,
+    ]).then(() => {
+      for (const stop of stops) stop();
+      x.stop();
+      y.stop();
+      zoom.stop();
+      setVp(target);
+      props.onViewportChange?.(target);
+    });
+  }, { defer: true }));
 
   createEffect(() => {
     if (!prefersReducedMotion()) return;
@@ -730,6 +950,12 @@ export function ArchitectureCanvasHost(props: {
       0
     )
       return;
+    if (props.nested && props.onNestDisconnect) {
+      for (const id of sel().relationshipIds) {
+        const edge = props.document.relationships.find((r) => r.id === id);
+        if (edge && isAtlasUsesEdge(edge)) props.onNestDisconnect(edge.sourceNodeId, edge.targetNodeId);
+      }
+    }
     applyDoc(deleteSelection(props.document, sel()), "immediately");
     setSel(emptySelection());
     props.onSelect(null);
@@ -913,9 +1139,10 @@ export function ArchitectureCanvasHost(props: {
 
   const visibleNodes = createMemo(() => {
     const vis = visibleDocumentRect(vp(), viewSize().w, viewSize().h, 200);
-    return filteredNodes().filter((n) =>
-      rectsIntersect(vis, { x: n.x, y: n.y, width: n.width, height: n.height }),
-    );
+    return filteredNodes().filter((n) => {
+      if (props.nested && nestLevelOf(n) === "system") return false;
+      return rectsIntersect(vis, { x: n.x, y: n.y, width: n.width, height: n.height });
+    });
   });
   const visibleNodeIds = createMemo(() => visibleNodes().map((n) => n.id));
   const nodeById = (id: string) => props.document.nodes.find((n) => n.id === id);
@@ -930,6 +1157,7 @@ export function ArchitectureCanvasHost(props: {
     | "edge"
     | "connect" = null;
   let dragStartScreen: Point = { x: 0, y: 0 };
+  let suppressOpenUntil = 0;
   let dragStartDoc: Point = { x: 0, y: 0 };
   let dragVp: Viewport = vp();
   let nodeOrigins = new Map<string, { x: number; y: number }>();
@@ -1040,7 +1268,7 @@ export function ArchitectureCanvasHost(props: {
     // Right button: empty canvas = pan drag; cards/edges keep their context menu
     // via the contextmenu event instead.
     if (e.button === 2) {
-      if (hitTest(props.document, docPt).kind === "empty") {
+      if (hitTest(hitDocument(), docPt).kind === "empty") {
         dragMode = "pan";
         rightPanActive = true;
         rightPanMoved = false;
@@ -1052,7 +1280,7 @@ export function ArchitectureCanvasHost(props: {
       return;
     }
 
-    const hit = hitTest(props.document, docPt, { showPorts: true });
+    const hit = hitTest(hitDocument(), docPt, { showPorts: true });
 
     // Port drag always starts a connection from that card (no global Connect tool).
     if (e.button === 0 && hit.kind === "port") {
@@ -1098,16 +1326,28 @@ export function ArchitectureCanvasHost(props: {
         }
         const nextSel = selectClick(sel(), { kind: "node", id: hit.id }, e.shiftKey);
         setSel(nextSel);
-        props.onSelect(nextSel.nodeIds[0] ?? null);
+        if (t !== "select") props.onSelect(nextSel.nodeIds[0] ?? null);
         if (t === "select") {
           dragMode = "nodes";
           dragStartDoc = docPt;
+          dragStartScreen = screen;
           nodeOrigins = new Map(
             props.document.nodes
               .filter((n) => nextSel.nodeIds.includes(n.id) && !n.locked)
               .map((n) => [n.id, { x: n.x, y: n.y }]),
           );
-          setDraggedNodeIds(new Set(nodeOrigins.keys()));
+          const dragged = new Set(nodeOrigins.keys());
+          if (props.nested) {
+            const parentOf = (id: string) =>
+              nestParentId(props.document.nodes.find((node) => node.id === id));
+            for (const node of props.document.nodes) {
+              for (const root of nodeOrigins.keys()) {
+                if (descendantIds(root, parentOf)(node.id)) dragged.add(node.id);
+              }
+            }
+          }
+          setDraggedNodeIds(dragged);
+          setDropTargetId(null);
         }
         return;
       }
@@ -1156,8 +1396,8 @@ export function ArchitectureCanvasHost(props: {
     const docPt = screenToDocument(vp(), screen);
 
     if (!dragMode) {
-      if (!catalogOpen() && !configureDef() && !relTypeMenuId()) {
-        applyHoverFromHit(hitTest(props.document, docPt, { showPorts: true }));
+      if (e.pointerType === "mouse" && !catalogOpen() && !configureDef() && !relTypeMenuId()) {
+        applyHoverFromHit(hitTest(hitDocument(), docPt, { showPorts: true }));
       } else {
         clearHoverState();
       }
@@ -1197,7 +1437,7 @@ export function ArchitectureCanvasHost(props: {
 
     if (dragMode === "connect") {
       setConnectPt(docPt);
-      const hit = hitTest(props.document, docPt, { showPorts: true });
+      const hit = hitTest(hitDocument(), docPt, { showPorts: true });
       setHoveredNodeId(nodeIdFromHit(hit));
       setHoveredPort(portFromHit(hit));
       return;
@@ -1231,6 +1471,25 @@ export function ArchitectureCanvasHost(props: {
 
     if (dragMode === "nodes") {
       nextDragOffset = { dx: docPt.x - dragStartDoc.x, dy: docPt.y - dragStartDoc.y };
+      if (props.nested && nodeOrigins.size === 1) {
+        const dragged = nestHits().find((node) => nodeOrigins.has(node.id));
+        if (dragged) {
+          const decision = decideDrop({
+            dragged,
+            cursor: docPt,
+            nextTopLeft: { x: dragged.x + nextDragOffset.dx, y: dragged.y + nextDragOffset.dy },
+            nodes: nestHits(),
+            skip: draggedNodeIds(),
+            rootParentId: nestRootOf(dragged.id),
+          });
+          // Leaving for the system has no frame to light up.
+          setDropTargetId(
+            decision.kind === "reparent" && decision.parentId !== nestRootOf(dragged.id) ? decision.parentId : null,
+          );
+        }
+      } else if (props.nested) {
+        setDropTargetId(null);
+      }
       if (!nodeDragRaf) {
         nodeDragRaf = requestAnimationFrame(() => {
           setNodeDragOffset(nextDragOffset);
@@ -1299,24 +1558,46 @@ export function ArchitectureCanvasHost(props: {
         nodeDragRaf = 0;
       }
       const off = nextDragOffset;
-      if (off && (off.dx !== 0 || off.dy !== 0)) {
-        const positions = new Map<string, { x: number; y: number }>();
-        for (const [id, o] of nodeOrigins) {
-          positions.set(id, { x: o.x + off.dx, y: o.y + off.dy });
+      const screenDistance = Math.hypot(screen.x - dragStartScreen.x, screen.y - dragStartScreen.y);
+      const moved = screenDistance >= MARQUEE_ACTIVATION_DISTANCE && (off.dx !== 0 || off.dy !== 0);
+      if (moved) suppressOpenUntil = performance.now() + 400;
+      if (props.nested && moved && nodeOrigins.size === 1) {
+        const dragged = nestHits().find((node) => nodeOrigins.has(node.id));
+        const decision = dragged
+          ? decideDrop({
+              dragged,
+              cursor: docPt,
+              nextTopLeft: { x: dragged.x + off.dx, y: dragged.y + off.dy },
+              nodes: nestHits(),
+              skip: draggedNodeIds(),
+              rootParentId: nestRootOf(dragged.id),
+            })
+          : { kind: "move" as const };
+        if (decision.kind === "reject") {
+          springDragHome();
+          nextDragOffset = { dx: 0, dy: 0 };
+        } else if (decision.kind === "reparent") {
+          props.onNestReparent?.( [...nodeOrigins.keys()][0]!, decision.parentId, decision.x, decision.y);
+          setNodeDragOffset(null);
+          setDraggedNodeIds(new Set<string>());
+          setDropTargetId(null);
+          nextDragOffset = { dx: 0, dy: 0 };
+        } else if (off.dx !== 0 || off.dy !== 0) {
+          commitNodeDrag(off);
+        } else {
+          setNodeDragOffset(null);
+          setDraggedNodeIds(new Set<string>());
+          setDropTargetId(null);
         }
-        let next = props.document;
-        next = {
-          ...next,
-          nodes: next.nodes.map((n) => {
-            const p = positions.get(n.id);
-            return p && !n.locked ? { ...n, x: p.x, y: p.y } : n;
-          }),
-        };
-        applyDoc(next, "immediately");
+      } else if (moved) {
+        commitNodeDrag(off);
+      } else {
+        setNodeDragOffset(null);
+        setDraggedNodeIds(new Set<string>());
+        setDropTargetId(null);
+        nextDragOffset = { dx: 0, dy: 0 };
+        props.onSelect(sel().nodeIds[0] ?? null);
       }
-      setNodeDragOffset(null);
-      setDraggedNodeIds(new Set<string>());
-      nextDragOffset = { dx: 0, dy: 0 };
     }
 
     if (dragMode === "boundary" || dragMode === "edge") {
@@ -1342,7 +1623,7 @@ export function ArchitectureCanvasHost(props: {
     }
 
     if (dragMode === "connect" && connectFrom()) {
-      const hit = hitTest(props.document, docPt, { showPorts: true });
+      const hit = hitTest(hitDocument(), docPt, { showPorts: true });
       const from = connectFrom()!;
       let targetId: string | null = null;
       if (hit.kind === "port") {
@@ -1358,7 +1639,10 @@ export function ArchitectureCanvasHost(props: {
         const quick = connectQuickType();
         const type = quick ?? suggestions[0] ?? "calls";
         const check = canConnect(source, target, type);
-        if (check.ok) {
+        if (props.nested && props.onNestConnect) {
+          // The model owns Atlas edges; the new edge appears once uses: is saved.
+          props.onNestConnect(from.nodeId, targetId);
+        } else if (check.ok) {
           const prevIds = new Set(props.document.relationships.map((r) => r.id));
           const next = addRelationship(props.document, {
             sourceNodeId: from.nodeId,
@@ -1419,7 +1703,7 @@ export function ArchitectureCanvasHost(props: {
     e.preventDefault();
     const screen = clientToLocal(e);
     const docPt = screenToDocument(vp(), screen);
-    const hit = hitTest(props.document, docPt);
+    const hit = hitTest(hitDocument(), docPt);
     if (rightPanMoved) {
       if (rightPanReleaseRaf) {
         cancelAnimationFrame(rightPanReleaseRaf);
@@ -1456,9 +1740,10 @@ export function ArchitectureCanvasHost(props: {
   }
 
   function onDblClick(e: MouseEvent) {
+    if (performance.now() < suppressOpenUntil) return;
     const screen = clientToLocal(e);
     const docPt = screenToDocument(vp(), screen);
-    const hit = hitTest(props.document, docPt);
+    const hit = hitTest(hitDocument(), docPt);
     if (hit.kind === "node") {
       snapshotSession();
       props.onOpenNode(hit.id);
@@ -1484,6 +1769,8 @@ export function ArchitectureCanvasHost(props: {
       <div
         ref={rootEl}
         class="relative min-h-0 flex-1 overflow-hidden bg-[var(--color-surface)]"
+        classList={{ "architecture-canvas-nesting": Boolean(props.nested) }}
+        data-nest-drag={draggedNodeIds().size > 0 ? "" : undefined}
         tabIndex={0}
         aria-label="Architecture canvas"
         data-detail-focus-fallback
@@ -1529,6 +1816,7 @@ export function ArchitectureCanvasHost(props: {
         />
 
         <div ref={worldEl} style={worldStyle()}>
+          <Show when={!props.nested}>
           {/* Boundaries */}
           <For each={props.document.boundaries}>
             {(b) => (
@@ -1563,6 +1851,16 @@ export function ArchitectureCanvasHost(props: {
               </div>
             )}
           </For>
+          </Show>
+
+          <AtlasDropHighlight
+            target={(() => {
+              const id = dropTargetId();
+              const node = id ? props.document.nodes.find((item) => item.id === id) : undefined;
+              if (!node) return null;
+              return { x: node.x, y: node.y, width: node.width, height: node.height };
+            })()}
+          />
 
           {/* Edges */}
           <svg
@@ -1572,6 +1870,8 @@ export function ArchitectureCanvasHost(props: {
               top: 0,
               overflow: "visible",
               "pointer-events": "none",
+              // Nested: above domain frames, below component cards (see AtlasCardFrame).
+              "z-index": props.nested ? "5" : undefined,
             }}
           >
             <For each={relationshipIds()}>
@@ -1594,7 +1894,7 @@ export function ArchitectureCanvasHost(props: {
                   const A = effectiveNode(a());
                   const B = effectiveNode(b());
                   if (!r || !A || !B) return null;
-                  const pts = resolveRelationshipRoute(A, B, r.manualPoints);
+                  const pts = routeNodes(A, B, r.manualPoints);
                   return pointsToRoundedSvgPath(pts);
                 });
                 const selected = () => sel().relationshipIds.includes(id);
@@ -1604,8 +1904,12 @@ export function ArchitectureCanvasHost(props: {
                   return r ? resolveRelationshipAppearance(r) : { dim: true as const };
                 };
                 const markers = () => relationshipMarkers(rel()?.direction ?? "forward");
+                const visibleRoute = () => {
+                  if (concealed(rel()?.sourceNodeId ?? "") || concealed(rel()?.targetNodeId ?? "")) return null;
+                  return route();
+                };
                 return (
-                  <Show when={route()}>
+                  <Show when={visibleRoute()}>
                     {(d) => (
                       <g>
                         <path
@@ -1705,7 +2009,7 @@ export function ArchitectureCanvasHost(props: {
                 const A = effectiveNode(a());
                 const B = effectiveNode(b());
                 if (!r || !A || !B) return null;
-                const pts = resolveRelationshipRoute(A, B, r.manualPoints);
+                const pts = routeNodes(A, B, r.manualPoints);
                 let length = 0;
                 for (let i = 1; i < pts.length; i++) {
                   const curr = pts[i];
@@ -1727,7 +2031,15 @@ export function ArchitectureCanvasHost(props: {
                 checkFlowLoop();
               });
               return (
-                <Show when={route() && !appearance().dim && edgeFlowOn()}>
+                <Show
+                  when={
+                    route()
+                    && !appearance().dim
+                    && edgeFlowOn()
+                    && !concealed(rel()?.sourceNodeId ?? "")
+                    && !concealed(rel()?.targetNodeId ?? "")
+                  }
+                >
                   <div
                         ref={(el) => {
                           const prev = flowDots.get(id);
@@ -1799,25 +2111,35 @@ export function ArchitectureCanvasHost(props: {
                 props.onSelect(id);
               };
 
-              return (
-                <>
+              const domainFrame = () => props.nested && nestLevelOf(n()) === "domain";
+              const body = domainFrame() ? (
+                <div
+                  class="atlas-domain-frame"
+                  data-selected={selected() ? "" : undefined}
+                  aria-hidden={concealed(id) ? true : undefined}
+                >
+                  <span class="atlas-domain-frame__label">{n().name}</span>
+                </div>
+              ) : (
                   <ArchitectureNodeCard
                     name={n().name}
                     type={n().type}
                     subtype={n().subtype}
                     provider={n().provider}
                     state={n().state}
-                    x={n().x}
-                    y={n().y}
+                    x={props.nested ? 0 : n().x}
+                    y={props.nested ? 0 : n().y}
                     width={n().width}
                     height={n().height}
                     selected={selected()}
-                    dimmed={dim()}
+                    dimmed={dim() || concealed(id)}
                     lodFar={lodFar()}
                     editing={editingId() === id}
-                    entering={enteringNodes().has(id)}
+                    entering={!props.nested && enteringNodes().has(id)}
                     onEnterEnd={() => completeNodeEntry(id)}
-                    dragOffset={dragOffsetForNode(id)}
+                    dragOffset={props.nested ? undefined : dragOffsetForNode(id)}
+                    fill={Boolean(props.nested)}
+                    nestParent={false}
                     onRenameEnd={(newName) => {
                       applyDoc(
                         updateNode(props.document, id, { name: newName }),
@@ -1857,18 +2179,20 @@ export function ArchitectureCanvasHost(props: {
                       doDelete();
                     }}
                   />
-
-                  <Show when={showHandles()}>
+              );
+              const handles = (
+                  <Show when={showHandles() && !domainFrame()}>
                     <div
                       class="pointer-events-none absolute z-[3]"
                       style={{
-                        left: `${n().x}px`,
-                        top: `${n().y}px`,
-                        width: `${n().width}px`,
-                        height: `${n().height}px`,
-                        transform: dragOffsetForNode(id)
-                          ? `translate3d(${dragOffsetForNode(id)?.dx ?? 0}px, ${dragOffsetForNode(id)?.dy ?? 0}px, 0)`
-                          : undefined,
+                        left: props.nested ? "0px" : `${n().x}px`,
+                        top: props.nested ? "0px" : `${n().y}px`,
+                        width: props.nested ? "100%" : `${n().width}px`,
+                        height: props.nested ? "100%" : `${n().height}px`,
+                        transform:
+                          !props.nested && dragOffsetForNode(id)
+                            ? `translate3d(${dragOffsetForNode(id)?.dx ?? 0}px, ${dragOffsetForNode(id)?.dy ?? 0}px, 0)`
+                            : undefined,
                       }}
                       aria-hidden
                     >
@@ -1902,7 +2226,35 @@ export function ArchitectureCanvasHost(props: {
                       </For>
                     </div>
                   </Show>
-                </>
+              );
+              return (
+                <Show
+                  when={props.nested}
+                  fallback={
+                    <>
+                      {body}
+                      {handles}
+                    </>
+                  }
+                >
+                  <AtlasCardFrame
+                    x={n().x}
+                    y={n().y}
+                    width={n().width}
+                    height={n().height}
+                    depth={n().zIndex}
+                    concealed={concealed(id)}
+                    dragging={draggedNodeIds().has(id)}
+                    dragOffset={dragOffsetForNode(id) ?? null}
+                    entering={enteringNodes().has(id)}
+                    onEnterEnd={() => completeNodeEntry(id)}
+                  >
+                    <>
+                      {body}
+                      {handles}
+                    </>
+                  </AtlasCardFrame>
+                </Show>
               );
             }}
           </For>
@@ -1913,12 +2265,12 @@ export function ArchitectureCanvasHost(props: {
               const a = () => props.document.nodes.find((n) => n.id === r.sourceNodeId);
               const b = () => props.document.nodes.find((n) => n.id === r.targetNodeId);
               return (
-                <Show when={a() && b()}>
+                <Show when={a() && b() && !concealed(r.sourceNodeId) && !concealed(r.targetNodeId)}>
                   {(() => {
                     const A = effectiveNode(a());
                     const B = effectiveNode(b());
                     if (!A || !B) return null;
-                    const pts = resolveRelationshipRoute(A, B, r.manualPoints);
+                    const pts = routeNodes(A, B, r.manualPoints);
                     const mid = polylineMidpoint(pts);
                     if (!mid) return null;
                     const selected = () => sel().relationshipIds.includes(r.id);
@@ -2091,7 +2443,7 @@ export function ArchitectureCanvasHost(props: {
                   const a = effectiveNode(props.document.nodes.find((n) => n.id === r.sourceNodeId));
                   const b = effectiveNode(props.document.nodes.find((n) => n.id === r.targetNodeId));
                   if (!a || !b) return null;
-                  const pts = resolveRelationshipRoute(a, b, r.manualPoints);
+                  const pts = routeNodes(a, b, r.manualPoints);
                   const interior = pts.slice(1, -1);
                   return (
                     <For each={interior}>

@@ -15,7 +15,8 @@
   "dependencies": {
     "@polterware/frontend-canvas": "workspace:*",
     "@polterware/frontend-design-system": "workspace:*",
-    "@polterware/frontend-state": "workspace:*"
+    "@polterware/frontend-state": "workspace:*",
+    "motion": "^13.4.4"
   },
   "peerDependencies": {
     "solid-js": "^1.9.15"

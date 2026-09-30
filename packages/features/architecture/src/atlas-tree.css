@@ -3,11 +3,130 @@
  * (design-system animateCollapse); the rows fade and slide as CSS transitions keyed on data-state, so a
  * toggle during a run retargets instead of restarting. Opening is the deliberate phase (staggered);
  * closing is quicker.
+ *
+ * Rows follow the Inbox: space separates them. The left rule is the tree indent, not a card edge.
  */
+
+.atlas-tree-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 12px;
+  list-style: none;
+}
+
+.atlas-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius-control);
+}
+
+.atlas-tree-row:hover,
+.atlas-tree-row:focus-within,
+.atlas-tree-row[data-selected="true"] {
+  background: var(--color-surface-hover);
+}
+
+.atlas-tree-chevron {
+  display: flex;
+  width: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+@media (hover: hover) {
+  .atlas-tree-chevron:hover {
+    color: var(--color-text-primary);
+  }
+}
+
+.atlas-tree-chevron:focus-visible,
+.atlas-tree-row__main:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: -2px;
+}
+
+.atlas-tree-chevron__spacer {
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.atlas-tree-row__main {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 14px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  padding: 12px 12px 12px 4px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.atlas-tree-row__status {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.atlas-tree-row__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.atlas-tree-row__title {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atlas-tree-row__meta {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atlas-panel-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  justify-self: start;
+}
+
 .atlas-tree-group > ul {
-  margin-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 0 12px;
   padding: 4px 0 0 12px;
   border-left: 1px solid var(--color-border-subtle);
+  list-style: none;
 }
 
 .atlas-tree-group > ul > li {

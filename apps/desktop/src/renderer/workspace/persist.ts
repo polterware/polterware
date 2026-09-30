@@ -225,6 +225,56 @@ function polterCard(slug: string, title: string | null, meta: Record<string, str
   return `---\npolter: 1\n---\n\n${heading}\n${metaLine}\n`;
 }
 
+function atlasNodeText(input: { heading: string; title: string; level: string; under?: string }): string {
+  const meta = [`level: ${input.level}`];
+  if (input.under) meta.push(`under: ${input.under}`);
+  return `---\npolter: 1\n---\n\n# ${input.heading}: ${polterValue(input.title)}\n${meta.join(" · ")}\n`;
+}
+
+/** Create an Atlas node. The heading is the slug; under names the parent path. */
+export async function persistAtlasCreateNode(input: {
+  projectId: string;
+  heading: string;
+  title: string;
+  level: string;
+  under?: string;
+  change: ChangeEnvelope;
+}): Promise<void> {
+  await applyPolter(input.projectId, atlasNodeText(input), input.change);
+}
+
+/** Move an existing Atlas node under a new parent. The heading is its current path. */
+export async function persistAtlasMoveNode(input: {
+  projectId: string;
+  path: string;
+  title: string;
+  level: string;
+  under: string;
+  change: ChangeEnvelope;
+}): Promise<void> {
+  await applyPolter(
+    input.projectId,
+    atlasNodeText({ heading: input.path, title: input.title, level: input.level, under: input.under }),
+    input.change,
+  );
+}
+
+/**
+ * Replace an Atlas node's `uses:` list (the node paths it depends on). An empty
+ * list clears it. The heading is the node's current path.
+ */
+export async function persistAtlasUses(input: {
+  projectId: string;
+  path: string;
+  title: string;
+  level: string;
+  uses: readonly string[];
+  change: ChangeEnvelope;
+}): Promise<void> {
+  const text = atlasNodeText({ heading: input.path, title: input.title, level: input.level });
+  await applyPolter(input.projectId, `${text}uses: ${input.uses.join(", ")}\n`, input.change);
+}
+
 async function applyPolter(projectId: string, text: string, change: ChangeEnvelope): Promise<void> {
   await core().work.apply({ projectId, text, change: changePayload(change) });
 }

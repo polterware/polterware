@@ -8,7 +8,6 @@ import {
   PageToolbar,
   Plug,
   RefreshCw,
-  StatusChip,
   Tabs,
   pushToast,
   type TabItem,
@@ -31,6 +30,10 @@ import { McpStatusCard } from "./mcp-status-card";
 import { PpmFactsPanel, type PpmJustifyChange } from "./ppm-facts-panel";
 import { OraclePreviewCard } from "./oracle-preview-card";
 import { SkillCard } from "./skill-card";
+import { SettingsSection } from "./settings-section";
+
+/** Centered settings-style column shared by the Access, Sessions, and Context tabs. */
+const COLUMN = "mx-auto flex w-full max-w-2xl flex-col gap-6 overflow-auto px-4 py-6 text-[12.5px]";
 
 const AGENTS_TABS: TabItem[] = [
   {
@@ -377,8 +380,6 @@ export function AgentsPage(props: {
   const [setupView, setSetupView] = createSignal<AgentSetupView | undefined>();
   const [setupLoaded, setSetupLoaded] = createSignal(false);
 
-  const running = () => Boolean(mcpStatus()?.running);
-
   // The page stays mounted across project switches: drop the previous project's
   // views so the cards show their loading state, then reload history. The setup
   // and sessions effects below refetch on their own because they read projectId.
@@ -514,8 +515,9 @@ export function AgentsPage(props: {
         ...(filter === "all" ? {} : { actorKind: filter }),
       }));
       setChanges(nextChanges);
+      // Keep the user's selection across refreshes; never auto-open the first change.
       const current = selectedStepId();
-      const selected = nextChanges.find((change) => change.stepId === current) ?? nextChanges[0];
+      const selected = nextChanges.find((change) => change.stepId === current);
       setSelectedStepId(selected?.stepId ?? "");
       if (selected?.agentRunId) await loadRunDetail(selected.agentRunId);
       else setRunDetail(undefined);
@@ -639,31 +641,17 @@ export function AgentsPage(props: {
         </PageToolbar.Tabs>
         <PageToolbar.Actions>
           <Show when={tab() === "access"}>
-            <StatusChip tone={running() ? "ok" : "warn"} label={running() ? "Running" : "Stopped"} />
             <Button
               size="sm"
               variant="ghost"
               disabled={mcpBusy()}
-              onClick={() => void refreshMcp()}
+              onClick={() => {
+                void refreshMcp();
+                void refreshSetup();
+              }}
             >
               <RefreshCw size={14} />
               Refresh
-            </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={mcpBusy() || running()}
-              onClick={() => startMcp()}
-            >
-              Start
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={mcpBusy() || !running()}
-              onClick={() => stopMcp()}
-            >
-              Stop
             </Button>
           </Show>
           <Show when={tab() === "context"}>
@@ -717,25 +705,30 @@ export function AgentsPage(props: {
 
       <Switch>
         <Match when={tab() === "access"}>
-          <PageContent class="mx-auto w-full max-w-2xl space-y-3 overflow-auto p-4 text-[12.5px]">
-            <McpStatusCard status={mcpStatus()} />
+          <PageContent class={COLUMN}>
+            <McpStatusCard
+              status={mcpStatus()}
+              busy={mcpBusy()}
+              onStart={() => startMcp()}
+              onStop={() => stopMcp()}
+            />
             <AgentSetupCard setup={setupView()} loaded={setupLoaded()} onToggle={(name, enabled) => void toggleHook(name, enabled)} />
             <SkillCard />
           </PageContent>
         </Match>
 
         <Match when={tab() === "context"}>
-          <PageContent class="mx-auto w-full max-w-2xl space-y-8 overflow-auto p-4 text-[12.5px]">
-            <section class="space-y-3">
-              <h2 class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">
-                Oracle
-              </h2>
+          <PageContent class={COLUMN}>
+            <SettingsSection
+              title="Oracle"
+              description="The exact text an agent receives for one node, card, or title."
+            >
               <OraclePreviewCard projectId={props.projectId} query={workQuery()} />
-            </section>
-            <section class="space-y-3">
-              <h2 class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">
-                Compile
-              </h2>
+            </SettingsSection>
+            <SettingsSection
+              title="Compile context"
+              description="The ranked context package an agent gets for a query, within a token budget."
+            >
               <CompilePreviewCard
                 query={query()}
                 entityId={entityId()}
@@ -748,11 +741,11 @@ export function AgentsPage(props: {
                 onBudgetChange={setBudget}
                 onCompile={() => runCompile()}
               />
-            </section>
-            <section class="space-y-3">
-              <h2 class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">
-                Drift
-              </h2>
+            </SettingsSection>
+            <SettingsSection
+              title="Drift check"
+              description="The narrow drift checker over the project model. Findings are advisory."
+            >
               <DriftPreviewCard
                 entityId={entityId()}
                 busy={driftBusy()}
@@ -761,7 +754,7 @@ export function AgentsPage(props: {
                 onEntityIdChange={setEntityId}
                 onCheck={() => runDrift()}
               />
-            </section>
+            </SettingsSection>
           </PageContent>
         </Match>
 
@@ -780,7 +773,7 @@ export function AgentsPage(props: {
         </Match>
 
         <Match when={tab() === "sessions"}>
-          <PageContent class="mx-auto w-full max-w-2xl overflow-auto p-4 text-[12.5px]">
+          <PageContent class={COLUMN}>
             <AgentSessionsCard view={sessionsView()} loaded={sessionsLoaded()} />
           </PageContent>
         </Match>
@@ -800,6 +793,10 @@ export function AgentsPage(props: {
               onSelect={(stepId, agentRunId) => {
                 setSelectedStepId(stepId);
                 void loadRunDetail(agentRunId);
+              }}
+              onClear={() => {
+                setSelectedStepId("");
+                setRunDetail(undefined);
               }}
             />
           </PageContent>

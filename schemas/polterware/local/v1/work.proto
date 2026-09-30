@@ -214,6 +214,8 @@ message AtlasNode {
   // between designs.
   string migration_from = 16;
   string migration_to = 17;
+  // uses lists the node paths this node depends on; the map draws them as edges.
+  repeated string uses = 18;
 }
 
 // ListAtlas reads the live graph, or the graph replayed at as_of (an RFC3339

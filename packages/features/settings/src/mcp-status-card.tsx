@@ -1,5 +1,7 @@
-import { Button, pushToast } from "@polterware/frontend-design-system";
+import { Show } from "solid-js";
+import { Button, StatusChip, pushToast } from "@polterware/frontend-design-system";
 import type { McpStatusView } from "./agents-types";
+import { SettingsRow, SettingsSection } from "./settings-section";
 
 async function copyText(label: string, text: string) {
   try {
@@ -10,43 +12,77 @@ async function copyText(label: string, text: string) {
   }
 }
 
-function truncatePath(path: string, max = 48): string {
+function truncatePath(path: string, max = 56): string {
   if (!path || path.length <= max) return path || "—";
   return `…${path.slice(-(max - 1))}`;
 }
 
-/** Compact MCP helper metadata and copy actions (Start/Stop live in the toolbar). */
+/** Local MCP helper: lifecycle, process metadata, and client config to copy. */
 export function McpStatusCard(props: {
   status: McpStatusView | undefined;
+  busy: boolean;
+  onStart: () => void;
+  onStop: () => void;
 }) {
   const status = () => props.status;
+  const running = () => Boolean(status()?.running);
 
   return (
-    <section class="rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-3 py-2.5">
-      <div class="flex items-center justify-between gap-3">
-        <p class="m-0 text-[12px] font-medium text-[var(--color-text-primary)]">Local MCP</p>
-        <div class="flex flex-wrap gap-1.5">
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={!status()?.command}
-            onClick={() => void copyText("Command", status()?.command ?? "")}
-          >
-            Copy command
+    <SettingsSection
+      title="MCP server"
+      description="A local helper that lets MCP clients read and write this project through the core."
+    >
+      <SettingsRow label="Local MCP helper">
+        <Show when={status()} fallback={<StatusChip tone="muted" label="Checking" />}>
+          <StatusChip tone={running() ? "ok" : "muted"} label={running() ? "Running" : "Stopped"} />
+        </Show>
+        <Show
+          when={running()}
+          fallback={
+            <Button size="sm" variant="primary" disabled={props.busy || !status()} onClick={() => props.onStart()}>
+              Start
+            </Button>
+          }
+        >
+          <Button size="sm" disabled={props.busy} onClick={() => props.onStop()}>
+            Stop
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={!status()?.cursorConfig}
-            onClick={() => void copyText("Cursor config", status()?.cursorConfig ?? "")}
-          >
-            Copy Cursor config
-          </Button>
-        </div>
-      </div>
-      <p class="m-0 mt-1.5 truncate font-mono pw-selectable text-[11px] text-[var(--color-text-muted)]" title={status()?.dbPath}>
-        PID {status()?.pid ?? "—"} · {truncatePath(status()?.dbPath ?? "")}
-      </p>
-    </section>
+        </Show>
+      </SettingsRow>
+
+      <SettingsRow label="Process">
+        <span class="font-mono pw-selectable text-[12px] text-[var(--color-text-secondary)]">
+          {status()?.pid ? `PID ${status()?.pid}` : "—"}
+        </span>
+      </SettingsRow>
+
+      <SettingsRow label="Database">
+        <span
+          class="max-w-[20rem] truncate font-mono pw-selectable text-[12px] text-[var(--color-text-secondary)]"
+          title={status()?.dbPath}
+        >
+          {truncatePath(status()?.dbPath ?? "")}
+        </span>
+      </SettingsRow>
+
+      <SettingsRow label="Connect a client" description="Paste into your agent's MCP settings.">
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!status()?.command}
+          onClick={() => void copyText("Command", status()?.command ?? "")}
+        >
+          Copy command
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!status()?.cursorConfig}
+          onClick={() => void copyText("Cursor config", status()?.cursorConfig ?? "")}
+        >
+          Copy Cursor config
+        </Button>
+      </SettingsRow>
+    </SettingsSection>
   );
 }

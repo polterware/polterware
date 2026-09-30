@@ -29,7 +29,7 @@ func ValidLevel(level string) bool {
 	return false
 }
 
-// ParentLevel is the level a node's parent must have. A system has none.
+// ParentLevel is the level a node's parent usually has. A system has none.
 func ParentLevel(level string) (string, bool) {
 	switch level {
 	case LevelDomain:
@@ -39,6 +39,15 @@ func ParentLevel(level string) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+// AllowedParent reports whether a node at level may sit under a parent at
+// parentLevel. A component sits under a domain, or loose under its system.
+func AllowedParent(level, parentLevel string) bool {
+	if want, ok := ParentLevel(level); ok && want == parentLevel {
+		return true
+	}
+	return level == LevelComponent && parentLevel == LevelSystem
 }
 
 // Node is one Atlas node. Invariants are its contract.
@@ -53,7 +62,9 @@ type Node struct {
 	Intent    string
 	Status    string
 	Decisions []string
-	Position  int
+	// Uses lists the node paths this node depends on. The map draws them as edges.
+	Uses     []string
+	Position int
 	// Repo is a project_repos name; empty is the project root checkout.
 	Repo string
 	// Folder is a directory inside that checkout (`src/auth`). Path stays

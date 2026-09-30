@@ -18,19 +18,24 @@ type placed struct {
 // ResolveNode places a heading against its under: value.
 // headingPath is the text before the colon (`import` or `core/import`).
 // Level is checked separately so an update can keep the stored level.
-func ResolveNode(headingPath, under string, hasUnder bool) (path, parent string, message string) {
+func ResolveNode(headingPath, under string, hasUnder bool) (path, parent, fromPath, message string) {
 	if strings.Contains(headingPath, "/") {
-		parent = headingPath[:strings.LastIndex(headingPath, "/")]
+		slash := strings.LastIndex(headingPath, "/")
+		parent = headingPath[:slash]
 		path = headingPath
-		if hasUnder && under != parent {
-			return "", "", fmt.Sprintf("under %q does not match path %q: use under: %s", under, headingPath, parent)
+		if hasUnder && under != "" && under != parent {
+			slug := headingPath[slash+1:]
+			return under + "/" + slug, under, headingPath, ""
 		}
-		return path, parent, ""
+		if hasUnder && under != parent {
+			return "", "", "", fmt.Sprintf("under %q does not match path %q: use under: %s", under, headingPath, parent)
+		}
+		return path, parent, "", ""
 	}
 	if hasUnder && under != "" {
-		return under + "/" + headingPath, under, ""
+		return under + "/" + headingPath, under, "", ""
 	}
-	return headingPath, "", ""
+	return headingPath, "", "", ""
 }
 
 func checkPlacement(path, parent, level string) string {
@@ -57,15 +62,45 @@ func CheckGraph(doc Document, stored []atlas.Node, cards []work.Card) []Diagnost
 		known[node.Path] = placed{level: node.Level, status: node.Status}
 	}
 	var diags []Diagnostic
+	type usesRef struct {
+		line int
+		from string
+		to   []string
+	}
+	var uses []usesRef
 	for _, node := range doc.Nodes {
 		level, _ := node.MetaValue("level")
 		under, hasUnder := node.MetaValue("under")
-		path, parent, message := ResolveNode(node.Path, under, hasUnder)
+		path, parent, fromPath, message := ResolveNode(node.Path, under, hasUnder)
 		if message != "" {
 			diags = append(diags, Diagnostic{Line: node.Line, Severity: SeverityError, Message: message})
 			continue
 		}
-		if prev, ok := known[path]; ok && level == "" {
+		if fromPath == "" && hasUnder {
+			if _, ok := known[node.Path]; ok && path != node.Path {
+				fromPath = node.Path
+			}
+		}
+		source := path
+		if fromPath != "" {
+			source = fromPath
+			prev, ok := known[fromPath]
+			if !ok || prev.status == atlas.NodeRemoved {
+				diags = append(diags, Diagnostic{
+					Line: node.Line, Severity: SeverityError,
+					Message: fmt.Sprintf("unknown node %q: check the path", fromPath),
+				})
+				continue
+			}
+			if _, exists := known[path]; exists {
+				diags = append(diags, Diagnostic{
+					Line: node.Line, Severity: SeverityError,
+					Message: fmt.Sprintf("path %q already exists: choose another parent", path),
+				})
+				continue
+			}
+		}
+		if prev, ok := known[source]; ok && level == "" {
 			level = prev.level
 		}
 		if message = checkPlacement(path, parent, level); message != "" {
@@ -81,7 +116,7 @@ func CheckGraph(doc Document, stored []atlas.Node, cards []work.Card) []Diagnost
 		}
 		status, hasStatus := node.MetaValue("status")
 		if !hasStatus {
-			if prev, ok := known[path]; ok {
+			if prev, ok := known[source]; ok {
 				status = prev.status
 			} else {
 				status = atlas.NodeActive
@@ -90,6 +125,9 @@ func CheckGraph(doc Document, stored []atlas.Node, cards []work.Card) []Diagnost
 		if parent != "" && status != atlas.NodeRemoved {
 			prev, ok := known[parent]
 			want, _ := atlas.ParentLevel(level)
+			if level == atlas.LevelComponent {
+				want = "domain or a system"
+			}
 			switch {
 			case !ok || prev.status == atlas.NodeRemoved:
 				diags = append(diags, Diagnostic{
@@ -97,7 +135,7 @@ func CheckGraph(doc Document, stored []atlas.Node, cards []work.Card) []Diagnost
 					Message: fmt.Sprintf("unknown under %q: define the parent first", parent),
 				})
 				continue
-			case prev.level != want:
+			case !atlas.AllowedParent(level, prev.level):
 				diags = append(diags, Diagnostic{
 					Line: node.Line, Severity: SeverityError,
 					Message: fmt.Sprintf("under %q is a %s: a %s sits under a %s", parent, prev.level, level, want),
@@ -122,10 +160,34 @@ func CheckGraph(doc Document, stored []atlas.Node, cards []work.Card) []Diagnost
 			}
 		}
 		entry := placed{line: node.Line, level: level, status: status}
-		if prev, ok := known[path]; ok && level == "" {
+		if prev, ok := known[source]; ok && level == "" {
 			entry.level = prev.level
 		}
+		if fromPath != "" {
+			delete(known, fromPath)
+		}
 		known[path] = entry
+		if value, ok := node.MetaValue("uses"); ok && status != atlas.NodeRemoved {
+			uses = append(uses, usesRef{line: node.Line, from: path, to: splitList(value)})
+		}
+	}
+	// uses: may name a node defined later in the same text, so check after placement.
+	for _, ref := range uses {
+		for _, target := range ref.to {
+			prev, ok := known[target]
+			switch {
+			case target == ref.from:
+				diags = append(diags, Diagnostic{
+					Line: ref.line, Severity: SeverityError,
+					Message: fmt.Sprintf("node %q cannot use itself: remove it from uses:", target),
+				})
+			case !ok || prev.status == atlas.NodeRemoved:
+				diags = append(diags, Diagnostic{
+					Line: ref.line, Severity: SeverityError,
+					Message: fmt.Sprintf("unknown uses %q: name an Atlas node path", target),
+				})
+			}
+		}
 	}
 	if countComponents(known) == 0 {
 		return diags

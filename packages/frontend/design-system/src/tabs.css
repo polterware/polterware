@@ -248,3 +248,10 @@
     transition: none;
   }
 }
+
+/* A tab count sits inline after the label instead of floating on the corner. */
+.pw-floating-count-badge.pw-tab__count {
+  position: static;
+  margin-left: 6px;
+  transform: none;
+}

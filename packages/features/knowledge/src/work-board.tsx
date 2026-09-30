@@ -10,20 +10,18 @@ import {
   createFluidHover,
   DitherIconTile,
   FluidHoverHighlight,
-  HelpCircle,
-  ListChecks,
   Pencil,
   Route,
   ShieldCheck,
   RadioButtonIcon,
   spring,
-  Tooltip,
   type CollapseControls,
+  type DitherIconTone,
   type DragMotion,
   type FluidHover,
 } from "@polterware/frontend-design-system";
 import type { WorkStage, WorkspaceWorkCard } from "@polterware/feature-shell";
-import { WORK_STAGES, cardOpenQuestions, cardTaskProgress } from "./work-stage";
+import { WORK_STAGES, cardTaskProgress } from "./work-stage";
 import { DRAG_DEAD_ZONE, columnAt, type ColumnSpan } from "./work-board-drag";
 import "./work-board.css";
 
@@ -33,6 +31,15 @@ const STAGE_ICON: Record<WorkStage, typeof Check> = {
   build: Hammer,
   verify: ShieldCheck,
   delivered: Check,
+};
+
+/** One chart hue per stage, so the five lanes stay distinguishable. */
+const STAGE_DITHER: Record<WorkStage, { tone: DitherIconTone; class: string }> = {
+  shape: { tone: "knowledge", class: "!text-[var(--color-chart-amber)]" },
+  plan: { tone: "architecture", class: "!text-[var(--color-chart-blue)]" },
+  build: { tone: "infrastructure", class: "!text-[var(--color-chart-cyan)]" },
+  verify: { tone: "identity", class: "!text-[var(--color-chart-violet)]" },
+  delivered: { tone: "data", class: "!text-[var(--color-chart-green)]" },
 };
 
 /** What a card needs from the board while it is dragged; the board owns columns and moves. */
@@ -190,10 +197,16 @@ export function WorkBoard(props: {
           >
             <header class="pw-work-column__header">
               <span class="pw-work-column__label text-[12px] font-medium">
-                {(() => {
-                  const Icon = STAGE_ICON[column().id];
-                  return <Icon size={14} aria-hidden />;
-                })()}
+                <DitherIconTile
+                  size={20}
+                  tone={STAGE_DITHER[column().id].tone}
+                  class={STAGE_DITHER[column().id].class}
+                >
+                  {(() => {
+                    const Icon = STAGE_ICON[column().id];
+                    return <Icon size={12} aria-hidden />;
+                  })()}
+                </DitherIconTile>
                 {column().label}
               </span>
               <span class="text-[12px] tabular-nums text-[var(--color-text-muted)]">
@@ -246,21 +259,8 @@ function WorkCard(props: {
   onActivate: () => void;
 }) {
   const progress = createMemo(() => cardTaskProgress(props.card));
-  const openQuestions = createMemo(() => cardOpenQuestions(props.card));
   const tasks = createMemo(() => props.card.tasks.filter((task) => task.state !== "dropped"));
   const [expanded, setExpanded] = createSignal(false);
-  const attention = () => openQuestions() > 0;
-  const finished = () => progress().total > 0 && progress().done === progress().total;
-  const StatusIcon = () => (attention() ? HelpCircle : finished() ? Check : ListChecks);
-  const details = createMemo(() => {
-    const lines: string[] = [];
-    if (progress().total > 0) lines.push(`Tasks ${progress().done}/${progress().total}`);
-    if (openQuestions() > 0) {
-      lines.push(openQuestions() === 1 ? "1 open question" : `${openQuestions()} open questions`);
-    }
-    lines.push(props.card.owner ? `${props.card.owner} · ${props.card.updatedAt}` : props.card.updatedAt);
-    return lines;
-  });
   let element: HTMLDivElement | undefined;
   let region: HTMLDivElement | undefined;
   let controls: CollapseControls | undefined;
@@ -435,23 +435,6 @@ function WorkCard(props: {
             if (!swallowClick) props.onActivate();
           }}
         >
-          <Tooltip.Root openDelay={300} placement="right">
-            <Tooltip.Trigger
-              asChild={(triggerProps) => (
-                <span {...triggerProps({ class: "pw-work-card__status" })}>
-                  <DitherIconTile size={24} tone={attention() ? "security" : "neutral"}>
-                    {(() => {
-                      const Icon = StatusIcon();
-                      return <Icon size={14} aria-hidden />;
-                    })()}
-                  </DitherIconTile>
-                </span>
-              )}
-            />
-            <Tooltip.Content class="pw-work-card__tooltip">
-              <For each={details()}>{(line) => <span>{line}</span>}</For>
-            </Tooltip.Content>
-          </Tooltip.Root>
           <span class="pw-work-card__text">
             <span class="pw-work-card__title">{props.card.title}</span>
             <span class="pw-work-card__slug font-mono">{props.card.slug}</span>

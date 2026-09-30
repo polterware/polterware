@@ -412,6 +412,7 @@ export function mapAtlas(raw: Record<string, unknown>): WorkspaceAtlas {
       folder: asString(item.folder),
       migrationFrom: asString(item.migrationFrom),
       migrationTo: asString(item.migrationTo),
+      uses: asStringArray(item.uses),
     });
   }
   return { nodes, driftSlugs: asStringArray(raw.driftSlugs), historical: asBoolean(raw.historical) };

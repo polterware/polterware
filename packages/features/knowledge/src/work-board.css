@@ -126,11 +126,6 @@
   border-radius: var(--radius-card);
 }
 
-.pw-work-card__status {
-  display: inline-flex;
-  flex-shrink: 0;
-}
-
 .pw-work-card__text {
   display: flex;
   max-width: 100%;
@@ -148,12 +143,6 @@
   white-space: nowrap;
   font-size: 11px;
   color: var(--color-text-muted);
-}
-
-.pw-work-card__tooltip {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 /* The summary row closes the card; it toggles the task list above it. */

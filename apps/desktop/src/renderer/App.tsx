@@ -23,18 +23,16 @@ import {
   type EnvironmentItem,
   type FeatureFlowStep,
   type ProjectSettingsTabId,
-  type WorkspaceAtlas,
-  type WorkspaceAtlasHistoryEntry,
   type WorkspaceFeatureReview,
   type LocalCoreStatus,
   type WorkspaceInboxAction,
   type WorkspaceInboxItem,
 } from "@polterware/feature-shell";
-import { ArchitectureView, AtlasCanvas } from "@polterware/feature-architecture";
+import { ArchitectureView } from "@polterware/feature-architecture";
 import type { ChangeEnvelope } from "@polterware/feature-knowledge/change-envelope";
 import { hydrateAppearancePreferences, hydrateShortcutPreferences } from "@polterware/feature-settings/boot";
 import { CommandPalette } from "@polterware/feature-commander";
-import { PageLoading, pushToast, type SelectOption, type TabItem } from "@polterware/frontend-design-system";
+import { PageLoading, pushToast, type TabItem } from "@polterware/frontend-design-system";
 import { detailPanelStore, matchesShortcut } from "@polterware/frontend-state";
 import { hideBootSplash } from "./boot-splash";
 import { bootstrapPlatform } from "./platform-bootstrap";
@@ -63,7 +61,6 @@ import {
   loadProjects,
   loadWorkCards,
   loadAtlas,
-  loadAtlasHistory,
   loadInbox,
   loadWorkspaceExtensions,
   loadWorkspaceShell,
@@ -104,6 +101,9 @@ import {
   persistFeatureLine,
   loadFeatureReview,
   persistWorkRemoveCard,
+  persistAtlasCreateNode,
+  persistAtlasMoveNode,
+  persistAtlasUses,
   persistWorkSetStage,
   resetLocalStore,
 } from "./workspace/persist";
@@ -131,6 +131,15 @@ function integrationSetupProvider(route: ClientRoute) {
 }
 
 /** Local label so the lazily loaded Knowledge package stays out of the main bundle. */
+function uniqueAtlasSlug(nodes: readonly { path: string; slug: string }[], title: string): string {
+  const base = title.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "node";
+  const taken = new Set(nodes.flatMap((node) => [node.slug, node.path, node.path.split("/").pop() ?? ""]));
+  if (!taken.has(base)) return base;
+  let index = 2;
+  while (taken.has(`${base}-${index}`)) index += 1;
+  return `${base}-${index}`;
+}
+
 function stageLabel(stage: string): string {
   return stage.charAt(0).toUpperCase() + stage.slice(1);
 }
@@ -427,46 +436,6 @@ export function App() {
 
   const currentProjectId = () => route().projectId ?? workspace().settings.projectId;
 
-  // Atlas timeline: "" is Now (the live graph the change events keep fresh).
-  // A past point is replayed once and pinned until the person picks another.
-  const [atlasAsOf, setAtlasAsOf] = createSignal("");
-  const [pastAtlas, setPastAtlas] = createSignal<WorkspaceAtlas | null>(null);
-  const [atlasHistory, setAtlasHistory] = createSignal<WorkspaceAtlasHistoryEntry[]>([]);
-  let atlasTimelineProject = "";
-
-  createEffect(() => {
-    const projectId = currentProjectId();
-    if (route().section !== "atlas" || !projectId) return;
-    if (projectId !== atlasTimelineProject) {
-      atlasTimelineProject = projectId;
-      setAtlasAsOf("");
-      setPastAtlas(null);
-    }
-    // Re-read the batch list when live Atlas data changes (a new write is a new batch).
-    void workspace().atlas;
-    void loadAtlasHistory(projectId).then((entries) => {
-      if (currentProjectId() === projectId) setAtlasHistory(entries);
-    });
-  });
-
-  async function selectAtlasPoint(point: string) {
-    const projectId = currentProjectId();
-    setAtlasAsOf(point);
-    if (!point) {
-      setPastAtlas(null);
-      return;
-    }
-    const atlas = await loadAtlas(projectId, point);
-    if (currentProjectId() === projectId && atlasAsOf() === point) setPastAtlas(atlas);
-  }
-
-  const atlasTimelineOptions = (): SelectOption[] => [
-    { value: "", label: "Now" },
-    ...atlasHistory().map((entry) => ({
-      value: entry.batchId,
-      label: `${entry.at}${entry.summary ? ` · ${entry.summary}` : ""}`,
-    })),
-  ];
   const dataMode = () => {
     if (!workspace().available) return "offline" as const;
     if (workspace().quarantined) return "offline" as const;
@@ -977,7 +946,7 @@ export function App() {
           />
         </Match>
 
-        <Match when={route().section === "atlas" && (route().tab === "map" || route().tab === "views")}>
+        <Match when={route().section === "atlas"}>
           <ArchitectureView
             systems={[{ id: SYSTEM_ID, name: workspace().settings.name || "Polterware" }]}
             resources={workspace().resources.map((resource) => ({
@@ -1030,6 +999,101 @@ export function App() {
                 "silent",
               )
             }
+            atlasNodes={workspace().atlas.nodes}
+            cards={workspace().workCards}
+            onReparentNode={async (nodeId, parentId) => {
+              const nodes = workspace().atlas.nodes;
+              const node = nodes.find((item) => item.id === nodeId);
+              const parent = nodes.find((item) => item.id === parentId);
+              if (!node || !parent) throw new Error("Missing atlas node.");
+              const from = nodes.find((item) => item.id === node.parentId);
+              const change = await justifyChange({
+                title: "Move atlas node",
+                defaultSummary:
+                  parent.level === "system" && from
+                    ? `Move ${node.title} out of ${from.title}`
+                    : `Move ${node.title} under ${parent.title}`,
+              });
+              if (!change) throw new Error("Cancelled.");
+              await persistAtlasMoveNode({
+                projectId: currentProjectId(),
+                path: node.path,
+                title: node.title,
+                level: node.level,
+                under: parent.path,
+                change,
+              });
+              await refreshWorkspace(currentProjectId());
+            }}
+            onConnectNodes={async (sourceId, targetId) => {
+              const nodes = workspace().atlas.nodes;
+              const source = nodes.find((item) => item.id === sourceId);
+              const target = nodes.find((item) => item.id === targetId);
+              if (!source || !target) throw new Error("Missing atlas node.");
+              const uses = source.uses ?? [];
+              if (uses.includes(target.path)) return;
+              const change = await justifyChange({
+                title: "Connect atlas nodes",
+                defaultSummary: `${source.title} uses ${target.title}`,
+              });
+              if (!change) return;
+              await persistAtlasUses({
+                projectId: currentProjectId(),
+                path: source.path,
+                title: source.title,
+                level: source.level,
+                uses: [...uses, target.path],
+                change,
+              });
+              await refreshWorkspace(currentProjectId());
+            }}
+            onDisconnectNodes={async (sourceId, targetId) => {
+              const nodes = workspace().atlas.nodes;
+              const source = nodes.find((item) => item.id === sourceId);
+              const target = nodes.find((item) => item.id === targetId);
+              if (!source || !target) throw new Error("Missing atlas node.");
+              const change = await justifyChange({
+                title: "Remove atlas connection",
+                defaultSummary: `${source.title} no longer uses ${target.title}`,
+              });
+              // Model edges stay drawn until uses: changes, so a cancel needs no undo.
+              if (!change) return;
+              await persistAtlasUses({
+                projectId: currentProjectId(),
+                path: source.path,
+                title: source.title,
+                level: source.level,
+                uses: (source.uses ?? []).filter((path) => path !== target.path),
+                change,
+              });
+              await refreshWorkspace(currentProjectId());
+            }}
+            onCreateNestedNode={async (parentId) => {
+              const nodes = workspace().atlas.nodes;
+              const parent = parentId ? nodes.find((item) => item.id === parentId) : undefined;
+              const level = !parent ? "system" : parent.level === "system" ? "domain" : "component";
+              const title = level === "system" ? "New system" : level === "domain" ? "New domain" : "New component";
+              const heading = uniqueAtlasSlug(nodes, title);
+              const change = await justifyChange({
+                title: "Add atlas node",
+                defaultSummary: parent ? `Add ${title} under ${parent.title}` : `Add ${title}`,
+              });
+              if (!change) return;
+              try {
+                await persistAtlasCreateNode({
+                  projectId: currentProjectId(),
+                  heading,
+                  title,
+                  level,
+                  under: parent?.path,
+                  change,
+                });
+                await refreshWorkspace(currentProjectId());
+                pushToast("Card added to the map.", "success");
+              } catch (error: unknown) {
+                pushToast(error instanceof Error ? error.message : "Could not add the card.", "danger");
+              }
+            }}
             onSubmitCreateNode={(result) => {
               applyRoute(closeDialog(route()), "silent");
               if (!result.ok) {
@@ -1076,24 +1140,6 @@ export function App() {
                 throw error;
               })
             }
-          />
-        </Match>
-
-        <Match when={route().section === "atlas"}>
-          <AtlasCanvas
-            projectName={workspace().settings.name || "Project"}
-            nodes={pastAtlas()?.nodes ?? workspace().atlas.nodes}
-            driftSlugs={pastAtlas() ? [] : workspace().atlas.driftSlugs}
-            historical={pastAtlas() !== null}
-            timeline={
-              atlasHistory().length > 0
-                ? { value: atlasAsOf(), options: atlasTimelineOptions(), onChange: (point) => void selectAtlasPoint(point) }
-                : undefined
-            }
-            cards={workspace().workCards}
-            loading={loading() || !workspace().extensionsReady}
-            tab={route().tab}
-            onTabChange={(tab) => applyRoute(setTab(route(), tab))}
           />
         </Match>
 

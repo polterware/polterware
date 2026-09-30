@@ -2,21 +2,29 @@ import { For, Show, createEffect, createMemo, createSignal, on, onCleanup, untra
 import {
   animateCollapse,
   Button,
+  Check,
   ChevronRight,
+  CollapseIcon,
   DetailPanel,
-  Eye,
+  DitherIconTile,
+  ExpandIcon,
+  GitCompare,
+  Hammer,
+  History,
   ListChecks,
   PageContent,
   PageEmpty,
   PageLoading,
   PageToolbar,
+  Pencil,
+  RefreshCw,
   SchemeIcon,
   Select,
+  Tooltip,
   type SelectOption,
-  StatusChip,
   Tabs,
   type CollapseControls,
-  type StatusTone,
+  type DitherIconTone,
 } from "@polterware/frontend-design-system";
 import { detailPanelStore, createDetailPanelSelector } from "@polterware/frontend-state";
 import "./atlas-tree.css";
@@ -24,8 +32,6 @@ import {
   buildTree,
   entityIdOf,
   expandableKeys,
-  isFolder,
-  pathTo,
   visibleItems,
   type TreeItem,
 } from "./atlas-tree";
@@ -51,6 +57,8 @@ export type AtlasCanvasNode = {
   folder: string;
   migrationFrom: string;
   migrationTo: string;
+  /** Node paths this node depends on; the map draws them as edges. */
+  uses?: string[];
 };
 
 export type AtlasCanvasCard = {
@@ -73,14 +81,12 @@ const STATUS_LABEL: Record<AtlasCanvasNode["status"], string> = {
   drift: "Drift",
 };
 
-const STATUS_TONE: Record<AtlasCanvasNode["status"], StatusTone> = {
-  proposed: "muted",
-  in_progress: "syncing",
-  delivered: "healthy",
-  drift: "danger",
+const STATUS_MARK: Record<AtlasCanvasNode["status"], { icon: typeof Check; tone: DitherIconTone }> = {
+  proposed: { icon: Pencil, tone: "knowledge" },
+  in_progress: { icon: Hammer, tone: "infrastructure" },
+  delivered: { icon: Check, tone: "data" },
+  drift: { icon: GitCompare, tone: "security" },
 };
-
-const LEGEND: AtlasCanvasNode["status"][] = ["proposed", "in_progress", "delivered", "drift"];
 
 /** A node that is moving between designs; separate from the derived status. */
 function migrationLabel(node: AtlasCanvasNode): string {
@@ -93,6 +99,11 @@ function cardStatus(card: AtlasCanvasCard, driftSlugs: readonly string[]): Atlas
   return "in_progress";
 }
 
+function statusTooltip(status: AtlasCanvasNode["status"], note?: string): string {
+  const label = STATUS_LABEL[status];
+  return note ? `${label} · ${note}` : label;
+}
+
 function nodeTarget(id: string) {
   return { scopeId: SCOPE, entityId: `node:${id}`, entityKind: "atlas-node" };
 }
@@ -102,14 +113,13 @@ function cardTarget(slug: string) {
 }
 
 export function AtlasCanvas(props: {
-  projectName: string;
   nodes: AtlasCanvasNode[];
   driftSlugs: string[];
   cards: AtlasCanvasCard[];
   loading?: boolean;
   tab: string;
   onTabChange: (tab: ArchitectureTabId) => void;
-  /** True for a replayed past graph: status chips are hidden and the page is read-only. */
+  /** True for a replayed past graph: status marks are hidden and the page is read-only. */
   historical?: boolean;
   /** Timeline choices ("Now" first); omitted when there is no history to pick from. */
   timeline?: { value: string; options: readonly SelectOption[]; onChange: (value: string) => void };
@@ -120,13 +130,7 @@ export function AtlasCanvas(props: {
   const byId = createMemo(() => new Map(props.nodes.map((node) => [node.id, node])));
 
   const tree = createMemo(() => buildTree(props.nodes, props.cards));
-
-  // Finder-style navigation: the list shows the children of the entered folder. A folder that vanished (for
-  // example on a timeline change) falls back to the root.
-  const [zoomKey, setZoomKey] = createSignal("");
-  const trail = createMemo(() => (zoomKey() ? pathTo(tree(), zoomKey()) : []));
-  const roots = createMemo(() => trail().at(-1)?.children ?? tree());
-  const expandable = createMemo(() => expandableKeys(roots()));
+  const expandable = createMemo(() => expandableKeys(tree()));
 
   function toggle(id: string) {
     setCollapsed((current) => {
@@ -161,7 +165,7 @@ export function AtlasCanvas(props: {
     detailPanelStore.getState().registerCollection({
       scopeId: SCOPE,
       status: props.loading ? "loading" : "ready",
-      targets: visibleItems(roots(), collapsed()).map((item) =>
+      targets: visibleItems(tree(), collapsed()).map((item) =>
         item.kind === "node" ? nodeTarget(item.node.id) : cardTarget(item.card.slug),
       ),
     });
@@ -175,10 +179,6 @@ export function AtlasCanvas(props: {
     detailPanelStore
       .getState()
       .activateTarget(item.kind === "node" ? nodeTarget(item.node.id) : cardTarget(item.card.slug));
-  }
-
-  function open(item: TreeItem) {
-    if (isFolder(item)) setZoomKey(item.key);
   }
 
   const tab = () => normalizeArchitectureTab(props.tab);
@@ -198,18 +198,18 @@ export function AtlasCanvas(props: {
           <PageToolbar.Actions>
             <Button
               size="sm"
-              variant="ghost"
               disabled={props.nodes.length === 0}
               onClick={() => setAll(new Set())}
             >
+              <ExpandIcon size={14} aria-hidden />
               Expand all
             </Button>
             <Button
               size="sm"
-              variant="ghost"
               disabled={props.nodes.length === 0}
               onClick={() => setAll(new Set(expandable()))}
             >
+              <CollapseIcon size={14} aria-hidden />
               Collapse all
             </Button>
             <Show when={props.timeline}>
@@ -218,6 +218,7 @@ export function AtlasCanvas(props: {
                   size="sm"
                   aria-label="Atlas timeline"
                   class="w-56"
+                  icon={<History size={14} aria-hidden />}
                   value={timeline().value}
                   options={timeline().options}
                   onChange={timeline().onChange}
@@ -226,7 +227,7 @@ export function AtlasCanvas(props: {
             </Show>
           </PageToolbar.Actions>
         </PageToolbar.Root>
-        <PageContent class="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4">
+        <PageContent class="flex min-h-0 flex-1 flex-col overflow-auto">
           <Show
             when={!props.loading}
             fallback={<PageLoading layout="page" label="Loading Atlas…" />}
@@ -241,44 +242,14 @@ export function AtlasCanvas(props: {
               }
             >
               <Show when={props.historical}>
-                <p class="m-0 text-[12.5px] text-[var(--color-text-muted)]" role="status">
+                <p class="m-0 px-4 pt-3 text-[12.5px] text-[var(--color-text-muted)]" role="status">
                   Read-only past view. Structure, contract, decisions, and migration state are replayed; status,
                   features, and drift are live only.
                 </p>
               </Show>
 
-              <ul class="m-0 flex list-none flex-wrap gap-2 p-0" aria-label="Status legend">
-                <Show when={!props.historical}>
-                  <For each={LEGEND}>
-                    {(status) => (
-                      <li>
-                        <StatusChip tone={STATUS_TONE[status]} label={STATUS_LABEL[status]} />
-                      </li>
-                    )}
-                  </For>
-                </Show>
-                <li>
-                  <StatusChip tone="warn" label="Migrating: old → new" />
-                </li>
-              </ul>
-
-              <nav aria-label="Atlas path">
-                <ol class="m-0 flex list-none flex-wrap items-center gap-1 p-0 text-[12.5px]">
-                  <Crumb label={props.projectName} current={trail().length === 0} onClick={() => setZoomKey("")} />
-                  <For each={trail()}>
-                    {(item, index) => (
-                      <Crumb
-                        label={item.kind === "node" ? item.node.title : item.card.title}
-                        current={index() === trail().length - 1}
-                        onClick={() => setZoomKey(item.key)}
-                      />
-                    )}
-                  </For>
-                </ol>
-              </nav>
-
-              <ul class="m-0 grid list-none p-0" role="tree" aria-label="Atlas hierarchy" data-bulk={String(bulk())}>
-                <For each={roots()}>
+              <ul class="atlas-tree-list" role="tree" aria-label="Atlas hierarchy" data-bulk={String(bulk())}>
+                <For each={tree()}>
                   {(item, index) => (
                     <TreeNode
                       item={item}
@@ -290,7 +261,6 @@ export function AtlasCanvas(props: {
                       historical={props.historical ?? false}
                       driftSlugs={props.driftSlugs}
                       onToggle={toggle}
-                      onOpen={open}
                       onDetails={select}
                     />
                   )}
@@ -318,8 +288,6 @@ type TreeContext = {
   historical: boolean;
   driftSlugs: string[];
   onToggle: (key: string) => void;
-  /** Click on the card: enters a folder; a leaf does nothing. Details open only from the Eye button. */
-  onOpen: (item: TreeItem) => void;
   onDetails: (item: TreeItem) => void;
 };
 
@@ -359,7 +327,6 @@ function TreeNode(props: TreeContext & { item: TreeItem; index: number; depth: n
         expanded={open()}
         selected={props.selectedId() === entityIdOf(props.item)}
         onToggle={() => props.onToggle(props.item.key)}
-        onOpen={() => props.onOpen(props.item)}
         onDetails={() => props.onDetails(props.item)}
       />
       <Show when={props.item.hasChildren}>
@@ -373,7 +340,7 @@ function TreeNode(props: TreeContext & { item: TreeItem; index: number; depth: n
             el.dataset.state = initiallyOpen ? "open" : "closed";
           }}
         >
-          <ul class="m-0 grid list-none gap-1 p-0" role="group">
+          <ul role="group">
             <For each={props.item.children}>
               {(child, index) => <TreeNode {...props} item={child} index={index()} depth={props.depth + 1} />}
             </For>
@@ -384,15 +351,7 @@ function TreeNode(props: TreeContext & { item: TreeItem; index: number; depth: n
   );
 }
 
-const ROW_BUTTON =
-  "flex min-w-0 flex-1 items-center gap-3 rounded-[var(--radius-control)] border px-3 py-2 text-left transition-[background,border-color] duration-[var(--duration-control)] ease-[var(--ease-standard)] [@media(hover:hover)]:hover:bg-[var(--color-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-border-strong)]";
-
-const ICON_BUTTON =
-  "flex shrink-0 items-center justify-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] transition-[background,color] duration-[var(--duration-control)] ease-[var(--ease-standard)] [@media(hover:hover)]:hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-border-strong)]";
-
-const CRUMB_BUTTON = `${ICON_BUTTON} px-1.5 py-0.5`;
-
-/** The card-style row: a chevron when there is something to expand, then the status, title, and chips. */
+/** Flat row: chevron expands in place, the rest opens details. Status is a dither mark with a tooltip. */
 function TreeRow(props: {
   item: TreeItem;
   historical: boolean;
@@ -400,7 +359,6 @@ function TreeRow(props: {
   expanded: boolean;
   selected: boolean;
   onToggle: () => void;
-  onOpen: () => void;
   onDetails: () => void;
 }) {
   const status = () =>
@@ -412,11 +370,11 @@ function TreeRow(props: {
       : `${props.item.card.kind === "architecture" ? "architecture change" : "feature"} · ${props.item.card.slug}`;
   const migration = () => (props.item.kind === "node" ? migrationLabel(props.item.node) : "");
   return (
-    <div class="flex items-stretch gap-1">
-      <Show when={props.item.hasChildren} fallback={<span class="w-6 shrink-0" aria-hidden="true" />}>
+    <div class="atlas-tree-row" data-selected={props.selected ? "true" : undefined}>
+      <Show when={props.item.hasChildren} fallback={<span class="atlas-tree-chevron__spacer" aria-hidden="true" />}>
         <button
           type="button"
-          class="flex w-6 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] transition-[background,color] duration-[var(--duration-control)] ease-[var(--ease-standard)] [@media(hover:hover)]:hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-border-strong)]"
+          class="atlas-tree-chevron"
           aria-label={`${props.expanded ? "Collapse" : "Expand"} ${title()}`}
           onClick={props.onToggle}
         >
@@ -430,52 +388,78 @@ function TreeRow(props: {
       </Show>
       <button
         type="button"
-        class={ROW_BUTTON}
-        classList={{
-          "border-[var(--color-border-strong)] bg-[var(--color-surface-hover)]": props.selected,
-          "border-[var(--color-border-subtle)] bg-[var(--color-surface)]": !props.selected,
-        }}
+        class="atlas-tree-row__main"
         aria-current={props.selected ? "true" : undefined}
-        onClick={props.onOpen}
-      >
-        <Show when={!(props.historical && props.item.kind === "node")}>
-          <StatusChip tone={STATUS_TONE[status()]} label={STATUS_LABEL[status()]} />
-        </Show>
-        <span class="min-w-0 flex-1">
-          <span class="block truncate text-[13px] font-medium text-[var(--color-text-primary)]">{title()}</span>
-          <span class="block truncate text-[11px] text-[var(--color-text-muted)]">{subtitle()}</span>
-        </span>
-        <Show when={migration()}>
-          <StatusChip tone="warn" label={migration()} />
-        </Show>
-        <Show when={props.item.kind === "card" && props.item.card.kind === "architecture"}>
-          <StatusChip tone="muted" label="Architecture change" />
-        </Show>
-      </button>
-      <button
-        type="button"
-        class={`${ICON_BUTTON} w-8`}
-        aria-label={`Open details for ${title()}`}
         onClick={props.onDetails}
       >
-        <Eye size={14} aria-hidden />
+        <Show when={!(props.historical && props.item.kind === "node")}>
+          <AtlasStatusMark status={status()} />
+        </Show>
+        <span class="atlas-tree-row__body">
+          <span class="atlas-tree-row__title">{title()}</span>
+          <span class="atlas-tree-row__meta">{subtitle()}</span>
+        </span>
+        <Show when={migration()}>
+          <MigrationMark label={migration()} />
+        </Show>
       </button>
     </div>
   );
 }
 
-function Crumb(props: { label: string; current: boolean; onClick: () => void }) {
+export function AtlasStatusMark(props: { status: AtlasCanvasNode["status"]; note?: string }) {
+  const label = () => statusTooltip(props.status, props.note);
+  const tone = () => STATUS_MARK[props.status].tone;
   return (
-    <li class="flex items-center gap-1">
-      <Show when={props.current} fallback={<button type="button" class={CRUMB_BUTTON} onClick={props.onClick}>{props.label}</button>}>
-        <span class="px-1.5 py-0.5 font-medium text-[var(--color-text-primary)]" aria-current="page">
-          {props.label}
-        </span>
+    <Tooltip.Root openDelay={400}>
+      <Tooltip.Trigger
+        asChild={(triggerProps) => (
+          <span {...triggerProps({ class: "atlas-tree-row__status", role: "img", "aria-label": label() })}>
+            <DitherIconTile size={28} tone={tone()}>
+              {(() => {
+                const Icon = STATUS_MARK[props.status].icon;
+                return <Icon size={14} aria-hidden />;
+              })()}
+            </DitherIconTile>
+          </span>
+        )}
+      />
+      <Tooltip.Content>{label()}</Tooltip.Content>
+    </Tooltip.Root>
+  );
+}
+
+function MigrationMark(props: { label: string }) {
+  return (
+    <Tooltip.Root openDelay={400}>
+      <Tooltip.Trigger
+        asChild={(triggerProps) => (
+          <span {...triggerProps({ class: "atlas-tree-row__status", role: "img", "aria-label": props.label })}>
+            <DitherIconTile size={28} tone="knowledge">
+              <RefreshCw size={14} aria-hidden />
+            </DitherIconTile>
+          </span>
+        )}
+      />
+      <Tooltip.Content>{props.label}</Tooltip.Content>
+    </Tooltip.Root>
+  );
+}
+
+/** Side panel for an Atlas node: intent, contract, decisions, and the work cards under it. */
+export function AtlasRecordDetail(props: {
+  node: AtlasCanvasNode | undefined;
+  cards: readonly AtlasCanvasCard[];
+  historical?: boolean;
+}) {
+  return (
+    <DetailPanel.Content>
+      <Show when={props.node}>
+        {(node) => (
+          <NodePanel node={node()} cards={props.cards} historical={props.historical ?? false} />
+        )}
       </Show>
-      <Show when={!props.current}>
-        <ChevronRight size={12} aria-hidden class="text-[var(--color-text-muted)]" />
-      </Show>
-    </li>
+    </DetailPanel.Content>
   );
 }
 
@@ -502,19 +486,22 @@ function AtlasPanel(props: {
   );
 }
 
-function NodePanel(props: { node: AtlasCanvasNode; cards: AtlasCanvasCard[]; historical: boolean }) {
+function NodePanel(props: { node: AtlasCanvasNode; cards: readonly AtlasCanvasCard[]; historical: boolean }) {
   const work = createMemo(() =>
     props.cards.filter((card) => card.under === props.node.path),
   );
+  const migration = () => migrationLabel(props.node);
   return (
     <>
       <DetailPanel.Header icon={<SchemeIcon size={16} />} title={props.node.title}>
-        <Show when={!props.historical}>
-          <StatusChip tone={STATUS_TONE[props.node.status]} label={STATUS_LABEL[props.node.status]} />
-        </Show>
-        <Show when={migrationLabel(props.node)}>
-          <StatusChip tone="warn" label={migrationLabel(props.node)} />
-        </Show>
+        <div class="atlas-panel-status">
+          <Show when={!props.historical}>
+            <AtlasStatusMark status={props.node.status} />
+          </Show>
+          <Show when={migration()}>
+            <MigrationMark label={migration()} />
+          </Show>
+        </div>
       </DetailPanel.Header>
       <DetailPanel.Body>
         <DetailPanel.Main>
@@ -528,7 +515,7 @@ function NodePanel(props: { node: AtlasCanvasNode; cards: AtlasCanvasCard[]; his
           </DetailPanel.Section>
           <DetailPanel.Section title="Contract">
             <TextList items={props.node.invariants.map((item) => item.text)} empty="No invariants yet." />
-            <Show when={migrationLabel(props.node)}>
+            <Show when={migration()}>
               <p class="pw-detail-panel__text">
                 In transition from {props.node.migrationFrom} to {props.node.migrationTo}. The invariants above say what
                 applies where.
@@ -564,13 +551,13 @@ function NodePanel(props: { node: AtlasCanvasNode; cards: AtlasCanvasCard[]; his
 function CardPanel(props: { card: AtlasCanvasCard; driftSlugs: string[] }) {
   const status = () => cardStatus(props.card, props.driftSlugs);
   const openTasks = createMemo(() => props.card.tasks.filter((task) => task.state === "open"));
+  const note = () => (props.card.kind === "architecture" ? "Architecture change" : undefined);
   return (
     <>
       <DetailPanel.Header icon={<ListChecks size={16} />} title={props.card.title}>
-        <StatusChip tone={STATUS_TONE[status()]} label={STATUS_LABEL[status()]} />
-        <Show when={props.card.kind === "architecture"}>
-          <StatusChip tone="muted" label="Architecture change" />
-        </Show>
+        <div class="atlas-panel-status">
+          <AtlasStatusMark status={status()} note={note()} />
+        </div>
       </DetailPanel.Header>
       <DetailPanel.Body>
         <DetailPanel.Main>

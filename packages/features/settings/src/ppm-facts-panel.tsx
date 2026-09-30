@@ -7,6 +7,7 @@ import {
   PageEmpty,
   Skeleton,
   StatusChip,
+  X,
   pushToast,
 } from "@polterware/frontend-design-system";
 import { PpmEvidenceFormDialog } from "./ppm-evidence-form-dialog";
@@ -229,8 +230,9 @@ export function PpmFactsPanel(props: {
           },
         ),
       );
+      // Keep the user's selection across refreshes; never auto-open the first fact.
       const current = selectedId();
-      const selectedFact = nextFacts.find((fact) => fact.id === current) ?? nextFacts[0];
+      const selectedFact = nextFacts.find((fact) => fact.id === current);
       setSelectedId(selectedFact?.id ?? "");
       if (selectedFact) await loadDetail(selectedFact.id);
       else setDetail(undefined);
@@ -410,8 +412,18 @@ export function PpmFactsPanel(props: {
         </Button>
       </div>
 
-      <div class="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div class="min-h-0 overflow-auto border-b border-[var(--color-border-subtle)] lg:border-b-0 lg:border-r">
+      <div
+        class={`grid min-h-0 flex-1 grid-cols-1 ${
+          detail() ? "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]" : ""
+        }`}
+      >
+        <div
+          class={`min-h-0 overflow-auto ${
+            detail()
+              ? "border-b border-[var(--color-border-subtle)] lg:border-b-0 lg:border-r"
+              : ""
+          }`}
+        >
           <DataTable.Root rows={facts()} getRowId={(row) => row.id}>
             <DataTable.Table aria-label="PPM facts">
               <DataTable.Header>
@@ -484,16 +496,9 @@ export function PpmFactsPanel(props: {
           </DataTable.Root>
         </div>
 
+        <Show when={detail()}>
         <div class="min-h-0 overflow-auto p-4 text-[12.5px]">
-          <Show
-            when={detail()}
-            fallback={
-              <PageEmpty
-                title="Select a fact"
-                description="Inspect statement, provenance, and linked evidence."
-              />
-            }
-          >
+          <Show when={detail()}>
             {(current) => (
               <div class="space-y-4">
                 <div class="flex flex-wrap items-start justify-between gap-2">
@@ -540,6 +545,17 @@ export function PpmFactsPanel(props: {
                       onClick={() => setLinkDialogOpen(true)}
                     >
                       Link evidence
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="icon"
+                      aria-label="Close fact details"
+                      onClick={() => {
+                        setSelectedId("");
+                        setDetail(undefined);
+                      }}
+                    >
+                      <X size={14} />
                     </Button>
                   </div>
                 </div>
@@ -606,6 +622,7 @@ export function PpmFactsPanel(props: {
             )}
           </Show>
         </div>
+        </Show>
       </div>
 
       <PpmFactFormDialog

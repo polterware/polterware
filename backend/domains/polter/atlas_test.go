@@ -67,6 +67,48 @@ func TestLintUnderRequiresComponent(t *testing.T) {
 	}
 }
 
+func TestPlanMoveNode(t *testing.T) {
+	snapshot := work.Snapshot{
+		ProjectID: "p1",
+		Nodes: []atlas.Node{
+			{ID: "desktop", Path: "desktop", Level: atlas.LevelSystem, Title: "Desktop", Status: atlas.NodeActive},
+			{ID: "mobile", Path: "mobile", Level: atlas.LevelSystem, Title: "Mobile", Status: atlas.NodeActive},
+			{ID: "core", ParentID: "desktop", Path: "desktop/core", Level: atlas.LevelDomain, Title: "Core", Status: atlas.NodeActive},
+			{ID: "api", ParentID: "core", Path: "desktop/core/api", Level: atlas.LevelComponent, Title: "API", Status: atlas.NodeActive},
+		},
+		Cards: []work.Card{{
+			ID: "card-1", Slug: "import", Title: "Import", Under: "desktop/core/api", Status: work.CardActive,
+		}},
+	}
+	text := "---\npolter: 1\n---\n# desktop/core: Core\nlevel: domain\nunder: mobile\n"
+	doc, diags := Decode(text)
+	if HasErrors(diags) {
+		t.Fatalf("decode: %+v", diags)
+	}
+	ops, diags := Plan(doc, snapshot)
+	if HasErrors(diags) {
+		t.Fatalf("plan: %+v", diags)
+	}
+	moved := map[string]string{}
+	for _, op := range ops {
+		if op.Kind != work.OpUpdate {
+			continue
+		}
+		if path, ok := op.Fields["path"].(string); ok {
+			moved[op.EntityID] = path
+		}
+		if under, ok := op.Fields["under"].(string); ok {
+			moved[op.EntityID] = under
+		}
+		if parent, ok := op.Fields["parent_id"].(string); ok && op.EntityID == "core" && parent != "mobile" {
+			t.Fatalf("parent = %s", parent)
+		}
+	}
+	if moved["core"] != "mobile/core" || moved["api"] != "mobile/core/api" || moved["card-1"] != "mobile/core/api" {
+		t.Fatalf("moved = %+v ops = %+v", moved, ops)
+	}
+}
+
 func TestLintNodeParent(t *testing.T) {
 	text := `---
 polter: 1

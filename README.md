@@ -8,7 +8,7 @@ A local SQLite-backed Desktop (Electron + Solid) over a single Go binary, `polte
 
 - **Inbox** — items that need a person: open card questions, drift findings, and facts with no evidence
 - **Work** — Board (cards by stage: Shape, Plan, Build, Verify, Delivered) and Specs (the project Constitution above the same cards)
-- **Atlas** — Map, Hierarchy, and Views of the system, domain, and component graph
+- **Atlas** — Map and Components of the system, domain, and component graph
 - **Decisions** — ADRs by lifecycle state (Active, Challenged, Proposed, Superseded)
 - **Reality** — Inventory, Sources, Facts, and Docs, all with provenance
 - **Agents** — Access (MCP setup), Sessions, History, and Context (what an agent sees at a zoom and token budget)

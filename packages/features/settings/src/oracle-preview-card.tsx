@@ -62,20 +62,21 @@ export function OraclePreviewCard(props: {
   }
 
   return (
-    <div class="space-y-4">
-      <div class="grid gap-3 sm:grid-cols-[1fr_9rem] sm:items-end">
+    <div class="flex flex-col gap-4">
+      <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_6rem_auto] sm:items-end">
         <Field label="Target">
           <Input
             value={target()}
             placeholder="core/import"
             onInput={(event) => setTarget(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") void run();
+            }}
           />
         </Field>
         <Field label="Zoom">
           <Select options={ZOOMS} value={zoom()} onChange={setZoom} />
         </Field>
-      </div>
-      <div class="grid gap-3 sm:grid-cols-[7rem_auto] sm:items-end">
         <Field label="Budget">
           <Input
             value={budget()}
@@ -84,14 +85,14 @@ export function OraclePreviewCard(props: {
           />
         </Field>
         <Button size="sm" variant="primary" disabled={busy()} onClick={() => void run()}>
-          Show
+          {busy() ? "Reading…" : "Show"}
         </Button>
       </div>
       <Show when={error()}>
-        <p class="m-0 text-[12px] text-[var(--color-danger)]">{error()}</p>
+        <p role="alert" class="m-0 text-[12px] text-[var(--color-danger)]">{error()}</p>
       </Show>
       <Show when={text()}>
-        <pre class="m-0 overflow-auto whitespace-pre-wrap rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-3 text-[12px] text-[var(--color-text-primary)]">
+        <pre class="m-0 max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-[var(--radius-control)] bg-[var(--color-surface-subtle)] p-3 font-mono text-[11.5px] leading-relaxed text-[var(--color-text-primary)] pw-selectable">
           {text()}
         </pre>
       </Show>

@@ -1711,6 +1711,8 @@ type AtlasNode struct {
 	// between designs.
 	MigrationFrom string `protobuf:"bytes,16,opt,name=migration_from,json=migrationFrom,proto3" json:"migration_from,omitempty"`
 	MigrationTo   string `protobuf:"bytes,17,opt,name=migration_to,json=migrationTo,proto3" json:"migration_to,omitempty"`
+	// uses lists the node paths this node depends on; the map draws them as edges.
+	Uses          []string `protobuf:"bytes,18,rep,name=uses,proto3" json:"uses,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1862,6 +1864,13 @@ func (x *AtlasNode) GetMigrationTo() string {
 		return x.MigrationTo
 	}
 	return ""
+}
+
+func (x *AtlasNode) GetUses() []string {
+	if x != nil {
+		return x.Uses
+	}
+	return nil
 }
 
 // ListAtlas reads the live graph, or the graph replayed at as_of (an RFC3339
@@ -3832,7 +3841,7 @@ const file_polterware_local_v1_work_proto_rawDesc = "" +
 	"\vdiagnostics\x18\x04 \x03(\v2%.polterware.local.v1.PolterDiagnosticR\vdiagnostics\"4\n" +
 	"\x0eAtlasInvariant\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04text\x18\x02 \x01(\tR\x04text\"\x82\x04\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\"\x96\x04\n" +
 	"\tAtlasNode\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tparent_id\x18\x02 \x01(\tR\bparentId\x12\x14\n" +
@@ -3854,7 +3863,8 @@ const file_polterware_local_v1_work_proto_rawDesc = "" +
 	"\x04repo\x18\x0e \x01(\tR\x04repo\x12\x16\n" +
 	"\x06folder\x18\x0f \x01(\tR\x06folder\x12%\n" +
 	"\x0emigration_from\x18\x10 \x01(\tR\rmigrationFrom\x12!\n" +
-	"\fmigration_to\x18\x11 \x01(\tR\vmigrationTo\"F\n" +
+	"\fmigration_to\x18\x11 \x01(\tR\vmigrationTo\x12\x12\n" +
+	"\x04uses\x18\x12 \x03(\tR\x04uses\"F\n" +
 	"\x10ListAtlasRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x13\n" +

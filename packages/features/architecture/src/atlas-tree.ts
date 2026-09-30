@@ -46,18 +46,3 @@ export function expandableKeys(items: readonly TreeItem[]): string[] {
     ...expandableKeys(item.children),
   ]);
 }
-
-/** The chain of items from a root to the item with `key` (inclusive), or [] when it is not in the tree. */
-export function pathTo(items: readonly TreeItem[], key: string): TreeItem[] {
-  for (const item of items) {
-    if (item.key === key) return [item];
-    const below = pathTo(item.children, key);
-    if (below.length > 0) return [item, ...below];
-  }
-  return [];
-}
-
-/** A node with children is a folder: clicking it enters it. */
-export function isFolder(item: TreeItem): boolean {
-  return item.kind === "node" && item.hasChildren;
-}

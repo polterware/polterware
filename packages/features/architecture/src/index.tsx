@@ -7,7 +7,7 @@ import {
   serializeDocument,
   updateNode as docUpdateNode,
 } from "@polterware/frontend-canvas";
-import { Eye, Plus, Zap } from "@polterware/frontend-design-system";
+import { Boxes, Layers, Plus, Route, Workflow } from "@polterware/frontend-design-system";
 import {
   Button,
   FilterPopover,
@@ -21,19 +21,19 @@ import { ArchitectureCanvas } from "./architecture-canvas";
 import type { SaveStatus } from "./architecture-canvas";
 import { ArchitectureCanvasEmpty } from "./architecture-empty";
 import { ArchitectureNodeDetail } from "./node-detail";
-import { ArchitectureViewDetail } from "./view-detail";
 import { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
 import { type ArchitectureViewDraft, type ArchViewCard } from "./extra-fixtures";
-import { ViewsTable } from "./views-table";
 import { CreateNodeDialog, type ArchNodeDraft } from "./create-node-dialog";
-import { ViewEditor } from "./view-editor";
-import { membersFromSelection, nodesFromArchitectureDocument } from "./view-editor-helpers";
 import { roleLabel } from "./domain/place-config";
 import { createFixtureResourceLinkPort } from "./domain/fixture-resource-link-port";
 import { DEFAULT_PROJECT_ENVIRONMENTS, environmentLabel } from "./domain/project-environments";
 import { nodeStatusLabel } from "./domain/node-lifecycle";
 import type { ArchitectureNodeView } from "./types";
 import { loadDocumentFromLayoutBody, documentToLayoutBody } from "./document/load";
+import { absorbNestEdit, mergeAtlasSlots, projectAtlasWorld, withAtlasUses, writeNestSlot } from "./atlas-map";
+import { childLevel, hierarchyGroups, subtreeIds } from "./nest-layout";
+import { AtlasRecordDetail, type AtlasCanvasCard, type AtlasCanvasNode } from "./atlas-canvas";
+import { ComponentsList } from "./components-list";
 import { createAutosaveController } from "./persistence/autosave";
 import { shouldApplyExternalLayout } from "./persistence/layout-reload";
 import { getSessionSnapshot, setSessionSnapshot } from "./canvas/session-viewport";
@@ -212,20 +212,25 @@ export function ArchitectureView(props: {
   onSubmitCreateNode?: (
     result: { ok: true; nodeId: string } | { ok: false; error: string },
   ) => void;
+  /** When set, the map draws these nodes. The layout keeps only their slots and relationships. */
+  atlasNodes?: readonly AtlasCanvasNode[];
+  /** Work cards shown in the node detail. They are not canvas nodes. */
+  cards?: readonly AtlasCanvasCard[];
+  driftSlugs?: readonly string[];
+  onReparentNode?: (nodeId: string, parentId: string) => Promise<void> | void;
+  /** Adds or removes `targetId` in the source node's `uses:`. */
+  onConnectNodes?: (sourceId: string, targetId: string) => Promise<void> | void;
+  onDisconnectNodes?: (sourceId: string, targetId: string) => Promise<void> | void;
+  onCreateNestedNode?: (parentId: string | null) => Promise<void> | void;
 }) {
   const tab = () => normalizeArchitectureTab(props.tab);
   const systemId = () => props.systems?.[0]?.id ?? SYSTEM_ID_DEFAULT;
   const fixtureMode = () => props.fixtureMode ?? "fallback";
-  const views = () => props.views ?? [];
-  const [deepMode, setDeepMode] = createSignal<"none" | "view-edit">("none");
-  const [editViewId, setEditViewId] = createSignal<string | undefined>();
-  const [editViewName, setEditViewName] = createSignal("");
-  const [editMemberIds, setEditMemberIds] = createSignal<string[]>([]);
-  const [activeViewId, setActiveViewId] = createSignal<string | null>(null);
+  const [domainFocus, setDomainFocus] = createSignal<string | null>(null);
+  const [parentOverrides, setParentOverrides] = createSignal<Record<string, string>>({});
   const [edgeFlow, setEdgeFlow] = createSignal(readEdgeFlowPref());
 
-  function toggleEdgeFlow() {
-    const next = !edgeFlow();
+  function setEdgeFlowPref(next: boolean) {
     setEdgeFlow(next);
     try {
       localStorage.setItem(EDGE_FLOW_PREF_KEY, next ? "1" : "0");
@@ -357,7 +362,7 @@ export function ArchitectureView(props: {
     }
     if (session?.environmentId) setEnvId(session.environmentId);
 
-    setDoc(nextDoc);
+    setDoc(props.atlasNodes ? mergeAtlasSlots(props.atlasNodes, nextDoc, untrack(parentOverrides)) : nextDoc);
     setSource(nextSource);
     setRevision(fixtureMode() === "force" ? 0 : remoteRevision);
 
@@ -378,7 +383,9 @@ export function ArchitectureView(props: {
   });
 
   function onDocumentChange(next: ArchitectureDocument, mode?: CaptureMode) {
-    setDoc(next);
+    const stored = props.atlasNodes ? absorbNestEdit(untrack(doc), next) : next;
+    setDoc(stored);
+    next = stored;
     if (mode === "never") return;
     const ctrl = autosave();
     if (ctrl) {
@@ -389,12 +396,76 @@ export function ArchitectureView(props: {
     }
   }
 
+  createEffect(() => {
+    const atlas = props.atlasNodes;
+    if (!atlas) return;
+    const overrides = parentOverrides();
+    setDoc((prev) => mergeAtlasSlots(atlas, prev, overrides));
+  });
+
+  createEffect(() => {
+    const atlas = props.atlasNodes;
+    if (!atlas) return;
+    setParentOverrides((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [id, parentId] of Object.entries(prev)) {
+        const node = atlas.find((item) => item.id === id);
+        if (!node || node.parentId === parentId) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  });
+
+  const worldDoc = createMemo(() => {
+    const atlas = props.atlasNodes;
+    return atlas ? withAtlasUses(projectAtlasWorld(doc()), atlas) : doc();
+  });
+
+  const shownIds = createMemo(() => {
+    const atlas = props.atlasNodes;
+    const focus = domainFocus();
+    if (!atlas || !focus) return null;
+    const parentOf = new Map(atlas.map((node) => [node.id, parentOverrides()[node.id] ?? node.parentId]));
+    return subtreeIds(focus, parentOf);
+  });
+
+  function reparentNode(id: string, parentId: string, x: number, y: number) {
+    const previous = untrack(doc);
+    const previousOverrides = untrack(parentOverrides);
+    setParentOverrides((current) => ({ ...current, [id]: parentId }));
+    const next = writeNestSlot(previous, id, { x, y }, parentId);
+    setDoc(next);
+    autosave()?.schedule(() => serializeDocument(next), () => revision());
+    void Promise.resolve(props.onReparentNode?.(id, parentId)).catch(() => {
+      setParentOverrides(previousOverrides);
+      setDoc(previous);
+      pushToast("Could not move the card.", "danger");
+    });
+  }
+
+  function createNested() {
+    if (!props.atlasNodes) {
+      props.onCreateNode?.();
+      return;
+    }
+    const parent = props.atlasNodes.find((node) => node.id === props.selectedNodeId) ?? null;
+    if (parent && childLevel(parent.level) === null) {
+      pushToast("Components hold work cards. Select a system or domain to add a card inside.", "danger");
+      return;
+    }
+    void props.onCreateNestedNode?.(parent?.id ?? null);
+  }
+
   function nodeScopeId() {
     return "architecture:canvas";
   }
 
   function select(id: string | null) {
-    if (tab() === "map") {
+    if (tab() === "map" || tab() === "components") {
       if (id) {
         detailPanelStore.getState().activateTarget({
           scopeId: nodeScopeId(),
@@ -574,62 +645,20 @@ export function ArchitectureView(props: {
     };
   });
 
-  const isArchViewTarget = createMemo(() => {
-    const target = activeTarget() ?? outgoingTarget();
-    return target?.scopeId === "architecture:views" && target.entityKind === "arch-view";
-  });
-
-  const detailView = createMemo(() => {
-    const target = activeTarget() ?? outgoingTarget();
-    if (target?.scopeId !== "architecture:views" || target.entityKind !== "arch-view") {
-      return undefined;
-    }
-    return views().find((view) => view.id === target.entityId);
-  });
-
-  const availableViewNodes = createMemo(() => nodesFromArchitectureDocument(doc().nodes));
-
-  function openCreateView() {
-    setEditViewId(undefined);
-    setEditViewName("");
-    setEditMemberIds([]);
-    setDeepMode("view-edit");
-  }
-
-  function openEditView(view: ArchViewCard) {
-    setEditViewId(view.id);
-    setEditViewName(view.name);
-    setEditMemberIds((view.members ?? []).map((member) => member.id));
-    setDeepMode("view-edit");
-  }
-
-  async function saveEditedView(draft: { id?: string; name: string; memberIds: string[] }) {
-    const current = draft.id ? views().find((view) => view.id === draft.id) : undefined;
-    await props.onSaveView?.({
-      id: draft.id,
-      name: draft.name,
-      members: membersFromSelection(draft.memberIds, availableViewNodes(), current?.members),
-      description: current?.description,
-      owner: current?.owner,
-      purpose: current?.purpose,
-      notes: current?.notes,
-      filterSummary: current?.filterSummary,
-      environments: current?.environments,
-      tags: current?.tags,
-    });
-  }
-
   const detailTargets = createMemo(() => {
     const query = (props.search ?? "").trim().toLowerCase();
+    const atlasNodes = props.atlasNodes
+      ? doc().nodes.filter((node) => node.type !== "system")
+      : doc().nodes;
     const baseNodes = query
-      ? doc().nodes.filter(
+      ? atlasNodes.filter(
           (node) =>
             node.name.toLowerCase().includes(query) ||
             node.type.includes(query) ||
             node.id.toLowerCase().includes(query) ||
             (node.tags ?? []).some((tag) => tag.toLowerCase().includes(query)),
         )
-      : doc().nodes;
+      : atlasNodes;
     const orderedNodes = orderArchitectureDetailNodes(
       baseNodes,
       source() === "fixture",
@@ -646,26 +675,20 @@ export function ArchitectureView(props: {
   createEffect(() => {
     // Map targets live in the canvas scope; the collection scope must match so pending targets
     // are consumed and unregistering releases the scope activation moved the panel to.
-    const scope = tab() === "views" ? "architecture:views" : "architecture:canvas";
+    const scope = "architecture:canvas";
 
     if (currentScope && currentScope !== scope) {
       detailPanelStore.getState().unregisterCollection(currentScope);
     }
     currentScope = scope;
 
-    const targets =
-      tab() === "views"
-        ? views().map((view) => ({
-            scopeId: scope,
-            entityId: view.id,
-            entityKind: "arch-view" as const,
-          }))
-        : detailTargets();
+    const targets = detailTargets();
 
     detailPanelStore.getState().registerCollection({
       scopeId: scope,
       status: props.loading ? "loading" : "ready",
       targets,
+      dismissible: true,
     });
   });
 
@@ -709,13 +732,31 @@ export function ArchitectureView(props: {
             when={doc().nodes.length > 0}
             fallback={
               <ArchitectureCanvasEmpty
-                onAddComponent={() => props.onCreateNode?.()}
+                onAddComponent={() => createNested()}
                 onCreateFromTemplate={(template) => void submitCreate(template.draft)}
               />
             }
           >
             <ArchitectureCanvas
-              document={doc()}
+              document={worldDoc()}
+              nested={Boolean(props.atlasNodes)}
+              shownIds={shownIds()}
+              focusKey={domainFocus() ?? ""}
+              onNestReparent={props.atlasNodes ? reparentNode : undefined}
+              onNestConnect={props.atlasNodes && props.onConnectNodes
+                ? (sourceId, targetId) => {
+                    void Promise.resolve(props.onConnectNodes?.(sourceId, targetId)).catch(() => {
+                      pushToast("Could not connect the cards.", "danger");
+                    });
+                  }
+                : undefined}
+              onNestDisconnect={props.atlasNodes && props.onDisconnectNodes
+                ? (sourceId, targetId) => {
+                    void Promise.resolve(props.onDisconnectNodes?.(sourceId, targetId)).catch(() => {
+                      pushToast("Could not remove the connection.", "danger");
+                    });
+                  }
+                : undefined}
               systemId={systemId()}
               revision={revision()}
               selectedNodeId={props.selectedNodeId}
@@ -761,62 +802,45 @@ export function ArchitectureView(props: {
               </Show>
               <Show when={tab() === "map"}>
                 <FilterPopover
-                  ariaLabel="Saved view filters"
-                  title="Saved views"
-                  triggerIcon={<Eye size={14} aria-hidden />}
-                  triggerLabel="View"
-                  active={activeViewId() !== null}
-                  onClear={() => setActiveViewId(null)}
+                  ariaLabel="Filters"
+                  title="Filters"
+                  active={domainFocus() !== null}
+                  onClear={() => setDomainFocus(null)}
                   groups={[
+                    ...(props.atlasNodes
+                      ? [{
+                          id: "domain",
+                          label: "Domain",
+                          leading: <Layers size={14} aria-hidden />,
+                          selectionMode: "single" as const,
+                          options: hierarchyGroups(props.atlasNodes).map((node) => ({
+                            id: node.id,
+                            label: node.title,
+                            leading: <Boxes size={14} aria-hidden />,
+                            checked: domainFocus() === node.id,
+                            onCheckedChange: (checked: boolean) =>
+                              setDomainFocus(checked ? node.id : null),
+                          })),
+                        }]
+                      : []),
                     {
-                      id: "view",
-                      label: "View",
-                      selectionMode: "single",
-                      options: views().map((view) => ({
-                          id: view.id,
-                          label: view.name,
-                          checked: activeViewId() === view.id,
-                          onCheckedChange: (checked: boolean) =>
-                            setActiveViewId(checked ? view.id : null),
-                        })),
-                      action: {
-                        label: "Manage views…",
-                        onSelect: () => {
-                          props.onTabChange?.("views");
-                          setActiveViewId(null);
-                        },
-                      },
+                      id: "flow",
+                      label: "Flow",
+                      leading: <Workflow size={14} aria-hidden />,
+                      options: [{
+                        id: "edge-flow",
+                        label: "Flow",
+                        leading: <Route size={14} aria-hidden />,
+                        checked: edgeFlow(),
+                        onCheckedChange: (checked: boolean) => setEdgeFlowPref(checked),
+                      }],
                     },
                   ]}
                 />
-                <Button
-                  variant="icon"
-                  size="sm"
-                  class={[
-                    "control-field control-field-sm !rounded-full !px-3.5",
-                    edgeFlow()
-                      ? "!border-[var(--color-border-subtle)] !bg-[var(--color-surface-selected)] !text-[var(--color-text-primary)]"
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={toggleEdgeFlow}
-                  aria-label="Edge flow animation"
-                  aria-pressed={edgeFlow()}
-                  title={edgeFlow() ? "Disable edge flow animation" : "Enable edge flow animation"}
-                >
-                  <Zap size={14} aria-hidden />
-                  <span>Flow</span>
-                </Button>
                 <ToolbarIconButton
                   label="Add component"
-                  onClick={() => props.onCreateNode?.()}
+                  onClick={() => createNested()}
                 >
-                  <Plus size={14} />
-                </ToolbarIconButton>
-              </Show>
-              <Show when={tab() === "views"}>
-                <ToolbarIconButton label="Create view" onClick={openCreateView}>
                   <Plus size={14} />
                 </ToolbarIconButton>
               </Show>
@@ -826,53 +850,24 @@ export function ArchitectureView(props: {
             <Show when={tab() === "map"}>
               {canvasPanel()}
             </Show>
-            <Show when={tab() === "views"}>
-              <ViewsTable
-                views={views()}
-                sourceCount={(props.views ?? []).length}
-                dataSource="core"
-                activeRowId={
-                  activeTarget()?.scopeId === "architecture:views"
-                    ? activeTarget()?.entityId
-                    : null
-                }
-                onActivate={(id) =>
-                  detailPanelStore.getState().activateTarget({
-                    scopeId: "architecture:views",
-                    entityId: id,
-                    entityKind: "arch-view",
-                  })
-                }
-                onCreateView={openCreateView}
-                onCreateFromTemplate={(template) => {
-                  const nodes = availableViewNodes();
-                  const memberIds =
-                    template.id === "view-applications"
-                      ? nodes.filter((node) => node.layer === "Application" || node.layer === "Edge").map((node) => node.id)
-                      : template.id === "view-data-plane"
-                        ? nodes.filter((node) => node.layer === "Data").map((node) => node.id)
-                        : nodes.map((node) => node.id);
-                  void saveEditedView({
-                    name: template.name,
-                    memberIds,
-                  });
-                }}
-              />
-            </Show>
-            <Show when={deepMode() === "view-edit"}>
-              <ViewEditor
-                viewId={editViewId()}
-                name={editViewName()}
-                initialMemberIds={editMemberIds()}
-                availableNodes={availableViewNodes()}
-                onClose={() => setDeepMode("none")}
-                onSave={saveEditedView}
+            <Show when={tab() === "components"}>
+              <ComponentsList
+                nodes={props.atlasNodes ?? []}
+                selectedId={props.selectedNodeId}
+                onSelect={select}
               />
             </Show>
           </div>
         </div>
       </>
-      <Show when={isArchNodeTarget()}>
+      <Show when={isArchNodeTarget() && props.atlasNodes}>
+        <AtlasRecordDetail
+          node={props.atlasNodes?.find((node) => node.id === (activeTarget()?.entityId ?? props.selectedNodeId))}
+          cards={props.cards ?? []}
+          historical={false}
+        />
+      </Show>
+      <Show when={isArchNodeTarget() && !props.atlasNodes}>
         <ArchitectureNodeDetail
           node={detailNode()}
           loading={props.loading}
@@ -901,31 +896,6 @@ export function ArchitectureView(props: {
               state: "linked",
             });
             onDocumentChange(next, "immediately");
-          }}
-        />
-      </Show>
-      <Show when={isArchViewTarget()}>
-        <ArchitectureViewDetail
-          view={detailView()}
-          notFound={!detailView()}
-          onOpen={(viewId) => {
-            setActiveViewId(viewId);
-            props.onTabChange?.("map");
-          }}
-          onEdit={openEditView}
-          onDelete={
-            props.onDeleteView
-              ? (view) => {
-                  void Promise.resolve(props.onDeleteView?.(view.id)).then(() => {
-                    setActiveViewId((current) => (current === view.id ? null : current));
-                    if (editViewId() === view.id) setDeepMode("none");
-                  }).catch(() => undefined);
-                }
-              : undefined
-          }
-          onOpenMember={(memberId) => {
-            props.onTabChange?.("map");
-            props.onSelect?.(memberId);
           }}
         />
       </Show>

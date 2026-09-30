@@ -17,7 +17,7 @@ describe("first version routes", () => {
     expect(isNavSectionId("knowledge")).toBe(false);
     expect(isNavSectionId("operations")).toBe(false);
     expect(isNavSectionId("terminal")).toBe(false);
-    expect(SECTION_TABS.atlas?.map((tab) => tab.id)).toEqual(["map", "hierarchy", "views"]);
+    expect(SECTION_TABS.atlas?.map((tab) => tab.id)).toEqual(["map", "components"]);
     expect(SECTION_TABS.work?.map((tab) => tab.id)).toEqual(["board", "specs"]);
     expect(SECTION_TABS.decisions?.map((tab) => tab.id)).toEqual(["active", "challenged", "proposed", "superseded"]);
     expect(SECTION_TABS.reality?.map((tab) => tab.id)).toEqual([
@@ -53,12 +53,13 @@ describe("first version routes", () => {
 
   it("sends the retired Canvas tab id to the Map", () => {
     expect(resolveRoute("atlas", "canvas")).toEqual({ section: "atlas", tab: "map" });
-    expect(resolveRoute("atlas", "hierarchy")).toEqual({ section: "atlas", tab: "hierarchy" });
+    expect(resolveRoute("atlas", "hierarchy")).toEqual({ section: "atlas", tab: "map" });
+    expect(resolveRoute("atlas", "views")).toEqual({ section: "atlas", tab: "map" });
   });
 
   it("maps pre-Atlas sections to their new homes", () => {
-    expect(resolveRoute("architecture", "views")).toEqual({ section: "atlas", tab: "views" });
-    expect(resolveRoute("architecture", "components")).toEqual({ section: "atlas", tab: "map" });
+    expect(resolveRoute("architecture", "views")).toEqual({ section: "atlas", tab: "map" });
+    expect(resolveRoute("architecture", "components")).toEqual({ section: "atlas", tab: "components" });
     expect(resolveRoute("resources", "nodes")).toEqual({ section: "reality", tab: "inventory" });
     expect(resolveRoute("knowledge")).toEqual({ section: "work", tab: "specs" });
     expect(resolveRoute("knowledge", "specs")).toEqual({ section: "work", tab: "specs" });

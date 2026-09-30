@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
-import { Skeleton, StatusChip } from "@polterware/frontend-design-system";
+import { Bot, Skeleton, StatusChip } from "@polterware/frontend-design-system";
 import type { AgentSessionsView } from "./agents-types";
+import { SettingsSection } from "./settings-section";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -57,101 +58,120 @@ export function sessionAge(iso: string, now = Date.now()): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-const heading = "m-0 text-[12px] font-medium text-[var(--color-text-primary)]";
-const panel =
-  "rounded-[var(--radius-card)] border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-3 py-2.5";
-
 /** Live agent sessions and the newest handoffs of the current project. */
 export function AgentSessionsCard(props: { view: AgentSessionsView | undefined; loaded: boolean }) {
   const view = () => props.view;
   return (
-    <div class="space-y-8">
-      <section class="space-y-3">
-        <div class="flex items-center justify-between gap-3">
-          <h2 class={heading}>Live sessions</h2>
-          <Show when={view()?.branch}>
-            <span class="font-mono text-[11px] text-[var(--color-text-muted)]">{view()?.branch}</span>
-          </Show>
-        </div>
+    <>
+      <SettingsSection
+        title="Live sessions"
+        description={view()?.branch ? `Agents working on ${view()?.branch} now.` : "Agents working on this project now."}
+      >
         <Show
           when={(view()?.sessions.length ?? 0) > 0}
           fallback={
             <Show
               when={props.loaded}
               fallback={
-                <div class="space-y-2" role="status" aria-label="Loading sessions…">
-                  <Skeleton class="h-12 w-full" />
-                  <Skeleton class="h-12 w-full" />
+                <div class="flex flex-col gap-3" role="status" aria-label="Loading sessions…">
+                  <Skeleton class="h-3 w-[55%]" />
+                  <Skeleton class="h-3 w-[40%]" />
                 </div>
               }
             >
-              <p class="m-0 text-[12px] text-[var(--color-text-muted)]">No agent is working on this project now.</p>
+              <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
+                No agent is working on this project now.
+              </p>
             </Show>
           }
         >
           <For each={view()?.sessions}>
             {(session) => (
-              <div class={panel}>
-                <div class="flex items-center justify-between gap-3">
-                  <p class="m-0 flex items-center gap-2 text-[12px] font-medium text-[var(--color-text-primary)]">
-                    {session.agent || "unknown agent"}
-                    <StatusChip tone={session.runId ? "ok" : "warn"} label={session.runId ? "Running" : "Claims only"} />
-                  </p>
-                  <span class="text-[11px] text-[var(--color-text-muted)]">{sessionAge(session.startedAt)}</span>
-                </div>
-                <Show when={session.task}>
-                  <p class="m-0 mt-1 text-[12px] text-[var(--color-text-secondary)]">{session.task}</p>
-                </Show>
-                <For each={session.claims}>
-                  {(claim) => (
-                    <p class="m-0 mt-1 font-mono text-[11px] text-[var(--color-text-muted)]">
-                      {claim.slug}#T{claim.number}
-                      {claim.scope ? ` · ${claim.scope}` : ""}
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex min-w-0 flex-1 gap-2.5">
+                  <span class="mt-0.5 shrink-0 text-[var(--color-text-muted)]">
+                    <Bot size={16} />
+                  </span>
+                  <div class="min-w-0">
+                    <p class="m-0 text-[12.5px] text-[var(--color-text-primary)]">
+                      {session.agent || "Unknown agent"}
                     </p>
-                  )}
-                </For>
+                    <Show when={session.task}>
+                      <p class="m-0 mt-0.5 text-[11.5px] text-[var(--color-text-secondary)]">{session.task}</p>
+                    </Show>
+                    <Show when={session.claims.length > 0}>
+                      <ul class="m-0 mt-1.5 flex list-none flex-col gap-0.5 p-0">
+                        <For each={session.claims}>
+                          {(claim) => (
+                            <li class="truncate font-mono text-[11px] text-[var(--color-text-muted)]">
+                              {claim.slug}#T{claim.number}
+                              {claim.title ? ` ${claim.title}` : ""}
+                              {claim.scope ? ` · ${claim.scope}` : ""}
+                            </li>
+                          )}
+                        </For>
+                      </ul>
+                    </Show>
+                  </div>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                  <Show when={sessionAge(session.startedAt)}>
+                    {(age) => <span class="text-[11.5px] tabular-nums text-[var(--color-text-muted)]">{age()}</span>}
+                  </Show>
+                  <StatusChip tone={session.runId ? "ok" : "muted"} label={session.runId ? "Running" : "Claims only"} />
+                </div>
               </div>
             )}
           </For>
         </Show>
-      </section>
+      </SettingsSection>
 
-      <section class="space-y-3">
-        <h2 class={heading}>Recent handoffs</h2>
+      <SettingsSection title="Recent handoffs" description="What the last agents finished and left for the next one.">
         <Show
           when={(view()?.handoffs.length ?? 0) > 0}
           fallback={
             <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
-              {props.loaded ? "No handoffs yet. Agents write one with polterware handoff." : ""}
+              {props.loaded ? "No handoffs yet. Agents write one with polterware handoff." : "Loading handoffs…"}
             </p>
           }
         >
-          <For each={view()?.handoffs}>
-            {(handoff) => (
-              <div class={panel}>
-                <div class="flex items-center justify-between gap-3">
-                  <p class="m-0 font-mono text-[12px] text-[var(--color-text-primary)]">{handoff.slug}</p>
-                  <span class="text-[11px] text-[var(--color-text-muted)]">
-                    {[handoff.agent, handoff.branch, sessionAge(handoff.at)].filter(Boolean).join(" · ")}
-                  </span>
-                </div>
-                <Show when={handoff.goal}>
-                  <p class="m-0 mt-1 text-[12px] text-[var(--color-text-secondary)]">{handoff.goal}</p>
-                </Show>
-                <Show when={handoff.done}>
-                  <p class="m-0 mt-1 text-[11px] text-[var(--color-text-muted)]">Done: {handoff.done}</p>
-                </Show>
-                <Show when={handoff.inProgress}>
-                  <p class="m-0 mt-0.5 text-[11px] text-[var(--color-text-muted)]">In progress: {handoff.inProgress}</p>
-                </Show>
-                <Show when={handoff.next}>
-                  <p class="m-0 mt-0.5 text-[11px] text-[var(--color-text-muted)]">Next: {handoff.next}</p>
-                </Show>
-              </div>
-            )}
-          </For>
+          <div class="flex flex-col gap-5">
+            <For each={view()?.handoffs}>
+              {(handoff) => (
+                <article class="flex flex-col gap-1.5">
+                  <div class="flex items-baseline justify-between gap-3">
+                    <p class="m-0 min-w-0 truncate text-[12.5px] text-[var(--color-text-primary)]">
+                      {handoff.goal || handoff.slug}
+                    </p>
+                    <span class="shrink-0 text-[11.5px] text-[var(--color-text-muted)]">
+                      {[handoff.agent, sessionAge(handoff.at)].filter(Boolean).join(" · ")}
+                    </span>
+                  </div>
+                  <p class="m-0 truncate font-mono text-[11px] text-[var(--color-text-muted)]">
+                    {[handoff.slug, handoff.branch].filter(Boolean).join(" · ")}
+                  </p>
+                  <Show when={handoff.done || handoff.inProgress || handoff.next}>
+                    <dl class="m-0 mt-1 grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-[12px]">
+                      <HandoffLine label="Done" value={handoff.done} />
+                      <HandoffLine label="In progress" value={handoff.inProgress} />
+                      <HandoffLine label="Next" value={handoff.next} />
+                    </dl>
+                  </Show>
+                </article>
+              )}
+            </For>
+          </div>
         </Show>
-      </section>
-    </div>
+      </SettingsSection>
+    </>
+  );
+}
+
+function HandoffLine(props: { label: string; value: string }) {
+  return (
+    <Show when={props.value}>
+      <dt class="text-[var(--color-text-muted)]">{props.label}</dt>
+      <dd class="m-0 whitespace-pre-wrap text-[var(--color-text-secondary)]">{props.value}</dd>
+    </Show>
   );
 }

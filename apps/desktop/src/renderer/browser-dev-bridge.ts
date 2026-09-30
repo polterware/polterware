@@ -162,9 +162,20 @@ const atlasSeeds: AtlasSeed[] = [
   ["comp-plugin", "n-agents", "component", "plugin", "polterware/agents/plugin", "Agent plugin", "proposed", [], 0, 0, 0, "plugins/polterware"],
 ];
 
+/** `uses:` per node id: the node paths it depends on. The map draws them as edges. */
+const previewUses: Record<string, string[]> = {
+  "comp-cli": ["polterware/platform/core"],
+  "comp-api": ["polterware/platform/core", "polterware/data/store"],
+  "comp-desktop": ["polterware/platform/api", "polterware/product/inbox"],
+  "comp-atlas": ["polterware/platform/core"],
+  "comp-mcp": ["polterware/platform/core", "polterware/data/contracts"],
+  "comp-plugin": ["polterware/agents/mcp"],
+};
+
 const previewAtlas = {
   nodes: atlasSeeds.map(([id, parentId, level, slug, path, title, status, decisions, childCount, featureCount, openQuestions, folder]) => ({
     id, parentId, level, slug, path, title, status, decisions, childCount, featureCount, openQuestions, folder,
+    uses: previewUses[id] ?? [],
     intent: `${title} keeps its part of the system coherent.`,
     invariants: level === "component" ? [{ id: `inv-${slug}`, text: `${title} never writes outside its own folder.` }] : [],
     repo: level === "component" ? "polterware" : "",
@@ -172,6 +183,69 @@ const previewAtlas = {
   driftSlugs: ["api"],
   historical: false,
 };
+
+const previewLayoutNodes = [
+  "comp-cli",
+  "comp-core",
+  "comp-desktop",
+  "comp-api",
+  "comp-store",
+  "comp-atlas",
+  "comp-mcp",
+].map((id, index) => ({
+  id,
+  name: id,
+  type: "service",
+  origin: "manual",
+  state: "observed",
+  x: 40 + index * 24,
+  y: 40,
+  width: 188,
+  height: 56,
+  zIndex: 1,
+}));
+
+const previewLayout = {
+  formatVersion: 1,
+  id: "browser-preview-layout",
+  systemId: "sys-local",
+  nodes: previewLayoutNodes,
+  // Atlas edges come from the nodes' uses: (previewUses), not from the layout.
+  relationships: [],
+  boundaries: [],
+  preferences: { edgeRouting: "orthogonal" },
+  viewport: { x: 64, y: 32, zoom: 0.85 },
+};
+
+/** The preview layout lives in memory so a map edit survives a workspace refresh. */
+const previewLayoutState = { bodyJson: JSON.stringify(previewLayout), revision: 3 };
+
+/**
+ * Enough of `work.apply` for the Atlas map: a node block that moves it (under:)
+ * or replaces its uses:. Everything else is ignored, like the rest of this bridge.
+ */
+function applyPreviewPolter(args?: { projectId?: string; text?: string }): Promise<Record<string, never>> {
+  const text = args?.projectId === PREVIEW_PROJECT_ID ? args.text ?? "" : "";
+  const heading = /^# ([^:\s]+):/m.exec(text);
+  const node = heading ? previewAtlas.nodes.find((item) => item.path === heading[1]) : undefined;
+  if (node) {
+    const uses = /^uses:(.*)$/m.exec(text);
+    if (uses) {
+      node.uses = uses[1]!.split(",").map((part) => part.trim()).filter(Boolean);
+    }
+    const under = /(?:^|·\s*)under:\s*([^\s·]+)/m.exec(text)?.[1];
+    const parent = under ? previewAtlas.nodes.find((item) => item.path === under) : undefined;
+    if (parent && parent.id !== node.parentId) {
+      const oldPath = node.path;
+      node.parentId = parent.id;
+      node.path = `${parent.path}/${node.slug}`;
+      for (const item of previewAtlas.nodes) {
+        item.uses = item.uses.map((path) => (path === oldPath ? node.path : path));
+      }
+    }
+  }
+  return Promise.resolve({});
+}
 
 const previewAtlasHistory = [
   { batchId: "batch-4", at: "2026-09-25T10:00:00.000Z", nodeOps: 3, summary: "Added the agents domain." },
@@ -380,7 +454,17 @@ function createBrowserDevBridge(): PolterwareBridge {
       architecture: browserDevApi({
         listResources: scoped({ resources: previewResources }, { resources: [] }),
         listViews: scoped({ views: previewViews }, { views: [] }),
-        getLayout: scoped({ layout: { bodyJson: "{}", revision: 3 } }, { layout: { bodyJson: "{}", revision: 0 } }),
+        getLayout: async (args?: ProjectArgs) =>
+          args?.projectId === PREVIEW_PROJECT_ID
+            ? { layout: { ...previewLayoutState } }
+            : { layout: { bodyJson: "{}", revision: 0 } },
+        updateLayout: async (args?: ProjectArgs & { bodyJson?: string }) => {
+          if (args?.projectId === PREVIEW_PROJECT_ID && args.bodyJson) {
+            previewLayoutState.bodyJson = args.bodyJson;
+            previewLayoutState.revision += 1;
+          }
+          return { layout: { ...previewLayoutState } };
+        },
       }),
       knowledge: browserDevApi({
         list: scoped({ items: previewKnowledge }, { items: [] }),
@@ -393,6 +477,7 @@ function createBrowserDevBridge(): PolterwareBridge {
         listCards: scoped({ cards: previewCards }, { cards: [] }),
         listInbox: scoped(previewInbox, { items: [], openCount: 0, blockingCount: 0 }),
         listAtlas: scoped(previewAtlas, { nodes: [], driftSlugs: [], historical: false }),
+        apply: applyPreviewPolter,
         listAtlasHistory: scoped({ entries: previewAtlasHistory }, { entries: [] }),
       }),
       integrations: browserDevApi({
@@ -408,7 +493,7 @@ function createBrowserDevBridge(): PolterwareBridge {
   } as unknown as PolterwareBridge;
 }
 
-/** Installs a read-only preview bridge when Electron preload did not. Returns false if one already exists. */
+/** Installs the in-memory preview bridge when Electron preload did not. Returns false if one already exists. */
 export function installBrowserDevBridge(): boolean {
   if (window.polterware) return false;
   window.polterware = createBrowserDevBridge();

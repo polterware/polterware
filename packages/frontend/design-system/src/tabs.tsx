@@ -84,6 +84,7 @@ function TabTrigger(props: {
           count={props.item.count!}
           ariaLabel={props.item.countAriaLabel}
           tone={props.item.countTone}
+          class="pw-tab__count"
         />
       </Show>
     </>

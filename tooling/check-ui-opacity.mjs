@@ -56,6 +56,8 @@ const MOTION_VALUE_PATHS = new Set([
   "packages/frontend/design-system/src/fluid-hover.tsx",
   "packages/frontend/design-system/src/popup-motion.ts",
   "packages/frontend/design-system/src/icon-swap.tsx",
+  "packages/frontend/design-system/src/placement-motion.ts",
+  "packages/features/architecture/src/canvas/atlas-card-frame.tsx",
 ]);
 const OPAQUE_GRID_PATTERN =
   "radial-gradient(circle, var(--color-border-default) 1px, transparent 1px)";
