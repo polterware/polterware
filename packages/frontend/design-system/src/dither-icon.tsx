@@ -13,7 +13,7 @@ export type DitherIconTone =
   | "integration"
   | "observability";
 
-export type DitherIconSize = 20 | 24 | 28;
+export type DitherIconSize = 16 | 20 | 24 | 28;
 
 export type DitherIconTileProps = {
   children: JSX.Element;

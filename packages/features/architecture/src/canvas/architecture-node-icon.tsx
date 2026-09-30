@@ -29,13 +29,15 @@ export function ArchitectureNodeIcon(props: {
   provider?: string;
   compact: boolean;
   dimmed: boolean;
+  /** Smaller than compact, for inline labels such as the domain pill. */
+  tiny?: boolean;
 }) {
-  const iconSize = () => (props.compact ? 12 : 16);
+  const iconSize = () => (props.tiny ? 10 : props.compact ? 12 : 16);
 
   return (
     <span class="architecture-node-icon-wrapper">
       <DitherIconTile
-        size={props.compact ? 20 : 28}
+        size={props.tiny ? 16 : props.compact ? 20 : 28}
         tone="architecture"
         brand={[props.name, props.subtype ?? "", props.provider ?? ""]}
         dimmed={props.dimmed}

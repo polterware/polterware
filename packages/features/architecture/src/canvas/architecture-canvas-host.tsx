@@ -16,6 +16,7 @@ import type {
   CaptureMode,
   HistoryState,
   Point,
+  Rect,
   RelationshipType,
   SelectionState,
   Viewport,
@@ -92,6 +93,7 @@ import {
   nestRowOrder,
   nestSlotX,
   routeAroundCards,
+  domainPillRect,
   type DropDecision,
   type NestHitNode,
   type NestLevel,
@@ -437,12 +439,18 @@ export function ArchitectureCanvasHost(props: {
   function routeNodes(a: ArchNode, b: ArchNode, manual?: Point[], edgeId?: string) {
     if (props.nested && !manual?.length) {
       // Go around the other cards so an edge never reads as leaving a card it does not touch.
-      const obstacles = props.document.nodes.flatMap((node) => {
+      const obstacles: Rect[] = props.document.nodes.flatMap((node) => {
         if (node.id === a.id || node.id === b.id) return [];
         if (nestLevelOf(node) !== "component" || concealed(node.id)) return [];
         const placed = effectiveNode(node);
         return placed ? [placed] : [];
       });
+      // Domain title pills are obstacles too: an edge never runs through a label.
+      for (const node of props.document.nodes) {
+        if (nestLevelOf(node) !== "domain" || concealed(node.id)) continue;
+        const placed = effectiveNode(node);
+        if (placed) obstacles.push(domainPillRect(placed, node.name));
+      }
       const parentA = nestParentId(a);
       const parent = parentA && parentA === nestParentId(b)
         ? props.document.nodes.find((node) => node.id === parentA)
@@ -2200,6 +2208,8 @@ export function ArchitectureCanvasHost(props: {
                         class="architecture-canvas-edge-flow-dot"
                         aria-hidden
                         style={{
+                          // Nested: same layer as the edges, above domain frames, under cards.
+                          "z-index": props.nested ? "5" : undefined,
                           "offset-path": `path("${route()?.d ?? ""}")`,
                           "offset-distance": `${(
                             flowPhases.get(id) ?? (edgeFlowPhase(id) * (untrack(route)?.length ?? 0))
@@ -2271,6 +2281,7 @@ export function ArchitectureCanvasHost(props: {
                       subtype={n().subtype}
                       provider={n().provider}
                       compact
+                      tiny
                       dimmed={dim() || concealed(id)}
                     />
                     <span class="atlas-domain-frame__title">{n().name}</span>

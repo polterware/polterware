@@ -3,10 +3,20 @@ import type { Point, Rect } from "@polterware/frontend-canvas";
 /** Header row of a map card. Children sit in the well below it. */
 export const NEST_HEADER = 56;
 /** Label band of a domain frame. The frame is a border, not a card. */
-export const NEST_FRAME_HEADER = 36;
+export const NEST_FRAME_HEADER = 44;
 export const NEST_PAD = 16;
+/**
+ * Title pill of a domain frame: inset from the frame, fixed height, width by name.
+ * Every gap around it is NEST_PAD: PILL_TOP + PILL_H = FRAME_HEADER, cards start PAD below.
+ */
+export const NEST_PILL_TOP = NEST_PAD;
+export const NEST_PILL_H = 28;
+const NEST_PILL_CHROME = 1 + 5 + 16 + 8 + 12 + 1;
+const NEST_PILL_CHAR_W = 7.5;
 export const NEST_LEAF_W = 188;
 export const NEST_LEAF_H = 56;
+/** A domain frame is never shorter than one row of cards, empty or not. */
+export const NEST_FRAME_MIN_H = NEST_FRAME_HEADER + NEST_PAD * 2 + NEST_LEAF_H;
 /** Distance between sibling cards on a row, so the edges between them read. */
 export const NEST_CHILD_GAP = NEST_LEAF_W + 56;
 
@@ -102,7 +112,7 @@ export function layoutNest(nodes: readonly NestSlot[]): Map<string, NestRect> {
     const kids = children.get(id) ?? [];
     if (kids.length === 0) {
       const leaf = node?.level === "domain"
-        ? { width: NEST_LEAF_W, height: header + NEST_PAD * 2 }
+        ? { width: NEST_LEAF_W, height: NEST_FRAME_MIN_H }
         : { width: NEST_LEAF_W, height: NEST_LEAF_H };
       sizes.set(id, leaf);
       return leaf;
@@ -116,7 +126,7 @@ export function layoutNest(nodes: readonly NestSlot[]): Map<string, NestRect> {
     }
     const size = {
       width: Math.max(NEST_LEAF_W, maxX + NEST_PAD * 2),
-      height: header + NEST_PAD + maxY + NEST_PAD,
+      height: Math.max(node?.level === "domain" ? NEST_FRAME_MIN_H : 0, header + NEST_PAD + maxY + NEST_PAD),
     };
     sizes.set(id, size);
     return size;
@@ -458,6 +468,12 @@ export function routeAroundCards(
   return best ?? [routeAnchor(a, "right"), routeAnchor(b, "left")];
 }
 
+/** Where a domain's title pill sits inside its frame (width estimated from the name). */
+export function domainPillRect(frame: Rect, name: string): Rect {
+  const width = Math.min(NEST_PILL_CHROME + name.length * NEST_PILL_CHAR_W, frame.width - NEST_PAD * 2);
+  return { x: frame.x + NEST_PAD, y: frame.y + NEST_PILL_TOP, width: Math.max(0, width), height: NEST_PILL_H };
+}
+
 /** Left edge of the card in slot `index` of a domain's row. */
 export function nestSlotX(index: number): number {
   return index * NEST_CHILD_GAP;
@@ -476,9 +492,9 @@ export function nestDropIndex(siblings: readonly { x: number }[], dropX: number)
 
 /** Size of a domain frame holding `count` cards on its row (matches `layoutNest`). */
 export function nestRowFrameSize(count: number): { width: number; height: number } {
-  if (count === 0) return { width: NEST_LEAF_W, height: NEST_FRAME_HEADER + NEST_PAD * 2 };
+  if (count === 0) return { width: NEST_LEAF_W, height: NEST_FRAME_MIN_H };
   return {
     width: nestSlotX(count - 1) + NEST_LEAF_W + NEST_PAD * 2,
-    height: NEST_FRAME_HEADER + NEST_PAD * 2 + NEST_LEAF_H,
+    height: NEST_FRAME_MIN_H,
   };
 }

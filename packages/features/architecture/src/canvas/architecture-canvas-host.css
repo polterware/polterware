@@ -78,10 +78,11 @@
   position: absolute;
   inset: 0;
   box-sizing: border-box;
-  /* Same lane surface as a Work board column. */
+  /* Lighter than the cards it holds, so they read as set into it. */
   border: 1px solid transparent;
   border-radius: var(--radius-surface);
-  background: var(--color-surface-raised);
+  /* Halfway between the card surface and its hover step. */
+  background: color-mix(in srgb, var(--color-surface-raised), var(--color-surface-hover));
   pointer-events: none;
 }
 
@@ -91,16 +92,28 @@
 
 .atlas-domain-frame__label {
   position: absolute;
-  top: 6px;
-  left: 8px;
+  top: 16px;
+  /* Same inset as the cards below (NEST_PAD). */
+  left: 16px;
   display: flex;
-  max-width: calc(100% - 16px);
+  max-width: calc(100% - 32px);
+  height: 28px;
+  box-sizing: border-box;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  padding: 0 12px 0 5px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 9999px;
+  background: var(--color-surface-raised);
+  box-shadow: 0 1px 2px var(--color-shadow-subtle);
+  font-size: 13px;
   line-height: 16px;
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: var(--color-text-primary);
+}
+
+.atlas-domain-frame__label .pw-dither-icon {
+  border-radius: 9999px;
 }
 
 .atlas-domain-frame__title {
