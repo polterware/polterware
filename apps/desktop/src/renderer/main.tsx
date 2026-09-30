@@ -3,6 +3,7 @@ import { render } from "solid-js/web";
 import { App } from "./App";
 import { CommanderApp } from "./CommanderApp";
 import { attachDesktopDropGuards } from "./desktop-drop-guards.js";
+import { installBrowserDevBridge } from "./browser-dev-bridge.js";
 import { hideBootSplash } from "./boot-splash.js";
 import { applyShellChromeFromBootQuery } from "./shell-chrome-boot.js";
 // Inter with wght + opsz axes: weight changes without reflow (--font-variation-*).
@@ -11,6 +12,7 @@ import "./styles.css";
 
 attachDesktopDropGuards();
 applyShellChromeFromBootQuery();
+if (import.meta.env.DEV) installBrowserDevBridge();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("root missing");

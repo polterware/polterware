@@ -101,7 +101,7 @@
   --color-success-legacy: var(--color-success);
 
   --radius-control: 7px;
-  --radius-item: 8px;
+  --radius-item: 10px;
   --radius-card: 10px;
   --radius-surface: 14px;
   --radius-window: 18px;
@@ -332,7 +332,7 @@ pre,
 .menu-panel {
   border: 1px solid var(--edge-light-surface-rim);
   border-top-color: var(--edge-light-surface-highlight);
-  border-radius: var(--radius-item);
+  border-radius: var(--radius-surface);
   background: var(--color-surface);
   overflow: hidden;
   box-shadow:

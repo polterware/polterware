@@ -1,7 +1,6 @@
-/** Light entry for Desktop boot — keep out of the KnowledgeView barrel chunk. */
-export { ChangeEnvelopeDialogHost } from "./change-envelope-dialog";
-export {
-  requestChangeEnvelope,
-  type ChangeEnvelope,
-  type ChangeEnvelopeRequest,
-} from "./change-envelope-request";
+/** Summary and rationale recorded with every audited project-model change. */
+export type ChangeEnvelope = {
+  summary: string;
+  rationale: string;
+  agentRunId?: string;
+};

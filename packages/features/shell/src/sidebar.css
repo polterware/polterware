@@ -155,6 +155,19 @@ html[data-shell-chrome="solid"] .pw-shell-main-frame {
   font-variant-numeric: tabular-nums;
 }
 
+/* Urgent counts are filled with the urgency colour, like a StatusChip. */
+.pw-sidebar-item-count[data-tone="danger"] {
+  border-color: transparent;
+  background: var(--color-status-danger-background);
+  color: var(--color-status-danger-foreground);
+}
+
+.pw-sidebar-item-count[data-tone="warn"] {
+  border-color: transparent;
+  background: var(--color-status-warning-background);
+  color: var(--color-status-warning-foreground);
+}
+
 .pw-sidebar-item--footer {
   margin-bottom: 4px;
 }

@@ -103,7 +103,7 @@ export function MenuSurface(props: { children: JSX.Element; class?: string }) {
         motion.ref(element);
       }}
       class={cn(
-        "pw-dropdown-surface pw-menu-rows menu-panel py-1 text-[12px] text-[var(--color-text-primary)] outline-none",
+        "pw-dropdown-surface pw-menu-rows menu-panel p-1.5 text-[12px] text-[var(--color-text-primary)] outline-none",
         props.class,
       )}
       {...rows.hover.handlers}
@@ -155,7 +155,7 @@ export function DropdownMenuItem(props: {
       disabled={props.disabled}
       closeOnSelect={props.closeOnSelect}
       class={cn(
-        "relative flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius-item)] px-2 py-1.5 text-left outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)]",
+        "relative flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius-item)] px-2.5 py-2 text-left outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)]",
         props.danger
           ? "text-[var(--color-danger)]"
           : joined

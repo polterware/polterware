@@ -31,11 +31,7 @@ import {
   type WorkspaceInboxItem,
 } from "@polterware/feature-shell";
 import { ArchitectureView, AtlasCanvas } from "@polterware/feature-architecture";
-import {
-  ChangeEnvelopeDialogHost,
-  requestChangeEnvelope,
-  type ChangeEnvelope,
-} from "@polterware/feature-knowledge/change-envelope";
+import type { ChangeEnvelope } from "@polterware/feature-knowledge/change-envelope";
 import { hydrateAppearancePreferences, hydrateShortcutPreferences } from "@polterware/feature-settings/boot";
 import { CommandPalette } from "@polterware/feature-commander";
 import { PageLoading, pushToast, type SelectOption, type TabItem } from "@polterware/frontend-design-system";
@@ -115,28 +111,17 @@ import {
 const SYSTEM_ID = "sys-local";
 const PLATFORM_CONTEXT = bootstrapPlatform();
 
-/** Session-scoped body/path justifications so autosave does not re-prompt every debounce. */
-const bodyChangeSessions = new Map<string, ChangeEnvelope>();
-
+/**
+ * Desktop changes are made by a person, so nobody is asked to justify them: the envelope is
+ * written from the action. The core still records every change; agents keep passing their own
+ * summary and rationale.
+ */
 async function justifyChange(input: {
   title: string;
   description?: string;
   defaultSummary?: string;
-  sessionKey?: string;
 }): Promise<ChangeEnvelope | null> {
-  if (input.sessionKey) {
-    const cached = bodyChangeSessions.get(input.sessionKey);
-    if (cached) return cached;
-  }
-  const envelope = await requestChangeEnvelope({
-    title: input.title,
-    description: input.description,
-    defaultSummary: input.defaultSummary,
-  });
-  if (envelope && input.sessionKey) {
-    bodyChangeSessions.set(input.sessionKey, envelope);
-  }
-  return envelope;
+  return { summary: input.defaultSummary ?? input.title, rationale: "Changed in Desktop" };
 }
 
 function integrationSetupProvider(route: ClientRoute) {
@@ -714,7 +699,6 @@ export function App() {
           void justifyChange({
             title: "Justify document edit",
             defaultSummary: "Update knowledge body",
-            sessionKey: `body:${id}`,
           }).then((change) => {
             if (!change) return;
             return persistKnowledgeBody(workspace(), currentProjectId(), id, body, change);
@@ -726,7 +710,6 @@ export function App() {
           void justifyChange({
             title: "Justify source path",
             defaultSummary: "Update source path",
-            sessionKey: `source-path:${id}`,
           }).then((change) => {
             if (!change) return;
             return persistKnowledgeSourcePath(workspace(), currentProjectId(), id, path, change);
@@ -870,7 +853,6 @@ export function App() {
           }).then((change) => {
             if (!change) return;
             return persistKnowledgeDelete(id, change).then(async () => {
-              bodyChangeSessions.delete(`body:${id}`);
               pushToast("Knowledge archived.", "success");
               await refreshWorkspace(currentProjectId());
             });
@@ -906,20 +888,21 @@ export function App() {
             pushToast(error instanceof Error ? error.message : "Could not archive constitution.", "danger");
           });
         }}
-        onSetCardStage={(slug, stage) => {
-          void justifyChange({
+        onSetCardStage={(slug, stage) =>
+          // Resolves false when the change was cancelled or failed, so the board can roll back.
+          justifyChange({
             title: "Justify card stage",
             defaultSummary: `Move card to ${stageLabel(stage)}: ${slug}`,
-          }).then((change) => {
-            if (!change) return;
-            return persistWorkSetStage(currentProjectId(), slug, stage, change).then(async () => {
-              await refreshWorkspace(currentProjectId());
-              pushToast(`Card moved to ${stageLabel(stage)}.`, "success");
-            });
+          }).then(async (change) => {
+            if (!change) return false;
+            await persistWorkSetStage(currentProjectId(), slug, stage, change);
+            await refreshWorkspace(currentProjectId());
+            pushToast(`Card moved to ${stageLabel(stage)}.`, "success");
+            return true;
           }).catch((error: unknown) => {
             pushToast(error instanceof Error ? error.message : "Could not update card stage.", "danger");
-          });
-        }}
+            return false;
+          })}
         onDuplicate={(id) => {
           void justifyChange({
             title: "Justify duplicate",
@@ -1481,7 +1464,6 @@ export function App() {
           />
         </Suspense>
       </Show>
-      <ChangeEnvelopeDialogHost />
 
       <CommandPalette
         open={paletteOpen()}

@@ -20,6 +20,39 @@
   gap: 8px;
 }
 
+/*
+ * Each stage is a lane that hugs its cards; a held card lights the target lane.
+ * The lane is a `::before` under the cards' own surfaces (z-index -1), so it never covers them.
+ */
+.pw-work-column {
+  position: relative;
+  align-self: start;
+  padding: 8px;
+}
+
+.pw-work-column::before {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  border-radius: var(--radius-surface);
+  background: var(--color-surface-raised);
+  content: "";
+  pointer-events: none;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.pw-work-column[data-drop-target="true"]::before {
+  background: var(--color-surface-active);
+}
+
+.pw-work-column__label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+}
+
 .pw-work-column__header {
   display: flex;
   align-items: center;
@@ -35,8 +68,8 @@
 
 /*
  * Layers, bottom to top: each card's `.card-panel` surface (moved to a `::before` at
- * z-index -1), the board's one hover highlight, the active card's travelling marker, then
- * card content (positioned cards paint after both highlights).
+ * z-index -1), the active card's travelling marker, then card content (positioned cards
+ * paint after the marker).
  */
 .card-panel.pw-work-card {
   position: relative;
@@ -57,11 +90,6 @@
   pointer-events: none;
 }
 
-.pw-work-board-hover {
-  border: 1px solid var(--color-border-default);
-  border-radius: var(--radius-card);
-}
-
 /* Same tone as the DataTable active row. */
 .pw-work-board-active {
   border: 1px solid var(--color-border-subtle);
@@ -70,14 +98,91 @@
   box-shadow: 0 1px 2px var(--color-shadow-subtle);
 }
 
+/* Held or settling: above the neighbouring columns, with a lifted shadow. */
+.card-panel.pw-work-card[data-lifted="true"] {
+  z-index: 2;
+}
+
+.card-panel.pw-work-card[data-lifted="true"]::before {
+  box-shadow: 0 8px 24px var(--color-shadow);
+}
+
+.pw-work-card__button {
+  touch-action: none;
+}
+
+.pw-work-card__head {
+  display: flex;
+}
+
 .pw-work-card__button {
   display: flex;
-  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  text-align: left;
+  border-radius: var(--radius-card);
+}
+
+.pw-work-card__status {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.pw-work-card__text {
+  display: flex;
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
-  padding: 10px 12px;
-  text-align: left;
+  gap: 2px;
+}
+
+.pw-work-card__slug {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.pw-work-card__tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* The summary row closes the card; it toggles the task list above it. */
+.pw-work-card__summary {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.pw-work-card__summary svg {
+  transition: transform var(--duration-control) var(--ease-standard);
+}
+
+.pw-work-card__summary:hover {
+  color: var(--color-text-primary);
+}
+
+.pw-work-card__summary[data-state="open"] svg {
+  transform: rotate(180deg);
+}
+
+.pw-work-card__summary:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: -2px;
   border-radius: var(--radius-card);
 }
 
@@ -98,23 +203,30 @@
   color: var(--color-text-primary);
 }
 
-/* Task rows sit below the card button: number, holder, reserved scope. */
+/* Task rows sit in the collapsible region between the header and the summary row; a divider opens the list. */
+.pw-work-card__region[hidden] {
+  display: none;
+}
+
+/* One divider always opens the expandable block (task list + summary row). */
+.pw-work-card__expandable {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
 .pw-work-card__tasks {
   display: grid;
   gap: 2px;
   margin: 0;
-  padding: 6px 12px 10px;
+  padding: 8px 14px;
   list-style: none;
-  border-top: 1px solid var(--color-border-subtle);
 }
 
 .pw-work-card__task {
   display: flex;
   min-width: 0;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 8px;
-  font-size: 11.5px;
-  line-height: 18px;
+  padding: 4px 0;
   color: var(--color-text-secondary);
 }
 
@@ -122,18 +234,40 @@
   color: var(--color-text-muted);
 }
 
-.pw-work-card__task-number {
-  width: 24px;
+.pw-work-card__task-mark {
+  display: inline-flex;
+  height: 18px;
   flex-shrink: 0;
+  align-items: center;
+  color: var(--color-text-muted);
+}
+
+.pw-work-card__task-body {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  text-align: left;
+}
+
+.pw-work-card__task-title {
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.pw-work-card__task-meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 2px 8px;
   font-size: 11px;
   color: var(--color-text-muted);
 }
 
 .pw-work-card__task-scope {
-  max-width: 50%;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
-  color: var(--color-text-muted);
 }

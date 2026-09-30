@@ -137,7 +137,7 @@ export function ArchitectureNodeCard(props: ArchitectureNodeCardProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger
                   aria-label={`Actions for ${props.name}`}
-                  class="h-6 w-6 justify-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                  class="h-6 w-6 justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
                 >
                   <MoreHorizontal size={14} />
                 </DropdownMenuTrigger>

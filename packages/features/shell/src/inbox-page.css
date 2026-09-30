@@ -1,75 +1,64 @@
-/* Inbox — flat list of derived items. Rows are separated by subtle borders,
- * not cards; the kind chip and the primary action carry the hierarchy. */
-
-.pw-inbox-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--color-border-subtle);
-}
+/* Inbox — flat list of derived items. Rows are separated by space, not dividers or
+ * cards; the title carries the hierarchy and one menu button holds the actions. */
 
 .pw-inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0;
-  padding: 0;
+  padding: 8px 12px;
   list-style: none;
 }
 
 .pw-inbox-row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--color-border-subtle);
-}
-
-.pw-inbox-row[data-state="deferred"] .pw-inbox-row__title {
-  color: var(--color-text-muted);
-}
-
-.pw-inbox-row__head {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
+  padding: 12px;
+  border-radius: var(--radius-control);
+}
+
+.pw-inbox-row:hover,
+.pw-inbox-row:focus-within {
+  background: var(--color-surface-hover);
+}
+
+.pw-inbox-row__status {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.pw-inbox-row__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
   min-width: 0;
 }
 
 .pw-inbox-row__title {
-  flex: 1 1 240px;
   min-width: 0;
   color: var(--color-text-primary);
   font-size: 13px;
   font-weight: 500;
 }
 
-.pw-inbox-row__meta,
-.pw-inbox-row__id {
+.pw-inbox-row[data-state="deferred"] .pw-inbox-row__title {
   color: var(--color-text-muted);
-  font-size: 11px;
-  white-space: nowrap;
 }
 
-.pw-inbox-row__detail {
+.pw-inbox-row__meta {
   margin: 0;
-  color: var(--color-text-secondary);
+  overflow: hidden;
+  color: var(--color-text-muted);
   font-size: 12px;
-}
-
-.pw-inbox-row__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.pw-inbox-row__id {
-  margin-left: auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pw-inbox-section-label {
   margin: 0;
-  padding: 12px 16px 4px;
+  padding: 16px 24px 4px;
   color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 600;

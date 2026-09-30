@@ -20,7 +20,7 @@ export function MenuPanel(props: {
   return (
     <div
       class={cn(
-        "menu-panel py-1 text-[12px] text-[var(--color-text-primary)]",
+        "menu-panel p-1.5 text-[12px] text-[var(--color-text-primary)]",
         props.elevated === false && "shadow-none",
         props.class,
       )}
@@ -80,7 +80,7 @@ export function MenuItem(props: MenuItemProps) {
         if (typeof local.ref === "function") local.ref(element);
       }}
       class={cn(
-        "relative flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius-item)] px-2 py-1.5 text-left outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)]",
+        "relative flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius-item)] px-2.5 py-2 text-left outline-none transition-colors duration-[var(--duration-fast)] ease-[var(--ease-standard)]",
         joined
           ? local.selected
             ? "text-[var(--color-text-primary)]"

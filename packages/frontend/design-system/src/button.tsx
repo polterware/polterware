@@ -26,9 +26,9 @@ const variantClass = {
 } satisfies Record<ButtonVariant, string>;
 
 const sizeClass = {
-  sm: "h-[var(--control-height-sm)] gap-1.5 rounded-[var(--radius-control)] px-2.5 text-xs",
-  md: "h-[var(--control-height-md)] gap-1.5 rounded-[var(--radius-control)] px-3 text-[13px]",
-  icon: "h-[var(--control-height-sm)] w-[var(--control-height-sm)] rounded-[var(--radius-control)] p-0 [&_svg]:h-3.5 [&_svg]:w-3.5",
+  sm: "h-[var(--control-height-sm)] gap-1.5 rounded-full px-2.5 text-xs",
+  md: "h-[var(--control-height-md)] gap-1.5 rounded-full px-3 text-[13px]",
+  icon: "h-[var(--control-height-sm)] w-[var(--control-height-sm)] rounded-full p-0 [&_svg]:h-3.5 [&_svg]:w-3.5",
 } satisfies Record<ButtonSize, string>;
 
 function cn(...parts: Array<string | false | null | undefined>) {

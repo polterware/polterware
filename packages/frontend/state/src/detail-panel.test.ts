@@ -364,6 +364,24 @@ describe("detailPanelStore", () => {
     expect(detailPanelStore.getState()).toMatchObject({ mode: "collapsed", restoreMode: "collapsed" });
   });
 
+  it("hides a stale foreign selection when an empty collection registers", () => {
+    const canvasTarget: DetailTarget = { scopeId: "architecture:canvas", entityId: "node-a", entityKind: "arch-node" };
+    detailPanelStore.getState().registerCollection({ scopeId: "architecture:canvas", status: "ready", targets: [canvasTarget] });
+    detailPanelStore.getState().unregisterCollection("architecture:map");
+    expect(detailPanelStore.getState().presence).toBe("visible");
+
+    detailPanelStore.getState().registerCollection({ scopeId: "inbox:items", status: "ready", targets: [] });
+    expect(detailPanelStore.getState()).toMatchObject({
+      activeScope: "inbox:items",
+      activeTarget: null,
+      mode: "collapsed",
+      presence: "hidden",
+    });
+
+    detailPanelStore.getState().unregisterCollection("inbox:items");
+    expect(detailPanelStore.getState()).toMatchObject({ activeTarget: null, presence: "hidden" });
+  });
+
   it("keeps snap geometry out of global and persisted state", () => {
     expect(detailPanelStore.getState()).not.toHaveProperty("bottomSize");
     expect(detailPanelStore.getState()).not.toHaveProperty("setSize");

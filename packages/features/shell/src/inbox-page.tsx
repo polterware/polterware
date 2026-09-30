@@ -1,18 +1,35 @@
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import {
   Button,
   Dialog,
+  DitherIconTile,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Field,
-  FilterChip,
   Input,
+  MoreHorizontal,
   PageContent,
   PageEmpty,
   PageLoading,
   PageToolbar,
   Select,
+  Bot,
+  Check,
+  Clock,
+  Eye,
+  GitCompare,
+  Hammer,
+  Pencil,
+  ShieldCheck,
   StatusChip,
-  type StatusTone,
+  Scale,
+  ThumbsDownIcon,
+  Tooltip,
+  Tabs,
 } from "@polterware/frontend-design-system";
+import { detailPanelStore } from "@polterware/frontend-state";
 import type {
   WorkspaceInbox,
   WorkspaceInboxAction,
@@ -20,6 +37,8 @@ import type {
   WorkspaceInboxKind,
 } from "./workspace-mocks";
 import "./inbox-page.css";
+
+const INBOX_SCOPE = "inbox:items";
 
 type InboxFilter = "all" | WorkspaceInboxKind;
 
@@ -47,13 +66,23 @@ const ACTION_LABEL: Record<WorkspaceInboxAction, string> = {
   reject: "Reject",
 };
 
-/** The first action of a kind is its primary one. */
-const PRIMARY_ACTIONS = new Set<WorkspaceInboxAction>(["decide", "fix_code", "verify"]);
+const ACTION_ICON = {
+  decide: Check,
+  delegate: Bot,
+  defer: Clock,
+  fix_code: Hammer,
+  update_intent: Pencil,
+  ignore: Eye,
+  verify: ShieldCheck,
+  reject: ThumbsDownIcon,
+} as const;
 
-function kindTone(item: WorkspaceInboxItem): StatusTone {
-  if (item.state === "deferred") return "muted";
-  if (item.blocking) return "danger";
-  return item.kind === "drift" ? "warn" : "muted";
+const KIND_ICON = { decision: Scale, drift: GitCompare, verify: ShieldCheck } as const;
+
+function statusLabel(item: WorkspaceInboxItem): string {
+  const kind = KIND_LABEL[item.kind];
+  if (item.state === "deferred") return `Deferred ${kind.toLowerCase()}`;
+  return item.blocking ? `Blocking ${kind.toLowerCase()}` : kind;
 }
 
 /** Inbox — Decision, Drift, and Verify items derived from the project's data. */
@@ -66,6 +95,17 @@ export function InboxPage(props: {
   const [pending, setPending] = createSignal("");
   const [deciding, setDeciding] = createSignal<WorkspaceInboxItem | null>(null);
   const [answer, setAnswer] = createSignal("");
+
+  // The Inbox has no detail targets; registering an empty collection keeps the shared
+  // panel hidden instead of inheriting another surface's selection.
+  createEffect(() => {
+    detailPanelStore.getState().registerCollection({
+      scopeId: INBOX_SCOPE,
+      status: "ready",
+      targets: [],
+    });
+    onCleanup(() => detailPanelStore.getState().unregisterCollection(INBOX_SCOPE));
+  });
 
   const items = () => props.inbox?.items ?? [];
   const countOf = (kind: InboxFilter) =>
@@ -96,37 +136,50 @@ export function InboxPage(props: {
   function Row(rowProps: { item: WorkspaceInboxItem }) {
     const item = () => rowProps.item;
     return (
-      <li class="pw-inbox-row" data-state={item().state}>
-        <div class="pw-inbox-row__head">
-          <StatusChip tone={kindTone(item())}>
-            {item().blocking && item().state === "open" ? `Blocking ${KIND_LABEL[item().kind].toLowerCase()}` : KIND_LABEL[item().kind]}
-          </StatusChip>
-          <span class="pw-inbox-row__title">{item().title}</span>
-          <Show when={item().where}>
-            <span class="pw-inbox-row__meta font-mono">{item().where}</span>
-          </Show>
-          <Show when={item().source}>
-            <span class="pw-inbox-row__meta">{item().source}</span>
-          </Show>
-        </div>
-        <Show when={item().options.length > 0}>
-          <p class="pw-inbox-row__detail">Options: {item().options.join(" · ")}</p>
-        </Show>
-        <div class="pw-inbox-row__actions">
-          <For each={item().actions}>
-            {(action) => (
-              <Button
-                size="sm"
-                variant={PRIMARY_ACTIONS.has(action) ? "primary" : "ghost"}
-                disabled={pending() !== "" || !props.onResolve}
-                onClick={() => void run(item(), action)}
-              >
-                {ACTION_LABEL[action]}
-              </Button>
+      <li class="pw-inbox-row" data-state={item().state} title={item().id}>
+        <Tooltip.Root openDelay={400}>
+          <Tooltip.Trigger
+            asChild={(triggerProps) => (
+              <span {...triggerProps({ class: "pw-inbox-row__status", role: "img", "aria-label": statusLabel(item()) })}>
+                <DitherIconTile size={28} tone={item().blocking && item().state === "open" ? "security" : "neutral"} dimmed={item().state === "deferred"}>
+                  {(() => {
+                    const Icon = KIND_ICON[item().kind];
+                    return <Icon size={14} aria-hidden />;
+                  })()}
+                </DitherIconTile>
+              </span>
             )}
-          </For>
-          <span class="pw-inbox-row__id font-mono">{item().id}</span>
+          />
+          <Tooltip.Content>{statusLabel(item())}</Tooltip.Content>
+        </Tooltip.Root>
+        <div class="pw-inbox-row__body">
+          <span class="pw-inbox-row__title">{item().title}</span>
+          <p class="pw-inbox-row__meta">
+            {[item().where, item().source].filter(Boolean).join(" · ")}
+          </p>
         </div>
+        <DropdownMenu positioning={{ placement: "bottom-end" }}>
+          <DropdownMenuTrigger
+            aria-label={`Actions for ${item().title}`}
+            disabled={pending() !== "" || !props.onResolve}
+            class="pw-inbox-row__menu h-7 w-7 shrink-0 justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+          >
+            <MoreHorizontal size={14} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent class="min-w-40">
+            <For each={item().actions}>
+              {(action) => (
+                <DropdownMenuItem value={action} onSelect={() => void run(item(), action)}>
+                  {(() => {
+                    const Icon = ACTION_ICON[action];
+                    return <Icon size={14} aria-hidden />;
+                  })()}
+                  {ACTION_LABEL[action]}
+                </DropdownMenuItem>
+              )}
+            </For>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </li>
     );
   }
@@ -134,28 +187,24 @@ export function InboxPage(props: {
   return (
     <div class="flex h-full min-h-0 flex-col">
       <PageToolbar.Root>
-        <PageToolbar.Leading>
-          <span class="pw-page-toolbar-title">Inbox</span>
-        </PageToolbar.Leading>
+        <PageToolbar.Tabs>
+          <Tabs
+            items={FILTERS.map((entry) => ({
+              id: entry.id,
+              label: entry.label,
+              count: countOf(entry.id) || undefined,
+            }))}
+            value={filter()}
+            onChange={(value) => setFilter(value as InboxFilter)}
+            aria-label="Inbox"
+          />
+        </PageToolbar.Tabs>
         <PageToolbar.Actions>
           <Show when={(props.inbox?.blockingCount ?? 0) > 0}>
             <StatusChip tone="danger">{props.inbox?.blockingCount} blocking</StatusChip>
           </Show>
         </PageToolbar.Actions>
       </PageToolbar.Root>
-      <div class="pw-inbox-filters">
-        <For each={FILTERS}>
-          {(entry) => (
-            <FilterChip
-              selected={filter() === entry.id}
-              count={countOf(entry.id) || undefined}
-              onClick={() => setFilter(entry.id)}
-            >
-              {entry.label}
-            </FilterChip>
-          )}
-        </For>
-      </div>
       <PageContent class="p-0">
         <Show
           when={visible().length > 0}

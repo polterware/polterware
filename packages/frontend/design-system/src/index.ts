@@ -64,6 +64,8 @@ export { spring } from "./springs";
 export { springCssProperties, springLinearEasing } from "./spring-css";
 export { prefersReducedMotion } from "./reduced-motion";
 export { animateCollapse } from "./collapse";
+export { createDragMotion } from "./drag-motion";
+export type { DragMotion } from "./drag-motion";
 export { IconSwap } from "./icon-swap";
 export type { IconSwapProps } from "./icon-swap";
 export type { CollapseControls } from "./collapse";

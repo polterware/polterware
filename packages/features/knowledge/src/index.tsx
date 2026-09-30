@@ -88,15 +88,10 @@ export {
   knowledgeTemplatesForKind,
 } from "./create-templates";
 export { CONSTITUTION_BODY_TEMPLATE } from "./constitution-template";
-export { ChangeEnvelopeDialogHost } from "./change-envelope-dialog";
 export type { DecisionAction } from "./decision-detail";
 export { WORK_STAGES, workStageLabel } from "./work-stage";
 export { NewFeatureFlow, type FeatureFlowLine } from "./new-feature-flow";
-export {
-  requestChangeEnvelope,
-  type ChangeEnvelope,
-  type ChangeEnvelopeRequest,
-} from "./change-envelope-request";
+export type { ChangeEnvelope } from "./change-envelope";
 
 const TABS: TabItem[] = [
   {
@@ -208,7 +203,7 @@ export function KnowledgeView(props: {
   onArchive?: (id: string) => void;
   onRemoveCard?: (slug: string) => void;
   onArchiveConstitution?: () => void;
-  onSetCardStage?: (slug: string, stage: WorkStage) => void;
+  onSetCardStage?: (slug: string, stage: WorkStage) => Promise<boolean> | void;
   onDuplicate?: (id: string) => void;
 }) {
   const tab = () => normalizeTab(props.tab);
@@ -1019,6 +1014,7 @@ export function KnowledgeView(props: {
                       : null
                   }
                   onActivate={(slug) => activate(slug, "card")}
+                  onMoveCard={props.onSetCardStage}
                 />
               </Show>
             </Show>

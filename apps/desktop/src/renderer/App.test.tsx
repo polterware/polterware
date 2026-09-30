@@ -53,8 +53,7 @@ describe("Desktop core composition", () => {
     expect(source).not.toContain("PROJECT_SWITCHER_FIXTURES");
     expect(source).not.toContain("RESOURCE_FIXTURES");
     expect(source).not.toContain('fixtureMode="force"');
-    expect(source).toContain("ChangeEnvelopeDialogHost");
-    expect(source).toContain("requestChangeEnvelope");
+    expect(source).not.toContain("ChangeEnvelopeDialogHost");
     expect(persist).toContain("change: changePayload");
   });
 });

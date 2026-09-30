@@ -644,7 +644,9 @@ export function ArchitectureView(props: {
   let currentScope: string | undefined;
 
   createEffect(() => {
-    const scope = `architecture:${tab()}`;
+    // Map targets live in the canvas scope; the collection scope must match so pending targets
+    // are consumed and unregistering releases the scope activation moved the panel to.
+    const scope = tab() === "views" ? "architecture:views" : "architecture:canvas";
 
     if (currentScope && currentScope !== scope) {
       detailPanelStore.getState().unregisterCollection(currentScope);
