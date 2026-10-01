@@ -34,7 +34,6 @@ message IntegrationResource {
   string external_id = 5;
   string environment_id = 6;
   string status = 7;
-  string inventory_resource_id = 8;
 }
 
 message IntegrationSyncRun {

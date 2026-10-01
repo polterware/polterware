@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapConstitution, mapWorkCards } from "./map-records";
+import { mapWorkCards } from "./map-records";
 
 describe("mapWorkCards", () => {
   it("maps cards with tasks, questions, and invariants", () => {
@@ -29,23 +29,5 @@ describe("mapWorkCards", () => {
     expect(cards[0]?.invariants[0]?.text).toBe("No network calls during scan");
     expect(cards[1]?.stage).toBe("shape");
     expect(cards[1]?.title).toBe("untitled");
-  });
-});
-
-describe("mapConstitution", () => {
-  it("returns the project constitution singleton", () => {
-    const constitution = mapConstitution([
-      {
-        id: "constitution-1",
-        kind: "constitution",
-        title: "Project constitution",
-        body: "# Principles",
-        status: "active",
-        owner: "Platform",
-        updatedAt: "2026-09-21T12:00:00Z",
-        extraJson: "{}",
-      },
-    ]);
-    expect(constitution?.id).toBe("constitution-1");
   });
 });

@@ -9,7 +9,7 @@ import type { ChangeEnvelope, DecisionAction, FeatureFlowLine } from "@polterwar
 import { asNumber, asObjectArray, asRecord, asString } from "./format";
 import type { WorkspaceSnapshot } from "./load";
 import { mapFeatureReview } from "./map-feature-review";
-import { CONSTITUTION_BODY_TEMPLATE, uniqueCardSlug } from "@polterware/feature-knowledge";
+import { uniqueCardSlug } from "@polterware/feature-knowledge";
 
 function core() {
   return window.polterware.core;
@@ -422,41 +422,6 @@ export async function persistWorkRemoveCard(
   await applyPolter(projectId, polterCard(slug, null, { status: "removed" }), change);
 }
 
-export async function persistConstitutionEnsure(input: {
-  workspace: WorkspaceSnapshot;
-  projectId: string;
-  change: ChangeEnvelope;
-}): Promise<string> {
-  const existing = input.workspace.constitution;
-  if (existing) return existing.id;
-  const id = newId("constitution");
-  await core().knowledge.save({
-    item: {
-      id,
-      projectId: input.projectId,
-      title: "Project constitution",
-      body: CONSTITUTION_BODY_TEMPLATE,
-      kind: "constitution",
-      tags: [],
-      summary: "",
-      owner: "human",
-      status: "active",
-      extraJson: "{}",
-    },
-    change: changePayload(input.change),
-  });
-  return id;
-}
-
-export async function persistConstitutionArchive(
-  workspace: WorkspaceSnapshot,
-  change: ChangeEnvelope,
-): Promise<void> {
-  const constitution = workspace.constitution;
-  if (!constitution) return;
-  await persistKnowledgeDelete(constitution.id, change);
-}
-
 export async function persistKnowledgeDuplicate(
   workspace: WorkspaceSnapshot,
   projectId: string,
@@ -626,29 +591,6 @@ export async function persistCreatedProject(input: {
     },
   });
   return { projectId, environmentId: firstEnvironmentId };
-}
-
-export async function persistResource(input: {
-  projectId: string;
-  environmentId?: string;
-  name: string;
-  type: string;
-}): Promise<void> {
-  await core().architecture.saveResource({
-    resource: {
-      id: newId("res"),
-      projectId: input.projectId,
-      environmentId: input.environmentId ?? "",
-      name: input.name,
-      type: input.type,
-      source: "manual",
-      provider: "local",
-      status: "unknown",
-      region: "local",
-      tags: [],
-      description: "",
-    },
-  });
 }
 
 export async function persistIntegrationConnection(input: {

@@ -1,12 +1,13 @@
 import { Show } from "solid-js";
 import {
+  Button,
   DataTable,
   DetailPanel,
   PageError,
   PageLoading,
   StatusChip,
 } from "@polterware/frontend-design-system";
-import { FileText, Link2, Network } from "@polterware/frontend-design-system";
+import { FileText, Network } from "@polterware/frontend-design-system";
 import { NodeIcon } from "./domain/node-icon";
 import {
   architectureLifecycleLabel,
@@ -29,7 +30,7 @@ export function ArchitectureNodeDetail(props: {
   return (
     <DetailPanel.Content>
       <Show when={props.loading}>
-        <DetailPanel.Header title="Loading node" />
+        <DetailPanel.Header />
         <DetailPanel.Body>
           <DetailPanel.Main>
             <PageLoading layout="detail" label="Loading node…" />
@@ -37,9 +38,7 @@ export function ArchitectureNodeDetail(props: {
         </DetailPanel.Body>
       </Show>
       <Show when={!props.loading && (props.error || props.notFound || !props.node)}>
-        <DetailPanel.Header
-          title={props.notFound || !props.node ? "Node not found" : "Failed to load"}
-        />
+        <DetailPanel.Header />
         <DetailPanel.Body>
           <DetailPanel.Main>
             <PageError
@@ -57,33 +56,18 @@ export function ArchitectureNodeDetail(props: {
 
           return (
             <>
-              <DetailPanel.Header
-                icon={<NodeIcon type={n().kind} name={n().kind} size={16} />}
-                title={n().label}
-              >
-                <Show when={props.onOpenOnCanvas || canLink()}>
-                  <DetailPanel.Actions>
-                    <Show when={canLink()}>
-                      <DetailPanel.PrimaryAction
-                        label="Link resource"
-                        icon={<Link2 size={14} aria-hidden />}
-                        onClick={() => props.onLinkResource?.(n().id)}
-                      />
-                    </Show>
-                    <Show when={props.onOpenOnCanvas}>
-                      <DetailPanel.Action
-                        label="Open on canvas"
-                        onClick={() => props.onOpenOnCanvas?.(n().id)}
-                      >
-                        <Network size={14} />
-                      </DetailPanel.Action>
-                    </Show>
-                  </DetailPanel.Actions>
-                </Show>
-              </DetailPanel.Header>
+              <DetailPanel.Header />
               <DetailPanel.Body>
                 <DetailPanel.Main>
-                  <DetailPanel.Section title="Connected architecture">
+                  <DetailPanel.Title
+                    icon={<NodeIcon type={n().kind} name={n().kind} size={16} />}
+                    title={n().label}
+                  />
+                  <DetailPanel.Section title="Connected architecture" aside={
+                    <Show when={props.onOpenOnCanvas}>
+                      <Button variant="ghost" size="sm" onClick={() => props.onOpenOnCanvas?.(n().id)}>Open on canvas</Button>
+                    </Show>
+                  }>
                     <DataTable.Root
                       rows={n().connected}
                       getRowId={(connection) => connection.nodeId}
@@ -155,6 +139,7 @@ export function ArchitectureNodeDetail(props: {
                 </DetailPanel.Main>
                 <Show
                   when={
+                    canLink() ||
                     linkCaption() ||
                     n().role ||
                     n().owner ||
@@ -174,7 +159,16 @@ export function ArchitectureNodeDetail(props: {
                           label="Link"
                           value={architectureLinkStatusLabel(n().linkStatus)}
                         />
-                        <DetailPanel.Property label="Resource" value={linkCaption()} />
+                        <DetailPanel.Property label="Resource" value={
+                          <Show when={linkCaption() || canLink()}>
+                            <div class="flex flex-wrap items-center gap-2">
+                              <Show when={linkCaption()}><span>{linkCaption()}</span></Show>
+                              <Show when={canLink()}>
+                                <Button variant="ghost" size="sm" onClick={() => props.onLinkResource?.(n().id)}>Link resource</Button>
+                              </Show>
+                            </div>
+                          </Show>
+                        } />
                         <DetailPanel.Property label="Role" value={n().role} />
                         <DetailPanel.Property label="Owner" value={n().owner} />
                         <DetailPanel.Property label="Environment" value={n().environment} />

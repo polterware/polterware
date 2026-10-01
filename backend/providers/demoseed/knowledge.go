@@ -58,7 +58,6 @@ func seedKnowledge(store *storepkg.Store) error {
 				"commands": []string{"pg_isready", "psql -c 'select now();'"},
 				"rollback": "Restore the previous primary reference if validation fails.",
 				"lastValidated": "2026-09-06T12:00:00Z", "componentId": "n-pg", "componentName": "PostgreSQL",
-				"resourceId": "res-rds-prod", "resourceName": "prod-postgres",
 			}),
 			CreatedAt: runbookUpdated.Add(-8 * 24 * time.Hour), UpdatedAt: runbookUpdated.Add(-8 * 24 * time.Hour),
 		},
@@ -93,13 +92,9 @@ func seedKnowledge(store *storepkg.Store) error {
 		sourceItem("src-agents", "Agent instructions", "AGENTS.md", "Rules agents follow in this repository.", docsUpdated),
 		sourceItem("src-package", "package.json", "package.json", "Workspace scripts and dependencies.", docsUpdated),
 		sourceItem("src-gomod", "go.mod", "go.mod", "Go module and dependencies.", docsUpdated),
-		{
-			ID: "constitution-project", ProjectID: ProjectID, Title: "Project constitution", Kind: "constitution",
-			Body: "# Project constitution\n\n## Core principles\n\n### Local-first truth\nProject state must remain useful on one machine without requiring a hosted account.\n\n### Honest product boundaries\nDo not describe planned capabilities as shipped.\n\n### Provenance over inference\nDeclared and observed facts take precedence over inferred knowledge.\n\n## Governance\n\nChanges to durable project truth require an attributable actor and a clear reason.",
-			Tags: []string{"constitution"}, Summary: "Project principles for the local desktop.",
-			Owner: "Platform", Status: "active", ExtraJSON: "{}",
-			CreatedAt: docsUpdated.Add(-96 * time.Hour), UpdatedAt: docsUpdated.Add(-48 * time.Hour),
-		},
+		principleItem("adr-principle-local-first", "Local-first truth", "Project state must stay useful on one machine.", "Project state must remain useful on one machine without requiring a hosted account.", docsUpdated.Add(-48*time.Hour)),
+		principleItem("adr-principle-honest-boundaries", "Honest product boundaries", "Never describe planned work as shipped.", "Do not describe planned capabilities as shipped.", docsUpdated.Add(-48*time.Hour)),
+		principleItem("adr-principle-provenance", "Provenance over inference", "Observed facts win over inferred ones.", "Declared and observed facts take precedence over inferred knowledge.", docsUpdated.Add(-48*time.Hour)),
 	}
 	for _, item := range items {
 		if err := store.SaveKnowledge(item); err != nil {
@@ -122,7 +117,6 @@ func seedKnowledgeLinks(store *storepkg.Store) error {
 		{knowledgeID: "doc-database", refKind: ppm.RefArchitectureNode, refID: "n-pg", predicate: ppm.PredDocuments},
 		{knowledgeID: "rb-service", refKind: ppm.RefArchitectureNode, refID: "n-gw", predicate: ppm.PredOperates},
 		{knowledgeID: "rb-database", refKind: ppm.RefArchitectureNode, refID: "n-pg", predicate: ppm.PredOperates},
-		{knowledgeID: "rb-database", refKind: ppm.RefResource, refID: "res-rds-prod", predicate: ppm.PredOperates},
 		{knowledgeID: "adr-sqlite-local", refKind: ppm.RefArchitectureNode, refID: "n-pg", predicate: ppm.PredRelatedTo},
 	}
 	for _, spec := range specs {
@@ -156,5 +150,15 @@ func sourceItem(id, title, path, summary string, at time.Time) knowledge.Item {
 		ID: id, ProjectID: ProjectID, Title: title, Kind: "source",
 		Summary: summary, ExtraJSON: mustJSON(map[string]string{"path": path}),
 		CreatedAt: at, UpdatedAt: at,
+	}
+}
+
+func principleItem(id, title, summary, body string, at time.Time) knowledge.Item {
+	return knowledge.Item{
+		ID: id, ProjectID: ProjectID, Title: title, Kind: "adr",
+		Body:    "## Decision\n\n" + body,
+		Summary: summary, Tags: []string{"principle"}, Owner: "Platform", Status: "active",
+		ExtraJSON: mustJSON(map[string]string{"scope": "principle"}),
+		CreatedAt: at.Add(-48 * time.Hour), UpdatedAt: at,
 	}
 }

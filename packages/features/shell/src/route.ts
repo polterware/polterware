@@ -4,30 +4,33 @@ import {
   type PlatformContext,
 } from "@polterware/frontend-platform";
 
-/** Project surfaces: Inbox, Work, Atlas, Decisions, Reality, Agents, plus Integrations. Settings is a dialog, not a section. */
+/** Project surfaces: Inbox, Work, Atlas, Truth, Activity. Settings (with Agents and Integrations) is a dialog, not a section. */
 export type NavSectionId =
   | "inbox"
   | "atlas"
   | "work"
-  | "decisions"
-  | "reality"
-  | "agents"
-  | "integrations";
+  | "truth"
+  | "activity";
 
 /** Full pages reachable outside the sidebar (e.g. from the Help menu). */
 export type PageSectionId = "cli";
 
 export type SectionId = NavSectionId | PageSectionId;
-export type ProjectSettingsTabId = "general" | "environments" | "shortcuts" | "advanced";
+export type ProjectSettingsTabId =
+  | "general"
+  | "environments"
+  | "agents-access"
+  | "agents-sessions"
+  | "agents-context"
+  | "integrations-connected"
+  | "integrations-catalog"
+  | "shortcuts"
+  | "advanced";
 export type WorkTabId = "board" | "specs";
-export type RealityTabId = "inventory" | "sources" | "facts" | "docs";
-export type IntegrationsTabId = "connected" | "catalog";
+export type TruthTabId = "decisions" | "facts" | "evidence";
 
 export type DialogState =
-  | { type: "resource-create" }
-  | { type: "resource-edit"; entityId: string }
   | { type: "arch-node-create" }
-  | { type: "integration-connect"; providerId?: string }
   | { type: "create-view" }
   | { type: "settings"; tab: ProjectSettingsTabId }
   | { type: "confirm"; message: string }
@@ -64,10 +67,8 @@ export const DEFAULT_TABS = {
   inbox: "all",
   atlas: "map",
   work: "board",
-  decisions: "active",
-  reality: "inventory",
-  agents: "access",
-  integrations: "connected",
+  truth: "decisions",
+  activity: "all",
   cli: "reference",
 } satisfies Record<SectionId, string>;
 
@@ -81,41 +82,24 @@ export const SECTION_TABS = {
   ],
   work: [
     { id: "board", label: "Board" },
-    { id: "specs", label: "Register" },
+    { id: "specs", label: "List" },
   ],
-  // One tab per ADR lifecycle state.
-  decisions: [
-    { id: "active", label: "Active" },
-    { id: "challenged", label: "Challenged" },
-    { id: "proposed", label: "Proposed" },
-    { id: "superseded", label: "Superseded" },
-  ],
-  reality: [
-    { id: "inventory", label: "Inventory" },
-    { id: "sources", label: "Sources" },
+  // Intent (Decisions) and observed state (Facts) with the material that backs them.
+  truth: [
+    { id: "decisions", label: "Decisions" },
     { id: "facts", label: "Facts" },
-    { id: "docs", label: "Docs" },
+    { id: "evidence", label: "Evidence" },
   ],
-  agents: [
-    { id: "access", label: "Access" },
-    { id: "sessions", label: "Sessions" },
-    { id: "history", label: "History" },
-    { id: "context", label: "Context" },
-  ],
-  integrations: [
-    { id: "connected", label: "Connected" },
-    { id: "catalog", label: "Catalog" },
-  ],
+  // Route id only — Activity is a flat page (no tab rail).
+  activity: [{ id: "all", label: "All" }],
 } satisfies Partial<Record<SectionId, { id: string; label: string }[]>>;
 
 const NAV_SECTIONS = {
   inbox: true,
   atlas: true,
   work: true,
-  decisions: true,
-  reality: true,
-  agents: true,
-  integrations: true,
+  truth: true,
+  activity: true,
 } satisfies Record<string, boolean>;
 
 const ROUTE_CAPABILITIES: Partial<Record<SectionId, PlatformCapability>> = {};
@@ -181,18 +165,17 @@ export function resolveRoute(
     section === "nodes" ||
     section === "processes"
   ) {
-    section = "reality";
-    tab = "inventory";
+    // Resources are Atlas components now.
+    section = "atlas";
+    tab = "components";
   }
   if (section === "knowledge") {
-    if (tab === "sources") {
-      section = "reality";
-    } else if (tab === "docs" || tab === "runbooks") {
-      section = "reality";
-      tab = "docs";
+    if (tab === "sources" || tab === "docs" || tab === "runbooks") {
+      section = "truth";
+      tab = "evidence";
     } else if (tab === "library" || tab === "adrs") {
-      section = "decisions";
-      tab = "active";
+      section = "truth";
+      tab = "decisions";
     } else {
       section = "work";
       tab = "specs";
@@ -203,10 +186,23 @@ export function resolveRoute(
     section = DEFAULT_SECTION;
     tab = undefined;
   }
-  if (section === "agents") {
-    // Retired Agents Compile / Drift tabs → Context; Facts moved to Reality.
-    if (tab === "compile" || tab === "drift") tab = "context";
-    if (tab === "facts") section = "reality";
+  // Decisions and Reality merged into Truth; the change history became Activity.
+  if (section === "decisions") {
+    section = "truth";
+    tab = "decisions";
+  }
+  if (section === "reality") {
+    section = tab === "history" ? "activity" : "truth";
+    if (tab === "sources" || tab === "docs") tab = "evidence";
+  }
+  // Agents and Integrations moved into the Settings dialog; their facts live in Truth and their history in Activity.
+  if (section === "agents" && tab === "facts") {
+    section = "truth";
+  } else if (section === "agents" && tab === "history") {
+    section = "activity";
+  } else if (section === "agents" || section === "integrations") {
+    section = DEFAULT_SECTION;
+    tab = undefined;
   }
 
   if (isSectionId(section) && sectionAvailable(section, platform)) {

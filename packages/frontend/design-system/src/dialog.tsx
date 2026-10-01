@@ -1,3 +1,4 @@
+import { createPanelPortalOwnership } from "./panel-interaction";
 import type { JSX } from "solid-js";
 import { Show } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -68,6 +69,7 @@ export type A11yDialogProps = {
  * Catalogs: `chrome="flush"`, `dividers={false}` — space separates regions, not lines.
  */
 export function A11yDialog(props: A11yDialogProps) {
+  const ownPortal = createPanelPortalOwnership(() => props.open);
   const flush = () => props.chrome === "flush";
   const dividers = () => props.dividers ?? !flush();
   const dismissible = () => props.dismissible !== false;
@@ -86,14 +88,14 @@ export function A11yDialog(props: A11yDialogProps) {
       closeOnInteractOutside={dismissible()}
     >
       <Portal>
-        <ArkDialog.Backdrop
+        <ArkDialog.Backdrop ref={ownPortal}
           class={[
             "pw-dialog-overlay fixed inset-0 z-[var(--z-dialog,100)] bg-[var(--color-overlay)]",
             props.overlayClass ?? "",
           ].join(" ")}
         />
         <ArkDialog.Positioner class="fixed inset-0 z-[var(--z-dialog,100)] flex items-center justify-center p-4 sm:p-8 pointer-events-none">
-          <ArkDialog.Content
+          <ArkDialog.Content ref={ownPortal}
             data-size={frameSize()}
             class={[
               /* Size comes from dialog.css .pw-dialog-content[data-size]. */

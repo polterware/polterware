@@ -27,7 +27,6 @@ import {
 } from "@polterware/frontend-design-system";
 import {
   type WorkspaceAdr,
-  type WorkspaceConstitution,
   type WorkspaceDocument,
   type WorkspacePpmEntity,
   type WorkspaceRunbook,
@@ -36,9 +35,6 @@ import {
   type WorkStage,
 } from "@polterware/feature-shell";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
-import { ConstitutionDetail } from "./constitution-detail";
-import { KnowledgeConstitutionEmpty } from "./constitution-empty";
-import { ConstitutionRow } from "./constitution-row";
 import { CreateKnowledgeDialog, type CreateKnowledgeKind } from "./create-knowledge-dialog";
 import { CreateSourceDialog } from "./create-source-dialog";
 import type { KnowledgeCreateTemplate } from "./create-templates";
@@ -49,6 +45,7 @@ import { EntityLinks } from "./entity-links";
 import { LibraryEmpty, libraryFilterEmpty } from "./library-empty";
 import {
   EMPTY_LIBRARY_FILTERS,
+  LIBRARY_CATEGORY_LABEL,
   filterLibraryRows,
   libraryEmptyCategory,
   libraryFiltersActive,
@@ -60,20 +57,14 @@ import {
 } from "./library-row";
 import {
   EMPTY_CARD_LIST_FILTERS,
-  EMPTY_SOURCE_LIST_FILTERS,
   cardListFiltersActive,
-  distinctSourcePathPrefixes,
-  filterSources,
   filterWorkCards,
-  sourceListFiltersActive,
   type CardListFilters,
-  type SourceListFilters,
 } from "./list-filters";
 import { LibraryTable } from "./library-table";
 import { RunbookDetail } from "./runbook-detail";
 import { SourceDetail } from "./source-detail";
-import { SourcesEmpty, sourcesFilterEmpty } from "./sources-empty";
-import { SourcesTable } from "./sources-table";
+import { SourcesEmpty } from "./sources-empty";
 import { libraryStatusTone, runbookSeverityTone } from "./knowledge-document-helpers";
 import { WorkCardsEmpty, workCardsFilterEmpty } from "./knowledge-empty";
 import { WorkBoard } from "./work-board";
@@ -87,7 +78,6 @@ export {
   knowledgeTemplateById,
   knowledgeTemplatesForKind,
 } from "./create-templates";
-export { CONSTITUTION_BODY_TEMPLATE } from "./constitution-template";
 export type { DecisionAction } from "./decision-detail";
 export { WORK_STAGES, workStageLabel } from "./work-stage";
 export { NewFeatureFlow, type FeatureFlowLine } from "./new-feature-flow";
@@ -96,11 +86,11 @@ export type { ChangeEnvelope } from "./change-envelope";
 const TABS: TabItem[] = [
   {
     id: "specs",
-    label: "Register",
+    label: "List",
     tooltip: {
-      title: "Register",
+      title: "List",
       description:
-        "One Constitution per project, plus every Work card as a list. Agents write cards with polterware apply.",
+        "Every Work card as a list. Agents write cards with polterware apply.",
       icon: ListChecks,
     },
   },
@@ -115,18 +105,18 @@ const TABS: TabItem[] = [
     },
   },
   {
-    id: "sources",
-    label: "Sources",
+    id: "evidence",
+    label: "Evidence",
     tooltip: {
-      title: "Project sources",
+      title: "Project evidence",
       description:
-        "Register project paths that ground the model — manifests, contracts, and repo files linked to Architecture and Knowledge.",
+        "Sources, docs, and runbooks that back the facts — registered project paths plus written material, linked to the Atlas.",
       icon: FileText,
     },
   },
 ];
 
-type KnowledgeTab = "board" | "specs" | "library" | "sources";
+type KnowledgeTab = "board" | "specs" | "library" | "evidence";
 
 type CollectionTarget = {
   scopeId: string;
@@ -135,9 +125,15 @@ type CollectionTarget = {
 };
 
 function normalizeTab(raw?: string): KnowledgeTab {
-  if (raw === "board" || raw === "library" || raw === "sources") return raw;
-  if (raw === "docs" || raw === "adrs" || raw === "runbooks") return "library";
+  if (raw === "board" || raw === "library" || raw === "evidence") return raw;
+  if (raw === "sources" || raw === "docs" || raw === "runbooks") return "evidence";
+  if (raw === "adrs") return "library";
   return "specs";
+}
+
+/** Library and Evidence share the docs, ADR, runbook, and source detail panels. */
+function isLibraryScope(scopeId?: string): boolean {
+  return scopeId === "knowledge:library" || scopeId === "knowledge:evidence";
 }
 
 function isCardScope(scopeId?: string): boolean {
@@ -158,9 +154,8 @@ export function KnowledgeView(props: {
   runbooks?: WorkspaceRunbook[];
   sources?: WorkspaceSource[];
   workCards?: WorkspaceWorkCard[];
-  constitution?: WorkspaceConstitution | null;
   entities?: WorkspacePpmEntity[];
-  /** Content mode: board, specs, library, or sources. */
+  /** Content mode: board, specs, library, or evidence. */
   tab?: string;
   /** Tab rail supplied by the host section; defaults to the Knowledge tabs. */
   tabs?: TabItem[];
@@ -170,8 +165,6 @@ export function KnowledgeView(props: {
   tabsLabel?: string;
   /** Restrict Library to these kinds (e.g. ADRs only). */
   libraryKinds?: readonly LibraryCategory[];
-  /** Restrict ADR rows to one lifecycle state (Decisions tabs). */
-  libraryDecisionState?: WorkspaceAdr["state"];
   loading?: boolean;
   error?: string;
   onTabChange?: (tab: string) => void;
@@ -182,14 +175,13 @@ export function KnowledgeView(props: {
   onOpenRunbook?: (id: string) => void;
   onOpenSource?: (id: string) => void;
   onOpenCard?: (slug: string) => void;
-  onOpenConstitution?: (id: string) => void;
   onOpenComponent?: (componentId: string) => void;
   onOpenEntity?: (entityId: string, refId: string, kind: string) => void;
   onLinkEntity?: (knowledgeId: string, entityId: string, kind: string) => void;
   onUnlinkEntity?: (linkId: string) => void;
   onSaveBody?: (id: string, body: string) => void;
   onSaveSourcePath?: (id: string, path: string) => void;
-  onCreate?: (kind: "doc" | "runbook" | "adr", title: string) => void;
+  onCreate?: (kind: "doc" | "runbook" | "adr", title: string, scope?: "principle" | "decision") => void;
   onCreateSource?: (input: { title: string; path: string }) => void;
   onImportProjectSources?: () => void;
   importBusy?: boolean;
@@ -199,25 +191,26 @@ export function KnowledgeView(props: {
   /** Reopens the flow for a card in shape or plan. */
   onContinueFeature?: (slug: string) => void;
   onCreateFromTemplate?: (template: KnowledgeCreateTemplate) => void;
-  onEnsureConstitution?: () => void;
   onArchive?: (id: string) => void;
   onRemoveCard?: (slug: string) => void;
-  onArchiveConstitution?: () => void;
   onSetCardStage?: (slug: string, stage: WorkStage) => Promise<boolean> | void;
   onDuplicate?: (id: string) => void;
 }) {
   const tab = () => normalizeTab(props.tab);
   /** Board and Specs both list Work cards and share the card detail. */
   const cardTab = () => tab() === "board" || tab() === "specs";
+  /** Library (ADRs, docs) and Evidence (sources, docs, runbooks) share one list. */
+  const libraryTab = () => tab() === "library" || tab() === "evidence";
   const railItems = () => props.tabs ?? TABS;
+  /** Decisions mode: only ADRs, listed as one set with a lifecycle state filter. */
+  const decisionsOnly = () =>
+    props.libraryKinds?.length === 1 && props.libraryKinds[0] === "adr";
   const [libraryFilters, setLibraryFilters] = createSignal<LibraryFilters>({
     ...EMPTY_LIBRARY_FILTERS,
+    statuses: decisionsOnly() ? ["active"] : [],
   });
   const [cardFilters, setCardFilters] = createSignal<CardListFilters>({
     ...EMPTY_CARD_LIST_FILTERS,
-  });
-  const [sourceFilters, setSourceFilters] = createSignal<SourceListFilters>({
-    ...EMPTY_SOURCE_LIST_FILTERS,
   });
   const [bodyOverrides, setBodyOverrides] = createSignal<Record<string, string>>({});
   const [pathOverrides, setPathOverrides] = createSignal<Record<string, string>>({});
@@ -273,13 +266,12 @@ export function KnowledgeView(props: {
       documents: props.documents,
       adrs: props.adrs,
       runbooks: props.runbooks,
+      sources: tab() === "evidence" ? props.sources : undefined,
     });
     const kinds = props.libraryKinds;
-    const state = props.libraryDecisionState;
-    const byKind = kinds && kinds.length > 0
+    return kinds && kinds.length > 0
       ? rows.filter((row) => kinds.includes(row.category))
       : rows;
-    return state ? byKind.filter((row) => row.category !== "adr" || row.statusLabel === state) : byKind;
   });
 
   /** Filter kinds when set, otherwise the locked kinds, for create and empty copy. */
@@ -291,10 +283,6 @@ export function KnowledgeView(props: {
     filterLibraryRows(allLibraryRows(), libraryFilters()),
   );
 
-  const sources = createMemo(() =>
-    filterSources(props.sources ?? [], sourceFilters()),
-  );
-
   const cards = createMemo(() =>
     filterWorkCards(props.workCards ?? [], cardFilters()),
   );
@@ -303,25 +291,14 @@ export function KnowledgeView(props: {
   createEffect(() => {
     const scope = scopeId();
     const status = props.loading ? "loading" : props.error ? "error" : "ready";
-    const constitutionTarget: CollectionTarget[] = props.loading
-      ? []
-      : props.constitution
-      ? [{ scopeId: scope, entityId: props.constitution.id, entityKind: "constitution" }]
-      : [];
     const targets: CollectionTarget[] = props.loading
       ? []
-      : tab() === "library"
+      : libraryTab()
       ? libraryRows().map((row) => ({
           scopeId: scope,
           entityId: row.id,
           entityKind: row.entityKind,
         }))
-      : tab() === "sources"
-        ? sources().map((source) => ({
-            scopeId: scope,
-            entityId: source.id,
-            entityKind: "source",
-          }))
       : tab() === "board"
         ? cards().map((card) => ({
             scopeId: scope,
@@ -329,14 +306,11 @@ export function KnowledgeView(props: {
             entityKind: "card",
           }))
       : tab() === "specs"
-        ? [
-            ...constitutionTarget,
-            ...cards().map((card) => ({
-              scopeId: scope,
-              entityId: card.slug,
-              entityKind: "card",
-            })),
-          ]
+        ? cards().map((card) => ({
+            scopeId: scope,
+            entityId: card.slug,
+            entityKind: "card",
+          }))
         : [];
 
     const fingerprint = collectionFingerprint(scope, status, targets);
@@ -349,8 +323,8 @@ export function KnowledgeView(props: {
         (target) => target.entityId === active.entityId && target.entityKind === active.entityKind,
       )
     ) {
-      // Filtered-out selection: dismiss instead of falling back to targets[0] (constitution).
-      detailPanelStore.getState().dismissTarget(scope);
+      // Filtered-out selection: show the empty state instead of falling back to targets[0].
+      detailPanelStore.getState().clearTarget(scope);
     }
 
     lastCollectionFingerprint = fingerprint;
@@ -367,28 +341,28 @@ export function KnowledgeView(props: {
 
   const document = createMemo((): WorkspaceDocument | undefined => {
     const target = activeTarget();
-    return target?.scopeId === "knowledge:library" && target.entityKind === "document"
+    return isLibraryScope(target?.scopeId) && target?.entityKind === "document"
       ? (props.documents ?? []).find((item) => item.id === target.entityId)
       : undefined;
   });
 
   const adr = createMemo((): WorkspaceAdr | undefined => {
     const target = activeTarget();
-    return target?.scopeId === "knowledge:library" && target.entityKind === "adr"
+    return isLibraryScope(target?.scopeId) && target?.entityKind === "adr"
       ? (props.adrs ?? []).find((item) => item.id === target.entityId)
       : undefined;
   });
 
   const runbook = createMemo((): WorkspaceRunbook | undefined => {
     const target = activeTarget();
-    return target?.scopeId === "knowledge:library" && target.entityKind === "runbook"
+    return isLibraryScope(target?.scopeId) && target?.entityKind === "runbook"
       ? (props.runbooks ?? []).find((item) => item.id === target.entityId)
       : undefined;
   });
 
   const source = createMemo((): WorkspaceSource | undefined => {
     const target = activeTarget();
-    return target?.scopeId === "knowledge:sources" && target.entityKind === "source"
+    return target?.scopeId === "knowledge:evidence" && target.entityKind === "source"
       ? (props.sources ?? []).find((item) => item.id === target.entityId)
       : undefined;
   });
@@ -400,27 +374,15 @@ export function KnowledgeView(props: {
       : undefined;
   });
 
-  const constitution = createMemo((): WorkspaceConstitution | undefined => {
-    const target = activeTarget();
-    const current = props.constitution ?? undefined;
-    return target?.scopeId === "knowledge:specs"
-      && target.entityKind === "constitution"
-      && current
-      && current.id === target.entityId
-      ? current
-      : undefined;
-  });
-
   function activate(
     entityId: string,
-    entityKind: "document" | "adr" | "runbook" | "source" | "card" | "constitution",
+    entityKind: "document" | "adr" | "runbook" | "source" | "card",
   ) {
     detailPanelStore.getState().activateTarget({ scopeId: scopeId(), entityId, entityKind });
     if (entityKind === "document") props.onOpenDoc?.(entityId);
     else if (entityKind === "adr") props.onOpenAdr?.(entityId);
     else if (entityKind === "runbook") props.onOpenRunbook?.(entityId);
     else if (entityKind === "source") props.onOpenSource?.(entityId);
-    else if (entityKind === "constitution") props.onOpenConstitution?.(entityId);
     else props.onOpenCard?.(entityId);
   }
 
@@ -437,18 +399,10 @@ export function KnowledgeView(props: {
   });
 
   const pickLibraryKind = createMemo(
-    () => tab() === "library" && effectiveLibraryKinds().length !== 1,
+    () => libraryTab() && effectiveLibraryKinds().length !== 1,
   );
 
   const listSearch = createMemo(() => {
-    if (tab() === "sources") {
-      return {
-        placeholder: "Search",
-        value: sourceFilters().query,
-        onInput: (value: string) =>
-          setSourceFilters((current) => ({ ...current, query: value })),
-      };
-    }
     if (cardTab()) {
       return {
         placeholder: "Search",
@@ -466,7 +420,7 @@ export function KnowledgeView(props: {
   });
 
   const createLabel = createMemo(() => {
-    if (tab() === "sources") return "Add source";
+    if (tab() === "evidence") return "New document or runbook";
     if (cardTab()) return "New card";
     const kind = libraryEmptyCategory(effectiveLibraryKinds());
     if (kind === "runbook") return "New runbook";
@@ -490,6 +444,7 @@ export function KnowledgeView(props: {
           { id: "doc", label: "Doc", leading: icon(FileText) },
           { id: "adr", label: "ADR", leading: icon(ScrollText) },
           { id: "runbook", label: "Runbook", leading: icon(BookOpen) },
+          { id: "source", label: "Source", leading: icon(Folder) },
         ].filter((option) =>
           !props.libraryKinds?.length || props.libraryKinds.includes(option.id as LibraryCategory),
         ).map((option) => ({
@@ -506,14 +461,18 @@ export function KnowledgeView(props: {
         id: "status",
         label: "Status",
         leading: <StatusDot tone="ok" showLabel={false} />,
-        options: [
-          { id: "published", label: "Published" },
-          { id: "draft", label: "Draft" },
-          { id: "active", label: "Active" },
-          { id: "challenged", label: "Challenged" },
-          { id: "proposed", label: "Proposed" },
-          { id: "superseded", label: "Superseded" },
-        ].map((option) => ({
+        options: (decisionsOnly()
+          ? [
+              { id: "active", label: "Active" },
+              { id: "challenged", label: "Challenged" },
+              { id: "proposed", label: "Proposed" },
+              { id: "superseded", label: "Superseded" },
+            ]
+          : [
+              { id: "published", label: "Published" },
+              { id: "draft", label: "Draft" },
+            ]
+        ).map((option) => ({
           ...option,
           leading: <StatusDot tone={libraryStatusTone(option.id)} showLabel={false} />,
           checked: current.statuses.includes(option.id),
@@ -576,7 +535,13 @@ export function KnowledgeView(props: {
             })),
         })),
       },
-    ].filter((group) => group.id !== "kind" || group.options.length > 1);
+    ].filter((group) =>
+      group.id === "kind"
+        ? group.options.length > 1
+        : group.id === "severity"
+          ? !props.libraryKinds?.length || props.libraryKinds.includes("runbook")
+          : true,
+    );
   });
 
   const cardFilterGroups = createMemo((): FilterPopoverGroup[] => {
@@ -633,74 +598,7 @@ export function KnowledgeView(props: {
     ];
   });
 
-  const sourceFilterGroups = createMemo((): FilterPopoverGroup[] => {
-    const current = sourceFilters();
-    const prefixes = distinctSourcePathPrefixes(props.sources ?? []);
-    const icon = (node: typeof FileText) => {
-      const Icon = node;
-      return <Icon size={14} aria-hidden />;
-    };
-    return [
-      {
-        id: "linked",
-        label: "Linked",
-        leading: icon(Link),
-        selectionMode: "single" as const,
-        options: [
-          {
-            id: "linked",
-            label: "Has links",
-            leading: icon(Link),
-          },
-          {
-            id: "unlinked",
-            label: "No links",
-            leading: <FilterMark shape="circle" tone="muted" variant="outline" />,
-          },
-        ].map((option) => ({
-          ...option,
-          checked: current.linked === option.id,
-          onCheckedChange: (checked: boolean) =>
-            setSourceFilters((prev) => ({
-              ...prev,
-              linked: checked
-                ? (option.id as "linked" | "unlinked")
-                : "any",
-            })),
-        })),
-      },
-      {
-        id: "path",
-        label: "Path prefix",
-        leading: icon(Folder),
-        options: prefixes.map((prefix) => ({
-          id: prefix,
-          label: prefix,
-          checked: current.pathPrefixes.includes(prefix),
-          onCheckedChange: (checked: boolean) =>
-            setSourceFilters((prev) => ({
-              ...prev,
-              pathPrefixes: toggleFilterValue(prev.pathPrefixes, prefix, checked),
-            })),
-        })),
-      },
-    ].filter((group) => group.id !== "path" || group.options.length > 0);
-  });
-
   const filterPopoverProps = createMemo(() => {
-    if (tab() === "sources") {
-      return {
-        ariaLabel: "Source filters",
-        title: "Filter sources",
-        active: sourceListFiltersActive(sourceFilters()),
-        onClear: () =>
-          setSourceFilters((current) => ({
-            ...EMPTY_SOURCE_LIST_FILTERS,
-            query: current.query,
-          })),
-        groups: sourceFilterGroups(),
-      };
-    }
     if (cardTab()) {
       return {
         ariaLabel: "Card filters",
@@ -728,13 +626,13 @@ export function KnowledgeView(props: {
   });
 
   const activeFilterPills = createMemo((): ActiveFilterPill[] => {
-    if (tab() === "library") {
+    if (libraryTab()) {
       const current = libraryFilters();
       const pills: ActiveFilterPill[] = [];
       for (const kind of current.kinds) {
         pills.push({
           id: `kind:${kind}`,
-          label: `Kind: ${kind === "doc" ? "Doc" : kind === "adr" ? "ADR" : "Runbook"}`,
+          label: `Kind: ${LIBRARY_CATEGORY_LABEL[kind]}`,
           onRemove: () =>
             setLibraryFilters((prev) => ({
               ...prev,
@@ -798,28 +696,7 @@ export function KnowledgeView(props: {
       }
       return pills;
     }
-    const current = sourceFilters();
-    const pills: ActiveFilterPill[] = [];
-    if (current.linked !== "any") {
-      pills.push({
-        id: "linked",
-        label: current.linked === "linked" ? "Linked: Has links" : "Linked: No links",
-        onRemove: () =>
-          setSourceFilters((prev) => ({ ...prev, linked: "any" })),
-      });
-    }
-    for (const prefix of current.pathPrefixes) {
-      pills.push({
-        id: `path:${prefix}`,
-        label: `Path: ${prefix}`,
-        onRemove: () =>
-          setSourceFilters((prev) => ({
-            ...prev,
-            pathPrefixes: prev.pathPrefixes.filter((value) => value !== prefix),
-          })),
-      });
-    }
-    return pills;
+    return [];
   });
 
   function linksFor(
@@ -878,7 +755,6 @@ export function KnowledgeView(props: {
                 onChange={(next) => {
                   setLibraryFilters({ ...EMPTY_LIBRARY_FILTERS });
                   setCardFilters({ ...EMPTY_CARD_LIST_FILTERS });
-                  setSourceFilters({ ...EMPTY_SOURCE_LIST_FILTERS });
                   setCreateOpen(false);
                   setSourceCreateOpen(false);
                   props.onTabChange?.(next);
@@ -901,7 +777,7 @@ export function KnowledgeView(props: {
               onClear={filterPopoverProps().onClear}
               groups={filterPopoverProps().groups}
             />
-            <Show when={tab() === "sources" && props.onImportProjectSources}>
+            <Show when={tab() === "evidence" && props.onImportProjectSources}>
               <ToolbarIconButton
                 label="Import from project root"
                 disabled={props.importBusy}
@@ -910,15 +786,15 @@ export function KnowledgeView(props: {
                 <FileUp size={14} />
               </ToolbarIconButton>
             </Show>
-            <Show when={tab() === "sources" && props.onCreateSource}>
+            <Show when={tab() === "evidence" && props.onCreateSource}>
               <ToolbarIconButton
-                label={createLabel()}
+                label="Add source"
                 onClick={() => setSourceCreateOpen(true)}
               >
-                <Plus size={14} />
+                <Folder size={14} />
               </ToolbarIconButton>
             </Show>
-            <Show when={tab() !== "sources" && (cardTab() ? props.onCreateCard : props.onCreate)}>
+            <Show when={cardTab() ? props.onCreateCard : props.onCreate}>
               <ToolbarIconButton
                 label={createLabel()}
                 onClick={() => (cardTab() && props.onNewFeature ? props.onNewFeature() : setCreateOpen(true))}
@@ -934,59 +810,43 @@ export function KnowledgeView(props: {
           onClear={filterPopoverProps().onClear}
         />
 
-        <Show when={tab() === "library"}>
+        <Show when={libraryTab()}>
           <PageContent class="p-0">
             <Show
               when={libraryHasScopedItems()}
               fallback={
-                <LibraryEmpty
-                  category={libraryEmptyKind()}
-                  onCreate={props.onCreate ? () => setCreateOpen(true) : undefined}
-                  onCreateFromTemplate={props.onCreateFromTemplate}
-                />
+                <Show
+                  when={tab() === "evidence"}
+                  fallback={
+                    <LibraryEmpty
+                      category={libraryEmptyKind()}
+                      onCreate={props.onCreate ? () => setCreateOpen(true) : undefined}
+                      onCreateFromTemplate={props.onCreateFromTemplate}
+                    />
+                  }
+                >
+                  <SourcesEmpty
+                    onCreate={props.onCreateSource ? () => setSourceCreateOpen(true) : undefined}
+                    onImport={
+                      props.onImportProjectSources
+                        ? () => props.onImportProjectSources?.()
+                        : undefined
+                    }
+                    importBusy={props.importBusy}
+                    onCreateFromTemplate={props.onCreateFromTemplate}
+                  />
+                </Show>
               }
             >
               <Show when={libraryRows().length > 0} fallback={libraryFilterEmpty()}>
                 <LibraryTable
                   rows={libraryRows()}
                   activeRowId={
-                    activeTarget()?.scopeId === "knowledge:library"
+                    activeTarget()?.scopeId === scopeId()
                       ? activeTarget()?.entityId
                       : null
                   }
                   onActivate={activateLibraryRow}
-                />
-              </Show>
-            </Show>
-          </PageContent>
-        </Show>
-
-        <Show when={tab() === "sources"}>
-          <PageContent class="p-0">
-            <Show
-              when={(props.sources ?? []).length > 0}
-              fallback={
-                <SourcesEmpty
-                  onCreate={props.onCreateSource ? () => setSourceCreateOpen(true) : undefined}
-                  onImport={
-                    props.onImportProjectSources
-                      ? () => props.onImportProjectSources?.()
-                      : undefined
-                  }
-                  importBusy={props.importBusy}
-                  onCreateFromTemplate={props.onCreateFromTemplate}
-                />
-              }
-            >
-              <Show when={sources().length > 0} fallback={sourcesFilterEmpty()}>
-                <SourcesTable
-                  rows={sources()}
-                  activeRowId={
-                    activeTarget()?.scopeId === "knowledge:sources"
-                      ? activeTarget()?.entityId
-                      : null
-                  }
-                  onActivate={(id) => activate(id, "source")}
                 />
               </Show>
             </Show>
@@ -1024,26 +884,6 @@ export function KnowledgeView(props: {
         <Show when={tab() === "specs"}>
           <PageContent class="p-0">
             <Show
-              when={props.constitution}
-              fallback={
-                <KnowledgeConstitutionEmpty
-                  onCreate={props.onEnsureConstitution ? () => props.onEnsureConstitution?.() : undefined}
-                />
-              }
-            >
-              {(item) => (
-                <ConstitutionRow
-                  constitution={item()}
-                  active={
-                    activeTarget()?.scopeId === "knowledge:specs"
-                    && activeTarget()?.entityKind === "constitution"
-                    && activeTarget()?.entityId === item().id
-                  }
-                  onActivate={() => activate(item().id, "constitution")}
-                />
-              )}
-            </Show>
-            <Show
               when={(props.workCards ?? []).length > 0}
               fallback={
                 <WorkCardsEmpty
@@ -1062,7 +902,7 @@ export function KnowledgeView(props: {
                       ? activeTarget()?.entityId
                       : null
                   }
-                  activateFirstRow={!props.constitution}
+                  activateFirstRow
                   onActiveRowChange={(id) => id && activate(id, "card")}
                 >
                   <DataTable.Table aria-label="Cards">
@@ -1186,26 +1026,11 @@ export function KnowledgeView(props: {
           />
         )}
       </Show>
-      <Show when={constitution()}>
-        {(item) => (
-          <ConstitutionDetail
-            constitution={item()}
-            bodyMarkdown={bodyOverrides()[item().id] ?? item().bodyMarkdown}
-            onBodyChange={(markdown) => {
-              noteBodyChange(item().id, markdown, item().bodyMarkdown);
-            }}
-            onArchive={
-              props.onArchiveConstitution
-                ? () => props.onArchiveConstitution?.()
-                : undefined
-            }
-          />
-        )}
-      </Show>
       <CreateKnowledgeDialog
         open={createOpen()}
         kind={createKind()}
         pickLibraryKind={pickLibraryKind()}
+        libraryKinds={props.libraryKinds}
         onClose={() => setCreateOpen(false)}
         onCreateFromTemplate={
           props.onCreateFromTemplate
@@ -1215,10 +1040,10 @@ export function KnowledgeView(props: {
               }
             : undefined
         }
-        onSubmit={(title, kind) => {
+        onSubmit={(title, kind, scope) => {
           if (kind === "card") props.onCreateCard?.(title);
           else if (kind === "runbook") props.onCreate?.("runbook", title);
-          else if (kind === "adr") props.onCreate?.("adr", title);
+          else if (kind === "adr") props.onCreate?.("adr", title, scope);
           else props.onCreate?.("doc", title);
           setCreateOpen(false);
         }}

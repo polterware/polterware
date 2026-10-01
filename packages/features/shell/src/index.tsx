@@ -21,8 +21,7 @@ export type {
   NavSectionId,
   ProjectSettingsTabId,
   WorkTabId,
-  RealityTabId,
-  IntegrationsTabId,
+  TruthTabId,
 } from "./route";
 export type {
   ProjectSwitcherItem,
@@ -85,17 +84,14 @@ export {
   CATALOG_PROVIDER_MOCKS,
   DOCUMENT_MOCKS,
   RUNBOOK_MOCKS,
-  CONSTITUTION_MOCK,
 } from "./workspace-mocks";
 
 export const DEFAULT_NAV: NavItem[] = [
   { id: "inbox", label: "Inbox", group: "PROJECT" },
   { id: "work", label: "Work", group: "PROJECT" },
   { id: "atlas", label: "Atlas", group: "PROJECT" },
-  { id: "decisions", label: "Decisions", group: "PROJECT" },
-  { id: "reality", label: "Reality", group: "PROJECT" },
-  { id: "agents", label: "Agents", group: "CONNECT" },
-  { id: "integrations", label: "Integrations", group: "CONNECT" },
+  { id: "truth", label: "Truth", group: "PROJECT" },
+  { id: "activity", label: "Activity", group: "PROJECT" },
 ];
 
 function workspaceFromRoute(
@@ -181,7 +177,6 @@ export function Shell(props: {
         onSelectEnvironment={selectEnvironment}
         onCreateProject={() => props.onCreateProject?.()}
         onOpenCommander={() => props.onOpenCommander?.()}
-        onOpenCliReference={props.onOpenCliReference}
         coreStatus={props.coreStatus}
       />
 
@@ -207,6 +202,7 @@ export function Shell(props: {
               </div>
               <div class="mt-auto px-2 py-3">
                 <SidebarSettingsItem
+                  onOpenCliReference={props.onOpenCliReference}
                   active={props.settingsOpen}
                   onSelect={() => props.onOpenSettings?.()}
                 />

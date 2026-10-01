@@ -5,7 +5,7 @@ describe("Desktop core composition", () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const source = readFileSync(join(import.meta.dirname, "App.tsx"), "utf8");
-    for (const surface of ["ArchitectureView", "ResourcesView", "KnowledgeView", "IntegrationsView", "SettingsView"]) {
+    for (const surface of ["ArchitectureView", "KnowledgeView", "IntegrationsView", "SettingsView"]) {
       expect(source).toContain(surface);
     }
     expect(source).not.toContain("OperationsView");
@@ -19,11 +19,9 @@ describe("Desktop core composition", () => {
     expect(source).toMatch(/import \{[^}]*\bArchitectureView\b[^}]*\} from "@polterware\/feature-architecture"/);
     expect(source).toContain("lazy(() =>");
     expect(source).toContain("<Suspense");
-    expect(source).toContain('import("@polterware/feature-resources")');
     expect(source).toContain('import("@polterware/feature-knowledge")');
     expect(source).toContain('import("@polterware/feature-integrations")');
     expect(source).toContain('import("@polterware/feature-settings")');
-    expect(source).not.toMatch(/import \{ ResourcesView \} from "@polterware\/feature-resources"/);
     expect(source).not.toMatch(/import \{[^}]*KnowledgeView[^}]*\} from "@polterware\/feature-knowledge"/);
     expect(source).toContain("@polterware/feature-knowledge/change-envelope");
     expect(source).toContain("@polterware/feature-settings/boot");
@@ -38,17 +36,13 @@ describe("Desktop core composition", () => {
     expect(source).toContain("loadWorkspaceExtensions");
     expect(source).toContain("persistView");
     expect(source).toContain("persistKnowledgeCreate");
-    expect(source).toContain("persistResource");
-    expect(source).toContain("persistEnvironment");
+        expect(source).toContain("persistEnvironment");
     expect(source).toContain("persistEnvironmentDefault");
     expect(source).toContain("persistIntegrationSync");
     expect(source).not.toContain("Integration metadata refreshed locally.");
     expect(persist).toContain("syncConnection");
     expect(persist).not.toContain("Metadata refreshed from the local store.");
     expect(source).toContain("projectId={currentProjectId()}");
-    expect(source).toContain("draft.name");
-    expect(source).toContain("draft.type");
-    expect(source).not.toContain('name: "New resource"');
     expect(source).toContain('fixtureMode="off"');
     expect(source).not.toContain("PROJECT_SWITCHER_FIXTURES");
     expect(source).not.toContain("RESOURCE_FIXTURES");

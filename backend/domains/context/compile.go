@@ -179,8 +179,6 @@ func rankScore(item Item) int {
 		score += 30
 	case "runbook":
 		score += 28
-	case "constitution":
-		score += 25
 	}
 	return score
 }

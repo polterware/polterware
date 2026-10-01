@@ -45,8 +45,6 @@ export function createCoreDomainControllers(clients: CoreClients) {
     removeProjectRepo: async (input?: JsonObject) => toJsonObject(await clients.projects.removeProjectRepo(requestMessage(input))),
     getLayout: async (input?: JsonObject) => toJsonObject(await clients.architecture.getLayout(requestMessage(input))),
     updateLayout: async (input?: JsonObject) => toJsonObject(await clients.architecture.updateLayout(requestMessage(input))),
-    listResources: async (input?: JsonObject) => toJsonObject(await clients.architecture.listResources(requestMessage(input))),
-    saveResource: async (input?: JsonObject) => toJsonObject(await clients.architecture.saveResource(requestMessage(input))),
     listViews: async (input?: JsonObject) => toJsonObject(await clients.architecture.listViews(requestMessage(input))),
     saveView: async (input?: JsonObject) => toJsonObject(await clients.architecture.saveView(requestMessage(input))),
     deleteView: async (input?: JsonObject) => toJsonObject(await clients.architecture.deleteView(requestMessage(input))),

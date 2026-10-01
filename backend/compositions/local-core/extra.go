@@ -166,7 +166,7 @@ func viewProto(item architecture.View) *localv1.ArchitectureView {
 }
 
 func integrationResourceProto(item integrations.Resource) *localv1.IntegrationResource {
-	return &localv1.IntegrationResource{Id: item.ID, ConnectionId: item.ConnectionID, Name: item.Name, Kind: item.Kind, ExternalId: item.ExternalID, EnvironmentId: item.EnvironmentID, Status: item.Status, InventoryResourceId: item.InventoryResourceID}
+	return &localv1.IntegrationResource{Id: item.ID, ConnectionId: item.ConnectionID, Name: item.Name, Kind: item.Kind, ExternalId: item.ExternalID, EnvironmentId: item.EnvironmentID, Status: item.Status}
 }
 
 func syncRunProto(item integrations.SyncRun) *localv1.IntegrationSyncRun {

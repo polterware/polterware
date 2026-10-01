@@ -104,7 +104,7 @@ export function OverviewDetail(props: {
                 {(row: OverviewFeatureRow) => (
                   <DetailRow
                     title={row.title}
-                    meta={row.kind === "constitution" ? "Constitution" : "Work card"}
+                    meta="Work card"
                     status={row.status}
                     tone={featureTone(row.status)}
                   />

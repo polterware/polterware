@@ -1,67 +1,15 @@
-/* Inbox — flat list of derived items. Rows are separated by space, not dividers or
- * cards; the title carries the hierarchy and one menu button holds the actions. */
-
-.pw-inbox-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 8px 12px;
-  list-style: none;
-}
-
-.pw-inbox-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px;
-  border-radius: var(--radius-control);
-}
-
-.pw-inbox-row:hover,
-.pw-inbox-row:focus-within {
-  background: var(--color-surface-hover);
-}
-
-.pw-inbox-row__status {
-  display: inline-flex;
-  flex-shrink: 0;
-}
-
-.pw-inbox-row__body {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.pw-inbox-row__title {
-  min-width: 0;
-  color: var(--color-text-primary);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.pw-inbox-row[data-state="deferred"] .pw-inbox-row__title {
+/* Inbox uses shared table chrome; deferred items stay visibly quieter. */
+.pw-inbox-row--deferred .pw-data-table-primary-title {
   color: var(--color-text-muted);
 }
 
-.pw-inbox-row__meta {
-  margin: 0;
+.pw-inbox-context,
+.pw-inbox-source {
   overflow: hidden;
-  color: var(--color-text-muted);
-  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.pw-inbox-section-label {
-  margin: 0;
-  padding: 16px 24px 4px;
+.pw-inbox-source {
   color: var(--color-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }

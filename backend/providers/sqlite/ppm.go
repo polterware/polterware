@@ -169,7 +169,7 @@ func (s *Store) DeletePpmRelationshipsMissing(projectID, source string, keepIDs 
 	return err
 }
 
-// SyncProjectModel projects architecture nodes, resources, environments, and canvas edges into PPM.
+// SyncProjectModel projects architecture nodes, environments, and canvas edges into PPM.
 func (s *Store) SyncProjectModel(projectID string) (int, error) {
 	layout, err := s.GetLayout(projectID)
 	if err != nil && err != sql.ErrNoRows {
@@ -185,28 +185,6 @@ func (s *Store) SyncProjectModel(projectID string) (int, error) {
 	}
 
 	now := time.Now().UTC()
-	resources, err := s.ListResources(projectID)
-	if err != nil {
-		return 0, err
-	}
-	keepResources := make([]string, 0, len(resources))
-	for _, resource := range resources {
-		entity, err := ppm.NewEntity(projectID, ppm.KindResource, ppm.RefResource, resource.ID, resource.Name, ppm.TruthObserved, "resources", "system")
-		if err != nil {
-			return 0, err
-		}
-		entity.ObservedAt = now
-		entity.UpdatedAt = now
-		if err := s.UpsertPpmEntity(entity); err != nil {
-			return 0, err
-		}
-		keepResources = append(keepResources, resource.ID)
-		count++
-	}
-	if err := s.DeletePpmEntitiesMissingRefs(projectID, ppm.RefResource, keepResources); err != nil {
-		return 0, err
-	}
-
 	envs, err := s.ListEnvironments(projectID)
 	if err != nil {
 		return 0, err

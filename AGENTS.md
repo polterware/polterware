@@ -21,7 +21,7 @@ Polterware's category is **Project Context & Change Intelligence for AI Coding**
 
 ## Current product boundary
 
-Polterware's first version is a local SQLite-backed Desktop with project surfaces Inbox, Work, Atlas, Decisions, Reality, Agents, and Integrations. Settings is fixed in the sidebar footer. Inbox is the default route.
+Polterware's first version is a local SQLite-backed Desktop with project surfaces Inbox, Work, Atlas, Truth, and Activity. Settings is fixed in the sidebar footer and holds Agents and Integrations. Inbox is the default route.
 
 The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. One local core process (`polterware serve`) per database is the only process that opens SQLite (it is a detached daemon guarded by a lock, with a build handshake); Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes through `window.polterware` only.
 
@@ -48,15 +48,19 @@ The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azur
 - Work: Board, Specs
   - The Polterware store, not Polter text, is the source of truth; `.pw.md` files are input only.
   - Board groups Work cards (`work_cards`) by stage (Shape, Plan, Build, Verify, Delivered). The Desktop reads through `WorkService.ListWorkCards` and writes Polter text through `WorkService.ApplyPolter`; agents use `polterware apply`.
-  - Specs hold one Constitution per project (`constitution`) above a table of the same cards. The five-document Spec / Plan / Tasks / Clarify / Checklist model is removed.
+  - Specs is a table of the same cards. The five-document Spec / Plan / Tasks / Clarify / Checklist model and the Constitution document are removed; project-wide principles are pinned Decisions.
 - Atlas: Map, Components (nodes: system, domain, component; a feature is a Work card shown in the node detail)
-- Decisions: ADRs by lifecycle state (Active, Challenged, Proposed, Superseded)
-- Reality: Inventory, Sources, Facts, Docs
-  - Sources lists registered project-relative paths (`kind = source`); Import from project root runs `ImportProjectSources` for the MVP file set. Generic filesystem indexing beyond that set is not shipped.
-  - Docs lists `doc` and `runbook` items.
-- Agents: Access, Sessions, History, Context
-- Integrations: Connected, Catalog (**KEEP** — evidence + Connect UI)
-- Settings: General, Environments, Shortcuts, Advanced
+- Truth: Decisions, Facts, Evidence
+  - Decisions is one list of ADRs with a lifecycle state filter (Active, Challenged, Proposed, Superseded; Active by default). A Decision has a scope: a Principle applies to the whole project and stays pinned on top (`extra_json.scope = "principle"`).
+  - Facts are statements about the project (declared, observed, inferred, or verified); each lists the evidence that backs it.
+  - Evidence is one list of `source`, `doc`, and `runbook` items with a kind filter. Sources are registered project-relative paths (`kind = source`); Import from project root runs `ImportProjectSources` for the MVP file set. Generic filesystem indexing beyond that set is not shipped.
+  - Resources are Atlas components; there is no separate Inventory surface.
+- Activity: flat page with the Unified Change History of justified changes across every surface, filterable by person or agent; it has no data of its own.
+- Settings (dialog with a grouped rail):
+  - Project: General, Environments
+  - Agents: Access, Sessions, Context
+  - Integrations: Connected, Catalog (**KEEP** — evidence + Connect UI)
+  - App: Shortcuts, Advanced
 
 Keep project and environment switchers, Commander, history controls, and Settings. Do not introduce additional product surfaces without an approved decision. Do not reintroduce removed Ops/Terminal/Nodes surfaces.
 

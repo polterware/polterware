@@ -63,8 +63,6 @@ export const IPC_CHANNELS = {
     removeProjectRepo: "core:remove-project-repo",
     getLayout: "core:get-layout",
     updateLayout: "core:update-layout",
-    listResources: "core:list-resources",
-    saveResource: "core:save-resource",
     listViews: "core:list-views",
     saveView: "core:save-view",
     deleteView: "core:delete-view",

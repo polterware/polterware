@@ -1,5 +1,4 @@
 import type { ArchViewCard } from "@polterware/feature-architecture";
-import type { Resource } from "@polterware/feature-resources";
 import type { ProjectEnvironment, ProjectGeneralSettings, ProjectRepository } from "@polterware/feature-settings";
 import type {
   EnvironmentItem,
@@ -17,7 +16,6 @@ import type {
   WorkspaceAtlas,
   WorkspaceAtlasHistoryEntry,
   WorkspaceWorkCard,
-  WorkspaceConstitution,
 } from "@polterware/feature-shell";
 import { asNumber, asObjectArray, asRecord, asString } from "./format";
 import {
@@ -31,12 +29,10 @@ import {
   mapPpmEntities,
   mapProjects,
   mapProviders,
-  mapResources,
   mapRunbooks,
   mapProjectRepos,
   mapSettings,
   mapSettingsEnvironments,
-  mapConstitution,
   mapSources,
   mapSyncRuns,
   mapInbox,
@@ -55,7 +51,6 @@ export type WorkspaceSnapshot = {
   settingsEnvironments: ProjectEnvironment[];
   settings: ProjectGeneralSettings;
   repositories: ProjectRepository[];
-  resources: Resource[];
   documents: WorkspaceDocument[];
   adrs: WorkspaceAdr[];
   runbooks: WorkspaceRunbook[];
@@ -63,7 +58,6 @@ export type WorkspaceSnapshot = {
   workCards: WorkspaceWorkCard[];
   atlas: WorkspaceAtlas;
   inbox: WorkspaceInbox;
-  constitution: WorkspaceConstitution | null;
   ppmEntities: WorkspacePpmEntity[];
   providers: WorkspaceCatalogProvider[];
   integrations: WorkspaceIntegration[];
@@ -85,7 +79,6 @@ export type WorkspaceExtensions = Pick<
   | "workCards"
   | "atlas"
   | "inbox"
-  | "constitution"
   | "ppmEntities"
   | "providers"
   | "integrations"
@@ -122,7 +115,6 @@ export function emptyWorkspaceExtensions(): WorkspaceExtensions {
     workCards: [],
     atlas: emptyAtlas(),
     inbox: emptyInbox(),
-    constitution: null,
     ppmEntities: [],
     providers: [],
     integrations: [],
@@ -143,7 +135,6 @@ export function emptyWorkspace(): WorkspaceSnapshot {
     settingsEnvironments: [],
     settings: emptySettings,
     repositories: [],
-    resources: [],
     ...emptyWorkspaceExtensions(),
     views: [],
     layoutBody: "",
@@ -236,11 +227,10 @@ export async function loadWorkspaceShell(
   const metadataPromise: Promise<ProjectMetadata> = catalog
     ? Promise.resolve(catalog)
     : loadProjectMetadata(api);
-  const [healthRes, settingsRes, layoutRes, resourcesRes, viewsRes, reposRes] = await Promise.all([
+  const [healthRes, settingsRes, layoutRes, viewsRes, reposRes] = await Promise.all([
     api.health.getStoreHealth(),
     api.projects.getSettings({ projectId }),
     api.architecture.getLayout({ projectId }).catch(() => ({})),
-    api.architecture.listResources({ projectId }),
     api.architecture.listViews({ projectId }),
     api.projects.listRepos({ projectId }).catch(() => ({ repos: [] })),
   ] as const);
@@ -248,16 +238,14 @@ export async function loadWorkspaceShell(
   const metadata = await metadataPromise;
   const health = asRecord(healthRes);
   const { rawProjects, rawEnvironments, environments } = metadata;
-  const projectEnvironments = environments.filter((item) => item.projectId === projectId);
   const currentEnvRecords = rawEnvironments.filter((item) => asString(item.projectId) === projectId);
-  const resources = mapResources(asObjectArray(asRecord(resourcesRes).resources), projectEnvironments);
   const layout = asRecord(asRecord(layoutRes).layout);
   const projects = mapProjects(rawProjects, environments, projectId);
   const settings = mapSettings(
     asRecord(asRecord(settingsRes).settings),
     rawProjects.find((item) => asString(item.id) === projectId),
   );
-  const settingsEnvironments = mapSettingsEnvironments(currentEnvRecords, resources);
+  const settingsEnvironments = mapSettingsEnvironments(currentEnvRecords);
   const views = mapViews(asObjectArray(asRecord(viewsRes).views));
 
   return {
@@ -270,7 +258,6 @@ export async function loadWorkspaceShell(
     settingsEnvironments,
     settings,
     repositories: mapProjectRepos(asObjectArray(asRecord(reposRes).repos)),
-    resources,
     ...emptyWorkspaceExtensions(),
     views,
     layoutBody: asString(layout.bodyJson),
@@ -325,7 +312,6 @@ export async function loadWorkspaceExtensions(
   const runbooks = mapRunbooks(knowledgeItems, linksByKnowledge);
   const sources = mapSources(knowledgeItems, linksByKnowledge);
   const workCards = mapWorkCards(asObjectArray(asRecord(workRes).cards));
-  const constitution = mapConstitution(knowledgeItems);
 
   await Promise.resolve();
 
@@ -351,7 +337,6 @@ export async function loadWorkspaceExtensions(
     workCards,
     atlas,
     inbox,
-    constitution,
     ppmEntities,
     providers,
     integrations,

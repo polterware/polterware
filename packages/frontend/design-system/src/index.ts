@@ -110,15 +110,19 @@ export type {
   DataTableSortState,
   DataTableSortValue,
 } from "./table";
-export { DetailPanel } from "./detail-panel";
+export {
+  DETAIL_PANEL_DEFAULT_WIDTH,
+  DETAIL_PANEL_MAX_WIDTH,
+  DETAIL_PANEL_MIN_WIDTH,
+  DETAIL_PANEL_SIDEBAR_ID,
+  DetailPanel,
+  DetailPanelCollectionHeader,
+  clampDetailPanelWidth,
+} from "./detail-panel";
 export type {
-  DetailPanelActionProps,
-  DetailPanelActionTone,
   DetailPanelBodyProps,
   DetailPanelHeaderProps,
-  DetailPanelMode,
-  DetailPanelPlacement,
-  DetailPanelPresence,
+  DetailPanelTitleProps,
   DetailPanelRootProps,
   DetailPanelSectionProps,
 } from "./detail-panel";
@@ -132,9 +136,9 @@ export type {
   DetailPanelLinkedEntity,
 } from "./detail-panel-linked-entities";
 export type {
-  DetailPanelOverflowItemProps,
-  DetailPanelOverflowProps,
-} from "./detail-panel-overflow";
+  DetailPanelMenuItemProps,
+  DetailPanelMenuProps,
+} from "./detail-panel-menu";
 export type { DetailPanelPrimaryActionProps } from "./detail-panel-primary-action";
 export { MarkdownEditor } from "./markdown-editor";
 export type { MarkdownEditorProps } from "./markdown-editor";
@@ -165,3 +169,7 @@ export type { FilterChipItem } from "./filter-chip";
 export { ActiveFilterBar } from "./active-filter-bar";
 export type { ActiveFilterPill } from "./active-filter-bar";
 export * from "./hugeicons";
+
+export { FloatingWindow } from "./floating-window";
+export type { FloatingWindowRootProps, FloatingWindowHeaderProps } from "./floating-window";
+export type { FloatingWindowDock, FloatingWindowGeometry } from "./floating-window-geometry";

@@ -482,13 +482,6 @@ function DataTableToolbar(props: { children: JSX.Element; class?: string }) {
   return <div class={`pw-data-table-toolbar ${props.class ?? ""}`}>{props.children}</div>;
 }
 
-function collapseDetailPanelFromCollectionBackground() {
-  const mode = detailPanelStore.getState().mode;
-  if (mode === "open" || mode === "maximized") {
-    detailPanelStore.getState().collapse();
-  }
-}
-
 function DataTableTable(props: {
   children: JSX.Element;
   class?: string;
@@ -496,7 +489,7 @@ function DataTableTable(props: {
 }) {
   const context = useDataTable("Table");
   let scroll: HTMLDivElement | undefined;
-  // A click on the empty background collapses the detail panel, so gaps stay inert.
+  // Empty gaps do not activate rows or collapse the floating detail card.
   const hover = createFluidHover(() => scroll, { gapClick: false });
   const entryAt = (index: number | null) =>
     index === null ? undefined : context.rows()[index];
@@ -527,12 +520,6 @@ function DataTableTable(props: {
         }}
         class="pw-data-table-scroll"
         data-virtualized={context.virtualized() ? "true" : undefined}
-        onClick={(event) => {
-          const target = event.target;
-          if (!(target instanceof Element)) return;
-          if (target.closest("tr")) return;
-          collapseDetailPanelFromCollectionBackground();
-        }}
       >
         <FluidHoverHighlight hover={hover} class={hoverClass()} />
         {/* The active row's marker travels between rows; a re-sort that moves it snaps. */}
@@ -750,6 +737,7 @@ function DataTableRow<T = any>(props: {
         "pw-data-table-row--active": active(),
       }}
       data-row-id={rowId()}
+      data-detail-opener={interactive() ? "" : undefined}
       aria-selected={context.selectable() ? selected() : undefined}
       aria-current={active() ? "true" : undefined}
       aria-label={props["aria-label"]}
@@ -761,7 +749,7 @@ function DataTableRow<T = any>(props: {
       onDblClick={(event) => {
         if (!interactive() || isDataTableInteractiveTarget(event.target, event.currentTarget)) return;
         activate();
-        detailPanelStore.getState().maximize();
+        detailPanelStore.getState().expand();
       }}
       onKeyDown={(event) => {
         if (!interactive() || event.target !== event.currentTarget) return;

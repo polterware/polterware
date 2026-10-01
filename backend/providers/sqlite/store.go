@@ -10,7 +10,6 @@ import (
 	"github.com/polterware/polterware/backend/domains/integrations"
 	"github.com/polterware/polterware/backend/domains/knowledge"
 	"github.com/polterware/polterware/backend/domains/projects"
-	"github.com/polterware/polterware/backend/domains/resources"
 	dbsqlite "github.com/polterware/polterware/backend/platform/db/sqlite"
 )
 
@@ -232,47 +231,6 @@ func (s *Store) UpdateLayout(projectID string, expectedRevision int64, body stri
 	}
 	_, _ = s.syncArchitectureLayout(projectID, updated.BodyJSON, true)
 	return updated, nil
-}
-
-func (s *Store) SaveResource(resource resources.Resource) error {
-	existing, err := s.ListResources(resource.ProjectID)
-	if err != nil {
-		return err
-	}
-	if err := resources.EnsureUniqueExternalKey(existing, resource); err != nil {
-		return err
-	}
-	tags, _ := json.Marshal(resource.Tags)
-	if resource.Tags == nil {
-		tags = []byte("[]")
-	}
-	_, err = s.DB.Exec(`INSERT INTO resources(id,project_id,environment_id,name,type,external_key,source,provider,status,region,address,tags_json,description) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
-		ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,environment_id=excluded.environment_id,name=excluded.name,type=excluded.type,external_key=excluded.external_key,source=excluded.source,provider=excluded.provider,status=excluded.status,region=excluded.region,address=excluded.address,tags_json=excluded.tags_json,description=excluded.description`,
-		resource.ID, resource.ProjectID, nullable(resource.EnvironmentID), resource.Name, resource.Type, nullable(resource.ExternalKey), resource.Source, resource.Provider, resource.Status, resource.Region, resource.Address, string(tags), resource.Description)
-	if err != nil {
-		return err
-	}
-	_, _ = s.SyncProjectModel(resource.ProjectID)
-	return nil
-}
-
-func (s *Store) ListResources(projectID string) ([]resources.Resource, error) {
-	rows, err := s.DB.Query(`SELECT id,project_id,COALESCE(environment_id,''),name,type,COALESCE(external_key,''),source,provider,status,region,address,tags_json,description FROM resources WHERE project_id=? ORDER BY name`, projectID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var result []resources.Resource
-	for rows.Next() {
-		var item resources.Resource
-		var tags string
-		if err := rows.Scan(&item.ID, &item.ProjectID, &item.EnvironmentID, &item.Name, &item.Type, &item.ExternalKey, &item.Source, &item.Provider, &item.Status, &item.Region, &item.Address, &tags, &item.Description); err != nil {
-			return nil, err
-		}
-		_ = json.Unmarshal([]byte(tags), &item.Tags)
-		result = append(result, item)
-	}
-	return result, rows.Err()
 }
 
 func (s *Store) SaveKnowledge(item knowledge.Item) error {

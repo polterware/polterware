@@ -238,17 +238,16 @@ func (x *IntegrationConnection) GetErrorMessage() string {
 }
 
 type IntegrationResource struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ConnectionId        string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
-	Name                string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Kind                string                 `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
-	ExternalId          string                 `protobuf:"bytes,5,opt,name=external_id,json=externalId,proto3" json:"external_id,omitempty"`
-	EnvironmentId       string                 `protobuf:"bytes,6,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	Status              string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	InventoryResourceId string                 `protobuf:"bytes,8,opt,name=inventory_resource_id,json=inventoryResourceId,proto3" json:"inventory_resource_id,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ConnectionId  string                 `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Kind          string                 `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
+	ExternalId    string                 `protobuf:"bytes,5,opt,name=external_id,json=externalId,proto3" json:"external_id,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,6,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *IntegrationResource) Reset() {
@@ -326,13 +325,6 @@ func (x *IntegrationResource) GetEnvironmentId() string {
 func (x *IntegrationResource) GetStatus() string {
 	if x != nil {
 		return x.Status
-	}
-	return ""
-}
-
-func (x *IntegrationResource) GetInventoryResourceId() string {
-	if x != nil {
-		return x.InventoryResourceId
 	}
 	return ""
 }
@@ -1314,7 +1306,7 @@ const file_polterware_local_v1_integration_proto_rawDesc = "" +
 	"\rsync_interval\x18\n" +
 	" \x01(\tR\fsyncInterval\x12\x1c\n" +
 	"\tfreshness\x18\v \x01(\tR\tfreshness\x12#\n" +
-	"\rerror_message\x18\f \x01(\tR\ferrorMessage\"\x86\x02\n" +
+	"\rerror_message\x18\f \x01(\tR\ferrorMessage\"\xd2\x01\n" +
 	"\x13IntegrationResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
 	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12\x12\n" +
@@ -1323,8 +1315,7 @@ const file_polterware_local_v1_integration_proto_rawDesc = "" +
 	"\vexternal_id\x18\x05 \x01(\tR\n" +
 	"externalId\x12%\n" +
 	"\x0eenvironment_id\x18\x06 \x01(\tR\renvironmentId\x12\x16\n" +
-	"\x06status\x18\a \x01(\tR\x06status\x122\n" +
-	"\x15inventory_resource_id\x18\b \x01(\tR\x13inventoryResourceId\"\xf1\x01\n" +
+	"\x06status\x18\a \x01(\tR\x06status\"\xf1\x01\n" +
 	"\x12IntegrationSyncRun\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
 	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\x12\x1d\n" +

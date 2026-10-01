@@ -42,17 +42,20 @@ function readingOrder(a: { x: number; y: number }, b: { x: number; y: number }):
 /**
  * Arranges the Atlas map for reading: domains and loose components fall into rows by
  * dependency (a card sits above what it uses), and each domain orders its cards
- * toward their outside neighbours. Only local slots change.
+ * toward their outside neighbours. Only local slots change. With `visible`, only those
+ * nodes are arranged (from the origin) and every other node keeps its slot.
  */
 export function arrangeAtlas(
   local: ArchitectureDocument,
   edges: readonly Pick<Relationship, "sourceNodeId" | "targetNodeId">[],
+  visible?: ReadonlySet<string> | null,
 ): ArchitectureDocument {
   const levelOf = new Map(local.nodes.map((node) => [node.id, String(node.metadata?.[ATLAS_LEVEL_KEY] ?? "")]));
   const parentOf = (node: ArchNode) => String(node.metadata?.[ATLAS_PARENT_KEY] ?? "");
 
   const units = new Map<string, Unit>();
   for (const node of local.nodes) {
+    if (visible && !visible.has(node.id)) continue;
     const level = levelOf.get(node.id);
     if (level === "domain") {
       const cards = nestChildren(local, node.id).map((card) => card.id);

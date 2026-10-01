@@ -1,15 +1,24 @@
 import {
+  Bot,
   FileText,
   GitBranch,
   Hammer,
+  Layers,
+  LibraryBig,
+  Plug,
+  ShieldCheck,
   Zap,
   type TabItem,
 } from "@polterware/frontend-design-system";
 import type { ProjectEnvironment, SettingsTabId } from "./types";
 
-export const SETTINGS_TABS: TabItem[] = [
+/** A settings rail entry; `group` is the small label shown above its run of entries. */
+export type SettingsTab = TabItem & { id: SettingsTabId; group: string };
+
+export const SETTINGS_TABS: SettingsTab[] = [
   {
     id: "general",
+    group: "Project",
     label: "General",
     tooltip: {
       title: "Project profile",
@@ -20,6 +29,7 @@ export const SETTINGS_TABS: TabItem[] = [
   },
   {
     id: "environments",
+    group: "Project",
     label: "Environments",
     tooltip: {
       title: "Environments",
@@ -29,7 +39,63 @@ export const SETTINGS_TABS: TabItem[] = [
     },
   },
   {
+    id: "agents-access",
+    group: "Agents",
+    label: "Access",
+    tooltip: {
+      title: "Agent access",
+      description:
+        "Start or stop the MCP helper, install agent hooks, and copy the Polterware skill so agents read the same project state.",
+      icon: Bot,
+    },
+  },
+  {
+    id: "agents-sessions",
+    group: "Agents",
+    label: "Sessions",
+    tooltip: {
+      title: "Live sessions",
+      description:
+        "Agents working on this project now, the tasks they claimed, and the most recent handoffs.",
+      icon: Plug,
+    },
+  },
+  {
+    id: "agents-context",
+    group: "Agents",
+    label: "Context",
+    tooltip: {
+      title: "Context and drift",
+      description:
+        "Preview the Oracle text an agent would receive, CompileContext, and the Narrow Drift Checker. Findings are advisory.",
+      icon: Layers,
+    },
+  },
+  {
+    id: "integrations-connected",
+    group: "Integrations",
+    label: "Connected",
+    tooltip: {
+      title: "Connected providers",
+      description:
+        "Providers already authenticated via their CLI. Credentials stay in the OS/CLI store, not SQLite.",
+      icon: ShieldCheck,
+    },
+  },
+  {
+    id: "integrations-catalog",
+    group: "Integrations",
+    label: "Catalog",
+    tooltip: {
+      title: "Provider catalog",
+      description:
+        "Fixed list: GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Detect CLI, run auth in a core PTY, probe connection.",
+      icon: LibraryBig,
+    },
+  },
+  {
     id: "shortcuts",
+    group: "App",
     label: "Shortcuts",
     tooltip: {
       title: "Keyboard shortcuts",
@@ -40,6 +106,7 @@ export const SETTINGS_TABS: TabItem[] = [
   },
   {
     id: "advanced",
+    group: "App",
     label: "Advanced",
     tooltip: {
       title: "Danger zone",
@@ -52,16 +119,7 @@ export const SETTINGS_TABS: TabItem[] = [
 
 /** Normalize route tab ids to the retained Settings IA. */
 export function normalizeSettingsTab(raw?: string): SettingsTabId {
-  const tab = raw ?? "general";
-  if (
-    tab === "general"
-    || tab === "environments"
-    || tab === "shortcuts"
-    || tab === "advanced"
-  ) {
-    return tab;
-  }
-  return "general";
+  return SETTINGS_TABS.find((item) => item.id === raw)?.id ?? "general";
 }
 
 export function environmentSelectOptions(

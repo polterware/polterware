@@ -9,7 +9,6 @@ export type ProjectEnvironment = {
   name: string;
   kind: EnvironmentKind;
   protection: ProtectionLevel;
-  resourceCount: number;
   nodeCount: number;
   isDefault: boolean;
   /** Fixture summary lines for this local environment. */
@@ -33,4 +32,13 @@ export type ProjectGeneralSettings = {
   dataSource: DataSource;
 };
 
-export type SettingsTabId = "general" | "environments" | "shortcuts" | "advanced";
+export type SettingsTabId =
+  | "general"
+  | "environments"
+  | "agents-access"
+  | "agents-sessions"
+  | "agents-context"
+  | "integrations-connected"
+  | "integrations-catalog"
+  | "shortcuts"
+  | "advanced";

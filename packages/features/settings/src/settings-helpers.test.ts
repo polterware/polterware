@@ -9,21 +9,34 @@ import {
 } from "./settings-helpers";
 
 describe("settings helpers", () => {
-  it("exposes General · Environments · Shortcuts · Advanced tabs", () => {
+  it("groups the tabs as Project · Agents · Integrations · App", () => {
     expect(SETTINGS_TABS.map((tab) => tab.id)).toEqual([
       "general",
       "environments",
+      "agents-access",
+      "agents-sessions",
+      "agents-context",
+      "integrations-connected",
+      "integrations-catalog",
       "shortcuts",
       "advanced",
     ]);
+    expect([...new Set(SETTINGS_TABS.map((tab) => tab.group))]).toEqual([
+      "Project",
+      "Agents",
+      "Integrations",
+      "App",
+    ]);
     const labels = SETTINGS_TABS.map((tab) => tab.label).join(" ");
-    expect(labels).not.toMatch(/Access|Integrations|Knowledge|Agents/i);
+    expect(labels).not.toMatch(/Knowledge/i);
   });
 
-  it("normalizes legacy Access/Integrations tab ids to general", () => {
+  it("normalizes unknown tab ids to general", () => {
     expect(normalizeSettingsTab("unknown")).toBe("general");
     expect(normalizeSettingsTab("environments")).toBe("environments");
     expect(normalizeSettingsTab("shortcuts")).toBe("shortcuts");
+    expect(normalizeSettingsTab("agents-context")).toBe("agents-context");
+    expect(normalizeSettingsTab("integrations-catalog")).toBe("integrations-catalog");
     expect(normalizeSettingsTab("agents")).toBe("general");
     expect(normalizeSettingsTab(undefined)).toBe("general");
   });

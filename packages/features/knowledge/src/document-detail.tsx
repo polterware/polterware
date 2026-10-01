@@ -1,6 +1,7 @@
 import { Show, type JSX } from "solid-js";
 import {
   DetailPanel,
+  Button,
   Book03Icon,
 } from "@polterware/frontend-design-system";
 import type { WorkspaceDocument } from "@polterware/feature-shell";
@@ -26,22 +27,10 @@ export function DocumentDetail(props: {
     >
       {(doc) => (
         <DetailPanel.Content>
-          <DetailPanel.Header
-            icon={<Book03Icon size={16} />}
-            title={doc().title}
-          >
-            <Show when={props.onArchive}>
-              <DetailPanel.Actions>
-                <DetailPanel.Overflow>
-                  <DetailPanel.OverflowItem value="archive" danger onSelect={() => props.onArchive?.()}>
-                    Archive
-                  </DetailPanel.OverflowItem>
-                </DetailPanel.Overflow>
-              </DetailPanel.Actions>
-            </Show>
-          </DetailPanel.Header>
+          <DetailPanel.Header />
           <KnowledgeDocumentShell
             title={doc().title}
+            icon={<Book03Icon size={16} />}
             bodyMarkdown={props.bodyMarkdown}
             onBodyChange={props.onBodyChange}
             properties={
@@ -53,6 +42,11 @@ export function DocumentDetail(props: {
                     value={doc().tags.length > 0 ? doc().tags.join(", ") : null}
                   />
                 </DetailPanel.Properties>
+              </Show>
+            }
+            footerActions={
+              <Show when={props.onArchive}>
+                <Button variant="danger" size="sm" onClick={() => props.onArchive?.()}>Archive</Button>
               </Show>
             }
             links={props.links}

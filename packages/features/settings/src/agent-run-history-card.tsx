@@ -63,7 +63,7 @@ export function AgentRunHistoryCard(props: {
       scopeId: HISTORY_SCOPE,
       status: props.busy && props.changes.length === 0 ? "loading" : "ready",
       targets,
-      dismissible: true,
+      selectFirst: false,
     });
   });
   onCleanup(() => detailPanelStore.getState().unregisterCollection(HISTORY_SCOPE));
@@ -206,12 +206,13 @@ function ChangeDetail(props: {
 
   return (
     <DetailPanel.Content>
-      <DetailPanel.Header
-        icon={<ActorIcon actorKind={props.change.actorKind} size={16} />}
-        title={envelope().summary || props.change.summary || "Change"}
-      />
+      <DetailPanel.Header />
       <DetailPanel.Body>
         <DetailPanel.Main>
+          <DetailPanel.Title
+            icon={<ActorIcon actorKind={props.change.actorKind} size={16} />}
+            title={envelope().summary || props.change.summary || "Change"}
+          />
           <DetailPanel.Section title="Rationale">
             <Show
               when={envelope().rationale.trim()}

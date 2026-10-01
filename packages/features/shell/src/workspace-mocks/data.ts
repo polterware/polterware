@@ -1,6 +1,5 @@
 import type {
   WorkspaceCatalogProvider,
-  WorkspaceConstitution,
   WorkspaceDocument,
   WorkspaceIntegration,
   WorkspaceIntegrationResource,
@@ -106,37 +105,33 @@ export const INTEGRATION_MOCKS: WorkspaceIntegration[] = [
     id: "int-github", providerId: "github", name: "GitHub", provider: "GitHub",
     status: "connected", connectionLabel: "local-demo", environment: "All",
     environments: ["Production", "Staging"], lastSync: "30s ago",
-    summary: "Four repositories available in this session fixture.", resourceCount: 4,
-    resourceIds: ["res-repo-polter"], cliCommand: "gh auth login", syncInterval: "Manual", freshness: "fresh",
+    summary: "Four repositories available in this session fixture.", resourceCount: 4, cliCommand: "gh auth login", syncInterval: "Manual", freshness: "fresh",
   },
   {
     id: "int-aws", providerId: "aws", name: "AWS", provider: "AWS",
     status: "connected", connectionLabel: "demo-profile", environment: "Production",
     environments: ["Production"], lastSync: "1m ago",
-    summary: "Three resources available in this session fixture.", resourceCount: 3,
-    resourceIds: ["res-rds-prod"], cliCommand: "aws configure sso", syncInterval: "Manual", freshness: "fresh",
+    summary: "Three resources available in this session fixture.", resourceCount: 3, cliCommand: "aws configure sso", syncInterval: "Manual", freshness: "fresh",
   },
   {
     id: "int-vercel", providerId: "vercel", name: "Vercel", provider: "Vercel",
     status: "connected", connectionLabel: "demo-workspace", environment: "Production",
     environments: ["Production", "Preview"], lastSync: "2m ago",
-    summary: "Two projects available in this session fixture.", resourceCount: 2,
-    resourceIds: ["res-vercel-web"], cliCommand: "vercel login", syncInterval: "Manual", freshness: "fresh",
+    summary: "Two projects available in this session fixture.", resourceCount: 2, cliCommand: "vercel login", syncInterval: "Manual", freshness: "fresh",
   },
   {
     id: "int-supabase", providerId: "supabase", name: "Supabase", provider: "Supabase",
     status: "connected", connectionLabel: "demo-project", environment: "Development",
     environments: ["Development"], lastSync: "5m ago",
-    summary: "One project available in this session fixture.", resourceCount: 1,
-    resourceIds: ["res-supabase-main"], cliCommand: "supabase login", syncInterval: "Manual", freshness: "fresh",
+    summary: "One project available in this session fixture.", resourceCount: 1, cliCommand: "supabase login", syncInterval: "Manual", freshness: "fresh",
   },
 ];
 
 export const INTEGRATION_RESOURCE_MOCKS: WorkspaceIntegrationResource[] = [
-  { id: "ires-gh", integrationId: "int-github", name: "polterware/polter", kind: "Repository", externalId: "repo-polter", environment: "All", status: "synced", inventoryResourceId: "res-repo-polter" },
-  { id: "ires-aws", integrationId: "int-aws", name: "prod-postgres", kind: "RDS", externalId: "db-prod-01", environment: "Production", status: "synced", inventoryResourceId: "res-rds-prod" },
-  { id: "ires-vercel", integrationId: "int-vercel", name: "polter-web", kind: "Project", externalId: "prj_web", environment: "Production", status: "synced", inventoryResourceId: "res-vercel-web" },
-  { id: "ires-supabase", integrationId: "int-supabase", name: "polter-main", kind: "Project", externalId: "sb-polter-main", environment: "Development", status: "synced", inventoryResourceId: "res-supabase-main" },
+  { id: "ires-gh", integrationId: "int-github", name: "polterware/polter", kind: "Repository", externalId: "repo-polter", environment: "All", status: "synced" },
+  { id: "ires-aws", integrationId: "int-aws", name: "prod-postgres", kind: "RDS", externalId: "db-prod-01", environment: "Production", status: "synced" },
+  { id: "ires-vercel", integrationId: "int-vercel", name: "polter-web", kind: "Project", externalId: "prj_web", environment: "Production", status: "synced" },
+  { id: "ires-supabase", integrationId: "int-supabase", name: "polter-main", kind: "Project", externalId: "sb-polter-main", environment: "Development", status: "synced" },
 ];
 
 export const INTEGRATION_SYNC_RUN_MOCKS: WorkspaceIntegrationSyncRun[] = INTEGRATION_MOCKS.map((integration, index) => ({
@@ -177,7 +172,7 @@ const RUNBOOK_SEEDS: Omit<WorkspaceRunbook, "bodyMarkdown" | "entityLinks">[] = 
   {
     id: "rb-service", title: "Service recovery",
     objective: "Restore a local service after a failed health check.", service: "API", severity: "high",
-    prerequisites: ["Confirm the affected environment", "Confirm the service entry in Resources Inventory"],
+    prerequisites: ["Confirm the affected environment", "Confirm the service component in the Atlas"],
     steps: ["Inspect the service fixture", "Review the restart command", "Record the expected result"],
     commands: ["systemctl status example-api", "systemctl restart example-api"],
     rollback: "Restore the previous service version if the health check remains degraded.",
@@ -199,13 +194,3 @@ export const RUNBOOK_MOCKS: WorkspaceRunbook[] = RUNBOOK_SEEDS.map((runbook) => 
   entityLinks: [],
   bodyMarkdown: runbookMarkdown(runbook),
 }));
-
-export const CONSTITUTION_MOCK: WorkspaceConstitution = {
-  id: "constitution-project",
-  title: "Project constitution",
-  bodyMarkdown:
-    "# Project constitution\n\n## Core principles\n\n### Local-first truth\nProject state must remain useful on one machine without requiring a hosted account.\n\n### Honest product boundaries\nDo not describe planned capabilities as shipped.",
-  updatedAt: "2 days ago",
-  owner: "Platform",
-  status: "active",
-};

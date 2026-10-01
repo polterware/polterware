@@ -43,6 +43,15 @@ describe("arrangeAtlas", () => {
     expect(at(result, "web").y).toBeLessThan(at(result, "data").y);
   });
 
+  it("arranges only the visible nodes and leaves the rest in place", () => {
+    const visible = new Set(["web", "ui", "loose"]);
+    const result = arrangeAtlas(map, [edge("ui", "store")], visible);
+    expect(at(result, "data").x).toBe(0);
+    expect(at(result, "data").y).toBe(0);
+    expect(at(result, "web").x).toBe(48);
+    expect(at(result, "web").y).toBe(48);
+  });
+
   it("sends units with no edges to the last row", () => {
     const result = arrangeAtlas(map, [edge("ui", "store")]);
     expect(at(result, "loose").y).toBeGreaterThan(at(result, "data").y);

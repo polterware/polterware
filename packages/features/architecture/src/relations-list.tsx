@@ -96,6 +96,8 @@ function RelationsSection(props: {
           type="button"
           class="atlas-relations__node"
           aria-current={props.selectedId === node().id ? "true" : undefined}
+          data-detail-opener
+          data-detail-target-id={node().id}
           onClick={() => props.onSelect(node().id)}
         >
           <AtlasStatusMark status={node().status} />
@@ -253,6 +255,8 @@ function RelationCard(props: {
       data-focus={props.focus ? "true" : undefined}
       data-selected={props.selectedId === props.node.id ? "true" : undefined}
       style={{ transform: `translate(${props.x}px, ${props.y}px)`, width: `${CARD_W}px`, height: `${CARD_H}px` }}
+      data-detail-opener
+      data-detail-target-id={props.node.id}
       onClick={() => props.onSelect(props.node.id)}
     >
       <AtlasStatusMark status={props.node.status} />

@@ -8,26 +8,20 @@ describe("first version routes", () => {
 
   it("exposes only the Atlas project surfaces", () => {
     expect(
-      ["inbox", "atlas", "work", "decisions", "reality", "agents", "integrations"].every(
-        isNavSectionId,
-      ),
+      ["inbox", "atlas", "work", "truth", "activity"].every(isNavSectionId),
     ).toBe(true);
+    expect(isNavSectionId("decisions")).toBe(false);
+    expect(isNavSectionId("reality")).toBe(false);
     expect(isNavSectionId("settings")).toBe(false);
+    expect(isNavSectionId("agents")).toBe(false);
+    expect(isNavSectionId("integrations")).toBe(false);
     expect(isNavSectionId("architecture")).toBe(false);
     expect(isNavSectionId("knowledge")).toBe(false);
     expect(isNavSectionId("operations")).toBe(false);
     expect(isNavSectionId("terminal")).toBe(false);
     expect(SECTION_TABS.atlas?.map((tab) => tab.id)).toEqual(["map", "components", "relations"]);
     expect(SECTION_TABS.work?.map((tab) => tab.id)).toEqual(["board", "specs"]);
-    expect(SECTION_TABS.decisions?.map((tab) => tab.id)).toEqual(["active", "challenged", "proposed", "superseded"]);
-    expect(SECTION_TABS.reality?.map((tab) => tab.id)).toEqual([
-      "inventory",
-      "sources",
-      "facts",
-      "docs",
-    ]);
-    expect(SECTION_TABS.agents?.map((tab) => tab.id)).toEqual(["access", "sessions", "history", "context"]);
-    expect(DEFAULT_TABS.agents).toBe("access");
+    expect(SECTION_TABS.truth?.map((tab) => tab.id)).toEqual(["decisions", "facts", "evidence"]);
     expect(DEFAULT_TABS.work).toBe("board");
   });
 
@@ -48,7 +42,6 @@ describe("first version routes", () => {
     expect(resolveRoute("unknown")).toEqual({ section: "inbox", tab: "all" });
     expect(resolveRoute("operations")).toEqual({ section: "atlas", tab: "map" });
     expect(resolveRoute("terminal")).toEqual({ section: "atlas", tab: "map" });
-    expect(DEFAULT_TABS.integrations).toBe("connected");
   });
 
   it("sends the retired Canvas tab id to the Map", () => {
@@ -60,19 +53,24 @@ describe("first version routes", () => {
   it("maps pre-Atlas sections to their new homes", () => {
     expect(resolveRoute("architecture", "views")).toEqual({ section: "atlas", tab: "map" });
     expect(resolveRoute("architecture", "components")).toEqual({ section: "atlas", tab: "components" });
-    expect(resolveRoute("resources", "nodes")).toEqual({ section: "reality", tab: "inventory" });
+    expect(resolveRoute("resources", "nodes")).toEqual({ section: "atlas", tab: "components" });
     expect(resolveRoute("knowledge")).toEqual({ section: "work", tab: "specs" });
     expect(resolveRoute("knowledge", "specs")).toEqual({ section: "work", tab: "specs" });
-    expect(resolveRoute("knowledge", "library")).toEqual({ section: "decisions", tab: "active" });
-    expect(resolveRoute("knowledge", "adrs")).toEqual({ section: "decisions", tab: "active" });
-    expect(resolveRoute("knowledge", "docs")).toEqual({ section: "reality", tab: "docs" });
-    expect(resolveRoute("knowledge", "runbooks")).toEqual({ section: "reality", tab: "docs" });
-    expect(resolveRoute("knowledge", "sources")).toEqual({ section: "reality", tab: "sources" });
-    expect(resolveRoute("agents", "facts")).toEqual({ section: "reality", tab: "facts" });
+    expect(resolveRoute("knowledge", "library")).toEqual({ section: "truth", tab: "decisions" });
+    expect(resolveRoute("knowledge", "adrs")).toEqual({ section: "truth", tab: "decisions" });
+    expect(resolveRoute("knowledge", "docs")).toEqual({ section: "truth", tab: "evidence" });
+    expect(resolveRoute("knowledge", "runbooks")).toEqual({ section: "truth", tab: "evidence" });
+    expect(resolveRoute("knowledge", "sources")).toEqual({ section: "truth", tab: "evidence" });
+    expect(resolveRoute("agents", "facts")).toEqual({ section: "truth", tab: "facts" });
+    expect(resolveRoute("agents", "history")).toEqual({ section: "activity", tab: "all" });
+    expect(resolveRoute("decisions", "challenged")).toEqual({ section: "truth", tab: "decisions" });
+    expect(resolveRoute("reality", "facts")).toEqual({ section: "truth", tab: "facts" });
+    expect(resolveRoute("reality", "sources")).toEqual({ section: "truth", tab: "evidence" });
+    expect(resolveRoute("reality", "history")).toEqual({ section: "activity", tab: "all" });
   });
 
-  it("maps legacy Agents Compile and Drift tabs to Context", () => {
-    expect(resolveRoute("agents", "compile")).toEqual({ section: "agents", tab: "context" });
-    expect(resolveRoute("agents", "drift")).toEqual({ section: "agents", tab: "context" });
+  it("sends the retired Agents and Integrations sections to Inbox", () => {
+    expect(resolveRoute("agents", "access")).toEqual({ section: "inbox", tab: "all" });
+    expect(resolveRoute("integrations", "catalog")).toEqual({ section: "inbox", tab: "all" });
   });
 });

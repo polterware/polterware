@@ -1,3 +1,4 @@
+import { createPanelPortalOwnership } from "./panel-interaction";
 import type { JSX } from "solid-js";
 import { createEffect, untrack } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -118,11 +119,13 @@ export function DropdownMenuContent(props: {
   children: JSX.Element;
   class?: string;
 }) {
+  const menu = useMenuContext();
+  const ownPortal = createPanelPortalOwnership(() => menu().open);
   return (
     <Portal>
       {/* z-index on Content: Zag copies it to Positioner via --z-index */}
       <ArkMenu.Positioner class="pw-dropdown-positioner">
-        <ArkMenu.Content class="pw-dropdown-presence outline-none">
+        <ArkMenu.Content ref={ownPortal} class="pw-dropdown-presence outline-none">
           <MenuSurface class={props.class}>{props.children}</MenuSurface>
         </ArkMenu.Content>
       </ArkMenu.Positioner>

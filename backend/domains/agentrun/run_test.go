@@ -22,7 +22,7 @@ func TestStartAndComplete(t *testing.T) {
 	if run.ActorKind != ActorKindAgent {
 		t.Fatalf("expected agent actor kind, got %q", run.ActorKind)
 	}
-	human, err := StartWithActor("proj-1", "Edit constitution", "Desktop", ActorKindHuman, now)
+	human, err := StartWithActor("proj-1", "Edit decision", "Desktop", ActorKindHuman, now)
 	if err != nil {
 		t.Fatal(err)
 	}

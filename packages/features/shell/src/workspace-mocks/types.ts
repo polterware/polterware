@@ -35,7 +35,6 @@ export type WorkspaceIntegration = {
   lastSync: string;
   summary: string;
   resourceCount: number;
-  resourceIds: string[];
   cliCommand: string;
   syncInterval?: string;
   freshness?: "fresh" | "stale" | "unknown";
@@ -50,7 +49,6 @@ export type WorkspaceIntegrationResource = {
   externalId: string;
   environment: string;
   status: string;
-  inventoryResourceId?: string;
 };
 
 export type WorkspaceIntegrationSyncRun = {
@@ -113,6 +111,8 @@ export type WorkspaceAdr = {
   status: string;
   /** Lifecycle state: proposed, active, challenged, or superseded. */
   state: DecisionState;
+  /** A principle applies to the whole project and stays pinned above local decisions. */
+  scope: "principle" | "decision";
   /** Title of the decision that replaced this one; empty when none. */
   supersededBy: string;
   /** Titles of the decisions this one replaced. */
@@ -310,13 +310,4 @@ export type WorkspaceInbox = {
   items: WorkspaceInboxItem[];
   openCount: number;
   blockingCount: number;
-};
-
-export type WorkspaceConstitution = {
-  id: string;
-  title: string;
-  bodyMarkdown: string;
-  updatedAt: string;
-  owner: string;
-  status: string;
 };

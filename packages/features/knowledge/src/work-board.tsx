@@ -1,6 +1,5 @@
 import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import {
-  animateCollapse,
   Card,
   Bot,
   Hammer,
@@ -11,11 +10,11 @@ import {
   DitherIconTile,
   FluidHoverHighlight,
   Pencil,
+  Popover,
   Route,
   ShieldCheck,
   RadioButtonIcon,
   spring,
-  type CollapseControls,
   type DitherIconTone,
   type DragMotion,
   type FluidHover,
@@ -262,9 +261,7 @@ function WorkCard(props: {
   const tasks = createMemo(() => props.card.tasks.filter((task) => task.state !== "dropped"));
   const [expanded, setExpanded] = createSignal(false);
   let element: HTMLDivElement | undefined;
-  let region: HTMLDivElement | undefined;
-  let controls: CollapseControls | undefined;
-  let mounted = false;
+  const [summaryButton, setSummaryButton] = createSignal<HTMLButtonElement>();
   const [lifted, setLifted] = createSignal(false);
   let motion: DragMotion | undefined;
   let session: {
@@ -404,14 +401,6 @@ function WorkCard(props: {
   const onPointerCancel = (event: PointerEvent) => {
     if (session && event.pointerId === session.id) finish(true);
   };
-  // The task list opens to its measured height on the shared spring; the first run snaps.
-  createEffect(() => {
-    const open = expanded();
-    if (!region) return;
-    controls = animateCollapse(region, open, { previous: controls, instant: !mounted });
-    mounted = true;
-  });
-  onCleanup(() => controls?.stop());
 
   return (
     <Card
@@ -425,6 +414,8 @@ function WorkCard(props: {
         <button
           type="button"
           class="pw-work-card__button"
+          data-detail-opener
+          data-detail-target-id={props.card.slug}
           aria-pressed={props.active ? "true" : "false"}
           aria-roledescription={props.draggable ? "draggable card" : undefined}
           onPointerDown={onPointerDown}
@@ -443,7 +434,26 @@ function WorkCard(props: {
       </div>
       <Show when={tasks().length > 0}>
         <div class="pw-work-card__expandable">
-          <div ref={region} class="pw-work-card__region" hidden>
+          <button
+            ref={setSummaryButton}
+            type="button"
+            class="pw-work-card__summary"
+            aria-haspopup="dialog"
+            aria-expanded={expanded()}
+            data-state={expanded() ? "open" : "closed"}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            <span>Tasks {progress().done}/{progress().total}</span>
+            <ChevronDown size={14} aria-hidden />
+          </button>
+          <Popover
+            open={expanded()}
+            onClose={() => setExpanded(false)}
+            title={`${props.card.title} tasks`}
+            anchorRef={summaryButton}
+            placement="bottom-start"
+            width={280}
+          >
             <ul class="pw-work-card__tasks" aria-label={`${props.card.title} tasks`}>
               <For each={tasks()}>
                 {(task) => (
@@ -473,17 +483,7 @@ function WorkCard(props: {
                 )}
               </For>
             </ul>
-          </div>
-          <button
-            type="button"
-            class="pw-work-card__summary"
-            aria-expanded={expanded()}
-            data-state={expanded() ? "open" : "closed"}
-            onClick={() => setExpanded((value) => !value)}
-          >
-            <span>Tasks {progress().done}/{progress().total}</span>
-            <ChevronDown size={14} aria-hidden />
-          </button>
+          </Popover>
         </div>
       </Show>
     </Card>

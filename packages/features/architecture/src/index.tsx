@@ -1,4 +1,4 @@
-import { batch, createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
+import { batch, createEffect, createMemo, createSignal, on, onCleanup, Show, untrack } from "solid-js";
 import type { ArchitectureDocument, CaptureMode, NodeType } from "@polterware/frontend-canvas";
 import {
   createEmptyDocument,
@@ -26,7 +26,8 @@ import { ARCH_CANVAS_FIXTURE, fixtureNodeDetail } from "./fixtures";
 import { type ArchitectureViewDraft, type ArchViewCard } from "./extra-fixtures";
 import { CreateNodeDialog, type ArchNodeDraft } from "./create-node-dialog";
 import { roleLabel } from "./domain/place-config";
-import { createFixtureResourceLinkPort } from "./domain/fixture-resource-link-port";
+import { createResourceLinkPort } from "./domain/resource-link-port";
+import type { LinkableResource } from "./domain/place-link";
 import { DEFAULT_PROJECT_ENVIRONMENTS, environmentLabel } from "./domain/project-environments";
 import { nodeStatusLabel } from "./domain/node-lifecycle";
 import type { ArchitectureNodeView } from "./types";
@@ -102,6 +103,7 @@ export type ArchResource = {
   name: string;
   type?: string;
   source?: string;
+  environmentLabel?: string;
   externalKey?: string;
   systemId?: string;
 };
@@ -212,7 +214,6 @@ export function ArchitectureView(props: {
   onTabChange?: (tab: string) => void;
   onCreateNode?: () => void;
   onCloseCreateNode?: () => void;
-  onAddResource?: () => void;
   onSubmitCreateNode?: (
     result: { ok: true; nodeId: string } | { ok: false; error: string },
   ) => void;
@@ -228,6 +229,21 @@ export function ArchitectureView(props: {
   onCreateNestedNode?: (parentId: string | null) => Promise<void> | void;
 }) {
   const tab = () => normalizeArchitectureTab(props.tab);
+  /** Provider resources synced by Integrations; components link to these. */
+  const resourcePort = createMemo(() =>
+    createResourceLinkPort(
+      (props.resources ?? []).map((resource): LinkableResource => ({
+        id: resource.id,
+        name: resource.name,
+        type: resource.type ?? "Resource",
+        environmentId: "",
+        environmentLabel: resource.environmentLabel,
+        provider: resource.source,
+        dataSource: "core",
+      })),
+    ),
+  );
+
   const systemId = () => props.systems?.[0]?.id ?? SYSTEM_ID_DEFAULT;
   const fixtureMode = () => props.fixtureMode ?? "fallback";
   const [domainFocus, setDomainFocus] = createSignal<ReadonlySet<string>>(new Set());
@@ -265,7 +281,6 @@ export function ArchitectureView(props: {
   // parse do not compete with the same paint as ArchitectureCanvas DOM/SVG.
   const [canvasMountReady, setCanvasMountReady] = createSignal(!props.loading);
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
-  const outgoingTarget = createDetailPanelSelector((state) => state.outgoingTarget);
 
   createEffect(() => {
     if (props.loading) {
@@ -489,14 +504,18 @@ export function ArchitectureView(props: {
 
   const [arrangeRequest, setArrangeRequest] = createSignal<{ key: number; world: ArchitectureDocument } | null>(null);
 
-  function arrange() {
+  function arrange(options?: { silent?: boolean }) {
     const atlas = props.atlasNodes;
     if (!atlas) return;
-    const next = arrangeAtlas(untrack(doc), untrack(worldDoc).relationships);
+    const next = arrangeAtlas(untrack(doc), untrack(worldDoc).relationships, untrack(shownIds));
     const world = withAtlasUses(projectAtlasWorld(next), atlas);
     setArrangeRequest((current) => ({ key: (current?.key ?? 0) + 1, world }));
-    pushToast("Map arranged. Undo to go back.", "success");
+    if (!options?.silent) pushToast("Map arranged. Undo to go back.", "success");
   }
+
+  // A domain appearing or disappearing re-arranges what is left, and clearing the filter
+  // arranges the whole map.
+  createEffect(on(() => [...domainFocus()].sort().join(","), () => arrange({ silent: true }), { defer: true }));
 
   function createNested() {
     if (!props.atlasNodes) {
@@ -526,7 +545,7 @@ export function ArchitectureView(props: {
       } else {
         // Clear detail before route selection so the target→route sync
         // effect cannot revive the previous node on the same tick.
-        detailPanelStore.getState().dismissTarget(nodeScopeId());
+        detailPanelStore.getState().clearTarget(nodeScopeId());
       }
     }
     props.onSelect?.(id);
@@ -632,12 +651,12 @@ export function ArchitectureView(props: {
   }
 
   const isArchNodeTarget = createMemo(() => {
-    const target = activeTarget() ?? outgoingTarget();
+    const target = activeTarget();
     return target?.scopeId === "architecture:canvas" && target.entityKind === "arch-node";
   });
 
   const detailNode = createMemo((): ArchitectureNodeView | undefined => {
-    const target = activeTarget() ?? outgoingTarget();
+    const target = activeTarget();
     const id =
       target?.scopeId === "architecture:canvas" && target.entityKind === "arch-node"
         ? target.entityId
@@ -647,8 +666,7 @@ export function ArchitectureView(props: {
     if (!n && source() === "fixture") return fixtureNodeDetail(id);
     if (!n) return undefined;
     if (source() === "fixture") return fixtureNodeDetail(id, n.name);
-    const resourcePort = createFixtureResourceLinkPort();
-    const linkedResource = n.resourceId ? resourcePort.getById(n.resourceId) : undefined;
+    const linkedResource = n.resourceId ? resourcePort().getById(n.resourceId) : undefined;
     return {
       id: n.id,
       label: n.name,
@@ -739,7 +757,7 @@ export function ArchitectureView(props: {
       scopeId: scope,
       status: props.loading ? "loading" : "ready",
       targets,
-      dismissible: true,
+      selectFirst: false,
     });
   });
 
@@ -792,7 +810,6 @@ export function ArchitectureView(props: {
               document={worldDoc()}
               nested={Boolean(props.atlasNodes)}
               shownIds={shownIds()}
-              focusKey={[...domainFocus()].sort().join(",")}
               arrangeRequest={arrangeRequest()}
               onNestReparent={props.atlasNodes ? reparentNode : undefined}
               onNestConnect={props.atlasNodes && props.onConnectNodes
@@ -815,7 +832,7 @@ export function ArchitectureView(props: {
               search={props.search}
               environmentId={envId()}
               projectEnvironments={DEFAULT_PROJECT_ENVIRONMENTS}
-              resourceLinkPort={createFixtureResourceLinkPort()}
+              resourceLinkPort={resourcePort()}
               saveStatus={saveStatus()}
               onDocumentChange={onDocumentChange}
               onSelect={select}
@@ -824,7 +841,6 @@ export function ArchitectureView(props: {
               onRequestSave={() => {
                 void saveManual();
               }}
-              onAddResource={props.onAddResource}
               edgeFlow={edgeFlow()}
             />
           </Show>
@@ -1004,8 +1020,7 @@ export function ArchitectureView(props: {
             const n = doc().nodes.find((x) => x.id === nodeId);
             if (!n) return;
             const envId = n.environmentIds?.[0] ?? "production";
-            const port = createFixtureResourceLinkPort();
-            const candidates = port.listCandidates({
+            const candidates = resourcePort().listCandidates({
               environmentId: envId,
               componentType: n.type,
               typeFilterStrict: true,
@@ -1028,7 +1043,7 @@ export function ArchitectureView(props: {
         open={Boolean(props.createDialogOpen)}
         onClose={() => props.onCloseCreateNode?.()}
         onSubmit={(d) => submitCreate(d)}
-        onAddResource={props.onAddResource}
+        resourceLinkPort={resourcePort()}
       />
     </>
   );

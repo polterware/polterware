@@ -109,8 +109,6 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
       architecture: {
         getLayout: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.getLayout, payload),
         updateLayout: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.updateLayout, payload),
-        listResources: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listResources, payload),
-        saveResource: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveResource, payload),
         listViews: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.listViews, payload),
         saveView: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.saveView, payload),
         deleteView: (payload: JsonObject) => coreCall(ipc, IPC_CHANNELS.core.deleteView, payload),

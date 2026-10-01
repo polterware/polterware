@@ -169,5 +169,6 @@ html[data-shell-chrome="solid"] .pw-shell-main-frame {
 }
 
 .pw-sidebar-item--footer {
-  margin-bottom: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
 }

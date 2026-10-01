@@ -10,84 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file polterware/local/v1/architecture.proto.
  */
 export const file_polterware_local_v1_architecture: GenFile = /*@__PURE__*/
-  fileDesc("CiZwb2x0ZXJ3YXJlL2xvY2FsL3YxL2FyY2hpdGVjdHVyZS5wcm90bxITcG9sdGVyd2FyZS5sb2NhbC52MSLqAQoIUmVzb3VyY2USCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIWCg5lbnZpcm9ubWVudF9pZBgDIAEoCRIMCgRuYW1lGAQgASgJEgwKBHR5cGUYBSABKAkSFAoMZXh0ZXJuYWxfa2V5GAYgASgJEg4KBnNvdXJjZRgHIAEoCRIQCghwcm92aWRlchgIIAEoCRIOCgZzdGF0dXMYCSABKAkSDgoGcmVnaW9uGAogASgJEg8KB2FkZHJlc3MYCyABKAkSDAoEdGFncxgMIAMoCRITCgtkZXNjcmlwdGlvbhgNIAEoCSJNCgZMYXlvdXQSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIQCghyZXZpc2lvbhgDIAEoAxIRCglib2R5X2pzb24YBCABKAkiVAoWQXJjaGl0ZWN0dXJlVmlld01lbWJlchIPCgdub2RlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEdHlwZRgDIAEoCRINCgVsYXllchgEIAEoCSKSAgoQQXJjaGl0ZWN0dXJlVmlldxIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSDQoFb3duZXIYBSABKAkSDwoHcHVycG9zZRgGIAEoCRINCgVub3RlcxgHIAEoCRIWCg5maWx0ZXJfc3VtbWFyeRgIIAEoCRIUCgxlbnZpcm9ubWVudHMYCSADKAkSDAoEdGFncxgKIAMoCRISCgp1cGRhdGVkX2F0GAsgASgJEjwKB21lbWJlcnMYDCADKAsyKy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFyY2hpdGVjdHVyZVZpZXdNZW1iZXIiJgoQR2V0TGF5b3V0UmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJIkAKEUdldExheW91dFJlc3BvbnNlEisKBmxheW91dBgBIAEoCzIbLnBvbHRlcndhcmUubG9jYWwudjEuTGF5b3V0IlcKE1VwZGF0ZUxheW91dFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAxIRCglib2R5X2pzb24YAyABKAkiQwoUVXBkYXRlTGF5b3V0UmVzcG9uc2USKwoGbGF5b3V0GAEgASgLMhsucG9sdGVyd2FyZS5sb2NhbC52MS5MYXlvdXQiKgoUTGlzdFJlc291cmNlc1JlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCSJJChVMaXN0UmVzb3VyY2VzUmVzcG9uc2USMAoJcmVzb3VyY2VzGAEgAygLMh0ucG9sdGVyd2FyZS5sb2NhbC52MS5SZXNvdXJjZSJGChNTYXZlUmVzb3VyY2VSZXF1ZXN0Ei8KCHJlc291cmNlGAEgASgLMh0ucG9sdGVyd2FyZS5sb2NhbC52MS5SZXNvdXJjZSJHChRTYXZlUmVzb3VyY2VSZXNwb25zZRIvCghyZXNvdXJjZRgBIAEoCzIdLnBvbHRlcndhcmUubG9jYWwudjEuUmVzb3VyY2UiJgoQTGlzdFZpZXdzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJIkkKEUxpc3RWaWV3c1Jlc3BvbnNlEjQKBXZpZXdzGAEgAygLMiUucG9sdGVyd2FyZS5sb2NhbC52MS5BcmNoaXRlY3R1cmVWaWV3IkYKD1NhdmVWaWV3UmVxdWVzdBIzCgR2aWV3GAEgASgLMiUucG9sdGVyd2FyZS5sb2NhbC52MS5BcmNoaXRlY3R1cmVWaWV3IkcKEFNhdmVWaWV3UmVzcG9uc2USMwoEdmlldxgBIAEoCzIlLnBvbHRlcndhcmUubG9jYWwudjEuQXJjaGl0ZWN0dXJlVmlldyIfChFEZWxldGVWaWV3UmVxdWVzdBIKCgJpZBgBIAEoCSIUChJEZWxldGVWaWV3UmVzcG9uc2UytwUKE0FyY2hpdGVjdHVyZVNlcnZpY2USWgoJR2V0TGF5b3V0EiUucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRMYXlvdXRSZXF1ZXN0GiYucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRMYXlvdXRSZXNwb25zZRJjCgxVcGRhdGVMYXlvdXQSKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlVwZGF0ZUxheW91dFJlcXVlc3QaKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlVwZGF0ZUxheW91dFJlc3BvbnNlEmYKDUxpc3RSZXNvdXJjZXMSKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RSZXNvdXJjZXNSZXF1ZXN0GioucG9sdGVyd2FyZS5sb2NhbC52MS5MaXN0UmVzb3VyY2VzUmVzcG9uc2USYwoMU2F2ZVJlc291cmNlEigucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlUmVzb3VyY2VSZXF1ZXN0GikucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlUmVzb3VyY2VSZXNwb25zZRJaCglMaXN0Vmlld3MSJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RWaWV3c1JlcXVlc3QaJi5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkxpc3RWaWV3c1Jlc3BvbnNlElcKCFNhdmVWaWV3EiQucG9sdGVyd2FyZS5sb2NhbC52MS5TYXZlVmlld1JlcXVlc3QaJS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVWaWV3UmVzcG9uc2USXQoKRGVsZXRlVmlldxImLnBvbHRlcndhcmUubG9jYWwudjEuRGVsZXRlVmlld1JlcXVlc3QaJy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkRlbGV0ZVZpZXdSZXNwb25zZULtAQoXY29tLnBvbHRlcndhcmUubG9jYWwudjFCEUFyY2hpdGVjdHVyZVByb3RvUAFaUWdpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3BvbHRlcndhcmUvbG9jYWwvdjE7bG9jYWx2MaICA1BMWKoCE1BvbHRlcndhcmUuTG9jYWwuVjHKAhNQb2x0ZXJ3YXJlXExvY2FsXFYx4gIfUG9sdGVyd2FyZVxMb2NhbFxWMVxHUEJNZXRhZGF0YeoCFVBvbHRlcndhcmU6OkxvY2FsOjpWMWIGcHJvdG8z");
-
-/**
- * @generated from message polterware.local.v1.Resource
- */
-export type Resource = Message<"polterware.local.v1.Resource"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string project_id = 2;
-   */
-  projectId: string;
-
-  /**
-   * @generated from field: string environment_id = 3;
-   */
-  environmentId: string;
-
-  /**
-   * @generated from field: string name = 4;
-   */
-  name: string;
-
-  /**
-   * @generated from field: string type = 5;
-   */
-  type: string;
-
-  /**
-   * @generated from field: string external_key = 6;
-   */
-  externalKey: string;
-
-  /**
-   * @generated from field: string source = 7;
-   */
-  source: string;
-
-  /**
-   * @generated from field: string provider = 8;
-   */
-  provider: string;
-
-  /**
-   * @generated from field: string status = 9;
-   */
-  status: string;
-
-  /**
-   * @generated from field: string region = 10;
-   */
-  region: string;
-
-  /**
-   * @generated from field: string address = 11;
-   */
-  address: string;
-
-  /**
-   * @generated from field: repeated string tags = 12;
-   */
-  tags: string[];
-
-  /**
-   * @generated from field: string description = 13;
-   */
-  description: string;
-};
-
-/**
- * Describes the message polterware.local.v1.Resource.
- * Use `create(ResourceSchema)` to create a new message.
- */
-export const ResourceSchema: GenMessage<Resource> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 0);
+  fileDesc("CiZwb2x0ZXJ3YXJlL2xvY2FsL3YxL2FyY2hpdGVjdHVyZS5wcm90bxITcG9sdGVyd2FyZS5sb2NhbC52MSJNCgZMYXlvdXQSCgoCaWQYASABKAkSEgoKcHJvamVjdF9pZBgCIAEoCRIQCghyZXZpc2lvbhgDIAEoAxIRCglib2R5X2pzb24YBCABKAkiVAoWQXJjaGl0ZWN0dXJlVmlld01lbWJlchIPCgdub2RlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEdHlwZRgDIAEoCRINCgVsYXllchgEIAEoCSKSAgoQQXJjaGl0ZWN0dXJlVmlldxIKCgJpZBgBIAEoCRISCgpwcm9qZWN0X2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSDQoFb3duZXIYBSABKAkSDwoHcHVycG9zZRgGIAEoCRINCgVub3RlcxgHIAEoCRIWCg5maWx0ZXJfc3VtbWFyeRgIIAEoCRIUCgxlbnZpcm9ubWVudHMYCSADKAkSDAoEdGFncxgKIAMoCRISCgp1cGRhdGVkX2F0GAsgASgJEjwKB21lbWJlcnMYDCADKAsyKy5wb2x0ZXJ3YXJlLmxvY2FsLnYxLkFyY2hpdGVjdHVyZVZpZXdNZW1iZXIiJgoQR2V0TGF5b3V0UmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJIkAKEUdldExheW91dFJlc3BvbnNlEisKBmxheW91dBgBIAEoCzIbLnBvbHRlcndhcmUubG9jYWwudjEuTGF5b3V0IlcKE1VwZGF0ZUxheW91dFJlcXVlc3QSEgoKcHJvamVjdF9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAxIRCglib2R5X2pzb24YAyABKAkiQwoUVXBkYXRlTGF5b3V0UmVzcG9uc2USKwoGbGF5b3V0GAEgASgLMhsucG9sdGVyd2FyZS5sb2NhbC52MS5MYXlvdXQiJgoQTGlzdFZpZXdzUmVxdWVzdBISCgpwcm9qZWN0X2lkGAEgASgJIkkKEUxpc3RWaWV3c1Jlc3BvbnNlEjQKBXZpZXdzGAEgAygLMiUucG9sdGVyd2FyZS5sb2NhbC52MS5BcmNoaXRlY3R1cmVWaWV3IkYKD1NhdmVWaWV3UmVxdWVzdBIzCgR2aWV3GAEgASgLMiUucG9sdGVyd2FyZS5sb2NhbC52MS5BcmNoaXRlY3R1cmVWaWV3IkcKEFNhdmVWaWV3UmVzcG9uc2USMwoEdmlldxgBIAEoCzIlLnBvbHRlcndhcmUubG9jYWwudjEuQXJjaGl0ZWN0dXJlVmlldyIfChFEZWxldGVWaWV3UmVxdWVzdBIKCgJpZBgBIAEoCSIUChJEZWxldGVWaWV3UmVzcG9uc2Uy6gMKE0FyY2hpdGVjdHVyZVNlcnZpY2USWgoJR2V0TGF5b3V0EiUucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRMYXlvdXRSZXF1ZXN0GiYucG9sdGVyd2FyZS5sb2NhbC52MS5HZXRMYXlvdXRSZXNwb25zZRJjCgxVcGRhdGVMYXlvdXQSKC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlVwZGF0ZUxheW91dFJlcXVlc3QaKS5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlVwZGF0ZUxheW91dFJlc3BvbnNlEloKCUxpc3RWaWV3cxIlLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdFZpZXdzUmVxdWVzdBomLnBvbHRlcndhcmUubG9jYWwudjEuTGlzdFZpZXdzUmVzcG9uc2USVwoIU2F2ZVZpZXcSJC5wb2x0ZXJ3YXJlLmxvY2FsLnYxLlNhdmVWaWV3UmVxdWVzdBolLnBvbHRlcndhcmUubG9jYWwudjEuU2F2ZVZpZXdSZXNwb25zZRJdCgpEZWxldGVWaWV3EiYucG9sdGVyd2FyZS5sb2NhbC52MS5EZWxldGVWaWV3UmVxdWVzdBonLnBvbHRlcndhcmUubG9jYWwudjEuRGVsZXRlVmlld1Jlc3BvbnNlQu0BChdjb20ucG9sdGVyd2FyZS5sb2NhbC52MUIRQXJjaGl0ZWN0dXJlUHJvdG9QAVpRZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvYmFja2VuZC9wbGF0Zm9ybS9nZW4vcG9sdGVyd2FyZS9sb2NhbC92MTtsb2NhbHYxogIDUExYqgITUG9sdGVyd2FyZS5Mb2NhbC5WMcoCE1BvbHRlcndhcmVcTG9jYWxcVjHiAh9Qb2x0ZXJ3YXJlXExvY2FsXFYxXEdQQk1ldGFkYXRh6gIVUG9sdGVyd2FyZTo6TG9jYWw6OlYxYgZwcm90bzM");
 
 /**
  * @generated from message polterware.local.v1.Layout
@@ -119,7 +42,7 @@ export type Layout = Message<"polterware.local.v1.Layout"> & {
  * Use `create(LayoutSchema)` to create a new message.
  */
 export const LayoutSchema: GenMessage<Layout> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 1);
+  messageDesc(file_polterware_local_v1_architecture, 0);
 
 /**
  * @generated from message polterware.local.v1.ArchitectureViewMember
@@ -151,7 +74,7 @@ export type ArchitectureViewMember = Message<"polterware.local.v1.ArchitectureVi
  * Use `create(ArchitectureViewMemberSchema)` to create a new message.
  */
 export const ArchitectureViewMemberSchema: GenMessage<ArchitectureViewMember> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 2);
+  messageDesc(file_polterware_local_v1_architecture, 1);
 
 /**
  * @generated from message polterware.local.v1.ArchitectureView
@@ -223,7 +146,7 @@ export type ArchitectureView = Message<"polterware.local.v1.ArchitectureView"> &
  * Use `create(ArchitectureViewSchema)` to create a new message.
  */
 export const ArchitectureViewSchema: GenMessage<ArchitectureView> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 3);
+  messageDesc(file_polterware_local_v1_architecture, 2);
 
 /**
  * @generated from message polterware.local.v1.GetLayoutRequest
@@ -240,7 +163,7 @@ export type GetLayoutRequest = Message<"polterware.local.v1.GetLayoutRequest"> &
  * Use `create(GetLayoutRequestSchema)` to create a new message.
  */
 export const GetLayoutRequestSchema: GenMessage<GetLayoutRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 4);
+  messageDesc(file_polterware_local_v1_architecture, 3);
 
 /**
  * @generated from message polterware.local.v1.GetLayoutResponse
@@ -257,7 +180,7 @@ export type GetLayoutResponse = Message<"polterware.local.v1.GetLayoutResponse">
  * Use `create(GetLayoutResponseSchema)` to create a new message.
  */
 export const GetLayoutResponseSchema: GenMessage<GetLayoutResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 5);
+  messageDesc(file_polterware_local_v1_architecture, 4);
 
 /**
  * @generated from message polterware.local.v1.UpdateLayoutRequest
@@ -284,7 +207,7 @@ export type UpdateLayoutRequest = Message<"polterware.local.v1.UpdateLayoutReque
  * Use `create(UpdateLayoutRequestSchema)` to create a new message.
  */
 export const UpdateLayoutRequestSchema: GenMessage<UpdateLayoutRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 6);
+  messageDesc(file_polterware_local_v1_architecture, 5);
 
 /**
  * @generated from message polterware.local.v1.UpdateLayoutResponse
@@ -301,75 +224,7 @@ export type UpdateLayoutResponse = Message<"polterware.local.v1.UpdateLayoutResp
  * Use `create(UpdateLayoutResponseSchema)` to create a new message.
  */
 export const UpdateLayoutResponseSchema: GenMessage<UpdateLayoutResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 7);
-
-/**
- * @generated from message polterware.local.v1.ListResourcesRequest
- */
-export type ListResourcesRequest = Message<"polterware.local.v1.ListResourcesRequest"> & {
-  /**
-   * @generated from field: string project_id = 1;
-   */
-  projectId: string;
-};
-
-/**
- * Describes the message polterware.local.v1.ListResourcesRequest.
- * Use `create(ListResourcesRequestSchema)` to create a new message.
- */
-export const ListResourcesRequestSchema: GenMessage<ListResourcesRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 8);
-
-/**
- * @generated from message polterware.local.v1.ListResourcesResponse
- */
-export type ListResourcesResponse = Message<"polterware.local.v1.ListResourcesResponse"> & {
-  /**
-   * @generated from field: repeated polterware.local.v1.Resource resources = 1;
-   */
-  resources: Resource[];
-};
-
-/**
- * Describes the message polterware.local.v1.ListResourcesResponse.
- * Use `create(ListResourcesResponseSchema)` to create a new message.
- */
-export const ListResourcesResponseSchema: GenMessage<ListResourcesResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 9);
-
-/**
- * @generated from message polterware.local.v1.SaveResourceRequest
- */
-export type SaveResourceRequest = Message<"polterware.local.v1.SaveResourceRequest"> & {
-  /**
-   * @generated from field: polterware.local.v1.Resource resource = 1;
-   */
-  resource?: Resource | undefined;
-};
-
-/**
- * Describes the message polterware.local.v1.SaveResourceRequest.
- * Use `create(SaveResourceRequestSchema)` to create a new message.
- */
-export const SaveResourceRequestSchema: GenMessage<SaveResourceRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 10);
-
-/**
- * @generated from message polterware.local.v1.SaveResourceResponse
- */
-export type SaveResourceResponse = Message<"polterware.local.v1.SaveResourceResponse"> & {
-  /**
-   * @generated from field: polterware.local.v1.Resource resource = 1;
-   */
-  resource?: Resource | undefined;
-};
-
-/**
- * Describes the message polterware.local.v1.SaveResourceResponse.
- * Use `create(SaveResourceResponseSchema)` to create a new message.
- */
-export const SaveResourceResponseSchema: GenMessage<SaveResourceResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 11);
+  messageDesc(file_polterware_local_v1_architecture, 6);
 
 /**
  * @generated from message polterware.local.v1.ListViewsRequest
@@ -386,7 +241,7 @@ export type ListViewsRequest = Message<"polterware.local.v1.ListViewsRequest"> &
  * Use `create(ListViewsRequestSchema)` to create a new message.
  */
 export const ListViewsRequestSchema: GenMessage<ListViewsRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 12);
+  messageDesc(file_polterware_local_v1_architecture, 7);
 
 /**
  * @generated from message polterware.local.v1.ListViewsResponse
@@ -403,7 +258,7 @@ export type ListViewsResponse = Message<"polterware.local.v1.ListViewsResponse">
  * Use `create(ListViewsResponseSchema)` to create a new message.
  */
 export const ListViewsResponseSchema: GenMessage<ListViewsResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 13);
+  messageDesc(file_polterware_local_v1_architecture, 8);
 
 /**
  * @generated from message polterware.local.v1.SaveViewRequest
@@ -420,7 +275,7 @@ export type SaveViewRequest = Message<"polterware.local.v1.SaveViewRequest"> & {
  * Use `create(SaveViewRequestSchema)` to create a new message.
  */
 export const SaveViewRequestSchema: GenMessage<SaveViewRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 14);
+  messageDesc(file_polterware_local_v1_architecture, 9);
 
 /**
  * @generated from message polterware.local.v1.SaveViewResponse
@@ -437,7 +292,7 @@ export type SaveViewResponse = Message<"polterware.local.v1.SaveViewResponse"> &
  * Use `create(SaveViewResponseSchema)` to create a new message.
  */
 export const SaveViewResponseSchema: GenMessage<SaveViewResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 15);
+  messageDesc(file_polterware_local_v1_architecture, 10);
 
 /**
  * @generated from message polterware.local.v1.DeleteViewRequest
@@ -454,7 +309,7 @@ export type DeleteViewRequest = Message<"polterware.local.v1.DeleteViewRequest">
  * Use `create(DeleteViewRequestSchema)` to create a new message.
  */
 export const DeleteViewRequestSchema: GenMessage<DeleteViewRequest> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 16);
+  messageDesc(file_polterware_local_v1_architecture, 11);
 
 /**
  * @generated from message polterware.local.v1.DeleteViewResponse
@@ -467,7 +322,7 @@ export type DeleteViewResponse = Message<"polterware.local.v1.DeleteViewResponse
  * Use `create(DeleteViewResponseSchema)` to create a new message.
  */
 export const DeleteViewResponseSchema: GenMessage<DeleteViewResponse> = /*@__PURE__*/
-  messageDesc(file_polterware_local_v1_architecture, 17);
+  messageDesc(file_polterware_local_v1_architecture, 12);
 
 /**
  * @generated from service polterware.local.v1.ArchitectureService
@@ -488,22 +343,6 @@ export const ArchitectureService: GenService<{
     methodKind: "unary";
     input: typeof UpdateLayoutRequestSchema;
     output: typeof UpdateLayoutResponseSchema;
-  },
-  /**
-   * @generated from rpc polterware.local.v1.ArchitectureService.ListResources
-   */
-  listResources: {
-    methodKind: "unary";
-    input: typeof ListResourcesRequestSchema;
-    output: typeof ListResourcesResponseSchema;
-  },
-  /**
-   * @generated from rpc polterware.local.v1.ArchitectureService.SaveResource
-   */
-  saveResource: {
-    methodKind: "unary";
-    input: typeof SaveResourceRequestSchema;
-    output: typeof SaveResourceResponseSchema;
   },
   /**
    * @generated from rpc polterware.local.v1.ArchitectureService.ListViews

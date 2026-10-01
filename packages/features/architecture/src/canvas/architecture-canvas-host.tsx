@@ -134,9 +134,9 @@ import {
   type ProjectEnvironment,
 } from "../domain/project-environments";
 import {
-  createFixtureResourceLinkPort,
+  createResourceLinkPort,
   type ResourceLinkPort,
-} from "../domain/fixture-resource-link-port";
+} from "../domain/resource-link-port";
 import { suggestPlaceFromResource, type LinkableResource } from "../domain/place-link";
 import { setSessionSnapshot } from "./session-viewport";
 import { createLocalStorageTypePrefs } from "./type-prefs-local";
@@ -191,7 +191,6 @@ export function ArchitectureCanvasHost(props: {
   onRequestSave?: () => void;
   onRevisionLocal?: (body: string) => void;
   /** Opens Resources create when operator picks Add resource in the catalog. */
-  onAddResource?: () => void;
   /** Operator toggle for the edge flow animation (toolbar). Defaults to on. */
   edgeFlow?: boolean;
   /** Atlas cards: parent metadata is the group, and drops can reparent. */
@@ -211,7 +210,7 @@ export function ArchitectureCanvasHost(props: {
     props.projectEnvironments && props.projectEnvironments.length > 0
       ? props.projectEnvironments
       : DEFAULT_PROJECT_ENVIRONMENTS;
-  const resourceLinkPort = () => props.resourceLinkPort ?? createFixtureResourceLinkPort();
+  const resourceLinkPort = () => props.resourceLinkPort ?? createResourceLinkPort([]);
   const [vp, setVp] = createSignal<Viewport>(props.document.viewport ?? { x: 40, y: 40, zoom: 1 });
   const [sel, setSel] = createSignal<SelectionState>(emptySelection());
   const [tool, setTool] = createSignal<ToolId>("select");
@@ -1102,7 +1101,8 @@ export function ArchitectureCanvasHost(props: {
   }
 
   function fitDoc(animated = false) {
-    const b = documentBounds(props.document);
+    const shown = props.shownIds;
+    const b = documentBounds(shown ? { ...props.document, nodes: props.document.nodes.filter((n) => shown.has(n.id)) } : props.document);
     const target = fitBounds(vp(), b, viewSize().w, viewSize().h, 48);
     if (animated) tweenTo(target);
     else {
@@ -2272,6 +2272,7 @@ export function ArchitectureCanvasHost(props: {
               const body = domainFrame() ? (
                 <div
                   class="atlas-domain-frame"
+                  data-detail-opener
                   data-selected={selected() ? "" : undefined}
                   aria-hidden={concealed(id) ? true : undefined}
                 >
@@ -2661,7 +2662,6 @@ export function ArchitectureCanvasHost(props: {
           onClose={() => setCatalogOpen(false)}
           onSelect={onCatalogSelect}
           onSelectResource={placeFromResource}
-          onAddResource={props.onAddResource}
           onUnavailableAction={(def) => pushToast(`${def.label}: not available yet`)}
         />
 

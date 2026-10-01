@@ -1,3 +1,4 @@
+import { createPanelPortalOwnership } from "./panel-interaction";
 import type { Accessor, JSX } from "solid-js";
 import { Show } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -58,6 +59,7 @@ export type PopoverProps = {
  * from the anchor side (`createPopupMotion`).
  */
 export function Popover(props: PopoverProps) {
+  const ownPortal = createPanelPortalOwnership(() => props.open);
   const resolveAnchor = (): HTMLElement | undefined => {
     const a = props.anchorRef;
     if (!a) return undefined;
@@ -103,7 +105,7 @@ export function Popover(props: PopoverProps) {
       <Portal>
         <ArkPopover.Positioner class="pw-popover-positioner">
           <ArkPopover.Content
-            ref={(element) => props.contentRef?.(element)}
+            ref={(element) => { ownPortal(element); props.contentRef?.(element); }}
             class="pw-popover-presence outline-none"
             style={{
               "--pw-popover-origin":

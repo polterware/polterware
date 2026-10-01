@@ -3,30 +3,37 @@ import { Button } from "./button";
 import { Tooltip } from "./tooltip";
 
 export type DetailPanelPrimaryActionProps = {
+  /** Accessible name and tooltip text; the button itself shows only the icon. */
   label: string;
-  icon?: JSX.Element;
+  icon: JSX.Element;
   disabled?: boolean;
-  /** Shown in a tooltip while the action is disabled. */
+  /** Shown in the tooltip while the action is disabled. */
   disabledReason?: string;
   onClick?: () => void;
 };
 
 export function DetailPanelPrimaryAction(props: DetailPanelPrimaryActionProps) {
-  const button = () => (
+  const button = (triggerProps?: JSX.HTMLAttributes<HTMLButtonElement>) => (
     <Button
+      {...triggerProps}
       variant="secondary"
-      size="sm"
+      size="icon"
       class="pw-detail-panel__primary-action"
+      aria-label={props.label}
       disabled={props.disabled}
       onClick={() => props.onClick?.()}
     >
       {props.icon}
-      {props.label}
     </Button>
   );
 
   return (
-    <Show when={props.disabled && props.disabledReason} fallback={button()}>
+    <Show when={props.disabled && props.disabledReason} fallback={
+      <Tooltip.Root>
+        <Tooltip.Trigger asChild={(triggerProps) => button(triggerProps())} />
+        <Tooltip.Content>{props.label}</Tooltip.Content>
+      </Tooltip.Root>
+    }>
       <Tooltip.Root>
         <Tooltip.Trigger
           asChild={(triggerProps) => (

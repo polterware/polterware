@@ -20,12 +20,13 @@ describe("DocumentDetail composition contract", () => {
   it("uses document layout shell and Archive action", () => {
     expect(detailSource).toContain("KnowledgeDocumentShell");
     expect(detailSource).toContain("KnowledgeDocumentNotFound");
-    expect(detailSource).toMatch(/OverflowItem value="archive" danger/);
+    expect(detailSource).toContain("footerActions=");
+    expect(detailSource).toMatch(/Button variant="danger"[\s\S]*?Archive/);
     expect(detailSource).not.toContain('tone="danger"');
     expect(detailSource).toContain("Book03Icon");
     expect(shellSource).toContain('layout="document"');
     expect(shellSource).toContain("MarkdownEditor");
-    expect(shellSource).toContain('panelMode() === "maximized"');
+    expect(shellSource).toContain("state.expanded");
     expect(shellSource).toContain("showToolbar");
     expect(shellSource).not.toContain("DocumentProperties");
   });

@@ -30,7 +30,7 @@ export type PlaceConfig = {
   description?: string;
   role?: string;
   owner?: string;
-  /** Optional inventory resource link at place time. */
+  /** Optional synced integration resource link at place time. */
   resourceId?: string;
 };
 

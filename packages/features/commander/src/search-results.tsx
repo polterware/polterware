@@ -23,9 +23,8 @@ export const SEARCH_HITS: SearchHit[] = [
   { id: "h1", category: "Atlas", title: "Payment Service", subtitle: "Service · Production", section: "atlas", entityKind: "arch-node", entityId: "payment" },
   { id: "h2", category: "Atlas", title: "Payment flow", subtitle: "System map", section: "atlas", tab: "map" },
   { id: "h3", category: "Atlas", title: "payment-service", subtitle: "Component · AWS · Healthy", section: "atlas", tab: "map", entityKind: "resource", entityId: "payment-service" },
-  { id: "h4", category: "Reality", title: "prod-postgres", subtitle: "Database · AWS RDS · Healthy", section: "reality", tab: "inventory", entityKind: "resource", entityId: "res-rds" },
   { id: "h5", category: "Work", title: "Payment flow", subtitle: "card · Build", section: "work", tab: "board", entityKind: "card", entityId: "payment-flow" },
-  { id: "h6", category: "Decisions", title: "ADR 0004", subtitle: "adr · Product positioning", section: "decisions", tab: "adrs", entityKind: "adr", entityId: "adr-0004" },
+  { id: "h6", category: "Truth", title: "ADR 0004", subtitle: "adr · Product positioning", section: "truth", tab: "decisions", entityKind: "adr", entityId: "adr-0004" },
 ];
 
 export function knowledgeHitsFromSearch(hits: Array<{
@@ -38,22 +37,16 @@ export function knowledgeHitsFromSearch(hits: Array<{
     const title = hit.item?.title;
     if (!id || !title) return [];
     const kind = hit.item?.kind ?? "doc";
-    const { section, tab, category } = kind === "constitution"
-      ? { section: "work", tab: "specs", category: "Work" }
-      : kind === "source"
-        ? { section: "reality", tab: "sources", category: "Reality" }
-        : kind === "adr"
-          ? { section: "decisions", tab: "adrs", category: "Decisions" }
-          : { section: "reality", tab: "docs", category: "Reality" };
+    const { section, tab, category } = kind === "adr"
+      ? { section: "truth", tab: "decisions", category: "Truth" }
+      : { section: "truth", tab: "evidence", category: "Truth" };
     const entityKind = kind === "runbook"
       ? "runbook"
       : kind === "adr"
         ? "adr"
         : kind === "source"
           ? "source"
-          : kind === "constitution"
-            ? "constitution"
-            : "document";
+          : "document";
     return [{
       id: `knowledge-${id}`,
       category,
@@ -103,7 +96,7 @@ export function SearchResultsPage(props: {
     for (const h of base) c.set(h.category, (c.get(h.category) ?? 0) + 1);
     return c;
   });
-  const cats = () => ["all", "Atlas", "Work", "Decisions", "Reality"];
+  const cats = () => ["all", "Atlas", "Work", "Truth"];
 
   return (
     <div class="flex h-full min-h-0 flex-col">
@@ -129,7 +122,7 @@ export function SearchResultsPage(props: {
         {filtered().length === 0 ? (
           <p class="text-center text-[13px] text-[var(--color-text-muted)]">No results — refine your query</p>
         ) : (
-          <For each={["Atlas", "Work", "Decisions", "Reality"]}>
+          <For each={["Atlas", "Work", "Truth"]}>
             {(cat) => {
               const items = () => filtered().filter((h) => h.category === cat);
               if (!items().length) return null;

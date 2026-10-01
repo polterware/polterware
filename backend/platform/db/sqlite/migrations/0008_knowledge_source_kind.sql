@@ -7,7 +7,7 @@ CREATE TABLE knowledge_items_new (
   body TEXT NOT NULL,
   kind TEXT NOT NULL CHECK (kind IN (
     'doc', 'runbook', 'spec', 'plan', 'tasks', 'adr',
-    'constitution', 'clarify', 'checklist', 'source'
+    'clarify', 'checklist', 'source'
   )),
   tags_json TEXT NOT NULL DEFAULT '[]',
   summary TEXT NOT NULL DEFAULT '',

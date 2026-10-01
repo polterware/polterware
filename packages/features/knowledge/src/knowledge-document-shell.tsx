@@ -6,6 +6,7 @@ import "./knowledge-document.css";
 
 export function KnowledgeDocumentShell(props: {
   title: string;
+  icon?: JSX.Element;
   bodyMarkdown: string;
   onBodyChange: (md: string) => void;
   /** Artifact switcher rendered above the title (Spec features). */
@@ -14,10 +15,14 @@ export function KnowledgeDocumentShell(props: {
   properties?: JSX.Element;
   /** `DetailPanel.LinkedEntities` rendered under the properties. */
   links?: JSX.Element;
+  /** Commands associated with document metadata. */
+  metadataActions?: JSX.Element;
+  /** Destructive or document-wide commands after the editor. */
+  footerActions?: JSX.Element;
 }) {
-  // Format dock only when DetailPanel is maximized (full writing surface).
-  const panelMode = createDetailPanelSelector((state) => state.mode);
-  const showFormatToolbar = () => panelMode() === "maximized";
+  // Format dock only when the detail sidebar is expanded (full writing surface).
+  const expanded = createDetailPanelSelector((state) => state.expanded);
+  const showFormatToolbar = () => expanded();
 
   return (
     <DetailPanel.Body layout="document">
@@ -28,12 +33,20 @@ export function KnowledgeDocumentShell(props: {
               <div class="pw-knowledge-doc__tabs">{props.tabs}</div>
             </Show>
             <header class="pw-knowledge-doc__header">
-              <h2 class="pw-knowledge-doc__title">{props.title}</h2>
+              <div class="flex items-center gap-2">
+                <Show when={props.icon}>
+                  <span class="shrink-0 text-[var(--color-text-secondary)]" aria-hidden>{props.icon}</span>
+                </Show>
+                <h2 class="pw-knowledge-doc__title">{props.title}</h2>
+              </div>
               <Show when={props.properties || props.links}>
                 <div class="pw-knowledge-doc__meta">
                   {props.properties}
                   {props.links}
                 </div>
+              </Show>
+              <Show when={props.metadataActions}>
+                <div class="pw-detail-panel__actions">{props.metadataActions}</div>
               </Show>
             </header>
             <MarkdownEditor
@@ -43,6 +56,9 @@ export function KnowledgeDocumentShell(props: {
               placeholder="Write in Markdown…"
               aria-label={`${props.title} body`}
             />
+            <Show when={props.footerActions}>
+              <div class="pw-detail-panel__actions mt-4">{props.footerActions}</div>
+            </Show>
           </div>
         </div>
       </div>
@@ -57,7 +73,7 @@ export function KnowledgeDocumentNotFound(props: {
   const title = () => props.title ?? `${props.kindLabel} not found`;
   return (
     <DetailPanel.Content>
-      <DetailPanel.Header title={title()} />
+      <DetailPanel.Header />
       <DetailPanel.Body layout="document">
         <div class="pw-knowledge-doc">
           <div class="pw-knowledge-doc__body">

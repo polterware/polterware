@@ -25,24 +25,6 @@ CREATE TABLE IF NOT EXISTS project_settings (
   repository TEXT NOT NULL DEFAULT ''
 );
 
-CREATE TABLE IF NOT EXISTS resources (
-  id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  environment_id TEXT REFERENCES environments(id) ON DELETE SET NULL,
-  name TEXT NOT NULL,
-  type TEXT NOT NULL,
-  external_key TEXT,
-  source TEXT NOT NULL,
-  provider TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'unknown',
-  region TEXT NOT NULL DEFAULT '',
-  address TEXT NOT NULL DEFAULT '',
-  tags_json TEXT NOT NULL DEFAULT '[]',
-  description TEXT NOT NULL DEFAULT ''
-);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_resources_external
-  ON resources(project_id, external_key) WHERE external_key IS NOT NULL AND external_key != '';
-
 CREATE TABLE IF NOT EXISTS nodes (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -174,8 +156,7 @@ CREATE TABLE IF NOT EXISTS integration_resources (
   kind TEXT NOT NULL,
   external_id TEXT NOT NULL DEFAULT '',
   environment_id TEXT REFERENCES environments(id) ON DELETE SET NULL,
-  status TEXT NOT NULL DEFAULT '',
-  inventory_resource_id TEXT REFERENCES resources(id) ON DELETE SET NULL
+  status TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_integration_resources_connection ON integration_resources(connection_id);
 

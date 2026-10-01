@@ -102,9 +102,9 @@ func (s *Store) listViewMembers(viewID string) ([]architecture.ViewMember, error
 }
 
 func (s *Store) SaveIntegrationResource(resource integrations.Resource) error {
-	_, err := s.DB.Exec(`INSERT INTO integration_resources(id,connection_id,name,kind,external_id,environment_id,status,inventory_resource_id) VALUES(?,?,?,?,?,?,?,?)
-		ON CONFLICT(id) DO UPDATE SET connection_id=excluded.connection_id,name=excluded.name,kind=excluded.kind,external_id=excluded.external_id,environment_id=excluded.environment_id,status=excluded.status,inventory_resource_id=excluded.inventory_resource_id`,
-		resource.ID, resource.ConnectionID, resource.Name, resource.Kind, resource.ExternalID, nullable(resource.EnvironmentID), resource.Status, nullable(resource.InventoryResourceID))
+	_, err := s.DB.Exec(`INSERT INTO integration_resources(id,connection_id,name,kind,external_id,environment_id,status) VALUES(?,?,?,?,?,?,?)
+		ON CONFLICT(id) DO UPDATE SET connection_id=excluded.connection_id,name=excluded.name,kind=excluded.kind,external_id=excluded.external_id,environment_id=excluded.environment_id,status=excluded.status`,
+		resource.ID, resource.ConnectionID, resource.Name, resource.Kind, resource.ExternalID, nullable(resource.EnvironmentID), resource.Status)
 	return err
 }
 
@@ -120,7 +120,7 @@ func (s *Store) CountIntegrationResourcesByConnection(connectionID string) (int,
 }
 
 func (s *Store) ListIntegrationResources(projectID string) ([]integrations.Resource, error) {
-	rows, err := s.DB.Query(`SELECT r.id,r.connection_id,r.name,r.kind,r.external_id,COALESCE(r.environment_id,''),r.status,COALESCE(r.inventory_resource_id,'')
+	rows, err := s.DB.Query(`SELECT r.id,r.connection_id,r.name,r.kind,r.external_id,COALESCE(r.environment_id,''),r.status
 		FROM integration_resources r
 		JOIN integration_connections c ON c.id = r.connection_id
 		WHERE c.project_id=? ORDER BY r.name`, projectID)
@@ -131,7 +131,7 @@ func (s *Store) ListIntegrationResources(projectID string) ([]integrations.Resou
 	var result []integrations.Resource
 	for rows.Next() {
 		var item integrations.Resource
-		if err := rows.Scan(&item.ID, &item.ConnectionID, &item.Name, &item.Kind, &item.ExternalID, &item.EnvironmentID, &item.Status, &item.InventoryResourceID); err != nil {
+		if err := rows.Scan(&item.ID, &item.ConnectionID, &item.Name, &item.Kind, &item.ExternalID, &item.EnvironmentID, &item.Status); err != nil {
 			return nil, err
 		}
 		result = append(result, item)

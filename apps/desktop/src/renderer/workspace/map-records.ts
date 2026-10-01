@@ -1,5 +1,4 @@
 import type { ArchViewCard } from "@polterware/feature-architecture";
-import type { Resource, ResourceStatus } from "@polterware/feature-resources";
 import type { ProjectEnvironment, ProjectGeneralSettings, ProjectRepository, ProtectionLevel } from "@polterware/feature-settings";
 import type {
   EnvironmentItem,
@@ -9,7 +8,6 @@ import type {
   WorkspaceDocument,
   DecisionState,
   WorkspaceAdr,
-  WorkspaceConstitution,
   WorkspaceEntityLink,
   WorkspacePpmEntity,
   WorkspaceIntegration,
@@ -75,7 +73,6 @@ export function mapEnvironments(items: Record<string, unknown>[]): EnvironmentIt
 
 export function mapSettingsEnvironments(
   items: Record<string, unknown>[],
-  resources: Resource[],
 ): ProjectEnvironment[] {
   return items.flatMap((item) => {
     const kind = asString(item.kind);
@@ -86,7 +83,6 @@ export function mapSettingsEnvironments(
       name: asString(item.name),
       kind,
       protection: asProtection(asString(item.protection)),
-      resourceCount: resources.filter((resource) => resource.environment === asString(item.name)).length,
       nodeCount: 0,
       isDefault: asBoolean(item.isDefault),
       description: asString(item.description),
@@ -117,26 +113,6 @@ export function mapProjectRepos(records: Record<string, unknown>[]): ProjectRepo
     if (!name || !path) return [];
     return [{ id: asString(item.id), name, path }];
   });
-}
-
-export function mapResources(
-  items: Record<string, unknown>[],
-  environments: EnvironmentItem[],
-): Resource[] {
-  const names = new Map(environments.map((item) => [item.id, item.name]));
-  return items.map((item) => ({
-    id: asString(item.id),
-    name: asString(item.name),
-    type: asString(item.type),
-    provider: asString(item.provider) || asString(item.source),
-    environment: names.get(asString(item.environmentId)) ?? "All",
-    status: asResourceStatus(asString(item.status)),
-    region: asString(item.region),
-    address: asString(item.address) || undefined,
-    tags: asStringArray(item.tags),
-    description: asString(item.description),
-    dataSource: "core",
-  }));
 }
 
 export function mapPpmEntities(items: Record<string, unknown>[]): WorkspacePpmEntity[] {
@@ -253,6 +229,7 @@ export function mapAdrs(
       tags: asStringArray(item.tags),
       status: asString(item.status, "proposed"),
       state: decisionState(asString(item.status)),
+      scope: extra.scope === "principle" ? "principle" : "decision",
       supersededBy: titleById.get(asString(extra.supersededBy)) ?? "",
       supersedes: adrItems.filter((other) => supersededBy(other) === id).map((other) => asString(other.title)),
       reviewTrigger: asString(extra.reviewTrigger),
@@ -275,7 +252,6 @@ export function mapRunbooks(
     const id = asString(item.id);
     const entityLinks = linksByKnowledge.get(id) ?? [];
     const componentLink = entityLinks.find((link) => link.entityKind === "component");
-    const resourceLink = entityLinks.find((link) => link.entityKind === "resource");
     return {
       id,
       title: asString(item.title),
@@ -291,8 +267,6 @@ export function mapRunbooks(
       lastValidated: formatInstant(asString(extra.lastValidated) || asString(item.updatedAt)),
       componentId: componentLink?.entityRefId || asString(extra.componentId) || undefined,
       componentName: componentLink?.entityTitle || asString(extra.componentName) || undefined,
-      resourceId: resourceLink?.entityRefId || asString(extra.resourceId) || undefined,
-      resourceName: resourceLink?.entityTitle || asString(extra.resourceName) || undefined,
       entityLinks,
     };
   });
@@ -316,19 +290,6 @@ export function mapSources(
       entityLinks: linksByKnowledge.get(id) ?? [],
     };
   });
-}
-
-export function mapConstitution(items: Record<string, unknown>[]): WorkspaceConstitution | null {
-  const item = items.find((entry) => asString(entry.kind) === "constitution");
-  if (!item) return null;
-  return {
-    id: asString(item.id),
-    title: asString(item.title, "Project constitution"),
-    bodyMarkdown: asString(item.body),
-    updatedAt: formatInstant(asString(item.updatedAt)),
-    owner: asString(item.owner, "Platform"),
-    status: asString(item.status, "active"),
-  };
 }
 
 function asWorkStage(value: string): WorkStage {
@@ -510,7 +471,6 @@ export function mapConnections(
       lastSync: formatInstant(asString(item.lastSyncAt)),
       summary: asString(item.summary),
       resourceCount: linked.length,
-      resourceIds: linked.flatMap((resource) => resource.inventoryResourceId ? [resource.inventoryResourceId] : []),
       cliCommand: asString(item.cliCommand),
       syncInterval: asString(item.syncInterval) || undefined,
       freshness: asFreshness(asString(item.freshness)),
@@ -532,7 +492,6 @@ export function mapIntegrationResources(
     externalId: asString(item.externalId),
     environment: envNames.get(asString(item.environmentId)) ?? "All",
     status: asString(item.status),
-    inventoryResourceId: asString(item.inventoryResourceId) || undefined,
   }));
 }
 
@@ -591,11 +550,6 @@ function protectionRules(level: ProtectionLevel): string[] {
     return ["Local changes are allowed", "No remote commands are executed"];
   }
   return ["Changes persist locally", "Validation results stay in the local store"];
-}
-
-function asResourceStatus(value: string): ResourceStatus {
-  if (value === "healthy" || value === "degraded" || value === "offline") return value;
-  return "unknown";
 }
 
 function asCategory(value: string): WorkspaceCatalogProvider["category"] {

@@ -10,11 +10,9 @@ import (
 
 const (
 	KindComponent   = "component"
-	KindResource    = "resource"
 	KindEnvironment = "environment"
 
 	RefArchitectureNode = "architecture_node"
-	RefResource         = "resource"
 	RefEnvironment      = "environment"
 
 	TruthDeclared    = "declared"
@@ -72,7 +70,7 @@ var (
 
 func ValidKind(kind string) bool {
 	switch kind {
-	case KindComponent, KindResource, KindEnvironment:
+	case KindComponent, KindEnvironment:
 		return true
 	default:
 		return false
@@ -81,7 +79,7 @@ func ValidKind(kind string) bool {
 
 func ValidRefKind(refKind string) bool {
 	switch refKind {
-	case RefArchitectureNode, RefResource, RefEnvironment:
+	case RefArchitectureNode, RefEnvironment:
 		return true
 	default:
 		return false

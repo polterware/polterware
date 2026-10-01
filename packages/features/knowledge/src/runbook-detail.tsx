@@ -1,6 +1,7 @@
 import { Show, type JSX } from "solid-js";
 import {
   DetailPanel,
+  Button,
   BookOpen02Icon,
 } from "@polterware/frontend-design-system";
 import type { WorkspaceRunbook } from "@polterware/feature-shell";
@@ -27,29 +28,10 @@ export function RunbookDetail(props: {
     >
       {(runbook) => (
         <DetailPanel.Content>
-          <DetailPanel.Header
-            icon={<BookOpen02Icon size={16} />}
-            title={runbook().title}
-          >
-            <Show when={props.onDuplicate || props.onArchive}>
-              <DetailPanel.Actions>
-                <DetailPanel.Overflow>
-                  <Show when={props.onDuplicate}>
-                    <DetailPanel.OverflowItem value="duplicate" onSelect={() => props.onDuplicate?.()}>
-                      Duplicate
-                    </DetailPanel.OverflowItem>
-                  </Show>
-                  <Show when={props.onArchive}>
-                    <DetailPanel.OverflowItem value="archive" danger onSelect={() => props.onArchive?.()}>
-                      Archive
-                    </DetailPanel.OverflowItem>
-                  </Show>
-                </DetailPanel.Overflow>
-              </DetailPanel.Actions>
-            </Show>
-          </DetailPanel.Header>
+          <DetailPanel.Header />
           <KnowledgeDocumentShell
             title={runbook().title}
+            icon={<BookOpen02Icon size={16} />}
             bodyMarkdown={props.bodyMarkdown}
             onBodyChange={props.onBodyChange}
             properties={
@@ -62,6 +44,16 @@ export function RunbookDetail(props: {
                 <DetailPanel.Property label="Resource" value={runbook().resourceName} />
                 <DetailPanel.Property label="Last validated" value={runbook().lastValidated} />
               </DetailPanel.Properties>
+            }
+            footerActions={
+              <Show when={props.onArchive}>
+                <Button variant="danger" size="sm" onClick={() => props.onArchive?.()}>Archive</Button>
+              </Show>
+            }
+            metadataActions={
+              <Show when={props.onDuplicate}>
+                <Button variant="ghost" size="sm" onClick={() => props.onDuplicate?.()}>Duplicate</Button>
+              </Show>
             }
             links={props.links}
           />

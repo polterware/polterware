@@ -1,5 +1,5 @@
 -- Expand knowledge_items kinds for Specs process artifacts:
--- constitution (project singleton), clarify, checklist (per feature).
+-- clarify, checklist (per feature).
 
 CREATE TABLE knowledge_items_new (
   id TEXT PRIMARY KEY,
@@ -8,7 +8,7 @@ CREATE TABLE knowledge_items_new (
   body TEXT NOT NULL,
   kind TEXT NOT NULL CHECK (kind IN (
     'doc', 'runbook', 'spec', 'plan', 'tasks', 'adr',
-    'constitution', 'clarify', 'checklist'
+    'clarify', 'checklist'
   )),
   tags_json TEXT NOT NULL DEFAULT '[]',
   summary TEXT NOT NULL DEFAULT '',

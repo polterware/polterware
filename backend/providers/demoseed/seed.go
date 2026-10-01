@@ -29,9 +29,6 @@ func Defaults(store *storepkg.Store) error {
 	if err := seedProject(store); err != nil {
 		return err
 	}
-	if err := seedResources(store); err != nil {
-		return err
-	}
 	if err := seedArchitecture(store); err != nil {
 		return err
 	}

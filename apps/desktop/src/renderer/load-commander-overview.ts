@@ -12,7 +12,7 @@ export type CommanderFeatureRow = {
   id: string;
   title: string;
   status: string;
-  kind: "card" | "constitution";
+  kind: "card";
 };
 
 export type CommanderIntegrationRow = {
@@ -100,7 +100,6 @@ export async function loadCommanderOverview(): Promise<CommanderOverviewSnapshot
     ]);
 
     const knowledgeItems = asObjectArray(asRecord(knowledgeRes).items);
-    const constitution = knowledgeItems.find((item) => asString(item.kind) === "constitution");
     const cardsList = asObjectArray(asRecord(workRes).cards).map((card) => ({
       id: asString(card.slug),
       title: asString(card.title) || asString(card.slug),
@@ -109,16 +108,6 @@ export async function loadCommanderOverview(): Promise<CommanderOverviewSnapshot
     }));
     const deliveredCount = cardsList.filter((item) => item.status === "delivered").length;
     const features: CommanderFeatureRow[] = [
-      ...(constitution
-        ? [
-            {
-              id: asString(constitution.id),
-              title: asString(constitution.title, "Project constitution"),
-              status: asString(constitution.status, "active"),
-              kind: "constitution" as const,
-            },
-          ]
-        : []),
       ...cardsList.slice(0, 10),
     ];
 
@@ -148,9 +137,7 @@ export async function loadCommanderOverview(): Promise<CommanderOverviewSnapshot
           title: "Knowledge",
           subtitle:
             cardsList.length === 0
-              ? constitution
-                ? "Constitution only"
-                : "No Work cards"
+              ? "No Work cards"
               : `${cardsList.length} ${cardsList.length === 1 ? "card" : "cards"} · ${deliveredCount} delivered`,
           tone: "knowledge",
           openCommandId: "nav.work",

@@ -250,13 +250,13 @@ The service is unhealthy, stuck, or needs a config reload that requires a restar
     extraJson: JSON.stringify({
       service: "Service",
       severity: "medium",
-      prerequisites: ["Confirm the service entry in Resources Inventory", "Note the working directory"],
+      prerequisites: ["Confirm the service component in the Atlas", "Note the working directory"],
       steps: [
         "Identify the running service",
         "Stop the service outside Polterware using the known command",
         "Confirm it is no longer running",
         "Start the service with the known command",
-        "Verify health against the Resources Inventory entry",
+        "Verify health against the service component in the Atlas",
       ],
       commands: ["ps aux | grep <service>", "<start-command>"],
       rollback: "If the restart fails, restore the previous command and working directory, then start again.",

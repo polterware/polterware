@@ -1,60 +1,51 @@
-import {
-  Show,
-  createContext,
-  createEffect,
-  on,
-  createSignal,
-  createUniqueId,
-  onCleanup,
-  onMount,
-  splitProps,
-  useContext,
-  type Accessor,
-  type JSX,
-} from "solid-js";
+import { Show, batch, createContext, createEffect, createSignal, createUniqueId, onCleanup, onMount, untrack, useContext, type Accessor, type JSX } from "solid-js";
 import { Portal, isServer } from "solid-js/web";
-import { animate, motionValue } from "motion";
-import { Button, type ButtonProps } from "./button";
+import { animate, motionValue, type AnimationPlaybackControls } from "motion";
+import { Button } from "./button";
+import { prefersReducedMotion } from "./reduced-motion";
 import { spring } from "./springs";
-import {
-  ArrowUp,
-  CollapseIcon,
-  ExpandIcon,
-  XIcon,
-} from "./hugeicons";
-import { Kbd } from "./kbd";
-import { Tooltip } from "./tooltip";
+import { CollapseIcon, ExpandIcon, X } from "./hugeicons";
+import { PanelInteractionContext, panelOwnerAt, rememberPanelInteraction, registerPanelInteraction, type PanelInteractionOwner } from "./panel-interaction";
 import { DetailPanelLinkedEntities } from "./detail-panel-linked-entities";
-import { DetailPanelOverflow, DetailPanelOverflowItem } from "./detail-panel-overflow";
+import { DetailPanelMenuItem } from "./detail-panel-menu";
 import { DetailPanelPrimaryAction } from "./detail-panel-primary-action";
 import { DetailPanelProperties, DetailPanelProperty } from "./detail-panel-properties";
 import { createShortcutLabel, matchesShortcut } from "@polterware/frontend-state";
 import "./detail-panel.css";
 
-const DETAIL_PANEL_ACTION_TOOLTIP_DELAY = 900;
+export const DETAIL_PANEL_DEFAULT_WIDTH = 400;
+export const DETAIL_PANEL_MIN_WIDTH = 320;
+export const DETAIL_PANEL_MAX_WIDTH = 720;
+export const DETAIL_PANEL_SIDEBAR_ID = "pw-detail-panel-sidebar";
 
-export type DetailPanelMode = "open" | "collapsed" | "maximized";
+export function clampDetailPanelWidth(width: number, containerWidth: number): number {
+  const upper = containerWidth > 0 ? Math.min(DETAIL_PANEL_MAX_WIDTH, Math.max(1, containerWidth - 16)) : DETAIL_PANEL_MAX_WIDTH;
+  return Math.min(upper, Math.max(Math.min(DETAIL_PANEL_MIN_WIDTH, upper), Number.isFinite(width) ? width : DETAIL_PANEL_DEFAULT_WIDTH));
+}
 
-export type DetailPanelPresence = "hidden" | "visible" | "dismissing";
-
-/** `bottom` = floating sheet over collections; `side` = right rail beside canvases. */
-export type DetailPanelPlacement = "bottom" | "side";
+/** Floating JSON is intentionally ignored; its preference remains available to FloatingWindow. */
+export function readDetailPanelWidth(raw: string | null): number {
+  try {
+    const value: unknown = JSON.parse(raw ?? "null");
+    return typeof value === "number" && Number.isFinite(value) && value > 0
+      ? clampDetailPanelWidth(value, 0) : DETAIL_PANEL_DEFAULT_WIDTH;
+  } catch { return DETAIL_PANEL_DEFAULT_WIDTH; }
+}
 
 export type DetailPanelRootProps = {
-  mode: DetailPanelMode;
-  placement?: DetailPanelPlacement;
-  presence?: DetailPanelPresence;
+  open: boolean;
+  expanded: boolean;
+  available?: boolean;
   activeEntityId?: string | null;
-  onCollapse: () => void;
-  onMaximize: () => void;
-  onRestore: () => void;
-  onDismissComplete?: () => void;
+  onOpenChange: (open: boolean) => void;
+  onExpandedChange: (expanded: boolean) => void;
+  storageKey?: string;
+  /** Read only numeric preferences from the previous key; never overwrite floating geometry. */
+  legacyStorageKey?: string;
   children: JSX.Element;
   class?: string;
   "aria-label"?: string;
 };
-
-export type DetailPanelActionTone = "neutral" | "primary";
 
 export type DetailPanelBodyProps = {
   children: JSX.Element;
@@ -64,10 +55,13 @@ export type DetailPanelBodyProps = {
 };
 
 export type DetailPanelHeaderProps = {
-  icon?: JSX.Element;
-  title: JSX.Element;
-  children?: JSX.Element;
   class?: string;
+};
+
+export type DetailPanelTitleProps = {
+  title: JSX.Element;
+  icon?: JSX.Element;
+  meta?: JSX.Element;
 };
 
 export type DetailPanelSectionProps = {
@@ -78,585 +72,398 @@ export type DetailPanelSectionProps = {
   aside?: JSX.Element;
 };
 
-export type DetailPanelActionProps = Omit<
-  ButtonProps,
-  "aria-label" | "children" | "size" | "title" | "variant"
-> & {
-  label: string;
-  /** Optional keyboard shortcut shown in the hover tooltip. */
-  shortcut?: string;
-  tone?: DetailPanelActionTone;
-  children: JSX.Element;
-};
-
-/** Slack past the slow spring before the fallback settles a run a stalled frame loop never ends. */
-const DETAIL_PANEL_SETTLEMENT_SAFETY_MARGIN = 100;
-
-type PanelPose = { x: number; y: number };
-
-/**
- * The panel's resting pose for its current data attributes. The poses stay in CSS
- * (`cqh`/`cqw` geometry per mode, presence, and placement); this reads the computed
- * transform with the inline (JS-painted) transform lifted for one synchronous style read.
- */
-export function readDetailPanelPose(panel: HTMLElement): PanelPose {
-  const inline = panel.style.transform;
-  panel.style.transform = "";
-  const transform = window.getComputedStyle(panel).transform;
-  panel.style.transform = inline;
-  return parseTranslate(transform);
-}
-
-/** The translation of a computed `matrix()`/`matrix3d()`; `none` or unknown is the origin. */
-export function parseTranslate(transform: string | null | undefined): PanelPose {
-  const match = /^matrix(3d)?\(([^)]*)\)$/.exec(transform?.trim() ?? "");
-  if (!match) return { x: 0, y: 0 };
-  const values = match[2]!.split(",").map((value) => Number.parseFloat(value));
-  const [x, y] = match[1] ? [values[12], values[13]] : [values[4], values[5]];
-  return { x: Number.isFinite(x) ? x! : 0, y: Number.isFinite(y) ? y! : 0 };
-}
-
-const detailPanelModeRank = {
-  collapsed: 0,
-  open: 1,
-  maximized: 2,
-} satisfies Record<DetailPanelMode, number>;
-
 type DetailPanelContextValue = {
-  mode: Accessor<DetailPanelMode>;
-  viewportMode: Accessor<DetailPanelMode>;
+  expanded: Accessor<boolean>;
+  open: Accessor<boolean>;
+  available: Accessor<boolean>;
   activeEntityId: Accessor<string | null>;
   detailHost: Accessor<HTMLElement | undefined>;
-  collapse: () => void;
-  maximize: () => void;
-  restore: () => void;
+  setHeaderClass: (value: string) => void;
+  collectionHeaderHost: Accessor<HTMLElement | undefined>;
+  interaction: PanelInteractionOwner;
 };
-
 const DetailPanelContext = createContext<DetailPanelContextValue>();
-
 function useDetailPanel(part: string): DetailPanelContextValue {
   const context = useContext(DetailPanelContext);
   if (!context) throw new Error(`DetailPanel.${part} must be used inside DetailPanel.Root`);
   return context;
 }
 
+/** Collection controls remain above the divided workspace; standalone pages render inline. */
+export function DetailPanelCollectionHeader(props: { children: JSX.Element; class?: string }) {
+  const context = useContext(DetailPanelContext);
+  if (!context) return props.children;
+  return <Show when={context.collectionHeaderHost()}>{(host) =>
+    <Portal mount={host()}>
+      <div class={`pw-detail-panel__collection-header-part ${props.class ?? ""}`}>{props.children}</div>
+    </Portal>
+  }</Show>;
+}
+
 function DetailPanelRoot(props: DetailPanelRootProps) {
   const [detailHost, setDetailHost] = createSignal<HTMLElement>();
-  const [isSettling, setIsSettling] = createSignal(false);
-  const [viewportMode, setViewportMode] = createSignal<DetailPanelMode>(
-    props.mode,
-  );
-  const [detailInteractionDisabled, setDetailInteractionDisabled] = createSignal(
-    props.presence !== undefined
-      ? props.presence !== "visible"
-      : (props.activeEntityId ?? null) === null,
-  );
-  const [reducedMotion, setReducedMotion] = createSignal(false);
-  let rootElement: HTMLDivElement | undefined;
-  let panelElement: HTMLDivElement | undefined;
-  let settlementTimer: number | undefined;
-  let observedMode: DetailPanelMode | undefined;
-  let pendingViewportMode: DetailPanelMode | undefined;
-  let activeTransitionMode: DetailPanelMode | undefined;
-  let motionQuery: MediaQueryList | undefined;
-  let motionRun = 0;
-  let panelMounted = false;
-  // The panel's travel is a spring in JS (spring.slow), painted as an inline transform.
-  const panelX = motionValue(0);
-  const panelY = motionValue(0);
-
-  const mode = () => props.mode;
+  const [headerClass, setHeaderClass] = createSignal("");
+  const [collectionHeaderHost, setCollectionHeaderHost] = createSignal<HTMLElement>();
+  const [preferredWidth, setPreferredWidth] = createSignal(readStoredWidth(props));
+  const [hostWidth, setHostWidth] = createSignal(0);
+  const [present, setPresent] = createSignal(props.open && props.available !== false);
+  const [gesturing, setGesturing] = createSignal(false);
+  const [exitGeometry, setExitGeometry] = createSignal<{ width: number; expanded: boolean }>();
+  const available = () => props.available !== false;
+  const visible = () => available() && props.open;
+  const expanded = () => visible() && props.expanded;
+  const panelWidth = () => clampDetailPanelWidth(preferredWidth(), hostWidth());
   const activeEntityId = () => props.activeEntityId ?? null;
-  const presence = (): DetailPanelPresence =>
-    props.presence ?? (activeEntityId() === null ? "hidden" : "visible");
+  const interaction: PanelInteractionOwner = { enabled: visible, elements: new Set() };
+  const expandLabel = () => expanded() ? "Restore details" : "Expand details";
+  const closeShortcut = createShortcutLabel("shell.toggle_detail");
+  const expandShortcut = createShortcutLabel("shell.maximize_detail");
+  let root: HTMLDivElement | undefined;
+  let frame: HTMLDivElement | undefined;
+  let workspace: HTMLDivElement | undefined;
+  let divider: HTMLDivElement | undefined;
+  let ready = false;
+  let preserveOutsideFocus = false;
+  let cancelResize: (() => void) | undefined;
+  let timer: number | undefined;
+  let run = 0;
+  let disposed = false;
+  let frameAnimation: AnimationPlaybackControls[] = [];
+  const offset = motionValue(0), opacity = motionValue(visible() ? 1 : 0);
+  let lastOpen = visible();
+  let lastExpanded = expanded();
 
-  function clearSettlementTimer() {
-    if (settlementTimer !== undefined && !isServer) {
-      window.clearTimeout(settlementTimer);
-    }
-    settlementTimer = undefined;
+  function paint() {
+    if (frame) { frame.style.transform = `translate3d(${offset.get()}px, 0, 0)`; frame.style.opacity = String(opacity.get()); }
   }
-
-  function clearSettlement() {
-    clearSettlementTimer();
-    setIsSettling(false);
+  function stopFrame() {
+    run++;
+    if (timer !== undefined) window.clearTimeout(timer);
+    timer = undefined;
+    frameAnimation.forEach((control) => control.stop());
+    frameAnimation = [];
   }
-
-  function prefersReducedMotion() {
-    return reducedMotion();
-  }
-
-  function commitTransition(transitionMode: DetailPanelMode) {
-    if (activeTransitionMode !== transitionMode) return;
-    if (pendingViewportMode === transitionMode) {
-      setViewportMode(transitionMode);
-      pendingViewportMode = undefined;
-    }
-    activeTransitionMode = undefined;
-    clearSettlement();
-  }
-
-  function paintPanel() {
-    if (panelElement) {
-      panelElement.style.transform = `translate3d(${panelX.get()}px, ${panelY.get()}px, 0)`;
-    }
-  }
-
-  function snapPanel(pose: PanelPose) {
-    panelX.stop();
-    panelY.stop();
-    panelX.set(pose.x);
-    panelY.set(pose.y);
-  }
-
-  /** The spring reached its pose (or the fallback fired): commit the geometry it was sequencing. */
-  function settleRun(run: number) {
-    if (run !== motionRun) return;
-    // Settle once: the spring and the fallback timer may both report.
-    motionRun++;
-    commitTransition(activeTransitionMode ?? mode());
-    if (presence() === "dismissing") props.onDismissComplete?.();
-  }
-
-  /**
-   * Springs the panel to the pose its new attributes resolve to. A new run retargets the
-   * running one from where it is, velocity included (motion values carry it), so an
-   * interrupted collapse reverses instead of restarting. The viewport geometry waits for
-   * the run to settle, exactly as it used to wait for `transitionend`.
-   */
-  function runPanelMotion() {
-    if (!panelElement || isServer) return;
-    const target = readDetailPanelPose(panelElement);
-    const run = ++motionRun;
-    clearSettlementTimer();
-    // Reduced motion commits its geometry in the mode and presence effects; it only snaps here.
-    if (prefersReducedMotion()) {
-      snapPanel(target);
-      return;
-    }
-    activeTransitionMode = mode();
-    // Before the first paint, or with nothing to travel, the pose lands and commits at once.
-    if (!panelMounted || (target.x === panelX.get() && target.y === panelY.get())) {
-      snapPanel(target);
-      settleRun(run);
-      return;
-    }
-    setIsSettling(true);
-    const travel = Promise.all([
-      animate(panelX, target.x, spring.slow).finished,
-      animate(panelY, target.y, spring.slow).finished,
-    ]);
-    void travel.then(() => settleRun(run));
-    settlementTimer = window.setTimeout(
-      () => settleRun(run),
-      spring.slow.duration * 1000 + DETAIL_PANEL_SETTLEMENT_SAFETY_MARGIN,
-    );
-  }
-
-  function restoreFocus(onRestored?: () => void) {
-    const entityId = activeEntityId();
-    if (isServer) {
-      onRestored?.();
-      return;
-    }
-    queueMicrotask(() => {
-      let targetElement: HTMLElement | undefined;
-      if (entityId) {
-        const candidates = rootElement?.querySelectorAll<HTMLElement>(
-          "[data-detail-target-id], [data-row-id]",
-        );
-        if (candidates) {
-          for (const candidate of candidates) {
-            if (
-              candidate.dataset.detailTargetId === entityId
-              || candidate.dataset.rowId === entityId
-            ) {
-              targetElement = candidate;
-              break;
-            }
-          }
-        }
-      }
-      if (!targetElement) {
-        const fallback = rootElement?.querySelector<HTMLElement>(
-          "[data-detail-focus-fallback]",
-        );
-        if (fallback) targetElement = fallback;
-      }
-      if (targetElement) {
-        targetElement.focus();
-      }
-      onRestored?.();
-    });
-  }
-
-  function collapseAndRestoreFocus() {
-    if (mode() === "collapsed") return;
-    props.onCollapse();
-    restoreFocus();
-  }
-
-  function onWindowKeyDown(event: KeyboardEvent) {
-    if (event.key === "Escape" && mode() === "maximized") {
-      event.preventDefault();
-      props.onRestore();
-      return;
-    }
-
-    if (event.repeat) return;
-
-    if (matchesShortcut("shell.maximize_detail", event)) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (mode() === "maximized") {
-        props.onRestore();
-      } else {
-        props.onMaximize();
-      }
-      return;
-    }
-
-    if (matchesShortcut("shell.toggle_detail", event)) {
-      event.preventDefault();
-      event.stopPropagation();
-      if (mode() === "collapsed") {
-        props.onRestore();
-      } else {
-        collapseAndRestoreFocus();
-      }
-    }
-  }
-
-  function onMotionPreferenceChange(event: MediaQueryListEvent) {
-    setReducedMotion(event.matches);
-  }
-
-  createEffect(() => {
-    const nextMode = mode();
-    const reducesMotion = prefersReducedMotion();
-    if (observedMode === undefined) {
-      observedMode = nextMode;
-      setViewportMode(nextMode);
-      return;
-    }
-    if (nextMode === observedMode) {
-      if (reducesMotion) {
-        pendingViewportMode = undefined;
-        activeTransitionMode = undefined;
-        clearSettlement();
-        setViewportMode(nextMode);
-      }
-      return;
-    }
-    observedMode = nextMode;
-
-    if (reducesMotion) {
-      pendingViewportMode = undefined;
-      activeTransitionMode = undefined;
-      clearSettlement();
-      setViewportMode(nextMode);
-      return;
-    }
-
-    const viewportRank = detailPanelModeRank[viewportMode()];
-    const targetRank = detailPanelModeRank[nextMode];
-    if (targetRank > viewportRank) {
-      pendingViewportMode = undefined;
-      setViewportMode(nextMode);
-    } else if (targetRank < viewportRank) {
-      pendingViewportMode = nextMode;
-    } else {
-      pendingViewportMode = undefined;
-    }
-  });
-
-  createEffect(() => {
-    const nextPresence = presence();
-    const reducesMotion = prefersReducedMotion();
-    if (nextPresence === "visible") {
-      setDetailInteractionDisabled(false);
-      return;
-    }
-    if (nextPresence === "hidden") {
-      setDetailInteractionDisabled(true);
-      return;
-    }
-    restoreFocus(() => {
-      if (presence() !== "dismissing") return;
-      setDetailInteractionDisabled(true);
-      if (reducesMotion) props.onDismissComplete?.();
-    });
-  });
-
-  // Every change that moves the panel's CSS pose: mode, presence, placement. Declared
-  // after the mode effect, so the viewport sequencing is decided before the run starts.
-  createEffect(
-    on(
-      () => [mode(), presence(), props.placement, prefersReducedMotion()] as const,
-      () => runPanelMotion(),
-    ),
-  );
-
-  onMount(() => {
-    const stopX = panelX.on("change", paintPanel);
-    const stopY = panelY.on("change", paintPanel);
-    // The motion effect already snapped the first pose; springs start after the first paint.
-    paintPanel();
-    const ready = requestAnimationFrame(() => {
-      panelMounted = true;
-    });
-    // A resized container moves the CSS pose (cqh/cqw): snap at rest, retarget mid-run.
-    const resizeObserver =
-      typeof ResizeObserver === "undefined" || !rootElement
-        ? undefined
-        : new ResizeObserver(() => {
-            if (!panelElement) return;
-            const target = readDetailPanelPose(panelElement);
-            if (isSettling() && !prefersReducedMotion()) {
-              animate(panelX, target.x, spring.slow);
-              animate(panelY, target.y, spring.slow);
-            } else {
-              snapPanel(target);
-            }
-          });
-    if (rootElement) resizeObserver?.observe(rootElement);
-    onCleanup(() => {
-      motionRun++;
-      cancelAnimationFrame(ready);
-      resizeObserver?.disconnect();
-      stopX();
-      stopY();
-      panelX.stop();
-      panelY.stop();
-    });
-  });
-
-  onMount(() => {
-    if (window.matchMedia instanceof Function) {
-      motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-      setReducedMotion(motionQuery.matches);
-      motionQuery.addEventListener("change", onMotionPreferenceChange);
-    }
-    window.addEventListener("keydown", onWindowKeyDown);
-  });
-
-  onCleanup(() => {
-    clearSettlement();
+  function focusInFrame() { return !isServer && Boolean(frame?.contains(document.activeElement)); }
+  function restoreFocus() {
     if (isServer) return;
-    motionQuery?.removeEventListener("change", onMotionPreferenceChange);
-    window.removeEventListener("keydown", onWindowKeyDown);
+    queueMicrotask(() => {
+      if (disposed) return;
+      const id = activeEntityId();
+      const candidates = root?.querySelectorAll<HTMLElement>("[data-detail-target-id], [data-row-id]");
+      const target = Array.from(candidates ?? []).find((element) => element.dataset.detailTargetId === id || element.dataset.rowId === id)
+        ?? root?.querySelector<HTMLElement>("[data-detail-focus-fallback]") ?? root;
+      target?.focus({ preventScroll: true });
+    });
+  }
+  function close(outside = false) {
+    cancelResize?.();
+    resetOutsideGesture();
+    preserveOutsideFocus = outside;
+    props.onOpenChange(false);
+  }
+  function toggleExpanded() {
+    cancelResize?.();
+    if (!visible()) return;
+    props.onExpandedChange(!props.expanded);
+  }
+  // Observe external presses without taking capture from controls or canvas gestures.
+  let outsidePress: { pointerId: number; x: number; y: number; moved: boolean } | undefined;
+  let ignoreOutsideClick = false;
+  let outsideClickReset: number | undefined;
+  function resetOutsideGesture() {
+    outsidePress = undefined;
+    ignoreOutsideClick = false;
+    if (outsideClickReset !== undefined) cancelAnimationFrame(outsideClickReset);
+    outsideClickReset = undefined;
+  }
+  function resetOutsideClickAfterRelease() {
+    if (outsideClickReset !== undefined) cancelAnimationFrame(outsideClickReset);
+    outsideClickReset = requestAnimationFrame(() => { ignoreOutsideClick = false; outsideClickReset = undefined; });
+  }
+  function trackOutsidePress(event: PointerEvent) {
+    rememberPanelInteraction(event.target);
+    if (event.button !== 0 || event.isPrimary === false) return;
+    resetOutsideGesture();
+    if (visible()) outsidePress = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+  }
+  function trackOutsideMove(event: PointerEvent) {
+    if (!outsidePress || event.pointerId !== outsidePress.pointerId) return;
+    if (Math.hypot(event.clientX - outsidePress.x, event.clientY - outsidePress.y) >= 3) outsidePress.moved = true;
+  }
+  function releaseOutsidePress(event: PointerEvent) {
+    if (!outsidePress || event.pointerId !== outsidePress.pointerId) return;
+    trackOutsideMove(event);
+    ignoreOutsideClick = outsidePress.moved;
+    outsidePress = undefined;
+    resetOutsideClickAfterRelease();
+  }
+  function cancelOutsidePress(event?: PointerEvent) {
+    if (!outsidePress || (event && event.pointerId !== outsidePress.pointerId)) return;
+    outsidePress = undefined;
+    ignoreOutsideClick = true;
+    resetOutsideClickAfterRelease();
+  }
+  function trackOutsideScroll() {
+    if (outsidePress) outsidePress.moved = true;
+  }
+  function onOutsideClick(event: MouseEvent) {
+    rememberPanelInteraction(event.target);
+    if (!visible() || event.defaultPrevented) return;
+    const fromPointer = event.detail > 0 || ("pointerType" in event && Boolean(event.pointerType));
+    if (fromPointer && (ignoreOutsideClick || outsidePress?.moved || suppressClick)) return;
+    if (panelOwnerAt(event.target) === interaction || (event.target instanceof Element && event.target.closest("[data-detail-opener]"))) return;
+    close(true);
+  }
+  function onKeyDown(event: KeyboardEvent) {
+    if (event.defaultPrevented) return;
+    if (event.key === "Escape") {
+      if (cancelResize) { event.preventDefault(); cancelResize(); return; }
+      if (expanded() && (focusInFrame() || document.activeElement === document.body)) {
+        event.preventDefault(); props.onExpandedChange(false); return;
+      }
+      if (focusInFrame()) { event.preventDefault(); restoreFocus(); }
+      return;
+    }
+    if (event.repeat || !visible()) return;
+    if (matchesShortcut("shell.maximize_detail", event)) {
+      event.preventDefault(); event.stopPropagation(); toggleExpanded();
+    } else if (matchesShortcut("shell.toggle_detail", event)) {
+      event.preventDefault(); event.stopPropagation(); cancelResize?.();
+      close();
+    }
+  }
+  function persistWidth(width: number) {
+    setPreferredWidth(width);
+    if (!props.storageKey || isServer) return;
+    try { window.localStorage.setItem(props.storageKey, String(width)); } catch { /* Resizing remains usable without storage. */ }
+  }
+  let suppressClick = false;
+  let clickReset: number | undefined;
+  function beginResize(event: PointerEvent) {
+    if (!visible() || expanded() || event.button !== 0 || cancelResize) return;
+    event.preventDefault(); event.stopPropagation();
+    const handle = event.currentTarget as HTMLElement;
+    const pointerId = event.pointerId, startX = event.clientX;
+    const saved = preferredWidth(), start = panelWidth();
+    let moved = false;
+    handle.focus({ preventScroll: true }); handle.setPointerCapture(pointerId);
+    const move = (next: PointerEvent) => {
+      if (next.pointerId !== pointerId) return;
+      const dx = next.clientX - startX;
+      if (!moved && Math.abs(dx) < 3) return;
+      moved = true; setGesturing(true);
+      setPreferredWidth(clampDetailPanelWidth(start - dx, hostWidth()));
+    };
+    const finish = (commit: boolean) => {
+      handle.removeEventListener("pointermove", move); handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", cancel); handle.removeEventListener("lostpointercapture", cancel);
+      cancelResize = undefined;
+      if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
+      if (moved) {
+        if (commit) persistWidth(panelWidth()); else setPreferredWidth(saved);
+        suppressClick = true;
+        if (clickReset !== undefined) cancelAnimationFrame(clickReset);
+        clickReset = requestAnimationFrame(() => { suppressClick = false; clickReset = undefined; });
+      }
+      setGesturing(false);
+    };
+    const up = (next: PointerEvent) => { if (next.pointerId === pointerId) finish(true); };
+    const cancel = (next: PointerEvent) => { if (next.pointerId === pointerId) finish(false); };
+    cancelResize = () => finish(false);
+    handle.addEventListener("pointermove", move); handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", cancel); handle.addEventListener("lostpointercapture", cancel);
+  }
+  function resizeByKey(event: KeyboardEvent) {
+    if (expanded() || !visible() || cancelResize || event.altKey || event.ctrlKey || event.metaKey) return;
+    const step = event.shiftKey ? 64 : 16;
+    const next = event.key === "ArrowLeft" ? panelWidth() + step : event.key === "ArrowRight" ? panelWidth() - step
+      : event.key === "Home" ? DETAIL_PANEL_MIN_WIDTH : event.key === "End" ? DETAIL_PANEL_MAX_WIDTH : undefined;
+    if (next === undefined) return;
+    event.preventDefault(); event.stopPropagation(); persistWidth(clampDetailPanelWidth(next, hostWidth()));
+  }
+
+  // Keep the departing frame and its column in the same geometry until the exit ends.
+  createEffect(() => {
+    const geometry = exitGeometry();
+    const width = !visible() && geometry ? clampDetailPanelWidth(geometry.width, hostWidth()) : panelWidth();
+    const reserved = visible() ? !expanded() : present() && geometry !== undefined && !geometry.expanded;
+    root?.style.setProperty("--detail-panel-width", `${width}px`);
+    root?.style.setProperty("--detail-panel-space", reserved ? `${width + 8}px` : "0px");
+  });
+  createEffect(() => {
+    const open = visible(), full = expanded();
+    if (!root || isServer) return;
+    if (!open || full) untrack(() => cancelResize?.());
+    if (!open && lastOpen && !preserveOutsideFocus
+      && (untrack(focusInFrame) || document.activeElement === divider)) restoreFocus();
+    if (!available() && (untrack(focusInFrame) || document.activeElement === divider)) restoreFocus();
+    preserveOutsideFocus = false;
+    const changed = open !== lastOpen || full !== lastExpanded;
+    const previousExpanded = lastExpanded;
+    lastOpen = open; lastExpanded = full;
+    if (!available()) {
+      stopFrame(); resetOutsideGesture(); offset.set(0); opacity.set(0);
+      batch(() => { setPresent(false); setExitGeometry(undefined); });
+      return;
+    }
+    if (!changed) return;
+    stopFrame();
+    if (open) {
+      batch(() => { setPresent(true); setExitGeometry(undefined); });
+      if (!ready) { offset.set(0); opacity.set(1); }
+      else if (prefersReducedMotion()) {
+        offset.set(0);
+        frameAnimation = [animate(opacity, 1, spring.fast)];
+      } else {
+        if (opacity.get() === 0) offset.set(16);
+        frameAnimation = [animate(offset, 0, spring.slow), animate(opacity, 1, spring.slow)];
+      }
+    } else {
+      setExitGeometry({ width: untrack(panelWidth), expanded: previousExpanded });
+      const currentRun = run;
+      const reduced = prefersReducedMotion();
+      const finish = () => {
+        if (disposed || currentRun !== run || visible()) return;
+        stopFrame(); offset.set(reduced ? 0 : 16); opacity.set(0);
+        batch(() => { setPresent(false); setExitGeometry(undefined); });
+      };
+      if (!ready) finish();
+      else {
+        const transition = { type: "tween" as const, ...(reduced ? spring.fast.exit : spring.slow.exit) };
+        if (reduced) offset.set(0);
+        frameAnimation = [
+          ...(!reduced ? [animate(offset, 16, transition)] : []),
+          animate(opacity, 0, transition),
+        ];
+        void Promise.all(frameAnimation.map((animation) => animation.finished)).then(finish, finish);
+        timer = window.setTimeout(finish, transition.duration * 1000);
+      }
+    }
+    paint();
   });
 
-  const context: DetailPanelContextValue = {
-    mode,
-    viewportMode,
-    activeEntityId,
-    detailHost,
-    collapse: collapseAndRestoreFocus,
-    maximize: () => {
-      if (mode() !== "maximized") props.onMaximize();
-    },
-    restore: () => {
-      if (mode() !== "open") props.onRestore();
-    },
-  };
-
-  return (
-    <DetailPanelContext.Provider value={context}>
-      <div
-        ref={(element) => {
-          rootElement = element;
-        }}
-        class={`pw-detail-panel-root ${props.class ?? ""}`}
-        data-panel-placement={props.placement ?? "bottom"}
-        data-mode={mode()}
-        data-viewport-mode={viewportMode()}
-        data-presence={presence()}
-        data-settling={isSettling() ? "true" : "false"}
-      >
-        <div class="pw-detail-panel-layout">
-          <div class="pw-detail-panel__collection-panel">
-            {props.children}
-          </div>
-          <div
-            ref={(element) => {
-              panelElement = element;
-            }}
-            class="pw-detail-panel__panel"
-          >
-            <div class="pw-detail-panel__viewport">
-              <section
-                ref={setDetailHost}
-                class="pw-detail-panel__surface surface-panel-float"
-                inert={detailInteractionDisabled() ? true : undefined}
-                aria-hidden={detailInteractionDisabled() ? true : undefined}
-                role="region"
-                aria-label={props["aria-label"] ?? "Details"}
-              />
-            </div>
-          </div>
-        </div>
+  onMount(() => {
+    if (!root) return;
+    const unregister = registerPanelInteraction(interaction);
+    if (frame) interaction.elements.add(frame);
+    if (divider) interaction.elements.add(divider);
+    const stops = [offset, opacity].map((value) => value.on("change", paint));
+    const measure = () => {
+      if (!workspace) return;
+      const width = workspace.getBoundingClientRect().width;
+      if (width !== hostWidth()) cancelResize?.();
+      setHostWidth(width);
+    };
+    measure(); paint();
+    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
+    if (workspace) observer?.observe(workspace);
+    const readyFrame = requestAnimationFrame(() => { ready = true; });
+    const cancelOnBlur = () => { cancelResize?.(); cancelOutsidePress(); };
+    const rememberFocus = (event: FocusEvent) => rememberPanelInteraction(event.target);
+    document.addEventListener("pointerdown", trackOutsidePress, true);
+    document.addEventListener("pointermove", trackOutsideMove, true);
+    document.addEventListener("pointerup", releaseOutsidePress, true);
+    document.addEventListener("pointercancel", cancelOutsidePress, true);
+    document.addEventListener("lostpointercapture", cancelOutsidePress, true);
+    document.addEventListener("scroll", trackOutsideScroll, true);
+    document.addEventListener("wheel", trackOutsideScroll, { capture: true, passive: true });
+    document.addEventListener("click", onOutsideClick, true);
+    document.addEventListener("focusin", rememberFocus);
+    window.addEventListener("keydown", onKeyDown); window.addEventListener("resize", measure); window.addEventListener("blur", cancelOnBlur);
+    const swallow = (event: MouseEvent) => { if (suppressClick) { event.preventDefault(); event.stopImmediatePropagation(); } };
+    root.addEventListener("click", swallow, true);
+    onCleanup(() => {
+      disposed = true; cancelResize?.(); resetOutsideGesture(); stopFrame(); unregister(); observer?.disconnect();
+      cancelAnimationFrame(readyFrame);
+      if (clickReset !== undefined) cancelAnimationFrame(clickReset);
+      stops.forEach((stop) => stop());
+      [offset, opacity].forEach((value) => value.stop());
+      document.removeEventListener("pointerdown", trackOutsidePress, true);
+      document.removeEventListener("pointermove", trackOutsideMove, true);
+      document.removeEventListener("pointerup", releaseOutsidePress, true);
+      document.removeEventListener("pointercancel", cancelOutsidePress, true);
+      document.removeEventListener("lostpointercapture", cancelOutsidePress, true);
+      document.removeEventListener("scroll", trackOutsideScroll, true);
+      document.removeEventListener("wheel", trackOutsideScroll, true);
+      document.removeEventListener("click", onOutsideClick, true);
+      document.removeEventListener("focusin", rememberFocus);
+      window.removeEventListener("keydown", onKeyDown); window.removeEventListener("resize", measure); window.removeEventListener("blur", cancelOnBlur);
+      root?.removeEventListener("click", swallow, true);
+    });
+  });
+  const context: DetailPanelContextValue = { expanded, open: visible, available, activeEntityId, detailHost, setHeaderClass, collectionHeaderHost, interaction };
+  return <DetailPanelContext.Provider value={context}>
+    <div ref={root} tabIndex={-1} class={`pw-detail-panel-root ${props.class ?? ""}`}
+      data-state={!available() ? "unavailable" : expanded() ? "expanded" : visible() ? "open" : "closed"}
+      data-open={visible()} data-expanded={expanded()} data-gesturing={gesturing() ? "true" : undefined}>
+      <div ref={setCollectionHeaderHost} class="pw-detail-panel__collection-header" />
+      <div ref={workspace} class="pw-detail-panel__workspace">
+        <div class="pw-detail-panel__collection-panel">{props.children}</div>
+        <section ref={frame} id={DETAIL_PANEL_SIDEBAR_ID} class="pw-detail-panel__frame surface-panel"
+          data-expanded={visible() ? expanded() : present() && exitGeometry()?.expanded === true}
+          hidden={!present() || !available()} inert={!visible() ? true : undefined} aria-hidden={!visible() ? true : undefined}
+          role="region" aria-label={props["aria-label"] ?? "Details"}
+          onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
+          <header class={`pw-detail-panel__header ${headerClass()}`}>
+            <Button variant="icon" aria-label="Close details" title={`Close details (${closeShortcut()})`} onClick={() => close()}>
+              <X size={14} />
+            </Button>
+            <Button variant="icon" aria-label={expandLabel()} aria-pressed={expanded()} title={`${expandLabel()} (${expandShortcut()})`} onClick={toggleExpanded}>
+              <Show when={expanded()} fallback={<ExpandIcon size={14} />}><CollapseIcon size={14} /></Show>
+            </Button>
+          </header>
+          <div ref={setDetailHost} class="pw-detail-panel__surface" />
+        </section>
+        <div ref={divider} class="pw-detail-panel__resize-handle" hidden={!visible() || expanded()} role="separator" tabIndex={visible() && !expanded() ? 0 : -1}
+          aria-label="Resize details" aria-orientation="vertical" aria-controls={DETAIL_PANEL_SIDEBAR_ID}
+          aria-valuenow={Math.round(panelWidth())} aria-valuemin={Math.min(DETAIL_PANEL_MIN_WIDTH, panelWidth())}
+          aria-valuemax={clampDetailPanelWidth(DETAIL_PANEL_MAX_WIDTH, hostWidth())}
+          onPointerDown={beginResize} onKeyDown={resizeByKey} onDblClick={() => persistWidth(clampDetailPanelWidth(DETAIL_PANEL_DEFAULT_WIDTH, hostWidth()))} />
       </div>
-    </DetailPanelContext.Provider>
-  );
+    </div>
+  </DetailPanelContext.Provider>;
 }
 
+function readStoredWidth(props: DetailPanelRootProps) {
+  if (isServer) return DETAIL_PANEL_DEFAULT_WIDTH;
+  try {
+    const raw = props.storageKey ? window.localStorage.getItem(props.storageKey) : null;
+    return readDetailPanelWidth(raw ?? (props.legacyStorageKey ? window.localStorage.getItem(props.legacyStorageKey) : null));
+  } catch { return DETAIL_PANEL_DEFAULT_WIDTH; }
+}
 function DetailPanelCollection(props: { children: JSX.Element; class?: string }) {
   const context = useDetailPanel("Collection");
-  return (
-    <div
-      inert={context.viewportMode() === "maximized"}
-      class={`pw-detail-panel__collection ${props.class ?? ""}`}
-    >
-      {props.children}
-    </div>
-  );
+  return <div inert={context.expanded() ? true : undefined} class={`pw-detail-panel__collection ${props.class ?? ""}`}>{props.children}</div>;
 }
-
 function DetailPanelHeader(props: DetailPanelHeaderProps) {
   const context = useDetailPanel("Header");
-  const toggleShortcut = createShortcutLabel("shell.toggle_detail");
-  const maximizeShortcut = createShortcutLabel("shell.maximize_detail");
-  return (
-    <header class={`pw-detail-panel__header ${props.class ?? ""}`}>
-      <div class="pw-detail-panel__identity">
-        <div class="pw-detail-panel__identity-content !rounded-full">
-          <Show when={props.icon}>
-            <span class="pw-detail-panel__header-icon" aria-hidden>
-              {props.icon}
-            </span>
-          </Show>
-          <h2 class="pw-detail-panel__title">{props.title}</h2>
-        </div>
-        <Show when={context.mode() === "collapsed"}>
-          <button
-            type="button"
-            class="pw-detail-panel__collapsed-trigger"
-            data-detail-panel-collapsed-trigger
-            aria-label="Open details"
-            onClick={context.restore}
-          />
-        </Show>
-      </div>
-      <Tooltip.Group>
-        {props.children}
-        <div class="pw-detail-panel__global-actions">
-          <Show when={context.mode() === "collapsed"}>
-            <DetailPanelAction
-              label="Maximize details"
-              shortcut={maximizeShortcut()}
-              onClick={context.maximize}
-            >
-              <ExpandIcon size={14} aria-hidden />
-            </DetailPanelAction>
-            <DetailPanelAction
-              label="Open details"
-              shortcut={toggleShortcut()}
-              onClick={context.restore}
-            >
-              <ArrowUp size={14} aria-hidden />
-            </DetailPanelAction>
-          </Show>
-          <Show when={context.mode() === "open"}>
-            <DetailPanelAction
-              label="Maximize details"
-              shortcut={maximizeShortcut()}
-              onClick={context.maximize}
-            >
-              <ExpandIcon size={14} aria-hidden />
-            </DetailPanelAction>
-            <DetailPanelAction
-              label="Collapse details"
-              shortcut={toggleShortcut()}
-              onClick={context.collapse}
-            >
-              <XIcon size={14} aria-hidden />
-            </DetailPanelAction>
-          </Show>
-          <Show when={context.mode() === "maximized"}>
-            <DetailPanelAction
-              label="Restore details"
-              shortcut={maximizeShortcut()}
-              onClick={context.restore}
-            >
-              <CollapseIcon size={14} aria-hidden />
-            </DetailPanelAction>
-            <DetailPanelAction
-              label="Collapse details"
-              shortcut={toggleShortcut()}
-              onClick={context.collapse}
-            >
-              <XIcon size={14} aria-hidden />
-            </DetailPanelAction>
-          </Show>
-        </div>
-      </Tooltip.Group>
-    </header>
-  );
+  createEffect(() => context.setHeaderClass(props.class ?? ""));
+  onCleanup(() => context.setHeaderClass(""));
+  return null;
 }
 
-const detailPanelIconControlClass =
-  "pw-detail-panel__action control-field control-field-sm !rounded-full !p-0 focus-visible:outline-none";
-
-function DetailPanelAction(props: DetailPanelActionProps) {
-  useDetailPanel("Action");
-  const [local, buttonProps] = splitProps(props, [
-    "label",
-    "shortcut",
-    "tone",
-    "children",
-    "class",
-  ]);
-  const className = () => [
-    detailPanelIconControlClass,
-    local.class,
-  ].filter(Boolean).join(" ");
-
+/** Entity identity belongs inside the scrollable detail content. */
+function DetailPanelTitle(props: DetailPanelTitleProps) {
   return (
-    <Tooltip.Root disabled={buttonProps.disabled} openDelay={DETAIL_PANEL_ACTION_TOOLTIP_DELAY}>
-      <Tooltip.Trigger
-        asChild={(triggerProps) => (
-          <Button
-            {...triggerProps({
-              ...buttonProps,
-              "aria-label": local.label,
-            })}
-            variant="icon"
-            size="icon"
-            class={className()}
-            data-tone={local.tone ?? "neutral"}
-          >
-            {local.children}
-          </Button>
-        )}
-      />
-      <Tooltip.Content class="pw-detail-panel__action-tooltip">
-        <span class="pw-detail-panel__action-tooltip-label">{local.label}</span>
-        <Show when={local.shortcut}>
-          <Kbd>{local.shortcut}</Kbd>
-        </Show>
-      </Tooltip.Content>
-    </Tooltip.Root>
-  );
-}
-
-function DetailPanelActions(props: { children: JSX.Element; class?: string }) {
-  useDetailPanel("Actions");
-  return (
-    <div class={`pw-detail-panel__actions ${props.class ?? ""}`}>
-      {props.children}
+    <div class="pw-detail-panel__identity">
+      <Show when={props.icon}>
+        <span class="pw-detail-panel__header-icon" aria-hidden>{props.icon}</span>
+      </Show>
+      <h2 class="pw-detail-panel__title">{props.title}</h2>
+      <Show when={props.meta}>
+        <div class="pw-detail-panel__meta">{props.meta}</div>
+      </Show>
     </div>
   );
 }
 
 function DetailPanelBody(props: DetailPanelBodyProps) {
-  const context = useDetailPanel("Body");
+  useDetailPanel("Body");
   const layout = () => props.layout ?? "record";
   return (
     <div
       class={`pw-detail-panel__body ${props.class ?? ""}`}
       data-layout={layout()}
-      hidden={context.viewportMode() === "collapsed"}
     >
       <Show when={layout() === "record"} fallback={props.children}>
         <div class="pw-detail-panel__record">{props.children}</div>
@@ -706,9 +513,9 @@ function DetailPanelContent(props: { children: JSX.Element; class?: string }) {
           mount={mount()}
           ref={(container) => container.classList.add("pw-detail-panel__portal")}
         >
-          <div class={`pw-detail-panel__content ${props.class ?? ""}`}>
-            {props.children}
-          </div>
+          <PanelInteractionContext.Provider value={context.interaction}>
+            <div class={`pw-detail-panel__content ${props.class ?? ""}`}>{props.children}</div>
+          </PanelInteractionContext.Provider>
         </Portal>
       )}
     </Show>
@@ -718,12 +525,11 @@ function DetailPanelContent(props: { children: JSX.Element; class?: string }) {
 export const DetailPanel = {
   Root: DetailPanelRoot,
   Collection: DetailPanelCollection,
+  CollectionHeader: DetailPanelCollectionHeader,
   Header: DetailPanelHeader,
-  Actions: DetailPanelActions,
-  Action: DetailPanelAction,
+  Title: DetailPanelTitle,
   PrimaryAction: DetailPanelPrimaryAction,
-  Overflow: DetailPanelOverflow,
-  OverflowItem: DetailPanelOverflowItem,
+  MenuItem: DetailPanelMenuItem,
   Body: DetailPanelBody,
   Main: DetailPanelMain,
   Rail: DetailPanelRail,

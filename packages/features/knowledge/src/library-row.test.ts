@@ -43,6 +43,7 @@ const adr = {
   tags: ["adr"],
   status: "accepted",
   state: "active",
+  scope: "decision",
   supersededBy: "",
   supersedes: [],
   reviewTrigger: "",

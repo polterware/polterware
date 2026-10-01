@@ -21,7 +21,6 @@ import (
 	"github.com/polterware/polterware/backend/domains/integrations"
 	"github.com/polterware/polterware/backend/domains/knowledge"
 	"github.com/polterware/polterware/backend/domains/projects"
-	"github.com/polterware/polterware/backend/domains/resources"
 	dbsqlite "github.com/polterware/polterware/backend/platform/db/sqlite"
 	"github.com/polterware/polterware/backend/platform/events"
 	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
@@ -235,33 +234,6 @@ func (core *Core) UpdateLayout(_ context.Context, request *connect.Request[local
 	return connect.NewResponse(&localv1.UpdateLayoutResponse{Layout: &localv1.Layout{Id: item.ID, ProjectId: item.ProjectID, Revision: item.Revision, BodyJson: item.BodyJSON}}), nil
 }
 
-func (core *Core) ListResources(_ context.Context, request *connect.Request[localv1.ListResourcesRequest]) (*connect.Response[localv1.ListResourcesResponse], error) {
-	items, err := core.Store.ListResources(request.Msg.ProjectId)
-	if err != nil {
-		return nil, internal(err)
-	}
-	result := make([]*localv1.Resource, 0, len(items))
-	for _, item := range items {
-		result = append(result, resourceProto(item))
-	}
-	return connect.NewResponse(&localv1.ListResourcesResponse{Resources: result}), nil
-}
-
-func (core *Core) SaveResource(_ context.Context, request *connect.Request[localv1.SaveResourceRequest]) (*connect.Response[localv1.SaveResourceResponse], error) {
-	item := request.Msg.GetResource()
-	if item == nil {
-		return nil, invalid("resource is required")
-	}
-	resource := resources.Resource{ID: item.Id, ProjectID: item.ProjectId, EnvironmentID: item.EnvironmentId, Name: item.Name, Type: item.Type, ExternalKey: item.ExternalKey, Source: item.Source, Provider: item.Provider, Status: item.Status, Region: item.Region, Address: item.Address, Tags: item.Tags, Description: item.Description}
-	if resource.ID == "" || resource.ProjectID == "" || resource.Name == "" {
-		return nil, invalid("resource id, project id, and name are required")
-	}
-	if err := core.Store.SaveResource(resource); err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-	}
-	return connect.NewResponse(&localv1.SaveResourceResponse{Resource: resourceProto(resource)}), nil
-}
-
 func (core *Core) SaveKnowledge(_ context.Context, request *connect.Request[localv1.SaveKnowledgeRequest]) (*connect.Response[localv1.SaveKnowledgeResponse], error) {
 	item := request.Msg.GetItem()
 	if item == nil {
@@ -424,9 +396,6 @@ func projectProto(item projects.Project) *localv1.Project {
 }
 func environmentProto(item projects.Environment) *localv1.Environment {
 	return &localv1.Environment{Id: item.ID, ProjectId: item.ProjectID, Name: item.Name, Kind: item.Kind, Protection: item.Protection, IsDefault: item.IsDefault, Description: item.Description}
-}
-func resourceProto(item resources.Resource) *localv1.Resource {
-	return &localv1.Resource{Id: item.ID, ProjectId: item.ProjectID, EnvironmentId: item.EnvironmentID, Name: item.Name, Type: item.Type, ExternalKey: item.ExternalKey, Source: item.Source, Provider: item.Provider, Status: item.Status, Region: item.Region, Address: item.Address, Tags: item.Tags, Description: item.Description}
 }
 func knowledgeProto(item knowledge.Item) *localv1.KnowledgeItem {
 	return &localv1.KnowledgeItem{Id: item.ID, ProjectId: item.ProjectID, Title: item.Title, Body: item.Body, Kind: item.Kind, Tags: item.Tags, Summary: item.Summary, Owner: item.Owner, Status: item.Status, ExtraJson: item.ExtraJSON, CreatedAt: item.CreatedAt.Format(time.RFC3339), UpdatedAt: item.UpdatedAt.Format(time.RFC3339)}

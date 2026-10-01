@@ -28,24 +28,6 @@ const previewRepos = [
   { id: "repo-web", name: "polterware-web", path: "/preview/repos/polterware-web" },
 ];
 
-const resource = (
-  id: string, name: string, type: string, provider: string, environmentId: string,
-  status: string, region: string, address: string, tags: string[], description: string,
-) => ({ id, name, type, provider, environmentId, status, region, address, tags, description });
-
-const previewResources = [
-  resource("res-api", "Core API", "service", "AWS", "env-production", "healthy", "us-east-1", "api.example.test", ["api"], "Public HTTP API."),
-  resource("res-db", "Primary database", "database", "Supabase", "env-production", "healthy", "us-east-1", "db.example.test:5432", ["data"], "Main relational store."),
-  resource("res-cache", "Session cache", "cache", "AWS", "env-production", "degraded", "us-east-1", "cache.example.test:6379", ["cache"], "Session and rate-limit cache."),
-  resource("res-queue", "Job queue", "queue", "AWS", "env-production", "healthy", "us-east-1", "queue.example.test", ["jobs"], "Background job queue."),
-  resource("res-web", "Web app", "service", "Vercel", "env-production", "healthy", "global", "app.example.test", ["web"], "Customer web app."),
-  resource("res-stg-api", "Staging API", "service", "AWS", "env-staging", "healthy", "us-west-2", "api.staging.example.test", ["api"], "Staging API."),
-  resource("res-stg-db", "Staging database", "database", "Supabase", "env-staging", "unknown", "us-west-2", "db.staging.example.test:5432", ["data"], "Staging relational store."),
-  resource("res-bucket", "Artifact bucket", "storage", "Google Cloud", "env-staging", "offline", "europe-west1", "gs://artifacts-staging", ["storage"], "Build artifacts."),
-  resource("res-local-db", "Local SQLite", "database", "Local", "env-local", "healthy", "local", "~/.polterware/db.sqlite", ["local"], "Local development store."),
-  resource("res-runner", "CI runner", "compute", "GitHub", "env-local", "healthy", "global", "actions.example.test", ["ci"], "Continuous integration runner."),
-];
-
 const view = (id: string, name: string, description: string, owner: string, environments: string[], tags: string[], purpose: string, members: [string, string, string, string][]) => ({
   id, name, description, updatedAt: "2026-09-20T12:00:00.000Z", owner, environments, tags, purpose,
   notes: "Maintained by hand for the browser preview.",
@@ -71,8 +53,12 @@ const knowledgeItem = (
 const adrExtra = (statusReason: string, reviewTrigger: string, supersededBy = "") => ({ supersededBy, reviewTrigger, statusReason });
 
 const previewKnowledge = [
-  knowledgeItem("k-constitution", "constitution", "Project constitution", "Principles every change respects.",
-    "# Constitution\n\n- Local-first: one SQLite database per project.\n- Evidence over opinion.\n- Agents read the same state as people.", "Platform", "active", [], "2026-09-01T09:00:00.000Z"),
+  knowledgeItem("adr-principle-local", "adr", "Local-first truth", "One SQLite database per project.",
+    "## Decision\n\nProject state must stay useful on one machine without a hosted account.", "Platform", "active", ["principle"], "2026-09-01T09:00:00.000Z",
+    { scope: "principle" }),
+  knowledgeItem("adr-principle-evidence", "adr", "Evidence over opinion", "Observed facts win over inferred ones.",
+    "## Decision\n\nDeclared and observed facts take precedence over inferred knowledge.", "Platform", "active", ["principle"], "2026-09-01T09:00:00.000Z",
+    { scope: "principle" }),
   knowledgeItem("doc-overview", "doc", "System overview", "How the pieces fit together.", "# Overview\n\nThe core owns storage; clients attach to it.", "Platform", "published", ["overview"], "2026-09-02T09:00:00.000Z",
     { author: "Ada", environment: "All", componentIds: ["comp-core"] }),
   knowledgeItem("doc-onboarding", "doc", "Onboarding guide", "First week checklist.", "# Onboarding\n\n1. Clone the repo.\n2. Start the core.", "Platform", "published", ["guide"], "2026-09-03T09:00:00.000Z",
@@ -136,10 +122,6 @@ const previewEntities = [
   entity("ent-cli", "component", "comp-cli", "CLI"),
   entity("ent-api", "component", "comp-api", "API"),
   entity("ent-store", "component", "comp-store", "Store"),
-  entity("ent-res-api", "resource", "res-api", "Core API"),
-  entity("ent-res-db", "resource", "res-db", "Primary database"),
-  entity("ent-res-cache", "resource", "res-cache", "Session cache"),
-  entity("ent-res-web", "resource", "res-web", "Web app"),
 ];
 
 type AtlasSeed = [id: string, parentId: string, level: string, slug: string, path: string, title: string, status: string, decisions: string[], childCount: number, featureCount: number, openQuestions: number, folder: string];
@@ -330,17 +312,17 @@ const previewConnections = [
   { id: "conn-supabase", providerId: "supabase", status: "disconnected", label: "staging project", environmentId: "env-staging", lastSyncAt: "", summary: "Not signed in", cliCommand: "supabase projects list", syncInterval: "", freshness: "unknown", errorMessage: "" },
 ];
 
-const iResource = (id: string, connectionId: string, name: string, kind: string, externalId: string, environmentId: string, status: string, inventoryResourceId: string) => ({
-  id, connectionId, name, kind, externalId, environmentId, status, inventoryResourceId,
+const iResource = (id: string, connectionId: string, name: string, kind: string, externalId: string, environmentId: string, status: string) => ({
+  id, connectionId, name, kind, externalId, environmentId, status,
 });
 
 const previewIntegrationResources = [
-  iResource("ir-1", "conn-github", "polterware/polterware", "repository", "gh-1", "env-local", "active", "res-runner"),
-  iResource("ir-2", "conn-github", "polterware/site", "repository", "gh-2", "env-local", "active", ""),
-  iResource("ir-3", "conn-aws", "core-api", "service", "aws-1", "env-production", "active", "res-api"),
-  iResource("ir-4", "conn-aws", "session-cache", "cache", "aws-2", "env-production", "degraded", "res-cache"),
-  iResource("ir-5", "conn-aws", "job-queue", "queue", "aws-3", "env-production", "active", "res-queue"),
-  iResource("ir-6", "conn-supabase", "staging-db", "database", "sb-1", "env-staging", "unknown", "res-stg-db"),
+  iResource("ir-1", "conn-github", "polterware/polterware", "repository", "gh-1", "env-local", "active"),
+  iResource("ir-2", "conn-github", "polterware/site", "repository", "gh-2", "env-local", "active"),
+  iResource("ir-3", "conn-aws", "core-api", "service", "aws-1", "env-production", "active"),
+  iResource("ir-4", "conn-aws", "session-cache", "cache", "aws-2", "env-production", "degraded"),
+  iResource("ir-5", "conn-aws", "job-queue", "queue", "aws-3", "env-production", "active"),
+  iResource("ir-6", "conn-supabase", "staging-db", "database", "sb-1", "env-staging", "unknown"),
 ];
 
 const previewSyncRuns = [
@@ -452,7 +434,6 @@ function createBrowserDevBridge(): PolterwareBridge {
         listRepos: scoped({ repos: previewRepos }, { repos: [] }),
       }),
       architecture: browserDevApi({
-        listResources: scoped({ resources: previewResources }, { resources: [] }),
         listViews: scoped({ views: previewViews }, { views: [] }),
         getLayout: async (args?: ProjectArgs) =>
           args?.projectId === PREVIEW_PROJECT_ID

@@ -20,7 +20,7 @@ import {
   defaultEnvironmentId,
   type ProjectEnvironment,
 } from "../domain/project-environments";
-import type { ResourceLinkPort } from "../domain/fixture-resource-link-port";
+import type { ResourceLinkPort } from "../domain/resource-link-port";
 import { validateLink } from "../domain/place-link";
 import { ResourceLinkPicker } from "./resource-link-picker";
 

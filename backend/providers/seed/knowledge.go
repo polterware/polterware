@@ -8,7 +8,14 @@ import (
 	storepkg "github.com/polterware/polterware/backend/providers/sqlite"
 )
 
-const constitutionBody = "# Project constitution\n\n## Core principles\n\n### Local-first truth\nProject state must remain useful on one machine without requiring a hosted account.\n\n### Honest product boundaries\nDo not describe planned capabilities as shipped. Post-wedge depth (Change Gates, Web App, Cloud) is direction, not behavior.\n\n### Provenance over inference\nDeclared and observed facts take precedence over inferred knowledge. Inference never silently becomes project truth.\n\n### One authority per database\nOnly the local core opens SQLite; every other surface is a client.\n\n### Opaque, shared interface\nProduct UI uses the shared design system: opaque surfaces, token colors and radii, one icon set.\n\n## Governance\n\nChanges to durable project truth require an attributable actor and a clear reason."
+// principles apply to the whole project. They are pinned Decisions, not a separate document.
+var principles = []struct{ id, title, summary, body string }{
+	{"adr-principle-local-first", "Local-first truth", "Project state must stay useful on one machine.", "Project state must remain useful on one machine without requiring a hosted account."},
+	{"adr-principle-honest-boundaries", "Honest product boundaries", "Never describe planned work as shipped.", "Do not describe planned capabilities as shipped. Post-wedge depth (Change Gates, Web App, Cloud) is direction, not behavior."},
+	{"adr-principle-provenance", "Provenance over inference", "Observed facts win over inferred ones.", "Declared and observed facts take precedence over inferred knowledge. Inference never silently becomes project truth."},
+	{"adr-principle-one-authority", "One authority per database", "Only the local core opens SQLite.", "Only the local core opens SQLite; every other surface is a client."},
+	{"adr-principle-shared-interface", "Opaque, shared interface", "Product UI uses the shared design system.", "Product UI uses the shared design system: opaque surfaces, token colors and radii, one icon set."},
+}
 
 // docs are the repository documents that define Polterware. The store holds a
 // pointer and a summary; the file stays the source.
@@ -19,11 +26,15 @@ var docs = []struct{ id, title, path, summary string }{
 
 func seedKnowledge(store *storepkg.Store) error {
 	at := time.Now().UTC()
-	items := []knowledge.Item{{
-		ID: "constitution-project", ProjectID: ProjectID, Title: "Project constitution", Kind: "constitution",
-		Body: constitutionBody, Tags: []string{"constitution"}, Summary: "Principles that govern Polterware.",
-		Owner: "Platform", Status: "active", ExtraJSON: "{}", CreatedAt: at, UpdatedAt: at,
-	}}
+	var items []knowledge.Item
+	for _, principle := range principles {
+		items = append(items, knowledge.Item{
+			ID: principle.id, ProjectID: ProjectID, Title: principle.title, Kind: "adr",
+			Body:    "## Decision\n\n" + principle.body,
+			Summary: principle.summary, Tags: []string{"principle"}, Owner: "Platform", Status: "active",
+			ExtraJSON: mustJSON(map[string]string{"scope": "principle"}), CreatedAt: at, UpdatedAt: at,
+		})
+	}
 	for _, doc := range docs {
 		items = append(items, knowledge.Item{
 			ID: doc.id, ProjectID: ProjectID, Title: doc.title, Kind: "doc",

@@ -1,12 +1,12 @@
 -- Minimal Polterware Project Model registry.
--- Canvas body_json and resources/environments tables remain content SSOT;
+-- Canvas body_json and the environments table remain content SSOT;
 -- these tables project typed entity refs with provenance.
 
 CREATE TABLE IF NOT EXISTS ppm_entities (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  kind TEXT NOT NULL CHECK (kind IN ('component', 'resource', 'environment')),
-  ref_kind TEXT NOT NULL CHECK (ref_kind IN ('architecture_node', 'resource', 'environment')),
+  kind TEXT NOT NULL CHECK (kind IN ('component', 'environment')),
+  ref_kind TEXT NOT NULL CHECK (ref_kind IN ('architecture_node', 'environment')),
   ref_id TEXT NOT NULL,
   title TEXT NOT NULL,
   truth_class TEXT NOT NULL DEFAULT 'declared'

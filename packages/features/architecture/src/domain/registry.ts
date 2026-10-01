@@ -1016,14 +1016,14 @@ export const COMPONENT_TYPES: ComponentTypeDefinition[] = [
   // Connected (actions, not placeable)
   {
     id: "link-from-resources",
-    label: "Link from Resources",
+    label: "Link from synced resources",
     category: "connected",
-    description: "Place a component linked to an inventory resource",
+    description: "Place a component linked to a synced integration resource",
     icon: "link-2",
     defaultWidth: 0,
     defaultHeight: 0,
     defaultPorts: [],
-    searchTerms: ["link", "resource", "inventory"],
+    searchTerms: ["link", "resource", "synced"],
     synonyms: ["link existing resource"],
     order: 900,
     placeable: false,

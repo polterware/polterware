@@ -62,6 +62,7 @@ export function ArchitectureNodeCard(props: ArchitectureNodeCardProps) {
   return (
     <div
       class="architecture-node-positioner"
+      data-detail-opener
       style={
         props.fill
           ? { position: "absolute", inset: "0", width: "100%", height: "100%" }

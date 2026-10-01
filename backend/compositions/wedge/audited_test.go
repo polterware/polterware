@@ -31,14 +31,14 @@ func TestExecuteAuditedWriteHumanAutoRun(t *testing.T) {
 	result, err := wedge.ExecuteAuditedWrite(
 		store,
 		wedge.ChangeEnvelope{
-			Summary:   "Create constitution",
+			Summary:   "Create principle",
 			Rationale: "Project needs governing principles",
 			ProjectID: project.ID,
 		},
 		agentrun.ActorKindHuman,
 		"desktop.knowledge.save",
 		func(run agentrun.Run) ([]string, any, error) {
-			item, err := knowledge.NewItem("kn-1", project.ID, "Constitution", "# Rules", "constitution", nil)
+			item, err := knowledge.NewItem("kn-1", project.ID, "Local-first truth", "# Rules", "adr", nil)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -73,7 +73,7 @@ func TestExecuteAuditedWriteHumanAutoRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(changes) != 1 || changes[0].Summary != "Create constitution" {
+	if len(changes) != 1 || changes[0].Summary != "Create principle" {
 		t.Fatalf("changes: %+v", changes)
 	}
 }

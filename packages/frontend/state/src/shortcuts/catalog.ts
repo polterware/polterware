@@ -31,13 +31,13 @@ export const SHORTCUT_CATALOG: readonly ShortcutCommand[] = [
   },
   {
     id: "shell.toggle_detail",
-    label: "Toggle detail panel",
+    label: "Close details",
     group: "shell",
     defaultChord: chord({ key: "j", mod: true }),
   },
   {
     id: "shell.maximize_detail",
-    label: "Maximize or restore detail panel",
+    label: "Expand or restore details",
     group: "shell",
     defaultChord: chord({ key: "j", mod: true, shift: true }),
   },

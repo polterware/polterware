@@ -19,7 +19,6 @@ import {
   routesEqual,
   SECTION_TABS,
   type ClientRoute,
-  type DecisionState,
   type EnvironmentItem,
   type FeatureFlowStep,
   type ProjectSettingsTabId,
@@ -37,9 +36,6 @@ import { detailPanelStore, matchesShortcut } from "@polterware/frontend-state";
 import { hideBootSplash } from "./boot-splash";
 import { bootstrapPlatform } from "./platform-bootstrap";
 
-const ResourcesView = lazy(() =>
-  import("@polterware/feature-resources").then((m) => ({ default: m.ResourcesView })),
-);
 const KnowledgeView = lazy(() =>
   import("@polterware/feature-knowledge").then((m) => ({ default: m.KnowledgeView })),
 );
@@ -52,8 +48,11 @@ const SettingsView = lazy(() =>
 const NewFeatureFlow = lazy(() =>
   import("@polterware/feature-knowledge").then((m) => ({ default: m.NewFeatureFlow })),
 );
-const AgentsPage = lazy(() =>
-  import("@polterware/feature-settings").then((m) => ({ default: m.AgentsPage })),
+const TruthFactsPage = lazy(() =>
+  import("@polterware/feature-settings").then((m) => ({ default: m.TruthFactsPage })),
+);
+const ActivityPage = lazy(() =>
+  import("@polterware/feature-settings").then((m) => ({ default: m.ActivityPage })),
 );
 
 import {
@@ -86,13 +85,10 @@ import {
   persistKnowledgeDelete,
   persistKnowledgeDuplicate,
   persistKnowledgeSourcePath,
-  persistConstitutionEnsure,
-  persistConstitutionArchive,
   persistLayout,
   persistAddProjectRepo,
   persistProjectSettings,
   persistRemoveProjectRepo,
-  persistResource,
   persistView,
   persistDecisionAction,
   persistWorkCreateCard,
@@ -122,12 +118,6 @@ async function justifyChange(input: {
   defaultSummary?: string;
 }): Promise<ChangeEnvelope | null> {
   return { summary: input.defaultSummary ?? input.title, rationale: "Changed in Desktop" };
-}
-
-function integrationSetupProvider(route: ClientRoute) {
-  return route.dialog?.type === "integration-connect"
-    ? route.dialog.providerId
-    : undefined;
 }
 
 /** Local label so the lazily loaded Knowledge package stays out of the main bundle. */
@@ -376,6 +366,10 @@ export function App() {
     applyRoute(goSection(route(), section));
   }
 
+  /** Docs and runbooks open in the Evidence list; ADRs open in the Decisions list. */
+  const libraryScope = () =>
+    route().section === "truth" && route().tab === "evidence" ? "knowledge:evidence" : "knowledge:library";
+
   function activateDetail(scopeId: string, entityId: string, entityKind: string) {
     detailPanelStore.getState().activateTarget({ scopeId, entityId, entityKind });
   }
@@ -413,6 +407,14 @@ export function App() {
       applyRoute(openDialog(route(), { type: "settings", tab: "general" }), "silent");
       return;
     }
+    if (id === "nav.agents") {
+      applyRoute(openDialog(route(), { type: "settings", tab: "agents-access" }), "silent");
+      return;
+    }
+    if (id === "nav.integrations") {
+      applyRoute(openDialog(route(), { type: "settings", tab: "integrations-connected" }), "silent");
+      return;
+    }
     if (id.startsWith("nav.")) {
       navigateSection(id.slice(4));
       return;
@@ -426,7 +428,7 @@ export function App() {
       return;
     }
     if (id === "action.connect-integration") {
-      applyRoute(setTab(goSection(route(), "integrations"), "catalog"));
+      applyRoute(openDialog(route(), { type: "settings", tab: "integrations-catalog" }), "silent");
     }
   }
 
@@ -550,14 +552,13 @@ export function App() {
     }
   }
 
-  /** Knowledge content hosted by Work, Decisions, and Reality with their own tab rails. */
+  /** Knowledge content hosted by Work and Truth with their own tab rails. */
   function KnowledgeSurface(surface: {
     tab: string;
     tabs: TabItem[];
     activeTab?: string;
     tabsLabel: string;
-    libraryKinds?: ("doc" | "adr" | "runbook")[];
-    libraryDecisionState?: DecisionState;
+    libraryKinds?: ("doc" | "adr" | "runbook" | "source")[];
   }) {
     return (
       <KnowledgeView
@@ -566,18 +567,16 @@ export function App() {
         runbooks={workspace().runbooks}
         sources={workspace().sources}
         workCards={workspace().workCards}
-        constitution={workspace().constitution}
         entities={workspace().ppmEntities}
         tab={surface.tab}
         tabs={surface.tabs}
         activeTab={surface.activeTab}
         tabsLabel={surface.tabsLabel}
         libraryKinds={surface.libraryKinds}
-        libraryDecisionState={surface.libraryDecisionState}
         loading={loading() || !workspace().extensionsReady}
         onTabChange={(tab) => applyRoute(setTab(route(), tab))}
-        onOpenDoc={(id) => activateDetail("knowledge:library", id, "document")}
-        onOpenAdr={(id) => activateDetail("knowledge:library", id, "adr")}
+        onOpenDoc={(id) => activateDetail(libraryScope(), id, "document")}
+        onOpenAdr={(id) => activateDetail(libraryScope(), id, "adr")}
         onDecisionAction={(adrId, action) => {
           const adr = workspace().adrs.find((item) => item.id === adrId);
           if (!adr) return;
@@ -603,17 +602,13 @@ export function App() {
             pushToast(error instanceof Error ? error.message : "Could not update the decision.", "danger");
           });
         }}
-        onOpenRunbook={(id) => activateDetail("knowledge:library", id, "runbook")}
-        onOpenSource={(id) => activateDetail("knowledge:sources", id, "source")}
+        onOpenRunbook={(id) => activateDetail(libraryScope(), id, "runbook")}
+        onOpenSource={(id) => activateDetail("knowledge:evidence", id, "source")}
         onOpenCard={(slug) => activateDetail(cardScopeId(), slug, "card")}
-        onOpenConstitution={(id) => activateDetail("knowledge:specs", id, "constitution")}
         onOpenEntity={(_entityId, refId, kind) => {
           if (kind === "component") {
             applyRoute(setTab(goSection(route(), "atlas"), "map"));
             activateDetail("architecture:canvas", refId, "arch-node");
-          } else if (kind === "resource") {
-            applyRoute(setTab(goSection(route(), "reality"), "inventory"));
-            activateDetail("resources:inventory", refId, "resource");
           }
         }}
         onLinkEntity={(knowledgeId, entityId, kind) => {
@@ -692,7 +687,7 @@ export function App() {
             pushToast(error instanceof Error ? error.message : "Could not save source path.", "danger");
           });
         }}
-        onCreate={(kind, title) => {
+        onCreate={(kind, title, scope) => {
           void justifyChange({
             title: "Justify create",
             defaultSummary: `Create ${kind}: ${title}`,
@@ -702,17 +697,18 @@ export function App() {
               projectId: currentProjectId(),
               kind,
               title,
+              extraJson: scope === "principle" ? JSON.stringify({ scope: "principle" }) : undefined,
               change,
             }).then(async (id) => {
               await refreshWorkspace(currentProjectId());
               if (kind === "runbook") {
-                activateDetail("knowledge:library", id, "runbook");
+                activateDetail(libraryScope(), id, "runbook");
                 pushToast("Runbook saved locally.", "success");
               } else if (kind === "adr") {
-                activateDetail("knowledge:library", id, "adr");
+                activateDetail(libraryScope(), id, "adr");
                 pushToast("ADR saved locally.", "success");
               } else {
-                activateDetail("knowledge:library", id, "document");
+                activateDetail(libraryScope(), id, "document");
                 pushToast("Document saved locally.", "success");
               }
             });
@@ -734,7 +730,7 @@ export function App() {
               change,
             }).then(async (id) => {
               await refreshWorkspace(currentProjectId());
-              activateDetail("knowledge:sources", id, "source");
+              activateDetail("knowledge:evidence", id, "source");
               pushToast("Source saved locally.", "success");
             });
           }).catch((error: unknown) => {
@@ -782,16 +778,16 @@ export function App() {
             }).then(async (id) => {
               await refreshWorkspace(currentProjectId());
               if (kind === "runbook") {
-                activateDetail("knowledge:library", id, "runbook");
+                activateDetail(libraryScope(), id, "runbook");
                 pushToast("Runbook saved locally.", "success");
               } else if (kind === "adr") {
-                activateDetail("knowledge:library", id, "adr");
+                activateDetail(libraryScope(), id, "adr");
                 pushToast("ADR saved locally.", "success");
               } else if (kind === "source") {
-                activateDetail("knowledge:sources", id, "source");
+                activateDetail("knowledge:evidence", id, "source");
                 pushToast("Source saved locally.", "success");
               } else {
-                activateDetail("knowledge:library", id, "document");
+                activateDetail(libraryScope(), id, "document");
                 pushToast("Document saved locally.", "success");
               }
             });
@@ -802,25 +798,6 @@ export function App() {
         onCreateCard={(title) => createWorkCard(title)}
         onNewFeature={openFeatureFlow}
         onContinueFeature={continueFeatureFlow}
-        onEnsureConstitution={() => {
-          void justifyChange({
-            title: "Justify constitution",
-            defaultSummary: "Create project constitution",
-          }).then((change) => {
-            if (!change) return;
-            return persistConstitutionEnsure({
-              workspace: workspace(),
-              projectId: currentProjectId(),
-              change,
-            }).then(async (id) => {
-              await refreshWorkspace(currentProjectId());
-              activateDetail("knowledge:specs", id, "constitution");
-              pushToast("Constitution saved locally.", "success");
-            });
-          }).catch((error: unknown) => {
-            pushToast(error instanceof Error ? error.message : "Could not create constitution.", "danger");
-          });
-        }}
         onArchive={(id) => {
           void justifyChange({
             title: "Justify archive",
@@ -849,20 +826,6 @@ export function App() {
             pushToast(error instanceof Error ? error.message : "Could not remove card.", "danger");
           });
         }}
-        onArchiveConstitution={() => {
-          void justifyChange({
-            title: "Justify archive constitution",
-            defaultSummary: "Archive project constitution",
-          }).then((change) => {
-            if (!change) return;
-            return persistConstitutionArchive(workspace(), change).then(async () => {
-              pushToast("Constitution archived.", "success");
-              await refreshWorkspace(currentProjectId());
-            });
-          }).catch((error: unknown) => {
-            pushToast(error instanceof Error ? error.message : "Could not archive constitution.", "danger");
-          });
-        }}
         onSetCardStage={(slug, stage) =>
           // Resolves false when the change was cancelled or failed, so the board can roll back.
           justifyChange({
@@ -886,7 +849,7 @@ export function App() {
             if (!change) return;
             return persistKnowledgeDuplicate(workspace(), currentProjectId(), id, change).then(async (nextId) => {
               await refreshWorkspace(currentProjectId());
-              if (nextId) activateDetail("knowledge:library", nextId, "runbook");
+              if (nextId) activateDetail(libraryScope(), nextId, "runbook");
               pushToast("Runbook duplicated.", "success");
             });
           }).catch((error: unknown) => {
@@ -955,11 +918,12 @@ export function App() {
         <Match when={route().section === "atlas"}>
           <ArchitectureView
             systems={[{ id: SYSTEM_ID, name: workspace().settings.name || "Polterware" }]}
-            resources={workspace().resources.map((resource) => ({
+            resources={workspace().integrationResources.map((resource) => ({
               id: resource.id,
               name: resource.name,
-              type: resource.type,
-              source: resource.provider,
+              type: resource.kind,
+              source: workspace().integrations.find((item) => item.id === resource.integrationId)?.provider,
+              environmentLabel: resource.environment === "All" ? undefined : resource.environment,
               systemId: SYSTEM_ID,
             }))}
             layoutBody={workspace().layoutBody}
@@ -999,12 +963,6 @@ export function App() {
               applyRoute(openDialog(route(), { type: "arch-node-create" }), "silent")
             }
             onCloseCreateNode={() => applyRoute(closeDialog(route()), "silent")}
-            onAddResource={() =>
-              applyRoute(
-                openDialog(goSection(route(), "reality"), { type: "resource-create" }),
-                "silent",
-              )
-            }
             atlasNodes={workspace().atlas.nodes}
             cards={workspace().workCards}
             onReparentNode={async (nodeId, parentId) => {
@@ -1149,51 +1107,6 @@ export function App() {
           />
         </Match>
 
-        <Match when={route().section === "reality" && route().tab === "inventory"}>
-          <ResourcesView
-            tabs={[...SECTION_TABS.reality]}
-            activeTab={route().tab}
-            tabsLabel="Reality"
-            onTabChange={(tab) => applyRoute(setTab(route(), tab))}
-            catalog={workspace().resources}
-            dataSource="empty"
-            loading={loading()}
-            search={route().search}
-            filters={route().filters}
-            environmentId={route().environmentId}
-            dialogOpen={route().dialog?.type === "resource-create"}
-            onSearch={(search) => applyRoute(setSearch(route(), search), "replace")}
-            onFiltersChange={(filters) =>
-              applyRoute(setFilters(route(), filters), "replace")
-            }
-            onOpen={(id) => activateDetail("resources:inventory", id, "resource")}
-            onOpenArchitecture={(nodeId) =>
-              navigateToDetail(
-                setSelectedNode(setTab(goSection(route(), "atlas"), "map"), nodeId),
-                "architecture:canvas",
-                nodeId,
-                "arch-node",
-              )
-            }
-            onCreate={() => applyRoute(openDialog(route(), { type: "resource-create" }), "silent")}
-            onCloseDialog={() => applyRoute(closeDialog(route()), "silent")}
-            onSubmitDialog={(draft) => {
-              void persistResource({
-                projectId: currentProjectId(),
-                environmentId: route().environmentId,
-                name: draft.name,
-                type: draft.type,
-              }).then(async () => {
-                applyRoute(closeDialog(route()), "silent");
-                pushToast("Resource saved locally.", "success");
-                await refreshWorkspace(currentProjectId());
-              }).catch((error: unknown) => {
-                pushToast(error instanceof Error ? error.message : "Could not save resource.", "danger");
-              });
-            }}
-          />
-        </Match>
-
         <Match when={route().section === "work"}>
           <KnowledgeSurface
             tab={route().tab}
@@ -1202,102 +1115,39 @@ export function App() {
           />
         </Match>
 
-        <Match when={route().section === "decisions"}>
+        <Match when={route().section === "truth" && route().tab === "decisions"}>
           <KnowledgeSurface
             tab="library"
-            tabs={[...SECTION_TABS.decisions]}
+            tabs={[...SECTION_TABS.truth]}
             activeTab={route().tab}
-            tabsLabel="Decisions"
+            tabsLabel="Truth"
             libraryKinds={["adr"]}
-            libraryDecisionState={route().tab as DecisionState}
           />
         </Match>
 
-        <Match when={route().section === "reality" && (route().tab === "sources" || route().tab === "docs")}>
+        <Match when={route().section === "truth" && route().tab === "evidence"}>
           <KnowledgeSurface
-            tab={route().tab === "docs" ? "library" : "sources"}
-            tabs={[...SECTION_TABS.reality]}
+            tab="evidence"
+            tabs={[...SECTION_TABS.truth]}
             activeTab={route().tab}
-            tabsLabel="Reality"
-            libraryKinds={["doc", "runbook"]}
+            tabsLabel="Truth"
+            libraryKinds={["source", "doc", "runbook"]}
           />
         </Match>
 
-        <Match when={route().section === "reality" && route().tab === "facts"}>
-          <AgentsPage
+        <Match when={route().section === "truth" && route().tab === "facts"}>
+          <TruthFactsPage
             projectId={currentProjectId()}
             tab="facts"
-            tabs={[...SECTION_TABS.reality]}
-            tabsLabel="Reality"
+            tabs={[...SECTION_TABS.truth]}
+            tabsLabel="Truth"
             onTabChange={(tab) => applyRoute(setTab(route(), tab))}
             justifyChange={justifyChange}
           />
         </Match>
 
-        <Match when={route().section === "agents"}>
-          <AgentsPage
-            projectId={currentProjectId()}
-            tab={route().tab}
-            tabs={[...SECTION_TABS.agents]}
-            onTabChange={(tab) => applyRoute(setTab(route(), tab))}
-            justifyChange={justifyChange}
-          />
-        </Match>
-
-        <Match when={route().section === "integrations"}>
-          <IntegrationsView
-            projectId={currentProjectId()}
-            providers={workspace().providers}
-            integrations={workspace().integrations}
-            resources={workspace().integrationResources}
-            syncRuns={workspace().syncRuns}
-            tab={route().tab}
-            loading={loading() || !workspace().extensionsReady}
-            onTabChange={(tab) => applyRoute(setTab(route(), tab))}
-            onOpen={(id) => activateDetail("integrations:connected", id, "integration")}
-            setupOpen={route().dialog?.type === "integration-connect"}
-            setupProvider={integrationSetupProvider(route())}
-            onOpenSetup={(providerId) =>
-              applyRoute(
-                openDialog(route(), { type: "integration-connect", providerId }),
-                "silent",
-              )
-            }
-            onCloseSetup={() => applyRoute(closeDialog(route()), "silent")}
-            onConnect={(provider) => {
-              void persistIntegrationConnection({
-                projectId: currentProjectId(),
-                environmentId: route().environmentId,
-                provider,
-              }).then(async () => {
-                await refreshWorkspace(currentProjectId());
-              }).catch((error: unknown) => {
-                pushToast(error instanceof Error ? error.message : "Could not save connection.", "danger");
-              });
-            }}
-            onSync={(integrationId) => {
-              void persistIntegrationSync({
-                connectionId: integrationId,
-              }).then(async (run) => {
-                if (run.result === "success") {
-                  pushToast(run.message || "Integration inventory synced.", "success");
-                } else {
-                  pushToast(run.message || "Integration inventory sync failed.", "danger");
-                }
-                await refreshWorkspace(currentProjectId());
-              }).catch((error: unknown) => {
-                pushToast(error instanceof Error ? error.message : "Could not refresh integration metadata.", "danger");
-              });
-            }}
-            onOpenResource={(id) =>
-              navigateToDetail(
-                setTab(goSection(route(), "reality"), "inventory"),
-                "resources:inventory",
-                id,
-                "resource",
-              )
-            }
-          />
+        <Match when={route().section === "activity"}>
+          <ActivityPage projectId={currentProjectId()} />
         </Match>
 
         <Match when={route().section === "cli"}>
@@ -1318,6 +1168,43 @@ export function App() {
             repositories={workspace().repositories}
             loading={loading()}
             onTabChange={(tab) => applyRoute(openDialog(route(), { type: "settings", tab: tab as ProjectSettingsTabId }), "silent")}
+            renderIntegrations={(integrationsTab, setIntegrationsTab) => (
+              <IntegrationsView
+                projectId={currentProjectId()}
+                providers={workspace().providers}
+                integrations={workspace().integrations}
+                resources={workspace().integrationResources}
+                syncRuns={workspace().syncRuns}
+                tab={integrationsTab}
+                loading={loading() || !workspace().extensionsReady}
+                onTabChange={(next) => setIntegrationsTab(next as "connected" | "catalog")}
+                onConnect={(provider) => {
+                  void persistIntegrationConnection({
+                    projectId: currentProjectId(),
+                    environmentId: route().environmentId,
+                    provider,
+                  }).then(async () => {
+                    await refreshWorkspace(currentProjectId());
+                  }).catch((error: unknown) => {
+                    pushToast(error instanceof Error ? error.message : "Could not save connection.", "danger");
+                  });
+                }}
+                onSync={(integrationId) => {
+                  void persistIntegrationSync({
+                    connectionId: integrationId,
+                  }).then(async (run) => {
+                    if (run.result === "success") {
+                      pushToast(run.message || "Integration inventory synced.", "success");
+                    } else {
+                      pushToast(run.message || "Integration inventory sync failed.", "danger");
+                    }
+                    await refreshWorkspace(currentProjectId());
+                  }).catch((error: unknown) => {
+                    pushToast(error instanceof Error ? error.message : "Could not refresh integration metadata.", "danger");
+                  });
+                }}
+              />
+            )}
             onAddRepository={async (draft) => {
               try {
                 await persistAddProjectRepo(currentProjectId(), draft.name, draft.path);

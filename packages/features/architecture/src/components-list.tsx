@@ -111,6 +111,8 @@ function ComponentsSection(props: {
               type="button"
               class="atlas-components__domain"
               aria-current={props.selectedId === domain().id ? "true" : undefined}
+              data-detail-opener
+              data-detail-target-id={domain().id}
               onClick={() => props.onSelect(domain().id)}
             >
               <AtlasStatusMark status={domain().status} />
@@ -142,6 +144,8 @@ function ComponentsSection(props: {
                 class="atlas-components__row"
                 data-selected={props.selectedId === node.id ? "true" : undefined}
                 aria-current={props.selectedId === node.id ? "true" : undefined}
+                data-detail-opener
+                data-detail-target-id={node.id}
                 onClick={() => props.onSelect(node.id)}
               >
                 <AtlasStatusMark status={node.status} />

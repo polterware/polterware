@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show, type JSX } from "solid-js";
 import {
   A11yDialog,
   Button,
@@ -23,6 +23,7 @@ import {
 import { SettingsRow, SettingsSection } from "./settings-section";
 import { ShortcutsPage } from "./shortcuts-page";
 import { AppearanceCard } from "./appearance-card";
+import { AgentsSettingsPanel, type AgentsSettingsTab } from "./agents-settings-panel";
 import { CoreCard } from "./core-card";
 import { PrivacyCard } from "./privacy-card";
 import {
@@ -47,7 +48,9 @@ export { EnvironmentRows } from "./environment-rows";
 export { SettingsRow, SettingsSection } from "./settings-section";
 export { CreateEnvironmentDialog } from "./create-environment-dialog";
 export { ShortcutsPage } from "./shortcuts-page";
-export { AgentsPage } from "./agents-page";
+export { AgentsSettingsPanel, type AgentsSettingsTab } from "./agents-settings-panel";
+export { TruthFactsPage } from "./truth-facts-page";
+export { ActivityPage } from "./activity-page";
 export { hydrateShortcutPreferences, persistShortcutOverrides } from "./shortcut-persist";
 export { hydrateAppearancePreferences, persistReduceTransparency } from "./appearance-persist";
 export { AppearanceCard } from "./appearance-card";
@@ -64,6 +67,8 @@ export function SettingsView(props: {
   repositories?: ProjectRepository[];
   loading?: boolean;
   onTabChange?: (t: string) => void;
+  /** Integrations tab body; the host supplies it so this package stays independent of the Integrations feature. */
+  renderIntegrations?: (tab: "connected" | "catalog", setTab: (tab: "connected" | "catalog") => void) => JSX.Element;
   onSaveGeneral?: (settings: ProjectGeneralSettings) => void;
   onAddRepository?: (draft: { name: string; path: string }) => Promise<void> | void;
   onRemoveRepository?: (name: string) => Promise<void> | void;
@@ -168,6 +173,8 @@ export function SettingsView(props: {
   }
 
   const activeTab = () => SETTINGS_TABS.find((item) => item.id === tab());
+  const headingFor = (item?: (typeof SETTINGS_TABS)[number]) =>
+    item && (item.group === "Agents" || item.group === "Integrations") ? `${item.group} · ${item.label}` : item?.label;
 
   const [query, setQuery] = createSignal("");
   const searching = () => query().trim().length > 0;
@@ -226,24 +233,35 @@ export function SettingsView(props: {
               }}
             />
             <For each={SETTINGS_TABS}>
-              {(item) => {
+              {(item, index) => {
                 const Icon = item.tooltip?.icon;
                 const active = () => !searching() && item.id === tab();
+                const startsGroup = () => index() === 0 || SETTINGS_TABS[index() - 1]!.group !== item.group;
                 return (
-                  <button
-                    type="button"
-                    aria-current={active() ? "page" : undefined}
-                    class="flex h-8 w-full cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border-0 px-2.5 text-left text-[12.5px]"
-                    classList={{
-                      "bg-[var(--color-surface-selected)] text-[var(--color-text-primary)]": active(),
-                      "bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]":
-                        !active(),
-                    }}
-                    onClick={() => selectTab(item.id)}
-                  >
-                    <Show when={Icon}>{(icon) => icon()({ size: 14, "aria-hidden": true })}</Show>
-                    {item.label}
-                  </button>
+                  <>
+                    <Show when={startsGroup()}>
+                      <span
+                        class="px-2.5 pb-0.5 text-[11px] font-medium text-[var(--color-text-muted)]"
+                        classList={{ "pt-3": index() > 0 }}
+                      >
+                        {item.group}
+                      </span>
+                    </Show>
+                    <button
+                      type="button"
+                      aria-current={active() ? "page" : undefined}
+                      class="flex h-8 w-full cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border-0 px-2.5 text-left text-[12.5px]"
+                      classList={{
+                        "bg-[var(--color-surface-selected)] text-[var(--color-text-primary)]": active(),
+                        "bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]":
+                          !active(),
+                      }}
+                      onClick={() => selectTab(item.id)}
+                    >
+                      <Show when={Icon}>{(icon) => icon()({ size: 14, "aria-hidden": true })}</Show>
+                      {item.label}
+                    </button>
+                  </>
                 );
               }}
             </For>
@@ -261,7 +279,7 @@ export function SettingsView(props: {
           <div class="flex min-h-0 flex-1 flex-col overflow-auto px-8 pt-6 pb-8">
             <div class="mb-6 flex items-center justify-between pr-10">
               <h2 class="m-0 text-[16px] font-semibold text-[var(--color-text-primary)]">
-                {searching() ? "Search results" : activeTab()?.label}
+                {searching() ? "Search results" : headingFor(activeTab())}
               </h2>
               <Show when={!searching() && tab() === "environments" && !props.loading}>
                 <Button size="sm" variant="secondary" onClick={() => setCreateOpen(true)}>
@@ -445,6 +463,20 @@ export function SettingsView(props: {
                       />
                     </Show>
                   </SettingsSection>
+                </Show>
+
+                <Show when={tab().startsWith("agents-")}>
+                  <AgentsSettingsPanel
+                    projectId={props.projectId ?? ""}
+                    tab={tab().slice("agents-".length) as AgentsSettingsTab}
+                  />
+                </Show>
+
+                <Show when={tab().startsWith("integrations-")}>
+                  {props.renderIntegrations?.(
+                    tab() === "integrations-catalog" ? "catalog" : "connected",
+                    (next) => props.onTabChange?.(`integrations-${next}`),
+                  )}
                 </Show>
 
                 <Show when={tab() === "shortcuts"}>

@@ -1,9 +1,9 @@
 import { For, Show, createMemo } from "solid-js";
 import {
-  Button,
   Check,
   DetailPanel,
   ListChecks,
+  Button,
   Select,
   Square,
   StatusChip,
@@ -42,28 +42,21 @@ export function WorkCardDetail(props: {
           Boolean(props.onContinueFlow) && (card().stage === "shape" || card().stage === "plan");
         return (
           <DetailPanel.Content>
-            <DetailPanel.Header icon={<ListChecks size={16} />} title={card().title}>
-              <Show when={props.onRemove || continuable()}>
-                <DetailPanel.Actions>
-                  <Show when={continuable()}>
-                    <Button size="sm" variant="secondary" onClick={() => props.onContinueFlow?.()}>
-                      {card().stage === "shape" ? "Continue shaping" : "Continue planning"}
-                    </Button>
-                  </Show>
-                  <Show when={props.onRemove}>
-                    <DetailPanel.Overflow>
-                      <DetailPanel.OverflowItem value="remove" danger onSelect={() => props.onRemove?.()}>
-                        Remove from board
-                      </DetailPanel.OverflowItem>
-                    </DetailPanel.Overflow>
-                  </Show>
-                </DetailPanel.Actions>
-              </Show>
-            </DetailPanel.Header>
+            <DetailPanel.Header />
 
             <DetailPanel.Body>
               <DetailPanel.Main>
-                <DetailPanel.Section title="Intent">
+                <DetailPanel.Title
+                  icon={<ListChecks size={16} />}
+                  title={card().title}
+                />
+                <DetailPanel.Section title="Intent" aside={
+                  <Show when={continuable()}>
+                    <Button variant="secondary" size="sm" onClick={() => props.onContinueFlow?.()}>
+                      {card().stage === "shape" ? "Continue shaping" : "Continue planning"}
+                    </Button>
+                  </Show>
+                }>
                   <Show
                     when={card().intent}
                     fallback={<p class="pw-detail-panel__text" data-empty>No intent yet.</p>}
@@ -194,6 +187,9 @@ export function WorkCardDetail(props: {
                     />
                     <DetailPanel.Property label="Updated" value={card().updatedAt} />
                   </DetailPanel.Properties>
+                  <Show when={props.onRemove}>
+                    <Button variant="danger" size="sm" onClick={() => props.onRemove?.()}>Remove from board</Button>
+                  </Show>
                 </DetailPanel.Section>
                 <DetailPanel.Section>
                   <p class="pw-detail-panel__text" data-empty>

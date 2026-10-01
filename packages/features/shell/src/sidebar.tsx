@@ -3,21 +3,20 @@ import {
   Show,
   createEffect,
   createMemo,
+  createSignal,
   onCleanup,
   onMount,
   type JSX,
 } from "solid-js";
 import {
   Badge,
-  Bot,
   Briefcase06Icon,
   ChartRelationshipIcon,
-  ConnectIcon,
   createFluidHover,
   FluidHoverHighlight,
+  History,
   Inbox,
   Layers,
-  RadioButtonIcon,
   Settings,
   spring,
   type FluidHover,
@@ -27,6 +26,9 @@ import {
   type PlatformContext,
 } from "@polterware/frontend-platform";
 import type { NavItem } from "./route";
+import { HelpMenu } from "./help-menu";
+import { HelpTopicDialog } from "./help-topic-dialog";
+import type { HelpTopicId } from "./help-topics";
 import "./sidebar.css";
 
 /**
@@ -37,10 +39,8 @@ const icons = {
   inbox: (p) => <Inbox size={p.size ?? 14} class={p.class} />,
   atlas: (p) => <ChartRelationshipIcon size={p.size ?? 14} class={p.class} />,
   work: (p) => <Briefcase06Icon size={p.size ?? 14} class={p.class} />,
-  decisions: (p) => <RadioButtonIcon size={p.size ?? 14} class={p.class} />,
-  reality: (p) => <Layers size={p.size ?? 14} class={p.class} />,
-  agents: (p) => <Bot size={p.size ?? 14} class={p.class} />,
-  integrations: (p) => <ConnectIcon size={p.size ?? 14} class={p.class} />,
+  truth: (p) => <Layers size={p.size ?? 14} class={p.class} />,
+  activity: (p) => <History size={p.size ?? 14} class={p.class} />,
   settings: (p) => <Settings size={p.size ?? 14} class={p.class} />,
 } satisfies Record<string, (p: { size?: number; class?: string }) => JSX.Element>;
 
@@ -164,24 +164,32 @@ function SidebarNavItem(props: {
   );
 }
 
-/** Fixed footer Settings control for project sidebar. */
+/** Fixed Settings and Help controls for the project sidebar. */
 export function SidebarSettingsItem(props: {
   active?: boolean;
   onSelect: () => void;
+  onOpenCliReference?: () => void;
 }) {
+  const [activeTopicId, setActiveTopicId] = createSignal<HelpTopicId | null>(null);
   return (
-    <button
-      type="button"
-      aria-current={props.active ? "page" : undefined}
-      classList={{
-        "pw-sidebar-item": true,
-        "pw-sidebar-item--active": Boolean(props.active),
-        "pw-sidebar-item--footer": true,
-      }}
-      onClick={() => props.onSelect()}
-    >
-      <span class="pw-sidebar-item-icon">{icons.settings!({ size: 14 })}</span>
-      <span class="pw-sidebar-item-label">Settings</span>
-    </button>
+    <>
+      <div class="flex items-center gap-1">
+        <button
+          type="button"
+          aria-current={props.active ? "page" : undefined}
+          classList={{
+            "pw-sidebar-item": true,
+            "pw-sidebar-item--active": Boolean(props.active),
+            "pw-sidebar-item--footer": true,
+          }}
+          onClick={() => props.onSelect()}
+        >
+          <span class="pw-sidebar-item-icon">{icons.settings!({ size: 14 })}</span>
+          <span class="pw-sidebar-item-label">Settings</span>
+        </button>
+        <HelpMenu onSelectTopic={setActiveTopicId} onOpenCliReference={props.onOpenCliReference} />
+      </div>
+      <HelpTopicDialog topicId={activeTopicId()} onClose={() => setActiveTopicId(null)} />
+    </>
   );
 }

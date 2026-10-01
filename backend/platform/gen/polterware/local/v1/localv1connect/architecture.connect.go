@@ -39,12 +39,6 @@ const (
 	// ArchitectureServiceUpdateLayoutProcedure is the fully-qualified name of the ArchitectureService's
 	// UpdateLayout RPC.
 	ArchitectureServiceUpdateLayoutProcedure = "/polterware.local.v1.ArchitectureService/UpdateLayout"
-	// ArchitectureServiceListResourcesProcedure is the fully-qualified name of the
-	// ArchitectureService's ListResources RPC.
-	ArchitectureServiceListResourcesProcedure = "/polterware.local.v1.ArchitectureService/ListResources"
-	// ArchitectureServiceSaveResourceProcedure is the fully-qualified name of the ArchitectureService's
-	// SaveResource RPC.
-	ArchitectureServiceSaveResourceProcedure = "/polterware.local.v1.ArchitectureService/SaveResource"
 	// ArchitectureServiceListViewsProcedure is the fully-qualified name of the ArchitectureService's
 	// ListViews RPC.
 	ArchitectureServiceListViewsProcedure = "/polterware.local.v1.ArchitectureService/ListViews"
@@ -60,8 +54,6 @@ const (
 type ArchitectureServiceClient interface {
 	GetLayout(context.Context, *connect.Request[v1.GetLayoutRequest]) (*connect.Response[v1.GetLayoutResponse], error)
 	UpdateLayout(context.Context, *connect.Request[v1.UpdateLayoutRequest]) (*connect.Response[v1.UpdateLayoutResponse], error)
-	ListResources(context.Context, *connect.Request[v1.ListResourcesRequest]) (*connect.Response[v1.ListResourcesResponse], error)
-	SaveResource(context.Context, *connect.Request[v1.SaveResourceRequest]) (*connect.Response[v1.SaveResourceResponse], error)
 	ListViews(context.Context, *connect.Request[v1.ListViewsRequest]) (*connect.Response[v1.ListViewsResponse], error)
 	SaveView(context.Context, *connect.Request[v1.SaveViewRequest]) (*connect.Response[v1.SaveViewResponse], error)
 	DeleteView(context.Context, *connect.Request[v1.DeleteViewRequest]) (*connect.Response[v1.DeleteViewResponse], error)
@@ -90,18 +82,6 @@ func NewArchitectureServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(architectureServiceMethods.ByName("UpdateLayout")),
 			connect.WithClientOptions(opts...),
 		),
-		listResources: connect.NewClient[v1.ListResourcesRequest, v1.ListResourcesResponse](
-			httpClient,
-			baseURL+ArchitectureServiceListResourcesProcedure,
-			connect.WithSchema(architectureServiceMethods.ByName("ListResources")),
-			connect.WithClientOptions(opts...),
-		),
-		saveResource: connect.NewClient[v1.SaveResourceRequest, v1.SaveResourceResponse](
-			httpClient,
-			baseURL+ArchitectureServiceSaveResourceProcedure,
-			connect.WithSchema(architectureServiceMethods.ByName("SaveResource")),
-			connect.WithClientOptions(opts...),
-		),
 		listViews: connect.NewClient[v1.ListViewsRequest, v1.ListViewsResponse](
 			httpClient,
 			baseURL+ArchitectureServiceListViewsProcedure,
@@ -125,13 +105,11 @@ func NewArchitectureServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // architectureServiceClient implements ArchitectureServiceClient.
 type architectureServiceClient struct {
-	getLayout     *connect.Client[v1.GetLayoutRequest, v1.GetLayoutResponse]
-	updateLayout  *connect.Client[v1.UpdateLayoutRequest, v1.UpdateLayoutResponse]
-	listResources *connect.Client[v1.ListResourcesRequest, v1.ListResourcesResponse]
-	saveResource  *connect.Client[v1.SaveResourceRequest, v1.SaveResourceResponse]
-	listViews     *connect.Client[v1.ListViewsRequest, v1.ListViewsResponse]
-	saveView      *connect.Client[v1.SaveViewRequest, v1.SaveViewResponse]
-	deleteView    *connect.Client[v1.DeleteViewRequest, v1.DeleteViewResponse]
+	getLayout    *connect.Client[v1.GetLayoutRequest, v1.GetLayoutResponse]
+	updateLayout *connect.Client[v1.UpdateLayoutRequest, v1.UpdateLayoutResponse]
+	listViews    *connect.Client[v1.ListViewsRequest, v1.ListViewsResponse]
+	saveView     *connect.Client[v1.SaveViewRequest, v1.SaveViewResponse]
+	deleteView   *connect.Client[v1.DeleteViewRequest, v1.DeleteViewResponse]
 }
 
 // GetLayout calls polterware.local.v1.ArchitectureService.GetLayout.
@@ -142,16 +120,6 @@ func (c *architectureServiceClient) GetLayout(ctx context.Context, req *connect.
 // UpdateLayout calls polterware.local.v1.ArchitectureService.UpdateLayout.
 func (c *architectureServiceClient) UpdateLayout(ctx context.Context, req *connect.Request[v1.UpdateLayoutRequest]) (*connect.Response[v1.UpdateLayoutResponse], error) {
 	return c.updateLayout.CallUnary(ctx, req)
-}
-
-// ListResources calls polterware.local.v1.ArchitectureService.ListResources.
-func (c *architectureServiceClient) ListResources(ctx context.Context, req *connect.Request[v1.ListResourcesRequest]) (*connect.Response[v1.ListResourcesResponse], error) {
-	return c.listResources.CallUnary(ctx, req)
-}
-
-// SaveResource calls polterware.local.v1.ArchitectureService.SaveResource.
-func (c *architectureServiceClient) SaveResource(ctx context.Context, req *connect.Request[v1.SaveResourceRequest]) (*connect.Response[v1.SaveResourceResponse], error) {
-	return c.saveResource.CallUnary(ctx, req)
 }
 
 // ListViews calls polterware.local.v1.ArchitectureService.ListViews.
@@ -174,8 +142,6 @@ func (c *architectureServiceClient) DeleteView(ctx context.Context, req *connect
 type ArchitectureServiceHandler interface {
 	GetLayout(context.Context, *connect.Request[v1.GetLayoutRequest]) (*connect.Response[v1.GetLayoutResponse], error)
 	UpdateLayout(context.Context, *connect.Request[v1.UpdateLayoutRequest]) (*connect.Response[v1.UpdateLayoutResponse], error)
-	ListResources(context.Context, *connect.Request[v1.ListResourcesRequest]) (*connect.Response[v1.ListResourcesResponse], error)
-	SaveResource(context.Context, *connect.Request[v1.SaveResourceRequest]) (*connect.Response[v1.SaveResourceResponse], error)
 	ListViews(context.Context, *connect.Request[v1.ListViewsRequest]) (*connect.Response[v1.ListViewsResponse], error)
 	SaveView(context.Context, *connect.Request[v1.SaveViewRequest]) (*connect.Response[v1.SaveViewResponse], error)
 	DeleteView(context.Context, *connect.Request[v1.DeleteViewRequest]) (*connect.Response[v1.DeleteViewResponse], error)
@@ -198,18 +164,6 @@ func NewArchitectureServiceHandler(svc ArchitectureServiceHandler, opts ...conne
 		ArchitectureServiceUpdateLayoutProcedure,
 		svc.UpdateLayout,
 		connect.WithSchema(architectureServiceMethods.ByName("UpdateLayout")),
-		connect.WithHandlerOptions(opts...),
-	)
-	architectureServiceListResourcesHandler := connect.NewUnaryHandler(
-		ArchitectureServiceListResourcesProcedure,
-		svc.ListResources,
-		connect.WithSchema(architectureServiceMethods.ByName("ListResources")),
-		connect.WithHandlerOptions(opts...),
-	)
-	architectureServiceSaveResourceHandler := connect.NewUnaryHandler(
-		ArchitectureServiceSaveResourceProcedure,
-		svc.SaveResource,
-		connect.WithSchema(architectureServiceMethods.ByName("SaveResource")),
 		connect.WithHandlerOptions(opts...),
 	)
 	architectureServiceListViewsHandler := connect.NewUnaryHandler(
@@ -236,10 +190,6 @@ func NewArchitectureServiceHandler(svc ArchitectureServiceHandler, opts ...conne
 			architectureServiceGetLayoutHandler.ServeHTTP(w, r)
 		case ArchitectureServiceUpdateLayoutProcedure:
 			architectureServiceUpdateLayoutHandler.ServeHTTP(w, r)
-		case ArchitectureServiceListResourcesProcedure:
-			architectureServiceListResourcesHandler.ServeHTTP(w, r)
-		case ArchitectureServiceSaveResourceProcedure:
-			architectureServiceSaveResourceHandler.ServeHTTP(w, r)
 		case ArchitectureServiceListViewsProcedure:
 			architectureServiceListViewsHandler.ServeHTTP(w, r)
 		case ArchitectureServiceSaveViewProcedure:
@@ -261,14 +211,6 @@ func (UnimplementedArchitectureServiceHandler) GetLayout(context.Context, *conne
 
 func (UnimplementedArchitectureServiceHandler) UpdateLayout(context.Context, *connect.Request[v1.UpdateLayoutRequest]) (*connect.Response[v1.UpdateLayoutResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ArchitectureService.UpdateLayout is not implemented"))
-}
-
-func (UnimplementedArchitectureServiceHandler) ListResources(context.Context, *connect.Request[v1.ListResourcesRequest]) (*connect.Response[v1.ListResourcesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ArchitectureService.ListResources is not implemented"))
-}
-
-func (UnimplementedArchitectureServiceHandler) SaveResource(context.Context, *connect.Request[v1.SaveResourceRequest]) (*connect.Response[v1.SaveResourceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("polterware.local.v1.ArchitectureService.SaveResource is not implemented"))
 }
 
 func (UnimplementedArchitectureServiceHandler) ListViews(context.Context, *connect.Request[v1.ListViewsRequest]) (*connect.Response[v1.ListViewsResponse], error) {

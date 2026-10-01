@@ -8,8 +8,8 @@ import {
 } from "@polterware/frontend-design-system";
 import { HELP_TOPICS, type HelpTopicId } from "./help-topics";
 
-const headerIconControlClass =
-  "control-field control-field-md inline-flex w-[var(--control-height-md)] shrink-0 cursor-pointer items-center justify-center !rounded-full p-0 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none";
+const footerIconControlClass =
+  "pw-sidebar-item !w-8 shrink-0 justify-center";
 
 export function HelpMenu(props: {
   onSelectTopic: (topicId: HelpTopicId) => void;
@@ -33,7 +33,7 @@ export function HelpMenu(props: {
         aria-expanded={open()}
         title="Help"
         onClick={() => setOpen((value) => !value)}
-        class={headerIconControlClass}
+        class={footerIconControlClass}
       >
         <HelpCircle size={14} />
       </button>
@@ -43,7 +43,7 @@ export function HelpMenu(props: {
         onClose={close}
         title="Help"
         width={260}
-        placement="bottom-end"
+        placement="top-start"
         anchorRef={() => triggerRef}
       >
         <MenuList class="min-h-0 flex-1 overflow-auto p-2">

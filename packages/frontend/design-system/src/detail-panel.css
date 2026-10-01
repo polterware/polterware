@@ -1,447 +1,60 @@
-.pw-detail-panel-root,
-.pw-detail-panel-layout,
-.pw-detail-panel__collection-panel,
-.pw-detail-panel__collection,
-.pw-detail-panel__panel,
-.pw-detail-panel__viewport,
-.pw-detail-panel__surface,
-.pw-detail-panel__content {
-  box-sizing: border-box;
-  min-width: 0;
-  min-height: 0;
-}
+.pw-detail-panel-root, .pw-detail-panel__workspace, .pw-detail-panel__collection-panel, .pw-detail-panel__collection,
+.pw-detail-panel__surface, .pw-detail-panel__content { box-sizing: border-box; min-width: 0; min-height: 0; }
 
 .pw-detail-panel-root {
-  --detail-panel-collapsed-height: 68px;
-  /* The slow spring tier (0.24s, bounce 0.12), sampled from springs.ts (spring-css.ts). */
-  --detail-panel-snap-duration: var(--spring-slow-duration, var(--duration-enter));
-  --detail-panel-snap-ease: var(--spring-slow-ease, var(--ease-enter));
-  --detail-panel-hover-duration: var(--duration-fast);
-  --detail-panel-hover-ease: var(--ease-standard);
-  --detail-panel-collapse-progress: 0;
-  --detail-panel-gutter: 8px;
-  --detail-panel-radius: 14px;
-  --detail-panel-title-chrome-alpha: 0;
-  --detail-panel-viewport-height: 50cqh;
-  --detail-panel-side-width: min(400px, 48cqw);
-  --detail-panel-side-collapsed-width: 56px;
-  --detail-panel-viewport-width: var(--detail-panel-side-width);
-  /* End-of-content clearance under the floating panel (once, not a layout split). */
-  --detail-panel-collection-clearance: 0px;
-  --detail-panel-chrome-alpha: calc(
-    1 - var(--detail-panel-collapse-progress)
-  );
-  --detail-panel-fade-alpha: var(--detail-panel-collapse-progress);
+  --detail-panel-width: 400px;
+  --detail-panel-space: 0px;
   position: relative;
   isolation: isolate;
   display: flex;
-  width: 100%;
-  height: 100%;
-  flex: 1 1 0;
-  overflow: hidden;
-  container-type: size;
-}
-
-/* Visible + not maximized: one clearance token for the end of collection content. */
-.pw-detail-panel-root[data-panel-placement="bottom"][data-presence="visible"]:not(
-    [data-viewport-mode="maximized"]
-  ) {
-  --detail-panel-collection-clearance: var(--detail-panel-viewport-height);
-}
-
-.pw-detail-panel-root[data-mode="collapsed"] {
-  --detail-panel-collapse-progress: 1;
-  --detail-panel-title-chrome-alpha: 1;
-}
-
-.pw-detail-panel-root[data-viewport-mode="collapsed"] {
-  --detail-panel-viewport-height: var(--detail-panel-collapsed-height);
-}
-
-.pw-detail-panel-root[data-mode="collapsed"] .pw-detail-panel__viewport {
-  padding-bottom: 0;
-}
-
-.pw-detail-panel-root[data-viewport-mode="maximized"] {
-  --detail-panel-viewport-height: 100cqh;
-}
-
-.pw-detail-panel-root[data-mode="maximized"] {
-  --detail-panel-gutter: 0px;
-  --detail-panel-radius: 0px;
-}
-
-.pw-detail-panel-layout {
-  position: relative;
-  display: flex;
-  width: 100%;
-  height: 100%;
-  flex: 1 1 0;
-}
-
-.pw-detail-panel__collection-panel {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  width: 100% !important;
-  height: 100% !important;
-  flex-basis: auto !important;
-  overflow: hidden;
-}
-
-.pw-detail-panel__panel {
-  position: absolute;
-  inset: 0;
-  width: 100% !important;
-  height: 100%;
-  /* Visible so cast shadow can bleed onto the collection; clip lives on content. */
-  overflow: visible;
-  pointer-events: none;
-  /*
-   * Resting poses live in CSS (per mode, presence, placement). The travel between them is
-   * a spring in JS (detail-panel.tsx reads the pose and springs an inline transform on
-   * spring.slow), so an interrupted move reverses with its velocity. No CSS transition.
-   */
-  transform: translateY(50cqh);
-}
-
-/* Promote the layer only while a snap transition is running (see data-settling). */
-.pw-detail-panel-root[data-settling="true"] .pw-detail-panel__panel {
-  will-change: transform;
-}
-
-.pw-detail-panel__panel::before {
-  position: absolute;
-  z-index: 0;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: var(--detail-panel-collapsed-height);
-  background: var(--material-fade-edge-top);
-  content: "";
-  opacity: var(--detail-panel-fade-alpha);
-  pointer-events: none;
-  transition: opacity var(--detail-panel-snap-duration)
-    var(--detail-panel-snap-ease);
-}
-
-.pw-detail-panel__collection,
-.pw-detail-panel__content {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  flex: 1 1 0;
   flex-direction: column;
-}
-
-/*
- * Clearance must NOT resize the collection host (that reflows the page and
- * flickers on open/close). Put extra scroll range only after the last table:
- * - Access People stacks 3 tables → only the final one grows
- * - Single-table pages → that table is :last-child and scrolls clear
- * No transition: padding changes are discrete so layout does not swim.
- */
-.pw-detail-panel__collection .pw-data-table-root:last-child .pw-data-table-scroll {
-  padding-bottom: var(--detail-panel-collection-clearance);
-}
-
-.pw-detail-panel__content {
-  position: relative;
-  z-index: 1;
+  width: 100%; height: 100%; min-width: 0; min-height: 0;
+  flex: 1 1 0;
   overflow: hidden;
-  border-radius: inherit;
 }
-
-.pw-detail-panel__portal {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-  overflow: hidden;
-  border-radius: inherit;
-}
-
-.pw-detail-panel__viewport {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: var(--detail-panel-viewport-height);
-  padding: var(--detail-panel-gutter);
-  pointer-events: none;
-  transition: padding var(--detail-panel-snap-duration)
-    var(--detail-panel-snap-ease);
-}
-
-.pw-detail-panel__surface.surface-panel-float {
-  position: relative;
-  isolation: isolate;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-  border: 0;
-  border-radius: var(--detail-panel-radius);
-  background: transparent;
-  box-shadow: none;
-  pointer-events: auto;
-  transition:
-    border-radius var(--detail-panel-snap-duration) var(--detail-panel-snap-ease);
-}
-
-.pw-detail-panel__surface.surface-panel-float::before {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  border-radius: inherit;
-  content: "";
-  pointer-events: none;
-  transition:
-    opacity var(--detail-panel-snap-duration) var(--detail-panel-snap-ease),
-    background-color var(--duration-control) var(--ease-standard);
-}
-
-.pw-detail-panel__surface.surface-panel-float::before {
-  background-color: var(--color-surface-raised);
-  /*
-   * Soft lift cast toward the collection only. The root clips with
-   * overflow: hidden, so negative spread keeps the blur within the gutter on
-   * the clipped edges while it diffuses freely over the collection.
-   */
-  box-shadow:
-    inset 0 1px 0 var(--edge-light-surface-highlight),
-    inset 0 0 0 1px var(--edge-light-surface-rim),
-    0 -4px 32px -16px var(--color-shadow-outline);
-  opacity: var(--detail-panel-chrome-alpha);
-}
-
-.pw-detail-panel-root[data-mode="collapsed"] .pw-detail-panel__panel {
-  transform: translateY(calc(100cqh - var(--detail-panel-collapsed-height)));
-  pointer-events: none;
-}
-
-.pw-detail-panel-root[data-mode="collapsed"][data-presence="dismissing"] .pw-detail-panel__panel,
-.pw-detail-panel-root[data-mode="collapsed"][data-presence="hidden"] .pw-detail-panel__panel {
-  transform: translateY(100cqh);
-}
-
-.pw-detail-panel-root[data-mode="collapsed"][data-presence="hidden"] .pw-detail-panel__viewport {
-  padding: 0;
-}
-
-.pw-detail-panel-root[data-mode="maximized"] .pw-detail-panel-layout {
-  position: relative;
-  display: block;
-}
-
-.pw-detail-panel-root[data-mode="maximized"] .pw-detail-panel__collection-panel {
-  position: absolute;
-  inset: 0;
-  width: 100% !important;
-  height: 100% !important;
-  flex-basis: auto !important;
-}
-
-.pw-detail-panel-root[data-mode="maximized"] .pw-detail-panel__panel {
-  width: 100% !important;
-  max-width: none !important;
-  height: 100%;
-  max-height: none !important;
-  flex-basis: auto !important;
-  pointer-events: none;
-  transform: translateY(0);
-}
-
-.pw-detail-panel-root[data-mode="maximized"] .pw-detail-panel__viewport {
-  pointer-events: auto;
-}
-
-.pw-detail-panel-root[data-mode="maximized"]
-  .pw-detail-panel__surface.surface-panel-float::before {
-  box-shadow: none;
-}
-
-/*
- * Side placement mirrors the bottom geometry on the X axis: the viewport sits
- * at the panel's leading edge and the panel translates so only the viewport
- * width is visible. Collapsed keeps opaque chrome as a vertical strip.
- */
-.pw-detail-panel-root[data-panel-placement="side"][data-viewport-mode="collapsed"] {
-  --detail-panel-viewport-width: var(--detail-panel-side-collapsed-width);
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-viewport-mode="maximized"] {
-  --detail-panel-viewport-width: 100cqw;
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"] {
-  --detail-panel-collapse-progress: 0;
-  --detail-panel-title-chrome-alpha: 0;
-}
-
-.pw-detail-panel-root[data-panel-placement="side"] .pw-detail-panel__panel {
-  transform: translateX(calc(100cqw - var(--detail-panel-side-width)));
-}
-
-.pw-detail-panel-root[data-panel-placement="side"] .pw-detail-panel__panel::before {
-  display: none;
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"]
-  .pw-detail-panel__panel {
-  transform: translateX(
-    calc(100cqw - var(--detail-panel-side-collapsed-width))
-  );
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"][data-presence="dismissing"]
-  .pw-detail-panel__panel,
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"][data-presence="hidden"]
-  .pw-detail-panel__panel {
-  transform: translateX(100cqw);
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="maximized"]
-  .pw-detail-panel__panel {
-  transform: translateX(0);
-}
-
-.pw-detail-panel-root[data-panel-placement="side"] .pw-detail-panel__viewport {
-  width: var(--detail-panel-viewport-width);
-  height: 100%;
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"]
-  .pw-detail-panel__viewport {
-  padding-bottom: var(--detail-panel-gutter);
-}
-
-.pw-detail-panel-root[data-panel-placement="side"]
-  .pw-detail-panel__surface.surface-panel-float::before {
-  box-shadow:
-    inset 0 1px 0 var(--edge-light-surface-highlight),
-    inset 0 0 0 1px var(--edge-light-surface-rim),
-    -4px 0 32px -16px var(--color-shadow-outline);
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="maximized"]
-  .pw-detail-panel__surface.surface-panel-float::before {
-  box-shadow: none;
-}
-
-.pw-detail-panel__header {
+.pw-detail-panel__collection-header { position: relative; flex: 0 0 auto; min-width: 0; }
+.pw-detail-panel__collection-header-part { min-width: 0; }
+.pw-detail-panel__workspace {
   position: relative;
   display: grid;
-  min-height: calc(var(--control-height-sm) + 17px);
-  flex: 0 0 auto;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: end;
-  border-bottom: 1px solid var(--color-border-subtle);
-  gap: 4px;
-  padding: 8px;
-  transition:
-    min-height var(--detail-panel-snap-duration) var(--detail-panel-snap-ease),
-    padding var(--detail-panel-snap-duration) var(--detail-panel-snap-ease);
+  grid-template-columns: minmax(0, 1fr) var(--detail-panel-space);
+  flex: 1 1 0;
+  overflow: hidden;
 }
-
-.pw-detail-panel-root[data-mode="collapsed"] .pw-detail-panel__header {
-  min-height: calc(
-    var(--detail-panel-collapsed-height) - var(--detail-panel-gutter)
-  );
-  border-bottom: 0;
-  padding-inline: 0;
+.pw-detail-panel-root[data-gesturing="true"] { user-select: none; cursor: ew-resize; }
+.pw-detail-panel-root[data-gesturing="true"] * { user-select: none; cursor: ew-resize !important; }
+.pw-detail-panel__collection-panel { display: flex; min-width: 0; min-height: 0; overflow: hidden; }
+.pw-detail-panel__collection, .pw-detail-panel__content { display: flex; width: 100%; height: 100%; flex: 1 1 0; flex-direction: column; }
+.pw-detail-panel__frame {
+  position: absolute;
+  z-index: 5;
+  top: 8px; right: 8px; bottom: 8px;
+  display: flex;
+  width: var(--detail-panel-width);
+  min-width: 0; min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--color-surface-raised);
 }
+.pw-detail-panel__frame[data-expanded="true"] { inset: 0; width: 100%; border-radius: 0; }
+.pw-detail-panel__frame[hidden], .pw-detail-panel__resize-handle[hidden] { display: none; }
+.pw-detail-panel__frame[aria-hidden="true"] { pointer-events: none; }
+.pw-detail-panel__header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; height: 34px; padding: 3px 7px; }
+.pw-detail-panel__surface, .pw-detail-panel__portal { display: flex; min-width: 0; min-height: 0; flex: 1 1 0; flex-direction: column; overflow: hidden; }
+.pw-detail-panel__resize-handle {
+  position: absolute; z-index: 6; top: 8px; bottom: 8px;
+  right: calc(var(--detail-panel-width) + 4px);
+  width: 8px; cursor: ew-resize; touch-action: none; -webkit-app-region: no-drag;
+}
+.pw-detail-panel__resize-handle:focus-visible { outline: 2px solid var(--color-border-strong); outline-offset: -2px; border-radius: var(--radius-control); }
 
 .pw-detail-panel__identity {
-  position: relative;
-  z-index: 30;
   display: flex;
   min-width: 0;
-  max-width: 100%;
-  grid-column: 2;
-  grid-row: 1;
-  align-items: center;
-  justify-self: center;
-  pointer-events: none;
-}
-
-.pw-detail-panel__identity-content {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  height: var(--control-height-sm);
-  min-width: 0;
-  max-width: 100%;
+  min-height: var(--control-height-md);
+  margin-bottom: 16px;
   align-items: center;
   gap: 8px;
-}
-
-.pw-detail-panel__identity-content::before {
-  position: absolute;
-  z-index: -1;
-  inset-block: 0;
-  inset-inline: -1rem;
-  border-radius: inherit;
-  background-color: var(--color-surface-subtle);
-  box-shadow:
-    inset 0 1px 0 var(--edge-light-field-highlight),
-    inset 0 0 0 1px var(--edge-light-field-rim);
-  content: "";
-  opacity: var(--detail-panel-title-chrome-alpha);
-  pointer-events: none;
-  transition:
-    opacity var(--detail-panel-snap-duration) var(--detail-panel-snap-ease),
-    background-color var(--detail-panel-hover-duration)
-      var(--detail-panel-hover-ease);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .pw-detail-panel-root[data-mode="collapsed"]
-    .pw-detail-panel__identity:has(.pw-detail-panel__collapsed-trigger:hover)
-    .pw-detail-panel__identity-content::before {
-    background-color: var(--color-surface-hover);
-  }
-}
-
-.pw-detail-panel-root[data-mode="collapsed"]
-  .pw-detail-panel__identity:has(
-    .pw-detail-panel__collapsed-trigger:focus-visible
-  )
-  .pw-detail-panel__identity-content::before {
-  background-color: var(--color-surface-hover);
-}
-
-.pw-detail-panel-root[data-mode="collapsed"]
-  .pw-detail-panel__identity:has(.pw-detail-panel__collapsed-trigger:active)
-  .pw-detail-panel__identity-content::before {
-  background-color: var(--color-surface-active);
-}
-
-.pw-detail-panel__collapsed-trigger {
-  position: absolute;
-  z-index: 1;
-  top: -10px;
-  right: 0;
-  bottom: -10px;
-  left: -16px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  padding: 0;
-  touch-action: manipulation;
-  pointer-events: auto;
-}
-
-.pw-detail-panel__collapsed-trigger:focus-visible {
-  outline: none;
-}
-
-.pw-detail-panel-root[data-mode="collapsed"]
-  .pw-detail-panel__identity:has(.pw-detail-panel__collapsed-trigger:focus-visible)
-  .pw-detail-panel__identity-content::before {
-  outline: 1px solid var(--color-border-focus);
-  outline-offset: 2px;
 }
 
 .pw-detail-panel__header-icon {
@@ -454,13 +67,8 @@
   color: var(--color-text-secondary);
 }
 
-.pw-detail-panel__header-icon svg {
-  transform-origin: center;
-  transition: transform var(--detail-panel-snap-duration)
-    var(--detail-panel-snap-ease);
-}
-
 .pw-detail-panel__title {
+  display: -webkit-box;
   overflow: hidden;
   min-width: 0;
   flex: 1 1 auto;
@@ -469,107 +77,28 @@
   font-size: 14px;
   font-weight: 600;
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.pw-detail-panel-root[data-mode="collapsed"] .pw-detail-panel__header-icon svg {
-  transform: scale(0.875);
-}
-
-.pw-detail-panel__actions,
-.pw-detail-panel__global-actions {
-  position: relative;
-  z-index: 31;
+.pw-detail-panel__meta {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
-.pw-detail-panel__action-tooltip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.pw-detail-panel__action-tooltip-label {
-  min-width: 0;
+.pw-detail-panel__menu-trigger {
+  flex: 0 0 auto;
 }
 
 .pw-detail-panel__actions {
-  max-width: 100%;
+  display: flex;
+  min-width: 0;
   flex-wrap: wrap;
-  grid-column: 1;
-  grid-row: 1;
-  justify-content: flex-start;
-  justify-self: start;
-  margin-inline-start: 0;
-}
-
-.pw-detail-panel__global-actions {
-  grid-column: 3;
-  grid-row: 1;
-  justify-content: flex-end;
-  justify-self: end;
-  margin-inline-start: 0;
-}
-
-.pw-detail-panel__action[data-tone="neutral"] {
-  color: var(--color-text-secondary);
-}
-
-.pw-detail-panel__action[data-tone="neutral"]:hover {
-  color: var(--color-text-primary);
-}
-
-.pw-detail-panel__action[data-tone="primary"],
-.pw-detail-panel__action[data-tone="primary"]:hover {
-  color: var(--color-primary);
-}
-
-/* Side placement collapsed: vertical strip with actions on top. */
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"]
-  .pw-detail-panel__header {
-  height: 100%;
-  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"]
-  .pw-detail-panel__global-actions {
-  order: -1;
-  flex-direction: column;
-  border-left: 0;
-  margin-inline-start: 0;
-  padding-inline-start: 0;
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"]
-  .pw-detail-panel__actions {
-  display: none;
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"]
-  .pw-detail-panel__identity {
-  flex: 1 1 auto;
-  align-items: flex-start;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"]
-  .pw-detail-panel__identity-content {
-  flex-direction: column;
-  writing-mode: vertical-rl;
-}
-
-.pw-detail-panel-root[data-panel-placement="side"][data-mode="collapsed"]
-  .pw-detail-panel__collapsed-trigger {
-  inset: -4px;
+  gap: 6px;
 }
 
 .pw-detail-panel__body {
@@ -606,7 +135,7 @@
 .pw-detail-panel__rail {
   min-width: 0;
   border-left: 1px solid var(--color-border-subtle);
-  padding: 16px 16px 24px;
+  padding: 16px 20px 24px;
 }
 
 @container (max-width: 720px) {
@@ -844,18 +373,4 @@
 .pw-detail-panel__section .pw-data-table-row--selected > .pw-data-table-cell::before,
 .pw-detail-panel__section .pw-data-table-row--selected > .pw-data-table-selection-cell::before {
   background: var(--color-surface-selected);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pw-detail-panel__panel,
-  .pw-detail-panel__panel::before,
-  .pw-detail-panel__viewport,
-  .pw-detail-panel__surface.surface-panel-float,
-  .pw-detail-panel__surface.surface-panel-float::before,
-  .pw-detail-panel__header,
-  .pw-detail-panel__identity-content::before,
-  .pw-detail-panel__header-icon svg,
-  .pw-detail-panel__action {
-    transition: none;
-  }
 }

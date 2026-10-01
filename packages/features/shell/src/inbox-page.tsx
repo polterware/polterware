@@ -2,7 +2,7 @@ import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "so
 import {
   Button,
   Dialog,
-  DitherIconTile,
+  DataTable,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -26,7 +26,6 @@ import {
   StatusChip,
   Scale,
   ThumbsDownIcon,
-  Tooltip,
   Tabs,
 } from "@polterware/frontend-design-system";
 import { detailPanelStore } from "@polterware/frontend-state";
@@ -85,7 +84,7 @@ function statusLabel(item: WorkspaceInboxItem): string {
   return item.blocking ? `Blocking ${kind.toLowerCase()}` : kind;
 }
 
-/** Inbox — Decision, Drift, and Verify items derived from the project's data. */
+/** Inbox — a table of Decision, Drift, and Verify items derived from project data. */
 export function InboxPage(props: {
   inbox?: WorkspaceInbox;
   loading?: boolean;
@@ -96,13 +95,14 @@ export function InboxPage(props: {
   const [deciding, setDeciding] = createSignal<WorkspaceInboxItem | null>(null);
   const [answer, setAnswer] = createSignal("");
 
-  // The Inbox has no detail targets; registering an empty collection keeps the shared
-  // panel hidden instead of inheriting another surface's selection.
+  // The Inbox has no entity detail: it clears another surface's selection and turns the
+  // shared sidebar (and its toggle) off while it is active.
   createEffect(() => {
     detailPanelStore.getState().registerCollection({
       scopeId: INBOX_SCOPE,
       status: "ready",
       targets: [],
+      details: false,
     });
     onCleanup(() => detailPanelStore.getState().unregisterCollection(INBOX_SCOPE));
   });
@@ -115,6 +115,7 @@ export function InboxPage(props: {
   );
   const open = () => visible().filter((item) => item.state === "open");
   const deferred = () => visible().filter((item) => item.state === "deferred");
+  const rows = createMemo(() => [...open(), ...deferred()]);
 
   async function run(item: WorkspaceInboxItem, action: WorkspaceInboxAction, value?: string) {
     if (action === "decide" && value === undefined) {
@@ -136,51 +137,48 @@ export function InboxPage(props: {
   function Row(rowProps: { item: WorkspaceInboxItem }) {
     const item = () => rowProps.item;
     return (
-      <li class="pw-inbox-row" data-state={item().state} title={item().id}>
-        <Tooltip.Root openDelay={400}>
-          <Tooltip.Trigger
-            asChild={(triggerProps) => (
-              <span {...triggerProps({ class: "pw-inbox-row__status", role: "img", "aria-label": statusLabel(item()) })}>
-                <DitherIconTile size={28} tone={item().blocking && item().state === "open" ? "security" : "neutral"} dimmed={item().state === "deferred"}>
-                  {(() => {
-                    const Icon = KIND_ICON[item().kind];
-                    return <Icon size={14} aria-hidden />;
-                  })()}
-                </DitherIconTile>
-              </span>
-            )}
-          />
-          <Tooltip.Content>{statusLabel(item())}</Tooltip.Content>
-        </Tooltip.Root>
-        <div class="pw-inbox-row__body">
-          <span class="pw-inbox-row__title">{item().title}</span>
-          <p class="pw-inbox-row__meta">
-            {[item().where, item().source].filter(Boolean).join(" · ")}
-          </p>
-        </div>
-        <DropdownMenu positioning={{ placement: "bottom-end" }}>
-          <DropdownMenuTrigger
-            aria-label={`Actions for ${item().title}`}
-            disabled={pending() !== "" || !props.onResolve}
-            class="pw-inbox-row__menu h-7 w-7 shrink-0 justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
-          >
-            <MoreHorizontal size={14} />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent class="min-w-40">
-            <For each={item().actions}>
-              {(action) => (
-                <DropdownMenuItem value={action} onSelect={() => void run(item(), action)}>
-                  {(() => {
-                    const Icon = ACTION_ICON[action];
-                    return <Icon size={14} aria-hidden />;
-                  })()}
-                  {ACTION_LABEL[action]}
-                </DropdownMenuItem>
-              )}
-            </For>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </li>
+      <DataTable.Row row={item()} rowId={item().id} aria-label={statusLabel(item())} class={item().state === "deferred" ? "pw-inbox-row--deferred" : undefined}>
+        <DataTable.PrimaryCell
+          icon={(() => {
+            const Icon = KIND_ICON[item().kind];
+            return <Icon size={14} aria-hidden />;
+          })()}
+          iconTone={item().blocking && item().state === "open" ? "security" : "neutral"}
+          title={item().title}
+        />
+        <DataTable.Cell>{KIND_LABEL[item().kind]}</DataTable.Cell>
+        <DataTable.Cell>
+          <StatusChip tone={item().state === "deferred" ? "muted" : item().blocking ? "danger" : "muted"}>
+            {item().state === "deferred" ? "Deferred" : item().blocking ? "Blocking" : "Open"}
+          </StatusChip>
+        </DataTable.Cell>
+        <DataTable.Cell class="pw-inbox-context">{item().where || "—"}</DataTable.Cell>
+        <DataTable.Cell class="pw-inbox-source">{item().source || "—"}</DataTable.Cell>
+        <DataTable.Cell align="right" class="pw-inbox-actions">
+          <DropdownMenu positioning={{ placement: "bottom-end" }}>
+            <DropdownMenuTrigger
+              aria-label={`Actions for ${item().title}`}
+              disabled={pending() !== "" || !props.onResolve}
+              class="pw-inbox-row__menu h-7 w-7 shrink-0 justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+            >
+              <MoreHorizontal size={14} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent class="min-w-40">
+              <For each={item().actions}>
+                {(action) => (
+                  <DropdownMenuItem value={action} onSelect={() => void run(item(), action)}>
+                    {(() => {
+                      const Icon = ACTION_ICON[action];
+                      return <Icon size={14} aria-hidden />;
+                    })()}
+                    {ACTION_LABEL[action]}
+                  </DropdownMenuItem>
+                )}
+              </For>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </DataTable.Cell>
+      </DataTable.Row>
     );
   }
 
@@ -222,15 +220,21 @@ export function InboxPage(props: {
             </Show>
           }
         >
-          <ul class="pw-inbox-list">
-            <For each={open()}>{(item) => <Row item={item} />}</For>
-          </ul>
-          <Show when={deferred().length > 0}>
-            <p class="pw-inbox-section-label">Deferred</p>
-            <ul class="pw-inbox-list">
-              <For each={deferred()}>{(item) => <Row item={item} />}</For>
-            </ul>
-          </Show>
+          <DataTable.Root rows={rows()} getRowId={(item) => item.id} class="pw-inbox-table">
+            <DataTable.Table aria-label="Inbox items">
+              <DataTable.Header>
+                <DataTable.ColumnHeader<WorkspaceInboxItem> id="title" width="38%">Item</DataTable.ColumnHeader>
+                <DataTable.ColumnHeader<WorkspaceInboxItem> id="kind" sortBy={(item) => KIND_LABEL[item.kind]}>Type</DataTable.ColumnHeader>
+                <DataTable.ColumnHeader<WorkspaceInboxItem> id="status" sortBy={statusLabel}>Status</DataTable.ColumnHeader>
+                <DataTable.ColumnHeader<WorkspaceInboxItem> id="where">Context</DataTable.ColumnHeader>
+                <DataTable.ColumnHeader<WorkspaceInboxItem> id="source">Source</DataTable.ColumnHeader>
+                <DataTable.ColumnHeader<WorkspaceInboxItem> id="actions" width="44px" align="right" sortable={false}><span class="sr-only">Actions</span></DataTable.ColumnHeader>
+              </DataTable.Header>
+              <DataTable.Body<WorkspaceInboxItem>>
+                {(item) => <Row item={item} />}
+              </DataTable.Body>
+            </DataTable.Table>
+          </DataTable.Root>
         </Show>
       </PageContent>
 

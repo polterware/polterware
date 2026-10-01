@@ -97,10 +97,6 @@ export default defineConfig({
           rootDir,
           "../../packages/features/settings/src/index.tsx",
         ),
-        "@polterware/feature-resources": resolve(
-          rootDir,
-          "../../packages/features/resources/src/index.tsx",
-        ),
         "@polterware/feature-commander": resolve(
           rootDir,
           "../../packages/features/commander/src/index.tsx",

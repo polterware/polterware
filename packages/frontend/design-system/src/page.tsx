@@ -1,4 +1,5 @@
 import type { JSX } from "solid-js";
+import { DetailPanelCollectionHeader } from "./detail-panel";
 /* PageToolbar shares layout rules with tabs (pw-page-toolbar in tabs.css). */
 import "./tabs.css";
 
@@ -75,14 +76,16 @@ export type PageToolbarSlotProps = {
   class?: string;
 };
 
-/** First row inside MainSurface. Solid fill with a soft fade trail under the bar. */
+/**
+ * First row inside MainSurface. Solid fill with a soft fade trail under the bar.
+ */
 function PageToolbarRoot(props: PageToolbarRootProps) {
   return (
-    <div
-      class={`pw-page-toolbar pw-page-toolbar--fade-edge ${props.class ?? ""}`}
-    >
-      {props.children}
-    </div>
+    <DetailPanelCollectionHeader>
+      <div class={`pw-page-toolbar pw-page-toolbar--fade-edge ${props.class ?? ""}`}>
+        {props.children}
+      </div>
+    </DetailPanelCollectionHeader>
   );
 }
 

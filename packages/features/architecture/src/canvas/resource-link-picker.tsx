@@ -1,6 +1,6 @@
 import { For, Show, createMemo, createSignal } from "solid-js";
 import { Field, Input } from "@polterware/frontend-design-system";
-import type { ResourceLinkPort } from "../domain/fixture-resource-link-port";
+import type { ResourceLinkPort } from "../domain/resource-link-port";
 import type { LinkableResource } from "../domain/place-link";
 
 export function ResourceLinkPicker(props: {

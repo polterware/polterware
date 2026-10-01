@@ -54,7 +54,7 @@ func TestDefaultsCreatesPolterAndEmptyProjects(t *testing.T) {
 
 func TestDefaultsIsIdempotent(t *testing.T) {
 	store := newSeeded(t)
-	tables := []string{"projects", "environments", "knowledge_items", "work_cards", "work_tasks", "ppm_facts", "resources"}
+	tables := []string{"projects", "environments", "knowledge_items", "work_cards", "work_tasks", "ppm_facts"}
 	before := map[string]int{}
 	for _, table := range tables {
 		before[table] = count(t, store, `SELECT COUNT(*) FROM `+table)
@@ -123,7 +123,7 @@ func TestSeededSourcesAreProjectRelative(t *testing.T) {
 
 func TestEmptyProjectHasNoContent(t *testing.T) {
 	store := newSeeded(t)
-	for _, table := range []string{"knowledge_items", "work_cards", "ppm_facts", "resources"} {
+	for _, table := range []string{"knowledge_items", "work_cards", "ppm_facts"} {
 		if n := count(t, store, `SELECT COUNT(*) FROM `+table+` WHERE project_id=?`, demoseed.EmptyProjectID); n != 0 {
 			t.Errorf("empty project has %d rows in %s", n, table)
 		}

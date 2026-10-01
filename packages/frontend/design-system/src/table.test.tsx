@@ -5,7 +5,9 @@ import { createSignal } from "solid-js";
 import { render } from "solid-js/web";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { detailPanelDefaultState, detailPanelStore } from "@polterware/frontend-state";
+import { detailPanelDefaultState, detailPanelStore, createDetailPanelSelector } from "@polterware/frontend-state";
+
+import { DetailPanel } from "./detail-panel";
 
 import {
   DataTable,
@@ -395,32 +397,37 @@ describe("DataTable", () => {
     host.remove();
   });
 
-  it("wires collection background collapse and row double-click maximize", () => {
-    expect(tableSource).toContain("collapseDetailPanelFromCollectionBackground");
-    expect(tableSource).toContain("target.closest(\"tr\")");
+  it("delegates background dismissal to DetailPanel and keeps row double-click expansion", () => {
+    expect(tableSource).not.toContain("hideDetailPanelFromCollectionBackground");
     expect(tableSource).toContain("onDblClick");
-    expect(tableSource).toContain("detailPanelStore.getState().maximize()");
+    expect(tableSource).toContain("detailPanelStore.getState().expand()");
   });
 
-  it("collapses the detail panel when clicking empty table scroll background", () => {
+  it("closes the shared floating detail on empty scroll background without clearing its target", () => {
     detailPanelStore.setState({
       ...detailPanelDefaultState,
-      activeScope: "resources:inventory",
+      activeScope: "knowledge:evidence",
       activeTarget: {
-        scopeId: "resources:inventory",
+        scopeId: "knowledge:evidence",
         entityId: "a",
         entityKind: "resource",
       },
-      mode: "open",
-      presence: "visible",
+      open: true,
+      available: true,
     });
 
     const host = document.createElement("div");
     document.body.append(host);
     const dispose = render(
-      () => (
+      () => {
+        const open = createDetailPanelSelector((state) => state.open);
+        return (
+        <DetailPanel.Root open={open()} expanded={false} available
+          onOpenChange={(next) => { if (next) detailPanelStore.getState().show(); else detailPanelStore.getState().hide(); }}
+          onExpandedChange={() => undefined}>
+        <DetailPanel.Collection>
         <DataTable.Root rows={[{ id: "a" }]} activeRowId="a">
-          <DataTable.Table aria-label="Background collapse fixture">
+          <DataTable.Table aria-label="Background fixture">
             <DataTable.Body>
               {(row) => (
                 <DataTable.Row row={row} rowId={row.id}>
@@ -430,33 +437,36 @@ describe("DataTable", () => {
             </DataTable.Body>
           </DataTable.Table>
         </DataTable.Root>
-      ),
+        </DetailPanel.Collection>
+        </DetailPanel.Root>
+        );
+      },
       host,
     );
 
     const scroll = host.querySelector<HTMLElement>(".pw-data-table-scroll")!;
     scroll.click();
-    expect(detailPanelStore.getState().mode).toBe("collapsed");
+    expect(detailPanelStore.getState().open).toBe(false);
     expect(detailPanelStore.getState().activeTarget?.entityId).toBe("a");
 
     scroll.click();
-    expect(detailPanelStore.getState().mode).toBe("collapsed");
+    expect(detailPanelStore.getState().open).toBe(false);
 
     dispose();
     host.remove();
   });
 
-  it("maximizes the detail panel when double-clicking an interactive row", () => {
+  it("expands the detail sidebar when double-clicking an interactive row", () => {
     detailPanelStore.setState({
       ...detailPanelDefaultState,
-      activeScope: "resources:inventory",
+      activeScope: "knowledge:evidence",
       activeTarget: {
-        scopeId: "resources:inventory",
+        scopeId: "knowledge:evidence",
         entityId: "a",
         entityKind: "resource",
       },
-      mode: "open",
-      presence: "visible",
+      open: true,
+      available: true,
     });
 
     const host = document.createElement("div");
@@ -468,7 +478,7 @@ describe("DataTable", () => {
           activeRowId="a"
           onActiveRowChange={() => undefined}
         >
-          <DataTable.Table aria-label="Double-click maximize fixture">
+          <DataTable.Table aria-label="Double-click expand fixture">
             <DataTable.Body>
               {(row) => (
                 <DataTable.Row row={row} rowId={row.id}>
@@ -484,7 +494,7 @@ describe("DataTable", () => {
 
     const row = host.querySelector<HTMLElement>("[data-row-id='a']")!;
     row.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-    expect(detailPanelStore.getState().mode).toBe("maximized");
+    expect(detailPanelStore.getState().expanded).toBe(true);
 
     dispose();
     host.remove();

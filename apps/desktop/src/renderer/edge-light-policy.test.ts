@@ -82,19 +82,18 @@ describe("edge-light policy", () => {
     );
   });
 
-  it("keeps DetailPanel outside the shared real-border treatment", () => {
+  it("keeps sidebar details opaque and preserves the reusable floating shell", () => {
     const detailPanel = readWorkspaceFile(detailPanelFile);
-    const surface = ruleBody(
-      detailPanel,
-      ".pw-detail-panel__surface.surface-panel-float",
-    );
+    expect(ruleBody(detailPanel, ".pw-detail-panel__frame")).toContain("background-color: var(--color-surface-raised)");
+    const detailSource = readWorkspaceFile("packages/frontend/design-system/src/detail-panel.tsx");
+    expect(detailSource).toContain("pw-detail-panel__frame surface-panel");
+    const floatingWindow = readWorkspaceFile("packages/frontend/design-system/src/floating-window.css");
+    const surface = ruleBody(floatingWindow, ".pw-floating-window__shell");
 
-    expect(surface).toContain("border: 0");
-    expect(detailPanel).not.toMatch(
-      /\.pw-detail-panel__surface\.surface-panel-float::before\s*\{[^}]*border:\s*1px solid/,
-    );
-    expect(detailPanel).toMatch(
-      /\.pw-detail-panel-root\[data-mode="maximized"\]\s+\.pw-detail-panel__surface\.surface-panel-float::before\s*\{[^}]*box-shadow:\s*none/,
-    );
+    expect(surface).toContain("transform-origin: top left");
+    expect(surface).toContain("background-color: var(--color-surface-raised)");
+    expect(surface).toContain("inset 0 1px 0 var(--edge-light-surface-highlight)");
+    expect(surface).toContain("inset 0 0 0 1px var(--edge-light-surface-rim)");
+    expect(surface).not.toContain("border-left");
   });
 });

@@ -1,7 +1,7 @@
 import { Show, type JSX } from "solid-js";
 import {
-  Book03Icon,
   Button,
+  Book03Icon,
   DetailPanel,
   Select,
   StatusChip,
@@ -39,29 +39,10 @@ export function DecisionDetail(props: {
     Boolean(props.onAction) && (props.adr.state === "active" || props.adr.state === "challenged") && successors().length > 0;
   return (
     <DetailPanel.Content>
-      <DetailPanel.Header icon={<Book03Icon size={16} />} title={props.adr.title}>
-        <Show when={props.onAction}>
-          <DetailPanel.Actions>
-            <Show when={props.adr.state === "proposed"}>
-              <Button size="sm" variant="secondary" onClick={() => props.onAction?.({ kind: "activate" })}>
-                Activate
-              </Button>
-            </Show>
-            <Show when={props.adr.state === "active"}>
-              <Button size="sm" variant="secondary" onClick={() => props.onAction?.({ kind: "challenge" })}>
-                Open review
-              </Button>
-            </Show>
-            <Show when={props.adr.state === "challenged"}>
-              <Button size="sm" variant="secondary" onClick={() => props.onAction?.({ kind: "reactivate" })}>
-                Keep active
-              </Button>
-            </Show>
-          </DetailPanel.Actions>
-        </Show>
-      </DetailPanel.Header>
+      <DetailPanel.Header />
       <KnowledgeDocumentShell
         title={props.adr.title}
+        icon={<Book03Icon size={16} />}
         bodyMarkdown={props.bodyMarkdown}
         onBodyChange={props.onBodyChange}
         properties={
@@ -69,8 +50,25 @@ export function DecisionDetail(props: {
             <DetailPanel.Property
               label="Status"
               value={
-                <StatusChip tone={decisionStateTone(props.adr.state)}>{STATE_LABEL[props.adr.state]}</StatusChip>
+                <div class="flex flex-wrap items-center gap-2">
+                  <StatusChip tone={decisionStateTone(props.adr.state)}>{STATE_LABEL[props.adr.state]}</StatusChip>
+                  <Show when={props.onAction}>
+                    <Show when={props.adr.state === "proposed"}>
+                      <Button variant="secondary" size="sm" onClick={() => props.onAction?.({ kind: "activate" })}>Activate</Button>
+                    </Show>
+                    <Show when={props.adr.state === "active"}>
+                      <Button variant="ghost" size="sm" onClick={() => props.onAction?.({ kind: "challenge" })}>Open review</Button>
+                    </Show>
+                    <Show when={props.adr.state === "challenged"}>
+                      <Button variant="ghost" size="sm" onClick={() => props.onAction?.({ kind: "reactivate" })}>Keep active</Button>
+                    </Show>
+                  </Show>
+                </div>
               }
+            />
+            <DetailPanel.Property
+              label="Scope"
+              value={props.adr.scope === "principle" ? "Principle (whole project)" : "Decision"}
             />
             <DetailPanel.Property label="Review when" value={props.adr.reviewTrigger || null} />
             <DetailPanel.Property label="Reason" value={props.adr.statusReason || null} />

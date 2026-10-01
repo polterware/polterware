@@ -2,6 +2,7 @@ import { Show, type JSX } from "solid-js";
 export { PageHeader, PageContent, PageToolbar } from "@polterware/frontend-design-system";
 import {
   DetailPanel,
+  PageEmpty,
   PageError,
   PageSkeleton,
 } from "@polterware/frontend-design-system";
@@ -13,37 +14,38 @@ import "./main-surface.css";
  * See DESIGN.md Materials · surface-panel.
  */
 export function MainSurface(props: { children: JSX.Element; class?: string }) {
-  const mode = createDetailPanelSelector((state) => state.mode);
-  const placement = createDetailPanelSelector((state) => state.placement);
-  const presence = createDetailPanelSelector((state) => state.presence);
+  const open = createDetailPanelSelector((state) => state.open);
+  const expanded = createDetailPanelSelector((state) => state.expanded);
+  const available = createDetailPanelSelector((state) => state.available);
   const activeTarget = createDetailPanelSelector((state) => state.activeTarget);
-  const outgoingTarget = createDetailPanelSelector((state) => state.outgoingTarget);
   const collectionStatus = createDetailPanelSelector((state) => state.collectionStatus);
-
-  const detailTarget = () => activeTarget() ?? outgoingTarget();
 
   return (
     <main
       class={`pw-main-surface surface-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${props.class ?? ""}`}
     >
       <DetailPanel.Root
-        mode={mode()}
-        placement={placement()}
-        presence={presence()}
-        activeEntityId={detailTarget()?.entityId}
-        onCollapse={() => detailPanelStore.getState().collapse()}
-        onMaximize={() => detailPanelStore.getState().maximize()}
-        onRestore={() => detailPanelStore.getState().restore()}
-        onDismissComplete={() => {
-          const t = detailTarget();
-          if (t) detailPanelStore.getState().completeDismissal(t.scopeId);
+        open={open()}
+        expanded={expanded()}
+        available={available()}
+        activeEntityId={activeTarget()?.entityId}
+        onOpenChange={(next) => {
+          const state = detailPanelStore.getState();
+          if (next) state.show();
+          else state.hide();
         }}
+        onExpandedChange={(next) => {
+          const state = detailPanelStore.getState();
+          if (next) state.expand();
+          else state.restore();
+        }}
+        storageKey="polterware.shell.detail.sidebar.width"
+        legacyStorageKey="polterware.shell.detail.width"
         aria-label="Entity details"
       >
         <DetailPanel.Collection>{props.children}</DetailPanel.Collection>
-        <Show when={collectionStatus() === "loading"}>
+        <Show when={collectionStatus() === "loading" && !activeTarget()}>
           <DetailPanel.Content>
-            <DetailPanel.Header title="Loading details" />
             <DetailPanel.Body>
               <DetailPanel.Main>
                 <PageSkeleton layout="detail" label="Loading details…" class="min-h-0 p-0" />
@@ -53,11 +55,15 @@ export function MainSurface(props: { children: JSX.Element; class?: string }) {
         </Show>
         <Show when={collectionStatus() === "error" && !activeTarget()}>
           <DetailPanel.Content>
-            <DetailPanel.Header title="Details unavailable" />
-            <DetailPanel.Body>
-              <DetailPanel.Main>
-                <PageError message="The selected details could not be loaded." />
-              </DetailPanel.Main>
+            <DetailPanel.Body layout="document">
+              <PageError message="The selected details could not be loaded." />
+            </DetailPanel.Body>
+          </DetailPanel.Content>
+        </Show>
+        <Show when={(collectionStatus() === "ready" || collectionStatus() === "idle") && !activeTarget()}>
+          <DetailPanel.Content>
+            <DetailPanel.Body layout="document">
+              <PageEmpty title="No selection" description="Select an item to see its details." />
             </DetailPanel.Body>
           </DetailPanel.Content>
         </Show>

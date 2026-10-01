@@ -1,0 +1,256 @@
+.pw-floating-window-root,
+.pw-floating-window__collection-panel,
+.pw-floating-window__collection,
+.pw-floating-window__surface,
+.pw-floating-window__content {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The collection keeps the entire surface; only the floating frame captures input. */
+.pw-floating-window-root {
+  --floating-window-width: 520px;
+  --floating-window-height: 420px;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+
+.pw-floating-window-root[data-gesturing="true"] {
+  user-select: none;
+}
+
+.pw-floating-window-root[data-gesturing="true"] * {
+  cursor: inherit !important;
+  user-select: none;
+}
+
+.pw-floating-window__collection-panel {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+
+.pw-floating-window__collection,
+.pw-floating-window__content {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex: 1 1 0;
+  flex-direction: column;
+}
+
+.pw-floating-window__positioner {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  width: var(--floating-window-width);
+  height: var(--floating-window-height);
+  pointer-events: none;
+}
+
+.pw-floating-window__positioner[hidden] {
+  display: none;
+}
+
+.pw-floating-window__drag-layer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: top left;
+}
+
+/* Only this shell scales during the card/circle morph. Text stays at its natural size. */
+.pw-floating-window__shell {
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-surface-raised);
+  transform-origin: top left;
+  box-shadow:
+    inset 0 1px 0 var(--edge-light-surface-highlight),
+    inset 0 0 0 1px var(--edge-light-surface-rim),
+    0 8px 24px -12px var(--color-shadow-outline);
+}
+
+.pw-floating-window__frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pw-floating-window__frame[data-interactive="true"] {
+  pointer-events: auto;
+}
+
+.pw-floating-window-root[data-expanded="true"] .pw-floating-window__shell {
+  box-shadow: none;
+}
+
+.pw-floating-window__surface {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pw-floating-window__content,
+.pw-floating-window__portal {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The shared frame always has controls, including loading, error and empty states. */
+.pw-floating-window__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  height: calc(8px + var(--control-height-md));
+  padding: 4px;
+}
+
+.pw-floating-window__move-handle {
+  height: var(--control-height-md);
+  min-width: 0;
+  flex: 1 1 0;
+  border-radius: var(--radius-control);
+  cursor: grab;
+  touch-action: none;
+  -webkit-app-region: no-drag;
+}
+
+.pw-floating-window__move-handle[aria-disabled="true"] {
+  cursor: default;
+}
+
+.pw-floating-window__move-handle:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: -2px;
+}
+
+.pw-floating-window__window-control,
+.pw-floating-window__toggle {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-window);
+  background: transparent;
+  color: var(--color-surface);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.pw-floating-window__window-control { position: relative; }
+.pw-floating-window__window-control::before,
+.pw-floating-window__toggle:not([data-bubble="true"])::before {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-window);
+  background: var(--color-warning);
+  content: "";
+}
+.pw-floating-window__window-control[data-control="close"]::before { background: var(--color-danger); }
+.pw-floating-window__window-control[data-control="expand"]::before { background: var(--color-success); }
+.pw-floating-window__window-control svg,
+.pw-floating-window__toggle svg { position: relative; }
+.pw-floating-window__window-control:hover::before,
+.pw-floating-window__toggle:hover::before { box-shadow: inset 0 0 0 1px var(--edge-light-surface-highlight); }
+.pw-floating-window__window-control:active,
+.pw-floating-window__toggle:active { color: var(--color-text-primary); }
+.pw-floating-window__minimize-slot { width: 24px; flex: 0 0 24px; }
+
+/* The yellow control is the same element before and after the circle morph. */
+.pw-floating-window__toggle {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  transform-origin: top left;
+}
+.pw-floating-window__toggle[data-bubble="true"] {
+  color: var(--color-text-secondary);
+  cursor: grab;
+  touch-action: none;
+}
+.pw-floating-window__toggle[data-bubble="true"]:hover { color: var(--color-text-primary); }
+.pw-floating-window__toggle:disabled { pointer-events: none; color: var(--color-text-disabled); }
+.pw-floating-window__window-control:focus-visible,
+.pw-floating-window__toggle:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: -2px;
+}
+
+/* Eight independent edge/corner targets stay inside the frame and its clip. */
+.pw-floating-window__resize-handle {
+  position: absolute;
+  z-index: 3;
+  outline: none;
+  touch-action: none;
+  -webkit-app-region: no-drag;
+}
+
+.pw-floating-window__resize-handle[data-edge="n"],
+.pw-floating-window__resize-handle[data-edge="s"] {
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.pw-floating-window__resize-handle[data-edge="n"] { top: 0; }
+.pw-floating-window__resize-handle[data-edge="s"] { bottom: 0; }
+.pw-floating-window__resize-handle[data-edge="e"],
+.pw-floating-window__resize-handle[data-edge="w"] {
+  top: 8px;
+  bottom: 8px;
+  width: 8px;
+  cursor: ew-resize;
+}
+.pw-floating-window__resize-handle[data-edge="e"] { right: 0; }
+.pw-floating-window__resize-handle[data-edge="w"] { left: 0; }
+.pw-floating-window__resize-handle[data-edge="ne"],
+.pw-floating-window__resize-handle[data-edge="nw"],
+.pw-floating-window__resize-handle[data-edge="se"],
+.pw-floating-window__resize-handle[data-edge="sw"] {
+  width: 8px;
+  height: 8px;
+}
+.pw-floating-window__resize-handle[data-edge="ne"] { top: 0; right: 0; cursor: nesw-resize; }
+.pw-floating-window__resize-handle[data-edge="nw"] { top: 0; left: 0; cursor: nwse-resize; }
+.pw-floating-window__resize-handle[data-edge="se"] { bottom: 0; right: 0; cursor: nwse-resize; }
+.pw-floating-window__resize-handle[data-edge="sw"] { bottom: 0; left: 0; cursor: nesw-resize; }
+
+.pw-floating-window__resize-handle:focus-visible {
+  background-color: var(--color-border-strong);
+}
+
+
+/* Arbitrary future window content can scroll without changing the drag region. */
+.pw-floating-window__content { overflow: auto; overscroll-behavior: contain; }

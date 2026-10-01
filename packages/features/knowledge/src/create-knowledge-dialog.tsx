@@ -20,15 +20,19 @@ export function CreateKnowledgeDialog(props: {
   kind: CreateKnowledgeKind;
   /** When true, show a category select for doc / ADR / runbook. */
   pickLibraryKind?: boolean;
+  /** Limits the category select; sources are created through their own dialog. */
+  libraryKinds?: readonly string[];
   onClose: () => void;
-  onSubmit: (title: string, kind: CreateKnowledgeKind) => void;
+  onSubmit: (title: string, kind: CreateKnowledgeKind, scope?: "principle" | "decision") => void;
   onCreateFromTemplate?: (template: KnowledgeCreateTemplate) => void;
 }) {
   const [title, setTitle] = createSignal("");
   const [pickedKind, setPickedKind] = createSignal<"doc" | "adr" | "runbook">("doc");
+  const [scope, setScope] = createSignal<"principle" | "decision">("decision");
 
   createEffect(() => {
     if (!props.open) return;
+    setScope("decision");
     if (isLibraryKind(props.kind)) setPickedKind(props.kind);
     else setPickedKind("doc");
   });
@@ -74,7 +78,7 @@ export function CreateKnowledgeDialog(props: {
   function submit() {
     const next = title().trim();
     if (!next) return;
-    props.onSubmit(next, activeKind());
+    props.onSubmit(next, activeKind(), activeKind() === "adr" ? scope() : undefined);
     setTitle("");
   }
 
@@ -107,11 +111,28 @@ export function CreateKnowledgeDialog(props: {
             <Select
               size="sm"
               value={pickedKind()}
-              options={[...LIBRARY_KIND_OPTIONS]}
+              options={LIBRARY_KIND_OPTIONS.filter(
+                (option) => !props.libraryKinds?.length || props.libraryKinds.includes(option.value),
+              )}
               onChange={(value) => {
                 if (value === "doc" || value === "adr" || value === "runbook") {
                   setPickedKind(value);
                 }
+              }}
+            />
+          </Field>
+        </Show>
+        <Show when={activeKind() === "adr"}>
+          <Field label="Scope">
+            <Select
+              size="sm"
+              value={scope()}
+              options={[
+                { value: "decision", label: "Decision (linked to components)" },
+                { value: "principle", label: "Principle (whole project)" },
+              ]}
+              onChange={(value) => {
+                if (value === "decision" || value === "principle") setScope(value);
               }}
             />
           </Field>

@@ -37,14 +37,13 @@ type Connection struct {
 }
 
 type Resource struct {
-	ID                  string
-	ConnectionID        string
-	Name                string
-	Kind                string
-	ExternalID          string
-	EnvironmentID       string
-	Status              string
-	InventoryResourceID string
+	ID            string
+	ConnectionID  string
+	Name          string
+	Kind          string
+	ExternalID    string
+	EnvironmentID string
+	Status        string
 }
 
 type SyncRun struct {

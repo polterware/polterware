@@ -120,6 +120,7 @@ import {
   SourceCodeIcon as SourceCodeIconDefinition,
   QuoteDownIcon as QuoteDownIconDefinition,
   MinusSignIcon as MinusSignIconDefinition,
+  SidebarRightIcon as SidebarRightIconDefinition,
 } from "@hugeicons/core-free-icons";
 
 type HugeIconNodeAttributes = Readonly<Record<string, string | number>>;
@@ -340,6 +341,7 @@ const iconDefinitions = {
   SourceCodeIcon: SourceCodeIconDefinition,
   QuoteDownIcon: QuoteDownIconDefinition,
   MinusSignIcon: MinusSignIconDefinition,
+  SidebarRightIcon: SidebarRightIconDefinition,
 } satisfies Record<string, HugeIconDefinition>;
 
 type PolterIconName = keyof typeof iconDefinitions;
@@ -473,6 +475,7 @@ export const {
   SourceCodeIcon,
   QuoteDownIcon,
   MinusSignIcon,
+  SidebarRightIcon,
 } = iconComponents;
 
 export const PlusIcon = Plus;

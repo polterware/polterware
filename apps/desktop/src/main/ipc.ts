@@ -310,8 +310,6 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
     [IPC_CHANNELS.core.removeProjectRepo]: coreHandler(controllers, "removeProjectRepo"),
     [IPC_CHANNELS.core.getLayout]: coreHandler(controllers, "getLayout"),
     [IPC_CHANNELS.core.updateLayout]: coreHandler(controllers, "updateLayout"),
-    [IPC_CHANNELS.core.listResources]: coreHandler(controllers, "listResources"),
-    [IPC_CHANNELS.core.saveResource]: coreHandler(controllers, "saveResource"),
     [IPC_CHANNELS.core.listViews]: coreHandler(controllers, "listViews"),
     [IPC_CHANNELS.core.saveView]: coreHandler(controllers, "saveView"),
     [IPC_CHANNELS.core.deleteView]: coreHandler(controllers, "deleteView"),

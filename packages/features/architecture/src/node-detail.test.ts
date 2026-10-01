@@ -68,7 +68,8 @@ describe("ArchitectureNodeDetail composition contract", () => {
     expect(detailSource).toContain("DetailPanel.Rail");
     expect(detailSource).toContain("DetailPanel.Property");
     expect(detailSource).not.toContain("DetailPanel.Metric");
-    expect(detailSource).toContain("DetailPanel.Action");
+    expect(detailSource).toContain("actions={");
+    expect(detailSource).not.toMatch(/DetailPanel\.Action\b/);
     expect(detailSource).toContain("StatusChip");
     expect(detailSource).toContain("architectureLifecycleLabel");
     expect(detailSource).toContain("architectureLinkStatusLabel");

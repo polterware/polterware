@@ -57,7 +57,8 @@ export function filterLinkCandidates(
   const strict = q.typeFilterStrict !== false;
 
   let list = all.filter((r) => {
-    if (env && normalizeEnvironmentId(r.environmentId) !== env) return false;
+    // Synced resources without an environment match every environment.
+    if (env && r.environmentId && normalizeEnvironmentId(r.environmentId) !== env) return false;
     if (query && !r.name.toLowerCase().includes(query)) return false;
     return true;
   });

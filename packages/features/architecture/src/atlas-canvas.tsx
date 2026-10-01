@@ -390,6 +390,8 @@ function TreeRow(props: {
         type="button"
         class="atlas-tree-row__main"
         aria-current={props.selected ? "true" : undefined}
+        data-detail-opener
+        data-detail-target-id={props.item.kind === "node" ? props.item.node.id : props.item.card.slug}
         onClick={props.onDetails}
       >
         <Show when={!(props.historical && props.item.kind === "node")}>
@@ -493,18 +495,23 @@ function NodePanel(props: { node: AtlasCanvasNode; cards: readonly AtlasCanvasCa
   const migration = () => migrationLabel(props.node);
   return (
     <>
-      <DetailPanel.Header icon={<SchemeIcon size={16} />} title={props.node.title}>
-        <div class="atlas-panel-status">
-          <Show when={!props.historical}>
-            <AtlasStatusMark status={props.node.status} />
-          </Show>
-          <Show when={migration()}>
-            <MigrationMark label={migration()} />
-          </Show>
-        </div>
-      </DetailPanel.Header>
+      <DetailPanel.Header />
       <DetailPanel.Body>
         <DetailPanel.Main>
+          <DetailPanel.Title
+            icon={<SchemeIcon size={16} />}
+            title={props.node.title}
+            meta={
+              <div class="atlas-panel-status">
+                <Show when={!props.historical}>
+                  <AtlasStatusMark status={props.node.status} />
+                </Show>
+                <Show when={migration()}>
+                  <MigrationMark label={migration()} />
+                </Show>
+              </div>
+            }
+          />
           <DetailPanel.Section title="Intent">
             <Show
               when={props.node.intent}
@@ -554,13 +561,18 @@ function CardPanel(props: { card: AtlasCanvasCard; driftSlugs: string[] }) {
   const note = () => (props.card.kind === "architecture" ? "Architecture change" : undefined);
   return (
     <>
-      <DetailPanel.Header icon={<ListChecks size={16} />} title={props.card.title}>
-        <div class="atlas-panel-status">
-          <AtlasStatusMark status={status()} note={note()} />
-        </div>
-      </DetailPanel.Header>
+      <DetailPanel.Header />
       <DetailPanel.Body>
         <DetailPanel.Main>
+          <DetailPanel.Title
+            icon={<ListChecks size={16} />}
+            title={props.card.title}
+            meta={
+              <div class="atlas-panel-status">
+                <AtlasStatusMark status={status()} note={note()} />
+              </div>
+            }
+          />
           <DetailPanel.Section title="Intent">
             <Show
               when={props.card.intent}

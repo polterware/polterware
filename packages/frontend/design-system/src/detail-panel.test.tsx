@@ -1,67 +1,285 @@
 // @vitest-environment jsdom
 
-import { createSignal } from "solid-js";
+import { createSignal, type JSX } from "solid-js";
 import { render } from "solid-js/web";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  DETAIL_PANEL_DEFAULT_WIDTH,
+  DETAIL_PANEL_MAX_WIDTH,
+  DETAIL_PANEL_MIN_WIDTH,
+  DETAIL_PANEL_SIDEBAR_ID,
   DetailPanel,
-  parseTranslate,
-  type DetailPanelMode,
-  type DetailPanelPresence,
+  clampDetailPanelWidth,
 } from "./detail-panel";
-import { Pencil } from "./hugeicons";
+import { readDetailPanelWidth } from "./detail-panel";
+import { A11yDialog } from "./dialog";
+import { PageToolbar } from "./page";
+import { ActiveFilterBar } from "./active-filter-bar";
+import { spring } from "./springs";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./dropdown-menu";
 import { repoPath } from "../test/repo-path";
 
-/**
- * jsdom does not resolve the CSS poses (cqh geometry), so the panel's computed transform
- * is stubbed per mode and presence; the JS spring then travels between these poses.
- */
-function stubPanelPoses(root: HTMLElement, panel: HTMLElement) {
-  const original = window.getComputedStyle.bind(window);
-  const offsets: Record<string, number> = { maximized: 0, open: 200, collapsed: 340 };
-  vi.spyOn(window, "getComputedStyle").mockImplementation((element, pseudo) => {
-    if (element !== panel || panel.style.transform !== "") return original(element, pseudo);
-    const offscreen = root.dataset.mode === "collapsed" && root.dataset.presence !== "visible";
-    const y = offscreen ? 400 : (offsets[root.dataset.mode ?? "open"] ?? 0);
-    return { transform: `matrix(1, 0, 0, 1, 0, ${y})` } as CSSStyleDeclaration;
+const css = () =>
+  readFileSync(repoPath("packages/frontend/design-system/src/detail-panel.css"), "utf8");
+const source = () =>
+  readFileSync(repoPath("packages/frontend/design-system/src/detail-panel.tsx"), "utf8");
+
+type Harness = {
+  host: HTMLDivElement;
+  root: () => HTMLElement;
+  sidebar: () => HTMLElement;
+  open: () => boolean;
+  setOpen: (open: boolean) => void;
+  expanded: () => boolean;
+  setExpanded: (expanded: boolean) => void;
+  setFilters: (active: boolean) => void;
+  positioner: () => HTMLDivElement;
+  resize: (width: number, height: number) => void;
+  dispose: () => void;
+};
+
+function mount(options: {
+  open?: boolean;
+  expanded?: boolean;
+  available?: boolean;
+  storageKey?: string;
+  legacyStorageKey?: string;
+  content?: () => JSX.Element;
+} = {}): Harness {
+  let dimensions = { width: 1200, height: 800 };
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    return this.classList.contains("pw-detail-panel__workspace") ? new DOMRect(0, 0, dimensions.width, dimensions.height) : new DOMRect();
   });
+  const host = document.createElement("div");
+  document.body.append(host);
+  const [open, setOpen] = createSignal(options.open ?? true);
+  const [expanded, setExpanded] = createSignal(options.expanded ?? false);
+  const [filters, setFilters] = createSignal(false);
+  const dispose = render(
+    () => (
+      <DetailPanel.Root
+        open={open()}
+        expanded={expanded()}
+        available={options.available ?? true}
+        activeEntityId="alpha"
+        onOpenChange={(next) => { setOpen(next); if (!next) setExpanded(false); }}
+        onExpandedChange={setExpanded}
+        storageKey={options.storageKey}
+        legacyStorageKey={options.legacyStorageKey}
+      >
+        <DetailPanel.Collection>
+          <PageToolbar.Root><PageToolbar.Actions><button>Filter</button></PageToolbar.Actions></PageToolbar.Root>
+          <ActiveFilterBar items={filters() ? [{ id: "status", label: "Open", onRemove: () => setFilters(false) }] : []} />
+          <button data-detail-opener data-detail-target-id="alpha" onClick={() => { setOpen(true); }}>Alpha row</button>
+        </DetailPanel.Collection>
+        <DetailPanel.Content>
+          {options.content?.() ?? (
+            <>
+              <DetailPanel.Header />
+              <DetailPanel.Body>
+                <button type="button">Inside detail</button>
+              </DetailPanel.Body>
+            </>
+          )}
+        </DetailPanel.Content>
+      </DetailPanel.Root>
+    ),
+    host,
+  );
+  return {
+    host,
+    root: () => host.querySelector<HTMLElement>(".pw-detail-panel-root")!,
+    sidebar: () => host.querySelector<HTMLElement>(`#${DETAIL_PANEL_SIDEBAR_ID}`)!,
+    open,
+    setOpen,
+    expanded,
+    setExpanded,
+    setFilters,
+    positioner: () => host.querySelector<HTMLDivElement>(".pw-detail-panel__frame")!,
+    resize: (width, height) => { dimensions = { width, height }; window.dispatchEvent(new Event("resize")); },
+    dispose: () => {
+      dispose();
+      host.remove();
+    },
+  };
 }
 
-/** Springs start after the panel's first painted frame. */
-function nextFrame() {
-  return new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+function press(init: KeyboardEventInit, target: EventTarget = window) {
+  target.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, ...init }));
+  target.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, ...init }));
 }
+
+function pointer(target: HTMLElement, type: string, x: number, y: number) {
+  target.setPointerCapture ??= vi.fn();
+  target.hasPointerCapture ??= () => true;
+  target.releasePointerCapture ??= vi.fn();
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
+  Object.defineProperties(event, { pointerId: { value: 1 }, pointerType: { value: "mouse" } });
+  target.dispatchEvent(event);
+}
+
+function pointerClick(target: HTMLElement) {
+  target.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1, button: 0 }));
+}
+
+const nextPaint = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  window.localStorage.clear();
   document.body.replaceChildren();
 });
 
-describe("parseTranslate", () => {
-  it("reads the translation of 2D and 3D matrices, and the origin otherwise", () => {
-    expect(parseTranslate("matrix(1, 0, 0, 1, 12, 340)")).toEqual({ x: 12, y: 340 });
-    expect(
-      parseTranslate("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -8, 64, 0, 1)"),
-    ).toEqual({ x: -8, y: 64 });
-    expect(parseTranslate("none")).toEqual({ x: 0, y: 0 });
-    expect(parseTranslate("")).toEqual({ x: 0, y: 0 });
+describe("lateral DetailPanel", () => {
+  it("clamps width for the sidebar and ignores floating JSON preferences", () => {
+    expect(clampDetailPanelWidth(NaN, 0)).toBe(400);
+    expect(clampDetailPanelWidth(5000, 1200)).toBe(720);
+    expect(clampDetailPanelWidth(100, 1200)).toBe(320);
+    expect(clampDetailPanelWidth(400, 250)).toBe(234);
+    expect(readDetailPanelWidth("480")).toBe(480);
+    for (const raw of [null, "bad", "{}", '{"version":2,"dock":"left","width":520,"height":420}']) {
+      expect(readDetailPanelWidth(raw)).toBe(400);
+    }
   });
-});
-
-describe("DetailPanel", () => {
-  it("exports the complete compound contract", () => {
+  it("migrates numeric legacy width without overwriting floating geometry", () => {
+    const oldKey = "test.old", newKey = "test.sidebar";
+    const floating = JSON.stringify({ version: 2, dock: "bottom-right", width: 520, height: 420 });
+    localStorage.setItem(oldKey, floating);
+    const panel = mount({ storageKey: newKey, legacyStorageKey: oldKey });
+    expect(panel.root().style.getPropertyValue("--detail-panel-width")).toBe("400px");
+    press({ key: "ArrowLeft" }, panel.host.querySelector<HTMLElement>(".pw-detail-panel__resize-handle")!);
+    expect(localStorage.getItem(oldKey)).toBe(floating);
+    expect(localStorage.getItem(newKey)).toBe("416");
+    panel.dispose(); localStorage.removeItem(newKey); localStorage.setItem(oldKey, "480");
+    const migrated = mount({ storageKey: newKey, legacyStorageKey: oldKey });
+    expect(migrated.root().style.getPropertyValue("--detail-panel-width")).toBe("480px");
+    migrated.dispose();
+  });
+  it("opens only from entity activation and returns focus to that entity on close", async () => {
+    const panel = mount({ open: false });
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("0px");
+    expect(panel.positioner().hidden).toBe(true);
+    expect(panel.host.querySelector('[aria-label="Show details"]')).toBeNull();
+    expect(panel.host.querySelector("[data-detail-panel-toggle]")).toBeNull();
+    const row = panel.host.querySelector<HTMLButtonElement>("[data-detail-opener]")!;
+    row.focus(); row.click();
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("408px");
+    const close = panel.host.querySelector<HTMLButtonElement>('[aria-label="Close details"]')!;
+    close.focus(); close.click();
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("0px");
+    expect(panel.sidebar().hasAttribute("inert")).toBe(true);
+    await Promise.resolve();
+    expect(document.activeElement).toBe(row);
+    panel.dispose();
+  });
+  it("keeps toolbar and changing filters above the workspace in every panel state", () => {
+    const panel = mount();
+    const header = panel.host.querySelector<HTMLElement>(".pw-detail-panel__collection-header")!;
+    const workspace = panel.host.querySelector<HTMLElement>(".pw-detail-panel__workspace")!;
+    const toolbar = panel.host.querySelector<HTMLElement>(".pw-page-toolbar")!;
+    expect(header.parentElement).toBe(panel.root());
+    expect(header.nextElementSibling).toBe(workspace);
+    expect(header.contains(toolbar)).toBe(true);
+    expect(workspace.contains(panel.sidebar())).toBe(true);
+    expect(workspace.contains(toolbar)).toBe(false);
+    expect(header.querySelector(".pw-active-filter-bar")).toBeNull();
+    panel.setFilters(true);
+    const filter = panel.host.querySelector<HTMLElement>(".pw-active-filter-bar")!;
+    expect(header.contains(filter)).toBe(true);
+    expect(toolbar.compareDocumentPosition(filter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    panel.setExpanded(true);
+    expect(header.querySelector(".pw-page-toolbar")).toBe(toolbar);
+    expect(toolbar.closest("[inert]")).toBeNull();
+    expect(panel.host.querySelector(".pw-detail-panel__collection")!.hasAttribute("inert")).toBe(true);
+    panel.resize(700, 400);
+    panel.setExpanded(false);
+    panel.setOpen(false);
+    expect(header.contains(toolbar)).toBe(true);
+    expect(header.contains(filter)).toBe(true);
+    expect(css()).toMatch(/\.pw-detail-panel__workspace\s*{[^}]*grid-template-columns: minmax\(0, 1fr\) var\(--detail-panel-space\);/);
+    expect(css()).not.toMatch(/\.pw-detail-panel-root\s*{[^}]*grid-template-columns/);
+    expect(readFileSync(repoPath("packages/frontend/design-system/src/tabs.css"), "utf8")).toContain("padding: 8px 8px 4px;");
+    panel.dispose();
+  });
+  it("renders collection controls inline without a panel", () => {
+    const host = document.createElement("div"); document.body.append(host);
+    const dispose = render(() => <div>
+      <PageToolbar.Root><PageToolbar.Actions><button>Filter</button></PageToolbar.Actions></PageToolbar.Root>
+      <ActiveFilterBar items={[{ id: "status", label: "Open", onRemove: () => undefined }]} />
+    </div>, host);
+    expect(host.querySelector(".pw-page-toolbar")!.parentElement).toBe(host.firstElementChild);
+    expect(host.querySelector(".pw-active-filter-bar")!.parentElement).toBe(host.firstElementChild);
+    dispose(); host.remove();
+  });
+  it("expands without losing its saved lateral width", () => {
+    const panel = mount({ storageKey: "test.sidebar" });
+    const divider = panel.host.querySelector<HTMLElement>(".pw-detail-panel__resize-handle")!;
+    press({ key: "ArrowLeft", shiftKey: true }, divider);
+    expect(localStorage.getItem("test.sidebar")).toBe("464");
+    panel.setExpanded(true);
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("0px");
+    expect(divider.hidden).toBe(true);
+    panel.setExpanded(false);
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("472px");
+    panel.resize(250, 200);
+    expect(panel.root().style.getPropertyValue("--detail-panel-width")).toBe("234px");
+    expect(localStorage.getItem("test.sidebar")).toBe("464");
+    panel.resize(1200, 800);
+    expect(panel.root().style.getPropertyValue("--detail-panel-width")).toBe("464px");
+    panel.dispose();
+  });
+  it("captures resize gestures, restores cancellations and persists only the result", () => {
+    const panel = mount({ storageKey: "test.sidebar" });
+    const divider = panel.host.querySelector<HTMLElement>(".pw-detail-panel__resize-handle")!;
+    pointer(divider, "pointerdown", 800, 200);
+    pointer(divider, "pointermove", 700, 200);
+    expect(localStorage.getItem("test.sidebar")).toBeNull();
+    press({ key: "Escape" });
+    expect(panel.root().style.getPropertyValue("--detail-panel-width")).toBe("400px");
+    pointer(divider, "pointerdown", 800, 200);
+    pointer(divider, "pointermove", 700, 200);
+    pointer(divider, "pointerup", 700, 200);
+    expect(localStorage.getItem("test.sidebar")).toBe("500");
+    divider.click();
+    expect(panel.open()).toBe(true);
+    panel.dispose();
+  });
+  it("keeps controls without a feature header and hides them when details are unavailable", () => {
+    for (const message of ["No selection", "Loading details", "Details could not be loaded"]) {
+      const panel = mount({ content: () => <div>{message}</div> });
+      expect(panel.host.querySelector('[aria-label="Close details"]')).not.toBeNull();
+      expect(panel.host.querySelector('[aria-label="Expand details"]')).not.toBeNull();
+      expect(panel.host.querySelector(".pw-detail-panel__collection-header .pw-page-toolbar")).not.toBeNull();
+      panel.dispose();
+    }
+    const unavailable = mount({ available: false });
+    expect(unavailable.sidebar().hidden).toBe(true);
+    expect(unavailable.host.querySelector("[data-detail-panel-toggle]")).toBeNull();
+    expect(unavailable.host.querySelector(".pw-page-toolbar")).not.toBeNull();
+    unavailable.dispose();
+  });
+  it("retains shell shortcuts and leaves selection activation separate", () => {
+    const panel = mount({ open: false });
+    press({ key: "j", metaKey: true }); expect(panel.open()).toBe(false);
+    press({ key: "j", metaKey: true, shiftKey: true }); expect(panel.expanded()).toBe(false);
+    panel.host.querySelector<HTMLButtonElement>("[data-detail-opener]")!.click();
+    expect(panel.open()).toBe(true);
+    press({ key: "j", metaKey: true, shiftKey: true }); expect(panel.expanded()).toBe(true);
+    press({ key: "j", metaKey: true }); expect(panel.open()).toBe(false);
+    panel.dispose();
+  });
+  it("exports the compound contract without header icon actions", () => {
     expect(Object.keys(DetailPanel)).toEqual([
       "Root",
       "Collection",
+      "CollectionHeader",
       "Header",
-      "Actions",
-      "Action",
+      "Title",
       "PrimaryAction",
-      "Overflow",
-      "OverflowItem",
+      "MenuItem",
       "Body",
       "Main",
       "Rail",
@@ -75,872 +293,362 @@ describe("DetailPanel", () => {
       expect(component).toBeDefined();
     }
   });
-
   it("composes record main, properties rail, and hides empty properties", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
     const onAdd = vi.fn();
-    const dispose = render(
-      () => (
-        <DetailPanel.Root
-          mode="open"
-          activeEntityId="record"
-          onCollapse={() => undefined}
-          onMaximize={() => undefined}
-          onRestore={() => undefined}
-        >
-          <DetailPanel.Collection>Collection</DetailPanel.Collection>
-          <DetailPanel.Content>
-            <DetailPanel.Header title="Record" />
-            <DetailPanel.Body>
-              <DetailPanel.Main>
-                <DetailPanel.Section title="Overview">Description</DetailPanel.Section>
-              </DetailPanel.Main>
-              <DetailPanel.Rail>
-                <DetailPanel.Properties>
-                  <DetailPanel.Property label="Provider" value="AWS" />
-                  <DetailPanel.Property label="Region" value="us-east-1" mono />
-                  <DetailPanel.Property label="Owner" value={null} />
-                  <DetailPanel.Property label="Tags" value="" onAdd={onAdd} />
-                </DetailPanel.Properties>
-              </DetailPanel.Rail>
-            </DetailPanel.Body>
-          </DetailPanel.Content>
-        </DetailPanel.Root>
+    const panel = mount({
+      content: () => (
+        <>
+          <DetailPanel.Header />
+          <DetailPanel.Body>
+            <DetailPanel.Main>
+              <DetailPanel.Section title="Overview">Description</DetailPanel.Section>
+            </DetailPanel.Main>
+            <DetailPanel.Rail>
+              <DetailPanel.Properties>
+                <DetailPanel.Property label="Provider" value="AWS" />
+                <DetailPanel.Property label="Region" value="us-east-1" mono />
+                <DetailPanel.Property label="Owner" value={null} />
+                <DetailPanel.Property label="Tags" value="" onAdd={onAdd} />
+              </DetailPanel.Properties>
+            </DetailPanel.Rail>
+          </DetailPanel.Body>
+        </>
       ),
-      host,
-    );
+    });
 
     await vi.waitFor(() =>
-      expect(host.querySelector(".pw-detail-panel__record")).not.toBeNull(),
+      expect(panel.host.querySelector(".pw-detail-panel__record")).not.toBeNull(),
     );
-    const record = host.querySelector(".pw-detail-panel__record")!;
+    const record = panel.host.querySelector(".pw-detail-panel__record")!;
     expect(record.querySelector(":scope > .pw-detail-panel__main h3")?.textContent).toBe("Overview");
     expect(record.querySelector(":scope > aside.pw-detail-panel__rail")).not.toBeNull();
-    expect(host.querySelector(".pw-detail-panel__subtitle")).toBeNull();
     expect(
-      Array.from(host.querySelectorAll(".pw-detail-panel__property dt"), (dt) => dt.textContent),
+      Array.from(panel.host.querySelectorAll(".pw-detail-panel__property dt"), (dt) => dt.textContent),
     ).toEqual(["Provider", "Region", "Tags"]);
-    expect(host.querySelector("dd.font-mono")?.textContent).toBe("us-east-1");
-    host.querySelector<HTMLButtonElement>(".pw-detail-panel__property-add")!.click();
+    expect(panel.host.querySelector("dd.font-mono")?.textContent).toBe("us-east-1");
+    panel.host.querySelector<HTMLButtonElement>(".pw-detail-panel__property-add")!.click();
     expect(onAdd).toHaveBeenCalledOnce();
 
-    const css = readFileSync(
-      repoPath("packages/frontend/design-system/src/detail-panel.css"),
-      "utf8",
-    );
-    expect(css).toMatch(
+    expect(css()).toMatch(
       /\.pw-detail-panel__record:has\(> \.pw-detail-panel__rail\)\s*{[^}]*grid-template-columns: minmax\(0, 1fr\) 280px;/,
     );
-    expect(css).toMatch(/@container \(max-width: 720px\)/);
-    expect(css).not.toContain(".pw-detail-panel__grid");
-    expect(css).not.toContain(".pw-detail-panel__metric");
+    expect(css()).toMatch(/@container \(max-width: 720px\)/);
 
-    dispose();
-    host.remove();
+    panel.dispose();
   });
-
-  it("mirrors bottom geometry on the X axis for side placement", () => {
-    const css = readFileSync(
-      repoPath("packages/frontend/design-system/src/detail-panel.css"),
-      "utf8",
-    );
-    const source = readFileSync(
-      repoPath("packages/frontend/design-system/src/detail-panel.tsx"),
-      "utf8",
-    );
-    expect(source).toContain('data-panel-placement={props.placement ?? "bottom"}');
-    expect(css).toMatch(
-      /data-panel-placement="side"\] \.pw-detail-panel__panel\s*{[^}]*transform: translateX\(calc\(100cqw - var\(--detail-panel-side-width\)\)\);/,
-    );
-    expect(css).toMatch(
-      /data-panel-placement="side"\]\[data-mode="maximized"\]\s*\.pw-detail-panel__panel\s*{[^}]*transform: translateX\(0\);/,
-    );
-    expect(css).not.toContain("[data-placement=");
-  });
-
-  it("disables layout transitions for reduced motion", () => {
-    const css = readFileSync(
-      repoPath("packages/frontend/design-system/src/detail-panel.css"),
-      "utf8",
-    );
-    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(css).toMatch(/prefers-reduced-motion:[\s\S]*transition: none/);
-  });
-
   it("nests DataTable rows without dark surface fills inside sections", () => {
-    const css = readFileSync(
-      repoPath("packages/frontend/design-system/src/detail-panel.css"),
-      "utf8",
-    );
-    expect(css).toMatch(
+    const styles = css();
+    expect(styles).toMatch(
       /\.pw-detail-panel__section \.pw-data-table-scroll\s*{[^}]*padding-inline: 0;/,
     );
-    expect(css).toMatch(
+    expect(styles).toMatch(
       /\.pw-detail-panel__section \.pw-data-table-cell::before[\s\S]*?background: transparent;/,
     );
-    // Hover is the table's gliding highlight; rows carry no :hover fill.
-    expect(css).not.toMatch(/\.pw-detail-panel__section \.pw-data-table-row:hover/);
-    expect(css).toMatch(
+    expect(styles).not.toMatch(/\.pw-detail-panel__section \.pw-data-table-row:hover/);
+    expect(styles).toMatch(
       /\.pw-detail-panel__section \.pw-data-table-active,[\s\S]*?background: var\(--color-surface-selected\);/,
     );
-    // Nested override must not reintroduce page-level surface chips.
-    expect(css).not.toMatch(
-      /\.pw-detail-panel__section \.pw-data-table-cell[\s\S]*?background: var\(--color-surface\);/,
-    );
   });
-
-  it("keeps discrete button-driven geometry with progressive chrome", () => {
-    const css = readFileSync(
-      repoPath("packages/frontend/design-system/src/detail-panel.css"),
-      "utf8",
-    );
-    const source = readFileSync(
-      repoPath("packages/frontend/design-system/src/detail-panel.tsx"),
-      "utf8",
-    );
-    const materials = readFileSync(
-      repoPath("packages/frontend/design-system/src/materials.css"),
-      "utf8",
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__viewport\s*{[^}]*padding: var\(--detail-panel-gutter\);/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel-root\[data-mode="collapsed"\]\[data-presence="hidden"\][\s\S]*?\.pw-detail-panel__viewport\s*{[^}]*padding: 0;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__surface\.surface-panel-float\s*{[^}]*border-radius: var\(--detail-panel-radius\);/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel-root\s*{[^}]*container-type: size;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__panel\s*{[^}]*inset: 0;[^}]*height: 100%;[^}]*transform: translateY\(50cqh\);/,
-    );
-    // The travel is a JS spring; the poses stay in CSS without a transform transition.
-    expect(css).not.toMatch(/\.pw-detail-panel__panel\s*{[^}]*transition: transform/);
-    expect(css).toMatch(
-      /\.pw-detail-panel-root\[data-settling="true"\] \.pw-detail-panel__panel\s*{[^}]*will-change: transform;/,
-    );
-    expect(css).toMatch(
-      /data-mode="collapsed"\] \.pw-detail-panel__panel\s*{[^}]*transform: translateY\(calc\(100cqh - var\(--detail-panel-collapsed-height\)\)\);/,
-    );
-    expect(css).toMatch(
-      /data-mode="maximized"\] \.pw-detail-panel__panel\s*{[^}]*transform: translateY\(0\);/,
-    );
-    expect(css).toContain("--detail-panel-gutter: 8px;");
-    expect(css).toContain("--detail-panel-radius: 14px;");
-    expect(css).toContain("--detail-panel-viewport-height: 50cqh;");
-    expect(css).toContain("--detail-panel-collection-clearance: 0px;");
-    expect(css).toMatch(
-      /data-presence="visible"\]:not\(\s*\[data-viewport-mode="maximized"\]\s*\)\s*{[^}]*--detail-panel-collection-clearance: var\(--detail-panel-viewport-height\);/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__collection \.pw-data-table-root:last-child \.pw-data-table-scroll\s*{[^}]*padding-bottom: var\(--detail-panel-collection-clearance\);/,
-    );
-    expect(css).not.toMatch(
-      /\.pw-detail-panel__collection\s*{[^}]*padding-bottom: var\(--detail-panel-collection-clearance\)/,
-    );
-    expect(css).not.toMatch(
-      /\.pw-detail-panel__collection \.pw-data-table-scroll\s*{[^}]*padding-bottom: var\(--detail-panel-collection-clearance\)/,
-    );
-    expect(css).toMatch(
-      /data-viewport-mode="collapsed"\]\s*{[^}]*--detail-panel-viewport-height: var\(--detail-panel-collapsed-height\);/,
-    );
-    expect(css).toMatch(
-      /data-viewport-mode="maximized"\]\s*{[^}]*--detail-panel-viewport-height: 100cqh;/,
-    );
-    expect(css).toMatch(
-      /data-mode="maximized"\]\s*{[^}]*--detail-panel-gutter: 0px;[^}]*--detail-panel-radius: 0px;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__viewport\s*{[^}]*height: var\(--detail-panel-viewport-height\);[^}]*padding: var\(--detail-panel-gutter\);[^}]*transition: padding var\(--detail-panel-snap-duration\)[^}]*var\(--detail-panel-snap-ease\);/,
-    );
-    expect(css).not.toMatch(/transition:\s*height/);
-    expect(css).toMatch(
-      /\.pw-detail-panel__panel::before\s*{[^}]*top: 0;[^}]*right: 0;[^}]*left: 0;[^}]*height: var\(--detail-panel-collapsed-height\);[^}]*background: var\(--material-fade-edge-top\);/,
-    );
-    expect(css).toContain("var(--detail-panel-fade-alpha)");
-    expect(css).toMatch(
-      /\.pw-detail-panel__viewport\s*{[^}]*position: relative;[^}]*z-index: 1;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__portal\s*{[^}]*display: flex;[^}]*height: 100%;[^}]*min-height: 0;[^}]*overflow: hidden;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__body\s*{[^}]*min-height: 0;[^}]*flex: 1 1 0;[^}]*overflow: auto;[^}]*overscroll-behavior: contain;[^}]*container-type: inline-size;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__title\s*{[^}]*font-size: 14px;/,
-    );
-    expect(css).not.toMatch(
-      /data-mode="collapsed"\] \.pw-detail-panel__title\s*{/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__identity-content\s*{[^}]*position: relative;[^}]*isolation: isolate;[^}]*height: var\(--control-height-sm\);[^}]*gap: 8px;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__identity-content::before\s*{[^}]*inset-block: 0;[^}]*inset-inline: -1rem;[^}]*border-radius: inherit;[^}]*background-color: var\(--color-surface-subtle\);[^}]*var\(--edge-light-field-highlight\)[^}]*var\(--edge-light-field-rim\)[^}]*var\(--detail-panel-title-chrome-alpha\);/,
-    );
-    expect(css).toContain("--detail-panel-title-chrome-alpha: 0;");
-    expect(css).toMatch(
-      /data-mode="collapsed"\]\s*{[^}]*--detail-panel-title-chrome-alpha: 1;/,
-    );
-    expect(css).not.toContain("padding-inline: 1rem;");
-    expect(css).toMatch(
-      /\.pw-detail-panel__header-icon\s*{[^}]*width: 16px;[^}]*height: 16px;[^}]*flex: 0 0 16px;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__header-icon svg\s*{[^}]*transition: transform var\(--detail-panel-snap-duration\)[^}]*var\(--detail-panel-snap-ease\);/,
-    );
-    expect(css).toMatch(
-      /data-mode="collapsed"\] \.pw-detail-panel__header-icon svg\s*{[^}]*transform: scale\(0\.875\);/,
-    );
-    expect(css).not.toMatch(
-      /data-mode="collapsed"\] \.pw-detail-panel__header-icon\s*{[^}]*(?:width|height|flex-basis):/,
-    );
-    expect(css).not.toContain(".pw-detail-panel__description");
-    expect(source).not.toContain("description?: JSX.Element");
-    expect(css).not.toContain(
-      ".pw-detail-panel__surface.surface-panel-float::after",
-    );
-    expect(css).toContain(
-      "--detail-panel-hover-duration: var(--duration-fast);",
-    );
-    expect(css).toContain(
-      "--detail-panel-hover-ease: var(--ease-standard);",
-    );
-    expect(css).toContain(
-      "opacity var(--detail-panel-snap-duration) var(--detail-panel-snap-ease)",
-    );
-    expect(css).toContain(
-      "background-color var(--detail-panel-hover-duration)",
-    );
-    expect(css).not.toContain(
-      '.pw-detail-panel-root[data-mode="collapsed"][data-settling="false"]',
-    );
-    expect(css).not.toContain("--detail-panel-chrome-alpha: 1;");
-    expect(css).not.toContain(
-      ".pw-detail-panel__surface.surface-panel-float:hover",
-    );
-    expect(css).not.toContain(
-      ".pw-detail-panel__surface.surface-panel-float:focus-within",
-    );
-    expect(css).toContain(
-      ".pw-detail-panel__identity:has(.pw-detail-panel__collapsed-trigger:hover)",
-    );
-    expect(css).toMatch(
-      /@media \(hover: hover\) and \(pointer: fine\)\s*{\s*\.pw-detail-panel-root\[data-mode="collapsed"\][\s\S]*?\.pw-detail-panel__collapsed-trigger:hover\)[\s\S]*?background-color: var\(--color-surface-hover\);\s*}\s*}\s*\.pw-detail-panel-root\[data-mode="collapsed"\][\s\S]*?\.pw-detail-panel__collapsed-trigger:focus-visible/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__collapsed-trigger:focus-visible[\s\S]*?\.pw-detail-panel__identity-content::before\s*{[^}]*background-color: var\(--color-surface-hover\);/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__collapsed-trigger:active\)[\s\S]*?\.pw-detail-panel__identity-content::before\s*{[^}]*background-color: var\(--color-surface-active\);/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__identity:has\(\.pw-detail-panel__collapsed-trigger:focus-visible\)[\s\S]*?\.pw-detail-panel__identity-content::before\s*{[^}]*outline: 1px solid var\(--color-border-focus\);[^}]*outline-offset: 2px;/,
-    );
-    expect(css).not.toMatch(
-      /\.pw-detail-panel__surface\.surface-panel-float\s*{[^}]*--detail-panel-fade-alpha: 0;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__collapsed-trigger\s*{[^}]*cursor: pointer;[^}]*touch-action: manipulation;/,
-    );
-    expect(source).not.toContain("@corvu/resizable");
-    expect(source).not.toContain("Resizable.Handle");
-    expect(source).not.toContain("settleDetailPanelSize");
-    expect(source).not.toContain("DETAIL_PANEL_SETTLEMENT_DURATION");
-    expect(source).toContain("readDetailPanelPose(panelElement)");
-    expect(source).toContain("animate(panelY, target.y, spring.slow)");
-    expect(source).not.toContain("onTransitionEnd");
-    expect(css).not.toContain("row-resize");
-    expect(css).not.toContain("pw-detail-panel__resize-handle");
-    expect(css).toMatch(
-      /\.pw-detail-panel__header\s*{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\);[^}]*border-bottom: 1px solid var\(--color-border-subtle\);[^}]*gap: 4px;/,
-    );
-    expect(css).toMatch(
-      /data-mode="collapsed"\] \.pw-detail-panel__header\s*{[^}]*border-bottom: 0;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__identity\s*{[^}]*grid-column: 2;[^}]*grid-row: 1;[^}]*justify-self: center;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__actions\s*{[^}]*grid-column: 1;[^}]*grid-row: 1;[^}]*justify-content: flex-start;[^}]*justify-self: start;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__global-actions\s*{[^}]*grid-column: 3;[^}]*grid-row: 1;[^}]*justify-content: flex-end;[^}]*justify-self: end;[^}]*margin-inline-start: 0;/,
-    );
-    expect(css).toMatch(
-      /\.pw-detail-panel__actions\s*{[^}]*margin-inline-start: 0;/,
-    );
-    expect(source).toMatch(
-      /<Tooltip\.Group>\s*{props\.children}\s*<div class="pw-detail-panel__global-actions">/,
-    );
-    expect(source).toContain('openDelay={DETAIL_PANEL_ACTION_TOOLTIP_DELAY}');
-    // Labels come from the configurable shortcut store, not hard-coded constants.
-    expect(source).toContain('createShortcutLabel("shell.toggle_detail")');
-    expect(source).toContain('createShortcutLabel("shell.maximize_detail")');
-    expect(source).toContain("shortcut={toggleShortcut()}");
-    expect(source).toContain("shortcut={maximizeShortcut()}");
-    expect(source).toContain("<Kbd>{local.shortcut}</Kbd>");
-    expect(css).toContain(".pw-detail-panel__action-tooltip");
-    expect(materials).toContain("--material-fade-edge-bottom: linear-gradient(");
-    expect(materials).toContain("--material-fade-edge-top: linear-gradient(to top");
+  it("outside activation preserves its action and focus; opener and card clicks stay open", async () => {
+    const panel = mount();
+    panel.host.querySelector<HTMLButtonElement>("[data-detail-opener]")!.click();
+    expect(panel.open()).toBe(true);
+    const inside = panel.host.querySelector<HTMLButtonElement>(".pw-detail-panel__body button")!;
+    inside.focus(); inside.click();
+    expect(panel.open()).toBe(true);
+    const outside = document.createElement("button");
+    const action = vi.fn(); outside.onclick = action; document.body.append(outside);
+    await nextPaint();
+    pointer(outside, "pointerdown", 0, 0);
+    expect(panel.open()).toBe(true);
+    expect(panel.sidebar().hasAttribute("inert")).toBe(false);
+    outside.focus();
+    pointer(outside, "pointerup", 0, 0);
+    expect(panel.open()).toBe(true);
+    pointerClick(outside);
+    expect(panel.open()).toBe(false);
+    expect(panel.sidebar().hasAttribute("inert")).toBe(true);
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("408px");
+    expect(action).toHaveBeenCalledOnce();
+    await Promise.resolve();
+    expect(document.activeElement).toBe(outside);
+    await vi.waitFor(() => expect(panel.sidebar().hidden).toBe(true));
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("0px");
+    panel.dispose();
   });
+  it("keeps the full-width toolbar action and focus when it dismisses expanded details", async () => {
+    const panel = mount({ expanded: true });
+    const toolbar = panel.host.querySelector<HTMLElement>(".pw-page-toolbar")!;
+    const button = toolbar.querySelector<HTMLButtonElement>("button")!;
+    const action = vi.fn(); button.onclick = action;
+    panel.host.querySelector<HTMLButtonElement>(".pw-detail-panel__body button")!.focus();
+    await nextPaint();
+    pointer(button, "pointerdown", 0, 0);
+    expect(panel.open()).toBe(true);
+    button.focus();
+    pointer(button, "pointerup", 0, 0); pointerClick(button);
+    expect(panel.open()).toBe(false);
+    expect(panel.sidebar().dataset.expanded).toBe("true");
+    await Promise.resolve();
+    expect(action).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(button);
+    expect(panel.host.querySelector(".pw-page-toolbar")).toBe(toolbar);
+    panel.dispose();
+  });
+  it("keeps a held external press open without leaving an empty reserved column", async () => {
+    const panel = mount();
+    const outside = document.createElement("button"); document.body.append(outside);
+    await nextPaint();
+    pointer(outside, "pointerdown", 10, 10);
+    // Longer than either exit tier: a held press must not start any dismissal.
+    await new Promise<void>((resolve) => window.setTimeout(resolve, spring.slow.exit.duration * 1000 + 32));
+    expect(panel.open()).toBe(true);
+    expect(panel.sidebar().hidden).toBe(false);
+    expect(panel.sidebar().style.opacity).toBe("1");
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("408px");
+    pointer(outside, "pointerup", 10, 10); pointerClick(outside);
+    expect(panel.open()).toBe(false);
+    await vi.waitFor(() => expect(panel.sidebar().hidden).toBe(true));
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("0px");
+    panel.dispose();
+  });
+  it("ignores the release click after drag, scroll, cancellation or loss of focus", () => {
+    const panel = mount();
+    const outside = document.createElement("button"); document.body.append(outside);
+    for (const gesture of ["drag", "scroll", "wheel", "cancel", "capture", "blur"] as const) {
+      pointer(outside, "pointerdown", 10, 10);
+      if (gesture === "drag") {
+        pointer(outside, "pointermove", 13, 10);
+        pointer(outside, "pointermove", 10, 10);
+      } else if (gesture === "scroll") {
+        outside.dispatchEvent(new Event("scroll"));
+      } else if (gesture === "wheel") {
+        outside.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 20 }));
+      } else if (gesture === "cancel" || gesture === "capture") {
+        pointer(outside, gesture === "cancel" ? "pointercancel" : "lostpointercapture", 10, 10);
+      } else window.dispatchEvent(new Event("blur"));
+      pointer(outside, "pointerup", 10, 10); pointerClick(outside);
+      expect(panel.open(), gesture).toBe(true);
+    }
+    // A new click remains available; the observer never takes external capture.
+    expect(outside.setPointerCapture).not.toHaveBeenCalled();
+    pointer(outside, "pointerdown", 10, 10);
+    pointer(outside, "pointerup", 12, 10); pointerClick(outside);
+    expect(panel.open()).toBe(false);
+    panel.dispose();
+  });
+  it("keeps keyboard-generated outside clicks available after an ignored drag", () => {
+    const panel = mount();
+    const outside = document.createElement("button"); document.body.append(outside);
+    const action = vi.fn(); outside.onclick = action;
+    pointer(outside, "pointerdown", 0, 0);
+    pointer(outside, "pointermove", 10, 0);
+    pointer(outside, "pointerup", 10, 0); pointerClick(outside);
+    expect(panel.open()).toBe(true);
+    outside.focus(); outside.click();
+    expect(panel.open()).toBe(false);
+    expect(document.activeElement).toBe(outside);
+    expect(action).toHaveBeenCalledTimes(2);
+    panel.dispose();
+  });
+  it("keeps saved width until the slide and fade end, then releases the column", async () => {
+    const panel = mount({ storageKey: "test.sidebar" });
+    const divider = panel.host.querySelector<HTMLElement>(".pw-detail-panel__resize-handle")!;
+    press({ key: "ArrowLeft", shiftKey: true }, divider);
+    await nextPaint();
+    const timeout = vi.spyOn(window, "setTimeout");
+    panel.host.querySelector<HTMLButtonElement>('[aria-label="Close details"]')!.click();
+    expect(panel.open()).toBe(false);
+    expect(panel.sidebar().hidden).toBe(false);
+    expect(panel.sidebar().hasAttribute("inert")).toBe(true);
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("472px");
+    expect(divider.hidden).toBe(true);
+    expect(timeout).toHaveBeenCalledWith(expect.any(Function), spring.slow.exit.duration * 1000);
+    await vi.waitFor(() => expect(panel.sidebar().hidden).toBe(true));
+    expect(panel.sidebar().style.transform).toBe("translate3d(16px, 0, 0)");
+    expect(panel.sidebar().style.opacity).toBe("0");
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("0px");
+    expect(localStorage.getItem("test.sidebar")).toBe("464");
+    panel.dispose();
+  });
+  it("keeps expanded geometry for the whole exit and limits the frame to the workspace", async () => {
+    const panel = mount({ expanded: true });
+    await nextPaint();
+    panel.host.querySelector<HTMLButtonElement>('[aria-label="Close details"]')!.click();
+    expect(panel.expanded()).toBe(false);
+    expect(panel.sidebar().dataset.expanded).toBe("true");
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("0px");
+    expect(panel.sidebar().parentElement?.classList.contains("pw-detail-panel__workspace")).toBe(true);
+    expect(css()).toMatch(/\.pw-detail-panel__frame\[data-expanded="true"\]\s*{[^}]*inset: 0;/);
+    await vi.waitFor(() => expect(panel.sidebar().hidden).toBe(true));
+    expect(panel.sidebar().dataset.expanded).toBe("false");
+    panel.dispose();
+  });
+  it("uses only the short fade with reduced motion and does not animate first paint", async () => {
+    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: true })));
+    const panel = mount();
+    expect(panel.sidebar().style.transform).toBe("translate3d(0px, 0, 0)");
+    expect(panel.sidebar().style.opacity).toBe("1");
+    await nextPaint();
+    const timeout = vi.spyOn(window, "setTimeout");
+    press({ key: "j", metaKey: true });
+    expect(panel.open()).toBe(false);
+    expect(panel.sidebar().style.transform).toBe("translate3d(0px, 0, 0)");
+    expect(timeout).toHaveBeenCalledWith(expect.any(Function), spring.fast.exit.duration * 1000);
+    await vi.waitFor(() => expect(panel.sidebar().hidden).toBe(true));
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("0px");
+    panel.dispose();
+  });
+  it("places primary collection creation after search, filters and auxiliary actions", () => {
+    const knowledge = readFileSync(repoPath("packages/features/knowledge/src/index.tsx"), "utf8");
+    const actions = knowledge.slice(knowledge.indexOf("<PageToolbar.Actions>"), knowledge.indexOf("</PageToolbar.Actions>"));
+    expect(actions.indexOf("<SearchBar")).toBeLessThan(actions.indexOf("<FilterPopover"));
+    expect(actions.indexOf('label="Import from project root"')).toBeLessThan(actions.indexOf('label="Add source"'));
+    expect(actions.indexOf('label="Add source"')).toBeLessThan(actions.indexOf("label={createLabel()}"));
+    const atlas = readFileSync(repoPath("packages/features/architecture/src/index.tsx"), "utf8");
+    const atlasActions = atlas.slice(atlas.indexOf("<PageToolbar.Actions>"), atlas.indexOf("</PageToolbar.Actions>"));
+    expect(atlasActions.indexOf('label="Auto layout"')).toBeLessThan(atlasActions.indexOf('label="Add component"'));
+  });
+  it("registers callback-owned sibling confirmations", async () => {
+    const [confirm, setConfirm] = createSignal(false);
+    const panel = mount({ content: () => <button onClick={() => setConfirm(true)}>Confirm action</button> });
+    const dialogHost = document.createElement("div"); document.body.append(dialogHost);
+    const disposeDialog = render(() => <A11yDialog open={confirm()} title="Confirm action" onClose={() => setConfirm(false)}><button>Keep editing</button></A11yDialog>, dialogHost);
+    panel.host.querySelector<HTMLButtonElement>(".pw-detail-panel__content button")!.click();
+    await vi.waitFor(() => expect(document.querySelector(".pw-dialog-content")).not.toBeNull());
+    const dialogButton = document.querySelector<HTMLButtonElement>(".pw-dialog-content button:last-child")!;
+    pointer(dialogButton, "pointerdown", 0, 0); pointer(dialogButton, "pointerup", 0, 0); pointerClick(dialogButton);
+    expect(panel.open()).toBe(true);
+    setConfirm(false);
+    disposeDialog(); dialogHost.remove(); panel.dispose();
+  });
+  it("keeps an owned portalled menu interactive while unrelated dialogs dismiss details", async () => {
+    const [menuOpen, setMenuOpen] = createSignal(false);
+    const action = vi.fn();
+    const panel = mount({ content: () => (
+      <DropdownMenu open={menuOpen()} onOpenChange={setMenuOpen}>
+        <DropdownMenuTrigger aria-label="Detail options">Options</DropdownMenuTrigger>
+        <DropdownMenuContent><DropdownMenuItem value="edit" onSelect={action}>Edit detail</DropdownMenuItem></DropdownMenuContent>
+      </DropdownMenu>
+    ) });
+    const trigger = panel.host.querySelector<HTMLButtonElement>('[aria-label="Detail options"]')!;
+    trigger.focus(); trigger.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="menuitem"]')).not.toBeNull());
+    const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
+    pointer(item, "pointerdown", 0, 0); pointer(item, "pointerup", 0, 0); pointerClick(item);
+    expect(panel.open()).toBe(true);
+    expect(action).toHaveBeenCalledOnce();
+    const outside = document.createElement("button"); document.body.append(outside);
+    outside.focus();
+    const [unrelated, setUnrelated] = createSignal(false);
+    const dialogHost = document.createElement("div"); document.body.append(dialogHost);
+    const disposeDialog = render(() => <A11yDialog open={unrelated()} title="Unrelated" onClose={() => setUnrelated(false)}><button>External action</button></A11yDialog>, dialogHost);
+    setUnrelated(true);
+    await vi.waitFor(() => expect(document.querySelector(".pw-dialog-content")).not.toBeNull());
+    const unrelatedDialog = document.querySelector<HTMLElement>(".pw-dialog-content")!;
+    pointer(unrelatedDialog, "pointerdown", 0, 0);
+    expect(panel.open()).toBe(true);
+    pointer(unrelatedDialog, "pointerup", 0, 0); pointerClick(unrelatedDialog);
+    expect(panel.open()).toBe(false);
+    disposeDialog(); dialogHost.remove(); panel.dispose();
+  });
+  it("can interrupt a close by explicitly opening another item", async () => {
+    const panel = mount();
+    await nextPaint();
+    panel.host.querySelector<HTMLButtonElement>('[aria-label="Close details"]')!.click();
+    await nextPaint();
+    const pose = panel.sidebar().style.transform;
+    panel.host.querySelector<HTMLButtonElement>("[data-detail-opener]")!.click();
+    expect(panel.sidebar().style.transform).toBe(pose);
+    await vi.waitFor(() => expect(panel.positioner().style.opacity).toBe("1"));
+    expect(panel.root().dataset.state).toBe("open");
+    expect(panel.positioner().hidden).toBe(false);
+    expect(panel.sidebar().hasAttribute("inert")).toBe(false);
+    await new Promise<void>((resolve) => window.setTimeout(resolve, spring.slow.exit.duration * 1000 + 32));
+    expect(panel.sidebar().hidden).toBe(false);
+    expect(panel.root().style.getPropertyValue("--detail-panel-space")).toBe("408px");
+    panel.dispose();
+  });
+  it("exits expanded with Escape and returns focus to the active row from inside the detail", async () => {
+    const panel = mount({ expanded: true });
+    const inside = () =>
+      Array.from(panel.host.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === "Inside detail",
+      )!;
+    await vi.waitFor(() => expect(inside()).toBeDefined());
 
-  it("sequences viewport geometry around the panel spring and retargeting", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const [mode, setMode] = createSignal<DetailPanelMode>("maximized");
-    const dispose = render(
-      () => (
-        <DetailPanel.Root
-          mode={mode()}
-          activeEntityId="motion-detail"
-          onCollapse={() => setMode("collapsed")}
-          onMaximize={() => setMode("maximized")}
-          onRestore={() => setMode("open")}
-        >
-          <DetailPanel.Collection>Collection</DetailPanel.Collection>
-          <DetailPanel.Content>
-            <DetailPanel.Header title="Motion detail" />
-            <DetailPanel.Body>Motion body</DetailPanel.Body>
-          </DetailPanel.Content>
-        </DetailPanel.Root>
+    inside().focus();
+    press({ key: "Escape" });
+    expect(panel.expanded()).toBe(false);
+
+    inside().focus();
+    press({ key: "Escape" });
+    await vi.waitFor(() =>
+      expect(document.activeElement?.getAttribute("data-detail-target-id")).toBe("alpha"),
+    );
+    expect(panel.open()).toBe(true);
+
+    panel.dispose();
+  });
+  it("hands focus back to the active row when the sidebar hides with focus inside", async () => {
+    const panel = mount();
+    const inside = () =>
+      Array.from(panel.host.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent === "Inside detail",
+      )!;
+    await vi.waitFor(() => expect(inside()).toBeDefined());
+
+    inside().focus();
+    panel.setOpen(false);
+    await vi.waitFor(() =>
+      expect(document.activeElement?.getAttribute("data-detail-target-id")).toBe("alpha"),
+    );
+
+    panel.dispose();
+  });
+  it("keeps only panel controls in the header and identity in the body", async () => {
+    const panel = mount({
+      content: () => (
+        <>
+          <DetailPanel.Header />
+          <DetailPanel.Body>
+            <DetailPanel.Title title="Alpha detail" meta={<span data-testid="meta">Active</span>} />
+            Body
+          </DetailPanel.Body>
+        </>
       ),
-      host,
+    });
+    await vi.waitFor(() =>
+      expect(panel.host.querySelector(".pw-detail-panel__header")).not.toBeNull(),
     );
-
-    const root = host.querySelector<HTMLElement>(".pw-detail-panel-root")!;
-    const panel = host.querySelector<HTMLElement>(".pw-detail-panel__panel")!;
-    const body = host.querySelector<HTMLElement>(".pw-detail-panel__body")!;
-    stubPanelPoses(root, panel);
-    await nextFrame();
-    expect(root.dataset.viewportMode).toBe("maximized");
-
-    setMode("open");
-    await vi.waitFor(() => expect(root.dataset.mode).toBe("open"));
-    expect(root.dataset.viewportMode).toBe("maximized");
-    expect(root.dataset.settling).toBe("true");
-    expect(body.hidden).toBe(false);
-    await vi.waitFor(() => expect(root.dataset.settling).toBe("false"));
-    expect(root.dataset.viewportMode).toBe("open");
-
-    setMode("collapsed");
-    await vi.waitFor(() => expect(root.dataset.mode).toBe("collapsed"));
-    expect(root.dataset.viewportMode).toBe("open");
-    expect(body.hidden).toBe(false);
-    await vi.waitFor(() => expect(root.dataset.viewportMode).toBe("collapsed"));
-    expect(body.hidden).toBe(true);
-
-    setMode("open");
-    await vi.waitFor(() => expect(root.dataset.viewportMode).toBe("open"));
-    expect(body.hidden).toBe(false);
-    await vi.waitFor(() => expect(root.dataset.settling).toBe("false"));
-
-    setMode("maximized");
-    await vi.waitFor(() => expect(root.dataset.viewportMode).toBe("maximized"));
-    await vi.waitFor(() => expect(root.dataset.settling).toBe("false"));
-
-    // Interrupted: a collapse retargeted to open before it lands never commits.
-    setMode("collapsed");
-    expect(root.dataset.settling).toBe("true");
-    setMode("open");
-    await vi.waitFor(() => expect(root.dataset.mode).toBe("open"));
-    expect(root.dataset.viewportMode).toBe("maximized");
-    await vi.waitFor(() => expect(root.dataset.viewportMode).toBe("open"));
-    expect(root.dataset.settling).toBe("false");
-
-    dispose();
-    host.remove();
+    const header = panel.host.querySelector(".pw-detail-panel__header")!;
+    expect(header.querySelector(".pw-detail-panel__title")).toBeNull();
+    expect(header.querySelector("[data-testid='meta']")).toBeNull();
+    expect(header.querySelector("[aria-label='More actions']")).toBeNull();
+    const body = panel.host.querySelector(".pw-detail-panel__body")!;
+    expect(body.querySelector(".pw-detail-panel__title")?.textContent).toBe("Alpha detail");
+    expect(body.querySelector("[data-testid='meta']")?.textContent).toBe("Active");
+    (header.querySelector("[aria-label='Expand details']") as HTMLButtonElement).click();
+    expect(panel.expanded()).toBe(true);
+    (header.querySelector("[aria-label='Restore details']") as HTMLButtonElement).click();
+    expect(panel.expanded()).toBe(false);
+    expect(source()).toContain('createShortcutLabel("shell.maximize_detail")');
+    panel.dispose();
   });
-
-  it("commits viewport geometry immediately for reduced motion", async () => {
-    vi.stubGlobal("matchMedia", vi.fn(() => ({
-      matches: true,
-      media: "(prefers-reduced-motion: reduce)",
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })));
-    const host = document.createElement("div");
-    document.body.append(host);
-    const [mode, setMode] = createSignal<DetailPanelMode>("open");
-    const dispose = render(
-      () => (
-        <DetailPanel.Root
-          mode={mode()}
-          activeEntityId="reduced-motion-detail"
-          onCollapse={() => setMode("collapsed")}
-          onMaximize={() => setMode("maximized")}
-          onRestore={() => setMode("open")}
-        >
-          <DetailPanel.Collection>Collection</DetailPanel.Collection>
-          <DetailPanel.Content>
-            <DetailPanel.Header title="Reduced motion detail" />
-            <DetailPanel.Body>Reduced motion body</DetailPanel.Body>
-          </DetailPanel.Content>
-        </DetailPanel.Root>
-      ),
-      host,
-    );
-
-    const root = host.querySelector<HTMLElement>(".pw-detail-panel-root")!;
-    const body = host.querySelector<HTMLElement>(".pw-detail-panel__body")!;
-    setMode("collapsed");
-    await vi.waitFor(() => expect(root.dataset.mode).toBe("collapsed"));
-    expect(root.dataset.viewportMode).toBe("collapsed");
-    expect(root.dataset.settling).toBe("false");
-    expect(body.hidden).toBe(true);
-
-    dispose();
-    host.remove();
-  });
-
-  it("restores fallback focus before disabling a dismissing detail and completes when the spring settles", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const [mode, setMode] = createSignal<DetailPanelMode>("open");
-    const [presence, setPresence] = createSignal<DetailPanelPresence>("visible");
-    const onDismissComplete = vi.fn();
-    const dispose = render(
-      () => (
-        <DetailPanel.Root
-          mode={mode()}
-          presence={presence()}
-          activeEntityId="alpha"
-          onCollapse={() => setMode("collapsed")}
-          onMaximize={() => setMode("maximized")}
-          onRestore={() => setMode("open")}
-          onDismissComplete={onDismissComplete}
-        >
-          <DetailPanel.Collection>
-            <button data-detail-focus-fallback>Canvas</button>
-          </DetailPanel.Collection>
-          <DetailPanel.Content>
-            <DetailPanel.Header title="Alpha detail" />
-            <DetailPanel.Body>
-              <button data-detail-action>Detail action</button>
-            </DetailPanel.Body>
-          </DetailPanel.Content>
-        </DetailPanel.Root>
-      ),
-      host,
-    );
-
-    await vi.waitFor(() => expect(host.querySelector("[data-detail-action]")).not.toBeNull());
-    host.querySelector<HTMLButtonElement>("[data-detail-action]")!.focus();
-    const surface = host.querySelector<HTMLElement>(".pw-detail-panel__surface")!;
-    const fallback = host.querySelector<HTMLButtonElement>("[data-detail-focus-fallback]")!;
-    const panel = host.querySelector<HTMLElement>(".pw-detail-panel__panel")!;
-    const root = host.querySelector<HTMLElement>(".pw-detail-panel-root")!;
-    stubPanelPoses(root, panel);
-    await nextFrame();
-
-    setMode("collapsed");
-    setPresence("dismissing");
-    expect(surface.inert).not.toBe(true);
-    expect(onDismissComplete).not.toHaveBeenCalled();
-
-    await vi.waitFor(() => expect(document.activeElement).toBe(fallback));
-    expect(surface.inert).toBe(true);
-    expect(surface.getAttribute("aria-hidden")).toBe("true");
-    expect(onDismissComplete).not.toHaveBeenCalled();
-
-    await vi.waitFor(() => expect(onDismissComplete).toHaveBeenCalledOnce());
-
-    setPresence("visible");
-    setMode("open");
-    await vi.waitFor(() => expect(root.dataset.settling).toBe("false"));
-    expect(onDismissComplete).toHaveBeenCalledOnce();
-
-    dispose();
-    host.remove();
-  });
-
-  it("completes reduced-motion dismissal immediately after focus handoff", async () => {
-    vi.stubGlobal("matchMedia", vi.fn(() => ({
-      matches: true,
-      media: "(prefers-reduced-motion: reduce)",
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })));
-    const host = document.createElement("div");
-    document.body.append(host);
-    const [presence, setPresence] = createSignal<DetailPanelPresence>("visible");
-    const onDismissComplete = vi.fn();
-    const dispose = render(
-      () => (
-        <DetailPanel.Root
-          mode="collapsed"
-          presence={presence()}
-          activeEntityId="alpha"
-          onCollapse={() => undefined}
-          onMaximize={() => undefined}
-          onRestore={() => undefined}
-          onDismissComplete={onDismissComplete}
-        >
-          <DetailPanel.Collection>
-            <button data-detail-focus-fallback>Canvas</button>
-          </DetailPanel.Collection>
-          <DetailPanel.Content>
-            <DetailPanel.Header title="Alpha detail" />
-            <DetailPanel.Body>Body</DetailPanel.Body>
-          </DetailPanel.Content>
-        </DetailPanel.Root>
-      ),
-      host,
-    );
-
-    setPresence("dismissing");
-    await vi.waitFor(() => expect(onDismissComplete).toHaveBeenCalledOnce());
-    expect(document.activeElement).toBe(
-      host.querySelector("[data-detail-focus-fallback]"),
-    );
-
-    dispose();
-    host.remove();
-  });
-
-  it("portals content, exposes controls, applies inert, restores with Escape, and restores focus", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const [mode, setMode] = createSignal<DetailPanelMode>("open");
-    const dispose = render(
-      () => (
-        <DetailPanel.Root
-          mode={mode()}
-          activeEntityId="alpha"
-          onCollapse={() => setMode("collapsed")}
-          onMaximize={() => setMode("maximized")}
-          onRestore={() => setMode("open")}
-        >
-          <DetailPanel.Collection>
-            <button data-detail-target-id="alpha">Alpha row</button>
-            <DetailPanel.Content>
-              <DetailPanel.Header icon={<Pencil />} title="Alpha detail">
-                <DetailPanel.Actions>
-                  <DetailPanel.Action label="Edit" tone="primary">
-                    <Pencil />
-                  </DetailPanel.Action>
-                </DetailPanel.Actions>
-              </DetailPanel.Header>
-              <DetailPanel.Body>Complete detail</DetailPanel.Body>
-            </DetailPanel.Content>
-          </DetailPanel.Collection>
-        </DetailPanel.Root>
-      ),
-      host,
-    );
-
-    await vi.waitFor(() => expect(host.textContent).toContain("Complete detail"));
-    const panel = host.querySelector<HTMLElement>(".pw-detail-panel__panel")!;
-    stubPanelPoses(host.querySelector<HTMLElement>(".pw-detail-panel-root")!, panel);
-    await nextFrame();
-    expect(host.querySelector(".pw-detail-panel__surface")?.classList.contains("surface-panel-float"))
-      .toBe(true);
-    expect(host.querySelector("[aria-label^='Dock details']")).toBeNull();
-    expect(host.querySelector("[aria-label='Maximize details']")).not.toBeNull();
-    const header = host.querySelector(".pw-detail-panel__header")!;
-    const headerIcon = host.querySelector(".pw-detail-panel__header-icon")!;
-    const portal = host.querySelector<HTMLElement>(".pw-detail-panel__portal")!;
-    expect(header).not.toBeNull();
-    expect(headerIcon.getAttribute("aria-hidden")).not.toBeNull();
-    expect(headerIcon.querySelector("svg")).not.toBeNull();
-    expect(
-      Array.from(header.children, (element) => element.classList.item(0)),
-    ).toEqual([
-      "pw-detail-panel__identity",
-      "pw-detail-panel__actions",
-      "pw-detail-panel__global-actions",
-    ]);
-    expect(
-      Array.from(header.querySelectorAll("button"), (button) =>
-        button.getAttribute("aria-label")),
-    ).toEqual(["Edit", "Maximize details", "Collapse details"]);
-    expect(host.querySelector("[aria-label='Resize detail panel']")).toBeNull();
-    expect(host.querySelector("[data-corvu-resizable-handle]")).toBeNull();
-    expect(portal.parentElement?.classList.contains("pw-detail-panel__surface")).toBe(true);
-
-    const collapseButton = host.querySelector<HTMLButtonElement>("[aria-label='Collapse details']")!;
-    const domainAction = host.querySelector<HTMLButtonElement>("[aria-label='Edit']")!;
-    expect(domainAction.textContent).toBe("");
-    expect(domainAction.classList.contains("!rounded-full")).toBe(true);
-    expect(domainAction.dataset.tone).toBe("primary");
-    expect(domainAction.hasAttribute("title")).toBe(false);
-    expect(collapseButton.classList.contains("control-field")).toBe(true);
-    expect(collapseButton.classList.contains("control-field-sm")).toBe(true);
-    expect(collapseButton.classList.contains("!rounded-full")).toBe(true);
-    host.querySelector<HTMLButtonElement>("[aria-label='Maximize details']")!.click();
-    await vi.waitFor(() => expect(mode()).toBe("maximized"));
-    const collection = host.querySelector<HTMLElement & { inert: boolean }>(
-      ".pw-detail-panel__collection",
-    );
-    await vi.waitFor(() => expect(collection?.inert).toBe(true));
-    expect(host.querySelector("[aria-label='Restore details']")).not.toBeNull();
-    expect(host.querySelector("[aria-label='Maximize details']")).toBeNull();
-
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    await vi.waitFor(() => expect(mode()).toBe("open"));
-    expect(collection?.inert).toBe(true);
-    await vi.waitFor(() => expect(collection?.inert).toBe(false));
-
-    const row = host.querySelector<HTMLButtonElement>("[data-detail-target-id='alpha']")!;
-    host.querySelector<HTMLButtonElement>("[aria-label='Collapse details']")!.click();
-    await vi.waitFor(() => expect(mode()).toBe("collapsed"));
-    expect(document.activeElement).toBe(row);
-    expect(host.querySelector("[data-detail-panel-collapsed-trigger]")).not.toBeNull();
-    expect(host.querySelector("[aria-label='Open details']")).not.toBeNull();
-    expect(host.querySelector("[aria-label='Maximize details']")).not.toBeNull();
-    expect(host.querySelector("[aria-label='Collapse details']")).toBeNull();
-    const collapsedIdentity = host.querySelector(".pw-detail-panel__identity-content")!;
-    expect(collapsedIdentity.classList.contains("control-field")).toBe(false);
-    expect(collapsedIdentity.classList.contains("!rounded-full")).toBe(true);
-    expect(collapsedIdentity.querySelector(".pw-detail-panel__title")?.textContent).toBe(
-      "Alpha detail",
-    );
-
-    dispose();
-    host.remove();
-  });
-
   it("keeps retained entity surfaces on the shared DetailPanel", () => {
     const featureFiles = [
-      repoPath("packages/features/architecture/src/node-detail.tsx"),
-      repoPath("packages/features/architecture/src/view-detail.tsx"),
-      repoPath("packages/features/integrations/src/integration-detail.tsx"),
-      repoPath("packages/features/knowledge/src/knowledge-document-shell.tsx"),
-      repoPath("packages/features/resources/src/resource-detail.tsx"),
+      "packages/features/architecture/src/node-detail.tsx",
+      "packages/features/architecture/src/view-detail.tsx",
+      "packages/features/knowledge/src/knowledge-document-shell.tsx",
+      "packages/features/knowledge/src/work-card-detail.tsx",
+      "packages/features/settings/src/agent-run-history-card.tsx",
     ];
 
     for (const file of featureFiles) {
-      const source = readFileSync(file, "utf8");
-      expect(source, file).toContain("<DetailPanel.Content>");
-      expect(source, file).toContain("<DetailPanel.Header");
+      const featureSource = readFileSync(repoPath(file), "utf8");
+      expect(featureSource, file).toContain("<DetailPanel.Content>");
+      expect(featureSource, file).toContain("<DetailPanel.Header");
+      expect(featureSource, file).not.toMatch(/DetailPanel\.(Actions|Action|Overflow)\b/);
     }
-  });
-
-  it("keeps the header available and expands when the collapsed strip is clicked", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const [mode, setMode] = createSignal<DetailPanelMode>("open");
-    const dispose = render(
-      () => (
-        <DetailPanel.Root
-          mode={mode()}
-          activeEntityId="persistent-detail"
-          onCollapse={() => setMode("collapsed")}
-          onMaximize={() => setMode("maximized")}
-          onRestore={() => setMode("open")}
-        >
-          <DetailPanel.Collection>Collection</DetailPanel.Collection>
-          <DetailPanel.Content>
-            <DetailPanel.Header title="Persistent detail header" />
-            <DetailPanel.Body>Hidden detail body</DetailPanel.Body>
-          </DetailPanel.Content>
-        </DetailPanel.Root>
-      ),
-      host,
-    );
-
-    stubPanelPoses(
-      host.querySelector<HTMLElement>(".pw-detail-panel-root")!,
-      host.querySelector<HTMLElement>(".pw-detail-panel__panel")!,
-    );
-    await nextFrame();
-    const collapseButton = host.querySelector<HTMLButtonElement>(
-      "[aria-label='Collapse details']",
-    );
-    expect(collapseButton).not.toBeNull();
-    collapseButton?.click();
-
-    await vi.waitFor(() => expect(mode()).toBe("collapsed"));
-    expect(host.textContent).toContain("Persistent detail header");
-    const body = host.querySelector<HTMLElement>(".pw-detail-panel__body")!;
-    expect(body.hidden).toBe(false);
-    await vi.waitFor(() => expect(body.hidden).toBe(true));
-    expect(host.querySelector<HTMLElement>(".pw-detail-panel__surface")?.hidden).toBe(false);
-
-    const collapsedTrigger = host.querySelector<HTMLButtonElement>(
-      "[data-detail-panel-collapsed-trigger]",
-    );
-    expect(collapsedTrigger?.getAttribute("aria-label")).toBe("Open details");
-    expect(host.querySelector("[data-corvu-resizable-handle]")).toBeNull();
-    collapsedTrigger?.click();
-    await vi.waitFor(() => expect(mode()).toBe("open"));
-    expect(body.hidden).toBe(false);
-
-    dispose();
-    host.remove();
-  });
-
-  it("keeps empty collapsed chrome hidden when no detail target exists", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const dispose = render(
-      () => (
-        <DetailPanel.Root
-          mode="collapsed"
-          activeEntityId={null}
-          onCollapse={() => undefined}
-          onMaximize={() => undefined}
-          onRestore={() => undefined}
-        >
-          <DetailPanel.Collection>Collection without details</DetailPanel.Collection>
-        </DetailPanel.Root>
-      ),
-      host,
-    );
-
-    await vi.waitFor(() =>
-      expect(host.querySelector(".pw-detail-panel__surface")).not.toBeNull(),
-    );
-    const surface = host.querySelector<HTMLElement>(".pw-detail-panel__surface")!;
-    expect(surface.getAttribute("aria-hidden")).toBe("true");
-    expect(surface.inert).toBe(true);
-
-    dispose();
-    host.remove();
-  });
-
-  it("moves directly between all modes through independent buttons", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const [mode, setMode] = createSignal<DetailPanelMode>("collapsed");
-    const onEdit = vi.fn();
-    const dispose = render(
-      () => (
-        <DetailPanel.Root
-          mode={mode()}
-          activeEntityId="detail"
-          onCollapse={() => setMode("collapsed")}
-          onMaximize={() => setMode("maximized")}
-          onRestore={() => setMode("open")}
-        >
-          <DetailPanel.Collection>Collection</DetailPanel.Collection>
-          <DetailPanel.Content>
-            <DetailPanel.Header title="Detail">
-              <DetailPanel.Actions>
-                <DetailPanel.Action label="Edit" onClick={onEdit}>
-                  <Pencil />
-                </DetailPanel.Action>
-              </DetailPanel.Actions>
-            </DetailPanel.Header>
-            <DetailPanel.Body>Body</DetailPanel.Body>
-          </DetailPanel.Content>
-        </DetailPanel.Root>
-      ),
-      host,
-    );
-
-    await vi.waitFor(() => expect(host.querySelector("[aria-label='Edit']")).not.toBeNull());
-    expect(host.querySelectorAll("[aria-label='Open details']")).toHaveLength(2);
-    expect(host.querySelector("[aria-label='Maximize details']")).not.toBeNull();
-    expect(host.querySelector("[aria-label='Collapse details']")).toBeNull();
-    expect(
-      Array.from(
-        host.querySelectorAll(".pw-detail-panel__global-actions button"),
-        (button) => button.getAttribute("aria-label"),
-      ),
-    ).toEqual(["Maximize details", "Open details"]);
-
-    host.querySelector<HTMLButtonElement>("[aria-label='Edit']")!.click();
-    expect(onEdit).toHaveBeenCalledOnce();
-    expect(mode()).toBe("collapsed");
-
-    host.querySelector<HTMLButtonElement>("[aria-label='Maximize details']")!.click();
-    await vi.waitFor(() => expect(mode()).toBe("maximized"));
-    expect(host.querySelector("[aria-label='Collapse details']")).not.toBeNull();
-    expect(host.querySelector("[aria-label='Restore details']")).not.toBeNull();
-    expect(host.querySelector("[aria-label='Open details']")).toBeNull();
-
-    host.querySelector<HTMLButtonElement>("[aria-label='Collapse details']")!.click();
-    await vi.waitFor(() => expect(mode()).toBe("collapsed"));
-
-    host.querySelector<HTMLButtonElement>("[aria-label='Maximize details']")!.click();
-    await vi.waitFor(() => expect(mode()).toBe("maximized"));
-    host.querySelector<HTMLButtonElement>("[aria-label='Restore details']")!.click();
-    await vi.waitFor(() => expect(mode()).toBe("open"));
-    expect(host.querySelector("[aria-label='Collapse details']")).not.toBeNull();
-    expect(host.querySelector("[aria-label='Maximize details']")).not.toBeNull();
-    expect(host.querySelector("[aria-label='Restore details']")).toBeNull();
-
-    host.querySelector<HTMLButtonElement>("[aria-label='Collapse details']")!.click();
-    await vi.waitFor(() => expect(mode()).toBe("collapsed"));
-    host.querySelector<HTMLButtonElement>("[data-detail-panel-collapsed-trigger]")!.click();
-    await vi.waitFor(() => expect(mode()).toBe("open"));
-
-    dispose();
-    host.remove();
-  });
-
-  it("toggles and maximizes with Command+J shortcuts", async () => {
-    const host = document.createElement("div");
-    document.body.append(host);
-    const [mode, setMode] = createSignal<DetailPanelMode>("open");
-    const dispose = render(
-      () => (
-        <DetailPanel.Root
-          mode={mode()}
-          activeEntityId="alpha"
-          onCollapse={() => setMode("collapsed")}
-          onMaximize={() => setMode("maximized")}
-          onRestore={() => setMode("open")}
-        >
-          <DetailPanel.Collection>
-            <button data-detail-target-id="alpha">Alpha row</button>
-          </DetailPanel.Collection>
-          <DetailPanel.Content>
-            <DetailPanel.Header title="Alpha detail" />
-            <DetailPanel.Body>Body</DetailPanel.Body>
-          </DetailPanel.Content>
-        </DetailPanel.Root>
-      ),
-      host,
-    );
-
-    await vi.waitFor(() => expect(host.querySelector("[aria-label='Collapse details']")).not.toBeNull());
-
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "j", metaKey: true, bubbles: true }),
-    );
-    await vi.waitFor(() => expect(mode()).toBe("collapsed"));
-
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "j", metaKey: true, bubbles: true }),
-    );
-    await vi.waitFor(() => expect(mode()).toBe("open"));
-
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "j",
-        metaKey: true,
-        shiftKey: true,
-        bubbles: true,
-      }),
-    );
-    await vi.waitFor(() => expect(mode()).toBe("maximized"));
-
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "j",
-        metaKey: true,
-        shiftKey: true,
-        bubbles: true,
-      }),
-    );
-    await vi.waitFor(() => expect(mode()).toBe("open"));
-
-    dispose();
-    host.remove();
   });
 });

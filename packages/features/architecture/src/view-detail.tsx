@@ -1,5 +1,6 @@
 import { Show } from "solid-js";
 import {
+  Button,
   DataTable,
   DetailPanel,
   Eye,
@@ -46,7 +47,7 @@ export function ArchitectureViewDetail(props: {
   return (
     <DetailPanel.Content>
       <Show when={props.loading}>
-        <DetailPanel.Header title="Loading view" />
+        <DetailPanel.Header />
         <DetailPanel.Body>
           <DetailPanel.Main>
             <PageLoading layout="detail" label="Loading view…" />
@@ -55,9 +56,7 @@ export function ArchitectureViewDetail(props: {
       </Show>
 
       <Show when={!props.loading && (props.error || props.notFound || !props.view)}>
-        <DetailPanel.Header
-          title={props.notFound || !props.view ? "View not found" : "Failed to load"}
-        />
+        <DetailPanel.Header />
         <DetailPanel.Body>
           <DetailPanel.Main>
             <PageError
@@ -78,40 +77,22 @@ export function ArchitectureViewDetail(props: {
 
           return (
             <>
-              <DetailPanel.Header
-                icon={<Eye size={16} />}
-                title={v().name}
-              >
-                <DetailPanel.Actions>
-                  <DetailPanel.PrimaryAction
-                    label="Open"
-                    icon={<Eye size={14} aria-hidden />}
-                    onClick={() => props.onOpen?.(v().id)}
-                  />
-                  <Show when={props.onEdit || props.onDelete}>
-                    <DetailPanel.Overflow>
-                      <Show when={props.onEdit}>
-                        <DetailPanel.OverflowItem value="edit" onSelect={() => props.onEdit?.(v())}>
-                          Edit view
-                        </DetailPanel.OverflowItem>
-                      </Show>
-                      <Show when={props.onDelete}>
-                        <DetailPanel.OverflowItem
-                          value="delete"
-                          danger
-                          onSelect={() => props.onDelete?.(v())}
-                        >
-                          Delete view
-                        </DetailPanel.OverflowItem>
-                      </Show>
-                    </DetailPanel.Overflow>
-                  </Show>
-                </DetailPanel.Actions>
-              </DetailPanel.Header>
+              <DetailPanel.Header />
 
               <DetailPanel.Body>
                 <DetailPanel.Main>
-                  <DetailPanel.Section title="Overview">
+                  <DetailPanel.Title
+                    icon={<Eye size={16} />}
+                    title={v().name}
+                  />
+                  <DetailPanel.Section title="Overview" aside={
+                    <div class="pw-detail-panel__actions">
+                      <Button variant="secondary" size="sm" disabled={!props.onOpen} onClick={() => props.onOpen?.(v().id)}>Open</Button>
+                      <Show when={props.onEdit}>
+                        <Button variant="ghost" size="sm" onClick={() => props.onEdit?.(v())}>Edit view</Button>
+                      </Show>
+                    </div>
+                  }>
                     <Show
                       when={!isDescriptionEmpty(v().description)}
                       fallback={
@@ -206,6 +187,9 @@ export function ArchitectureViewDetail(props: {
                       <DetailPanel.Property label="Owner" value={v().owner?.trim()} />
                       <DetailPanel.Property label="Updated" value={v().updated} />
                     </DetailPanel.Properties>
+                    <Show when={props.onDelete}>
+                      <Button variant="danger" size="sm" onClick={() => props.onDelete?.(v())}>Delete view</Button>
+                    </Show>
                   </DetailPanel.Section>
                   <Show when={hasEnvironments(v())}>
                     <DetailPanel.Section title="Environments">

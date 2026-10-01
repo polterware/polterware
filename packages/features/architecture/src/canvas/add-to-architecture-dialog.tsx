@@ -4,7 +4,6 @@ import {
   Button,
   Eye,
   Package,
-  Plus,
   Search,
   Tabs,
   type TabItem,
@@ -56,18 +55,18 @@ const MODE_TABS: TabItem[] = [
   },
   {
     id: "resources",
-    label: "Resources",
+    label: "Synced",
     tooltip: {
-      title: "Resources",
+      title: "Synced resources",
       description:
-        "Inventory already in this project. Placing links evidence on the map.",
+        "Provider resources synced from your integrations. Placing one links it to a component on the map.",
       icon: Package,
     },
   },
 ];
 
 /**
- * Add-to-architecture dialog — Vision (declared types) | Resources (inventory).
+ * Add-to-architecture dialog — Vision (declared types) | Synced (integration resources).
  * Flush chrome; search + two mode tabs; size lg.
  */
 export function AddToArchitectureDialog(props: {
@@ -77,7 +76,6 @@ export function AddToArchitectureDialog(props: {
   onClose: () => void;
   onSelect: (def: ComponentTypeDefinition) => void;
   onSelectResource: (resource: LinkableResource) => void;
-  onAddResource?: () => void;
   onUnavailableAction?: (def: ComponentTypeDefinition) => void;
 }) {
   const [query, setQuery] = createSignal("");
@@ -170,21 +168,6 @@ export function AddToArchitectureDialog(props: {
       dividers={false}
       onClose={() => props.onClose()}
       size="lg"
-      footer={
-        activeTab() === "resources" && props.onAddResource ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              props.onClose();
-              props.onAddResource?.();
-            }}
-          >
-            <Plus size={14} aria-hidden />
-            Add resource
-          </Button>
-        ) : undefined
-      }
     >
       <div class="-mb-3 flex min-h-0 w-full flex-1 flex-col" onKeyDown={onKeyDown}>
         <div class="-mx-5 flex shrink-0 items-center gap-2.5 border-b border-[var(--color-border-subtle)] px-5 pb-3 pr-10">
@@ -196,7 +179,7 @@ export function AddToArchitectureDialog(props: {
             role="searchbox"
             placeholder={
               activeTab() === "resources"
-                ? "Search resources…"
+                ? "Search synced resources…"
                 : "Search vision types (postgres, next, cron…)"
             }
             value={query()}
@@ -290,21 +273,8 @@ export function AddToArchitectureDialog(props: {
                 fallback={
                   <div class="flex flex-col items-center gap-3 px-2 py-10 text-center">
                     <p class="m-0 text-[12px] text-[var(--color-text-muted)]">
-                      No resources in inventory yet.
+                      No synced resources yet. Connect an integration in Settings and sync it.
                     </p>
-                    <Show when={props.onAddResource}>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          props.onClose();
-                          props.onAddResource?.();
-                        }}
-                      >
-                        <Plus size={14} aria-hidden />
-                        Add resource
-                      </Button>
-                    </Show>
                   </div>
                 }
               >

@@ -2,6 +2,7 @@ import type {
   WorkspaceAdr,
   WorkspaceDocument,
   WorkspaceRunbook,
+  WorkspaceSource,
 } from "@polterware/feature-shell";
 import type { StatusTone } from "@polterware/frontend-design-system";
 import {
@@ -9,9 +10,9 @@ import {
   runbookSeverityTone,
 } from "./knowledge-document-helpers";
 
-export type LibraryCategory = "doc" | "adr" | "runbook";
+export type LibraryCategory = "doc" | "adr" | "runbook" | "source";
 
-export type LibraryEntityKind = "document" | "adr" | "runbook";
+export type LibraryEntityKind = "document" | "adr" | "runbook" | "source";
 
 export type LibraryLinkedFilter = "any" | "linked" | "unlinked";
 
@@ -42,18 +43,22 @@ export type LibraryRow = {
   meta: string;
   updatedAt: string;
   hasLinks: boolean;
+  /** Principles stay above the rest of the list. */
+  pinned: boolean;
 };
 
 export const LIBRARY_CATEGORY_LABEL: Record<LibraryCategory, string> = {
   doc: "Doc",
   adr: "ADR",
   runbook: "Runbook",
+  source: "Source",
 };
 
 export function libraryRowsFromWorkspace(input: {
   documents?: WorkspaceDocument[];
   adrs?: WorkspaceAdr[];
   runbooks?: WorkspaceRunbook[];
+  sources?: WorkspaceSource[];
 }): LibraryRow[] {
   const docs = (input.documents ?? [])
     .filter((document) => !document.archived)
@@ -68,6 +73,7 @@ export function libraryRowsFromWorkspace(input: {
       meta: document.author,
       updatedAt: document.updatedAt,
       hasLinks: document.entityLinks.length > 0,
+      pinned: false,
     }));
 
   const adrs = (input.adrs ?? []).map((adr): LibraryRow => ({
@@ -75,12 +81,13 @@ export function libraryRowsFromWorkspace(input: {
     category: "adr",
     entityKind: "adr",
     title: adr.title,
-    categoryLabel: LIBRARY_CATEGORY_LABEL.adr,
+    categoryLabel: adr.scope === "principle" ? "Principle" : LIBRARY_CATEGORY_LABEL.adr,
     statusLabel: adr.state,
     statusTone: decisionStateTone(adr.state),
     meta: adr.owner,
     updatedAt: adr.updatedAt,
     hasLinks: adr.entityLinks.length > 0,
+    pinned: adr.scope === "principle",
   }));
 
   const runbooks = (input.runbooks ?? []).map((runbook): LibraryRow => ({
@@ -94,9 +101,25 @@ export function libraryRowsFromWorkspace(input: {
     meta: runbook.service,
     updatedAt: runbook.lastValidated,
     hasLinks: runbook.entityLinks.length > 0,
+    pinned: false,
   }));
 
-  return [...docs, ...adrs, ...runbooks];
+  const sources = (input.sources ?? []).map((source): LibraryRow => ({
+    id: source.id,
+    category: "source",
+    entityKind: "source",
+    title: source.title,
+    categoryLabel: LIBRARY_CATEGORY_LABEL.source,
+    statusLabel: "",
+    statusTone: "muted",
+    meta: source.path,
+    updatedAt: source.updatedAt,
+    hasLinks: source.entityLinks.length > 0,
+    pinned: false,
+  }));
+
+  const rows = [...sources, ...docs, ...adrs, ...runbooks];
+  return [...rows.filter((row) => row.pinned), ...rows.filter((row) => !row.pinned)];
 }
 
 export function libraryFiltersActive(filters: LibraryFilters): boolean {
@@ -125,7 +148,7 @@ export function filterLibraryRows(
       return false;
     }
     if (filters.statuses.length > 0) {
-      if (row.category === "runbook") return false;
+      if (row.category === "runbook" || row.category === "source") return false;
       if (!filters.statuses.includes(row.statusLabel)) return false;
     }
     if (filters.severities.length > 0) {

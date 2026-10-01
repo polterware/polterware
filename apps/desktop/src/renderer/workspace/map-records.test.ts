@@ -3,7 +3,6 @@ import {
   decisionState,
   mapAdrs,
   mapConnections,
-  mapConstitution,
   mapDocuments,
   mapEnvironments,
   mapIntegrationResources,
@@ -12,7 +11,6 @@ import {
   mapProjectRepos,
   mapProjects,
   mapProviders,
-  mapResources,
   mapRunbooks,
   mapSettings,
   mapSettingsEnvironments,
@@ -76,13 +74,10 @@ describe("mapSettingsEnvironments", () => {
         { id: "3", name: "Local", kind: "local", protection: "surprise" },
         { id: "4", name: "Bogus", kind: "nope" },
       ],
-      [{ environment: "Production" }, { environment: "Production" }, { environment: "Local" }] as never,
     );
     expect(mapped.map((item) => item.protection)).toEqual(["strict", "relaxed", "standard"]);
     expect(mapped[0]?.isDefault).toBe(true);
     expect(mapped[1]?.isDefault).toBe(false);
-    expect(mapped[0]?.resourceCount).toBe(2);
-    expect(mapped[2]?.resourceCount).toBe(1);
     expect(mapped[0]?.protectionRules.some((rule) => rule.includes("Freeze window"))).toBe(true);
     expect(mapped[1]?.protectionRules).toContain("Local changes are allowed");
   });
@@ -111,20 +106,6 @@ describe("mapProjectRepos", () => {
         {},
       ]),
     ).toEqual([{ id: "1", name: "api", path: "/work/api" }]);
-  });
-});
-
-describe("mapResources", () => {
-  it("resolves the environment name and normalizes status", () => {
-    const [known, orphan] = mapResources(
-      [
-        { id: "r1", name: "db", type: "database", source: "aws", environmentId: "env-prod", status: "healthy", tags: ["a", 1, "b"] },
-        { id: "r2", name: "x", provider: "gcp", environmentId: "missing", status: "exploding", address: "" },
-      ],
-      environments,
-    );
-    expect(known).toMatchObject({ environment: "Production", provider: "aws", status: "healthy", tags: ["a", "b"], dataSource: "core" });
-    expect(orphan).toMatchObject({ environment: "All", provider: "gcp", status: "unknown", address: undefined });
   });
 });
 
@@ -197,13 +178,12 @@ describe("mapAdrs", () => {
   });
 });
 
-describe("mapDocuments, mapRunbooks, mapSources, mapConstitution", () => {
+describe("mapDocuments, mapRunbooks, mapSources", () => {
   const records = [
     { id: "d1", kind: "doc", title: "Guide", status: "draft", extraJson: JSON.stringify({ author: "Erick", environment: "prod" }) },
     { id: "d2", kind: "doc", title: "Public", status: "anything" },
     { id: "rb", kind: "runbook", title: "Restore", summary: "Bring it back", extraJson: JSON.stringify({ severity: "low", steps: ["a", "b"], service: "db" }) },
     { id: "s1", kind: "source", title: "README", extraJson: JSON.stringify({ path: "README.md" }) },
-    { id: "c1", kind: "constitution", body: "# Rules" },
   ];
 
   // The core sends protobuf JSON, which omits empty strings, so defaults apply to absent fields.
@@ -233,12 +213,6 @@ describe("mapDocuments, mapRunbooks, mapSources, mapConstitution", () => {
     expect(mapSources(records)).toMatchObject([{ id: "s1", title: "README", path: "README.md" }]);
   });
 
-  it("maps the constitution, or null when the project has none", () => {
-    expect(mapConstitution(records)).toMatchObject({ id: "c1", title: "Project constitution", bodyMarkdown: "# Rules", status: "active" });
-    expect(mapConstitution([{ kind: "doc" }])).toBeNull();
-    expect(mapConstitution([])).toBeNull();
-  });
-
   it("survives malformed extraJson", () => {
     const [doc] = mapDocuments([{ id: "bad", kind: "doc", title: "T", extraJson: "{not json" }]);
     expect(doc).toMatchObject({ id: "bad", environment: "All" });
@@ -263,14 +237,14 @@ describe("integrations mappers", () => {
   it("links resources to their connection and normalizes status and freshness", () => {
     const resources = mapIntegrationResources(
       [
-        { id: "ir1", connectionId: "c1", name: "repo", environmentId: "env-dev", inventoryResourceId: "res-1" },
+        { id: "ir1", connectionId: "c1", name: "repo", environmentId: "env-dev" },
         { id: "ir2", connectionId: "c1", name: "bucket" },
         { id: "ir3", connectionId: "other", name: "x" },
       ],
       environments,
     );
-    expect(resources[0]).toMatchObject({ environment: "Development", inventoryResourceId: "res-1" });
-    expect(resources[1]).toMatchObject({ environment: "All", inventoryResourceId: undefined });
+    expect(resources[0]).toMatchObject({ environment: "Development" });
+    expect(resources[1]).toMatchObject({ environment: "All" });
 
     const [connection, broken] = mapConnections(
       [
@@ -281,7 +255,7 @@ describe("integrations mappers", () => {
       environments,
       resources,
     );
-    expect(connection).toMatchObject({ name: "GitHub", status: "error", freshness: "stale", error: "boom", environment: "Production", resourceCount: 2, resourceIds: ["res-1"] });
+    expect(connection).toMatchObject({ name: "GitHub", status: "error", freshness: "stale", error: "boom", environment: "Production", resourceCount: 2 });
     expect(broken).toMatchObject({ name: "unknown-provider", status: "connected", freshness: "fresh", error: undefined });
   });
 

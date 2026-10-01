@@ -55,14 +55,14 @@ describe("ArchitectureViewDetail helpers", () => {
 });
 
 describe("ArchitectureViewDetail composition contract", () => {
-  it("uses the record layout, a primary Open action, and overflow for edit/delete", () => {
+  it("uses the record layout with contextual Open, Edit, and Delete actions", () => {
     expect(source).toContain("DetailPanel.Main");
     expect(source).toContain("DetailPanel.Rail");
     expect(source).not.toContain("DetailPanel.Metric");
-    expect(source).toContain("DetailPanel.PrimaryAction");
-    expect(source).toContain('label="Open"');
+    expect(source).toContain("DetailPanel.Title");
+    expect(source).toContain('>Open</Button>');
     expect(source).toContain("Edit view");
-    expect(source).toMatch(/DetailPanel\.OverflowItem[\s\S]*?danger[\s\S]*?Delete view/);
+    expect(source).toMatch(/Button variant="danger"[\s\S]*?Delete view/);
     expect(source).not.toContain('tone="danger"');
     expect(source).toContain("PageLoading");
     expect(source).toContain('layout="detail"');

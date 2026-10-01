@@ -59,12 +59,15 @@ func TestPolterwareContentIsReal(t *testing.T) {
 			t.Errorf("no card in stage %q", stage)
 		}
 	}
-	// Only ADR-0001..0005 are seeded as active.
-	if n := count(t, store, `SELECT COUNT(*) FROM knowledge_items WHERE project_id=? AND kind='adr'`, seed.ProjectID); n != 10 {
-		t.Errorf("want 10 ADRs, got %d", n)
+	// ADR-0001..0005 and the five principles are seeded as active.
+	if n := count(t, store, `SELECT COUNT(*) FROM knowledge_items WHERE project_id=? AND kind='adr'`, seed.ProjectID); n != 15 {
+		t.Errorf("want 15 ADRs, got %d", n)
 	}
-	if n := count(t, store, `SELECT COUNT(*) FROM knowledge_items WHERE project_id=? AND kind='adr' AND status='active'`, seed.ProjectID); n != 5 {
-		t.Errorf("want 5 active ADRs, got %d", n)
+	if n := count(t, store, `SELECT COUNT(*) FROM knowledge_items WHERE project_id=? AND kind='adr' AND status='active'`, seed.ProjectID); n != 10 {
+		t.Errorf("want 10 active ADRs, got %d", n)
+	}
+	if n := count(t, store, `SELECT COUNT(*) FROM knowledge_items WHERE project_id=? AND kind='adr' AND extra_json LIKE '%"scope":"principle"%'`, seed.ProjectID); n != 5 {
+		t.Errorf("want 5 principles, got %d", n)
 	}
 	if n := count(t, store, `SELECT COUNT(*) FROM atlas_nodes WHERE project_id=?`, seed.ProjectID); n < 10 {
 		t.Errorf("want an Atlas of Polterware, got %d nodes", n)
@@ -79,7 +82,7 @@ func TestPolterwareContentIsReal(t *testing.T) {
 
 func TestNoMockContentRemains(t *testing.T) {
 	store := newSeeded(t)
-	for _, table := range []string{"resources", "integration_connections"} {
+	for _, table := range []string{"integration_connections"} {
 		if n := count(t, store, `SELECT COUNT(*) FROM `+table); n != 0 {
 			t.Errorf("%s has %d mock rows", table, n)
 		}

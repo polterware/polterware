@@ -1,6 +1,7 @@
+import { createPanelPortalOwnership } from "./panel-interaction";
 import type { JSX } from "solid-js";
 import { Portal } from "solid-js/web";
-import { Menu as ArkMenu } from "@ark-ui/solid/menu";
+import { Menu as ArkMenu, useMenuContext } from "@ark-ui/solid/menu";
 import { DropdownMenuItem, DropdownMenuSeparator, MenuSurface } from "./dropdown-menu";
 import "./dropdown-menu.css";
 
@@ -38,10 +39,12 @@ function ContextMenuRoot(props: ContextMenuRootProps) {
 }
 
 function ContextMenuContent(props: { children: JSX.Element; class?: string }) {
+  const menu = useMenuContext();
+  const ownPortal = createPanelPortalOwnership(() => menu().open);
   return (
     <Portal>
       <ArkMenu.Positioner class="pw-dropdown-positioner">
-        <ArkMenu.Content class="pw-dropdown-presence outline-none">
+        <ArkMenu.Content ref={ownPortal} class="pw-dropdown-presence outline-none">
           <MenuSurface class={cn("min-w-[160px]", props.class)}>{props.children}</MenuSurface>
         </ArkMenu.Content>
       </ArkMenu.Positioner>

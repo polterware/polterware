@@ -39,10 +39,6 @@ export default defineConfig({
         replacement: resolve(rootDir, "../../packages/features/architecture/src/index.tsx"),
       },
       {
-        find: "@polterware/feature-resources",
-        replacement: resolve(rootDir, "../../packages/features/resources/src/index.tsx"),
-      },
-      {
         find: "@polterware/feature-settings/boot",
         replacement: resolve(rootDir, "../../packages/features/settings/src/boot.ts"),
       },
