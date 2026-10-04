@@ -1,6 +1,5 @@
 import { test, expect } from "../fixtures";
 
-
 test("settings: round-trip, MCP off test, and token rotation against the real core", async ({ sparky, page }) => {
   await sparky.skipOnboarding();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -46,5 +45,5 @@ test("settings: round-trip, MCP off test, and token rotation against the real co
 
   await settings.getByRole("button", { name: "Search", exact: true }).click();
   await expect(settings).toContainText("FTS5");
-  await expect(settings).not.toContainText("semantic");
+  await expect(settings).toContainText("no semantic search");
 });

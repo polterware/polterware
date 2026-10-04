@@ -1,6 +1,5 @@
 import { test, expect } from "../fixtures";
 
-
 test("shell: keyboard navigation, Commander quick add, real core, and global details", async ({ sparky, page }) => {
   await expect(page.getByRole("dialog", { name: "Welcome to Sparky" })).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();

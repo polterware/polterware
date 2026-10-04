@@ -1,6 +1,5 @@
 import { test, expect } from "../fixtures";
 
-
 test("review: range selector, summary, heatmap, and chart tables", async ({ sparky, page }) => {
   await page.getByRole("button", { name: "Skip onboarding", exact: true }).click();
   await page.evaluate(() => window.sparky.settings.set({ keys: ["calendar.weekStart"], settings: { calendarWeekStart: "sun" } }));

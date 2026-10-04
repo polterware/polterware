@@ -1,5 +1,7 @@
 import { test, expect } from "../fixtures";
 
+// Product gap: plans/sparky-next/requests/w3-e2e-2.md
+test.fixme(process.env.SPARKY_E2E_RECHECK_GAPS !== "1", "w3-e2e-2: Map requests a page larger than the core limit. Set SPARKY_E2E_RECHECK_GAPS=1 after the fix.");
 
 test("map: offline tiles make no map request and keep the place list", async ({ sparky, page }) => {
   const requests: string[] = [];

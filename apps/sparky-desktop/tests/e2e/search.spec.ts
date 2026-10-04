@@ -1,6 +1,5 @@
 import { test, expect } from "../fixtures";
 
-
 test("search: Commander opens the page, empty state, query, and FTS5 copy", async ({ sparky, page }) => {
   await page.getByRole("button", { name: "Skip onboarding", exact: true }).click();
   await page.evaluate(() => window.sparky.memories.create({ title: "Wire search fixture", note: "Plain <img src=x> snippet" }));
