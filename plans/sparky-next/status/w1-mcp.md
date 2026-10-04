@@ -1,32 +1,34 @@
 # w1-mcp status
 
 - Result: partial
-- Branch / last commit: `sparky/w1-mcp`; implementation commits `af80f31` and `1ccd06b`; final status commit is shown by `git log -1`.
+- Branch / last commit: `sparky/w1-mcp-b`; implementation `1729ce3`, `88898d1`, `10ea84f`; final status commit is shown by `git log -1`.
 - Acceptance criteria:
-  - All tests listed in 04 pass -> **fail (incomplete)**. Implemented security and revision primitive tests pass, but per-tool domain contracts, batch/schedule/name-resolution behavior, attachment traversal, missing-confirm tool behavior, and memory/mind response budgets are not implemented or verified.
-  - `tools/list` <= 6 KB -> **pass for the compact catalog, production wire unverified**. `TestCatalogBudgetAndGolden` measures 5,968 bytes including a JSON-RPC envelope with id 1, for all 18 tools. Tool descriptions <= 300 and parameter descriptions <= 120 characters. Frozen input schemas are retained; output schemas are omitted; six display descriptions are shortened. No SDK handler is running.
-  - Golden transcripts committed -> **fail (incomplete)**. Only `tests/mcp/golden/tools-list-catalog.json` is committed and compared by a passing test. It is a catalog fixture, not a captured transport session or per-tool transcript.
-  - Real Claude Code client creates, searches, and completes memories -> **fail (blocked)**. Not run: no SDK dependency, production domain implementations, or dev core is available in this worktree.
-  - Inspector smoke documented -> **fail (blocked)**. Not run for the same reasons; Wave-0 smoke evidence is not counted as Wave-1 evidence.
+  - All tests listed in 04 pass -> **partial**. In-memory contract coverage, size budgets, security, confirm/traversal, UI-write conflicts, Inspector, and stdio proxy pass. There is one create/search/complete golden, not a per-tool golden for all 18. Delete/toggle/mind-delete still cannot apply the same-session `expectedRev` rule (request 3). Ranked FTS is not wired in the core; `search_memories` falls back to unranked title matches and returns a notice.
+  - `tools/list` <= 6 KB -> **pass**. Compact catalog remains 5,968 bytes (`TestCatalogBudgetAndGolden`). Live HTTP `tools/list` JSON-RPC body is 6,000 bytes for 18 tools, no `outputSchema`. SDK client remarchal of extra result fields can exceed 6,000 and is checked at 6,144 (`TestSDKToolsListBudget`).
+  - Golden transcripts committed -> **pass**. `tests/mcp/golden/tools-list-catalog.json` and `tests/mcp/golden/create-search-complete.json` (deterministic ids, actor `mcp:test-client`).
+  - Real Claude Code client creates, searches, and completes memories -> **fail (connected only)**. `claude mcp add --scope local --transport http` then `claude mcp get sparky-w1-mcp-b-http` → Connected against `http://127.0.0.1:47600/mcp`; the server was removed afterward. Create/search/complete was recorded with Inspector on that same endpoint, not by Claude tool calls. No token is stored in this file.
+  - Inspector smoke documented -> **pass**. `npx -y @modelcontextprotocol/inspector --cli` HTTP `tools/list` (18 tools, 0 schema errors, 10 portability warnings on 2 tools), `create_memories` (`created 1`, actor `mcp:inspector-cli`), `search_memories` (`1 hits` with unranked-search notice), `set_memory_status` (`completed`). Missing bearer 401; `Host: evil.example:47600` 403. Stdio: `sparky mcp` initialize + `tools/list` + `get_current_time`.
 - Additional delivered checks:
-  - Bearer (constant-time hash comparison), exact Host/port, hostile and malformed Origin, cross-origin/DNS-rebinding rejection, duplicate headers, no CORS headers, fail-closed configuration, oversized known-length and chunked bodies -> **pass**, `TestGuard`, `TestGuardRejectsDuplicateAndEmptyHeaders`, `TestGuardInvalidConfiguration`, `TestGuardChunkedAndTokenNeverLogged`.
-  - Token absent from rejection responses and HTTP server logs -> **pass**, `TestGuard` and `TestGuardChunkedAndTokenNeverLogged`. No production logging integration is claimed.
-  - Get/List revision tracking, intervening UI write conflicts for Update/SetStatus, explicit revision precedence, first-write last-write-wins, isolation between sessions with the same client name, concurrent observations -> **pass**, `TestSessionRejectsInterveningUIWrite`, `TestSessionFirstWriteExplicitRevAndIsolation`, `TestSessionConcurrentObservations`. Tests use a local atomic revision-service double because the supplied domain fakes still panic.
+  - Guard (bearer, Host/port, Origin, body limit, no CORS, token not logged) -> **pass**, existing `TestGuard*` plus `TestGuardedHTTPAndProxy`.
+  - Session revision for Get/List/Update/SetStatus, first-write LWW, isolation -> **pass**, `TestSession*` and `TestSessionConflictAndBatch`.
+  - Confirm missing, file-attach setting, `..` traversal -> **pass**, `TestConfirmAndTraversal`.
+  - Name lookup (`Mind "Wrok" not found`) and list budgets -> **pass**, `TestListBudgetsAndNameLookup`.
 - Verification before the final commit:
-  - `cd sparky/backend && go test ./providers/mcp/... ./tests/mcp/... -race -count=1` -> **pass**, both packages.
+  - `cd sparky/backend && go test ./providers/mcp/... ./tests/mcp/... -race -count=1` -> **pass**.
   - `cd sparky/backend && go vet ./providers/mcp/... ./tests/mcp/...` -> **pass**.
   - `git diff --check` -> **pass**.
-  - `git diff --stat sparky-next...HEAD` -> only W1-MCP owned paths and permitted requests/status paths; frozen schemas unchanged. No pushes, tags, branches, or shared-file edits.
+  - `git diff --stat sparky-next...HEAD` -> W1-MCP owned paths, permitted core/CLI MCP hooks, requests, and this status file. `go.work.sum` was left uncommitted. No pushes or tags.
 - Deviations from the plan (and why):
-  - Stopped SDK, production handler, CLI, and real-client sub-tasks per AGENT-PROTOCOL ownership/stop rules. `sparky/backend/go.mod` lacks the pinned SDK; `main.go` is a command stub; core discovery/start and domain implementations are absent. No private domain store, replacement JSON-RPC server, nested module, or temporary module override was introduced.
-  - Mutation ports lack complete atomic revision and actor coverage. A pre-read check in the provider would leave a race; request 3 records the frozen-contract decision needed before implementing those writes.
-  - `polterware` is not on PATH; located the existing binary at `/Users/erickpatrickbarcelos/codes/polterware-total/polterware/dist/polterware`. `format` ran once. `status`, `query cards`, `apply -`, and `handoff` were attempted but could not resolve a project for this worktree. No unrelated project was selected and no new project was initialized.
+  - Request 3 remains open: `Delete`, `ToggleCheckItem`, and `mind.Delete` have no `expectedRev`; place/attachment writes have no actor. MCP calls those ports as-is and does not pre-read to fake atomicity. Frozen schemas are unchanged.
+  - `search_memories` uses `search.Service` when present; until W1-SEARCH is wired it scans `memory.List` titles/snippets and sets `notice`.
+  - Resources/prompts (`sparky://minds|today|memory/{id}`, `plan_day`, `weekly_review`, `capture`) are registered because the SDK made them cheap.
+  - `Health.Mcp.Enabled` is the OpenRuntime snapshot; the HTTP handler re-reads `agents.mcpEnabled` on each request.
+  - `go.work.sum` picked up SDK transitives during Verify; it is outside Owns and was not committed.
 - Requests filed:
-  - `plans/sparky-next/requests/w1-mcp-1.md`: pinned SDK dependency in shared module files.
-  - `plans/sparky-next/requests/w1-mcp-2.md`: core discovery, service wiring, stable MCP endpoint/token, and CLI dispatch.
-  - `plans/sparky-next/requests/w1-mcp-3.md`: atomic revision and actor coverage in frozen mutation ports/schemas.
+  - `plans/sparky-next/requests/w1-mcp-1.md`: SDK in `go.mod` (resolved by integrator; v1.8.0 present).
+  - `plans/sparky-next/requests/w1-mcp-2.md`: core `/mcp` + CLI dispatch (resolved; this WS mounted the guard and `sparky mcp`).
+  - `plans/sparky-next/requests/w1-mcp-3.md`: still open for Erick (atomic rev on delete/toggle and per-id revisions in tool schemas).
 - Follow-ups for other WS:
-  - Integrator/W0-SCAFFOLD: resolve SDK dependency and CLI dispatch.
-  - W1-CORE: expose discovery/start and MCP registration; enforce IPv4 loopback binding, actual port, enabled setting, and stable token lifecycle. The delivered guard is an immutable per-listener wrapper; rotate it when the token changes.
-  - W0-CONTRACTS/W1-DOMAIN: resolve request 3 with Erick before changing frozen ports.
-  - W1-MCP continuation: register the compact catalog on the official stateful SDK; create/discard one `MemorySession` per SDK session using its initialized client name; implement all tool mappings, remaining revision-aware mutations, attachment guards, response budgets, stdio bridge, full goldens, and real-client smoke. The current primitives are not a shipped MCP server.
+  - W1-SEARCH: wire `search.Service` so MCP ranked hits and `list_memories` Query use FTS5 (`memory_fts` is not filled while `Store.index` is nil).
+  - W0-CONTRACTS / W1-DOMAIN: request 3 before delete/toggle/mind-delete can honor session `expectedRev`.
+  - W1-ATTACH: file import and actor attribution on attachment writes.
