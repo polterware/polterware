@@ -29,6 +29,14 @@ function components(rule: RepeatComponents | null | undefined): RepeatComponents
       (result.hour !== undefined && result.minute === undefined)) throw new Error("Unsupported repeat descriptor");
   return result;
 }
+function occurrenceWallKey(occurrenceAt: string, fireAt: string, repeat: RepeatComponents | null) {
+  if (!repeat) return null;
+  const format = new Intl.DateTimeFormat("en", { timeZone: repeat.tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+  const parts = (date: string) => Object.fromEntries(format.formatToParts(new Date(date)).map(({ type, value }) => [type, value]));
+  const occurrence = parts(occurrenceAt), fire = parts(fireAt);
+  const day = (value: Record<string, string>) => Date.UTC(Number(value.year), Number(value.month) - 1, Number(value.day));
+  return { dayOffset: (day(occurrence) - day(fire)) / 86_400_000, hour: occurrence.hour, minute: occurrence.minute, second: occurrence.second, millisecond: Date.parse(occurrenceAt) % 1000 };
+}
 export function normalizePlan(items: readonly Reminder[], now = Date.now()): NativeReminder[] {
   if (!Array.isArray(items) || items.length > BUDGET) throw new Error("Notification budget exceeded");
   const ids = new Set<string>();
@@ -48,7 +56,7 @@ export function normalizePlan(items: readonly Reminder[], now = Date.now()): Nat
       title: Array.from(item.title).slice(0, 500).join(""), body: Array.from(item.body).slice(0, 140).join(""), category: item.category, repeat, sound };
     // A repeating trigger is stable as Plan's next concrete occurrence advances.
     // Its occurrence key is resolved at delivery by the native calendar trigger.
-    const content = { ...value, fireAt: repeat ? null : fireAt, occurrenceAt: repeat ? null : occurrenceAt };
+    const content = { ...value, fireAt: repeat ? null : fireAt, occurrenceAt: repeat ? null : occurrenceAt, occurrenceWallKey: occurrenceWallKey(occurrenceAt, fireAt, repeat) };
     return { ...value, hash: createHash("sha256").update(JSON.stringify(content)).digest("hex") };
   });
 }

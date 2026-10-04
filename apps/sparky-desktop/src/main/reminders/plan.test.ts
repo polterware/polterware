@@ -15,11 +15,18 @@ describe("notification plan", () => {
     }
   });
   it("hashes repeating triggers stably when the next occurrence advances", () => {
-    const repeat = { tz: "America/Sao_Paulo", hour: 9, minute: 0, second: 0 };
+    const repeat = { tz: "UTC", hour: 11, minute: 0, second: 0 };
     const before = normalizePlan([item({ repeat })], now)[0];
     const after = normalizePlan([item({ repeat, occurrenceAt: "2026-10-05T11:00:00.000Z", fireAt: "2026-10-05T11:00:00.000Z" })], now)[0];
     expect(before.hash).toBe(after.hash);
-    expect(normalizePlan([item({ repeat: { ...repeat, tz: "UTC" } })], now)[0].hash).not.toBe(before.hash);
+    expect(normalizePlan([item({ repeat: { ...repeat, tz: "America/Sao_Paulo" } })], now)[0].hash).not.toBe(before.hash);
+  });
+  it("hashes all-day occurrence semantics and stays stable across DST", () => {
+    const repeat = { tz: "America/New_York", hour: 9, minute: 0, second: 0 };
+    const a = normalizePlan([item({ repeat, fireAt: "2026-03-07T14:00:00.000Z", occurrenceAt: "2026-03-07T05:00:00.000Z" })], 0)[0];
+    const b = normalizePlan([item({ repeat, fireAt: "2026-03-08T13:00:00.000Z", occurrenceAt: "2026-03-08T05:00:00.000Z" })], 0)[0];
+    const timed = normalizePlan([item({ repeat, fireAt: "2026-03-07T14:00:00.000Z", occurrenceAt: "2026-03-07T14:00:00.000Z" })], 0)[0];
+    expect(a.hash).toBe(b.hash); expect(a.hash).not.toBe(timed.hash);
   });
   it("caps Unicode body at 140 characters and ignores edits beyond that preview", () => {
     const body = "🌟".repeat(140);
