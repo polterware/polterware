@@ -1,0 +1,31 @@
+{
+  at: '2026-10-04T03:32:00.099Z',
+  bundleId: 'com.polterware.sparky.spike2.authorization-foreground',
+  reason: 'Fresh spike-only identity to observe a prompt without resetting the already-authorized spike2 or any real app',
+  status: {
+    command: 'status',
+    value: {
+      pendingCount: 0,
+      authorization: 'notDetermined',
+      bundleId: 'com.polterware.sparky.spike2.authorization-foreground',
+      bundleName: 'Sparky'
+    }
+  },
+  ui: {
+    found: true,
+    promptText: [
+      'Notification Center | system dialog',
+      '“Sparky” Notifications | text | “Sparky” Notifications',
+      'Notifications may include alerts, sounds, and icon badges. | text | Notifications may include alerts, sounds, and icon badges.'
+    ],
+    buttons: [],
+    observedAtMs: 1791084727031,
+    denied: false
+  },
+  authorization: { error: 'prompt requestAuthorization: bounded result wait expired' },
+  deniedApply: {
+    command: 'apply',
+    error: 'permission denied; existing requests preserved'
+  },
+  pending: { command: 'pending', value: [] }
+}

@@ -19,12 +19,14 @@ import (
 )
 
 type reminder struct {
-	ID       string `json:"id"`
-	MemoryID string `json:"memoryId"`
-	FireAt   string `json:"fireAt"`
-	Title    string `json:"title"`
-	Body     string `json:"body"`
-	Category string `json:"category"`
+	ID           string          `json:"id"`
+	MemoryID     string          `json:"memoryId"`
+	FireAt       string          `json:"fireAt"`
+	Title        string          `json:"title"`
+	Body         string          `json:"body"`
+	Category     string          `json:"category"`
+	Repeat       json.RawMessage `json:"repeat,omitempty"`
+	OccurrenceAt string          `json:"occurrenceAt,omitempty"`
 }
 
 type event struct {
@@ -40,6 +42,7 @@ type server struct {
 	lastAck  map[string]any
 	waiters  []chan struct{}
 	eventsFD *os.File
+	planPath string
 }
 
 func main() {
@@ -85,7 +88,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	srv := &server{eventsFD: eventsFile}
+	srv := &server{eventsFD: eventsFile, planPath: filepath.Join(runDir, "plan.json")}
+	if raw, err := os.ReadFile(srv.planPath); err == nil {
+		if err := json.Unmarshal(raw, &srv.items); err != nil {
+			log.Fatal(err)
+		}
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", srv.authed(token, srv.health))
 	mux.HandleFunc("GET /plan", srv.authed(token, srv.getPlan))
@@ -141,7 +149,14 @@ func (s *server) health(w http.ResponseWriter, _ *http.Request) {
 
 func (s *server) getPlan(w http.ResponseWriter, _ *http.Request) {
 	s.mu.Lock()
-	items := append([]reminder(nil), s.items...)
+	items := make([]reminder, 0, len(s.items))
+	for _, item := range s.items {
+		fire, err := time.Parse(time.RFC3339Nano, item.FireAt)
+		repeating := len(item.Repeat) > 0 && string(item.Repeat) != "null"
+		if repeating || (err == nil && fire.After(time.Now())) {
+			items = append(items, item)
+		}
+	}
 	s.mu.Unlock()
 	if items == nil {
 		items = []reminder{}
@@ -159,6 +174,11 @@ func (s *server) postPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	s.items = body.Items
+	if err := s.persistPlan(); err != nil {
+		s.mu.Unlock()
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	s.mu.Unlock()
 	s.wake()
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "count": len(body.Items)})
@@ -172,8 +192,36 @@ func (s *server) postEvent(kind string) http.HandlerFunc {
 			return
 		}
 		s.record(kind, fields)
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+		s.mu.Lock()
+		memory, _ := fields["memoryId"].(string)
+		items := make([]reminder, 0, len(s.items))
+		for _, item := range s.items {
+			if item.MemoryID != memory {
+				items = append(items, item)
+			}
+		}
+		if kind == "snooze" {
+			id, _ := fields["occurrenceId"].(string)
+			items = append(items, reminder{ID: id + ":snooze", MemoryID: memory, FireAt: time.Now().UTC().Add(10 * time.Minute).Format("2006-01-02T15:04:05.000Z"), Title: "W0 snoozed", Body: "Synthetic native notification spike", Category: "reminder"})
+		}
+		s.items = items
+		err := s.persistPlan()
+		s.mu.Unlock()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "applied": true})
 	}
+}
+
+// Called with s.mu held; the persisted plan survives the spike's SIGKILL tests.
+func (s *server) persistPlan() error {
+	raw, err := json.Marshal(s.items)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(s.planPath, raw, 0o600)
 }
 
 func (s *server) postAck(w http.ResponseWriter, r *http.Request) {

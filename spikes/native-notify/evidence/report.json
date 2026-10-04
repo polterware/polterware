@@ -63,9 +63,55 @@
       "value": true
     }
   ],
-  "authorizationPromptText": "Not observed: scoped AppleScript found no readable Sparky prompt",
+  "authorizationPromptText": "Observed “Sparky” Notifications on a fresh spike-only identity; see authorization.json for the uncompleted 20-second authorization wait",
   "gate": "bash tooling/verify-sparky.sh: exit 1, SQL baseline > matches the specification fence",
-  "stop": "AGENT-PROTOCOL.md section 5: gate failed outside Owns. No survival/action/hidden-relaunch acceptance runs performed.",
-  "cleanup": "No spike processes remained after path-scoped cleanup; no reminders had been armed.",
-  "polterware": "status/format/query cards/handoff unavailable: command not found. No Work card was written."
+  "cleanup": "pending=[], delivered=[], spike processes=[]; see cleanup.json",
+  "polterware": "Binary located in the main checkout; format succeeded; status/query cards could not select this unregistered worktree. No project initialization or Work-card mutation performed.",
+  "initialProbe": {
+    "gate": "bash tooling/verify-sparky.sh: exit 1, SQL baseline > matches the specification fence",
+    "stop": "AGENT-PROTOCOL.md section 5: gate failed outside Owns. No survival/action/hidden-relaunch acceptance runs performed."
+  },
+  "result": "done",
+  "resumeDecision": "Integrator explicitly waived the known external SQL baseline failure on 2026-10-04; runtime acceptance continued without editing contracts",
+  "runtimeEvidence": "runtime.json",
+  "runtimeAllPassed": true,
+  "recommendation": "Objective-C++ N-API; retain Swift+koffi as a working alternative; do not adopt timer fallback",
+  "metrics": {
+    "napi": {
+      "logicalMiB": 295.6251001358032,
+      "diskMiB": 296.4921875,
+      "moduleKiB": 164.7578125,
+      "mainRssMiB": [
+        118.1875,
+        120.890625
+      ],
+      "electronTreeRssMiB": [
+        214.96875,
+        221.53125
+      ],
+      "actionIdleMs": [
+        10015,
+        10017
+      ],
+      "hiddenIdleMs": 10001
+    },
+    "swift": {
+      "logicalMiB": 308.79906272888184,
+      "diskMiB": 310.73046875,
+      "moduleKiB": 141.140625,
+      "mainRssMiB": [
+        120,
+        122.625
+      ],
+      "electronTreeRssMiB": [
+        216.71875,
+        223.40625
+      ],
+      "actionIdleMs": [
+        10049,
+        10047
+      ],
+      "hiddenIdleMs": 10001
+    }
+  }
 }

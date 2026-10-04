@@ -1,56 +1,90 @@
 # w0-native-notify status
 
-- Result: blocked
-- Branch / last commit: `sparky/w0-native-notify`; implementation commit `b075afa`; the final status/request commit is `git log -1 --format='%h %s'` on this branch.
-- Blocking condition: `bash tooling/verify-sparky.sh` exits 1 in `packages/sparky-contracts/src/baseline.test.mjs`, `SQL baseline > matches the specification fence`. The baseline still includes the removed `embeddings` table, while the specification no longer does. The failure is present in integration base `18e9281`; this workstream changes neither file. Execution stopped under AGENT-PROTOCOL section 5 (gate failure outside Owns).
+- Result: **done** (the workstream's runtime acceptance passes; the external repository gate remains failing).
+- Branch / last commit: `sparky/w0-native-notify`; final commit subject `sparky(w0-native-notify): complete native runtime acceptance`. Resolve its hash with `git log -1 --format='%h %s'`.
+- Host: macOS **26.6.2**, build **25G83**, arm64. Electron **44.4.5**, `NODE_MODULE_VERSION=149`, runtime N-API **10**; addon targets **NAPI_VERSION=8**.
+- Resume decision: on 2026-10-04 the integrator explicitly identified the SQL baseline failure as unrelated, assigned it to W0-CONTRACTS-FIX and instructed this spike to continue. No contract, baseline, shared configuration or integration-branch changes were made.
 
 ## Acceptance criteria
 
-1. Delivery after kill for one-shot and repeating triggers → **unverified / not accepted**. Both native implementations contain one-shot `UNTimeIntervalNotificationTrigger` and repeating `UNCalendarNotificationTrigger` support. No reminder was armed and no kill/delivery run was performed before the external gate failure stopped work.
-2. Done action applied with Electron closed, with click-to-applied latency → **unverified / not accepted**. Both implementations register a delegate before Electron readiness and expose buffered action callbacks; Main contains a stub-core supervisor, complete/snooze calls, re-plan and a ten-second idle exit. None of these paths was observed with a real notification action. There is no latency number; no simulated action is being counted as acceptance evidence. Snooze also remains unverified.
-3. Hidden relaunch works or is documented as not viable → **unverified / not accepted**. A LaunchServices background-mode command started with zero windows, but the exact `open -g -j -a <app> --args --background-replan` scenario, frontmost-app preservation, Dock behavior and automatic idle exit were not measured. `LSUIElement=true` is configured for the spike; this alone does not prove that scenario.
-4. Recommended form and build steps for the pinned Electron ABI → **partial**. Objective-C++ N-API using node-addon-api and a Swift C ABI dylib loaded through koffi both compile and pass deep/strict ad-hoc signature verification. The N-API module loaded in Electron **44.4.5**, `NODE_MODULE_VERSION=149`, runtime N-API **10**; it is compiled with `NAPI_VERSION=8` using the 44.4.5 Electron headers. Swift+koffi was built but not launched. No final recommendation has been made from build-only evidence.
-5. Developer ID / entitlement requirement → **partial**. The N-API Electron stub launched through LaunchServices and requested authorization under an ad-hoc signature without added entitlements or Developer ID. Scheduling, survival and action relaunch were not verified, so their signature/entitlement requirements remain unproven by this workstream. This does not change the previous spike's conclusions about distribution signing.
-6. Fallback decision → **pending / not accepted**. No native delivery failure has been demonstrated. The existing fallback in `03-recurrence-and-reminders.md` remains available; this blocked run neither adopts it nor resolves O1-final. Do not treat G0's O1-final checkbox as complete.
+| Criterion | Result | Evidence |
+|---|---|---|
+| One-shot delivery after kill | **Pass, both engines** | `node spikes/native-notify/acceptance.cjs`; `evidence/runtime.json`: `killed`, `afterDeadlineProcesses=[]`, `delivered` includes the synthetic one-shot, with `repeats=false` |
+| Native repeating delivery after kill | **Pass, both engines** | Same run: delivered `UNCalendarNotificationTrigger`, `repeats=true`; that identifier remains in `pending` after delivery |
+| Done with Electron closed | **Pass, both engines** | Real Notification Center Accessibility action; OS cold relaunch, native delegate, core spawn, authenticated `/complete`, persisted empty plan, re-plan and idle exit |
+| Snooze with Electron closed | **Pass, both engines** | Real Notification Center Accessibility action; authenticated `/snooze`, persisted one-shot ten minutes later, native re-arm and idle exit |
+| Hidden relaunch | **Pass in the accessory spike, both engines** | Exact `open -g -j -a <app> --args --background-replan`; the existing other app remained frontmost in every sample; zero windows, `dockVisible=false`, successful re-plan, Electron exit |
+| Wake/timezone hooks | **Pass for injected hook wiring, both engines** | `testHooks` posts the actual observed NSWorkspace wake and Foundation timezone notification names. Native events cross the module boundary and cause a debounced re-plan. No physical sleep/wake or system timezone change was performed |
+| Authorization prompt identity | **Observed pass** | `evidence/authorization.json`: the OS alert reads **“Sparky” Notifications**, followed by “Notifications may include alerts, sounds, and icon badges.” A fresh spike-only bundle identity was used without resetting existing permissions |
+| Module recommendation and pinned ABI build | **Pass; choose Objective-C++ N-API** | Both compiled, loaded, scheduled and handled cold responses; build instructions and comparison below |
+| Signing / entitlement requirement | **Pass for local ad-hoc execution** | Both bundles pass deep/strict signature verification. `evidence/signature.txt`: `Signature=adhoc`, no Team ID and no main executable entitlement blob; delivery and cold actions pass |
+| Fallback decision | **Keep native delivery; do not adopt the timer fallback** | Native scheduling, OS-owned delivery and cold action application work with all spike processes killed |
 
-## Completed work and evidence
+The final `evidence/runtime.json` contains **16 passing checks per engine**, `allPassed=true`, and no runtime error events. The shared adapter's repeated identical-plan application returns `unchanged=2`. The core persists plans and changes across SIGKILL; it excludes expired one-shots from its returned plan. This fixes the synthetic core's initial cold-start re-plan error; the complete acceptance run was repeated after that fix.
 
-- Only `spikes/native-notify/**`, this status file and the request file were changed.
-- Two native engines and a shared Main-only JavaScript adapter expose `requestAuthorization`, `apply`, `pending`, `removeAll`, `onAction`, and `status`. The adapter validates ownership, categories, timestamps, duplicate IDs, repeat fields/timezones and the 60-item budget before native dispatch. Mutations are serialized. Native diffing preserves foreign identifiers and returns an error without removing existing requests if authorization is unavailable.
-- N-API dispatch uses a thread-safe function. The Swift C ABI uses a locked JSON reply queue with a 20 ms JS poll and explicit allocation/free; it does not retain a JS function pointer across FFI shutdown. These are spike implementations, not production modules.
-- Native delegate events include wake/timezone hooks, delivered notifications and action callbacks. Main has a debounced re-plan, six-hour timer and Electron resume hook. Synthetic hooks are available through the spike-only `testHooks` command, but were **not exercised**. No actual wake or timezone change was performed.
-- Authorization identity: N-API `status` returned `bundleId=com.polterware.sparky.spike2`, `bundleName=Sparky`, `authorization=notDetermined`, `pendingCount=0`. `requestAuthorization` subsequently returned `true`. A scoped AppleScript returned `No readable Sparky authorization prompt`; the prompt's visible wording was **not recorded**. Bundle metadata is not substituted for prompt observation.
-- Bundle size and background RSS were **not measured**.
-- No launchd service or helper was registered. No reminder was armed. Any remaining processes whose executable path was inside this spike's `dist/` were stopped; no global Electron process kill was used.
-- Chromium user data and Electron logs are now directed into the spike's ignored `run/` directory. The initial probe preceded that path-scoping change and used Electron's default spike user-data directory; nothing outside Owns was deleted. The final path-scoping edit was syntax-checked; no final bundle/runtime run was performed after the block.
-- Logs: `spikes/native-notify/evidence/build.txt`, `report.json`, `verify-sparky.txt`, `design-lint.txt`. No core session token or generated runtime file is committed.
+### Cold action latency and exit
 
-## Commands and results
+| Engine | Done click-to-applied | Snooze click-to-applied | Electron idle exit after applied action |
+|---|---:|---:|---:|
+| Objective-C++ N-API | **341 ms** | **318 ms** | 10.015 / 10.017 s |
+| Swift + koffi | **319 ms** | **413 ms** | 10.049 / 10.047 s |
 
-- `pnpm install` → **pass**, workspace lockfile unchanged.
-- `pnpm --dir spikes/native-notify install --ignore-workspace --ignore-scripts` → **pass**. Koffi ships the Darwin arm64 prebuild; `require('koffi')` reported version 2.15.1. An earlier default install returned `ERR_PNPM_IGNORED_BUILDS`; the explicit script-free install succeeded. No global install or shared dependency/config change was made.
-- `bash spikes/native-notify/build.sh` → **pass**, both forms compiled, copied into separate ad-hoc Electron bundles and verified with `codesign --verify --deep --strict`. Swift emitted two scoped-locking warnings in Swift 5 mode; address those before production adoption.
-- `open -n -a "$PWD/spikes/native-notify/dist/napi/Sparky.app" --args --command=status` → **observed pass**, native module loaded and returned the status described above. Result-file creation is asynchronous; a two-second initial read was too early. Use a bounded file wait rather than a fixed short sleep when continuing.
-- `open -n -a "$PWD/spikes/native-notify/dist/napi/Sparky.app" --args --command=requestAuthorization` → **observed pass**, returned `true` under the Sparky bundle identity. The visible prompt text remains unverified.
-- `bash tooling/verify-sparky.sh` → **fail**, external SQL specification mismatch. `buf lint`, baseline breaking check, Sparky Go tests, Sparky Go vet and Sparky TypeScript checks passed before the contract test stopped the script. Contract suite: **25 passed / 1 failed**. Checks after that failure were not run by this script.
-- `node --check spikes/native-notify/electron/main.cjs`, `node --check spikes/native-notify/electron/adapter.cjs`, `bash -n spikes/native-notify/build.sh` → **pass** after the final source edits.
-- `pnpm design:lint` → **pass**, `ui opacity check OK`; see `spikes/native-notify/evidence/design-lint.txt`. Run separately because the broader gate exited before its design check.
-- `git diff --check`, staged diff check and ownership review → **pass** before the final status commit. Only Owns paths plus the protocol-authorized status/request files are changed.
+These are individual host observations, not percentiles or a latency guarantee. `clickAtMs` is recorded immediately before performing the OS notification's **Name:Done / Name:Snooze Accessibility action**. The applied timestamp is logged after the core's successful HTTP response and persisted state change. This invokes Notification Center's real action path; it does not inject a fabricated delegate response or directly call the core as the test action. Both Electron and the core were absent immediately before each click. The delegate is installed before Electron readiness, and notification completion is acknowledged after applying the action and re-planning.
 
-## Deviations from the plan (and why)
+The cold action and hidden re-plan launches opened no window. The hidden launch exited **10.001 s after re-plan** for each engine. The core remains a detached daemon until the driver explicitly kills it; “idle exit” above refers to Electron, not a claim that the core exits on idle.
 
-- Acceptance execution and O1-final are unfinished because the protocol requires stopping on the external gate failure. No contradictory native result was inferred.
-- W0-NATIVE-NOTIFY does not list a separate Verify command. The repository's `bash tooling/verify-sparky.sh` was run as the available Sparky gate and exposed the blocker.
-- `00-decisions.md` is outside Owns, so it was not edited. A resolution must be proposed to the integrator after runtime acceptance is complete.
-- `polterware` is absent from PATH and no built binary exists at the usual worktree `dist/polterware` / `backend/dist/polterware` paths. `polterware status` and `polterware handoff` returned `command not found`; format/query/apply were therefore unavailable. No Work card was written and no Polterware product binary was built outside this workstream.
-- No branch creation, tag, remote push, reference-repository edit or unrelated source change.
+### Size and background RSS
 
-## Requests filed
+| Measurement | Objective-C++ N-API | Swift + koffi |
+|---|---:|---:|
+| Bundle logical size, uncompressed | **295.63 MiB** | **308.80 MiB** |
+| Allocated size (`du -sk`) | 296.49 MiB | 310.73 MiB |
+| Native module alone | 164.76 KiB | 141.14 KiB |
+| Background Electron Main RSS | **118.19–120.89 MiB** | **120.00–122.63 MiB** |
+| Electron Main + Electron child RSS, core excluded | 214.97–221.53 MiB | 216.72–223.41 MiB |
 
-- `plans/sparky-next/requests/w0-native-notify-1.md`: merge the authorized W0-CONTRACTS-FIX changes to unblock the SQL baseline gate. Includes the immediate failing SQL diff and reproduction command.
+RSS comes from `ps -axo pid=,rss=,comm=` sampled during the actual hidden re-plan, with no window. Summing RSS can double-count shared pages; these are not private-memory measurements. Logical size sums bundle file sizes; allocated size is filesystem-dependent. Both contain the same pinned Electron runtime and bundled stub core. Swift's extra **13.17 MiB** is predominantly the bundled koffi package, not the Swift dylib. Only its Darwin arm64 prebuild is retained, but the spike still includes package support files. No compressed production artifact was measured.
 
-## Follow-ups for other WS
+## O1-final decision for the integrator
 
-- Integrator / W0-CONTRACTS-FIX: resolve request 1, then resume this workstream on the corrected integration base. Do not start dependent native-notification work on the assumption that O1-final is resolved.
-- W0-NATIVE-NOTIFY continuation: rebuild final sources, launch Swift+koffi, then run both engines' API/diff/denial/foreign-ID checks; native one-shot and repeating survival; real cold Done/Snooze, click-to-applied latency and idle exit; hidden relaunch while another app is frontmost; hooks; prompt observation; bundle/RSS measurements. Emit a reproducible acceptance driver and sanitized evidence. Resolve or document runtime limitations honestly.
-- W1-NATIVE-NOTIFY / W1-ELECTRON: the spike is unfinished. Do not copy it into production or interpret the action supervisor and accessory-mode setup as validated behavior.
+**Use Objective-C++ N-API in Electron Main.** Keep the Swift+koffi implementation as a proven alternative, not the production default. N-API delivers events directly through a thread-safe function, avoids a 20 ms polling queue and an FFI dependency, and has the smaller bundle. The small latency sample does not establish a statistically significant performance winner.
+
+Keep the app's own `UNUserNotificationCenter` identity, install its delegate before `app.whenReady()`, buffer early responses, bootstrap/attach the core on a cold Done/Snooze, apply the operation, re-plan, finish the OS response and exit background Electron after ten seconds of inactivity. Simple recurrence uses native repeating triggers; complex finite plans are refreshed when Sparky or the core runs. Retain the honest wording **“Reminders are refreshed when Sparky runs”**. No launchd helper is registered, and the fallback **“Reminders need Sparky running”** is not warranted by these results.
+
+**No Developer ID or notification-specific entitlement is needed for the local path demonstrated here.** All runtime acceptance was under ad-hoc signing without added entitlements. This is not a distribution/notarization or hardened-runtime acceptance test. W3-PACKAGING still owns distribution signing. Apple documents [local notification authorization](https://developer.apple.com/documentation/usernotifications/asking-permission-to-use-notifications); Electron documents [native modules](https://www.electronjs.org/docs/latest/tutorial/using-native-node-modules/) and [distribution signing](https://www.electronjs.org/docs/latest/tutorial/code-signing/).
+
+The shipping deployment target remains **macOS 15+**; this run tested macOS 26.6.2 only. Both builds target macOS 15; no physical macOS 15 host was tested.
+
+`00-decisions.md` is outside Owns and was not edited. Suggested resolution to append:
+
+> 2026-10-04 O1-final (W0-NATIVE-NOTIFY, done): use an Objective-C++ N-API module in Electron Main (node-addon-api 8.5.0, N-API 8; Electron 44.4.5 / ABI 149). Both N-API and Swift+koffi delivered one-shot and native repeating reminders after every spike process was killed. Cold Done/Snooze applied in 341/318 ms for N-API and 319/413 ms for Swift+koffi. Hidden LaunchServices re-plan preserved the other frontmost app, opened no windows, had no Dock tile and exited after ten seconds in the accessory-mode spike. Local execution needs ad-hoc signing, no Developer ID and no additional notification entitlement. Keep native delivery and run-time refresh; do not adopt the timer fallback. W1 must preserve the background accessory behavior while implementing the normal foreground Dock/window lifecycle.
+
+## Reproduction and verification
+
+```bash
+pnpm --dir spikes/native-notify install --ignore-workspace --ignore-scripts
+bash spikes/native-notify/build.sh
+node spikes/native-notify/acceptance.cjs
+node spikes/native-notify/authorization.cjs
+```
+
+The build script verifies the pinned Electron version, obtains its headers, compiles Objective-C++ with Xcode clang++, `node-addon-api@8.5.0` and `NAPI_VERSION=8`, and builds a macOS 15 arm64 Swift C ABI dylib with `swiftc`. The latter loads via `koffi@2.15.1`. Both are copied into independent Electron bundles and signed/verified ad-hoc. The adapter and dylib must remain outside ASAR in production. Swift's earlier async-lock warnings were fixed using `NSLock.withLock`; the final build has no warnings.
+
+- `bash spikes/native-notify/build.sh` → **pass**, both engines, strict/deep ad-hoc verification; `evidence/build-resume.txt`.
+- `node spikes/native-notify/acceptance.cjs` → **pass**, both engines, all 32 checks; `evidence/runtime.json`, `runtime-output.txt`.
+- Authorization observer → **prompt text observed**. The 20-second authorization-result wait expired because Accessibility exposed no Allow/Don't Allow button in that OS alert. The subsequent native apply returned `permission denied; existing requests preserved` while authorization was unavailable, with pending empty. This proves the unavailable-authorization guard, **not** an observed user-denial transition. The original `spike2` identity was already authorized and both engines used it successfully. `authorization.cjs` uses a fresh throwaway identity on repeat runs.
+- `bash tooling/verify-sparky.sh` → **known external fail**: `packages/sparky-contracts/src/baseline.test.mjs`, `SQL baseline > matches the specification fence`; SQL still includes removed `embeddings`. Contract tests: **25 pass / 1 fail**. Earlier buf, Go tests/vet and Sparky TS checks pass; later gate steps are not claimed to pass. See `evidence/verify-sparky-resume.txt`. Integrator waiver permits completion without changing this baseline.
+- `(cd spikes/native-notify/stubcore && GOWORK=off go vet ./...)` → **pass** after final Go edits.
+- Node syntax checks for all CJS and both JXA scripts, `bash -n spikes/native-notify/build.sh`, `git diff --check` → **pass**.
+- `pnpm design:lint` → **pass**, separately from the interrupted repository gate; `evidence/design-lint-resume.txt`.
+- Final cleanup → **pending=[], delivered=[], spike processes=[]**; `evidence/cleanup.json`. Every SIGKILL was preceded by executable-path verification under this spike's `dist/`. No global Electron kill, screenshot, reference checkout edit, branch creation, tag or push.
+
+## Deviations and follow-ups
+
+- The external gate exception is the integrator's explicit resume decision, not an inferred waiver. Request 1 is resolved for this workstream; W0-CONTRACTS-FIX still owns the repair.
+- The spike deliberately has `LSUIElement=true`. No Dock tile means no tile to bounce; this is not a full-screen visual observation. W1-ELECTRON must implement and verify the normal foreground Dock/reopen lifecycle without losing background behavior. No foreground production shell behavior is claimed here.
+- Wake/timezone hooks were injected through the real registered notification centers. Actual sleep/wake, timezone transitions and multi-cycle repeating endurance remain hardening checks; no system clock, timezone or sleep setting was changed.
+- The authorization prompt's identity was observed on a fresh bundle with the same Sparky display name. Its click completion remains unobserved; metadata is not substituted for the observed prompt text.
+- N-API shutdown/lifetime cleanup, release-mode hardened signing, cold-response error/retry/idempotency behavior against the real core, single-instance launch handling and regular foreground shell behavior remain production work for W1-NATIVE-NOTIFY / W1-ELECTRON, not validated production behavior of this throwaway stub.
+- `polterware` is absent from PATH, but the main checkout has `dist/polterware`. Its `format` succeeded; `status` and `query cards` returned `no project for this directory`. No new project was initialized and no unrelated project's Work cards were mutated. The final `handoff` also returned `no project for this directory`.
+- Owned changes only: `spikes/native-notify/**` plus protocol-authorized status/request files. The existing unrelated gate remains outside this workstream's changes.

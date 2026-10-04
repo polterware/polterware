@@ -138,7 +138,7 @@ private func command(_ method: String, _ input: Any?) async throws -> Any {
         center.removePendingNotificationRequests(withIdentifiers: stale)
         return ["added": added, "removed": stale, "unchanged": unchanged] as [String: Any]
     case "finishAction":
-        lock.lock(); let completion = delegate?.completions.removeValue(forKey: input as! String); lock.unlock()
+        let completion = lock.withLock { delegate?.completions.removeValue(forKey: input as! String) }
         completion?(); return true
     case "testHooks":
         NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.didWakeNotification, object: nil)

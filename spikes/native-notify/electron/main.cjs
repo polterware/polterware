@@ -11,7 +11,7 @@ fs.mkdirSync(path.join(run, 'electron-logs'), { recursive:true });
 app.setPath('userData', path.join(config.data, 'chromium'));
 app.setPath('logs', path.join(run, 'electron-logs'));
 function log(event, fields = {}) {
-  fs.appendFileSync(path.join(run, 'notify.jsonl'), JSON.stringify({ at:new Date().toISOString(), pid:process.pid, event, ...fields }) + '\n');
+  fs.appendFileSync(path.join(run, 'notify.jsonl'), JSON.stringify({ at:new Date().toISOString(), pid:process.pid, ...fields, event }) + '\n');
 }
 // Installed before app readiness: cold notification responses must not be dropped.
 const notify = loadNotify(config.form, path.join(__dirname, 'native'));
@@ -115,7 +115,7 @@ app.on('open-url', (event, text) => {
 app.whenReady().then(async () => {
   ready = true;
   fs.writeFileSync(path.join(run, 'electron.pid'), String(process.pid));
-  log('ready', { background, windows:BrowserWindow.getAllWindows().length });
+  log('ready', { background, windows:BrowserWindow.getAllWindows().length, dockVisible:app.dock?.isVisible() });
   powerMonitor.on('resume', () => scheduleReplan('electron-resume'));
   const timer = setInterval(() => scheduleReplan('six-hour'), 6*60*60*1000);
   timer.unref();
@@ -125,10 +125,15 @@ app.whenReady().then(async () => {
       const payload = fs.existsSync(commandFile) ? JSON.parse(fs.readFileSync(commandFile, 'utf8')) : null;
       const allowed = ['requestAuthorization','status','pending','delivered','apply','removeAll','testHooks'];
       if (!allowed.includes(command)) throw Error('unknown spike command');
+      if (command === 'requestAuthorization' && !background) {
+        showMemory('01ARZ3NDEKTSV4RRFFQ69G5FAV', false);
+        app.focus({ steal:true });
+      }
       const value = await notify[command](payload);
       fs.writeFileSync(path.join(run, 'result.json'), JSON.stringify({ command, value }));
       log('command', { command, value });
-      if (command !== 'testHooks') { app.quit(); return; }
+      if (command !== 'testHooks' && !process.argv.includes('--hold')) { app.quit(); return; }
+      if (process.argv.includes('--hold')) await ensureCore();
     } else await replan('start');
   } catch (error) {
     fs.writeFileSync(path.join(run, 'result.json'), JSON.stringify({ command, error:error.message }));
