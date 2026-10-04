@@ -110,6 +110,23 @@ function cardNamed(name: string): HTMLElement {
 }
 
 describe("Minds feature", () => {
+  it("composes the registered Mind editor with its explicit mindId memory collection", async () => {
+    const { host, update } = mount([mindsFeature, { id: "memories", routes: [], memoryCollection: props => <p data-mind-memories={props.mindId}>Memories for {props.mindId}</p> }]);
+    await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
+    button("Minds").click();
+    await vi.waitFor(() => expect(host.textContent).toContain("child Minds"));
+    cardNamed("Alpha").click();
+    await vi.waitFor(() => expect(host.querySelector("h1")?.textContent).toBe("Alpha"));
+    expect(host.querySelector('[data-mind-memories="a"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Breadcrumb"]')).not.toBeNull();
+    expect(host.textContent).toContain("Child Minds");
+    expect(button("Delete Mind")).toBeDefined();
+    expect(host.querySelector('[aria-label="Move to"]')).not.toBeNull();
+    const input = host.querySelector<HTMLInputElement>('input')!;
+    input.value = "Renamed Alpha"; input.dispatchEvent(new Event("input", { bubbles: true }));
+    button("Save changes").click();
+    await vi.waitFor(() => expect(update).toHaveBeenCalledWith(expect.objectContaining({ id: "a", name: "Renamed Alpha" })));
+  });
   it("registers a sidebar tree contribution and keeps the flat Minds fallback", () => {
     expect(mindsFeature.sidebar?.some((item) => item.path === "/minds")).toBe(true);
     expect(mindsFeature.sidebarTree?.id).toBe("minds");

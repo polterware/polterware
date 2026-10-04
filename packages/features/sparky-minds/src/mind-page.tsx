@@ -1,4 +1,5 @@
 import { For, Show, createEffect, createMemo, createResource, createSignal, onCleanup, onMount } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import {
   Button,
   Card,
@@ -52,6 +53,7 @@ export function MindPage() {
   const [message, setMessage] = createSignal("");
   const [deletePreview, setDeletePreview] = createSignal<DeletePreview>();
   const selectedId = () => shell.params().id ?? "";
+  const memoryCollection = createMemo(() => shell.features.find(feature => feature.memoryCollection)?.memoryCollection);
   const nodes = createMemo(() => (minds() ?? []).map(toMindNode));
   const tree = createMemo(() => buildMindTree(nodes()));
   const selected = createMemo(() => (minds() ?? []).find((mind) => mind.id === selectedId()));
@@ -338,6 +340,11 @@ export function MindPage() {
                       </Show>
                     </section>
                   </div>
+                  <Show when={memoryCollection()}>{collection =>
+                    <section aria-label="Mind memories" class="flex min-h-0 flex-col">
+                      <Dynamic component={collection()} mindId={mind().id} />
+                    </section>
+                  }</Show>
                 </>
               )}
             </Show>

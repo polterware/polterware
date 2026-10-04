@@ -10,7 +10,15 @@ export function shellShortcut(event: Pick<KeyboardEvent, "key" | "code" | "metaK
   if (key === "/" && !editing) return "search";
 }
 export function isEditing(target: EventTarget | null): boolean {
-  return target instanceof Element && !!target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]');
+  return target instanceof Element && !!target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]');
+}
+
+/** Collection actions belong to list focus or the document, never control chrome. */
+export function isCollectionTarget(target: EventTarget | null): boolean {
+  if (target === document || target === document.body) return true;
+  if (!(target instanceof Element)) return false;
+  if (target.closest('button, a[href], input, textarea, select, summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="textbox"], [role="combobox"], [role="slider"], [role="spinbutton"], dialog, [role="dialog"], [role="alertdialog"], [role="menu"], [role="menubar"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="listbox"], [role="option"]')) return false;
+  return !!target.closest('[data-row-id], [role="row"], [role="grid"], [role="table"], [role="list"], table');
 }
 
 export type MemoryShortcut = "open" | "toggle-done" | "edit-title" | "pin" | "delete";
