@@ -50,6 +50,7 @@ export interface NativeNotify {
   onEvent(callback: (event: NativeRefresh) => void): void;
   status(): Promise<NativeStatus>;
   finishAction(token: string): Promise<void>;
+  emitSystemEvent(reason: "timezone" | "wake"): Promise<void>;
   wasActionLaunch(): boolean;
   close(): void;
 }

@@ -1,6 +1,7 @@
 #import <AppKit/AppKit.h>
 #import <UserNotifications/UserNotifications.h>
 #include <napi.h>
+#include <cstdlib>
 #include <memory>
 #include <mutex>
 #import "calendar.h"
@@ -239,6 +240,20 @@ static void Send(SharedBridge bridge, const Napi::CallbackInfo &args) {
   } else if ([method isEqual:@"finishAction"]) {
     if (![input isKindOfClass:NSString.class]) { bridge->Reply(rid, nil, @"invalid-action-token"); return; }
     [bridge->delegate finish:input]; bridge->Reply(rid, @YES);
+  } else if ([method isEqual:@"emitSystemEvent"]) {
+    if (!std::getenv("SPARKY_NOTIFY_E2E") || ![input isKindOfClass:NSString.class]) { bridge->Reply(rid, nil, @"unknown-command"); return; }
+    if ([input isEqual:@"timezone"]) [[NSNotificationCenter defaultCenter] postNotificationName:NSSystemTimeZoneDidChangeNotification object:nil];
+    else if ([input isEqual:@"wake"]) [[[NSWorkspace sharedWorkspace] notificationCenter] postNotificationName:NSWorkspaceDidWakeNotification object:nil];
+    else { bridge->Reply(rid, nil, @"unknown-command"); return; }
+    bridge->Reply(rid, @YES);
+  } else if ([method isEqual:@"delivered"]) {
+    if (!std::getenv("SPARKY_NOTIFY_E2E")) { bridge->Reply(rid, nil, @"unknown-command"); return; }
+    [center getDeliveredNotificationsWithCompletionHandler:^(NSArray<UNNotification *> *notifications) {
+      NSMutableArray *rows = [NSMutableArray array];
+      for (UNNotification *n in notifications) if (Owned(n.request.identifier))
+        [rows addObject:@{@"id":n.request.identifier, @"title":n.request.content.title ?: @""}];
+      bridge->Reply(rid, rows);
+    }];
   } else bridge->Reply(rid, nil, @"unknown-command");
 }
 static Napi::Object Init(Napi::Env env, Napi::Object exports) {

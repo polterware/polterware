@@ -136,7 +136,8 @@ export function createReminderController(options: Options) {
     requestRefresh,
     onChanges(message: { snapshot: boolean; changes: readonly { entity: string }[] }) {
       if (message.snapshot) requestRefresh("snapshot");
-      else if (message.changes.some(({ entity }) => ["memories", "schedules", "completions", "reminder_oneoffs", "settings"].includes(entity))) requestRefresh("change");
+      // SQLite hooks emit singular wire names (memory/reminder/setting); keep table names too.
+      else if (message.changes.some(({ entity }) => ["memory", "memories", "schedules", "completions", "reminder", "reminder_oneoffs", "setting", "settings"].includes(entity))) requestRefresh("change");
     },
     status: () => ({ ...status }),
     onStatus(callback: (value: ReminderStatus) => void) { listeners.add(callback); callback({ ...status }); return () => { listeners.delete(callback); }; },

@@ -58,6 +58,7 @@ export function createNativeNotify(native: Addon): NativeNotify {
       return mutate("removeAll", prefix);
     },
     finishAction: (token) => command("finishAction", token),
+    emitSystemEvent: (reason) => command("emitSystemEvent", reason),
     onAction: (callback) => { onAction = callback; for (const event of actions.splice(0)) callback(event); },
     onEvent: (callback) => { onEvent = callback; for (const event of events.splice(0)) callback(event); },
     wasActionLaunch: () => native.wasActionLaunch(),

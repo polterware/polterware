@@ -9,7 +9,7 @@ function fixture(background = false) {
     apply: vi.fn(async () => ({ added: ["one:1"], removed: [], unchanged: 0 })),
     requestAuthorization: vi.fn(async () => true), pending: vi.fn(async () => []), removeAll: vi.fn(async () => []),
     onAction: (callback) => { action = callback; }, onEvent: (callback) => { event = callback; },
-    finishAction: vi.fn(async () => {}), close: vi.fn(), wasActionLaunch: () => false,
+    finishAction: vi.fn(async () => {}), emitSystemEvent: vi.fn(async () => {}), close: vi.fn(), wasActionLaunch: () => false,
   };
   const core: ReminderCore = { plan: vi.fn(async () => []), complete: vi.fn(async () => {}), snooze: vi.fn(async () => {}), ack: vi.fn(async () => {}), heartbeat: vi.fn(async () => {}) };
   const ensureCore = vi.fn(async () => core), quit = vi.fn(), openMemory = vi.fn(), log = vi.fn(), hasWindow = vi.fn(() => !background);
@@ -35,11 +35,13 @@ describe("lazy reminder controller", () => {
     const f = setup(); f.controller.start(); await vi.advanceTimersByTimeAsync(500);
     f.controller.onChanges({ snapshot: false, changes: [{ entity: "tags" }, { entity: "activity" }] });
     await vi.advanceTimersByTimeAsync(500); expect(f.core.plan).toHaveBeenCalledTimes(1);
+    f.controller.onChanges({ snapshot: false, changes: [{ entity: "memory" }] }); await vi.advanceTimersByTimeAsync(500);
+    expect(f.core.plan).toHaveBeenCalledTimes(2);
     for (const reason of ["timezone", "wake", "delivered"] as const) { f.event({ event: "refresh", reason, id: "one:1" }); await vi.advanceTimersByTimeAsync(500); }
     f.controller.onChanges({ snapshot: true, changes: [] }); await vi.advanceTimersByTimeAsync(500);
-    expect(f.core.plan).toHaveBeenCalledTimes(5);
-    await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000);
     expect(f.core.plan).toHaveBeenCalledTimes(6);
+    await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000);
+    expect(f.core.plan).toHaveBeenCalledTimes(7);
   });
   it("refreshes within 1.5 s even under sustained changes", async () => {
     const f = setup(); f.controller.start();

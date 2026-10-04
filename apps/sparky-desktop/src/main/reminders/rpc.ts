@@ -1,9 +1,9 @@
-import { createClient, type Transport } from "@connectrpc/connect";
 import { timestampDate, timestampFromDate } from "@bufbuild/protobuf/wkt";
-import { ReminderService, ScheduleService, SettingsService } from "@polterware/sparky-contracts";
+import type { CoreClients } from "../core/client.js";
 import { BUDGET, type ReminderCore, type Reminder } from "./types";
-export function createReminderCore(transport: Transport): ReminderCore {
-  const reminders = createClient(ReminderService, transport), schedules = createClient(ScheduleService, transport), settings = createClient(SettingsService, transport);
+const leakedRepeat = /:(?:repeat|wd\d+)$/;
+export function createReminderCore(clients: Pick<CoreClients, "reminders" | "schedule" | "settings">): ReminderCore {
+  const { reminders, schedule: schedules, settings } = clients;
   const callOptions = () => ({ timeoutMs: 4000 });
   return {
     async plan(now) {
@@ -11,8 +11,8 @@ export function createReminderCore(transport: Transport): ReminderCore {
       const { settings: config } = await settings.get({}, callOptions());
       return response.items.map((item): Reminder => {
         if (!item.fireAt || !item.occurrenceAt || !["reminder", "reminder-focus", "focus-phase"].includes(item.category)) throw new Error("Invalid core reminder plan");
-        // Contract v1.1 has no repeat field. Domain Repeat exists after the schedule merge;
-        // mapping waits on request 1. Do not invent recurrence in Main.
+        // Frozen ReminderItem has no repeat field. Never arm a native-repeat identifier as a one-shot.
+        if (leakedRepeat.test(item.id)) throw new Error("Invalid core reminder plan");
         return { id: item.id, memoryId: item.memoryId, occurrenceAt: timestampDate(item.occurrenceAt).toISOString(), fireAt: timestampDate(item.fireAt).toISOString(), title: item.title, body: item.body,
           category: item.category as Reminder["category"], sound: config?.notificationsSound || "default" };
       });
