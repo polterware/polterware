@@ -12,3 +12,5 @@ W2-MAP requests a contracts + Electron follow-up (W2-SETTINGS / W1-ELECTRON / Er
 W2-MAP ships a disabled-by-default geocoding adapter (`createDisabledGeocoder` / `createNominatimGeocoder`) that **never fetches** unless a future `mapGeocoding` field is true. The Map settings panel states that address search is off until this setting and CSP host exist.
 
 W2-MAP does not edit `sparky/schemas/**`, `apps/sparky-desktop/src/main/**`, or `settings.proto`.
+
+**Status: setting applied as contract v1.6; the CSP host is added by Main only while the setting is on (w2-glue-b).**

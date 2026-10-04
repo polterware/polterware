@@ -51,7 +51,7 @@ func TestScheduleAndPlaceMutationsInvalidateMemoryRevision(t *testing.T) {
 				}
 			}
 			if name == "place-clear" {
-				if _, err := places.Set(t.Context(), place.Place{MemoryID: m.ID, Lat: 1, Lng: 2}); err != nil {
+				if _, err := places.Set(t.Context(), place.Place{MemoryID: m.ID, Lat: 1, Lng: 2}, 0); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -67,9 +67,9 @@ func TestScheduleAndPlaceMutationsInvalidateMemoryRevision(t *testing.T) {
 			case "focus-recipe":
 				_, err = sched.SetFocusRecipe(t.Context(), actor.UI(), m.ID, schedule.FocusRecipe{Enabled: true, WorkMin: 25, ShortBreakMin: 5, LongBreakMin: 15, Cycles: 4})
 			case "place-set":
-				_, err = places.Set(t.Context(), place.Place{MemoryID: m.ID, Lat: 1, Lng: 2})
+				_, err = places.Set(t.Context(), place.Place{MemoryID: m.ID, Lat: 1, Lng: 2}, 0)
 			case "place-clear":
-				err = places.Clear(t.Context(), m.ID)
+				err = places.Clear(t.Context(), m.ID, 0)
 			}
 			if err != nil {
 				t.Fatal(err)
@@ -154,7 +154,7 @@ func TestScheduleAndPlaceRevisionRollbackWithAudit(t *testing.T) {
 		t.Fatal("missing audit failure")
 	}
 	places := placeService{repo: s.Places(), memories: s.Memories(), clock: audit.Clock, audit: audit}
-	if _, err := places.Set(t.Context(), place.Place{MemoryID: m.ID}); err == nil {
+	if _, err := places.Set(t.Context(), place.Place{MemoryID: m.ID}, 0); err == nil {
 		t.Fatal("missing audit failure")
 	}
 	got, err := s.Memories().Get(t.Context(), m.ID)

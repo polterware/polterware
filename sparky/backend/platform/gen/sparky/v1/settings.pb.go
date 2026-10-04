@@ -50,8 +50,10 @@ type Settings struct {
 	LinksFetchTitles           bool                   `protobuf:"varint,22,opt,name=links_fetch_titles,json=linksFetchTitles,proto3" json:"links_fetch_titles,omitempty"`
 	// Week start for calendar and review grids: "mon" (default) or "sun".
 	CalendarWeekStart string `protobuf:"bytes,23,opt,name=calendar_week_start,json=calendarWeekStart,proto3" json:"calendar_week_start,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Opt-in address search (geocoding sends typed text to a third party). Default false.
+	MapGeocoding  bool `protobuf:"varint,24,opt,name=map_geocoding,json=mapGeocoding,proto3" json:"map_geocoding,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -215,6 +217,13 @@ func (x *Settings) GetCalendarWeekStart() string {
 		return x.CalendarWeekStart
 	}
 	return ""
+}
+
+func (x *Settings) GetMapGeocoding() bool {
+	if x != nil {
+		return x.MapGeocoding
+	}
+	return false
 }
 
 type GetSettingsRequest struct {
@@ -397,7 +406,7 @@ var File_sparky_v1_settings_proto protoreflect.FileDescriptor
 
 const file_sparky_v1_settings_proto_rawDesc = "" +
 	"\n" +
-	"\x18sparky/v1/settings.proto\x12\tsparky.v1\"\x8f\a\n" +
+	"\x18sparky/v1/settings.proto\x12\tsparky.v1\"\xb4\a\n" +
 	"\bSettings\x12)\n" +
 	"\x10appearance_theme\x18\x01 \x01(\tR\x0fappearanceTheme\x12/\n" +
 	"\x13notifications_sound\x18\x02 \x01(\tR\x12notificationsSound\x12;\n" +
@@ -419,7 +428,8 @@ const file_sparky_v1_settings_proto_rawDesc = "" +
 	"\x18agents_allow_file_attach\x18\x14 \x01(\bR\x15agentsAllowFileAttach\x12B\n" +
 	"\x1eapp_keep_running_in_background\x18\x15 \x01(\bR\x1aappKeepRunningInBackground\x12,\n" +
 	"\x12links_fetch_titles\x18\x16 \x01(\bR\x10linksFetchTitles\x12.\n" +
-	"\x13calendar_week_start\x18\x17 \x01(\tR\x11calendarWeekStartJ\x04\b\x0e\x10\x12\"\x14\n" +
+	"\x13calendar_week_start\x18\x17 \x01(\tR\x11calendarWeekStart\x12#\n" +
+	"\rmap_geocoding\x18\x18 \x01(\bR\fmapGeocodingJ\x04\b\x0e\x10\x12\"\x14\n" +
 	"\x12GetSettingsRequest\"F\n" +
 	"\x13GetSettingsResponse\x12/\n" +
 	"\bsettings\x18\x01 \x01(\v2\x13.sparky.v1.SettingsR\bsettings\"Y\n" +

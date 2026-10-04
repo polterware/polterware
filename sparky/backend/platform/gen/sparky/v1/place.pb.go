@@ -124,8 +124,10 @@ func (x *Place) GetUpdatedAt() *timestamppb.Timestamp {
 }
 
 type SetPlaceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Place         *Place                 `protobuf:"bytes,1,opt,name=place,proto3" json:"place,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Place *Place                 `protobuf:"bytes,1,opt,name=place,proto3" json:"place,omitempty"`
+	// Memory revision from the caller's last read; 0 or absent means unchecked.
+	ExpectedRev   *int64 `protobuf:"varint,2,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -165,6 +167,13 @@ func (x *SetPlaceRequest) GetPlace() *Place {
 		return x.Place
 	}
 	return nil
+}
+
+func (x *SetPlaceRequest) GetExpectedRev() int64 {
+	if x != nil && x.ExpectedRev != nil {
+		return *x.ExpectedRev
+	}
+	return 0
 }
 
 type SetPlaceResponse struct {
@@ -214,6 +223,7 @@ func (x *SetPlaceResponse) GetPlace() *Place {
 type ClearPlaceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	ExpectedRev   *int64                 `protobuf:"varint,2,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -253,6 +263,13 @@ func (x *ClearPlaceRequest) GetMemoryId() string {
 		return x.MemoryId
 	}
 	return ""
+}
+
+func (x *ClearPlaceRequest) GetExpectedRev() int64 {
+	if x != nil && x.ExpectedRev != nil {
+		return *x.ExpectedRev
+	}
+	return 0
 }
 
 type ClearPlaceResponse struct {
@@ -420,13 +437,17 @@ const file_sparky_v1_place_proto_rawDesc = "" +
 	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\a\n" +
 	"\x05_nameB\v\n" +
 	"\t_radius_mB\t\n" +
-	"\a_active\"9\n" +
+	"\a_active\"r\n" +
 	"\x0fSetPlaceRequest\x12&\n" +
-	"\x05place\x18\x01 \x01(\v2\x10.sparky.v1.PlaceR\x05place\":\n" +
+	"\x05place\x18\x01 \x01(\v2\x10.sparky.v1.PlaceR\x05place\x12&\n" +
+	"\fexpected_rev\x18\x02 \x01(\x03H\x00R\vexpectedRev\x88\x01\x01B\x0f\n" +
+	"\r_expected_rev\":\n" +
 	"\x10SetPlaceResponse\x12&\n" +
-	"\x05place\x18\x01 \x01(\v2\x10.sparky.v1.PlaceR\x05place\"0\n" +
+	"\x05place\x18\x01 \x01(\v2\x10.sparky.v1.PlaceR\x05place\"i\n" +
 	"\x11ClearPlaceRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\"\x14\n" +
+	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12&\n" +
+	"\fexpected_rev\x18\x02 \x01(\x03H\x00R\vexpectedRev\x88\x01\x01B\x0f\n" +
+	"\r_expected_rev\"\x14\n" +
 	"\x12ClearPlaceResponse\"o\n" +
 	"\x19ListPlacesInBoundsRequest\x12\x14\n" +
 	"\x05south\x18\x01 \x01(\x01R\x05south\x12\x12\n" +
@@ -490,6 +511,8 @@ func file_sparky_v1_place_proto_init() {
 		return
 	}
 	file_sparky_v1_place_proto_msgTypes[0].OneofWrappers = []any{}
+	file_sparky_v1_place_proto_msgTypes[1].OneofWrappers = []any{}
+	file_sparky_v1_place_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

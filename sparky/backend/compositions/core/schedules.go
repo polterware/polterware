@@ -243,9 +243,18 @@ func (s scheduleRuntime) SetFocusRecipe(ctx context.Context, who actor.Actor, me
 // Schedule and place are part of the memory aggregate guarded by expectedRev.
 // Call only inside the mutation's audit transaction.
 func bumpMemoryRevision(ctx context.Context, repo memory.Repository, id string, at time.Time) error {
+	return bumpMemoryRevisionExpecting(ctx, repo, id, 0, at)
+}
+
+// bumpMemoryRevisionExpecting bumps the revision inside the caller's transaction;
+// a non-zero expectedRev that differs from the stored one is a conflict.
+func bumpMemoryRevisionExpecting(ctx context.Context, repo memory.Repository, id string, expectedRev int64, at time.Time) error {
 	m, err := repo.Get(ctx, id)
 	if err != nil {
 		return err
+	}
+	if expectedRev != 0 && m.Rev != expectedRev {
+		return fault.Conflict("memory", id, m.Rev, m)
 	}
 	oldRev := m.Rev
 	m.Rev++

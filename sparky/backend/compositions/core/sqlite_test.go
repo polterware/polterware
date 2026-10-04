@@ -406,3 +406,44 @@ func TestSqliteOccurrenceCarriesZoneAndWeekStartPersists(t *testing.T) {
 		t.Fatal("invalid week start accepted")
 	}
 }
+
+func TestSqlitePlaceWritesCheckExpectedRev(t *testing.T) {
+	clients, _, _ := sqliteLoopback(t)
+	created, err := clients.Memory.Create(t.Context(), connect.NewRequest(&v1.CreateMemoryRequest{Title: "spot"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := created.Msg.Memory.Id
+	rev := created.Msg.Memory.Rev
+	name := "Home"
+	place := &v1.Place{MemoryId: id, Lat: -23.55, Lng: -46.63, Name: &name}
+	if _, err := clients.Place.Set(t.Context(), connect.NewRequest(&v1.SetPlaceRequest{Place: place, ExpectedRev: &rev})); err != nil {
+		t.Fatalf("set with the current revision: %v", err)
+	}
+	stale := rev
+	if _, err := clients.Place.Set(t.Context(), connect.NewRequest(&v1.SetPlaceRequest{Place: place, ExpectedRev: &stale})); connect.CodeOf(err) != connect.CodeAborted && connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("stale set must conflict, got %v", err)
+	}
+	if _, err := clients.Place.Clear(t.Context(), connect.NewRequest(&v1.ClearPlaceRequest{MemoryId: id, ExpectedRev: &stale})); connect.CodeOf(err) != connect.CodeAborted && connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("stale clear must conflict, got %v", err)
+	}
+	list, err := clients.Place.ListInBounds(t.Context(), connect.NewRequest(&v1.ListPlacesInBoundsRequest{South: -24, West: -47, North: -23, East: -46}))
+	if err != nil || len(list.Msg.Places) != 1 {
+		t.Fatalf("the stale clear must not delete the place: %v / %v", list, err)
+	}
+	if _, err := clients.Place.Clear(t.Context(), connect.NewRequest(&v1.ClearPlaceRequest{MemoryId: id})); err != nil {
+		t.Fatalf("unchecked clear: %v", err)
+	}
+}
+
+func TestSqliteMapGeocodingSettingDefaultsOff(t *testing.T) {
+	clients, _, _ := sqliteLoopback(t)
+	got, err := clients.Settings.Get(t.Context(), connect.NewRequest(&v1.GetSettingsRequest{}))
+	if err != nil || got.Msg.Settings.MapGeocoding {
+		t.Fatalf("geocoding must default to false: %v / %v", got, err)
+	}
+	set, err := clients.Settings.Set(t.Context(), connect.NewRequest(&v1.SetSettingsRequest{Keys: []string{"map.geocoding"}, Settings: &v1.Settings{MapGeocoding: true}}))
+	if err != nil || !set.Msg.Settings.MapGeocoding {
+		t.Fatalf("set geocoding: %v / %v", set, err)
+	}
+}

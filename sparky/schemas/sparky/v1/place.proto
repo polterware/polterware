@@ -20,6 +20,8 @@ message Place {
 
 message SetPlaceRequest {
   Place place = 1;
+  // Memory revision from the caller's last read; 0 or absent means unchecked.
+  optional int64 expected_rev = 2;
 }
 
 message SetPlaceResponse {
@@ -28,6 +30,7 @@ message SetPlaceResponse {
 
 message ClearPlaceRequest {
   string memory_id = 1;
+  optional int64 expected_rev = 2;
 }
 
 message ClearPlaceResponse {}

@@ -111,14 +111,14 @@ func (h placeHandler) Set(ctx context.Context, r *connect.Request[v1.SetPlaceReq
 	if p.Event == "" {
 		p.Event = place.EventEnter
 	}
-	p, err := h.s.Set(ctx, p)
+	p, err := h.s.Set(ctx, p, r.Msg.GetExpectedRev())
 	return response(&v1.SetPlaceResponse{Place: placeProto(p)}, err)
 }
 func (h placeHandler) Clear(ctx context.Context, r *connect.Request[v1.ClearPlaceRequest]) (*connect.Response[v1.ClearPlaceResponse], error) {
 	if h.s == nil {
 		return nil, unavailable("places")
 	}
-	err := h.s.Clear(ctx, r.Msg.MemoryId)
+	err := h.s.Clear(ctx, r.Msg.MemoryId, r.Msg.GetExpectedRev())
 	return response(&v1.ClearPlaceResponse{}, err)
 }
 func (h placeHandler) ListInBounds(ctx context.Context, r *connect.Request[v1.ListPlacesInBoundsRequest]) (*connect.Response[v1.ListPlacesInBoundsResponse], error) {

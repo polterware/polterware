@@ -17,7 +17,7 @@ type placeService struct {
 	audit    activity.Audit
 }
 
-func (s placeService) Set(ctx context.Context, p place.Place) (place.Place, error) {
+func (s placeService) Set(ctx context.Context, p place.Place, expectedRev int64) (place.Place, error) {
 	if p.MemoryID == "" {
 		return place.Place{}, invalid("place.memory_id", "required")
 	}
@@ -38,7 +38,7 @@ func (s placeService) Set(ctx context.Context, p place.Place) (place.Place, erro
 	}
 	p.UpdatedAt = s.clock.Now().UTC()
 	err := s.audit.Write(ctx, caller(ctx), "place", p.MemoryID, activity.OpUpdate, "Set place", func(ctx context.Context) error {
-		if err := bumpMemoryRevision(ctx, s.memories, p.MemoryID, p.UpdatedAt); err != nil {
+		if err := bumpMemoryRevisionExpecting(ctx, s.memories, p.MemoryID, expectedRev, p.UpdatedAt); err != nil {
 			return err
 		}
 		return s.repo.Upsert(ctx, p)
@@ -49,7 +49,7 @@ func (s placeService) Set(ctx context.Context, p place.Place) (place.Place, erro
 	return p, nil
 }
 
-func (s placeService) Clear(ctx context.Context, memoryID string) error {
+func (s placeService) Clear(ctx context.Context, memoryID string, expectedRev int64) error {
 	if memoryID == "" {
 		return invalid("memory_id", "required")
 	}
@@ -57,7 +57,7 @@ func (s placeService) Clear(ctx context.Context, memoryID string) error {
 		if err := s.repo.Delete(ctx, memoryID); err != nil {
 			return err
 		}
-		return bumpMemoryRevision(ctx, s.memories, memoryID, s.clock.Now().UTC())
+		return bumpMemoryRevisionExpecting(ctx, s.memories, memoryID, expectedRev, s.clock.Now().UTC())
 	})
 	if err != nil && !fault.IsCode(err, fault.CodeNotFound) {
 		return err

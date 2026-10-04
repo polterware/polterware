@@ -32,10 +32,10 @@ func (h mcpHandler) guard(token string, port int) (func(http.Handler) http.Handl
 type mcpPlaces struct{ place.Service }
 
 func (p mcpPlaces) Set(ctx context.Context, who actor.Actor, in place.Place) (place.Place, error) {
-	return p.Service.Set(context.WithValue(ctx, actorKey{}, who), in)
+	return p.Service.Set(context.WithValue(ctx, actorKey{}, who), in, 0)
 }
 func (p mcpPlaces) Clear(ctx context.Context, who actor.Actor, id string) error {
-	return p.Service.Clear(context.WithValue(ctx, actorKey{}, who), id)
+	return p.Service.Clear(context.WithValue(ctx, actorKey{}, who), id, 0)
 }
 
 type mcpSchedules struct{ ScheduleUseCases }

@@ -27,6 +27,7 @@ const (
 	KeyAppKeepRunningInBackground = "app.keepRunningInBackground"
 	KeyLinksFetchTitles           = "links.fetchTitles"
 	KeyCalendarWeekStart          = "calendar.weekStart"
+	KeyMapGeocoding               = "map.geocoding"
 
 	WeekStartMon = "mon"
 	WeekStartSun = "sun"
@@ -58,6 +59,7 @@ type Settings struct {
 	AppKeepRunningInBackground bool
 	LinksFetchTitles           bool
 	CalendarWeekStart          string
+	MapGeocoding               bool
 }
 
 // Default is the document before any key is stored.

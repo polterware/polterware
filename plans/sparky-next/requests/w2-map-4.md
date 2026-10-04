@@ -10,3 +10,5 @@ Add optional `int64 expected_rev = 2` to `SetPlaceRequest` and `ClearPlaceReques
 W2-MAP already sends `expectedRev` as a decimal string on both RPCs (validated locally; unknown fields are ignored on the current wire). The UI loads the memory `rev` first. Until this lands, stale Place saves are last-write-wins.
 
 W2-MAP does not edit `sparky/schemas/**` or generated contracts.
+
+**Status: applied as contract v1.6 (expected_rev on Set/Clear).**

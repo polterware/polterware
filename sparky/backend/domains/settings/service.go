@@ -55,6 +55,8 @@ func field(s *Settings, key string) any {
 		return &s.LinksFetchTitles
 	case KeyCalendarWeekStart:
 		return &s.CalendarWeekStart
+	case KeyMapGeocoding:
+		return &s.MapGeocoding
 	}
 	return nil
 }

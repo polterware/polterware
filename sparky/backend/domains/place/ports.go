@@ -12,7 +12,8 @@ type Repository interface {
 
 // Service is the place use-case port.
 type Service interface {
-	Set(ctx context.Context, p Place) (Place, error)
-	Clear(ctx context.Context, memoryID string) error
+	// expectedRev 0 means unchecked; otherwise it must equal the memory revision (checked atomically).
+	Set(ctx context.Context, p Place, expectedRev int64) (Place, error)
+	Clear(ctx context.Context, memoryID string, expectedRev int64) error
 	ListInBounds(ctx context.Context, b Bounds) ([]Place, error)
 }

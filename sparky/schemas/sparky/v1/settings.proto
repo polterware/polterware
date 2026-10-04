@@ -33,6 +33,8 @@ message Settings {
   bool links_fetch_titles = 22;
   // Week start for calendar and review grids: "mon" (default) or "sun".
   string calendar_week_start = 23;
+  // Opt-in address search (geocoding sends typed text to a third party). Default false.
+  bool map_geocoding = 24;
 }
 
 message GetSettingsRequest {}
