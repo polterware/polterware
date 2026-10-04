@@ -31,7 +31,7 @@ func run(ctx context.Context, args []string, out, stderr io.Writer) int {
 	}
 	db := fs.String("db", defaultPath, "SQLite database path")
 	fs.Usage = func() {
-		fmt.Fprintln(stderr, "Usage: sparky [-db path] <serve|status|doctor> [options]")
+		fmt.Fprintln(stderr, "Usage: sparky [-db path] <serve|mcp|status|doctor> [options]")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -53,6 +53,8 @@ func run(ctx context.Context, args []string, out, stderr io.Writer) int {
 	switch args[0] {
 	case "serve":
 		err = runServe(ctx, path, args[1:], stderr)
+	case "mcp":
+		err = runMCP(ctx, path, args[1:], os.Stdin, out, stderr)
 	case "status":
 		err = runStatus(ctx, path, args[1:], out, stderr)
 	case "doctor":

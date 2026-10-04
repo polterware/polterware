@@ -85,6 +85,7 @@ type ChangeFeed interface {
 // MCP mounts a separately authenticated provider; it never inherits the UI bearer.
 type MCP struct {
 	Handler http.Handler
+	Token   string
 	Port    int
 	Enabled bool
 }

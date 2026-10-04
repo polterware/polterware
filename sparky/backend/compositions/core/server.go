@@ -27,14 +27,15 @@ type Config struct {
 	MCP                           MCP
 }
 type Server struct {
-	config Config
-	http   *http.Server
-	done   chan error
-	ctx    context.Context
-	cancel context.CancelFunc
-	mu     sync.Mutex
-	active int
-	last   time.Time
+	config  Config
+	http    *http.Server
+	mcpHTTP *http.Server
+	done    chan error
+	ctx     context.Context
+	cancel  context.CancelFunc
+	mu      sync.Mutex
+	active  int
+	last    time.Time
 }
 type actorKey struct{}
 
@@ -78,9 +79,9 @@ func Start(ln net.Listener, cfg Config) (*Server, error) {
 	mux.Handle(rpc.NewAgentAccessServiceHandler(agentHandler{s: cfg.Services.Agents}, opts...))
 	mux.Handle(rpc.NewMaintenanceServiceHandler(maintenanceHandler{s: cfg.Services.Maintenance}, opts...))
 	mux.Handle(rpc.NewChangeServiceHandler(changeHandler{s: s}, opts...))
-	// MCP provider owns its stable bearer, Host/Origin policy, and separate listener.
-	if cfg.MCP.Handler != nil {
-		mux.Handle("/mcp", cfg.MCP.Handler)
+	if err := s.mountMCP(mux, address.Port); err != nil {
+		cancel()
+		return nil, err
 	}
 	s.http = &http.Server{Handler: originGuard(ln.Addr().String(), mux), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
 	go func() {
@@ -119,11 +120,20 @@ func (s *Server) Done() <-chan error { return s.done }
 // Shutdown first cancels streams, then drains unary work before provider closure.
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.cancel()
+	var first error
+	if s.mcpHTTP != nil {
+		if err := s.mcpHTTP.Shutdown(ctx); err != nil {
+			_ = s.mcpHTTP.Close()
+			first = err
+		}
+	}
 	if err := s.http.Shutdown(ctx); err != nil {
 		_ = s.http.Close()
-		return err
+		if first == nil {
+			first = err
+		}
 	}
-	return nil
+	return first
 }
 func (s *Server) Idle(after time.Duration) bool {
 	s.mu.Lock()
