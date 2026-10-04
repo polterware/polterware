@@ -33,6 +33,18 @@ describe("navigation policy", () => {
     expect(contentSecurityPolicy(true, false, true)).not.toContain("http://127.0.0.1");
     expect(contentSecurityPolicy(false, true, true)).not.toMatch(/connect-src[^;]*http:\/\/127\.0\.0\.1/);
   });
+  it("has no wildcard or loopback exception in any policy mode", () => {
+    for (const development of [false, true]) for (const online of [false, true]) for (const geocoding of [false, true]) {
+      const policy = contentSecurityPolicy(online, development, geocoding);
+      expect(policy).not.toMatch(/\*|127\.0\.0\.1|localhost|\[::1\]/);
+      expect(policy.includes("nominatim.openstreetmap.org")).toBe(geocoding);
+    }
+  });
+  it("rejects malformed, nested, encoded and oversized deep links", () => {
+    for (const raw of ["sparky://memory/%2e%2e/%2e%2e/etc", "sparky://memory/%252e%252e", "sparky://today/%00", "sparky://calendar?date=%FF", "sparky://today:123", "sparky://today?next=sparky%3A%2F%2Fmemory%2Fbad", "sparky://search?q=" + "x".repeat(4096), "sparky://memory/" + "%".repeat(512)]) {
+      expect(parseDeepLink(raw)).toBeNull();
+    }
+  });
   it("does not ship a document CSP meta; Main owns the enforced policy", () => {
     const html = readFileSync(new URL("../renderer/index.html", import.meta.url), "utf8");
     expect(html).not.toMatch(/http-equiv=["']Content-Security-Policy["']/i);
