@@ -44,6 +44,11 @@ func (h *Handle) Within(ctx context.Context, fn func(context.Context) error) err
 	if _, ok := TxFrom(ctx); ok {
 		return fn(ctx)
 	}
+	// Commit releases the SQL connection before we harvest its hook buffer.
+	// Keep the next writer (including rollback) out until publication finishes.
+	buf := bufFor(h.key)
+	buf.writerMu.Lock()
+	defer buf.writerMu.Unlock()
 	tx, err := h.writer.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)

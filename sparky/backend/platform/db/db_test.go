@@ -164,3 +164,71 @@ type rollbackError struct{}
 func (rollbackError) Error() string { return "rollback" }
 
 var errRollback rollbackError
+
+func TestWriterWaitsForCommitPublication(t *testing.T) {
+	h := tempHandle(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	if _, err := h.Writer().ExecContext(ctx, `CREATE TABLE memories (id TEXT PRIMARY KEY, title TEXT NOT NULL) STRICT`); err != nil {
+		t.Fatal(err)
+	}
+	h.discardCommitted()
+	publishing, release := make(chan struct{}), make(chan struct{})
+	batches := make(chan []changes.Change, 2)
+	h.AfterCommit = func(batch []changes.Change) {
+		close(publishing)
+		<-release
+		batches <- batch
+	}
+	committed := make(chan error, 1)
+	go func() {
+		committed <- h.Within(ctx, func(ctx context.Context) error {
+			// Nested writes must join rather than lock again.
+			return h.Within(ctx, func(ctx context.Context) error {
+				_, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO memories VALUES ('a', 'committed')`)
+				return err
+			})
+		})
+	}()
+	select {
+	case <-publishing:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	entered := make(chan struct{})
+	rolledBack := make(chan error, 1)
+	go func() {
+		rolledBack <- h.Within(ctx, func(ctx context.Context) error {
+			close(entered)
+			if _, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO memories VALUES ('b', 'rolled back')`); err != nil {
+				return err
+			}
+			return errRollback
+		})
+	}()
+	var overtook bool
+	select {
+	case <-entered:
+		overtook = true
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	if err := <-committed; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-rolledBack; err != errRollback {
+		t.Fatalf("rollback: %v", err)
+	}
+	if overtook {
+		t.Error("next writer entered before the previous commit was published")
+	}
+	batch := <-batches
+	if len(batch) != 1 || batch[0].ID != "a" || batch[0].Op != "create" {
+		t.Fatalf("committed batch lost or mixed with rollback: %+v", batch)
+	}
+	select {
+	case batch := <-batches:
+		t.Fatalf("rollback published: %+v", batch)
+	default:
+	}
+}

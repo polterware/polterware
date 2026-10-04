@@ -41,8 +41,9 @@ var watched = map[string]tableMeta{
 var harvests sync.Map // key string -> *harvestBuf
 
 type harvestBuf struct {
-	mu   sync.Mutex
-	list []changes.Change
+	writerMu sync.Mutex // serialize transactions through harvesting and publication
+	mu       sync.Mutex
+	list     []changes.Change
 }
 
 func bufFor(key string) *harvestBuf {
