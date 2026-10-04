@@ -56,7 +56,8 @@ committing secrets or `.env`, sending real personal data to any network service,
 ## 5. Stop-and-ask conditions
 
 Stop and write a request or ask Erick when: a contract change is needed; a shared file must change; a gate fails for a reason
-outside your Owns; a spike result contradicts a decision in [00-decisions.md](00-decisions.md); a task needs credentials or a
+outside your Owns (**exception: Wave-0 spikes** are judged by their own evidence; an unrelated, already-known failure of
+`verify-sparky.sh` must be recorded in the status file and must NOT stop the spike); a spike result contradicts a decision in [00-decisions.md](00-decisions.md); a task needs credentials or a
 paid service; an acceptance criterion cannot be met as written.
 
 ## 6. Engineering rules
