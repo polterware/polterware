@@ -1,24 +1,25 @@
 # w1-store status
 
-- Result: partial
-- Branch / last commit: `sparky/w1-store`; implementation `6acd251`; final status commit is `git log -1 --format=%h` on this branch.
+- Result: done
+- Branch / last commit: `sparky/w1-store-b`; implementation `844e63c`; this status commit is `git log -1 --format=%h` on the branch.
 - Acceptance criteria:
-  - Repository contract tests shared with in-memory fakes -> **fail / blocked**. No SQLite repositories or `tests/repotest` suite are implemented. The shared suite is outside Owns.
-  - `foreign_key_check` clean after random operation fuzz -> **fail / unverified**. SQLite provider work is stopped pending the dependency request.
-  - Mind deletion cascades children and nulls memory `mind_id` -> **fail / unverified**. Baseline SQL expresses these constraints, but no provider integration test exists.
-  - Change events only after commit and never on rollback -> **fail / unverified**. The broadcaster is implemented, but SQLite hooks and post-commit publication are not. `Publish` explicitly requires a successful commit; that requirement is not proof of SQLite integration.
-  - Concurrent reader during a write does not block (WAL) -> **fail / unverified**. No database opener or WAL integration test is implemented.
+  - Repository contract tests shared with in-memory fakes → **pass**. `tests/repotest` runs against SQLite (`TestRepoSuite`) and a local in-memory fake (`TestMemSuite`). W1-DOMAIN fakes still panic, so the suite uses `tests/repotest` Mem rather than `domains/*/fake`.
+  - `foreign_key_check` clean after random operation fuzz → **pass**. `TestForeignKeyCheckAfterRandomOps`.
+  - Mind deletion cascades children and nulls memory `mind_id` → **pass**. `TestRepoSuite/sqlite/mindCascadeAndRev` (and the mem fake counterpart).
+  - Change events only after commit and never on rollback → **pass**. `TestChangesAfterCommitNeverOnRollback` in `platform/db` and `providers/sqlite`.
+  - Concurrent reader during a write does not block (WAL) → **pass**. `TestWALReaderDuringWrite` (`platform/db`) and `TestWALReaderDoesNotBlock` (`providers/sqlite`).
 - Verification:
-  - Required command: `cd sparky/backend && go vet ./providers/sqlite/... ./platform/... && go test ./providers/sqlite/... ./platform/... -race -count=1` -> exit 0, **incomplete coverage**: both commands warn `"./providers/sqlite/..." matched no packages`. Broadcaster tests pass; this is not a passing store acceptance result.
-  - Standalone broadcaster: `cd sparky/backend && GOWORK=off go vet ./platform/changes/... && GOWORK=off go test ./platform/changes/... -race -count=1` -> pass.
-  - Tests: `TestSnapshotReplayAndIsolation`, `TestReplayBounds`, `TestFreshWatchAndEmptyBatch`, `TestSlowConsumerAndCancellation`, `TestConcurrentPublishWatchClose` -> pass with race detection.
-  - `git diff --check` -> pass. `git diff --name-only sparky-contracts-v1.1 -- sparky/schemas sparky/backend/platform/gen packages/sparky-contracts/src/gen` -> empty; frozen contracts unchanged.
+  - Required command: `cd sparky/backend && go vet ./providers/sqlite/... ./platform/... && go test ./providers/sqlite/... ./platform/... -race -count=1` → exit 0.
+  - Extra: `GOWORK=off go test ./tests/repotest/... -race -count=1` → pass.
+  - `git diff --check` → pass. Frozen contracts at `sparky-contracts-v1.1` unchanged.
 - Deviations from the plan (and why):
-  - SQLite-dependent work stopped under AGENT-PROTOCOL ownership rules: adding the locked driver requires changing `sparky/backend/go.mod` and `go.sum`, outside Owns. No dependency was borrowed from Polterware's module to disguise a missing standalone dependency.
-  - Independent broadcaster work ships without SQLite integration. Sequence increments once per nonempty committed batch; replay retains at most 1,000 entity changes, evicting whole batches. Cursor zero starts with a current snapshot and live changes; nonzero cursors replay after the snapshot. Expired/future cursors fail explicitly. Slow consumers disconnect and reconnect rather than silently dropping changes.
-  - `polterware` is absent from PATH. The existing binary at `/Users/erickpatrickbarcelos/codes/polterware-total/polterware/dist/polterware` was used: `format` read successfully; `status`, `query cards`, and `handoff` cannot resolve a project for this worktree. No project was initialized or unrelated store modified.
-- Requests filed: `plans/sparky-next/requests/w1-store-1.md` (driver dependency and shared repository-suite ownership).
+  - Integrator extended Owns with `sparky/backend/go.mod`/`go.sum` (`modernc.org/sqlite v1.59.0`, `GOWORK=off go mod tidy`) and `tests/repotest/**`. Request `plans/sparky-next/requests/w1-store-1.md` is satisfied; SQLite work resumed.
+  - Shared suite uses a local `tests/repotest` Mem fake because W1-DOMAIN repository fakes are still skeletons.
+  - Attachment file methods (`ImportFile`/`AbsolutePath`/`RemoveFile`) return `unavailable`; metadata List/Get/Insert/Delete/Reorder are implemented. File bytes stay with W1-ATTACH.
+  - `search.Index` is called on memory writes when injected; FTS query execution remains W1-SEARCH. `DocumentSource` projects title, stripped note, checklist text, tags, and Mind path.
+- Requests filed: `plans/sparky-next/requests/w1-store-1.md` (applied by integrator; no new request).
 - Follow-ups for other WS:
-  - Integrator/W0-SCAFFOLD: apply the dependency change and assign/supply `tests/repotest`, then resume W1-STORE's SQLite implementation and all five acceptance checks.
-  - W1-CORE: broadcaster API is `changes.New`, `Publish`, `Watch`, `Subscription.Next` and `Close`. Publish only after successful commit. Handle cursor expiry and slow consumers by refreshing/reconnecting. No repository or transaction manager is available yet.
-  - W1-SEARCH: transaction-bound index wiring remains pending with the SQLite provider.
+  - W1-CORE: store API is `sqlite.Open`/`OpenWith`, `Store.Within`, typed repos (`Minds()`, `Memories()`, …), `Changes()`, optional `SetIndex`. Publish happens after successful commit only.
+  - W1-SEARCH: implement `search.Index` against `memory_fts` using the tx in context; W1-STORE already upserts/deletes through the port and can project documents via `Store.Documents()`.
+  - W1-DOMAIN: replace panic fakes with real in-memory repos; the shared suite in `tests/repotest` can then run against them.
+  - W1-ATTACH: replace the unavailable file methods on the sqlite metadata adapter.
