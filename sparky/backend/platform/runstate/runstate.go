@@ -20,7 +20,55 @@ type Core struct {
 	StartedAt time.Time `json:"startedAt"`
 }
 
-func Dir(dbPath string) string       { return filepath.Join(filepath.Dir(dbPath), "run") }
+// CanonicalDBPath resolves aliases even before the database or its parents exist.
+func CanonicalDBPath(dbPath string) (string, error) {
+	abs, err := filepath.Abs(dbPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve database path: %w", err)
+	}
+	return canonicalPath(abs, 0)
+}
+
+func canonicalPath(path string, depth int) (string, error) {
+	if depth > 255 {
+		return "", fmt.Errorf("resolve database path: too many symlinks or path components")
+	}
+	resolved, err := filepath.EvalSymlinks(path)
+	if err == nil {
+		return resolved, nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("resolve database path: %w", err)
+	}
+	// EvalSymlinks fails on a dangling link; resolve its target before appending
+	// missing components, so creation cannot change the lock's identity.
+	info, statErr := os.Lstat(path)
+	if statErr == nil && info.Mode()&os.ModeSymlink != 0 {
+		target, err := os.Readlink(path)
+		if err != nil {
+			return "", fmt.Errorf("read database symlink: %w", err)
+		}
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(path), target)
+		}
+		return canonicalPath(target, depth+1)
+	}
+	if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
+		return "", fmt.Errorf("inspect database path: %w", statErr)
+	}
+	parent, err := canonicalPath(filepath.Dir(path), depth+1)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(parent, filepath.Base(path)), nil
+}
+
+func Dir(dbPath string) string {
+	if canonical, err := CanonicalDBPath(dbPath); err == nil {
+		dbPath = canonical
+	}
+	return filepath.Join(filepath.Dir(dbPath), "run")
+}
 func CorePath(dbPath string) string  { return filepath.Join(Dir(dbPath), "core.json") }
 func LockPath(dbPath string) string  { return filepath.Join(Dir(dbPath), "core.lock") }
 func LogPath(dbPath string) string   { return filepath.Join(Dir(dbPath), "core.log") }
@@ -32,6 +80,11 @@ type LockedError struct{}
 func (LockedError) Error() string { return "another sparky core owns this database" }
 
 func EnsureDir(dbPath string) error {
+	canonical, err := CanonicalDBPath(dbPath)
+	if err != nil {
+		return err
+	}
+	dbPath = canonical
 	if err := os.MkdirAll(Dir(dbPath), 0o700); err != nil {
 		return fmt.Errorf("create run directory: %w", err)
 	}
@@ -39,6 +92,11 @@ func EnsureDir(dbPath string) error {
 }
 
 func LockCore(dbPath string) (*os.File, error) {
+	canonical, err := CanonicalDBPath(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	dbPath = canonical
 	if err := EnsureDir(dbPath); err != nil {
 		return nil, err
 	}
@@ -112,8 +170,12 @@ func ReadCore(dbPath string) (Core, bool) {
 	if err != nil || json.Unmarshal(body, &state) != nil || !PIDAlive(state.PID) || state.Token == "" || state.Endpoint == "" {
 		return Core{}, false
 	}
-	requested, err := filepath.Abs(dbPath)
-	if err != nil || requested != state.DBPath {
+	requested, err := CanonicalDBPath(dbPath)
+	if err != nil {
+		return Core{}, false
+	}
+	published, err := CanonicalDBPath(state.DBPath)
+	if err != nil || requested != published {
 		return Core{}, false
 	}
 	return state, true

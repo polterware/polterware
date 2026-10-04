@@ -122,3 +122,115 @@ func TestLogRotationAndConcurrentClose(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSymlinkDatabaseSharesLockAndDiscovery(t *testing.T) {
+	for _, missing := range []bool{false, true} {
+		t.Run(map[bool]string{false: "existing", true: "not-created"}[missing], func(t *testing.T) {
+			dir := t.TempDir()
+			canonicalDir, err := filepath.EvalSymlinks(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			db := filepath.Join(canonicalDir, "data", "sparky.db")
+			if !missing {
+				if err := os.MkdirAll(filepath.Dir(db), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(db, nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			aliasDir := filepath.Join(canonicalDir, "alias")
+			if err := os.MkdirAll(aliasDir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			alias := filepath.Join(aliasDir, "linked.db")
+			// Relative, potentially dangling link in a different directory.
+			if err := os.Symlink(filepath.Join("..", "data", "sparky.db"), alias); err != nil {
+				t.Fatal(err)
+			}
+			got, err := CanonicalDBPath(alias)
+			if err != nil || got != db {
+				t.Fatalf("canonical=%q want=%q err=%v", got, db, err)
+			}
+			lock, err := LockCore(alias)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer lock.Close()
+			other, err := LockCore(db)
+			if other != nil {
+				other.Close()
+			}
+			var locked LockedError
+			if !errors.As(err, &locked) {
+				t.Fatalf("alias bypassed core lock: %v", err)
+			}
+			if err := os.WriteFile(db, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			state := Core{PID: os.Getpid(), DBPath: alias, Endpoint: "http://127.0.0.1:1234", Token: "secret"}
+			if err := WriteJSON(CorePath(alias), state); err != nil {
+				t.Fatal(err)
+			}
+			for _, path := range []string{alias, db} {
+				if got, ok := ReadCore(path); !ok || got != state {
+					t.Fatalf("discovery via %s: %+v %v", path, got, ok)
+				}
+				if TokenPath(path) != TokenPath(db) || LockPath(path) != LockPath(db) || LogPath(path) != LogPath(db) {
+					t.Fatal("run files have different identities")
+				}
+			}
+			if err := RemoveCore(db, os.Getpid()); err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := ReadCore(alias); ok {
+				t.Fatal("alias retained removed discovery")
+			}
+		})
+	}
+}
+
+func TestCanonicalDatabaseWithMissingParentsAndDirectoryAlias(t *testing.T) {
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(dir, "alias")
+	if err := os.Symlink("data", alias); err != nil {
+		t.Fatal(err)
+	}
+	db := filepath.Join(alias, "nested", "sparky.db")
+	want := filepath.Join(dir, "data", "nested", "sparky.db")
+	got, err := CanonicalDBPath(db)
+	if err != nil || got != want {
+		t.Fatalf("canonical=%q want=%q err=%v", got, want, err)
+	}
+	lock, err := LockCore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	other, err := LockCore(want)
+	if other != nil {
+		other.Close()
+	}
+	var locked LockedError
+	if !errors.As(err, &locked) {
+		t.Fatalf("missing parents bypassed lock: %v", err)
+	}
+}
+
+func TestCoreLockRejectsSymlinkLoop(t *testing.T) {
+	alias := filepath.Join(t.TempDir(), "loop.db")
+	if err := os.Symlink("loop.db", alias); err != nil {
+		t.Fatal(err)
+	}
+	lock, err := LockCore(alias)
+	if lock != nil {
+		lock.Close()
+	}
+	if err == nil {
+		t.Fatal("invalid database identity accepted")
+	}
+}
