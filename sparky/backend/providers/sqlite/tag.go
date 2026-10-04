@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
@@ -114,7 +115,11 @@ func (r Tags) Retarget(ctx context.Context, fromID, toID string) (int, error) {
 		}
 		n, _ := res.RowsAffected()
 		moved = int(n)
+		at := formatTime(time.Now().UTC())
 		for _, memoryID := range ids {
+			if _, err := r.q(ctx, true).ExecContext(ctx, `UPDATE memories SET rev=rev+1, updated_at=? WHERE id=?`, at, memoryID); err != nil {
+				return err
+			}
 			if err := r.syncIndex(ctx, memoryID, false); err != nil {
 				return err
 			}

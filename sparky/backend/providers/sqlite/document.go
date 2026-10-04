@@ -183,26 +183,8 @@ func (s *Store) reindexMindMemories(ctx context.Context, mindID string) error {
 	if s.index == nil {
 		return nil
 	}
-	rows, err := s.q(ctx, false).QueryContext(ctx, `
-		WITH RECURSIVE tree AS (
-			SELECT id FROM minds WHERE id = ?
-			UNION ALL
-			SELECT m.id FROM minds m JOIN tree t ON m.parent_id = t.id
-		)
-		SELECT id FROM memories WHERE mind_id IN (SELECT id FROM tree)`, mindID)
+	ids, err := s.mindMemoryIDs(ctx, mindID)
 	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return err
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
 		return err
 	}
 	for _, id := range ids {
@@ -211,4 +193,27 @@ func (s *Store) reindexMindMemories(ctx context.Context, mindID string) error {
 		}
 	}
 	return nil
+}
+
+func (s *Store) mindMemoryIDs(ctx context.Context, mindID string) ([]string, error) {
+	rows, err := s.q(ctx, false).QueryContext(ctx, `
+		WITH RECURSIVE tree AS (
+			SELECT id FROM minds WHERE id = ?
+			UNION ALL
+			SELECT m.id FROM minds m JOIN tree t ON m.parent_id = t.id
+		)
+		SELECT id FROM memories WHERE mind_id IN (SELECT id FROM tree)`, mindID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
