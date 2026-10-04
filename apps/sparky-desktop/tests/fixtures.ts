@@ -19,6 +19,7 @@ export const test = base.extend<{ sparky: Sparky; page: Page }>({
     await writeFile(environmentFile, JSON.stringify({ SPARKY_CORE_DB: database,
       ...(process.env.SPARKY_E2E_LIVE_NOTIFY === "1" ? {} : { SPARKY_NOTIFY_MODULE: resolve("tests/helpers/notify-stub.cjs") }) }), { mode: 0o600 });
     let app: ElectronApplication | undefined;
+    let launchedProcess: ReturnType<ElectronApplication["process"]> | undefined;
     const core = async () => JSON.parse(await readFile(join(dirname(database), "run/core.json"), "utf8")) as CoreState;
     const killCore = async (signal: NodeJS.Signals = "SIGTERM") => {
       try {
@@ -37,6 +38,8 @@ export const test = base.extend<{ sparky: Sparky; page: Page }>({
     try {
       const startedAt = performance.now();
       app = await _electron.launch({ executablePath, args: [`--user-data-dir=${join(directory, "userdata")}`, `--sparky-e2e-env=${environmentFile}`], env, timeout: 30_000 });
+      // Playwright disposes the application's channel after a normal last-window exit.
+      launchedProcess = app.process();
       await app.context().tracing.start({ screenshots: true, snapshots: true, sources: true });
       const page = await app.firstWindow();
       page.setDefaultTimeout(10_000);
@@ -53,9 +56,8 @@ export const test = base.extend<{ sparky: Sparky; page: Page }>({
           await app.context().tracing.stop({ path: info.outputPath("trace.zip") }).catch(() => {});
           await app.windows()[0]?.screenshot({ path: info.outputPath("failure.png") }).catch(() => {});
         } else await app.context().tracing.stop().catch(() => {});
-        const process = app.process();
         let timer: ReturnType<typeof setTimeout> | undefined;
-        await Promise.race([app.close().catch(() => {}), new Promise<void>(done => { timer = setTimeout(() => { if (process.exitCode === null) process.kill("SIGKILL"); done(); }, 5000); })]);
+        await Promise.race([app.close().catch(() => {}), new Promise<void>(done => { timer = setTimeout(() => { if (launchedProcess?.exitCode === null) launchedProcess.kill("SIGKILL"); done(); }, 5000); })]);
         if (timer) clearTimeout(timer);
       }
       // Attach logs only, never core.json or mcp-token (both contain bearer secrets).

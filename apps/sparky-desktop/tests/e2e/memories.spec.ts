@@ -5,6 +5,8 @@ test("virtualized memories render core rows and scroll to the last memory", asyn
   await sparky.seed(120);
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
   await expect(page.getByText("Live · 120 memories", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Sort memories", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Title", exact: true }).click();
   await expect(page.locator("[data-row-id]").first()).toBeVisible();
   const count = await page.locator("[data-row-id]").count();
   expect(count).toBeGreaterThan(0);
@@ -13,9 +15,7 @@ test("virtualized memories render core rows and scroll to the last memory", asyn
   await expect(page.getByRole("row", { name: "Performance memory 00119", exact: true })).toBeVisible();
 });
 
-test("keyboard create, edit, pin, complete, undo and delete", async ({ sparky, page }) => {
-  // Remaining shell-owner gap: plans/sparky-next/requests/w3-e2e-6.md.
-  test.fixme(process.env.SPARKY_E2E_RECHECK_GAPS !== "1", "w3-e2e-6: shell intercepts native keyboard activation. Virtualized rows are covered separately.");
+test("keyboard create, edit, pin, complete, undo and delete", async ({ sparky, page }, info) => {
   await sparky.skipOnboarding();
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
   await page.getByRole("main").getByRole("button", { name: "New memory", exact: true }).first().focus();
@@ -26,10 +26,18 @@ test("keyboard create, edit, pin, complete, undo and delete", async ({ sparky, p
   await dialog.getByRole("button", { name: "Create memory" }).press("Space");
   const title = page.locator("[data-memory-title]");
   await expect(title).toHaveValue("Keyboard memory");
-  await title.focus(); await page.keyboard.press("Meta+A"); await page.keyboard.type("Edited memory"); await page.keyboard.press("Meta+S");
+  await title.focus(); await page.keyboard.press("Meta+A"); await page.keyboard.type("Edited memory");
+  await expect(title).toHaveValue("Edited memory");
+  await page.keyboard.press("Meta+S");
   await expect(page.getByText("Live · Saved", { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(async () => (await window.sparky.memories.list({ inboxOnly: true, limit: 500 })).memories?.[0]?.title)).toBe("Edited memory");
   await page.keyboard.press("Meta+J");
+  await info.attach("saved-title-and-collection", { body: JSON.stringify(await page.evaluate(async () => ({
+    persistedTitles: (await window.sparky.memories.list({ inboxOnly: true, limit: 500 })).memories?.map(memory => memory.title) ?? [],
+    renderedRows: [...document.querySelectorAll("[data-row-id]")].map(row => ({ id: row.getAttribute("data-row-id"), name: row.getAttribute("aria-label"), text: row.textContent })),
+  }))), contentType: "application/json" });
   const row = page.getByRole("row", { name: "Edited memory", exact: true });
+  await expect(row).toBeVisible();
   await row.focus(); await page.keyboard.press("p"); await expect(row.getByRole("button", { name: "Pin Edited memory" })).toHaveAttribute("aria-pressed", "true");
   await row.focus(); await page.keyboard.press("Space");
   const undo = page.getByRole("button", { name: "Undo", exact: true });
