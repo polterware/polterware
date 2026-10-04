@@ -29,6 +29,7 @@ export function createSearchStore(
   const [searchError, setSearchError] = createSignal("");
   const [searched, setSearched] = createSignal(false);
   const [activeId, setActiveId] = createSignal<string | null>(null);
+  let commandGeneration = 0;
   let generation = 0, timer: ReturnType<typeof setTimeout> | undefined, unsubscribe: (() => void) | undefined, users = 0;
 
   function persistRecent(items: string[]) { if (storage) writeJson(storage, RECENT_KEY, items); }
@@ -90,6 +91,7 @@ export function createSearchStore(
   }
 
   function schedule() {
+    generation += 1;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => { timer = undefined; void run(); }, debounceMs);
   }
@@ -107,6 +109,17 @@ export function createSearchStore(
       setFiltersValue(current => ({ ...current, ...patch }));
       if (query().trim()) schedule();
     },
+    async commandQuery(text: string): Promise<SearchHitJSON[]> {
+      const ticket = ++commandGeneration;
+      generation += 1;
+      await new Promise(resolve => setTimeout(resolve, debounceMs));
+      if (ticket !== commandGeneration) return [];
+      await run(text, EMPTY_FILTERS);
+      if (ticket !== commandGeneration) return [];
+      if (searchState() !== "live") throw new Error(searchError() || "Search unavailable.");
+      return visibleHits();
+    },
+    openHit(id: string) { return getBridge().app.openDeepLink(`sparky://memory/${encodeURIComponent(id)}`); },
     setActiveId,
     applyRecent(value: string) { setQueryValue(value); void run(value, filters()); },
     saveFilters(name: string) {
@@ -156,7 +169,7 @@ export function createSearchStore(
     },
     reload: () => { void loadMeta(); return run(); },
     flush: () => { if (timer) { clearTimeout(timer); timer = undefined; } return run(); },
-    dispose() { unsubscribe?.(); unsubscribe = undefined; users = 0; if (timer) clearTimeout(timer); generation += 1; },
+    dispose() { commandGeneration += 1; unsubscribe?.(); unsubscribe = undefined; users = 0; if (timer) clearTimeout(timer); generation += 1; },
   };
   return store;
 }
