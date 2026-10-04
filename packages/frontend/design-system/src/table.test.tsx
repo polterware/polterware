@@ -46,10 +46,10 @@ describe("DataTable", () => {
     document.body.append(host);
     const previousScrollTo = HTMLElement.prototype.scrollTo;
     HTMLElement.prototype.scrollTo = scrollTo;
-    const [rows, setRows] = createSignal(Array.from({ length: 1000 }, (_, index) => ({ id: String(index) })));
+    const [rows, setRows] = createSignal(Array.from({ length: 1000 }, (_, index) => ({ id: String(index), label: `Row ${index}` })));
     const dispose = render(() => <DataTable.Root rows={rows()} virtualized estimateRowHeight={40}>
       <DataTable.Table aria-label="Virtualized fixture">
-        <DataTable.Body>{row => <DataTable.Row row={row} rowId={row.id} onActivate={() => {}}><DataTable.Cell>{row.id}</DataTable.Cell></DataTable.Row>}</DataTable.Body>
+        <DataTable.Body>{row => <DataTable.Row row={row} rowId={row.id} onActivate={() => {}}><DataTable.Cell>{row.label}</DataTable.Cell></DataTable.Row>}</DataTable.Body>
       </DataTable.Table>
     </DataTable.Root>, host);
     try {
@@ -63,7 +63,7 @@ describe("DataTable", () => {
       await vi.waitFor(() => expect(host.querySelector('[data-row-id="20"]')).not.toBeNull());
       expect(host.querySelector('[data-row-id="12"]')).toBe(retained);
       expect(document.activeElement).toBe(retained);
-      setRows(previous => [...previous, { id: "1000" }]);
+      setRows(previous => [...previous, { id: "1000", label: "Row 1000" }]);
       expect(host.querySelector('[data-row-id="12"]')).toBe(retained);
       expect(document.activeElement).toBe(retained);
       scroll.scrollTop = 20000;
@@ -71,6 +71,8 @@ describe("DataTable", () => {
       await vi.waitFor(() => expect(host.querySelector('[data-row-id="500"]')).not.toBeNull());
       expect(host.querySelector('[data-row-id="0"]')).toBeNull();
       expect(host.querySelectorAll("[data-row-id]").length).toBeLessThan(30);
+      setRows(previous => previous.map(row => row.id === "500" ? { ...row, label: "Refreshed row" } : row));
+      await vi.waitFor(() => expect(host.querySelector('[data-row-id="500"]')?.textContent).toBe("Refreshed row"));
     } finally {
       dispose(); host.remove(); size.mockRestore(); width.mockRestore();
       HTMLElement.prototype.scrollTo = previousScrollTo;
