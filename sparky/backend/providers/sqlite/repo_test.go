@@ -52,9 +52,11 @@ func (r *recIndex) Delete(_ context.Context, memoryID string) error {
 	return nil
 }
 
-func (r *recIndex) Search(context.Context, string, int) ([]search.Hit, error) { return nil, nil }
-func (r *recIndex) Rebuild(context.Context, []search.Document) error          { return nil }
-func (r *recIndex) Count(context.Context) (int, error)                        { return 0, nil }
+func (r *recIndex) Search(context.Context, string, search.Filter) ([]search.Hit, error) {
+	return nil, nil
+}
+func (r *recIndex) Rebuild(context.Context, []search.Document) error { return nil }
+func (r *recIndex) Count(context.Context) (int, error)               { return 0, nil }
 
 func (r *recIndex) last() search.Document {
 	r.mu.Lock()
