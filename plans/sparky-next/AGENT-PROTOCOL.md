@@ -46,8 +46,8 @@ committing secrets or `.env`, sending real personal data to any network service,
 ## 4. Commits and merges
 
 - Commit early, in small steps. Format: `sparky(<ws-id>): <imperative summary>` (English, no trailing period).
-- Run the WS **Verify** commands before the final commit. Then write `plans/sparky-next/status/<ws-id>.md` (template below),
-  commit, and push `sparky/<ws-id>`.
+- Run the WS **Verify** commands before the final commit. Then write `plans/sparky-next/status/<ws-id>.md` (template below)
+  and commit. **Do NOT push anything (no branches, no tags)**: the integrator pushes when Erick says so. Create a tag only when your WS says so, and only locally.
 - The integrator merges with `git merge --no-ff sparky/<ws-id>` into `sparky-next` in the order given in each wave doc,
   runs `bash tooling/verify-sparky.sh`, and only then starts dependants.
 - If a merge conflicts, the **later** WS rebases onto `sparky-next` and fixes its own side. Never resolve by editing another
@@ -90,7 +90,7 @@ All
 1. All acceptance criteria in the WS section are met and demonstrable by a command or test.
 2. Verify commands pass in your worktree.
 3. No file outside Owns changed (`git diff --stat sparky-next...HEAD` shows only owned paths + the status file).
-4. Status file written. Branch pushed.
+4. Status file written and committed locally (nothing pushed).
 
 ### Status file template (`plans/sparky-next/status/<ws-id>.md`)
 

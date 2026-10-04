@@ -11,7 +11,7 @@ at the end.
 authors but must pass), `sparky/backend/tests/**` (integration/perf), root script `test:e2e:sparky` (request to W0-SCAFFOLD's
 owner if a shared file must change).
 **Do.** Playwright `_electron` runner with an isolated temp data dir (`SPARKY_DATA_DIR` override honored by Main and core) and a
-stub notifier mode; seeded fixtures (10k memories, recurring series across DST); scenarios: first run/onboarding, capture →
+stub native-notification mode; seeded fixtures (10k memories, recurring series across DST); scenarios: first run/onboarding, capture →
 schedule → complete, Mind cascade delete, agent write while window open (via the real MCP stdio client), conflict banner,
 search modes, attachments import, map with tiles off, focus phase, core crash/restart recovery, window close with core alive.
 Performance suite against budgets in [01-architecture.md](01-architecture.md) (RSS, startup, list/FTS p95, FPS traces).
@@ -43,7 +43,7 @@ interactive element reachable and labeled; Erick signs off on screenshots.
 ## W3-PACKAGING — release build
 
 **Owns.** `apps/sparky-desktop/electron-builder.yml`, `apps/sparky-desktop/scripts/**`, `.github/workflows/sparky-release.yml`
-(request to scaffold owner if needed), `apps/sparky-notifier/scripts/package.sh`.
+(request to scaffold owner if needed), `apps/sparky-desktop/native/scripts/package.sh`.
 **Do.** Reproducible `pnpm dist:sparky:mac`: builds `dist/sparky` (universal or arm64 per decision), embeds core + notifier,
 signs (A12: ad-hoc/unsigned by default; **ask Erick** before buying/using a Developer ID), dmg + zip, `electron-updater`
 channel via GitHub Releases for the Sparky repo (decision: same repo as Polterware or a new one — ask Erick), install/launch
@@ -92,6 +92,6 @@ lasting decision to code comments/ADR-style notes where the repo already records
 | TS typecheck + unit | `pnpm --filter "@polterware/*sparky*" --filter @polterware/frontend-design-system --filter @polterware/gallery typecheck test` | verify-sparky |
 | Design lint | `pnpm design:lint` (and `pnpm test:ui-opacity`) | verify-sparky |
 | Polterware non-regression | `pnpm typecheck && pnpm test` | verify-sparky (full) |
-| Notifier | `xcodebuild test` / `swift test` in `apps/sparky-notifier` | W1-NOTIFIER, G1 |
+| Native reminders | `bash apps/sparky-desktop/native/scripts/e2e.sh` | W1-NATIVE-NOTIFY, G1 |
 | E2E | `pnpm test:e2e:sparky` | W3-E2E, G2/G3 |
 | Supply chain | `pnpm audit --prod`, `govulncheck ./...` | W3-SECURITY |

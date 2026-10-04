@@ -16,8 +16,9 @@ stack, sharing the Polterware design system so both apps look like one product f
 - UI: Electron + Solid + Tailwind 4 + Ark UI + Motion, using `@polterware/frontend-design-system`.
 - Backend: a **Go core** (`sparky`) that is the only process opening SQLite (WAL), exposes the UI API (Connect RPC) and the
   **MCP server** on loopback. No hosted server, no pairing, no mirror, no command queue.
-- Reminders: computed by the core, delivered by the **operating system** through a tiny signed Swift login-item helper
-  (`SparkyNotifier`), so banners fire with every Sparky process closed.
+- Reminders: computed by the core, delivered by the **operating system** (a small native module in Electron Main schedules
+  `UNUserNotificationCenter` requests under the Sparky app identity, like the Swift app does), so banners fire with every Sparky
+  process closed. Refreshed whenever Sparky runs.
 - Separate app, separate code, separate backend from Polterware. Shared: design system, tokens, brand assets, repo.
 
 Nobody uses the current Sparky (including Erick). **There is no data migration, no importer, no Sparkle path, no coexistence.**
@@ -52,8 +53,8 @@ Out of scope: iPhone, geofence arming, accounts, sync, Cloud, Windows/Linux, App
 
 | Wave | Purpose | Workstreams (parallel) | Gate to leave the wave |
 |------|---------|------------------------|------------------------|
-| **0** | Scaffold, spikes, contracts freeze | W0-SCAFFOLD, W0-CONTRACTS, W0-NOTIFIER, W0-MCP, W0-STORE, W0-MAP, W0-DS-AUDIT | **G0**: notifier spike passes; MCP SDK, FTS5/vector and map provider decided; contracts tagged `sparky-contracts-v1` |
-| **1** | Backend, Electron shell, design system, notifier | W1-STORE, W1-DOMAIN, W1-RECURRENCE, W1-CORE, W1-MCP, W1-SEARCH, W1-ATTACH, W1-ELECTRON, W1-DS, W1-NOTIFIER, W1-ASSETS | **G1**: Go tests green, MCP smoke green, DS non-regression for Polterware, Electron boots against the real core |
+| **0** | Scaffold, spikes, contracts freeze | W0-SCAFFOLD, W0-CONTRACTS, W0-NOTIFIER (done, partial), W0-NATIVE-NOTIFY, W0-CONTRACTS-FIX, W0-MCP, W0-STORE, W0-MAP, W0-DS-AUDIT | **G0**: native-reminders spike passes; MCP SDK, FTS5/vector and map provider decided; contracts tagged `sparky-contracts-v1` |
+| **1** | Backend, Electron shell, design system, native reminders | W1-STORE, W1-DOMAIN, W1-RECURRENCE, W1-CORE, W1-MCP, W1-SEARCH, W1-ATTACH, W1-ELECTRON, W1-DS, W1-NATIVE-NOTIFY, W1-ASSETS | **G1**: Go tests green, MCP smoke green, DS non-regression for Polterware, Electron boots against the real core |
 | **2** | Features (UI + CLI) | W2-SHELL, W2-MEMORIES, W2-MINDS, W2-SCHEDULE, W2-CALENDAR, W2-ATTACH-UI, W2-FOCUS, W2-REVIEW, W2-MAP, W2-SETTINGS, W2-SEARCH-UI, W2-CLI | **G2**: every feature works end to end against the real core; `verify-sparky` green |
 | **3** | Integration, security, packaging, polish | W3-E2E, W3-SECURITY, W3-PACKAGING, W3-POLISH, W3-CONVERGE, W3-CLEANUP | **G3**: release checklist in [10-wave3-and-verification.md](10-wave3-and-verification.md) |
 
@@ -64,7 +65,8 @@ amend [00-decisions.md](00-decisions.md) **before** Wave 1 starts.
 
 ```text
 apps/sparky-desktop/        Electron: src/main, src/preload, src/renderer, resources, electron-builder.yml
-apps/sparky-notifier/       Swift login-item helper (SparkyNotifier.app)
+apps/sparky-desktop/native/   native reminders module (loaded by Electron Main)
+apps/sparky-notifier/       Swift helper spike code (reference only; removed at cleanup)
 sparky/backend/             Go module github.com/polterware/polterware/sparky/backend
   domains/                  pure domain logic (no I/O imports)
   providers/                sqlite, mcp, search, attachments

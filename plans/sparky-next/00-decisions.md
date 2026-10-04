@@ -18,15 +18,15 @@
 
 | ID | Assumption | Default |
 |----|-----------|---------|
-| A1 | v1 targets macOS only (the notifier is Swift/macOS). Windows/Linux are future work | macOS 15+ (confirm the minimum in W0-NOTIFIER) |
+| A1 | v1 targets macOS only (native reminders use UNUserNotificationCenter). Windows/Linux are future work | macOS 15+ (confirm the minimum in W0-NOTIFIER) |
 | A2 | Location data (`places`) is stored and shown on the map, but **geofence arming is not implemented** (same as the current Mac app) | Place has `event` enter/exit stored for the future |
 | A3 | Tags are in the core model (the Swift app has them) | Yes |
 | A4 | MCP is local only: loopback HTTP + stdio bridge, no OAuth, no pairing, no remote | Yes; remote MCP is out of scope |
 | A5 | The Swift "Me" tab becomes **Review** | Yes |
-| A6 | Focus timer runs in the renderer; it arms a one-off OS notification for each phase end through the notifier | Yes |
+| A6 | Focus timer runs in the renderer; it arms a one-off OS notification for each phase end through the native reminders module | Yes |
 | A7 | **No semantic search** (no embeddings, no vectors, no provider, no local model). Search is FTS5 only; an MCP agent may rerank results itself (Erick, 2026-10-04) | Decided |
 | A9 | Map uses free tiles without an API key; provider chosen by W0-MAP. Geocoding (address search) is opt-in and disabled by default because it sends text to a third party | Yes |
-| A10 | App display name "Sparky"; bundle ids `com.polterware.sparky`, `com.polterware.sparky.notifier`; URL scheme `sparky://`; data dir `~/Library/Application Support/Sparky/` | Yes |
+| A10 | App display name "Sparky"; bundle id `com.polterware.sparky`; URL scheme `sparky://`; data dir `~/Library/Application Support/Sparky/` | Yes |
 | A11 | App icon = `/Users/erickpatrickbarcelos/codes/sparky-workspace/sparky/new.icon` (8-point star, dithered gradient, dark tile) | Yes; W1-ASSETS exports the variants |
 | A12 | macOS code signing: Polterware ships with `identity: null` (unsigned). Sparky starts the same; W3-PACKAGING decides Developer ID. The notifier must work ad-hoc signed (W0-NOTIFIER proves it) | Yes |
 
@@ -34,7 +34,7 @@
 
 | ID | Question | Resolved by | Deadline |
 |----|----------|-------------|----------|
-| O1 | Is `SMAppService.agent` (launchd, KeepAlive) or `.loginItem` the right helper registration? Is the pending-notification limit on macOS 26 really 64? Does it work ad-hoc signed? | W0-NOTIFIER | G0 |
+| O1 | ~~SMAppService helper~~ **Resolved 2026-10-04**: native module in Electron Main; final form (N-API vs Swift+koffi) and relaunch behavior by W0-NATIVE-NOTIFY | W0-NATIVE-NOTIFY | G0 |
 | O2 | Official Go MCP SDK vs hand-rolled JSON-RPC (Polterware's MCP is hand-rolled) | W0-MCP | G0 |
 | O3 | Does `modernc.org/sqlite` ship FTS5 and the commit/preupdate hooks we need? (vector latency was also measured; no longer needed) | W0-STORE | G0 |
 | O4 | Map provider and library: MapLibre GL + OpenFreeMap vs Leaflet + raster vs PMTiles; terms of use; CSP | W0-MAP | G0 |

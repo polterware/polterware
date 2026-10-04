@@ -99,38 +99,52 @@ type ReminderItem struct {
 Pending one-offs (`reminder_oneoffs`: focus phase ends, snoozes) are also emitted as items with ID `one:<id>` and
 `Category` `focus-phase` / `reminder`; they sort with everything else. Algorithm: for every memory generate occurrences in
 `[now, now+Horizon]`, skip completed occurrences, add one-offs, merge-sort by `FireAt`,
-keep the first `Budget` (**nearest-first globally**, not per memory). Never emit repeating native triggers; every item is one
-concrete calendar trigger. The notifier re-plans whenever it wakes, so the window slides forward.
+keep the first `Budget` (**nearest-first globally**, not per memory), generating occurrences **lazily** (k-way merge, stop at `Budget`;
+never expand a minutely/hourly series into thousands of dates). **Native repeating triggers** (as the Swift app does) are emitted
+for open-ended rules the OS can express: daily at a time, weekly on weekdays at a time, hourly (every 1) at a minute, minutely
+(every 1) — item carries `Repeat *DateComponents` and counts as one slot per weekday; such triggers never run out. Bounded
+rules (until/count) and `every > 1` are armed as concrete one-shot items (≤ `Budget`). A repeating trigger cannot skip a completed
+occurrence (same as Swift); `Done` completes the occurrence in the core and the series continues.
 
-Re-plan triggers: notifier start, every change-stream message touching `memories`/`schedules`/`completions`, a delivered
+Re-plan triggers (**debounced 500 ms**; only changes to title, schedule, status or completions — not note edits beyond the 140-char body — cause a re-plan): Electron start, every change-stream message touching `memories`/`schedules`/`completions`, a delivered
 notification, system wake, timezone change, and a 6-hour timer. The core also exposes `Plan` for `sparky status`/`doctor`.
 
-## Notifier (`apps/sparky-notifier`) behavior
+## Delivery: native module inside Electron Main (decision O1, 2026-10-04)
 
-1. On launch: `ensureCore` (read `core.json`, health-check; spawn the bundled `sparky serve` if missing), request
-   notification authorization once, subscribe to `ChangeService.Watch`.
-2. `Plan` → diff against `UNUserNotificationCenter.getPendingNotificationRequests` by identifier **and** content hash
-   (`title|body|fireAt|category`); add missing, replace changed, remove stale. Identifiers start with `rem:` or `one:`; the
-   helper never touches foreign identifiers.
-3. Categories/actions: `reminder` → **Done** (`CompleteOccurrence`), **Snooze** (`Snooze` RPC, setting default 10 min; the core
-   creates a `snooze` one-off and the next `Plan` delivers it), **Open** (default action → `sparky://memory/<id>`);
-   `reminder-focus` adds **Start focus** (`sparky://memory/<id>?action=focus`). Focus phase-end notifications: category
-   `focus-phase`, no actions, created by the renderer through `ArmOneOff` and cancelled with `CancelOneOff` on pause/stop.
-4. Actions must work with the Electron app **closed**: they call the core directly (`Complete`/`Snooze`), then re-plan.
-5. Sound: `notifications.sound` setting maps to bundled sound files in the helper bundle (see W1-ASSETS).
-6. Logs to `<data>/run/notifier.log`. Reports `lastSeenAt` via `Ack`/heartbeat so the UI can show "Reminders: armed 12 · notifier running".
-7. If the core is unreachable it retries with backoff and **keeps the already-armed notifications** (the OS still delivers them).
+A launchd helper does not stay alive (W0-NOTIFIER evidence), so delivery uses the same mechanism as the current Swift app: the
+**Sparky app itself** schedules `UNNotificationRequest`s under its own bundle identity; the OS holds and delivers them with every
+Sparky process closed. Electron has no scheduling API, so Main loads a small **native module** (`apps/sparky-desktop/native/notify`).
 
-## Registration and packaging (O1)
+Module API (JS): `requestAuthorization()`, `apply(plan)` (diff: add/replace/remove by identifier + content hash), `pending()`,
+`removeAll(prefix)`, `onAction(cb)`, `status()` → `{authorization, pendingCount}`. Implementation form decided by spike
+W0-NATIVE-NOTIFY: Objective-C++ N-API addon (node-addon-api, prebuilt for the pinned Electron ABI) **or** a Swift dynamic library
+with a C ABI loaded through `koffi`. The existing Swift spike code under `apps/sparky-notifier` is the starting point.
 
-Spike both and pick one: `SMAppService.agent(plistName:)` (launchd, `KeepAlive` restarts a crashed helper; plist in
-`Contents/Library/LaunchAgents/`) vs `SMAppService.loginItem(identifier:)` (bundle in `Contents/Library/LoginItems/`).
-Electron registers it through `app.setLoginItemSettings` with the matching `type`/`serviceName` (verify the API in the pinned
-Electron version) or a tiny native helper if Electron cannot. Required evidence in the spike: works ad-hoc signed; survives
-`kill -9`; starts at login; first-run permission prompt appears from the helper's identity (not from Electron).
+Behavior
+1. Plan: Main calls `ReminderService.Plan` (same RPC), diffs against `pending()` by identifier (`rem:`/`one:`) **and** content hash
+   (`title|body|fireAt|category|repeat`), adds/replaces/removes. Never touches foreign identifiers.
+2. Categories/actions: `reminder` → **Done** (`CompleteOccurrence`), **Snooze** (`Snooze` RPC), **Open** (default → `sparky://memory/<id>`);
+   `reminder-focus` adds **Start focus**; `focus-phase`: no actions (armed through `ArmOneOff`, cancelled with `CancelOneOff`).
+3. Authorization: requested in onboarding from Sparky's identity (must go through LaunchServices-started app, not a raw exec);
+   denied → status `permission denied`, nothing is armed, already-armed ones stay with the OS.
+4. **Actions with Sparky closed**: the OS relaunches Sparky in the background; Main registers the notification delegate as the first
+   thing it does, runs `ensureCore`, applies `Complete`/`Snooze`, re-plans, and quits if no window was opened (idle 10 s). Target:
+   action applied in < 1.5 s after click on an M-series Mac (measured in the spike; if not met, document and show it honestly).
+5. **Re-plan triggers**: Electron start, change stream while running, system wake, timezone change, delivered notification, 6-hour
+   timer while running, and **core writes while Electron is closed**: when a schedule/status write arrives from MCP or the CLI and no
+   Sparky window/Main is running, the core launches `open -g -j -a Sparky --args --background-replan` (hidden), Main re-plans and quits.
+   If the spike shows this hidden relaunch is not viable, reminders armed from agent writes will be refreshed the next time Sparky
+   runs, and the UI says so.
+6. Honest status (UI chip, `ReminderService.Status`): `armed N · refreshed <time>` / `permission denied` / `refresh pending (opens with Sparky)`.
+7. Sound: `notifications.sound` maps to bundled sound files in the app bundle (W1-ASSETS).
+8. Logs: `<data>/run/notify.log`.
 
-## Fallback if the spike fails (decision recorded in [12-risks.md](12-risks.md))
+Limits and known behavior: pending cap on macOS 26.6.2 accepted ≥ 100 (spike); `Budget` stays 60. Minimum macOS 15. Works ad-hoc signed
+(the Swift app already ships this way); Developer ID is **optional** and would allow a future always-alive helper that re-arms without
+Sparky running.
 
-Plan B: Electron Main posts notifications (Electron `Notification`) from a core-driven timer while the app is running in the
-background (tray-less, hidden window); document honestly that reminders need Sparky running. The core planner and the RPC
+## Fallback
+
+If the native module cannot schedule reliably under Electron (spike W0-NATIVE-NOTIFY fails): Electron Main posts notifications from a
+core-driven timer while it runs in the background, and the UI states "Reminders need Sparky running". The core planner and RPC
 surface stay identical, so only the delivery adapter changes.

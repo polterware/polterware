@@ -1,9 +1,9 @@
-# Wave 1 — backend, Electron shell, design system, notifier
+# Wave 1 — backend, Electron shell, design system, native reminders
 
 Starts after G0. Workstreams run in parallel against the **frozen contracts** (`sparky-contracts-v1`) and the Go ports from
 W0-CONTRACTS. Where a WS needs another WS's implementation, it uses the in-memory fakes or a stub.
 Merge order: W1-DS, W1-ASSETS, W1-DOMAIN, W1-RECURRENCE, W1-STORE → W1-CORE → W1-SEARCH, W1-ATTACH → W1-MCP → W1-ELECTRON →
-W1-NOTIFIER. Gate **G1** at the end.
+W1-NATIVE-NOTIFY. Gate **G1** at the end.
 
 Shared reading for every Go WS: [02-data-and-contracts.md](02-data-and-contracts.md), AGENT-PROTOCOL §6, the Polterware
 patterns at `backend/platform/*`, `backend/compositions/local-core/*`, `backend/providers/sqlite/*`.
@@ -122,9 +122,9 @@ icons (W1-ASSETS).
 channels, preload `window.sparky` (namespaces in 06-ui.md; **no** endpoint/token exposed), window creation with vibrancy
 per DESIGN.md exception, single-instance lock + `sparky://` protocol registration and routing, native dialogs
 (`pickFiles`, save zip), `sparky-file://` protocol restricted to `<data>/attachments`, microphone permission helper,
-`app.setLoginItemSettings` registration of the notifier (per O1), keep-running-in-background behavior, `electron-updater`
+keep-running-in-background behavior, background (hidden) relaunch mode for reminder refresh and notification actions, `electron-updater`
 wiring (disabled until packaging), application menu, Help menu entries, CSP management (map hosts toggled by setting),
-notifier launch/health status for the UI, `electron-builder` config bundling `dist/sparky` and the notifier.
+reminder status for the UI, `electron-builder` config bundling `dist/sparky` and the native module (request to W1-NATIVE-NOTIFY's owner for the build step).
 **Acceptance.** Dev boot: window appears, core spawns once (kill the window — core stays), reconnect works after core restart;
 the Polterware security tests ported (`window-security`, `navigation-policy`, `ipc`) pass; `window.sparky.memories.list()` works
 in the stub renderer against a real core; deep link `open sparky://memory/<id>` reaches the renderer router; no Node API
@@ -163,18 +163,21 @@ clipping at the layer scale; export mood characters to WebP/PNG; convert notific
 legibility sheet is committed for Erick's review (he decides about the optional green dot); inventory table in the status file.
 **Verify.** `bash -c 'iconutil --version || true'` plus file-existence checks; `branding-assets.test.ts` ported by W1-ELECTRON passes.
 
-## W1-NOTIFIER — production notifier
+## W1-NATIVE-NOTIFY — production native reminders module
 
-**Owns.** `apps/sparky-notifier/**` (after W0-NOTIFIER merged).
-**Goal.** Implement the notifier behavior in 03 on the proven registration approach.
-**Do.** Real Connect/HTTP client to the core (token from `core.json`), `ChangeService.Watch` subscription with reconnect, plan
-diff (id + content hash), categories/actions, snooze, focus-phase notifications (`ReminderService` one-off items), re-plan
-triggers (start, change, wake, tz change, delivery, 6 h timer), `ensureCore` at login, heartbeat/`Ack`, permission-denied
-handling, logs, packaging script that embeds the app into the Electron bundle and signs it (ad-hoc/identity per A12).
-**Acceptance.** The W0 acceptance list again, now against the **real** core with real data: arming 200 memories respects
-`Budget`; completing an occurrence from the notification updates the UI live; editing a schedule in the UI re-arms within 2 s;
-tz change re-plans; with Electron closed everything still works; unit tests for the diff logic (Swift Testing).
-**Verify.** `xcodebuild test` (or `swift test`) for the notifier + the scripted end-to-end in `apps/sparky-notifier/scripts/e2e.sh`.
+**Owns.** `apps/sparky-desktop/native/**`, `apps/sparky-desktop/src/main/reminders/**` (module wiring, plan diff, actions, background relaunch),
+and `apps/sparky-notifier/**` (kept as reference; may be deleted at W3-CLEANUP).
+**Goal.** Implement the "Delivery" section of [03-recurrence-and-reminders.md](03-recurrence-and-reminders.md) on the form chosen by W0-NATIVE-NOTIFY.
+**Do.** The native module (build scripts for the pinned Electron ABI, prebuild/rebuild step wired through a request for `electron-builder.yml`/
+`package.json`), JS wrapper with types, plan diff (id + content hash + repeat descriptor), native repeating triggers, categories/actions,
+authorization flow, notification delegate registered first thing in Main, background mode (hidden launch, action handling, idle exit),
+core-triggered hidden relaunch, re-plan triggers (start, change stream, wake, timezone, delivery, 6 h timer), honest status for the UI,
+logs. Tests: diff logic in TS (vitest), Swift/ObjC unit tests where applicable, scripted end-to-end in
+`apps/sparky-desktop/native/scripts/e2e.sh` (real core, real notifications, Electron killed).
+**Acceptance.** The W0-NATIVE-NOTIFY acceptance list against the **real** core; 200 memories respect `Budget`; completing an occurrence
+from the notification updates the UI live when it is open; editing a schedule re-arms within 2 s while Sparky runs; timezone change
+re-plans; with Electron closed everything already armed still fires; no secrets or note content beyond the 140-char body in logs.
+**Verify.** `pnpm --filter @polterware/sparky-desktop test` and `bash apps/sparky-desktop/native/scripts/e2e.sh` (output in status).
 
 ---
 
@@ -184,5 +187,5 @@ tz change re-plans; with Electron closed everything still works; unit tests for 
 - [ ] `pnpm typecheck && pnpm test && pnpm design:lint` green (Polterware non-regression).
 - [ ] MCP smoke transcript with Claude Code attached to a dev core; `tools/list` size within budget.
 - [ ] `pnpm dev:sparky` shows the shell window connected to the real core (stub features), core survives window close.
-- [ ] Notifier E2E against the real core passes (Electron closed).
+- [ ] Native reminders E2E against the real core passes (Electron closed).
 - [ ] Gallery reviewed by Erick (screenshots in status files).

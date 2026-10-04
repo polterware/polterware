@@ -15,16 +15,16 @@ Modeled on the Polterware local core (`backend/runtimes/cli/serve.go`, `backend/
    ▲ window.sparky (preload)   │  change stream (WatchChanges)      │
    │                           └───────────────▲────────────────────┘
   Renderer (Solid)                             │ Plan / Ack / Complete
-                                  SparkyNotifier.app (Swift, login item)
-                                  └─▶ UNUserNotificationCenter (the OS delivers)
+       Electron Main + native notify module (Swift/ObjC++)
+       └─▶ UNUserNotificationCenter under Sparky.app identity (the OS delivers)
 ```
 
 1. **Core** (`dist/sparky serve`): the only process that opens SQLite. Detached daemon, lock-guarded, build handshake
    (replaced if a newer bundled build exists). Exposes: Connect RPC for the UI/CLI/notifier, MCP over HTTP and via stdio bridge.
 2. **Electron app** (`apps/sparky-desktop`): thin Main (supervisor, Connect-ES clients, IPC, deep links, updater, menu), typed
    preload bridge `window.sparky`, Solid renderer. Closing the window does not stop the core.
-3. **Notifier** (`apps/sparky-notifier`): ~few hundred lines of Swift, no UI. Arms OS notifications from the core's plan,
-   handles notification actions, opens `sparky://` links. Registered as a login item/agent (O1 decides which).
+3. **Native notify module** (`apps/sparky-desktop/native/notify`, loaded by Electron Main): schedules OS notifications under the
+   Sparky.app identity from the core's plan, handles notification actions, relaunches hidden to refresh. No separate helper app (O1).
 
 ## Paths and files
 
@@ -37,7 +37,6 @@ Modeled on the Polterware local core (`backend/runtimes/cli/serve.go`, `backend/
 | MCP token | `<data>/run/mcp-token` (stable, 0600; shown in Settings > Agents) |
 | Settings | `settings` table (no plist, no JSON files besides run state) |
 | Packaged core | `Sparky.app/Contents/Resources/sparky` |
-| Packaged notifier | `Sparky.app/Contents/Library/<LoginItems or LaunchAgents>/SparkyNotifier…` (O1) |
 
 ## Network and auth
 
@@ -60,8 +59,8 @@ IPC event → renderer store invalidates and refetches affected entities.
 **Agent write (MCP).** MCP client → tool → the **same domain service** (actor `mcp:<clientName>`) → commit → change stream →
 open window refreshes. Writes are synchronous: the tool result already contains the new entity (no queue, no polling).
 
-**Reminders.** Any schedule/memory/status change → change stream → notifier (and core's own planner tick) → `Plan` →
-notifier diffs against pending notifications → arms/cancels. Notification actions → `Complete`/`Snooze` RPC or `sparky://` deep link.
+**Reminders.** Any schedule/memory/status change → change stream (or a hidden relaunch of Sparky if it is closed) → Main calls `Plan` →
+the native notify module diffs against pending notifications → arms/cancels. Notification actions → `Complete`/`Snooze` RPC or `sparky://` deep link.
 See [03-recurrence-and-reminders.md](03-recurrence-and-reminders.md).
 
 **Conflict model.** Every mutable entity has `rev` (integer, +1 per write). Updates may send `expected_rev`; mismatch returns
@@ -75,9 +74,9 @@ the same session — see [04-mcp.md](04-mcp.md)).
   compare build id with the bundled binary, replace if older, spawn detached if missing. `POLTERWARE_*` env overrides become
   `SPARKY_CORE_ENDPOINT` / `SPARKY_CORE_TOKEN` for dev.
 - Core never idle-exits by default (reminders must keep working). `--idle` stays available for tests.
-- The notifier also runs `ensureCore` at login so reminders work even if the Electron app was never opened after reboot.
+- Reminders armed earlier keep firing after a reboot (the OS holds them); they are refreshed when Sparky next runs (see 03).
 - Quit behavior (setting): "Closing the window keeps Sparky running in the background" (default on). A menu-bar item is **not**
-  required in v1; the notifier owns persistence.
+  required in v1; the OS owns delivery of already-armed reminders.
 
 ## Deep links (`sparky://`)
 

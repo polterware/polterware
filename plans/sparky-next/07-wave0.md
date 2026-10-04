@@ -14,7 +14,7 @@ Gate **G0** at the end of this file.
 **Owns.** Shared files listed in AGENT-PROTOCOL §2, plus all new stub directories below.
 **Deliverables.**
 1. Integration branch `sparky-next` from `feat/atlas-grounded-sdd` HEAD (confirm base with Erick), with `plans/sparky-next/`
-   committed as its first commit (it is currently uncommitted in the main checkout), pushed.
+   committed as its first commit (it is currently uncommitted in the main checkout). Local only; nothing is pushed.
 2. Go module `sparky/backend` (`go.mod`: `github.com/polterware/polterware/sparky/backend`, go 1.27) added to `go.work`;
    directories from the README layout with `doc.go` stubs; `runtimes/cli/main.go` printing `sparky <version>` and subcommand
    stubs (`serve`, `mcp`, `status`, `doctor`).
@@ -64,7 +64,9 @@ against a sample call in a unit test.
 
 ---
 
-## W0-NOTIFIER — spike S1: OS-delivered reminders with every Sparky process closed
+## W0-NOTIFIER — spike S1 (DONE, partial; superseded by W0-NATIVE-NOTIFY)
+
+_Result: OS delivery with all processes killed works ad-hoc; a launchd helper does not stay alive (codesigning). See 00-decisions O1._
 
 **Goal.** Prove the reminder architecture or trigger Plan B. **Resolves O1.**
 **Owns.** `apps/sparky-notifier/**` (may restructure the skeleton), `spikes/notifier/**` (throwaway Go stub core + scripts).
@@ -145,10 +147,44 @@ source again.
 
 ---
 
+## W0-NATIVE-NOTIFY — spike S5: reminders from a native module inside Electron Main (resolves O1 for real)
+
+**Goal.** Prove the Swift-app mechanism under Electron: the Sparky app identity schedules OS notifications that fire with every Sparky
+process closed, with no launchd helper and ad-hoc signing.
+**Owns.** `spikes/native-notify/**` (may copy and adapt code from `apps/sparky-notifier` and `spikes/notifier`; do not edit those).
+**Do.** In an Electron stub (bundle id `com.polterware.sparky.spike2`, ad-hoc signed, started through LaunchServices): (1) native module
+in **both** forms — Objective-C++ N-API addon and Swift dylib + C ABI via `koffi` — exposing `requestAuthorization/apply/pending/
+removeAll/onAction/status`; (2) arm one-shot and **native repeating** (`UNCalendarNotificationTrigger` repeats) notifications; (3) kill
+Electron and the stub core with `kill -9`, confirm delivery; (4) notification **Done/Snooze actions with Electron closed**: the OS must
+relaunch the app, the delegate must run, the stub core must receive `complete`; measure click-to-applied latency and idle exit;
+(5) hidden relaunch `open -g -j -a <app> --args --background-replan` while another app is frontmost: no Dock bounce, no window, re-plan
+done, process exits; (6) timezone change and wake re-plan hooks; (7) measure bundle size/RSS of the Electron process in background
+mode; (8) record the authorization prompt identity.
+**Acceptance (evidence in the status file).** Delivery after kill for one-shot and repeating triggers; Done action applied with Electron
+closed (latency number); hidden relaunch works or is documented as not viable; recommended module form (N-API vs Swift+koffi) with
+build steps for the pinned Electron ABI; whether any Developer ID/entitlement is needed; fallback decision.
+**Output decision.** O1-final in 00-decisions (module form, relaunch behavior, latencies).
+
+---
+
+## W0-CONTRACTS-FIX — remove semantic search from the frozen contracts
+
+**Goal.** W0-CONTRACTS ran before decision A7 (no semantic search). Remove it from the contracts and re-freeze.
+**Owns.** Same paths as W0-CONTRACTS (`sparky/schemas/**`, generated Go/TS, `0001_baseline.sql`, `domains/*/ports.go|types.go`,
+`providers/mcp/schemas/*.json`, contract tests).
+**Do.** Delete the `embeddings` table; remove `ConfigureEmbedding`/`TestEmbedding`, `mode`/`modeUsed`, embedding state from `SearchService`;
+remove `search.semantic.*` settings and the `UNAVAILABLE (embedding provider)` note; drop `mode` from the `search_memories` tool schema
+and keep `tools/list` ≤ 6 144 bytes; update tests; regenerate (`buf generate`); `buf breaking` baseline updated intentionally.
+**Acceptance.** `grep -rIi -E "embedding|semantic|hybrid|vector"` over `sparky/` and `packages/sparky-contracts/` (excluding `node_modules`,
+`spikes`, and the recurrence-vector filename) returns nothing; `bash tooling/verify-sparky.sh` green; new annotated **local** tag
+`sparky-contracts-v1.1` (do **not** push it; do **not** move or delete `sparky-contracts-v1`, which is already on the remote).
+
+---
+
 ## Gate G0 (the integrator checks, then tags `sparky-wave0-done`)
 
 - [ ] W0-SCAFFOLD verify green; Polterware dev still works.
-- [ ] W0-CONTRACTS merged, `sparky-contracts-v1` tagged.
-- [ ] O1 resolved with passing evidence (or Plan B adopted and recorded; if Plan B, [03](03-recurrence-and-reminders.md) §Fallback is promoted to the main path before Wave 1).
+- [ ] W0-CONTRACTS merged and W0-CONTRACTS-FIX merged; `sparky-contracts-v1.1` tagged.
+- [ ] O1-final resolved by W0-NATIVE-NOTIFY (or the Fallback in [03](03-recurrence-and-reminders.md) adopted and recorded before Wave 1).
 - [ ] O2, O3, O4, O5 resolved and appended to the resolutions log in [00-decisions.md](00-decisions.md).
 - [ ] Erick reviewed the gallery-less summary and the contracts, and approved Wave 1.
