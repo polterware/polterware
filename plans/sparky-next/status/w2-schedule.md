@@ -1,0 +1,26 @@
+# w2-schedule status
+- Result: partial
+- Branch / last commit: `sparky/w2-schedule` / `5de2253` (`sparky(w2-schedule): add the memory-detail schedule card`)
+- Acceptance criteria:
+  - Every vector in 03 can be configured in the UI and previews match → partial. All 14 recurrence vectors map to `ScheduleInput` (`mapping.test.ts`: `form → ScheduleInput mapping`, vectors 1–14). The card binds those fields and renders `ScheduleService.Preview` description plus the next occurrences (`schedule-card.test.tsx`: `renders the Preview description and next occurrences from the core`). Live Preview against the Go planner was not observed (packaged e2e not run).
+  - DST edge preview correct for `America/New_York` → pass for the form instant (spring-forward 02:30 → 07:30Z / 03:30 EDT; fall-back 01:30 prefers 05:30Z). Evidence: `mapping.test.ts` `DST wall-clock conversion for America/New_York` and vectors 8–9. Live DST Preview against the core was not run.
+  - Invalid combos blocked with clear messages → pass. Client messages match the core rules (hourly all-day, weekdays on non-weekly, until/count). Evidence: `mapping.test.ts` `invalid combinations`; `schedule-card.test.tsx` `blocks an hourly all-day combination before calling Set`.
+  - Changing the schedule re-arms (status chip updates within 2 s) → fail. After Save the card polls `reminders.status` for 2 s, but live notifier re-arm was not observed. `apps/sparky-desktop/tests/e2e/schedule.spec.ts` is written and skipped without `SPARKY_E2E_EXECUTABLE`.
+  - Keyboard-complete form → pass in unit/DOM tests (DS DatePicker/TimePicker/Select/Switch/FilterChip/NumberStepper, Save focused, ⌘S). Evidence: `schedule-card.test.tsx` save/snooze/focus tests. Packaged keyboard e2e not run.
+  - Unit tests for the form → `ScheduleInput` mapping → pass. Evidence: `pnpm --filter @polterware/feature-sparky-schedule test` (`mapping.test.ts`, 14 vectors + DST + invalid + reminder wording).
+- Verification:
+  - `pnpm --filter @polterware/feature-sparky-schedule test`: pass (3 files / 47 tests).
+  - `pnpm --filter @polterware/feature-sparky-schedule typecheck`: pass.
+  - Literal `pnpm --filter @polterware/feature-sparky-schedule test typecheck` was not used as evidence: pnpm forwards `typecheck` to Vitest as a name filter. Scripts were run separately.
+  - `pnpm design:lint`: pass.
+  - `pnpm typecheck` (whole repo, including `@polterware/sparky-desktop`): pass.
+  - `git diff --check`: pass.
+  - `apps/sparky-desktop/tests/e2e/schedule.spec.ts`: written, **not run** (no W3-E2E packaged runner / `SPARKY_E2E_EXECUTABLE`).
+  - `polterware status` unavailable (`polterware: command not found`).
+- Deviations from the plan (and why):
+  - There is no `Describe` RPC; the card uses `Preview.description` (core `Describe`).
+  - `ScheduleInput` is the protobuf JSON `Schedule` body for Set/Preview, not a separate contract type.
+  - Per-memory reminder wording is derived from `ReminderService.Status` plus memory/occurrence completion (`armed | planned | notifier off | permission denied | completed`). Global chip copy stays owned by the shell.
+  - Root `pnpm-lock.yaml` was not committed; local install used `pnpm install --lockfile=false`.
+- Requests filed (plans/sparky-next/requests/...): `plans/sparky-next/requests/w2-schedule-1.md`
+- Follow-ups for other WS: W0-SCAFFOLD regenerate `pnpm-lock.yaml` from request 1; W3-E2E run `apps/sparky-desktop/tests/e2e/schedule.spec.ts` against a packaged app with notification permission (re-arm within 2 s).

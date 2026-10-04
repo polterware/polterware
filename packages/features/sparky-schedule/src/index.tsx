@@ -1,8 +1,13 @@
 import type { SparkyFeature } from "@polterware/feature-sparky-shell/feature";
+import { ScheduleCard } from "./schedule-card";
 
 const feature: SparkyFeature = {
   id: "schedule",
   routes: [],
+  detailSections: [{ id: "schedule", order: 10, component: ScheduleCard }],
 };
 
 export default feature;
+export { ScheduleCard };
+export { createScheduleBridge, browserBridge } from "./bridge";
+export { toScheduleInput, formFromSchedule, reminderWording } from "./mapping";
