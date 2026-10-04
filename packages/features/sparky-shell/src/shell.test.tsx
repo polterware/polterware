@@ -182,9 +182,9 @@ it("renders registered memoryDetail, memoryCollection, and sidebarTree", async (
   const Detail = (props: { memoryId: string; detailSections: { id: string }[] }) => (
     <DetailPanel.Body><DetailPanel.Main>Memory detail {props.memoryId} {props.detailSections.map(section => section.id).join(",")}</DetailPanel.Main></DetailPanel.Body>
   );
-  const Collection = () => {
+  const Collection = (props: { mindId: string }) => {
     const shell = useSparkyShell();
-    return <><p>Mind collection {shell.params().id}</p><Button onClick={() => shell.openMemory("mem-1")}>Open memory</Button></>;
+    return <><p>Mind collection {props.mindId}/{shell.params().id}</p><Button onClick={() => shell.openMemory("mem-1")}>Open memory</Button></>;
   };
   const { host, onLink } = mount([
     {
@@ -199,7 +199,7 @@ it("renders registered memoryDetail, memoryCollection, and sidebarTree", async (
   ]);
   await vi.waitFor(() => expect(host.textContent).toContain("Registered minds tree"));
   onLink("sparky://mind/home");
-  await vi.waitFor(() => expect(host.textContent).toContain("Mind collection home"));
+  await vi.waitFor(() => expect(host.textContent).toContain("Mind collection home/home"));
   expect(host.textContent).not.toContain("Mind is unavailable");
   button("Open memory").click();
   await vi.waitFor(() => expect(host.textContent).toContain("Memory detail mem-1 schedule,place"));

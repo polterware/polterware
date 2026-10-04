@@ -53,7 +53,7 @@ export type SparkyFeature = {
   settingsPanels?: SettingsPanelDef[];
   detailSections?: DetailSectionDef[];
   memoryDetail?: Component<MemoryDetailProps>;
-  memoryCollection?: Component;
+  memoryCollection?: Component<{ mindId: string }>;
   sidebarTree?: SidebarTreeDef;
   onDeepLink?: (url: URL) => boolean;
 };

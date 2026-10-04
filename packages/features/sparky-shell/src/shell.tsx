@@ -238,7 +238,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
                           <Show when={route()} fallback={<><PageHeader title={title()} subtitle={<StatusChip tone="muted" label="Unavailable" />} /><PageEmpty title={`${title()} is unavailable`} description="This feature has not registered a route yet." /></>}>
                             {resolved => <Dynamic component={resolved().route.component} />}
                           </Show>
-                        }>{collection => <Dynamic component={collection()} />}</Show>
+                        }>{collection => <Dynamic component={collection()} mindId={decodeURIComponent(normalizePath(path()).split("/")[2] ?? "")} />}</Show>
                       </ErrorBoundary>}</Show>
                     </DetailPanel.Collection>
                     <DetailPanel.Content><DetailPanel.Header /><ErrorBoundary fallback={boundary}>
