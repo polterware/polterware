@@ -44,4 +44,4 @@ Record each resolution as a dated line appended below.
 
 ## Resolutions log
 
-(empty — workstreams append: `YYYY-MM-DD O<n>: <decision> (WS, evidence link)`)
+- 2026-10-04 O4: **MapLibre GL JS + OpenFreeMap** (`https://tiles.openfreemap.org/styles/dark`) for online tiles; **supercluster** for marker clustering; **PMTiles** for optional offline/regional tiles (Protomaps basemap, user-provided or bundled region file); Leaflet+OSM raster rejected for v1 default due to OSM tile policy limits on desktop apps. Geocoding off by default; Nominatim acceptable only as opt-in manual search (≤1 req/s). CSP when `map.online`: `connect-src https://tiles.openfreemap.org`; `worker-src 'self' blob:`; `img-src 'self' data: blob:`. Attribution via MapLibre control (OpenMapTiles/OSM). (W0-MAP, `plans/sparky-next/status/w0-map.md`, `spikes/map/evidence/dark-map-maplibre.png`)

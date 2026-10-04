@@ -1,0 +1,17 @@
+@import "@tailwind-base";
+
+@source "./**/*.{ts,tsx}";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--color-app-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+@import "maplibre-gl/dist/maplibre-gl.css";

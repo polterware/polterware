@@ -1,0 +1,22 @@
+{
+  "measuredAt": "2026-10-04T02:02:45.895Z",
+  "rendererTotalKb": 2228,
+  "largestAssets": [
+    {
+      "name": "index-BflIbx1r.js",
+      "bytes": 2131030
+    },
+    {
+      "name": "index-D8dj60It.css",
+      "bytes": 141768
+    }
+  ],
+  "nodeModulesMainBytes": {
+    "maplibre-gl": 1056837,
+    "leaflet": 450229,
+    "leaflet.markercluster": 81160,
+    "pmtiles": 14882,
+    "supercluster": 15107
+  },
+  "notes": "Production renderer bundle includes all three providers; W2-MAP should lazy-load per provider."
+}
