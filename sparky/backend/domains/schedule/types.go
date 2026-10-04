@@ -47,7 +47,6 @@ type End struct {
 }
 
 // Rule is the pure recurrence value.
-// W1-RECURRENCE adds Validate, Next, At, Count, and Describe.
 // An empty Freq is a one-shot. Every counts from 1.
 // Weekly weekday masks use ISO weeks (Monday-start) from the anchor week.
 type Rule struct {
@@ -120,6 +119,11 @@ type PlanSubject struct {
 	Rule         Rule
 	CompletedAt  []time.Time
 	FocusEnabled bool
+	MindID       *string
+	TagIDs       []string
+	// Empty Status means active, preserving callers that supply active subjects.
+	Status           string
+	ScheduleInactive bool
 }
 
 // PendingOneOff is an extra notification (focus phase or snooze) merged into the plan.
