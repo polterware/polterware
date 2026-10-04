@@ -167,8 +167,8 @@ func (s reminderService) Heartbeat(ctx context.Context, hb reminder.Heartbeat) (
 	default:
 		return time.Time{}, invalid("authorization", "unknown notifier permission")
 	}
-	if hb.ArmedCount < 0 {
-		return time.Time{}, invalid("armed_count", "must be nonnegative")
+	if hb.ArmedCount < 0 || hb.ArmedCount > schedule.DefaultBudget {
+		return time.Time{}, invalid("armed_count", "must be between 0 and 60")
 	}
 	at := s.clock.Now().UTC()
 	if err := s.repo.SetHeartbeat(ctx, at, hb.Authorization, hb.ArmedCount); err != nil {
