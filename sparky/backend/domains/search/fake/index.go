@@ -19,7 +19,7 @@ func (*Index) Delete(context.Context, string) error {
 	panic("search/fake: not implemented")
 }
 
-func (*Index) Search(context.Context, string, int) ([]search.Hit, error) {
+func (*Index) Search(context.Context, string, search.Filter) ([]search.Hit, error) {
 	panic("search/fake: not implemented")
 }
 
