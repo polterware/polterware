@@ -20,6 +20,25 @@ func (d DocumentSource) Document(ctx context.Context, memoryID string) (search.D
 	return d.store.document(ctx, memoryID)
 }
 
+// Rebuild replaces the index in the caller's transaction. Collection must use
+// that same transaction so a newer memory write cannot be overwritten.
+func (d DocumentSource) Rebuild(ctx context.Context, docs []search.Document) error {
+	return d.store.Within(ctx, func(ctx context.Context) error {
+		if d.store.index == nil {
+			return fmt.Errorf("search index is not configured")
+		}
+		if _, err := d.store.q(ctx, true).ExecContext(ctx, `DELETE FROM memory_fts`); err != nil {
+			return fmt.Errorf("clear search index: %w", err)
+		}
+		for _, doc := range docs {
+			if err := d.store.index.Upsert(ctx, doc); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (s *Store) document(ctx context.Context, memoryID string) (search.Document, error) {
 	q := s.q(ctx, false)
 	var title, note string
