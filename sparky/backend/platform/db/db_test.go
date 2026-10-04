@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"testing/fstest"
@@ -164,6 +165,52 @@ type rollbackError struct{}
 func (rollbackError) Error() string { return "rollback" }
 
 var errRollback rollbackError
+
+func TestWaitingWriterHonorsCancellation(t *testing.T) {
+	h := tempHandle(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	entered, release := make(chan struct{}), make(chan struct{})
+	first := make(chan error, 1)
+	go func() {
+		first <- h.Within(ctx, func(context.Context) error {
+			close(entered)
+			<-release
+			return nil
+		})
+	}()
+	select {
+	case <-entered:
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	waitCtx, stop := context.WithCancel(ctx)
+	second := make(chan error, 1)
+	go func() {
+		second <- h.Within(waitCtx, func(context.Context) error {
+			return errors.New("cancelled writer entered transaction")
+		})
+	}()
+	stop()
+	var err error
+	var blocked bool
+	select {
+	case err = <-second:
+	case <-time.After(100 * time.Millisecond):
+		blocked = true
+	}
+	close(release)
+	if firstErr := <-first; firstErr != nil {
+		t.Fatal(firstErr)
+	}
+	if blocked {
+		err = <-second
+		t.Error("cancelled writer waited for unrelated transaction")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled writer: %v", err)
+	}
+}
 
 func TestWriterWaitsForCommitPublication(t *testing.T) {
 	h := tempHandle(t)
