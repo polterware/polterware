@@ -3,8 +3,12 @@ set -euo pipefail
 NATIVE="$(cd "$(dirname "$0")/.." && pwd)"
 DESKTOP="$(cd "$NATIVE/.." && pwd)"
 bash "$NATIVE/scripts/build.sh"
-ELECTRON_BIN="$(node -p "require(process.argv[1])" "$DESKTOP/node_modules/electron")"
-ELECTRON_APP="$(cd "$(dirname "$ELECTRON_BIN")/../.." && pwd)"
+ELECTRON_PKG="$(node -p "require('node:path').dirname(require.resolve('electron/package.json',{paths:[process.argv[1]]}))" "$DESKTOP")"
+if [[ ! -d "$ELECTRON_PKG/dist/Electron.app" ]]; then
+  node "$ELECTRON_PKG/install.js"
+fi
+ELECTRON_APP="$ELECTRON_PKG/dist/Electron.app"
+[[ -d "$ELECTRON_APP" ]] || { echo "Electron.app missing after install: $ELECTRON_APP" >&2; exit 1; }
 APP="$NATIVE/build/lifecycle/Sparky.app"
 RESULT="$NATIVE/build/lifecycle-result.json"
 [[ ! -e "$RESULT" ]] || rm "$RESULT"
