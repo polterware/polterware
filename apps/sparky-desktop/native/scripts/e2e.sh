@@ -1,30 +1,42 @@
 #!/usr/bin/env bash
-# Real-core, real-notification gate. Uses a TEMP database, TEMP Electron user-data-dir,
-# and a throwaway bundle identity. Never touches ~/Library/Application Support/Sparky.
+# Real-core, real-notification gate. Uses a TEMP database and TEMP Electron
+# --user-data-dir. Never touches ~/Library/Application Support/Sparky.
 set -euo pipefail
 NATIVE="$(cd "$(dirname "$0")/.." && pwd)"
 DESKTOP="$(cd "$NATIVE/.." && pwd)"
 ROOT="$(cd "$DESKTOP/../.." && pwd)"
 [[ "$(uname -s)" == Darwin ]] || { echo 'FAIL: native E2E requires macOS' >&2; exit 1; }
+pkill -f '/tmp/sparky-w1-native-notify-c.' 2>/dev/null || true
 
 WORKDIR="$(mktemp -d /tmp/sparky-w1-native-notify-c.XXXXXX)"
 DB="$WORKDIR/db/sparky.db"
 USERDATA="$WORKDIR/userdata"
 BIN="$WORKDIR/bin/sparky"
-APP="$WORKDIR/SparkyE2E.app"
+CODE="$WORKDIR/app"
 RESULT="$WORKDIR/inspect.json"
+ELECTRON=""
 ELECTRON_PID=""
 CORE_PID=""
 cleanup() {
   local code=$?
   set +e
-  if [[ -n "${ELECTRON_PID}" ]] && kill -0 "$ELECTRON_PID" 2>/dev/null; then
-    local exe
-    exe="$(ps -p "$ELECTRON_PID" -o comm= 2>/dev/null || true)"
-    if [[ "$exe" == *Electron* || "$exe" == *SparkyE2E* ]]; then kill "$ELECTRON_PID" 2>/dev/null; sleep 0.4; kill -9 "$ELECTRON_PID" 2>/dev/null; fi
+  if [[ -f "$WORKDIR/electron.log" ]]; then
+    echo '--- electron.log ---' >&2
+    cat "$WORKDIR/electron.log" >&2 || true
+    cp "$WORKDIR/electron.log" /tmp/sparky-e2e-last-electron.log 2>/dev/null || true
   fi
-  if [[ -x "$APP/Contents/MacOS/Electron" && -f "$NATIVE/build/notify.node" ]]; then
-    SPARKY_NOTIFY_E2E=1 "$APP/Contents/MacOS/Electron" --user-data-dir="$WORKDIR/inspect-userdata" "$NATIVE/scripts/e2e-inspect.cjs" cleanup "$NATIVE/build/notify.node" "$RESULT" >/dev/null 2>&1 || true
+  if [[ -f "$WORKDIR/db/run/notify.log" ]]; then
+    echo '--- notify.log ---' >&2
+    cat "$WORKDIR/db/run/notify.log" >&2 || true
+    cp "$WORKDIR/db/run/notify.log" /tmp/sparky-e2e-last-notify.log 2>/dev/null || true
+  fi
+  pkill -f "$CODE" 2>/dev/null || true
+  sleep 0.3
+  if [[ -f "$WORKDIR/db/run/core.json" ]]; then
+    CORE_PID="$(node -e 'try{console.log(JSON.parse(require("node:fs").readFileSync(process.argv[1],"utf8")).pid||"")}catch{console.log("")}' "$WORKDIR/db/run/core.json")"
+  fi
+  if [[ -f "$WORKDIR/inspect-env.json" && -n "$ELECTRON" && -x "$ELECTRON" ]]; then
+    perl -e 'alarm 20; exec @ARGV' "$ELECTRON" "$CODE" --user-data-dir="$WORKDIR/inspect-userdata" -- "--sparky-e2e-env=$WORKDIR/inspect-env.json" >/dev/null 2>&1 || true
   fi
   if [[ -n "${CORE_PID}" ]] && kill -0 "$CORE_PID" 2>/dev/null; then
     local core_exe
@@ -36,7 +48,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$WORKDIR/db" "$WORKDIR/bin" "$USERDATA" "$NATIVE/build"
+mkdir -p "$WORKDIR/db" "$WORKDIR/bin" "$USERDATA" "$CODE/native/build" "$NATIVE/build"
 bash "$NATIVE/scripts/build.sh"
 (cd "$ROOT" && go build -o "$BIN" ./sparky/backend/runtimes/cli)
 BANNER="$("$BIN")"
@@ -50,30 +62,44 @@ ELECTRON_PKG="$(node -p "require('node:path').dirname(require.resolve('electron/
 if [[ ! -d "$ELECTRON_PKG/dist/Electron.app" ]]; then
   node "$ELECTRON_PKG/install.js"
 fi
-ditto "$ELECTRON_PKG/dist/Electron.app" "$APP"
-PLIST="$APP/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier com.polterware.sparky.e2e-w1' "$PLIST"
-/usr/libexec/PlistBuddy -c 'Set :CFBundleName Sparky E2E' "$PLIST"
-/usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Sparky E2E' "$PLIST"
-CODE="$APP/Contents/Resources/app"
-mkdir -p "$CODE/native/build"
+ELECTRON="$ELECTRON_PKG/dist/Electron.app/Contents/MacOS/Electron"
 cp "$DESKTOP/package.json" "$CODE/package.json"
 ditto "$DESKTOP/out" "$CODE/out"
+cp "$NATIVE/scripts/e2e-main.cjs" "$CODE/e2e-main.cjs"
+node -e 'const fs=require("node:fs"); const p=process.argv[1]; const j=JSON.parse(fs.readFileSync(p,"utf8")); j.main="e2e-main.cjs"; delete j.type; fs.writeFileSync(p, JSON.stringify(j));' "$CODE/package.json"
 cp "$NATIVE/build/notify.node" "$CODE/native/build/notify.node"
-codesign --force --deep --sign - --identifier com.polterware.sparky.e2e-w1 "$APP"
-codesign --verify --deep --strict "$APP"
+ln -sfn "$DESKTOP/node_modules" "$CODE/node_modules"
 
-export SPARKY_CORE_BIN="$BIN"
-export SPARKY_CORE_DB="$DB"
-export SPARKY_NOTIFY_E2E=1
-"$APP/Contents/MacOS/Electron" "$CODE" --user-data-dir="$USERDATA" &
+ENVFILE="$WORKDIR/e2e-env.json"
+INSPECT_ENV="$WORKDIR/inspect-env.json"
+write_env() {
+  node -e 'const fs=require("node:fs"); const [out, bin, db, notify, inspect, result]=process.argv.slice(1); const env={SPARKY_CORE_BIN:bin,SPARKY_CORE_DB:db,SPARKY_NOTIFY_E2E:"1",SPARKY_NOTIFY_MODULE:notify}; if(inspect){env.SPARKY_NOTIFY_INSPECT=inspect;env.SPARKY_NOTIFY_INSPECT_RESULT=result;} fs.writeFileSync(out, JSON.stringify(env));' "$@"
+}
+write_env "$ENVFILE" "$BIN" "$DB" "$CODE/native/build/notify.node"
+write_env "$INSPECT_ENV" "$BIN" "$DB" "$CODE/native/build/notify.node" cleanup "$RESULT"
+
+"$ELECTRON" "$CODE" --user-data-dir="$USERDATA" -- "--sparky-e2e-env=$ENVFILE" >"$WORKDIR/electron.log" 2>&1 &
 ELECTRON_PID=$!
+for _ in $(seq 1 40); do
+  [[ -f "$WORKDIR/main-boot.txt" ]] && break
+  sleep 0.25
+done
+if [[ ! -f "$WORKDIR/main-boot.txt" ]]; then
+  echo "FAIL: CJS trampoline did not start" >&2
+  cat "$WORKDIR/electron.log" >&2 || true
+  exit 1
+fi
+if grep -q boot-failed "$WORKDIR/main-boot.txt"; then
+  echo "FAIL: Main did not load" >&2
+  cat "$WORKDIR/main-boot.txt" >&2
+  exit 1
+fi
 
 node "$NATIVE/scripts/e2e-driver.mjs" \
   --workdir "$WORKDIR" \
   --db "$DB" \
   --bin "$BIN" \
-  --app "$APP" \
+  --app "$ELECTRON" \
   --code "$CODE" \
   --userdata "$USERDATA" \
   --electron-pid "$ELECTRON_PID" \

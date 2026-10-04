@@ -24,7 +24,11 @@ function resolveNativeModule(): string {
     if (!isAbsolute(override)) throw new Error("SPARKY_NOTIFY_MODULE must be absolute");
     return override;
   }
-  return app.isPackaged ? join(process.resourcesPath, "native/notify.node") : join(app.getAppPath(), "native/build/notify.node");
+  const packaged = join(process.resourcesPath, "native/notify.node");
+  const unpacked = join(app.getAppPath(), "native/build/notify.node");
+  if (existsSync(packaged)) return packaged;
+  if (existsSync(unpacked)) return unpacked;
+  return app.isPackaged ? packaged : unpacked;
 }
 function attachE2eHooks(native: { emitSystemEvent(reason: "timezone" | "wake"): Promise<void> }, dataDirectory: string): () => void {
   if (process.env.SPARKY_NOTIFY_E2E !== "1") return () => {};
@@ -39,6 +43,20 @@ function attachE2eHooks(native: { emitSystemEvent(reason: "timezone" | "wake"): 
   });
   return () => watcher.close();
 }
+export async function runNotifyInspect(command: string, resultPath: string): Promise<void> {
+  const native = loadNativeNotify(resolveNativeModule());
+  try {
+    if (command === "authorize") await native.requestAuthorization();
+    if (command === "cleanup") { await native.removeAll("rem:"); await native.removeAll("one:"); }
+    const payload = command === "pending" ? { ok: true, pending: await native.pending() }
+      : command === "delivered" ? { ok: true, delivered: await native.delivered() }
+      : command === "cleanup" ? { ok: true, removed: true }
+      : { ok: true, ...(await native.status()) };
+    writeFileSync(resultPath, JSON.stringify(payload));
+  } catch {
+    writeFileSync(resultPath, JSON.stringify({ ok: false, error: "inspect-failed" }));
+  } finally { native.close(); }
+}
 // Call immediately after the single-instance lock, BEFORE app.whenReady().
 export function installReminders(options: InstallOptions) {
   const log = createNotifyLog(options.dataDirectory);
@@ -52,6 +70,7 @@ export function installReminders(options: InstallOptions) {
   try {
     const native = loadNativeNotify(nativePath);
     log("delegate-installed");
+    if (process.env.SPARKY_NOTIFY_E2E === "1") app.setActivationPolicy("regular");
     const stopHooks = attachE2eHooks(native, options.dataDirectory);
     const controller = createReminderController({ ...options, background, native, log, ensureCore: async () => createReminderCore(await options.ensureCore()) });
     return { ...controller,

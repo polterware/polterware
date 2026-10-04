@@ -27,6 +27,8 @@ it("maps frozen RPCs with Budget, exact completion keys, configured snooze and h
   expect(completeOccurrence.mock.calls[0]?.[0]).toMatchObject({ memoryId, occurrenceAt: at });
   expect(snooze.mock.calls[0]?.[0]).toMatchObject({ memoryId, minutes: 15, occurrenceAt: at });
   expect(heartbeat.mock.calls[0]?.[0]).toMatchObject({ authorization: "authorized", armedCount: 60 });
+  await core.heartbeat({ authorization: "notDetermined", pendingCount: 0 });
+  expect(heartbeat.mock.calls[1]?.[0]).toMatchObject({ authorization: "not_determined", armedCount: 0 });
   expect(ack.mock.calls[0]?.[0]).toMatchObject({ id: "one:1", outcome: "done" });
 });
 it("refuses repeating identifiers that leaked onto the frozen one-shot Plan", async () => {

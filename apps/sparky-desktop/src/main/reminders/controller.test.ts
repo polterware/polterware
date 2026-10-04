@@ -7,7 +7,7 @@ function fixture(background = false) {
   const native: NativeNotify = {
     status: vi.fn(async () => ({ authorization: "authorized" as const, pendingCount: 1 })),
     apply: vi.fn(async () => ({ added: ["one:1"], removed: [], unchanged: 0 })),
-    requestAuthorization: vi.fn(async () => true), pending: vi.fn(async () => []), removeAll: vi.fn(async () => []),
+    requestAuthorization: vi.fn(async () => true), pending: vi.fn(async () => []), delivered: vi.fn(async () => []), removeAll: vi.fn(async () => []),
     onAction: (callback) => { action = callback; }, onEvent: (callback) => { event = callback; },
     finishAction: vi.fn(async () => {}), emitSystemEvent: vi.fn(async () => {}), close: vi.fn(), wasActionLaunch: () => false,
   };

@@ -40,7 +40,8 @@ export function createReminderController(options: Options) {
       if (before.authorization !== "authorized" && before.authorization !== "provisional") {
         publish({ state: before.authorization === "denied" ? "permission-denied" : "authorization-required", armed: before.pendingCount,
           message: before.authorization === "denied" ? "Permission denied" : "Notification permission required" });
-        try { await (await options.ensureCore()).heartbeat(before); } catch { log("refresh-failed", { reason }); }
+        try { await (await options.ensureCore()).heartbeat(before); } catch { /* Preserve OS requests even if heartbeat fails. */ }
+        log("refresh-failed", { reason });
         return; // Preserve OS requests; never prompt automatically in a hidden launch.
       }
       const core = await options.ensureCore();

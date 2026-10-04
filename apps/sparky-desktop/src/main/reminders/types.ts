@@ -45,6 +45,7 @@ export interface NativeNotify {
   requestAuthorization(): Promise<boolean>;
   apply(items: readonly Reminder[]): Promise<ApplyResult>;
   pending(): Promise<PendingReminder[]>;
+  delivered(): Promise<{ id: string; title: string }[]>;
   removeAll(prefix: string): Promise<string[]>;
   onAction(callback: (event: NotificationAction) => void): void;
   onEvent(callback: (event: NativeRefresh) => void): void;

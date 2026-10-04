@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, shell, systemPreferences } from "electron";
 import { dirname, isAbsolute, join } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
 import { createCoreClients, type CoreClients } from "./core/client.js";
 import { ensureCore, resolveBinary, type CoreHandle } from "./core/process-supervisor.js";
 import { startChangeWatcher } from "./core/change-watcher.js";
@@ -9,7 +10,23 @@ import { contentSecurityPolicy, isAllowedRendererUrl, parseDeepLink } from "./na
 import { attachmentResponse, resolveAttachmentUrl } from "./attachment-protocol.js";
 import { APP_METHODS, EVENTS, type DeepLink } from "../shared/bridge.js";
 import { updateStatus } from "./updater.js";
-import { installReminders } from "./reminders/index.js";
+import { installReminders, runNotifyInspect } from "./reminders/index.js";
+
+const e2eEnv = process.argv.find(arg => arg.startsWith("--sparky-e2e-env="))?.slice("--sparky-e2e-env=".length);
+if (e2eEnv) {
+  if (!isAbsolute(e2eEnv)) throw new Error("sparky e2e env path must be absolute");
+  const parsed = JSON.parse(readFileSync(e2eEnv, "utf8")) as Record<string, unknown>;
+  for (const [key, value] of Object.entries(parsed)) {
+    if (key.startsWith("SPARKY_") && typeof value === "string") process.env[key] = value;
+  }
+  if (process.env.SPARKY_NOTIFY_E2E === "1") {
+    const isolated = process.env.SPARKY_CORE_DB || "";
+    if (!isAbsolute(isolated) || !isolated.includes("sparky-w1-native-notify")) {
+      throw new Error("e2e SPARKY_CORE_DB must be an isolated temp database");
+    }
+  }
+  writeFileSync(join(dirname(e2eEnv), "main-started.json"), JSON.stringify({ argv: process.argv, db: process.env.SPARKY_CORE_DB }));
+}
 
 const remoteDebuggingPort = process.env.REMOTE_DEBUGGING_PORT?.trim();
 if (remoteDebuggingPort && /^[1-9]\d{0,4}$/.test(remoteDebuggingPort) && Number(remoteDebuggingPort) <= 65535) {
@@ -140,6 +157,11 @@ function installMenu(): void {
 }
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
+  const inspectCommand = process.env.SPARKY_NOTIFY_INSPECT;
+  if (inspectCommand) {
+    const inspectResult = process.env.SPARKY_NOTIFY_INSPECT_RESULT || join(app.getPath("temp"), "sparky-notify-inspect.json");
+    app.on("ready", () => { void runNotifyInspect(inspectCommand, inspectResult).finally(() => app.quit()); });
+  } else {
   const reminders = installReminders({
     dataDirectory: data,
     ensureCore: async () => { await reconnect(); return getClients(); },
@@ -186,8 +208,11 @@ else {
       reminders.start();
       if (suppressWindow && !pendingLink) return;
       showWindow();
-      if (process.env.SPARKY_NOTIFY_E2E === "1") void reminders.requestAuthorization();
+      if (process.env.SPARKY_NOTIFY_E2E === "1") {
+        setTimeout(() => { void reminders.requestAuthorization().catch(() => {}); }, 1500);
+      }
       if (pendingLink) routeDeepLink(pendingLink.url);
     })().catch(() => { console.error("Sparky startup failed"); app.quit(); });
   });
+  }
 }

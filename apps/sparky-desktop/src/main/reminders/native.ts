@@ -52,6 +52,7 @@ export function createNativeNotify(native: Addon): NativeNotify {
       return operation;
     },
     pending: () => command("pending"),
+    delivered: () => command("delivered"),
     status: () => command("status"),
     removeAll: (prefix) => {
       if (!/^(rem:|one:)/.test(prefix)) return Promise.reject(new Error("Foreign notification prefix"));

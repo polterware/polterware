@@ -1,7 +1,15 @@
 import { timestampDate, timestampFromDate } from "@bufbuild/protobuf/wkt";
 import type { CoreClients } from "../core/client.js";
-import { BUDGET, type ReminderCore, type Reminder } from "./types";
+import { BUDGET, type Authorization, type NativeStatus, type ReminderCore, type Reminder } from "./types";
 const leakedRepeat = /:(?:repeat|wd\d+)$/;
+// Core stores snake_case permission tokens; the native module reports camelCase.
+const heartbeatAuthorization: Record<Authorization, string> = {
+  authorized: "authorized",
+  provisional: "authorized",
+  denied: "denied",
+  notDetermined: "not_determined",
+  unknown: "not_determined",
+};
 export function createReminderCore(clients: Pick<CoreClients, "reminders" | "schedule" | "settings">): ReminderCore {
   const { reminders, schedule: schedules, settings } = clients;
   const callOptions = () => ({ timeoutMs: 4000 });
@@ -23,6 +31,8 @@ export function createReminderCore(clients: Pick<CoreClients, "reminders" | "sch
       await reminders.snooze({ memoryId, occurrenceAt: timestampFromDate(new Date(occurrenceAt)), minutes: config?.notificationsSnoozeMinutes || 10 }, callOptions());
     },
     async ack(id, outcome) { await reminders.ack({ id, outcome }, callOptions()); },
-    async heartbeat(status) { await reminders.heartbeat({ authorization: status.authorization, armedCount: status.pendingCount }, callOptions()); },
+    async heartbeat(status: NativeStatus) {
+      await reminders.heartbeat({ authorization: heartbeatAuthorization[status.authorization] || "not_determined", armedCount: status.pendingCount }, callOptions());
+    },
   };
 }

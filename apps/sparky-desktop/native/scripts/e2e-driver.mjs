@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -15,7 +15,14 @@ const titlePrefix = "[Sparky E2E TEST]";
 const logPath = `${dirname(db)}/run/notify.log`;
 const statePath = `${dirname(db)}/run/core.json`;
 const hookPath = `${dirname(db)}/run/e2e-hook`;
-const fail = (message) => { console.error(`FAIL: ${message}`); process.exit(1); };
+const fail = (message) => {
+  if (existsSync(logPath)) {
+    console.error("--- notify.log ---");
+    console.error(readFileSync(logPath, "utf8"));
+  }
+  console.error(`FAIL: ${message}`);
+  process.exit(1);
+};
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function waitFor(predicate, timeoutMs, label) {
@@ -47,10 +54,16 @@ function connect(path, body = {}) {
   });
 }
 function inspectNative(command) {
-  execFileSync(`${app}/Contents/MacOS/Electron`, [`--user-data-dir=${inspectUserdata}`, inspect, command, notify, result], {
-    env: { ...process.env, SPARKY_NOTIFY_E2E: "1", SPARKY_CORE_BIN: "", SPARKY_CORE_DB: "" },
-    timeout: 20_000,
-  });
+  const envPath = `${args.workdir}/inspect-cmd-env.json`;
+  writeFileSync(envPath, JSON.stringify({
+    SPARKY_CORE_BIN: bin,
+    SPARKY_CORE_DB: db,
+    SPARKY_NOTIFY_E2E: "1",
+    SPARKY_NOTIFY_MODULE: notify,
+    SPARKY_NOTIFY_INSPECT: command,
+    SPARKY_NOTIFY_INSPECT_RESULT: result,
+  }));
+  execFileSync(app, [code, `--user-data-dir=${inspectUserdata}`, "--", `--sparky-e2e-env=${envPath}`], { timeout: 25_000 });
   return JSON.parse(readFileSync(result, "utf8"));
 }
 function logLines() {
@@ -61,12 +74,23 @@ function lastRefresh(reason) {
   return logLines().filter((row) => row.event === "refreshed" && (!reason || row.reason === reason)).at(-1);
 }
 function clickAllow() {
-  for (const source of [
-    'tell application "System Events" to click button "Allow" of first window of process "Sparky E2E"',
-    'tell application "System Events" to click button "Allow" of first window of process "Electron"',
-  ]) {
-    try { execFileSync("osascript", ["-e", source], { timeout: 3_000 }); } catch { /* prompt may be absent */ }
-  }
+  const script = `
+    with timeout of 1 seconds
+      tell application "System Events"
+        repeat with procName in {"Electron", "Sparky"}
+          try
+            tell process procName
+              set frontmost to true
+              try
+                click button "Allow" of window 1
+              end try
+            end tell
+          end try
+        end repeat
+      end tell
+    end timeout
+  `;
+  try { execFileSync("osascript", ["-e", script], { timeout: 2_500 }); } catch { /* prompt may be absent */ }
 }
 async function waitQuiet() {
   let count = logLines().length;
@@ -78,21 +102,29 @@ async function waitQuiet() {
   }
 }
 function stopElectronTree(pid) {
-  try { execFileSync("pkill", ["-f", args.workdir + "/SparkyE2E.app"]); } catch { /* already gone */ }
   try { process.kill(pid); } catch { /* already gone */ }
+  try { execFileSync("pkill", ["-f", code]); } catch { /* already gone */ }
 }
 
-await waitFor(() => existsSync(statePath), 25_000, "core.json not written; Electron did not start the real core");
+await waitFor(() => existsSync(statePath), 40_000, "core.json not written; Electron did not start the real core");
 const health = await connect("/sparky.v1.HealthService/Check");
 if (!health.dbPath || realpathSync(health.dbPath) !== realpathSync(db)) fail(`Health dbPath mismatch: ${health.dbPath}`);
 console.log(`core health build=${health.build} db=${health.dbPath}`);
 await waitFor(() => logLines().some((row) => row.event === "delegate-installed"), 10_000, "delegate was not installed");
 
 clickAllow();
-await waitFor(() => {
-  clickAllow();
-  return Boolean(lastRefresh());
-}, 25_000, "no refresh after authorization; permission prompt may be unanswered");
+try {
+  await waitFor(() => {
+    clickAllow();
+    return Boolean(lastRefresh()) || logLines().some((row) => row.event === "refresh-failed");
+  }, 15_000, "no reminder refresh after start");
+} catch (error) {
+  fail(error instanceof Error ? error.message : String(error));
+}
+if (!lastRefresh()) {
+  const permission = (await connect("/sparky.v1.ReminderService/Status")).permission || "unknown";
+  fail(`notification permission is ${permission}; native did not arm`);
+}
 const status = await connect("/sparky.v1.ReminderService/Status");
 if (!["authorized", "provisional"].includes(status.permission)) {
   fail(`notification permission is ${status.permission || "unknown"}`);
@@ -133,6 +165,7 @@ await connect("/sparky.v1.ScheduleService/Set", {
 await waitQuiet();
 const afterRepeat = await connect("/sparky.v1.ReminderService/Plan", { now: new Date().toISOString(), budget: 60 });
 if (afterRepeat.items.some((item) => /:(?:repeat|wd\d+)$/.test(item.id))) fail("open-ended daily leaked as a one-shot");
+if (afterRepeat.items.some((item) => item.memoryId === daily.memory.id)) fail("open-ended daily armed as a one-shot");
 if (!afterRepeat.items.some((item) => item.memoryId === bounded.memory.id && /:\d+$/.test(item.id))) {
   fail("bounded daily did not arm as one-shot occurrences");
 }
@@ -177,15 +210,15 @@ if (!hit) fail(`closed-Electron delivery missing; delivered=${JSON.stringify(del
 console.log(`closed-electron delivery pass: ${hit.id}`);
 
 const hiddenStart = Date.now();
-const background = spawn(`${app}/Contents/MacOS/Electron`, [code, `--user-data-dir=${userdata}`, "--background-replan"], {
-  env: { ...process.env, SPARKY_CORE_BIN: bin, SPARKY_CORE_DB: db, SPARKY_NOTIFY_E2E: "1" },
-  stdio: "ignore",
-});
-await waitFor(() => lastRefresh("start") && Date.parse(lastRefresh("start").at) >= hiddenStart, 15_000, "hidden replan did not refresh");
-await new Promise((resolveExit, reject) => {
-  const timer = setTimeout(() => reject(new Error("hidden Electron did not idle-exit")), 20_000);
-  background.on("exit", () => { clearTimeout(timer); resolveExit(); });
-});
+const hiddenEnv = `${args.workdir}/hidden-env.json`;
+writeFileSync(hiddenEnv, JSON.stringify({
+  SPARKY_CORE_BIN: bin,
+  SPARKY_CORE_DB: db,
+  SPARKY_NOTIFY_E2E: "1",
+  SPARKY_NOTIFY_MODULE: notify,
+}));
+execFileSync(app, [code, `--user-data-dir=${userdata}`, "--", `--sparky-e2e-env=${hiddenEnv}`, "--background-replan"], { timeout: 25_000 });
+if (!lastRefresh("start") || Date.parse(lastRefresh("start").at) < hiddenStart) fail("hidden replan did not refresh");
 const hiddenMs = Date.now() - hiddenStart;
 try { process.kill(corePid, 0); } catch { fail("core exited when Electron idle-quit"); }
 console.log(`hidden replan idle-exit ${hiddenMs} ms; core still running pid=${corePid}`);
