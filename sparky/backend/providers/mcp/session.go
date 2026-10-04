@@ -25,6 +25,19 @@ func NewMemorySession(service memory.Service, clientName string) *MemorySession 
 	return &MemorySession{service: service, actor: actor.MCP(clientName), reads: make(map[string]int64)}
 }
 
+// provisional carries the existing expectations without publishing writes
+// that may still roll back in an enclosing transaction.
+func (s *MemorySession) provisional() *MemorySession {
+	out := NewMemorySession(s.service, "unknown")
+	out.actor = s.actor
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, rev := range s.reads {
+		out.reads[id] = rev
+	}
+	return out
+}
+
 func (s *MemorySession) observe(id string, rev int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

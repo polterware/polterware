@@ -111,20 +111,27 @@ func TestEmptyArraysReplaceAndTagsReturnFinalRevision(t *testing.T) {
 	}
 }
 
-type tagWriteThenUI struct{ memory.Service }
-
-func (s tagWriteThenUI) SetTags(ctx context.Context, who actor.Actor, id string, rev int64, ids []string) error {
-	if err := s.Service.SetTags(ctx, who, id, rev, ids); err != nil {
-		return err
-	}
-	title := "Later UI edit"
-	_, err := s.Service.Update(ctx, actor.UI(), id, rev+1, memory.Patch{Title: &title})
-	return err
-}
 func TestTagsNeverObservePostCommitUIRevision(t *testing.T) {
-	h := setupMCP(t, func(d *provider.Deps) { d.Memories = tagWriteThenUI{d.Memories} })
+	var afterCommit func()
+	h := setupMCP(t, func(d *provider.Deps) {
+		within := d.Within
+		d.Within = func(ctx context.Context, fn func(context.Context) error) error {
+			err := within(ctx, fn)
+			if err == nil && afterCommit != nil {
+				afterCommit()
+			}
+			return err
+		}
+	})
 	id := createID(t, h, map[string]any{"title": "Task"})
+	afterCommit = func() {
+		title := "Later UI edit"
+		if _, err := h.fix.MS.Update(t.Context(), actor.UI(), id, 3, memory.Patch{Title: &title}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	row := resultRow(t, h, "update_memories", map[string]any{"id": id, "tags": []string{}})
+	afterCommit = nil
 	if row["rev"] != float64(3) {
 		t.Fatalf("wrong tag revision: %#v", row)
 	}
@@ -314,5 +321,104 @@ func TestToggleTitleLookupDoesNotAdvancePreviouslyReadRevision(t *testing.T) {
 	res := h.call(t, "toggle_check_item", map[string]any{"memoryId": id, "itemTitle": "A"})
 	if !res.IsError || structured(t, res)["conflict"] != true {
 		t.Fatalf("internal title lookup bypassed prior read: %s", textOf(res))
+	}
+}
+
+type revisionSchedule struct {
+	provider.Schedules
+	memories memory.Service
+}
+
+func (s revisionSchedule) Set(ctx context.Context, who actor.Actor, in schedule.Schedule) (schedule.Schedule, error) {
+	out, err := s.Schedules.Set(ctx, who, in)
+	if err == nil {
+		_, err = s.memories.Update(ctx, who, in.MemoryID, 0, memory.Patch{})
+	}
+	return out, err
+}
+
+type revisionPlace struct {
+	provider.Places
+	memories memory.Service
+}
+
+func (p revisionPlace) Set(ctx context.Context, who actor.Actor, in place.Place) (place.Place, error) {
+	out, err := p.Places.Set(ctx, who, in)
+	if err == nil {
+		_, err = p.memories.Update(ctx, who, in.MemoryID, 0, memory.Patch{})
+	}
+	return out, err
+}
+
+func TestCompoundWritesNeverObservePostCommitUIRevision(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		patch map[string]any
+		rev   int64
+	}{
+		{"schedule", map[string]any{"schedule": map[string]any{"at": "2026-10-05T12:00:00Z"}}, 3},
+		{"place", map[string]any{"place": map[string]any{"lat": 0, "lng": 0}}, 3},
+		{"checklist", map[string]any{"checklist": []string{"Check"}}, 3},
+		{"links", map[string]any{"links": []any{map[string]any{"url": "https://example.com"}}}, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var afterCommit func()
+			h := setupMCP(t, func(d *provider.Deps) {
+				d.Schedules = revisionSchedule{d.Schedules, d.Memories}
+				d.Places = revisionPlace{d.Places, d.Memories}
+				within := d.Within
+				d.Within = func(ctx context.Context, fn func(context.Context) error) error {
+					err := within(ctx, fn)
+					if err == nil && afterCommit != nil {
+						afterCommit()
+					}
+					return err
+				}
+			})
+			id := createID(t, h, map[string]any{"title": "Task"})
+			afterCommit = func() {
+				title := "UI edit after commit"
+				if _, err := h.fix.MS.Update(t.Context(), actor.UI(), id, tc.rev, memory.Patch{Title: &title}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			tc.patch["id"] = id
+			row := resultRow(t, h, "update_memories", tc.patch)
+			afterCommit = nil
+			if row["ok"] != true || row["rev"] != float64(tc.rev) {
+				t.Fatalf("observed later revision: %v", row)
+			}
+			if row := resultRow(t, h, "update_memories", map[string]any{"id": id, "title": "Overwrite"}); row["conflict"] != true {
+				t.Fatal(row)
+			}
+		})
+	}
+}
+
+type attachmentWriteThenUI struct {
+	attachments.Service
+	memories memory.Service
+}
+
+func (s attachmentWriteThenUI) AddLink(ctx context.Context, id, url, title string, rev int64) (attachments.Attachment, error) {
+	out, err := s.Service.AddLink(ctx, id, url, title, rev)
+	if err == nil {
+		title := "Later UI edit"
+		_, err = s.memories.Update(ctx, actor.UI(), id, rev, memory.Patch{Title: &title})
+	}
+	return out, err
+}
+func TestFirstAttachmentWriteNeverObservesPostCommitUIRevision(t *testing.T) {
+	h := setupMCP(t, func(d *provider.Deps) { d.Attachments = attachmentWriteThenUI{d.Attachments, d.Memories} })
+	m, err := h.fix.MS.Create(t.Context(), actor.UI(), memory.Create{Title: "Unread"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := structured(t, h.call(t, "add_attachments", map[string]any{"memoryId": m.ID, "links": []any{map[string]any{"url": "https://example.com"}}}))
+	if row["rev"] != float64(1) {
+		t.Fatal(row)
+	}
+	if row := resultRow(t, h, "update_memories", map[string]any{"id": m.ID, "title": "Overwrite"}); row["conflict"] != true {
+		t.Fatal(row)
 	}
 }

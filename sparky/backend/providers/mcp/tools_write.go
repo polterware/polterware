@@ -227,6 +227,37 @@ func (s *Server) updateOne(ctx context.Context, sess *MemorySession, item update
 	if item.ID == "" {
 		return nil, fmt.Errorf("id is required")
 	}
+	if s.deps.Within == nil {
+		if item.Checklist != nil || item.Tags != nil || len(item.AddTags)+len(item.RemoveTags)+len(item.Schedule)+len(item.Place)+len(item.Links) > 0 {
+			return nil, fault.Unavailable("atomic update backend is not wired")
+		}
+		// A field-only update already returns its final domain revision.
+		return s.updateOneInTx(ctx, sess, item)
+	}
+	// Stage session observations until every relation write and the final
+	// snapshot have committed. The snapshot uses the same writer transaction.
+	provisional := sess.provisional()
+	var row map[string]any
+	err := s.deps.Within(ctx, func(ctx context.Context) error {
+		var err error
+		row, err = s.updateOneInTx(ctx, provisional, item)
+		if err != nil {
+			return err
+		}
+		got, err := s.deps.Memories.Get(ctx, item.ID, memory.Include{})
+		if err == nil {
+			row["rev"] = got.Memory.Rev
+		}
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	sess.observe(item.ID, row["rev"].(int64))
+	return row, nil
+}
+
+func (s *Server) updateOneInTx(ctx context.Context, sess *MemorySession, item updateItem) (map[string]any, error) {
 	patch := memory.Patch{}
 	if item.Title.Set && !item.Title.Null {
 		patch.Title = &item.Title.Value
@@ -606,12 +637,56 @@ func (s *Server) deleteMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 		return fail(fmt.Errorf("refusing to delete mind %q. Children are deleted and memories move to Inbox. Set confirm true", got.Name)), nil
 	}
 	sess := s.session(req)
-	result, err := s.deps.Minds.Delete(ctx, sess.Actor(), got.ID, sess.expectedMind(got.ID, in.ExpectedRev))
+	if s.deps.Within == nil {
+		return fail(fault.Unavailable("atomic mind deletion backend is not wired")), nil
+	}
+	var result mind.DeleteResult
+	revisions := map[string]int64{}
+	err = s.deps.Within(ctx, func(ctx context.Context) error {
+		// Only advance memories whose pre-delete revision the session knew.
+		// An unseen UI edit must remain a conflict on the next memory write.
+		var moved []string
+		filter := memory.ListFilter{MindID: &got.ID, IncludeDescendants: true, Limit: 500}
+		for {
+			page, err := s.deps.Memories.List(ctx, filter)
+			if err != nil {
+				return err
+			}
+			for _, m := range page.Memories {
+				expected := sess.expected(m.ID, nil)
+				if expected == 0 || expected == m.Rev {
+					moved = append(moved, m.ID)
+				}
+			}
+			if page.NextCursor == "" {
+				break
+			}
+			filter.Cursor = page.NextCursor
+		}
+		var err error
+		result, err = s.deps.Minds.Delete(ctx, sess.Actor(), got.ID, sess.expectedMind(got.ID, in.ExpectedRev))
+		if err != nil {
+			return err
+		}
+		for _, id := range moved {
+			m, err := s.deps.Memories.Get(ctx, id, memory.Include{})
+			if err != nil {
+				return err
+			}
+			revisions[id] = m.Memory.Rev
+		}
+		return nil
+	})
 	if err != nil {
 		return fail(err), nil
 	}
-	sess.forgetMind(got.ID)
-	return ok("deleted "+got.Name, map[string]any{"deletedMindIds": result.DeletedMindIDs, "movedMemoryCount": result.MovedMemoryCount}), nil
+	for id, rev := range revisions {
+		sess.observe(id, rev)
+	}
+	for _, id := range result.DeletedMindIDs {
+		sess.forgetMind(id)
+	}
+	return ok("deleted "+got.Name, map[string]any{"deletedMindIds": result.DeletedMindIDs, "movedMemoryCount": result.MovedMemoryCount, "memoryRevisions": revisions}), nil
 }
 
 func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
@@ -629,7 +704,8 @@ func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest
 	if in.MemoryID == "" {
 		return fail(fmt.Errorf("memoryId is required")), nil
 	}
-	if _, err := s.deps.Memories.Get(ctx, in.MemoryID, memory.Include{}); err != nil {
+	got, err := s.deps.Memories.Get(ctx, in.MemoryID, memory.Include{})
+	if err != nil {
 		return fail(err), nil
 	}
 	if len(in.Files) > 0 {
@@ -649,13 +725,20 @@ func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest
 	if s.deps.Attachments == nil {
 		return fail(fault.Unavailable("attachments backend is not wired")), nil
 	}
-	expected := s.session(req).expected(in.MemoryID, in.ExpectedRev)
+	sess := s.session(req)
+	expected := sess.expected(in.MemoryID, in.ExpectedRev)
+	if expected == 0 {
+		expected = got.Memory.Rev
+	}
+	// Attachments check but do not increment Memory.Rev. Pin that checked
+	// revision, including on a first write; never read it after the commit.
 	var out []map[string]any
 	for _, link := range in.Links {
 		a, err := s.deps.Attachments.AddLink(ctx, in.MemoryID, link.URL, link.Title, expected)
 		if err != nil {
 			return fail(err), nil
 		}
+		sess.observe(in.MemoryID, expected)
 		row := map[string]any{"id": a.ID, "kind": a.Kind}
 		if a.URL != nil {
 			row["url"] = *a.URL
@@ -667,9 +750,10 @@ func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest
 		if err != nil {
 			return fail(err), nil
 		}
+		sess.observe(in.MemoryID, expected)
 		out = append(out, map[string]any{"id": a.ID, "kind": a.Kind})
 	}
-	return ok(fmt.Sprintf("added %d", len(out)), map[string]any{"attachments": out}), nil
+	return ok(fmt.Sprintf("added %d", len(out)), map[string]any{"attachments": out, "rev": expected}), nil
 }
 
 func (s *Server) setSchedule(ctx context.Context, sess *MemorySession, memoryID string, raw json.RawMessage) ([]string, error) {
