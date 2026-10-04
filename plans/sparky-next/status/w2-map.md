@@ -1,0 +1,37 @@
+# w2-map status
+
+- Result: done
+- Branch / last commit: `sparky/w2-map` (this status commit is `git log -1`)
+- Acceptance criteria:
+  - 500 markers cluster smoothly → **pass**. `packages/frontend/map/src/cluster.test.ts` `clusters 500 markers and finishes well under a frame` (supercluster, elapsed < 50 ms, clusters form at z=10 and expand at z=16).
+  - Tiles off → honest empty state with list → **pass**. `packages/features/sparky-map/src/components.test.tsx` `shows an honest offline empty state with the place list and first-run copy` (title "Map tiles are off", list shows "Buy milk" / "Home", disclosure copy present).
+  - No map network request while `map.online` is false → **pass** (unit). `packages/frontend/map/src/MapView.test.tsx` `does not fetch the OpenFreeMap style or tiles while online is false` (fetch spy, zero calls) and `does not load tiles for the pmtiles provider without a local file`. Playwright spec `apps/sparky-desktop/tests/e2e/map.spec.ts` `map: offline tiles make no map request and keep the place list` is written with a request log; **not run** (`SPARKY_E2E_EXECUTABLE` unset; runner owned by W3-E2E).
+  - Copy states that places do not trigger notifications in v1 → **pass**. `PLACE_NOTICE` asserted in the Map route test and rendered on the Place card.
+- Verification before the final commit:
+  - `pnpm --filter @polterware/frontend-map test` → **pass** (8 tests).
+  - `pnpm --filter @polterware/frontend-map typecheck` → **pass**.
+  - `pnpm --filter @polterware/feature-sparky-map test` → **pass** (9 tests).
+  - `pnpm --filter @polterware/feature-sparky-map typecheck` → **pass**.
+  - `pnpm design:lint` → **pass** (`ui opacity check OK`).
+  - `pnpm typecheck` (whole repo, includes `@polterware/sparky-desktop`) → **pass** (27 packages).
+  - `git diff --check` on owned paths → **pass**.
+  - `pnpm --filter @polterware/frontend-map test typecheck` was **not** used as a single invocation: Vitest treats `typecheck` as a test-name filter. Tests and typecheck were run as separate scripts.
+  - Playwright `map.spec.ts` → **not run** (`SPARKY_E2E_EXECUTABLE` empty).
+  - Browser / packaged desktop smoke → **not run** (not requested; W3-E2E owns the runner).
+- Deviations from the plan (and why):
+  - Frozen PlaceService Set/Clear have no `expectedRev`; the feature still sends it as a decimal string (unknown fields ignored). Stale Place writes are last-write-wins until request 4.
+  - Geocoding is a disabled-by-default adapter only. No address field is shown. Enabling it needs `map.geocoding` and a Nominatim CSP host (request 2).
+  - `provider: "pmtiles"` never fetches; there is no local PMTiles archive loader in v1.
+  - Radius circles use MapLibre `circle-opacity` paint (map layer, not UI chrome).
+  - `pnpm-lock.yaml` was generated locally for validation and was **not** committed (request 1).
+- Requests filed:
+  - `plans/sparky-next/requests/w2-map-1.md` — regenerate lockfile for maplibre-gl and supercluster.
+  - `plans/sparky-next/requests/w2-map-2.md` — `map.geocoding` setting + Nominatim CSP host.
+  - `plans/sparky-next/requests/w2-map-3.md` — `sparky://map` in Main `parseDeepLink`.
+  - `plans/sparky-next/requests/w2-map-4.md` — `expected_rev` on PlaceService Set/Clear.
+- Follow-ups for other WS:
+  - W0-SCAFFOLD / integrator: apply request 1 (`pnpm-lock.yaml`).
+  - W1-ELECTRON: requests 2 (Nominatim CSP when geocoding is on) and 3 (`sparky://map`).
+  - W1-CORE / contracts: request 4 (Place `expected_rev`).
+  - W2-SETTINGS: `map.geocoding` key and panel copy once the proto exists.
+  - W3-E2E: run `apps/sparky-desktop/tests/e2e/map.spec.ts` with `SPARKY_E2E_EXECUTABLE`.
