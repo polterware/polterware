@@ -10,6 +10,11 @@ import { attachmentResponse, resolveAttachmentUrl } from "./attachment-protocol.
 import { APP_METHODS, EVENTS, type DeepLink } from "../shared/bridge.js";
 import { updateStatus } from "./updater.js";
 
+const remoteDebuggingPort = process.env.REMOTE_DEBUGGING_PORT?.trim();
+if (remoteDebuggingPort && /^[1-9]\d{0,4}$/.test(remoteDebuggingPort) && Number(remoteDebuggingPort) <= 65535) {
+  app.commandLine.appendSwitch("remote-debugging-port", remoteDebuggingPort);
+}
+
 // W1-NATIVE-NOTIFY registers its notification delegate here, before app readiness.
 protocol.registerSchemesAsPrivileged([{ scheme: "sparky-file", privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 app.setName("Sparky");
@@ -163,6 +168,9 @@ else {
     if (hiddenLaunch && !pendingLink) {
       // W1-NATIVE-NOTIFY owns refresh/action completion and can reset this bounded idle exit.
       backgroundTimer = setTimeout(() => { if (!win) app.quit(); }, 10_000);
-    } else showWindow();
+    } else {
+      showWindow();
+      if (pendingLink) routeDeepLink(pendingLink.url);
+    }
   }).catch(() => { console.error("Sparky startup failed"); app.quit(); });
 }

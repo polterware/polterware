@@ -28,4 +28,17 @@ describe("sandbox bridge", () => {
     unsubscribe();
     expect(mock.remove).toHaveBeenCalledWith(event, listener);
   });
+  it("delivers a cold-start deep link through onDeepLink without duplicating the same URL", async () => {
+    mock.invoke.mockResolvedValueOnce({ url: "sparky://today", route: "/today" });
+    const callback = vi.fn();
+    const unsubscribe = bridge.app.onDeepLink(callback);
+    const listener = mock.on.mock.calls.at(-1)![1] as (event: unknown, link: { url: string; route: string }) => void;
+    await vi.waitFor(() => expect(callback).toHaveBeenCalledWith({ url: "sparky://today", route: "/today" }));
+    expect(mock.invoke).toHaveBeenCalledWith("sparky:app:getDeepLink");
+    listener({}, { url: "sparky://today", route: "/today" });
+    expect(callback).toHaveBeenCalledTimes(1);
+    listener({}, { url: "sparky://search?q=x", route: "/search?q=x" });
+    expect(callback).toHaveBeenCalledWith({ url: "sparky://search?q=x", route: "/search?q=x" });
+    unsubscribe();
+  });
 });

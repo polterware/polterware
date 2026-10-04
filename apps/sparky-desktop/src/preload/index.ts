@@ -16,6 +16,18 @@ bridge.onChange = (callback: Parameters<SparkyBridge["onChange"]>[0]) => subscri
 bridge.app = {
   name: "Sparky",
   ...Object.fromEntries(APP_METHODS.map(method => [method, (input?: unknown) => ipcRenderer.invoke(`sparky:app:${method}`, input)])),
-  onDeepLink: (callback: Parameters<SparkyBridge["app"]["onDeepLink"]>[0]) => subscribe(EVENTS.deepLink, callback),
+  onDeepLink: (callback: Parameters<SparkyBridge["app"]["onDeepLink"]>[0]) => {
+    const seen = new Set<string>();
+    const deliver = (link: { url: string; route: string }) => {
+      if (seen.has(link.url)) return;
+      seen.add(link.url);
+      callback(link);
+    };
+    const unsubscribe = subscribe(EVENTS.deepLink, deliver);
+    void ipcRenderer.invoke("sparky:app:getDeepLink").then((link: { url: string; route: string } | null) => {
+      if (link) deliver(link);
+    });
+    return unsubscribe;
+  },
 };
 contextBridge.exposeInMainWorld("sparky", bridge as unknown as SparkyBridge);

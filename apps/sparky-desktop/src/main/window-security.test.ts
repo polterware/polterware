@@ -17,6 +17,11 @@ describe("window security", () => {
     const main = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
     expect(main).toContain('app.on("window-all-closed", () => app.quit())');
     expect(main).not.toContain("stopCore");
+    expect(main).not.toContain("process.kill(core");
     expect(main).toContain('process.argv.includes("--background-replan")');
+    expect(main).toContain('appendSwitch("remote-debugging-port"');
+    expect(main).toContain("before-quit");
+    expect(main).toContain("stopWatcher");
+    expect(main).toContain("if (pendingLink) routeDeepLink(pendingLink.url)");
   });
 });

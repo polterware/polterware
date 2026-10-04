@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { createCoreClients, validateEndpoint } from "./client.js";
 
 export type CoreHandle = { endpoint: string; token: string; pid?: number };
@@ -24,6 +24,12 @@ export function readCoreState(dbPath: string): CoreHandle | undefined {
   } catch { return; }
 }
 export function resolveBinary(appPath: string, resourcesPath: string, packaged: boolean): string {
+  const override = process.env.SPARKY_CORE_BIN?.trim();
+  if (override) {
+    if (!isAbsolute(override)) throw new Error("SPARKY_CORE_BIN must be absolute");
+    if (!existsSync(override)) throw new Error("Sparky core binary is missing");
+    return override;
+  }
   const binary = packaged ? join(resourcesPath, "sparky") : resolve(appPath, "../../dist/sparky");
   if (!existsSync(binary)) throw new Error("Sparky core binary is missing; run pnpm build:sparky-core");
   return binary;
