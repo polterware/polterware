@@ -1,8 +1,9 @@
 // oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- MessageShape is the protobuf library export.
-import type { DescMessage, DescMethodUnary, MessageShape as ContractMessage } from "@bufbuild/protobuf";
-import type { MemorySchema, MemorySummarySchema, MemoryService, MindService, TagService, ActivityService, ScheduleService, OccurrenceSchema, UpdateMemoryRequestSchema, CheckItemInputSchema } from "@polterware/sparky-contracts";
+import type { DescMessage, MessageShape as ContractMessage } from "@bufbuild/protobuf";
+import type { MemorySchema, MemorySummarySchema, MindSchema, TagSchema, ActivityEventSchema, OccurrenceSchema, UpdateMemoryRequestSchema, CheckItemInputSchema, CreateMemoryRequestSchema, MemoryService, MindService, TagService, ActivityService, ScheduleService } from "@polterware/sparky-contracts";
+import type { DescMethodUnary } from "@bufbuild/protobuf";
 
-/** Contracts are generated without JSON typings; preserve the preload's protobuf JSON shape. */
+/** Protobuf JSON: int64 is a decimal string, timestamps are RFC 3339. */
 export type Wire<T> = T extends { $typeName: "google.protobuf.Timestamp" } ? string
   : T extends bigint ? string
   : T extends readonly (infer V)[] ? Wire<V>[]
@@ -20,18 +21,25 @@ export type MemoriesBridge = {
   activity: Namespace<typeof ActivityService>;
   schedule: Namespace<typeof ScheduleService>;
   onChange(callback: (event: { resync: boolean; changes: { entity: string; id: string; op: string }[] }) => void): () => void;
-  app: { openDeepLink(url: string): Promise<void> };
+  app: { openDeepLink(url: string): Promise<void>; onDeepLink?(callback: (link: { url: string; route: string }) => void): () => void; getDeepLink?(): Promise<{ url: string; route: string } | null> };
 };
-export function browserBridge(): MemoriesBridge {
-  // SAFETY: Electron preload owns this immutable bridge and Main validates RPC input/output with the frozen protobuf schemas.
-  const bridge = (window as Window & { sparky?: MemoriesBridge }).sparky;
-  if (!bridge) throw new Error("Sparky bridge unavailable. Open this page in Sparky Desktop.");
-  return bridge;
-}
 export type MemoryJSON = JsonOf<typeof MemorySchema>;
 export type SummaryJSON = JsonOf<typeof MemorySummarySchema>;
 export type Patch = Omit<JsonOf<typeof UpdateMemoryRequestSchema>, "id" | "expectedRev">;
 export type ChecklistInput = JsonOf<typeof CheckItemInputSchema>;
+export type OccurrenceJSON = JsonOf<typeof OccurrenceSchema>;
+export type CreateMemoryJSON = JsonOf<typeof CreateMemoryRequestSchema>;
+export type MindJSON = JsonOf<typeof MindSchema>;
+export type TagJSON = JsonOf<typeof TagSchema>;
+export type ActivityJSON = JsonOf<typeof ActivityEventSchema>;
+
+export function revisionString(rev: string | number | bigint | undefined): string {
+  if (typeof rev === "string" && rev !== "") return rev;
+  if (typeof rev === "bigint") return rev.toString();
+  if (typeof rev === "number" && Number.isFinite(rev)) return Math.trunc(rev).toString();
+  return "0";
+}
+
 export type MemoryRow = {
   id: string; title: string; note: string; status: string; mindId: string; pinned: boolean;
   priority?: number; dueAt?: string; dueAllDay: boolean; rev: string; tagIds: string[];
@@ -42,11 +50,15 @@ export type MemoryRecord = MemoryRow & {
   autoCompleteOnChecklist: boolean; schedule?: MemoryJSON["schedule"]; place?: MemoryJSON["place"];
   attachments: NonNullable<MemoryJSON["attachments"]>; completions: NonNullable<MemoryJSON["completions"]>;
 };
-export function rowFromJSON(row: SummaryJSON): MemoryRow {
-  return { id: row.id ?? "", title: row.title ?? "", note: row.snippet ?? "", status: row.status ?? "active",
+export function rowFromJSON(row: SummaryJSON | MemoryJSON): MemoryRow {
+  const summary = row as SummaryJSON;
+  const memory = row as MemoryJSON;
+  return {
+    id: row.id ?? "", title: row.title ?? "", note: summary.snippet ?? memory.note ?? "", status: row.status ?? "active",
     mindId: row.mindId ?? "", pinned: row.pinned ?? false, priority: row.priority, dueAt: row.dueAt,
-    dueAllDay: row.dueAllDay ?? false, rev: row.rev ?? "0", tagIds: row.tagIds ?? [],
-    createdAt: row.createdAt, updatedAt: row.updatedAt, sortOrder: row.sortOrder ?? 0, scheduleLabel: row.scheduleLabel ?? "" };
+    dueAllDay: row.dueAllDay ?? false, rev: revisionString(row.rev), tagIds: summary.tagIds ?? (memory.tags ?? []).map(tag => tag.id ?? ""),
+    createdAt: row.createdAt, updatedAt: row.updatedAt, sortOrder: row.sortOrder ?? 0, scheduleLabel: summary.scheduleLabel ?? "",
+  };
 }
 export function recordFromJSON(row: MemoryJSON): MemoryRecord {
   return { ...rowFromJSON(row), note: row.note ?? "", checklist: row.checklist ?? [], tags: row.tags ?? [],
@@ -82,7 +94,6 @@ export function filterRows(rows: readonly MemoryRow[], filter: ListFilter): Memo
 export function todayGroup(row: Pick<MemoryRow, "dueAt" | "dueAllDay">, now: Date): "Overdue" | "Today" | "Upcoming 7 days" | undefined {
   if (!row.dueAt) return undefined;
   const due = new Date(row.dueAt);
-  // All-day deadlines carry a civil date, while timed deadlines use the local timezone.
   const date = row.dueAllDay ? row.dueAt.slice(0, 10) : localDate(due);
   const today = localDate(now);
   const end = new Date(now); end.setDate(end.getDate() + 7);
@@ -103,17 +114,11 @@ export function reorderChecklist(items: ChecklistInput[], index: number, directi
   const next = [...items]; [next[index], next[target]] = [next[target]!, next[index]!];
   return next.map((item, sortOrder) => ({ ...item, sortOrder }));
 }
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This is the parser for caught preload rejection values.
 export function errorText(error: unknown): string { return error instanceof Error ? error.message : String(error); }
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- Parse the rejection at the preload boundary before classifying it.
 export function isConflict(error: unknown): boolean {
-  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This parser handles Electron-serialized RPC errors at the I/O boundary.
   const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
-  return code === 10 || code === "aborted" || code === "conflict" || /\b(conflict|aborted|revision)\b/i.test(errorText(error));
+  return code === 9 || code === 10 || code === "aborted" || code === "conflict" || code === "failed_precondition"
+    || /\b(conflict|aborted|revision)\b/i.test(errorText(error));
 }
-
-export type OccurrenceJSON = JsonOf<typeof OccurrenceSchema>;
-
 export type MemoryFailure = { message: string; conflict: boolean };
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- Caught RPC failures are untrusted until this parser normalizes them.
 export function parseMemoryFailure(error: unknown): MemoryFailure { return { message: errorText(error), conflict: isConflict(error) }; }

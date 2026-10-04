@@ -9,7 +9,7 @@ export function fakeBridge(seed: MemoryJSON[] = [memoryFixture()]) {
   function find(id?: string) { const memory = data.get(id ?? ""); if (!memory) throw new Error("Memory not found"); return memory; }
   function update(id: string | undefined, expectedRev: string | undefined, patch: Partial<MemoryJSON>) {
     const old = find(id);
-    if (expectedRev && expectedRev !== old.rev) throw Object.assign(new Error("memory revision conflict"), { code: 9 });
+    if (expectedRev && expectedRev !== old.rev) throw Object.assign(new Error("memory rev conflict"), { code: "conflict" });
     const next = { ...old, ...patch, rev: String(BigInt(old.rev ?? "0") + 1n), updatedAt: new Date().toISOString() };
     data.set(id!, next); return { memory: { ...structuredClone(next), checklist: [], tags: [], attachments: [], completions: [] } };
   }
@@ -29,7 +29,7 @@ export function fakeBridge(seed: MemoryJSON[] = [memoryFixture()]) {
         if (clearMindId) patch.mindId = "";
         return update(id, expectedRev, patch);
       }),
-      delete: vi.fn<MemoriesBridge["memories"]["delete"]>(async input => { const memory = find(input?.id); if (input?.expectedRev !== memory.rev) throw new Error("memory revision conflict"); data.delete(input!.id!); return {}; }),
+      delete: vi.fn<MemoriesBridge["memories"]["delete"]>(async input => { const memory = find(input?.id); if (input?.expectedRev !== memory.rev) throw Object.assign(new Error("memory rev conflict"), { code: "conflict" }); data.delete(input!.id!); return {}; }),
       setStatus: vi.fn<MemoriesBridge["memories"]["setStatus"]>(async input => update(input?.id, input?.expectedRev, { status: input?.status })),
       setPinned: vi.fn<MemoriesBridge["memories"]["setPinned"]>(async input => update(input?.id, input?.expectedRev, { pinned: input?.pinned })),
       reorder: vi.fn<MemoriesBridge["memories"]["reorder"]>(async () => ({})),

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createMemoriesBridge, type MemoriesWireBridge } from "./bridge";
 import { createMemoriesStore, type MemoriesStore } from "./store";
 import { fakeBridge } from "./fake-bridge";
 import { memoryFixture } from "./fixtures";
@@ -7,7 +8,8 @@ import type { MemoriesBridge } from "./model";
 const stores: MemoriesStore[] = [];
 function setup(count = 1) {
   const fake = fakeBridge(Array.from({ length: count }, (_, index) => memoryFixture(index + 1)));
-  const store = createMemoriesStore(() => fake.bridge); stores.push(store);
+  const store = createMemoriesStore(() => createMemoriesBridge(fake.bridge as unknown as MemoriesWireBridge));
+  stores.push(store);
   return { ...fake, store };
 }
 afterEach(() => { stores.splice(0).forEach(store => store.dispose()); vi.useRealTimers(); });
@@ -16,6 +18,7 @@ function deferred<T>() { let resolve!: (value: T) => void; const promise = new P
 describe("revision-safe memory store", () => {
   it("reads every cursor page of 10k records", async () => {
     const { store, bridge } = setup(10000); await store.refresh();
+    expect(store.loadError()).toBe("");
     expect(store.rows()).toHaveLength(10000); expect(bridge.memories.list).toHaveBeenCalledTimes(20);
   });
   it("serializes rapid edits and preserves the newer draft while a save is in flight", async () => {
@@ -135,5 +138,25 @@ describe("revision-safe memory store", () => {
     data.set("memory-1", { ...data.get("memory-1")!, title: "Agent title", rev: "2" }); emit();
     await vi.advanceTimersByTimeAsync(100); expect(store.record("memory-1")!.note).toBe("Unsaved");
     disconnect(); await store.flush("memory-1"); expect(store.state("memory-1")).toBe("conflict");
+  });
+  it("keeps int64 revisions as decimal strings through protobuf JSON", async () => {
+    const fake = fakeBridge([{ ...memoryFixture(), rev: "9007199254740993" }]);
+    const store = createMemoriesStore(() => createMemoriesBridge(fake.bridge as unknown as MemoriesWireBridge));
+    stores.push(store);
+    await store.load("memory-1");
+    store.edit("memory-1", { title: "Safe int64" }); await store.flush("memory-1");
+    expect(vi.mocked(fake.bridge.memories.update).mock.calls[0]![0]!.expectedRev).toBe("9007199254740993");
+    expect(typeof vi.mocked(fake.bridge.memories.update).mock.calls[0]![0]!.expectedRev).toBe("string");
+    expect(store.record("memory-1")!.rev).toBe("9007199254740994");
+  });
+  it("cancels queued deletion on pagehide without sending Delete", async () => {
+    vi.useFakeTimers(); const { store, bridge } = setup();
+    const disconnect = store.connect(); await store.refresh(); await store.queueDelete("memory-1");
+    expect(store.rows()).toHaveLength(0);
+    window.dispatchEvent(new Event("pagehide"));
+    await vi.advanceTimersByTimeAsync(8001);
+    expect(bridge.memories.delete).not.toHaveBeenCalled();
+    expect(store.rows()).toHaveLength(1); expect(store.deleting().size).toBe(0);
+    disconnect();
   });
 });

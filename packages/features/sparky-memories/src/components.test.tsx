@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "solid-js/web";
+import { createMemoriesBridge, type MemoriesWireBridge } from "./bridge";
 import { fakeBridge } from "./fake-bridge";
 import { memoryFixture } from "./fixtures";
 import { createMemoriesStore } from "./store";
@@ -9,7 +10,7 @@ import { orderedSections } from "./memory-detail";
 const cleanups: (() => void)[] = [];
 afterEach(() => { cleanups.splice(0).reverse().forEach(cleanup => cleanup()); document.body.innerHTML = ""; vi.restoreAllMocks(); });
 function mount(seed = [memoryFixture()], debounceMs = 30) {
-  const fake = fakeBridge(seed), store = createMemoriesStore(() => fake.bridge, debounceMs);
+  const fake = fakeBridge(seed), store = createMemoriesStore(() => createMemoriesBridge(fake.bridge as unknown as MemoriesWireBridge), debounceMs);
   const host = document.createElement("div"); document.body.append(host);
   const dispose = render(() => <MemoryFixtureWorkspace store={store} virtualized={false} />, host);
   cleanups.push(() => { dispose(); store.dispose(); host.remove(); });
@@ -82,6 +83,16 @@ describe("memory page behavior through a fake preload bridge", () => {
     vi.mocked(bridge.memories.list).mockRejectedValueOnce(new Error("Core offline")); await store.refresh();
     expect(host.textContent).toContain("Memories unavailable"); expect(host.textContent).toContain("Retry connection");
     button("Retry connection").click(); await vi.waitFor(() => expect(store.loadError()).toBe(""));
+  });
+  it("toggles table columns for due date and priority", async () => {
+    const { host } = mount();
+    await row(host);
+    expect(host.textContent).not.toContain("Priority");
+    const layout = document.querySelector('[aria-label="Memory layout"]')!;
+    const inputs = layout.querySelectorAll<HTMLInputElement>("input");
+    inputs[1]!.click();
+    await vi.waitFor(() => expect(host.textContent).toContain("Priority"));
+    expect(host.textContent).toContain("Due");
   });
   it("orders visible contributed detail sections without importing their owners", () => {
     const component = () => <p>Contribution</p>;

@@ -1,12 +1,16 @@
 import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
-import { A11yDialog, Button, Checkbox, DataTable, Field, FilterChip, FilterPopover, Input, ListChecks, PageEmpty, PageError, PageLoading, PageOffline, PageToolbar, SearchBar, SegmentedControl, Select, StatusChip, type CheckboxProps } from "@polterware/frontend-design-system";
-import { browserBridge, DEFAULT_FILTER, errorText, filterRows, todayGroup, type MemoryRow } from "./model";
+import { A11yDialog, Button, Checkbox, DataTable, Field, FilterChip, FilterPopover, Input, ListChecks, PageEmpty, PageError, PageHeader, PageLoading, PageOffline, PageToolbar, SearchBar, SegmentedControl, Select, StatusChip, type CheckboxProps } from "@polterware/frontend-design-system";
+import { browserBridge } from "./bridge";
+import { errorText, filterRows, todayGroup, DEFAULT_FILTER, type MemoryRow } from "./model";
+import { MemoryDetailHost } from "./host";
+import { trySparkyShell } from "./shell-access";
 import { memoriesStore, type MemoriesStore } from "./store";
 import { UndoNotice } from "./undo-notice";
 
 export type MemoryCollectionProps = { mindId?: string; mode?: "today" | "inbox" | "mind"; store?: MemoriesStore; onOpen?: (id: string) => void; virtualized?: boolean };
 export function MemoryCollection(props: MemoryCollectionProps) {
   const store = props.store ?? memoriesStore;
+  const shell = trySparkyShell();
   const [query, setQuery] = createSignal("");
   const [status, setStatus] = createSignal("active");
   const [pinned, setPinned] = createSignal(false);
@@ -28,7 +32,17 @@ export function MemoryCollection(props: MemoryCollectionProps) {
     root?.addEventListener("keydown", keyboard, true);
     const disconnect = store.connect();
     const timer = setInterval(() => setNow(new Date()), 60000);
-    onCleanup(() => { disconnect(); clearInterval(timer); root?.removeEventListener("keydown", keyboard, true); });
+    const unregDetail = shell?.registerMemoryDetail(({ memoryId }) => <MemoryDetailHost memoryId={memoryId} store={store} />);
+    const unregKeys = shell?.registerCollectionShortcuts(action => {
+      const id = activeId();
+      if (!id) return;
+      if (action === "open") open(id);
+      else if (action === "toggle-done") void store.toggle(id, "status");
+      else if (action === "edit-title") { open(id); queueMicrotask(() => document.querySelector<HTMLInputElement>("[data-memory-title]")?.focus()); }
+      else if (action === "pin") void store.toggle(id, "pinned");
+      else if (action === "delete") setDeleteIds([id]);
+    });
+    onCleanup(() => { disconnect(); clearInterval(timer); unregDetail?.(); unregKeys?.(); root?.removeEventListener("keydown", keyboard, true); });
   });
   const groups = createMemo(() => {
     const dates = new Map<string, "Overdue" | "Today" | "Upcoming 7 days">();
@@ -55,7 +69,8 @@ export function MemoryCollection(props: MemoryCollectionProps) {
   const open = (id: string) => {
     setActiveId(id);
     if (props.onOpen) props.onOpen(id);
-    else void browserBridge().app.openDeepLink(`sparky://memory/${encodeURIComponent(id)}`).catch(error => setActionError(errorText(error)));
+    else if (shell) shell.openMemory(id);
+    else void browserBridge().app.openDeepLink(`sparky://memory/${encodeURIComponent(id)}`).catch((error: unknown) => setActionError(errorText(error)));
   };
   async function create() {
     if (!title().trim() || busy()) return;
@@ -90,14 +105,15 @@ export function MemoryCollection(props: MemoryCollectionProps) {
     const editing = element.closest("input, textarea, [contenteditable=true], [role=dialog], [role=menu]");
     if (editing) return;
     const id = element.closest<HTMLElement>("[data-row-id]")?.dataset.rowId ?? activeId();
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") { event.preventDefault(); setCreating(true); }
-    else if (event.key === "/") { event.preventDefault(); root?.querySelector<HTMLInputElement>('[role="searchbox"]')?.focus(); }
-    else if (id && (event.metaKey || event.ctrlKey) && event.key === "Backspace") { event.preventDefault(); setDeleteIds([id]); }
-    else if (id && event.key.toLowerCase() === "p" && !event.metaKey && !event.ctrlKey) { event.preventDefault(); void store.toggle(id, "pinned"); }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "n") { event.preventDefault(); event.stopPropagation(); setCreating(true); }
+    else if (event.key === "/") { event.preventDefault(); event.stopPropagation(); root?.querySelector<HTMLInputElement>('[role="searchbox"]')?.focus(); }
+    else if (id && (event.metaKey || event.ctrlKey) && event.key === "Backspace") { event.preventDefault(); event.stopPropagation(); setDeleteIds([id]); }
+    else if (id && event.key.toLowerCase() === "p" && !event.metaKey && !event.ctrlKey) { event.preventDefault(); event.stopPropagation(); void store.toggle(id, "pinned"); }
     else if (id && event.key === " " && element.matches("[data-row-id]")) { event.preventDefault(); event.stopPropagation(); void store.toggle(id, "status"); }
-    else if (id && event.key.toLowerCase() === "e" && !event.metaKey && !event.ctrlKey) { event.preventDefault(); open(id); setTimeout(() => document.querySelector<HTMLInputElement>(`[data-memory-title]`)?.focus(), 100); }
+    else if (id && event.key.toLowerCase() === "e" && !event.metaKey && !event.ctrlKey) { event.preventDefault(); event.stopPropagation(); open(id); queueMicrotask(() => document.querySelector<HTMLInputElement>("[data-memory-title]")?.focus()); }
   };
   return <div ref={element => { root = element; }} class="flex h-full min-h-0 flex-col gap-3">
+    <Show when={mode() !== "mind"}><PageHeader title={mode() === "today" ? "Today" : "Inbox"} /></Show>
     <PageToolbar.Root>
       <PageToolbar.Leading><div class="flex flex-wrap items-center gap-2">
         <SearchBar aria-label="Filter memories" placeholder="Filter memories" value={query()} onInput={setQuery} />
@@ -155,7 +171,8 @@ export function MemoryCollection(props: MemoryCollectionProps) {
     </A11yDialog>
   </div>;
 }
-export const TodayPage = () => <MemoryCollection mode="today" />;
-export const InboxPage = () => <MemoryCollection mode="inbox" />;
+export function TodayPage() { return <MemoryCollection mode="today" />; }
+export function InboxPage() { return <MemoryCollection mode="inbox" />; }
+export function MindMemoriesPage(props: { mindId: string }) { return <MemoryCollection mode="mind" mindId={props.mindId} />; }
 
 const roundCheckbox: CheckboxProps = { ["shape"]: "round" };

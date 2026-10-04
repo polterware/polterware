@@ -1,6 +1,7 @@
 import { For, Index, Show, createEffect, createMemo, createSignal, onCleanup, onMount, on, type Component } from "solid-js";
 import type { DetailSectionDef } from "@polterware/feature-sparky-shell/feature";
 import { A11yDialog, Button, Checkbox, DetailPanel, Field, Input, MarkdownEditor, PageEmpty, PageError, PageLoading, Select, StatusChip, Switch, SwitchRow, Textarea, type CheckboxProps } from "@polterware/frontend-design-system";
+import { trySparkyShell } from "./shell-access";
 import { checklistInputs, errorText, localDate, reorderChecklist, type MemoryRecord } from "./model";
 import { memoriesStore, type MemoriesStore } from "./store";
 import { UndoNotice } from "./undo-notice";
@@ -12,6 +13,7 @@ export function orderedSections(sections: DetailSectionDef[], memoryId: string) 
 /** The shell owns the single DetailPanel Root/Content/Header; this feature owns its record body. */
 export function MemoryDetail(props: MemoryDetailProps) {
   const store = props.store ?? memoriesStore;
+  const shell = trySparkyShell();
   onMount(() => onCleanup(store.connect()));
   const [error, setError] = createSignal("");
   const [pending, setPending] = createSignal(false);
@@ -24,7 +26,7 @@ export function MemoryDetail(props: MemoryDetailProps) {
     void store.load(id).catch(value => { if (active) setError(errorText(value)); }).finally(() => { if (active) setPending(false); });
     onCleanup(() => { active = false; void store.flush(id); });
   }));
-  const sections = createMemo(() => orderedSections(props.sections ?? [], props.memoryId));
+  const sections = createMemo(() => orderedSections(props.sections ?? shell?.detailSections() ?? [], props.memoryId));
   async function remove() {
     try { await store.queueDelete(props.memoryId); setConfirmDelete(false); setActionError(""); }
     catch (value) { setActionError(errorText(value)); }

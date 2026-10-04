@@ -1,10 +1,10 @@
 import { batch, createSignal } from "solid-js";
-import type { MindSchema, TagSchema, ActivityEventSchema, CreateMemoryRequestSchema } from "@polterware/sparky-contracts";
-import { applyPatch, browserBridge, errorText, parseMemoryFailure, mergePatch, recordFromJSON, rowFromJSON, type ChecklistInput, type MemoriesBridge, type MemoryFailure, type JsonOf, type MemoryJSON, type MemoryRecord, type MemoryRow, type OccurrenceJSON, type Patch } from "./model";
+import { browserBridge } from "./bridge";
+import { applyPatch, errorText, parseMemoryFailure, mergePatch, recordFromJSON, revisionString, rowFromJSON, type ActivityJSON, type ChecklistInput, type CreateMemoryJSON, type MemoriesBridge, type MemoryFailure, type MemoryJSON, type MemoryRecord, type MemoryRow, type MindJSON, type OccurrenceJSON, type Patch, type TagJSON } from "./model";
 
 export type SaveState = "live" | "queued" | "saving" | "failed" | "conflict";
 type Draft = { patch: Patch; checklist?: ChecklistInput[]; tagIds?: string[] };
-type Undo = { id: string; message: string; expiresAt: number; run: () => Promise<void>; timer: ReturnType<typeof setTimeout> };
+type Undo = { id: string; kind: "delete" | "complete"; message: string; expiresAt: number; run: () => Promise<void>; timer: ReturnType<typeof setTimeout> };
 const INCLUDE = { note: true, checklist: true, tags: true, schedule: true, place: true, attachments: true, completions: true };
 
 /** One entity cache; edits survive detail unmounts and every write uses the newest acknowledged rev. */
@@ -17,9 +17,9 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
   const [checkToggles, setCheckToggles] = createSignal<Record<string, Record<string, boolean>>>({});
   const [states, setStates] = createSignal<Record<string, SaveState>>({});
   const [errors, setErrors] = createSignal<Record<string, string>>({});
-  const [minds, setMinds] = createSignal<JsonOf<typeof MindSchema>[]>([]);
-  const [tags, setTags] = createSignal<JsonOf<typeof TagSchema>[]>([]);
-  const [activity, setActivity] = createSignal<JsonOf<typeof ActivityEventSchema>[]>([]);
+  const [minds, setMinds] = createSignal<MindJSON[]>([]);
+  const [tags, setTags] = createSignal<TagJSON[]>([]);
+  const [activity, setActivity] = createSignal<ActivityJSON[]>([]);
   const [occurrences, setOccurrences] = createSignal<OccurrenceJSON[]>([]);
   const [scheduleError, setScheduleError] = createSignal("");
   const [loading, setLoading] = createSignal(false);
@@ -40,7 +40,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
   function accept(json: MemoryJSON, full = false, relations: Pick<MemoryJSON, "checklist" | "tags"> = {}) {
     if (!json.id) throw new Error("The core returned a memory without an ID.");
     const old = records()[json.id];
-    if (old && BigInt(old.rev) > BigInt(json.rev ?? "0")) return old;
+    if (old && BigInt(old.rev) > BigInt(revisionString(json.rev))) return old;
     const record = recordFromJSON(full ? json : { ...old, ...json,
       checklist: relations.checklist ?? old?.checklist, tags: relations.tags ?? old?.tags,
       schedule: old?.schedule, place: old?.place,
@@ -96,17 +96,17 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
     try {
       await load(id);
       if (Object.keys(remaining.patch).length) {
-        const response = await getBridge().memories.update({ id, expectedRev: records()[id]!.rev, ...remaining.patch });
+        const response = await getBridge().memories.update({ id, expectedRev: revisionString(records()[id]!.rev), ...remaining.patch });
         if (!response.memory) throw new Error("The core did not acknowledge the edit.");
         accept({ ...applyPatch(records()[id]!, remaining.patch), ...response.memory, note: remaining.patch.note ?? response.memory.note ?? records()[id]!.note }); remaining.patch = {};
       }
       if (remaining.checklist) {
-        const response = await getBridge().memories.replaceChecklist({ memoryId: id, expectedRev: records()[id]!.rev, items: remaining.checklist });
+        const response = await getBridge().memories.replaceChecklist({ memoryId: id, expectedRev: revisionString(records()[id]!.rev), items: remaining.checklist });
         if (!response.memory) throw new Error("The core did not acknowledge the checklist.");
         accept({ ...response.memory, note: records()[id]!.note }, false, { checklist: response.items ?? [] }); delete remaining.checklist;
       }
       if (remaining.tagIds) {
-        const response = await getBridge().memories.setTags({ memoryId: id, expectedRev: records()[id]!.rev, tagIds: remaining.tagIds });
+        const response = await getBridge().memories.setTags({ memoryId: id, expectedRev: revisionString(records()[id]!.rev), tagIds: remaining.tagIds });
         if (!response.memory) throw new Error("The core did not acknowledge the tags.");
         accept({ ...response.memory, note: records()[id]!.note }, false, { tags: response.tags ?? [] }); delete remaining.tagIds;
       }
@@ -140,12 +140,21 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
       } catch (error) { report(id, parseMemoryFailure(error)); }
     });
   }
-  function addUndo(id: string, message: string, run: () => Promise<void>, expire?: () => Promise<void>) {
+  function addUndo(id: string, kind: "delete" | "complete", message: string, run: () => Promise<void>, expire?: () => Promise<void>) {
     const timer = setTimeout(() => {
       setUndos(v => v.filter(undo => undo.timer !== timer));
       void expire?.();
     }, 8000);
-    setUndos(v => [...v, { id, message, run, timer, expiresAt: Date.now() + 8000 }]);
+    setUndos(v => [...v, { id, kind, message, run, timer, expiresAt: Date.now() + 8000 }]);
+  }
+  function cancelQueuedDeletes() {
+    const pending = undos().filter(item => item.kind === "delete");
+    if (!pending.length) return;
+    pending.forEach(item => clearTimeout(item.timer));
+    batch(() => {
+      setUndos(v => v.filter(item => item.kind !== "delete"));
+      setDeleting(new Set<string>());
+    });
   }
   async function undo(item: Undo) {
     if (Date.now() >= item.expiresAt || !undos().includes(item)) return;
@@ -165,14 +174,15 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
         await saveDraft(id);
         if (state(id) === "conflict" || state(id) === "failed") throw new Error("Resolve the unsaved edit before changing this memory.");
         await load(id); setStates(v => ({ ...v, [id]: "saving" }));
+        const expectedRev = revisionString(records()[id]!.rev);
         const response = kind === "pinned"
-          ? await getBridge().memories.setPinned({ id, pinned: value, expectedRev: records()[id]!.rev })
-          : await getBridge().memories.setStatus({ id, status: value ? "completed" : "active", expectedRev: records()[id]!.rev });
+          ? await getBridge().memories.setPinned({ id, pinned: value, expectedRev })
+          : await getBridge().memories.setStatus({ id, status: value ? "completed" : "active", expectedRev });
         if (!response.memory) throw new Error("The core did not acknowledge the action.");
         accept({ ...response.memory, ...patch });
         if (kind === "status") await load(id, true);
         setStates(v => ({ ...v, [id]: drafts()[id] ? "queued" : "live" }));
-        if (kind === "status" && value) addUndo(id, `Completed “${row.title}”`, () => toggle(id, "status", false));
+        if (kind === "status" && value) addUndo(id, "complete", `Completed “${row.title}”`, () => toggle(id, "status", false));
       } catch (error) { if (state(id) !== "conflict") report(id, parseMemoryFailure(error)); }
       finally {
         // Later queued toggles still carry their own value into the serialized write.
@@ -189,7 +199,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
         await saveDraft(id);
         if (state(id) === "conflict" || state(id) === "failed") throw new Error("Resolve the unsaved edit before toggling a checklist item.");
         await load(id); setStates(v => ({ ...v, [id]: "saving" }));
-        const response = await getBridge().memories.toggleCheckItem({ memoryId: id, itemId, done, expectedRev: records()[id]!.rev });
+        const response = await getBridge().memories.toggleCheckItem({ memoryId: id, itemId, done, expectedRev: revisionString(records()[id]!.rev) });
         if (!response.memory) throw new Error("The core did not acknowledge the checklist action.");
         accept({ ...response.memory, note: records()[id]!.note });
         await load(id, true);
@@ -208,10 +218,10 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
     const snapshot = await load(id);
     if (deleting().has(id)) return;
     setDeleting(v => new Set([...v, id]));
-    addUndo(id, `Deletion queued: “${snapshot.title}”`, async () => { setDeleting(v => { const next = new Set(v); next.delete(id); return next; }); }, async () => {
+    addUndo(id, "delete", `Deletion queued: “${snapshot.title}”`, async () => { setDeleting(v => { const next = new Set(v); next.delete(id); return next; }); }, async () => {
       await enqueue(id, async () => {
         try {
-          await getBridge().memories.delete({ id, expectedRev: snapshot.rev });
+          await getBridge().memories.delete({ id, expectedRev: revisionString(snapshot.rev) });
           batch(() => {
             setRows(v => v.filter(row => row.id !== id));
             setRecords(v => { const next = { ...v }; delete next[id]; return next; });
@@ -221,7 +231,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
       });
     });
   }
-  async function create(input: JsonOf<typeof CreateMemoryRequestSchema>) {
+  async function create(input: CreateMemoryJSON) {
     const response = await getBridge().memories.create(input);
     if (!response.memory) throw new Error("The core did not acknowledge the new memory.");
     return accept(response.memory, true);
@@ -239,7 +249,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
         seen.add(cursor);
       } while (cursor);
       if (current === generation) {
-        setRows(all.map(row => { const cached = records()[row.id]; return cached && BigInt(cached.rev) >= BigInt(row.rev) ? cached : row; }));
+        setRows(all.map(row => { const cached = records()[row.id]; return cached && BigInt(cached.rev) >= BigInt(revisionString(row.rev)) ? cached : row; }));
         // Do not overwrite unsaved drafts; clean details are invalidated by the same event.
         await Promise.all(Object.keys(records()).filter(id => !drafts()[id] && !inflight()[id] && !queues.has(id) && !deleting().has(id)).map(id => load(id, true).catch(error => report(id, parseMemoryFailure(error)))));
       }
@@ -258,6 +268,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
       setMetadataError(results.filter(value => value.status === "rejected").map(value => errorText(value.reason)).join("; "));
     });
   }
+  const onPageHide = () => cancelQueuedDeletes();
   function connect() {
     users++;
     if (!unsubscribe) {
@@ -267,23 +278,31 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
           if (refreshTimer) clearTimeout(refreshTimer);
           refreshTimer = setTimeout(() => { void refresh(); void refreshMetadata().catch(error => setMetadataError(errorText(error))); }, 100);
         });
+        window.addEventListener("pagehide", onPageHide);
         void refresh(); void refreshMetadata().catch(error => setMetadataError(errorText(error)));
       } catch (error) { setLoadError(errorText(error)); }
     }
     return () => {
       users--;
-      if (users === 0) { unsubscribe?.(); unsubscribe = undefined; if (refreshTimer) clearTimeout(refreshTimer); }
+      if (users === 0) {
+        unsubscribe?.(); unsubscribe = undefined; if (refreshTimer) clearTimeout(refreshTimer);
+        window.removeEventListener("pagehide", onPageHide);
+      }
       // Draft saves and undo timers intentionally survive route/detail unmounts.
     };
   }
   function dispose() {
     generation++; unsubscribe?.(); unsubscribe = undefined;
+    window.removeEventListener("pagehide", onPageHide);
     if (refreshTimer) clearTimeout(refreshTimer);
-    timers.forEach(clearTimeout); timers.clear(); undos().forEach(item => clearTimeout(item.timer));
+    timers.forEach(clearTimeout); timers.clear();
+    cancelQueuedDeletes();
+    undos().forEach(item => clearTimeout(item.timer));
+    setUndos([]);
   }
   return { rows: visibleRows, record, state, errors, drafts, minds, tags, activity, loading, loadError, metadataError, occurrences, scheduleError, undos, deleting,
     load, edit: (id: string, patch: Patch) => edit(id, { patch }), editChecklist: (id: string, checklist: ChecklistInput[]) => edit(id, { checklist }),
-    editTags: (id: string, tagIds: string[]) => edit(id, { tagIds }), flush, resolve, toggle, toggleChecklist, queueDelete, create, refresh, refreshMetadata, connect, undo, dispose };
+    editTags: (id: string, tagIds: string[]) => edit(id, { tagIds }), flush, resolve, toggle, toggleChecklist, queueDelete, create, refresh, refreshMetadata, connect, undo, cancelQueuedDeletes, dispose };
 }
 export type MemoriesStore = ReturnType<typeof createMemoriesStore>;
 export const memoriesStore = createMemoriesStore();
