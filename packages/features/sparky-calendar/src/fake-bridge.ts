@@ -32,12 +32,9 @@ export function fakeCalendarBridge(seed: {
         }),
       };
     }),
-    set: vi.fn(async (input?: { schedule?: ScheduleJSON; expectedRev?: string }) => {
+    set: vi.fn(async (input?: { schedule?: ScheduleJSON }) => {
       const id = input?.schedule?.memoryId ?? "";
       const memory = memories.get(id);
-      if (memory && input?.expectedRev && input.expectedRev !== memory.rev) {
-        throw Object.assign(new Error("memory rev conflict"), { code: "conflict" });
-      }
       if (memory) {
         memory.schedule = { ...memory.schedule, ...input?.schedule, memoryId: id };
         memory.rev = String(BigInt(memory.rev) + 1n);
@@ -55,7 +52,7 @@ export function fakeCalendarBridge(seed: {
       get: vi.fn(async (input?: { id?: string }) => {
         const memory = memories.get(input?.id ?? "");
         if (!memory) throw new Error("Memory unavailable. It may have been deleted.");
-        return { memory: { ...memory, schedule: memory.schedule } };
+        return { memory: { ...memory } };
       }),
     },
     minds: {

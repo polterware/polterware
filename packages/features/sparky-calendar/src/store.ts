@@ -1,7 +1,7 @@
 import { batch, createSignal } from "solid-js";
 import { browserBridge, type CalendarBridge, type OccurrenceJSON } from "./bridge";
 import { occurrenceDate, systemTimeZone, visibleRange, weekStartFromSettings, type CalendarView, type WeekStart } from "./grid";
-import { errorText, isRecurring, moveSeriesAnchor, revisionString, slotInstant, toOneShotSchedule, type ScheduleJSON, type SlotDraft } from "./mapping";
+import { errorText, isRecurring, moveSeriesAnchor, slotInstant, toOneShotSchedule, type ScheduleJSON, type SlotDraft } from "./mapping";
 
 export type SaveState = "live" | "queued" | "failed" | "unavailable";
 
@@ -135,7 +135,7 @@ export function createCalendarStore(getBridge: () => CalendarBridge = browserBri
     return next;
   }
 
-  async function createFromSlot(draft: SlotDraft) {
+  async function createFromSlot(draft: SlotDraft, onCreated?: (id: string) => void) {
     setBusy("create");
     setSaveState("queued");
     try {
@@ -144,8 +144,10 @@ export function createCalendarStore(getBridge: () => CalendarBridge = browserBri
       const memory = asRecord(created.memory);
       const id = String(memory.id ?? "");
       if (!id) throw new Error("The core did not create a memory.");
+      // The memory already exists; keep it reachable if the schedule write fails.
+      onCreated?.(id);
       const schedule = toOneShotSchedule({ ...draft, tz: draft.tz || displayTz() }, id);
-      await bridge.schedule.set({ schedule, expectedRev: revisionString(memory.rev as string | number | bigint | undefined) });
+      await bridge.schedule.set({ schedule });
       setSaveState("live");
       setActionError("");
       await refresh();
@@ -175,7 +177,7 @@ export function createCalendarStore(getBridge: () => CalendarBridge = browserBri
       const dropAt = slotInstant({ ...draft, tz: occurrence.tz || schedule.tz || displayTz() });
       const next = moveSeriesAnchor({ ...schedule, memoryId: occurrence.memoryId }, occurrence.occurrenceAt, dropAt);
       if (draft.allDay) next.allDay = true;
-      await bridge.schedule.set({ schedule: next, expectedRev: revisionString(memory.rev as string | number | bigint | undefined) });
+      await bridge.schedule.set({ schedule: next });
       setSaveState("live");
       setActionError("");
       await refresh();

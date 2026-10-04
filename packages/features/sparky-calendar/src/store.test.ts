@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { fromJson } from "@bufbuild/protobuf";
+import { SetScheduleRequestSchema } from "@polterware/sparky-contracts";
 import { createCalendarBridge } from "./bridge";
 import { fakeCalendarBridge } from "./fake-bridge";
 import { visibleRange } from "./grid";
@@ -46,14 +48,13 @@ describe("calendar store against a fake preload bridge", () => {
     expect(november.to).toBe(visibleRange("2026-11-15", "month", "mon", "UTC").to);
   });
 
-  it("quick-creates a one-shot from a slot and sends expectedRev as a string", async () => {
+  it("quick-creates a one-shot using only the frozen SetScheduleRequest fields", async () => {
     const fake = fakeCalendarBridge();
     const store = createCalendarStore(() => createCalendarBridge(fake.wire));
     const id = await store.createFromSlot({ date: "2026-10-03", time: "21:30", allDay: false, tz: "UTC" });
     expect(id).toBe("created-1");
     expect(fake.wire.memories.create).toHaveBeenCalledWith({ title: "Untitled memory" });
     expect(fake.schedule.set).toHaveBeenCalledWith({
-      expectedRev: "1",
       schedule: expect.objectContaining({
         memoryId: "created-1",
         fireAt: "2026-10-03T21:30:00.000Z",
@@ -61,7 +62,7 @@ describe("calendar store against a fake preload bridge", () => {
         freq: "",
       }),
     });
-    expect(typeof (fake.schedule.set.mock.calls[0]?.[0] as { expectedRev: string }).expectedRev).toBe("string");
+    expect(() => fromJson(SetScheduleRequestSchema, fake.schedule.set.mock.calls[0]?.[0] as never)).not.toThrow();
   });
 
   it("asks before moving a recurring series and then shifts the series anchor", async () => {
@@ -92,7 +93,6 @@ describe("calendar store against a fake preload bridge", () => {
     expect(fake.schedule.set).not.toHaveBeenCalled();
     await store.reschedule(occurrence, { date: "2026-03-03", time: "15:00", allDay: false, tz: "America/Sao_Paulo" }, true);
     expect(fake.schedule.set).toHaveBeenCalledWith({
-      expectedRev: "4",
       schedule: expect.objectContaining({ fireAt: "2026-03-01T18:00:00.000Z", freq: "daily" }),
     });
   });

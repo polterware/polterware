@@ -2,6 +2,7 @@ import { render } from "solid-js/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import shellFeature, { SparkyShell, createShellBridge, useSparkyShell, type ShellWireBridge, type SparkyFeature } from "@polterware/feature-sparky-shell";
 import { Button } from "@polterware/frontend-design-system";
+import { shiftedAnchor } from "./grid";
 import { createCalendarBridge } from "./bridge";
 import calendarFeature from "./index";
 import { fakeCalendarBridge } from "./fake-bridge";
@@ -68,6 +69,68 @@ function pointerClick(element: HTMLElement) {
 }
 
 describe("calendar page through a fake preload bridge", () => {
+  it("uses one grid Tab stop and moves actual focus across week slots without hijacking toolbar arrows", async () => {
+    const { host } = mount();
+    const slot = await vi.waitFor(() => {
+      const found = host.querySelector<HTMLButtonElement>('button[data-slot-time="09:00"]');
+      expect(found).not.toBeNull(); return found!;
+    });
+    const grid = host.querySelector<HTMLElement>(".sparky-calendar__grid-wrap")!;
+    await vi.waitFor(() => expect([...grid.querySelectorAll("button")].filter(button => button.tabIndex === 0)).toHaveLength(1));
+    slot.focus();
+    const date = slot.dataset.slotDate;
+    slot.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect((document.activeElement as HTMLElement).dataset.slotTime).toBe("10:00"));
+    expect((document.activeElement as HTMLElement).dataset.slotDate).toBe(date);
+    document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect((document.activeElement as HTMLElement).dataset.slotDate).not.toBe(date));
+    expect((document.activeElement as HTMLElement).dataset.slotTime).toBe("10:00");
+    const next = [...host.querySelectorAll<HTMLButtonElement>("button")].find(button => button.getAttribute("aria-label") === "Next")!;
+    const from = host.querySelector("[data-calendar]")!.getAttribute("data-calendar-from");
+    const arrow = new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true });
+    next.dispatchEvent(arrow);
+    expect(arrow.defaultPrevented).toBe(false);
+    expect(host.querySelector("[data-calendar]")!.getAttribute("data-calendar-from")).toBe(from);
+  });
+  it("moves month focus across the visible boundary and navigates occurrences within a day", async () => {
+    const date = new Date().toLocaleDateString("en-CA");
+    const { host } = mount({ occurrences: [{ memoryId: "memory-1", title: "Keyboard occurrence", occurrenceAt: new Date().toISOString(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone, allDay: true }] });
+    const root = await vi.waitFor(() => {
+      const found = host.querySelector<HTMLElement>("[data-calendar]");
+      expect(found).not.toBeNull(); return found!;
+    });
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "m", bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(root.dataset.calendarView).toBe("month"));
+    const columns = host.querySelectorAll<HTMLElement>("[data-day]");
+    const last = columns[columns.length - 1]!;
+    const target = last.querySelectorAll<HTMLButtonElement>("button");
+    target[target.length - 1]!.focus();
+    const nextDate = shiftedAnchor(last.dataset.day!, "day", 1);
+    document.activeElement!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.activeElement?.closest<HTMLElement>("[data-day]")?.dataset.day).toBe(nextDate));
+    expect(host.querySelector("[data-focused]")?.getAttribute("data-day")).toBe(nextDate);
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true, cancelable: true }));
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "d", bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(root.dataset.calendarView).toBe("day"));
+    await vi.waitFor(() => expect(host.querySelector('[data-occurrence="memory-1"]')).not.toBeNull());
+    const header = host.querySelector<HTMLButtonElement>(`[data-day="${date}"] button`)!;
+    header.focus();
+    header.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect((document.activeElement as HTMLElement).dataset.occurrence).toBe("memory-1"));
+    expect([...host.querySelectorAll<HTMLButtonElement>(".sparky-calendar__grid-wrap button")].filter(button => button.tabIndex === 0)).toHaveLength(1);
+  });
+  it("selects the created memory even when saving its slot schedule fails", async () => {
+    const { host, fake } = mount();
+    fake.schedule.set.mockRejectedValueOnce(new Error("Schedule save failed"));
+    const slot = await vi.waitFor(() => {
+      const found = host.querySelector<HTMLButtonElement>('button[data-slot-time="09:00"]');
+      expect(found).not.toBeNull(); return found!;
+    });
+    pointerClick(slot);
+    await vi.waitFor(() => expect(fake.wire.memories.create).toHaveBeenCalled());
+    await vi.waitFor(() => expect(host.querySelector('[aria-label="Memory details"]')?.textContent).toContain("Untitled memory"));
+    expect(host.textContent).toContain("Schedule save failed");
+  });
   it("creates a memory from an empty slot and opens the detail panel", async () => {
     const { host, fake } = mount();
     const slot = await vi.waitFor(() => {
