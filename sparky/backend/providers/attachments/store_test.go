@@ -31,6 +31,13 @@ func TestImportFileSafetyAndCrashShape(t *testing.T) {
 	if _, err = os.Stat(filepath.Join(root, "attachments", got.RelPath)); err != nil {
 		t.Fatal(err)
 	}
+	entries, err := os.ReadDir(filepath.Join(root, "attachments", testMemoryID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name()[0] == '.' {
+		t.Fatalf("temporary file remained after import: %v", entries)
+	}
 	if _, err = s.ImportFile(context.Background(), "../../escape", testAttachmentID, source); err == nil {
 		t.Fatal("traversal ID accepted")
 	}
