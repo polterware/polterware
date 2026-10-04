@@ -1,6 +1,8 @@
 // Package search is the full-text search port.
 package search
 
+import "time"
+
 // Document is one memory_fts row. Note and checklist are plain text.
 type Document struct {
 	MemoryID  string
@@ -26,6 +28,10 @@ type Filter struct {
 	IncludeDescendants bool
 	TagIDs             []string
 	Status             string
+	DueFrom            *time.Time
+	DueTo              *time.Time
+	UpdatedFrom        *time.Time
+	UpdatedTo          *time.Time
 	Limit              int
 }
 
