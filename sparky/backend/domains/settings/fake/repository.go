@@ -2,23 +2,22 @@ package fake
 
 import (
 	"context"
-
+	store "github.com/polterware/polterware/sparky/backend/domains/activity/fake"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
 )
 
-// Repository is a repository-port skeleton. Methods panic until W1 replaces them.
-type Repository struct{}
+type Repository struct{ Store *store.Store }
+
+func New(s *store.Store) *Repository { return &Repository{s} }
 
 var _ settings.Repository = (*Repository)(nil)
 
-func (*Repository) Get(context.Context, string) (string, bool, error) {
-	panic("settings/fake: not implemented")
+func (r *Repository) Get(ctx context.Context, key string) (string, bool, error) {
+	return store.Read[string](ctx, r.Store, "settings", key)
 }
-
-func (*Repository) Set(context.Context, string, string) error {
-	panic("settings/fake: not implemented")
+func (r *Repository) Set(ctx context.Context, key, value string) error {
+	return r.Store.Put(ctx, "settings", key, value)
 }
-
-func (*Repository) List(context.Context) (map[string]string, error) {
-	panic("settings/fake: not implemented")
+func (r *Repository) List(ctx context.Context) (map[string]string, error) {
+	return store.Map[string](ctx, r.Store, "settings")
 }

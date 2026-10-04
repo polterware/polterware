@@ -47,7 +47,6 @@ type End struct {
 }
 
 // Rule is the pure recurrence value.
-// W1-RECURRENCE adds Validate, Next, At, Count, and Describe.
 // An empty Freq is a one-shot. Every counts from 1.
 // Weekly weekday masks use ISO weeks (Monday-start) from the anchor week.
 type Rule struct {
@@ -94,7 +93,37 @@ type Occurrence struct {
 	MindID       *string
 }
 
-// ReminderItem is one concrete notification. ID is rem:<memoryID>:<occurrenceUnixMs> or one:<id>.
+// DateComponents matches a native UNCalendarNotificationTrigger.
+// Weekday uses the OS convention Sunday=1 … Saturday=7. Nil fields are wildcards.
+type DateComponents struct {
+	TZ      string
+	Weekday *int
+	Hour    *int
+	Minute  *int
+	Second  *int
+}
+
+func sameInt(a, b *int) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func (a DateComponents) equal(b DateComponents) bool {
+	return a.TZ == b.TZ && sameInt(a.Weekday, b.Weekday) && sameInt(a.Hour, b.Hour) &&
+		sameInt(a.Minute, b.Minute) && sameInt(a.Second, b.Second)
+}
+
+func sameRepeat(a, b *DateComponents) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.equal(*b)
+}
+
+// ReminderItem is one notification. One-shots use rem:<memoryID>:<occurrenceUnixMs>
+// or one:<id>. Native repeating items use rem:<memoryID>:repeat or rem:<memoryID>:wd<n>.
 type ReminderItem struct {
 	ID           string
 	MemoryID     string
@@ -103,6 +132,7 @@ type ReminderItem struct {
 	Title        string
 	Body         string
 	Category     string
+	Repeat       *DateComponents
 }
 
 // PlanQuery is the planner window. Budget default 60. Horizon default 30 days.
@@ -120,6 +150,11 @@ type PlanSubject struct {
 	Rule         Rule
 	CompletedAt  []time.Time
 	FocusEnabled bool
+	MindID       *string
+	TagIDs       []string
+	// Empty Status means active, preserving callers that supply active subjects.
+	Status           string
+	ScheduleInactive bool
 }
 
 // PendingOneOff is an extra notification (focus phase or snooze) merged into the plan.

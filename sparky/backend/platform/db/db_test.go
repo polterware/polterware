@@ -1,0 +1,166 @@
+package db
+
+import (
+	"context"
+	"path/filepath"
+	"testing"
+	"testing/fstest"
+	"time"
+
+	"github.com/polterware/polterware/sparky/backend/platform/changes"
+)
+
+func tempHandle(t *testing.T) *Handle {
+	t.Helper()
+	h, err := Open(filepath.Join(t.TempDir(), "sparky.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = h.Close() })
+	return h
+}
+
+func TestOpenWALPragmas(t *testing.T) {
+	h := tempHandle(t)
+	ctx := context.Background()
+	var mode string
+	if err := h.Writer().QueryRowContext(ctx, `PRAGMA journal_mode`).Scan(&mode); err != nil {
+		t.Fatal(err)
+	}
+	if mode != "wal" {
+		t.Fatalf("journal_mode=%s", mode)
+	}
+	var fk, timeout, sync string
+	if err := h.Writer().QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&fk); err != nil {
+		t.Fatal(err)
+	}
+	if fk != "1" {
+		t.Fatalf("foreign_keys=%s", fk)
+	}
+	if err := h.Writer().QueryRowContext(ctx, `PRAGMA busy_timeout`).Scan(&timeout); err != nil {
+		t.Fatal(err)
+	}
+	if timeout != "5000" {
+		t.Fatalf("busy_timeout=%s", timeout)
+	}
+	if err := h.Writer().QueryRowContext(ctx, `PRAGMA synchronous`).Scan(&sync); err != nil {
+		t.Fatal(err)
+	}
+	if sync != "1" { // NORMAL
+		t.Fatalf("synchronous=%s", sync)
+	}
+}
+
+func TestMigrateForwardOnlyIdempotent(t *testing.T) {
+	h := tempHandle(t)
+	ctx := context.Background()
+	fsys := fstest.MapFS{
+		"migrations/0001_one.sql": &fstest.MapFile{Data: []byte("CREATE TABLE t (id TEXT PRIMARY KEY) STRICT;\nINSERT INTO t(id) VALUES ('a');\n")},
+		"migrations/0002_two.sql": &fstest.MapFile{Data: []byte("ALTER TABLE t ADD COLUMN n INTEGER NOT NULL DEFAULT 0;\n")},
+	}
+	if err := Migrate(ctx, h, fsys, "migrations"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Migrate(ctx, h, fsys, "migrations"); err != nil {
+		t.Fatal(err)
+	}
+	vers, err := AppliedVersions(ctx, h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(vers) != 2 || vers[0] != 1 || vers[1] != 2 {
+		t.Fatalf("versions=%v", vers)
+	}
+	var n, rows int
+	if err := h.Writer().QueryRowContext(ctx, `SELECT n, COUNT(*) FROM t`).Scan(&n, &rows); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 || rows != 1 {
+		t.Fatalf("n=%d rows=%d", n, rows)
+	}
+}
+
+func TestWALReaderDuringWrite(t *testing.T) {
+	h := tempHandle(t)
+	ctx := context.Background()
+	if _, err := h.Writer().ExecContext(ctx, `CREATE TABLE memories (id TEXT PRIMARY KEY, title TEXT NOT NULL) STRICT`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Writer().ExecContext(ctx, `INSERT INTO memories(id, title) VALUES ('a', 'seed')`); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := h.Writer().BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO memories(id, title) VALUES ('b', 'uncommitted')`); err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	var n int
+	if err := h.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM memories`).Scan(&n); err != nil {
+		t.Fatalf("reader during write: %v", err)
+	}
+	if time.Since(started) > time.Second {
+		t.Fatalf("reader blocked for %s", time.Since(started))
+	}
+	if n != 1 {
+		t.Fatalf("reader saw %d rows before commit", n)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM memories`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("reader saw %d after commit", n)
+	}
+}
+
+func TestChangesAfterCommitNeverOnRollback(t *testing.T) {
+	h := tempHandle(t)
+	ctx := context.Background()
+	if _, err := h.Writer().ExecContext(ctx, `CREATE TABLE memories (id TEXT PRIMARY KEY, title TEXT NOT NULL) STRICT`); err != nil {
+		t.Fatal(err)
+	}
+	h.discardCommitted()
+	var got []changes.Change
+	h.AfterCommit = func(batch []changes.Change) { got = append([]changes.Change(nil), batch...) }
+	err := h.Within(ctx, func(ctx context.Context) error {
+		_, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO memories(id, title) VALUES ('m1', 'one')`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Entity != "memory" || got[0].ID != "m1" || got[0].Op != "create" {
+		t.Fatalf("commit batch: %+v", got)
+	}
+	got = nil
+	err = h.Within(ctx, func(ctx context.Context) error {
+		if _, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO memories(id, title) VALUES ('m2', 'two')`); err != nil {
+			return err
+		}
+		return errRollback
+	})
+	if err != errRollback {
+		t.Fatalf("rollback: %v", err)
+	}
+	if got != nil {
+		t.Fatalf("published on rollback: %+v", got)
+	}
+	var n int
+	if err := h.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM memories`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("rolled back row leaked: %d", n)
+	}
+}
+
+type rollbackError struct{}
+
+func (rollbackError) Error() string { return "rollback" }
+
+var errRollback rollbackError

@@ -1,0 +1,28 @@
+# w1-core status
+- Result: done
+- Branch / last commit: `sparky/w1-core-b`; this status commit. Continuation of `sparky/w1-core`. Implementation commits: `55afae8`, `48a4657`, `a8bf2cd`, `cdffb52`. Merged `sparky-next` (`0c31324`). Local commits only; no push or tags.
+- Acceptance criteria:
+  - `dist/sparky serve` starts, writes `core.json`, second instance exits 3 → **pass**. `pnpm build:sparky-core`; `TestServeWritesCoreJSONAndSecondInstanceLocks`; `TestDistSparkySecondInstanceExits3` against `dist/sparky`.
+  - Integration tests drive every unary RPC over a real loopback server against a temp DB → **pass** in owned `compositions/core` (`TestSqliteEveryRPCAgainstTempDB`, 65 unary RPCs). Exact package `tests/integration` is still unowned (request `w1-core-2.md`); Verify’s `./tests/integration/...` therefore does not exist.
+  - Unauthenticated calls fail → **pass**. `TestEveryRPCIsMountedAndAuthenticated`, `TestAuthStreamingAndOriginGuard`, `TestSqliteEveryRPCAgainstTempDB`.
+  - A write is observed on `Watch` within 100 ms → **pass**. `TestWatchConcurrentWritersOrderingReplayAndLatency`, `TestSqliteWatchWriteLatencyReplayAndShutdown`.
+  - Rev-conflict returns `FAILED_PRECONDITION` with the entity → **pass**. `TestConcurrentWritersAndRevConflictEntity`, `TestSqliteRevConflictAndConcurrentWriters` (32 concurrent writers, one success).
+- Verification:
+  - `pnpm build:sparky-core` → **pass**.
+  - `cd sparky/backend && go test ./compositions/... ./runtimes/... -race -count=1` → **pass**.
+  - Exact Verify `./tests/integration/...` → **fail before execution**: `lstat ./tests/integration/: no such file or directory` (unowned path; equivalent coverage is in `compositions/core`).
+  - `go vet ./compositions/... ./runtimes/... ./platform/...`, `git diff --check` → **pass**.
+  - Ownership → **pass**: `git diff --stat sparky-next...HEAD` is owned core/platform/cli paths plus this status and the two request files.
+- Deviations from the plan (and why):
+  - Native repeating planner items are omitted from `ReminderService.Plan` instead of being serialized as one-shots. Frozen `ReminderItem` has no `repeat` field (`w1-recurrence-1.md`). Bounded one-shots still go on the wire.
+  - Search RPCs stay `UNAVAILABLE` until W1-SEARCH. Attachment file import/open stays `UNAVAILABLE`; metadata List/Delete/Reorder use the SQLite adapter.
+  - Loopback integration tests live in `compositions/core` because Owns does not include `tests/integration`.
+  - Settings List filters `_internal.*` keys so the store heartbeat row cannot break `SettingsService.Get`.
+- Requests filed:
+  - `plans/sparky-next/requests/w1-core-1.md` (wiring; now applied in this WS after the domain/store/recurrence merge).
+  - `plans/sparky-next/requests/w1-core-2.md` (tests/integration ownership; still open).
+- Follow-ups for other WS:
+  - Integrator: grant `tests/integration` or move the loopback tests during merge.
+  - W0-CONTRACTS: additive `ReminderItem.repeat` (`w1-recurrence-1.md`) so Plan can transport native repeats.
+  - W1-SEARCH / W1-ATTACH: bind `search.Index` / file bytes into `OpenRuntime`.
+  - W1-STORE: stop persisting reminder heartbeat under a typed settings key (`_internal.reminder.heartbeat`).
