@@ -33,6 +33,11 @@ func OpenRuntime(_ context.Context, dbPath string) (Runtime, error) {
 	if err != nil {
 		return Runtime{}, fmt.Errorf("open sqlite: %w", err)
 	}
+	attachmentSvc := attachmentMeta{store: store.Attachments()}
+	if _, err := attachmentSvc.service(); err != nil {
+		_ = store.Close()
+		return Runtime{}, fmt.Errorf("initialize attachments: %w", err)
+	}
 	searchSvc := WireSearch(store)
 	clk := clock.Clock{}
 	idgen := ids.Generator{}
@@ -70,7 +75,7 @@ func OpenRuntime(_ context.Context, dbPath string) (Runtime, error) {
 		Places: placeService{
 			repo: store.Places(), memories: store.Memories(), clock: clk, audit: audit,
 		},
-		Attachments: attachmentMeta{store: store.Attachments()},
+		Attachments: attachmentSvc,
 		Reminders:   remind,
 		Agents:      agentService{settings: settingsSvc, tokenPath: runstate.TokenPath(dbPath), audit: audit},
 		Maintenance: maintenanceService{
