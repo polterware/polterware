@@ -1,0 +1,25 @@
+appId: com.polterware.sparky
+productName: Sparky
+asar: true
+
+directories:
+  buildResources: resources
+  output: release/${version}
+
+files:
+  - out/**/*
+  - package.json
+  - "!**/*.map"
+
+extraResources:
+  - from: ../../dist
+    to: .
+    filter:
+      - sparky
+
+mac:
+  identity: null
+  category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
