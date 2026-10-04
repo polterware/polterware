@@ -8,8 +8,7 @@ option go_package = "github.com/polterware/polterware/sparky/backend/platform/ge
 // Wire keys: appearance.theme, notifications.sound, notifications.allDayTime,
 // notifications.snoozeMinutes, focus.work, focus.shortBreak, focus.longBreak,
 // focus.cycles, focus.autoContinue, focus.sounds, focus.notifications,
-// map.online, map.provider, search.semantic.enabled, search.semantic.provider,
-// search.semantic.model, search.semantic.baseUrl, agents.mcpPort,
+// map.online, map.provider, agents.mcpPort,
 // agents.mcpEnabled, agents.allowFileAttach, app.keepRunningInBackground,
 // links.fetchTitles.
 message Settings {
@@ -26,10 +25,7 @@ message Settings {
   bool focus_notifications = 11;
   bool map_online = 12;
   string map_provider = 13;
-  bool search_semantic_enabled = 14;
-  string search_semantic_provider = 15;
-  string search_semantic_model = 16;
-  string search_semantic_base_url = 17;
+  reserved 14 to 17;
   int32 agents_mcp_port = 18;
   bool agents_mcp_enabled = 19;
   bool agents_allow_file_attach = 20;

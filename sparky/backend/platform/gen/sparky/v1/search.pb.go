@@ -100,7 +100,6 @@ func (x *SearchHit) GetMatchedIn() []string {
 type SearchMemoriesRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Query              string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
-	Mode               string                 `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
 	MindId             string                 `protobuf:"bytes,3,opt,name=mind_id,json=mindId,proto3" json:"mind_id,omitempty"`
 	IncludeDescendants bool                   `protobuf:"varint,4,opt,name=include_descendants,json=includeDescendants,proto3" json:"include_descendants,omitempty"`
 	TagIds             []string               `protobuf:"bytes,5,rep,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
@@ -147,13 +146,6 @@ func (x *SearchMemoriesRequest) GetQuery() string {
 	return ""
 }
 
-func (x *SearchMemoriesRequest) GetMode() string {
-	if x != nil {
-		return x.Mode
-	}
-	return ""
-}
-
 func (x *SearchMemoriesRequest) GetMindId() string {
 	if x != nil {
 		return x.MindId
@@ -192,7 +184,6 @@ func (x *SearchMemoriesRequest) GetLimit() int32 {
 type SearchMemoriesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hits          []*SearchHit           `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
-	ModeUsed      string                 `protobuf:"bytes,2,opt,name=mode_used,json=modeUsed,proto3" json:"mode_used,omitempty"`
 	Notice        string                 `protobuf:"bytes,3,opt,name=notice,proto3" json:"notice,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -233,13 +224,6 @@ func (x *SearchMemoriesResponse) GetHits() []*SearchHit {
 		return x.Hits
 	}
 	return nil
-}
-
-func (x *SearchMemoriesResponse) GetModeUsed() string {
-	if x != nil {
-		return x.ModeUsed
-	}
-	return ""
 }
 
 func (x *SearchMemoriesResponse) GetNotice() string {
@@ -286,16 +270,10 @@ func (*SearchStatusRequest) Descriptor() ([]byte, []int) {
 }
 
 type SearchStatusResponse struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	FtsDocuments      int32                  `protobuf:"varint,1,opt,name=fts_documents,json=ftsDocuments,proto3" json:"fts_documents,omitempty"`
-	EmbeddingsIndexed int32                  `protobuf:"varint,2,opt,name=embeddings_indexed,json=embeddingsIndexed,proto3" json:"embeddings_indexed,omitempty"`
-	EmbeddingsPending int32                  `protobuf:"varint,3,opt,name=embeddings_pending,json=embeddingsPending,proto3" json:"embeddings_pending,omitempty"`
-	EmbeddingState    string                 `protobuf:"bytes,4,opt,name=embedding_state,json=embeddingState,proto3" json:"embedding_state,omitempty"`
-	EmbeddingProvider string                 `protobuf:"bytes,5,opt,name=embedding_provider,json=embeddingProvider,proto3" json:"embedding_provider,omitempty"`
-	EmbeddingModel    string                 `protobuf:"bytes,6,opt,name=embedding_model,json=embeddingModel,proto3" json:"embedding_model,omitempty"`
-	EmbeddingDims     int32                  `protobuf:"varint,7,opt,name=embedding_dims,json=embeddingDims,proto3" json:"embedding_dims,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FtsDocuments  int32                  `protobuf:"varint,1,opt,name=fts_documents,json=ftsDocuments,proto3" json:"fts_documents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchStatusResponse) Reset() {
@@ -331,48 +309,6 @@ func (*SearchStatusResponse) Descriptor() ([]byte, []int) {
 func (x *SearchStatusResponse) GetFtsDocuments() int32 {
 	if x != nil {
 		return x.FtsDocuments
-	}
-	return 0
-}
-
-func (x *SearchStatusResponse) GetEmbeddingsIndexed() int32 {
-	if x != nil {
-		return x.EmbeddingsIndexed
-	}
-	return 0
-}
-
-func (x *SearchStatusResponse) GetEmbeddingsPending() int32 {
-	if x != nil {
-		return x.EmbeddingsPending
-	}
-	return 0
-}
-
-func (x *SearchStatusResponse) GetEmbeddingState() string {
-	if x != nil {
-		return x.EmbeddingState
-	}
-	return ""
-}
-
-func (x *SearchStatusResponse) GetEmbeddingProvider() string {
-	if x != nil {
-		return x.EmbeddingProvider
-	}
-	return ""
-}
-
-func (x *SearchStatusResponse) GetEmbeddingModel() string {
-	if x != nil {
-		return x.EmbeddingModel
-	}
-	return ""
-}
-
-func (x *SearchStatusResponse) GetEmbeddingDims() int32 {
-	if x != nil {
-		return x.EmbeddingDims
 	}
 	return 0
 }
@@ -457,232 +393,6 @@ func (x *ReindexResponse) GetMemories() int32 {
 	return 0
 }
 
-// ConfigureEmbeddingRequest applies runtime embedding settings.
-// api_key is not persisted.
-type ConfigureEmbeddingRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	Provider      string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
-	Model         string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
-	BaseUrl       string                 `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
-	ApiKey        string                 `protobuf:"bytes,5,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ConfigureEmbeddingRequest) Reset() {
-	*x = ConfigureEmbeddingRequest{}
-	mi := &file_sparky_v1_search_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ConfigureEmbeddingRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ConfigureEmbeddingRequest) ProtoMessage() {}
-
-func (x *ConfigureEmbeddingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_search_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ConfigureEmbeddingRequest.ProtoReflect.Descriptor instead.
-func (*ConfigureEmbeddingRequest) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_search_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *ConfigureEmbeddingRequest) GetEnabled() bool {
-	if x != nil {
-		return x.Enabled
-	}
-	return false
-}
-
-func (x *ConfigureEmbeddingRequest) GetProvider() string {
-	if x != nil {
-		return x.Provider
-	}
-	return ""
-}
-
-func (x *ConfigureEmbeddingRequest) GetModel() string {
-	if x != nil {
-		return x.Model
-	}
-	return ""
-}
-
-func (x *ConfigureEmbeddingRequest) GetBaseUrl() string {
-	if x != nil {
-		return x.BaseUrl
-	}
-	return ""
-}
-
-func (x *ConfigureEmbeddingRequest) GetApiKey() string {
-	if x != nil {
-		return x.ApiKey
-	}
-	return ""
-}
-
-type ConfigureEmbeddingResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Status        *SearchStatusResponse  `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ConfigureEmbeddingResponse) Reset() {
-	*x = ConfigureEmbeddingResponse{}
-	mi := &file_sparky_v1_search_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ConfigureEmbeddingResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ConfigureEmbeddingResponse) ProtoMessage() {}
-
-func (x *ConfigureEmbeddingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_search_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ConfigureEmbeddingResponse.ProtoReflect.Descriptor instead.
-func (*ConfigureEmbeddingResponse) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_search_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *ConfigureEmbeddingResponse) GetStatus() *SearchStatusResponse {
-	if x != nil {
-		return x.Status
-	}
-	return nil
-}
-
-type TestEmbeddingRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TestEmbeddingRequest) Reset() {
-	*x = TestEmbeddingRequest{}
-	mi := &file_sparky_v1_search_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TestEmbeddingRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TestEmbeddingRequest) ProtoMessage() {}
-
-func (x *TestEmbeddingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_search_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TestEmbeddingRequest.ProtoReflect.Descriptor instead.
-func (*TestEmbeddingRequest) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_search_proto_rawDescGZIP(), []int{9}
-}
-
-type TestEmbeddingResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
-	Dims          int32                  `protobuf:"varint,2,opt,name=dims,proto3" json:"dims,omitempty"`
-	LatencyMs     int32                  `protobuf:"varint,3,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
-	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TestEmbeddingResponse) Reset() {
-	*x = TestEmbeddingResponse{}
-	mi := &file_sparky_v1_search_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TestEmbeddingResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TestEmbeddingResponse) ProtoMessage() {}
-
-func (x *TestEmbeddingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_search_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TestEmbeddingResponse.ProtoReflect.Descriptor instead.
-func (*TestEmbeddingResponse) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_search_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *TestEmbeddingResponse) GetOk() bool {
-	if x != nil {
-		return x.Ok
-	}
-	return false
-}
-
-func (x *TestEmbeddingResponse) GetDims() int32 {
-	if x != nil {
-		return x.Dims
-	}
-	return 0
-}
-
-func (x *TestEmbeddingResponse) GetLatencyMs() int32 {
-	if x != nil {
-		return x.LatencyMs
-	}
-	return 0
-}
-
-func (x *TestEmbeddingResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
-}
-
 var File_sparky_v1_search_proto protoreflect.FileDescriptor
 
 const file_sparky_v1_search_proto_rawDesc = "" +
@@ -694,52 +404,27 @@ const file_sparky_v1_search_proto_rawDesc = "" +
 	"\x05score\x18\x03 \x01(\x01R\x05score\x12\x18\n" +
 	"\asnippet\x18\x04 \x01(\tR\asnippet\x12\x1d\n" +
 	"\n" +
-	"matched_in\x18\x05 \x03(\tR\tmatchedIn\"\xd2\x01\n" +
+	"matched_in\x18\x05 \x03(\tR\tmatchedIn\"\xc4\x01\n" +
 	"\x15SearchMemoriesRequest\x12\x14\n" +
-	"\x05query\x18\x01 \x01(\tR\x05query\x12\x12\n" +
-	"\x04mode\x18\x02 \x01(\tR\x04mode\x12\x17\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x17\n" +
 	"\amind_id\x18\x03 \x01(\tR\x06mindId\x12/\n" +
 	"\x13include_descendants\x18\x04 \x01(\bR\x12includeDescendants\x12\x17\n" +
 	"\atag_ids\x18\x05 \x03(\tR\x06tagIds\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x12\x14\n" +
-	"\x05limit\x18\a \x01(\x05R\x05limit\"w\n" +
+	"\x05limit\x18\a \x01(\x05R\x05limitJ\x04\b\x02\x10\x03\"`\n" +
 	"\x16SearchMemoriesResponse\x12(\n" +
-	"\x04hits\x18\x01 \x03(\v2\x14.sparky.v1.SearchHitR\x04hits\x12\x1b\n" +
-	"\tmode_used\x18\x02 \x01(\tR\bmodeUsed\x12\x16\n" +
-	"\x06notice\x18\x03 \x01(\tR\x06notice\"\x15\n" +
-	"\x13SearchStatusRequest\"\xc1\x02\n" +
+	"\x04hits\x18\x01 \x03(\v2\x14.sparky.v1.SearchHitR\x04hits\x12\x16\n" +
+	"\x06notice\x18\x03 \x01(\tR\x06noticeJ\x04\b\x02\x10\x03\"\x15\n" +
+	"\x13SearchStatusRequest\"A\n" +
 	"\x14SearchStatusResponse\x12#\n" +
-	"\rfts_documents\x18\x01 \x01(\x05R\fftsDocuments\x12-\n" +
-	"\x12embeddings_indexed\x18\x02 \x01(\x05R\x11embeddingsIndexed\x12-\n" +
-	"\x12embeddings_pending\x18\x03 \x01(\x05R\x11embeddingsPending\x12'\n" +
-	"\x0fembedding_state\x18\x04 \x01(\tR\x0eembeddingState\x12-\n" +
-	"\x12embedding_provider\x18\x05 \x01(\tR\x11embeddingProvider\x12'\n" +
-	"\x0fembedding_model\x18\x06 \x01(\tR\x0eembeddingModel\x12%\n" +
-	"\x0eembedding_dims\x18\a \x01(\x05R\rembeddingDims\"\x10\n" +
+	"\rfts_documents\x18\x01 \x01(\x05R\fftsDocumentsJ\x04\b\x02\x10\b\"\x10\n" +
 	"\x0eReindexRequest\"-\n" +
 	"\x0fReindexResponse\x12\x1a\n" +
-	"\bmemories\x18\x01 \x01(\x05R\bmemories\"\x9b\x01\n" +
-	"\x19ConfigureEmbeddingRequest\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1a\n" +
-	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x14\n" +
-	"\x05model\x18\x03 \x01(\tR\x05model\x12\x19\n" +
-	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\x12\x17\n" +
-	"\aapi_key\x18\x05 \x01(\tR\x06apiKey\"U\n" +
-	"\x1aConfigureEmbeddingResponse\x127\n" +
-	"\x06status\x18\x01 \x01(\v2\x1f.sparky.v1.SearchStatusResponseR\x06status\"\x16\n" +
-	"\x14TestEmbeddingRequest\"p\n" +
-	"\x15TestEmbeddingResponse\x12\x0e\n" +
-	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x12\n" +
-	"\x04dims\x18\x02 \x01(\x05R\x04dims\x12\x1d\n" +
-	"\n" +
-	"latency_ms\x18\x03 \x01(\x05R\tlatencyMs\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error2\xa2\x03\n" +
+	"\bmemories\x18\x01 \x01(\x05R\bmemories2\xeb\x01\n" +
 	"\rSearchService\x12M\n" +
 	"\x06Search\x12 .sparky.v1.SearchMemoriesRequest\x1a!.sparky.v1.SearchMemoriesResponse\x12I\n" +
 	"\x06Status\x12\x1e.sparky.v1.SearchStatusRequest\x1a\x1f.sparky.v1.SearchStatusResponse\x12@\n" +
-	"\aReindex\x12\x19.sparky.v1.ReindexRequest\x1a\x1a.sparky.v1.ReindexResponse\x12a\n" +
-	"\x12ConfigureEmbedding\x12$.sparky.v1.ConfigureEmbeddingRequest\x1a%.sparky.v1.ConfigureEmbeddingResponse\x12R\n" +
-	"\rTestEmbedding\x12\x1f.sparky.v1.TestEmbeddingRequest\x1a .sparky.v1.TestEmbeddingResponseB\xb2\x01\n" +
+	"\aReindex\x12\x19.sparky.v1.ReindexRequest\x1a\x1a.sparky.v1.ReindexResponseB\xb2\x01\n" +
 	"\rcom.sparky.v1B\vSearchProtoP\x01ZOgithub.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1;sparkyv1\xa2\x02\x03SXX\xaa\x02\tSparky.V1\xca\x02\tSparky\\V1\xe2\x02\x15Sparky\\V1\\GPBMetadata\xea\x02\n" +
 	"Sparky::V1b\x06proto3"
 
@@ -755,38 +440,29 @@ func file_sparky_v1_search_proto_rawDescGZIP() []byte {
 	return file_sparky_v1_search_proto_rawDescData
 }
 
-var file_sparky_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_sparky_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_sparky_v1_search_proto_goTypes = []any{
-	(*SearchHit)(nil),                  // 0: sparky.v1.SearchHit
-	(*SearchMemoriesRequest)(nil),      // 1: sparky.v1.SearchMemoriesRequest
-	(*SearchMemoriesResponse)(nil),     // 2: sparky.v1.SearchMemoriesResponse
-	(*SearchStatusRequest)(nil),        // 3: sparky.v1.SearchStatusRequest
-	(*SearchStatusResponse)(nil),       // 4: sparky.v1.SearchStatusResponse
-	(*ReindexRequest)(nil),             // 5: sparky.v1.ReindexRequest
-	(*ReindexResponse)(nil),            // 6: sparky.v1.ReindexResponse
-	(*ConfigureEmbeddingRequest)(nil),  // 7: sparky.v1.ConfigureEmbeddingRequest
-	(*ConfigureEmbeddingResponse)(nil), // 8: sparky.v1.ConfigureEmbeddingResponse
-	(*TestEmbeddingRequest)(nil),       // 9: sparky.v1.TestEmbeddingRequest
-	(*TestEmbeddingResponse)(nil),      // 10: sparky.v1.TestEmbeddingResponse
+	(*SearchHit)(nil),              // 0: sparky.v1.SearchHit
+	(*SearchMemoriesRequest)(nil),  // 1: sparky.v1.SearchMemoriesRequest
+	(*SearchMemoriesResponse)(nil), // 2: sparky.v1.SearchMemoriesResponse
+	(*SearchStatusRequest)(nil),    // 3: sparky.v1.SearchStatusRequest
+	(*SearchStatusResponse)(nil),   // 4: sparky.v1.SearchStatusResponse
+	(*ReindexRequest)(nil),         // 5: sparky.v1.ReindexRequest
+	(*ReindexResponse)(nil),        // 6: sparky.v1.ReindexResponse
 }
 var file_sparky_v1_search_proto_depIdxs = []int32{
-	0,  // 0: sparky.v1.SearchMemoriesResponse.hits:type_name -> sparky.v1.SearchHit
-	4,  // 1: sparky.v1.ConfigureEmbeddingResponse.status:type_name -> sparky.v1.SearchStatusResponse
-	1,  // 2: sparky.v1.SearchService.Search:input_type -> sparky.v1.SearchMemoriesRequest
-	3,  // 3: sparky.v1.SearchService.Status:input_type -> sparky.v1.SearchStatusRequest
-	5,  // 4: sparky.v1.SearchService.Reindex:input_type -> sparky.v1.ReindexRequest
-	7,  // 5: sparky.v1.SearchService.ConfigureEmbedding:input_type -> sparky.v1.ConfigureEmbeddingRequest
-	9,  // 6: sparky.v1.SearchService.TestEmbedding:input_type -> sparky.v1.TestEmbeddingRequest
-	2,  // 7: sparky.v1.SearchService.Search:output_type -> sparky.v1.SearchMemoriesResponse
-	4,  // 8: sparky.v1.SearchService.Status:output_type -> sparky.v1.SearchStatusResponse
-	6,  // 9: sparky.v1.SearchService.Reindex:output_type -> sparky.v1.ReindexResponse
-	8,  // 10: sparky.v1.SearchService.ConfigureEmbedding:output_type -> sparky.v1.ConfigureEmbeddingResponse
-	10, // 11: sparky.v1.SearchService.TestEmbedding:output_type -> sparky.v1.TestEmbeddingResponse
-	7,  // [7:12] is the sub-list for method output_type
-	2,  // [2:7] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	0, // 0: sparky.v1.SearchMemoriesResponse.hits:type_name -> sparky.v1.SearchHit
+	1, // 1: sparky.v1.SearchService.Search:input_type -> sparky.v1.SearchMemoriesRequest
+	3, // 2: sparky.v1.SearchService.Status:input_type -> sparky.v1.SearchStatusRequest
+	5, // 3: sparky.v1.SearchService.Reindex:input_type -> sparky.v1.ReindexRequest
+	2, // 4: sparky.v1.SearchService.Search:output_type -> sparky.v1.SearchMemoriesResponse
+	4, // 5: sparky.v1.SearchService.Status:output_type -> sparky.v1.SearchStatusResponse
+	6, // 6: sparky.v1.SearchService.Reindex:output_type -> sparky.v1.ReindexResponse
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_sparky_v1_search_proto_init() }
@@ -800,7 +476,7 @@ func file_sparky_v1_search_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sparky_v1_search_proto_rawDesc), len(file_sparky_v1_search_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

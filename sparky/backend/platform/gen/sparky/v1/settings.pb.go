@@ -25,8 +25,7 @@ const (
 // Wire keys: appearance.theme, notifications.sound, notifications.allDayTime,
 // notifications.snoozeMinutes, focus.work, focus.shortBreak, focus.longBreak,
 // focus.cycles, focus.autoContinue, focus.sounds, focus.notifications,
-// map.online, map.provider, search.semantic.enabled, search.semantic.provider,
-// search.semantic.model, search.semantic.baseUrl, agents.mcpPort,
+// map.online, map.provider, agents.mcpPort,
 // agents.mcpEnabled, agents.allowFileAttach, app.keepRunningInBackground,
 // links.fetchTitles.
 type Settings struct {
@@ -44,10 +43,6 @@ type Settings struct {
 	FocusNotifications         bool                   `protobuf:"varint,11,opt,name=focus_notifications,json=focusNotifications,proto3" json:"focus_notifications,omitempty"`
 	MapOnline                  bool                   `protobuf:"varint,12,opt,name=map_online,json=mapOnline,proto3" json:"map_online,omitempty"`
 	MapProvider                string                 `protobuf:"bytes,13,opt,name=map_provider,json=mapProvider,proto3" json:"map_provider,omitempty"`
-	SearchSemanticEnabled      bool                   `protobuf:"varint,14,opt,name=search_semantic_enabled,json=searchSemanticEnabled,proto3" json:"search_semantic_enabled,omitempty"`
-	SearchSemanticProvider     string                 `protobuf:"bytes,15,opt,name=search_semantic_provider,json=searchSemanticProvider,proto3" json:"search_semantic_provider,omitempty"`
-	SearchSemanticModel        string                 `protobuf:"bytes,16,opt,name=search_semantic_model,json=searchSemanticModel,proto3" json:"search_semantic_model,omitempty"`
-	SearchSemanticBaseUrl      string                 `protobuf:"bytes,17,opt,name=search_semantic_base_url,json=searchSemanticBaseUrl,proto3" json:"search_semantic_base_url,omitempty"`
 	AgentsMcpPort              int32                  `protobuf:"varint,18,opt,name=agents_mcp_port,json=agentsMcpPort,proto3" json:"agents_mcp_port,omitempty"`
 	AgentsMcpEnabled           bool                   `protobuf:"varint,19,opt,name=agents_mcp_enabled,json=agentsMcpEnabled,proto3" json:"agents_mcp_enabled,omitempty"`
 	AgentsAllowFileAttach      bool                   `protobuf:"varint,20,opt,name=agents_allow_file_attach,json=agentsAllowFileAttach,proto3" json:"agents_allow_file_attach,omitempty"`
@@ -174,34 +169,6 @@ func (x *Settings) GetMapOnline() bool {
 func (x *Settings) GetMapProvider() string {
 	if x != nil {
 		return x.MapProvider
-	}
-	return ""
-}
-
-func (x *Settings) GetSearchSemanticEnabled() bool {
-	if x != nil {
-		return x.SearchSemanticEnabled
-	}
-	return false
-}
-
-func (x *Settings) GetSearchSemanticProvider() string {
-	if x != nil {
-		return x.SearchSemanticProvider
-	}
-	return ""
-}
-
-func (x *Settings) GetSearchSemanticModel() string {
-	if x != nil {
-		return x.SearchSemanticModel
-	}
-	return ""
-}
-
-func (x *Settings) GetSearchSemanticBaseUrl() string {
-	if x != nil {
-		return x.SearchSemanticBaseUrl
 	}
 	return ""
 }
@@ -421,7 +388,7 @@ var File_sparky_v1_settings_proto protoreflect.FileDescriptor
 
 const file_sparky_v1_settings_proto_rawDesc = "" +
 	"\n" +
-	"\x18sparky/v1/settings.proto\x12\tsparky.v1\"\xb8\b\n" +
+	"\x18sparky/v1/settings.proto\x12\tsparky.v1\"\xdf\x06\n" +
 	"\bSettings\x12)\n" +
 	"\x10appearance_theme\x18\x01 \x01(\tR\x0fappearanceTheme\x12/\n" +
 	"\x13notifications_sound\x18\x02 \x01(\tR\x12notificationsSound\x12;\n" +
@@ -437,16 +404,12 @@ const file_sparky_v1_settings_proto_rawDesc = "" +
 	"\x13focus_notifications\x18\v \x01(\bR\x12focusNotifications\x12\x1d\n" +
 	"\n" +
 	"map_online\x18\f \x01(\bR\tmapOnline\x12!\n" +
-	"\fmap_provider\x18\r \x01(\tR\vmapProvider\x126\n" +
-	"\x17search_semantic_enabled\x18\x0e \x01(\bR\x15searchSemanticEnabled\x128\n" +
-	"\x18search_semantic_provider\x18\x0f \x01(\tR\x16searchSemanticProvider\x122\n" +
-	"\x15search_semantic_model\x18\x10 \x01(\tR\x13searchSemanticModel\x127\n" +
-	"\x18search_semantic_base_url\x18\x11 \x01(\tR\x15searchSemanticBaseUrl\x12&\n" +
+	"\fmap_provider\x18\r \x01(\tR\vmapProvider\x12&\n" +
 	"\x0fagents_mcp_port\x18\x12 \x01(\x05R\ragentsMcpPort\x12,\n" +
 	"\x12agents_mcp_enabled\x18\x13 \x01(\bR\x10agentsMcpEnabled\x127\n" +
 	"\x18agents_allow_file_attach\x18\x14 \x01(\bR\x15agentsAllowFileAttach\x12B\n" +
 	"\x1eapp_keep_running_in_background\x18\x15 \x01(\bR\x1aappKeepRunningInBackground\x12,\n" +
-	"\x12links_fetch_titles\x18\x16 \x01(\bR\x10linksFetchTitles\"\x14\n" +
+	"\x12links_fetch_titles\x18\x16 \x01(\bR\x10linksFetchTitlesJ\x04\b\x0e\x10\x12\"\x14\n" +
 	"\x12GetSettingsRequest\"F\n" +
 	"\x13GetSettingsResponse\x12/\n" +
 	"\bsettings\x18\x01 \x01(\v2\x13.sparky.v1.SettingsR\bsettings\"Y\n" +

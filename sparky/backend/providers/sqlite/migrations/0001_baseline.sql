@@ -141,8 +141,3 @@ CREATE VIRTUAL TABLE memory_fts USING fts5(
   memory_id UNINDEXED, title, note, checklist, tags, mind,
   tokenize = 'unicode61 remove_diacritics 2', prefix = '2 3'
 );
-CREATE TABLE embeddings (
-  memory_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
-  model TEXT NOT NULL, dims INTEGER NOT NULL, vector BLOB NOT NULL,   -- float32 little-endian, L2-normalized
-  text_hash TEXT NOT NULL, updated_at TEXT NOT NULL
-) STRICT;

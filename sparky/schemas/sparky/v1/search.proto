@@ -14,7 +14,7 @@ message SearchHit {
 
 message SearchMemoriesRequest {
   string query = 1;
-  string mode = 2;
+  reserved 2;
   string mind_id = 3;
   bool include_descendants = 4;
   repeated string tag_ids = 5;
@@ -24,7 +24,7 @@ message SearchMemoriesRequest {
 
 message SearchMemoriesResponse {
   repeated SearchHit hits = 1;
-  string mode_used = 2;
+  reserved 2;
   string notice = 3;
 }
 
@@ -32,12 +32,7 @@ message SearchStatusRequest {}
 
 message SearchStatusResponse {
   int32 fts_documents = 1;
-  int32 embeddings_indexed = 2;
-  int32 embeddings_pending = 3;
-  string embedding_state = 4;
-  string embedding_provider = 5;
-  string embedding_model = 6;
-  int32 embedding_dims = 7;
+  reserved 2 to 7;
 }
 
 message ReindexRequest {}
@@ -46,33 +41,8 @@ message ReindexResponse {
   int32 memories = 1;
 }
 
-// ConfigureEmbeddingRequest applies runtime embedding settings.
-// api_key is not persisted.
-message ConfigureEmbeddingRequest {
-  bool enabled = 1;
-  string provider = 2;
-  string model = 3;
-  string base_url = 4;
-  string api_key = 5;
-}
-
-message ConfigureEmbeddingResponse {
-  SearchStatusResponse status = 1;
-}
-
-message TestEmbeddingRequest {}
-
-message TestEmbeddingResponse {
-  bool ok = 1;
-  int32 dims = 2;
-  int32 latency_ms = 3;
-  string error = 4;
-}
-
 service SearchService {
   rpc Search(SearchMemoriesRequest) returns (SearchMemoriesResponse);
   rpc Status(SearchStatusRequest) returns (SearchStatusResponse);
   rpc Reindex(ReindexRequest) returns (ReindexResponse);
-  rpc ConfigureEmbedding(ConfigureEmbeddingRequest) returns (ConfigureEmbeddingResponse);
-  rpc TestEmbedding(TestEmbeddingRequest) returns (TestEmbeddingResponse);
 }

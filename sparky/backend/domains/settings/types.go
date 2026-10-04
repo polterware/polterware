@@ -21,10 +21,6 @@ const (
 	KeyFocusNotifications         = "focus.notifications"
 	KeyMapOnline                  = "map.online"
 	KeyMapProvider                = "map.provider"
-	KeySearchSemanticEnabled      = "search.semantic.enabled"
-	KeySearchSemanticProvider     = "search.semantic.provider"
-	KeySearchSemanticModel        = "search.semantic.model"
-	KeySearchSemanticBaseURL      = "search.semantic.baseUrl"
 	KeyAgentsMCPPort              = "agents.mcpPort"
 	KeyAgentsMCPEnabled           = "agents.mcpEnabled"
 	KeyAgentsAllowFileAttach      = "agents.allowFileAttach"
@@ -38,7 +34,6 @@ const (
 )
 
 // Settings is the effective document. Get fills defaults for missing keys.
-// API keys for embeddings are not stored here.
 type Settings struct {
 	AppearanceTheme            string
 	NotificationsSound         string
@@ -53,10 +48,6 @@ type Settings struct {
 	FocusNotifications         bool
 	MapOnline                  bool
 	MapProvider                string
-	SearchSemanticEnabled      bool
-	SearchSemanticProvider     string
-	SearchSemanticModel        string
-	SearchSemanticBaseURL      string
 	AgentsMCPPort              int
 	AgentsMCPEnabled           bool
 	AgentsAllowFileAttach      bool
@@ -66,7 +57,7 @@ type Settings struct {
 
 // Default is the document before any key is stored.
 // MapOnline stays false until the first-run disclosure turns it on.
-// Semantic search stays off. MCP is enabled on loopback.
+// MCP is enabled on loopback.
 func Default() Settings {
 	return Settings{
 		AppearanceTheme:            DefaultTheme,
@@ -80,7 +71,6 @@ func Default() Settings {
 		FocusSounds:                true,
 		FocusNotifications:         true,
 		MapOnline:                  false,
-		SearchSemanticEnabled:      false,
 		AgentsMCPPort:              DefaultMCPPort,
 		AgentsMCPEnabled:           true,
 		AgentsAllowFileAttach:      false,

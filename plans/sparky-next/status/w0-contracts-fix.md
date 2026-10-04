@@ -1,17 +1,21 @@
 # w0-contracts-fix status
 
-- Result: blocked
-- Branch / last commit: `sparky/w0-contracts-fix` / HEAD (the commit containing this status)
+- Result: done
+- Branch / last commit: `sparky/w0-contracts-fix` / HEAD (the commit containing this status; annotated local tag `sparky-contracts-v1.1` points to it).
 - Acceptance criteria:
-  - No remaining search-related keyword matches: **fail** on the unchanged checkout. `grep -rIi -E "embedding|semantic|hybrid|vector" sparky/ packages/sparky-contracts/ --exclude-dir=node_modules --exclude-dir=spikes --exclude='*recurrence*vector*'` returns existing contracts and `domains/search/fake/index.go`. Removing the latter requires ownership outside this workstream.
-  - `bash tooling/verify-sparky.sh`: **fail** on the unchanged checkout. Buf lint/breaking, Go tests/vet, and all Sparky TypeScript typechecks pass. Contract tests report 25 passed and 1 failed: `SQL baseline > matches the specification fence` because the SQL still contains the table removed from doc 02. The script stops there; subsequent checks are unverified.
-  - New annotated local `sparky-contracts-v1.1` tag: **not created**, because the corrected contracts are not ready to freeze. Existing `sparky-contracts-v1` was not moved or deleted.
+  - No remaining search-related keyword matches: **pass**. `grep -rIi -E "embedding|semantic|hybrid|vector" sparky/ packages/sparky-contracts/ --exclude-dir=node_modules --exclude-dir=spikes --exclude='*recurrence*vector*'` returns no matches (exit 1).
+  - `bash tooling/verify-sparky.sh`: **pass**, ending in `verify-sparky OK`. Buf lint/breaking, Go tests/vet, Sparky TypeScript typechecks/tests, boundary checks, opacity checks/tests, and legacy checks pass. Contract tests: 28 passed, including SQL specification equality, empty SQLite application, clean `PRAGMA foreign_key_check`, RPC/field surface, and all 18 MCP sample calls.
+  - `cd sparky/schemas && buf lint && buf generate`: **pass**. Generated Go, Connect-Go, and TypeScript refreshed.
+  - MCP `tools/list`: **pass**, 6,029 bytes for the compact JSON array of 18 tool names, descriptions, and input schemas; the contract test enforces <= 6,144 bytes.
+  - Intentional Buf baseline update: **pass**. Checked the old baseline first: only the approved search/settings field, message, and RPC deletions were reported. Rebuilt `.buf/baseline.binpb` with `buf build -o .buf/baseline.binpb`; breaking check against the new baseline passes.
+  - Annotated local `sparky-contracts-v1.1`: created on the final commit. Existing `sparky-contracts-v1` remains at tag object `f3c701c280cc53dce5d784c72478b251ed9d4092`; no push performed.
+- Contract summary:
+  - Search is FTS5 only: Search(query, filters, limit), Status(FTS document count), Reindex. Removed the alternate search modes, provider configuration/testing RPCs/messages, index provider state, and domain repository/provider types.
+  - Removed the obsolete SQL table and search settings keys/fields/default. Retained the FTS table and fake Index skeleton unchanged; deleted exactly the obsolete fake block approved in the ownership request.
+  - MCP search accepts query, mind, tag, limit; returns hits and optional notice. Existing unrelated contracts remain unchanged. Removed protobuf field numbers are reserved; remaining field numbers are preserved.
 - Deviations from the plan (and why):
-  - Implementation stopped before changing contracts: the required removal would leave the out-of-ownership search fake uncompilable. AGENT-PROTOCOL sections 2 and 5 require a request and stopping when acceptance cannot be met within Owns.
-  - `pnpm install` succeeded; no tracked dependency files changed.
-  - `polterware status` was attempted but failed with `command not found`. The CLI is not available on PATH or inside this worktree; format/query/apply/handoff could not be run without introducing an unrelated binary/build or using another checkout. Work is recorded in the explicitly authorized plan status/request files.
-- Requests filed: `plans/sparky-next/requests/w0-contracts-fix-1.md` (exact deletion of the obsolete search fake skeleton, or ownership extension).
+  - None in implementation scope. The integrator explicitly extended Owns to `sparky/backend/domains/*/fake/**` when resuming this workstream.
+  - `polterware status`, `polterware format`, and `polterware handoff` were attempted but failed with `command not found`. Query/apply are unavailable for the same reason; work is recorded in this explicitly authorized status file.
+- Requests filed: `plans/sparky-next/requests/w0-contracts-fix-1.md` resolved by the integrator's ownership grant; request file deleted in this commit.
 - Follow-ups for other WS:
-  - Integrator: resolve the search fake ownership request, then resume W0-CONTRACTS-FIX to remove the obsolete SQL/proto/domain/MCP/settings contracts, update tests, regenerate Go/TS, intentionally refresh the Buf baseline, verify, and create the local v1.1 tag.
-  - The recurrence fixture and its contract test use the word excluded by the filename exception. Apply that exception to recurrence fixture/test filenames when checking acceptance; these are recurrence cases, not search contracts.
-  - No source files were changed, no branches were created, and nothing was pushed.
+  - Integrator: merge this branch and use `sparky-contracts-v1.1` as the corrected freeze before dependants begin. Nothing was pushed.

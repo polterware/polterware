@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file sparky/v1/search.proto.
  */
 export const file_sparky_v1_search: GenFile = /*@__PURE__*/
-  fileDesc("ChZzcGFya3kvdjEvc2VhcmNoLnByb3RvEglzcGFya3kudjEiYQoJU2VhcmNoSGl0EhEKCW1lbW9yeV9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRINCgVzY29yZRgDIAEoARIPCgdzbmlwcGV0GAQgASgJEhIKCm1hdGNoZWRfaW4YBSADKAkikgEKFVNlYXJjaE1lbW9yaWVzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIMCgRtb2RlGAIgASgJEg8KB21pbmRfaWQYAyABKAkSGwoTaW5jbHVkZV9kZXNjZW5kYW50cxgEIAEoCBIPCgd0YWdfaWRzGAUgAygJEg4KBnN0YXR1cxgGIAEoCRINCgVsaW1pdBgHIAEoBSJfChZTZWFyY2hNZW1vcmllc1Jlc3BvbnNlEiIKBGhpdHMYASADKAsyFC5zcGFya3kudjEuU2VhcmNoSGl0EhEKCW1vZGVfdXNlZBgCIAEoCRIOCgZub3RpY2UYAyABKAkiFQoTU2VhcmNoU3RhdHVzUmVxdWVzdCLLAQoUU2VhcmNoU3RhdHVzUmVzcG9uc2USFQoNZnRzX2RvY3VtZW50cxgBIAEoBRIaChJlbWJlZGRpbmdzX2luZGV4ZWQYAiABKAUSGgoSZW1iZWRkaW5nc19wZW5kaW5nGAMgASgFEhcKD2VtYmVkZGluZ19zdGF0ZRgEIAEoCRIaChJlbWJlZGRpbmdfcHJvdmlkZXIYBSABKAkSFwoPZW1iZWRkaW5nX21vZGVsGAYgASgJEhYKDmVtYmVkZGluZ19kaW1zGAcgASgFIhAKDlJlaW5kZXhSZXF1ZXN0IiMKD1JlaW5kZXhSZXNwb25zZRIQCghtZW1vcmllcxgBIAEoBSJwChlDb25maWd1cmVFbWJlZGRpbmdSZXF1ZXN0Eg8KB2VuYWJsZWQYASABKAgSEAoIcHJvdmlkZXIYAiABKAkSDQoFbW9kZWwYAyABKAkSEAoIYmFzZV91cmwYBCABKAkSDwoHYXBpX2tleRgFIAEoCSJNChpDb25maWd1cmVFbWJlZGRpbmdSZXNwb25zZRIvCgZzdGF0dXMYASABKAsyHy5zcGFya3kudjEuU2VhcmNoU3RhdHVzUmVzcG9uc2UiFgoUVGVzdEVtYmVkZGluZ1JlcXVlc3QiVAoVVGVzdEVtYmVkZGluZ1Jlc3BvbnNlEgoKAm9rGAEgASgIEgwKBGRpbXMYAiABKAUSEgoKbGF0ZW5jeV9tcxgDIAEoBRINCgVlcnJvchgEIAEoCTKiAwoNU2VhcmNoU2VydmljZRJNCgZTZWFyY2gSIC5zcGFya3kudjEuU2VhcmNoTWVtb3JpZXNSZXF1ZXN0GiEuc3Bhcmt5LnYxLlNlYXJjaE1lbW9yaWVzUmVzcG9uc2USSQoGU3RhdHVzEh4uc3Bhcmt5LnYxLlNlYXJjaFN0YXR1c1JlcXVlc3QaHy5zcGFya3kudjEuU2VhcmNoU3RhdHVzUmVzcG9uc2USQAoHUmVpbmRleBIZLnNwYXJreS52MS5SZWluZGV4UmVxdWVzdBoaLnNwYXJreS52MS5SZWluZGV4UmVzcG9uc2USYQoSQ29uZmlndXJlRW1iZWRkaW5nEiQuc3Bhcmt5LnYxLkNvbmZpZ3VyZUVtYmVkZGluZ1JlcXVlc3QaJS5zcGFya3kudjEuQ29uZmlndXJlRW1iZWRkaW5nUmVzcG9uc2USUgoNVGVzdEVtYmVkZGluZxIfLnNwYXJreS52MS5UZXN0RW1iZWRkaW5nUmVxdWVzdBogLnNwYXJreS52MS5UZXN0RW1iZWRkaW5nUmVzcG9uc2VCsgEKDWNvbS5zcGFya3kudjFCC1NlYXJjaFByb3RvUAFaT2dpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL3NwYXJreS9iYWNrZW5kL3BsYXRmb3JtL2dlbi9zcGFya3kvdjE7c3Bhcmt5djGiAgNTWFiqAglTcGFya3kuVjHKAglTcGFya3lcVjHiAhVTcGFya3lcVjFcR1BCTWV0YWRhdGHqAgpTcGFya3k6OlYxYgZwcm90bzM");
+  fileDesc("ChZzcGFya3kvdjEvc2VhcmNoLnByb3RvEglzcGFya3kudjEiYQoJU2VhcmNoSGl0EhEKCW1lbW9yeV9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRINCgVzY29yZRgDIAEoARIPCgdzbmlwcGV0GAQgASgJEhIKCm1hdGNoZWRfaW4YBSADKAkiigEKFVNlYXJjaE1lbW9yaWVzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIPCgdtaW5kX2lkGAMgASgJEhsKE2luY2x1ZGVfZGVzY2VuZGFudHMYBCABKAgSDwoHdGFnX2lkcxgFIAMoCRIOCgZzdGF0dXMYBiABKAkSDQoFbGltaXQYByABKAVKBAgCEAMiUgoWU2VhcmNoTWVtb3JpZXNSZXNwb25zZRIiCgRoaXRzGAEgAygLMhQuc3Bhcmt5LnYxLlNlYXJjaEhpdBIOCgZub3RpY2UYAyABKAlKBAgCEAMiFQoTU2VhcmNoU3RhdHVzUmVxdWVzdCIzChRTZWFyY2hTdGF0dXNSZXNwb25zZRIVCg1mdHNfZG9jdW1lbnRzGAEgASgFSgQIAhAIIhAKDlJlaW5kZXhSZXF1ZXN0IiMKD1JlaW5kZXhSZXNwb25zZRIQCghtZW1vcmllcxgBIAEoBTLrAQoNU2VhcmNoU2VydmljZRJNCgZTZWFyY2gSIC5zcGFya3kudjEuU2VhcmNoTWVtb3JpZXNSZXF1ZXN0GiEuc3Bhcmt5LnYxLlNlYXJjaE1lbW9yaWVzUmVzcG9uc2USSQoGU3RhdHVzEh4uc3Bhcmt5LnYxLlNlYXJjaFN0YXR1c1JlcXVlc3QaHy5zcGFya3kudjEuU2VhcmNoU3RhdHVzUmVzcG9uc2USQAoHUmVpbmRleBIZLnNwYXJreS52MS5SZWluZGV4UmVxdWVzdBoaLnNwYXJreS52MS5SZWluZGV4UmVzcG9uc2VCsgEKDWNvbS5zcGFya3kudjFCC1NlYXJjaFByb3RvUAFaT2dpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL3NwYXJreS9iYWNrZW5kL3BsYXRmb3JtL2dlbi9zcGFya3kvdjE7c3Bhcmt5djGiAgNTWFiqAglTcGFya3kuVjHKAglTcGFya3lcVjHiAhVTcGFya3lcVjFcR1BCTWV0YWRhdGHqAgpTcGFya3k6OlYxYgZwcm90bzM");
 
 /**
  * @generated from message sparky.v1.SearchHit
@@ -59,11 +59,6 @@ export type SearchMemoriesRequest = Message<"sparky.v1.SearchMemoriesRequest"> &
   query: string;
 
   /**
-   * @generated from field: string mode = 2;
-   */
-  mode: string;
-
-  /**
    * @generated from field: string mind_id = 3;
    */
   mindId: string;
@@ -106,11 +101,6 @@ export type SearchMemoriesResponse = Message<"sparky.v1.SearchMemoriesResponse">
   hits: SearchHit[];
 
   /**
-   * @generated from field: string mode_used = 2;
-   */
-  modeUsed: string;
-
-  /**
    * @generated from field: string notice = 3;
    */
   notice: string;
@@ -144,36 +134,6 @@ export type SearchStatusResponse = Message<"sparky.v1.SearchStatusResponse"> & {
    * @generated from field: int32 fts_documents = 1;
    */
   ftsDocuments: number;
-
-  /**
-   * @generated from field: int32 embeddings_indexed = 2;
-   */
-  embeddingsIndexed: number;
-
-  /**
-   * @generated from field: int32 embeddings_pending = 3;
-   */
-  embeddingsPending: number;
-
-  /**
-   * @generated from field: string embedding_state = 4;
-   */
-  embeddingState: string;
-
-  /**
-   * @generated from field: string embedding_provider = 5;
-   */
-  embeddingProvider: string;
-
-  /**
-   * @generated from field: string embedding_model = 6;
-   */
-  embeddingModel: string;
-
-  /**
-   * @generated from field: int32 embedding_dims = 7;
-   */
-  embeddingDims: number;
 };
 
 /**
@@ -214,108 +174,6 @@ export const ReindexResponseSchema: GenMessage<ReindexResponse> = /*@__PURE__*/
   messageDesc(file_sparky_v1_search, 6);
 
 /**
- * ConfigureEmbeddingRequest applies runtime embedding settings.
- * api_key is not persisted.
- *
- * @generated from message sparky.v1.ConfigureEmbeddingRequest
- */
-export type ConfigureEmbeddingRequest = Message<"sparky.v1.ConfigureEmbeddingRequest"> & {
-  /**
-   * @generated from field: bool enabled = 1;
-   */
-  enabled: boolean;
-
-  /**
-   * @generated from field: string provider = 2;
-   */
-  provider: string;
-
-  /**
-   * @generated from field: string model = 3;
-   */
-  model: string;
-
-  /**
-   * @generated from field: string base_url = 4;
-   */
-  baseUrl: string;
-
-  /**
-   * @generated from field: string api_key = 5;
-   */
-  apiKey: string;
-};
-
-/**
- * Describes the message sparky.v1.ConfigureEmbeddingRequest.
- * Use `create(ConfigureEmbeddingRequestSchema)` to create a new message.
- */
-export const ConfigureEmbeddingRequestSchema: GenMessage<ConfigureEmbeddingRequest> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_search, 7);
-
-/**
- * @generated from message sparky.v1.ConfigureEmbeddingResponse
- */
-export type ConfigureEmbeddingResponse = Message<"sparky.v1.ConfigureEmbeddingResponse"> & {
-  /**
-   * @generated from field: sparky.v1.SearchStatusResponse status = 1;
-   */
-  status?: SearchStatusResponse | undefined;
-};
-
-/**
- * Describes the message sparky.v1.ConfigureEmbeddingResponse.
- * Use `create(ConfigureEmbeddingResponseSchema)` to create a new message.
- */
-export const ConfigureEmbeddingResponseSchema: GenMessage<ConfigureEmbeddingResponse> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_search, 8);
-
-/**
- * @generated from message sparky.v1.TestEmbeddingRequest
- */
-export type TestEmbeddingRequest = Message<"sparky.v1.TestEmbeddingRequest"> & {
-};
-
-/**
- * Describes the message sparky.v1.TestEmbeddingRequest.
- * Use `create(TestEmbeddingRequestSchema)` to create a new message.
- */
-export const TestEmbeddingRequestSchema: GenMessage<TestEmbeddingRequest> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_search, 9);
-
-/**
- * @generated from message sparky.v1.TestEmbeddingResponse
- */
-export type TestEmbeddingResponse = Message<"sparky.v1.TestEmbeddingResponse"> & {
-  /**
-   * @generated from field: bool ok = 1;
-   */
-  ok: boolean;
-
-  /**
-   * @generated from field: int32 dims = 2;
-   */
-  dims: number;
-
-  /**
-   * @generated from field: int32 latency_ms = 3;
-   */
-  latencyMs: number;
-
-  /**
-   * @generated from field: string error = 4;
-   */
-  error: string;
-};
-
-/**
- * Describes the message sparky.v1.TestEmbeddingResponse.
- * Use `create(TestEmbeddingResponseSchema)` to create a new message.
- */
-export const TestEmbeddingResponseSchema: GenMessage<TestEmbeddingResponse> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_search, 10);
-
-/**
  * @generated from service sparky.v1.SearchService
  */
 export const SearchService: GenService<{
@@ -342,22 +200,6 @@ export const SearchService: GenService<{
     methodKind: "unary";
     input: typeof ReindexRequestSchema;
     output: typeof ReindexResponseSchema;
-  },
-  /**
-   * @generated from rpc sparky.v1.SearchService.ConfigureEmbedding
-   */
-  configureEmbedding: {
-    methodKind: "unary";
-    input: typeof ConfigureEmbeddingRequestSchema;
-    output: typeof ConfigureEmbeddingResponseSchema;
-  },
-  /**
-   * @generated from rpc sparky.v1.SearchService.TestEmbedding
-   */
-  testEmbedding: {
-    methodKind: "unary";
-    input: typeof TestEmbeddingRequestSchema;
-    output: typeof TestEmbeddingResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_sparky_v1_search, 0);
