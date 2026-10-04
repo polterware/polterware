@@ -19,6 +19,10 @@ describe("sandbox bridge", () => {
     await bridge.memories.list();
     expect(mock.invoke).toHaveBeenCalledWith("sparky:memories:list", {});
   });
+  it("exposes notification authorization through the app allowlist", async () => {
+    await bridge.app.requestNotificationAuthorization();
+    expect(mock.invoke).toHaveBeenCalledWith("sparky:app:requestNotificationAuthorization", undefined);
+  });
   it("does not expose Electron events and unsubscribes exactly its listener", () => {
     const callback = vi.fn();
     const unsubscribe = bridge.onChange(callback);

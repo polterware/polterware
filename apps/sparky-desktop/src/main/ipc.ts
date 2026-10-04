@@ -44,3 +44,9 @@ export function validateAppInput(method: string, input: unknown): void {
     if (typeof input !== "string" || input.length > 4096) throw new Error("Invalid app input");
   } else if (input !== undefined) throw new Error("This app method takes no input");
 }
+
+export async function handleRequestNotificationAuthorization(
+  reminders: { requestAuthorization(): Promise<boolean> },
+): Promise<boolean> {
+  return reminders.requestAuthorization();
+}

@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import { create } from "@bufbuild/protobuf";
 import { ListMemoriesResponseSchema } from "@polterware/sparky-contracts";
 import { services, type CoreClients } from "./core/client.js";
-import { assertTrustedSender, validateAppInput, channel, createRpcHandlers } from "./ipc.js";
+import { assertTrustedSender, validateAppInput, channel, createRpcHandlers, handleRequestNotificationAuthorization } from "./ipc.js";
 import { RPC_METHODS } from "../shared/channels.js";
+import { APP_METHODS } from "../shared/bridge.js";
 const list = vi.fn(async () => create(ListMemoriesResponseSchema, {}));
 const options = () => ({ getClients: () => ({ memories: { list } }) as unknown as CoreClients, authorizePath: () => false });
 describe("IPC allowlist and schemas", () => {
@@ -36,6 +37,14 @@ describe("IPC allowlist and schemas", () => {
     expect(() => validateAppInput("startMicrophone", "camera")).toThrow();
     expect(() => validateAppInput("openDeepLink", 123)).toThrow();
     expect(() => validateAppInput("getInfo", undefined)).not.toThrow();
+    expect(() => validateAppInput("requestNotificationAuthorization", undefined)).not.toThrow();
+    expect(() => validateAppInput("requestNotificationAuthorization", true)).toThrow();
+  });
+  it("forwards notification authorization to the reminders controller", async () => {
+    expect(APP_METHODS).toContain("requestNotificationAuthorization");
+    const requestAuthorization = vi.fn(async () => true);
+    await expect(handleRequestNotificationAuthorization({ requestAuthorization })).resolves.toBe(true);
+    expect(requestAuthorization).toHaveBeenCalledOnce();
   });
   it("rejects iframes, foreign windows and absent senders", () => {
     const contents = { mainFrame: {} };

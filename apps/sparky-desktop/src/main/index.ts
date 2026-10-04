@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { createCoreClients, type CoreClients } from "./core/client.js";
 import { ensureCore, resolveBinary, type CoreHandle } from "./core/process-supervisor.js";
 import { startChangeWatcher } from "./core/change-watcher.js";
-import { createRpcHandlers, assertTrustedSender, validateAppInput, channel } from "./ipc.js";
+import { createRpcHandlers, assertTrustedSender, validateAppInput, channel, handleRequestNotificationAuthorization } from "./ipc.js";
 import { createWindow, rendererDocument } from "./window.js";
 import { contentSecurityPolicy, isAllowedRendererUrl, parseDeepLink } from "./navigation-policy.js";
 import { attachmentResponse, resolveAttachmentUrl } from "./attachment-protocol.js";
@@ -89,7 +89,7 @@ async function refreshMapPolicy(): Promise<void> {
   // A document CSP cannot be widened in place. Reload only when this setting actually changes.
   if (previous !== onlineMaps && win && !win.isDestroyed()) win.webContents.reload();
 }
-function registerIpc(): void {
+function registerIpc(reminders: { requestAuthorization(): Promise<boolean> }): void {
   const handlers = createRpcHandlers({ getClients, authorizePath: (purpose, path) => grants[purpose].has(path),
     settingsChanged: () => { void refreshMapPolicy(); } });
   const appHandlers: Record<typeof APP_METHODS[number], (input: unknown) => unknown> = {
@@ -107,6 +107,7 @@ function registerIpc(): void {
     },
     startMicrophone: async () => process.platform === "darwin" && systemPreferences.askForMediaAccess("microphone"),
     getInfo: () => ({ name: "Sparky", version: app.getVersion(), updates: updateStatus }),
+    requestNotificationAuthorization: () => handleRequestNotificationAuthorization(reminders),
   };
   for (const [name, handler] of Object.entries(appHandlers)) handlers[channel("app", name)] = async input => {
     validateAppInput(name, input);
@@ -196,7 +197,7 @@ else {
       suppressWindow = reminders.prepareLaunch(launchInfo) || hiddenLaunch;
       if (app.isPackaged) app.setAsDefaultProtocolClient("sparky");
       else app.setAsDefaultProtocolClient("sparky", process.execPath, [app.getAppPath()]);
-      registerIpc(); installSessionSecurity(); installMenu();
+      registerIpc(reminders); installSessionSecurity(); installMenu();
       try {
         await reconnect();
         stopWatcher = startChangeWatcher({ getClients, reconnect, emit: event => {
