@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"path/filepath"
 	"sync"
+	"time"
 
+	"github.com/polterware/polterware/sparky/backend/domains/activity"
+	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
 	"github.com/polterware/polterware/sparky/backend/platform/clock"
@@ -15,6 +18,7 @@ import (
 )
 
 var attachmentServices sync.Map
+var attachmentServiceMu sync.Mutex
 
 type attachmentMeta struct {
 	store attachments.Store
@@ -71,6 +75,10 @@ func buildAttachmentService(store attachments.Store) (attachments.Service, error
 	if !ok {
 		return nil, unavailable("attachment files")
 	}
+	audit := activity.Audit{Repository: sqliteMeta.Activity(), Transactions: sqliteMeta.Store, Clock: clock.Clock{}, IDs: ids.Generator{}}
+	write := func(ctx context.Context, id, op string, fn func(context.Context) error) error {
+		return audit.Write(ctx, caller(ctx), "attachment", id, op, "Attachment "+op, fn)
+	}
 	composite := attachmentComposite{meta: store}
 	dbPath := sqliteMeta.Handle().Path()
 	if dbPath != ":memory:" {
@@ -78,12 +86,22 @@ func buildAttachmentService(store attachments.Store) (attachments.Service, error
 		if err != nil {
 			return nil, fmt.Errorf("open attachment files: %w", err)
 		}
+		// Initialize recovery before publishing the service or accepting imports.
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if _, err := files.SweepOrphansWith(ctx, func(ctx context.Context, id string) error {
+			return audit.Write(ctx, actor.System(), "attachment", id, "delete", "Remove attachment with missing file", func(ctx context.Context) error { return store.Delete(ctx, id) })
+		}); err != nil {
+			return nil, fmt.Errorf("recover attachment files: %w", err)
+		}
 		composite.files = files
 	}
-	return attachments.NewService(composite, ids.Generator{}, clock.Clock{}).WithMemoryRev(sqliteMeta.Memories(), sqliteMeta.Store), nil
+	return attachments.NewService(composite, ids.Generator{}, clock.Clock{}).WithMemoryRev(sqliteMeta.Memories(), sqliteMeta.Store).WithAudit(write), nil
 }
 
 func (a attachmentMeta) service() (attachments.Service, error) {
+	attachmentServiceMu.Lock()
+	defer attachmentServiceMu.Unlock()
 	if cached, ok := attachmentServices.Load(a.store); ok {
 		return cached.(attachments.Service), nil
 	}
@@ -124,10 +142,11 @@ func (a attachmentMeta) Delete(ctx context.Context, id string) error {
 }
 
 func (a attachmentMeta) Reorder(ctx context.Context, memoryID string, orderedIDs []string) ([]attachments.Attachment, error) {
-	if err := a.store.Reorder(ctx, memoryID, orderedIDs); err != nil {
+	svc, err := a.service()
+	if err != nil {
 		return nil, err
 	}
-	return a.store.List(ctx, memoryID)
+	return svc.Reorder(ctx, memoryID, orderedIDs)
 }
 
 func (a attachmentMeta) OpenInfo(ctx context.Context, id string) (attachments.OpenInfo, error) {
