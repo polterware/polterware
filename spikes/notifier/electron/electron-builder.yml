@@ -1,0 +1,12 @@
+appId: com.polterware.sparky.spike
+productName: SparkySpike
+asar: false
+directories:
+  output: ../dist/electron-builder
+files:
+  - main.js
+  - package.json
+mac:
+  identity: null
+  target:
+    - dir
