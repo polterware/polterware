@@ -1,0 +1,32 @@
+# w1-mcp status
+
+- Result: partial
+- Branch / last commit: `sparky/w1-mcp`; implementation commits `af80f31` and `1ccd06b`; final status commit is shown by `git log -1`.
+- Acceptance criteria:
+  - All tests listed in 04 pass -> **fail (incomplete)**. Implemented security and revision primitive tests pass, but per-tool domain contracts, batch/schedule/name-resolution behavior, attachment traversal, missing-confirm tool behavior, and memory/mind response budgets are not implemented or verified.
+  - `tools/list` <= 6 KB -> **pass for the compact catalog, production wire unverified**. `TestCatalogBudgetAndGolden` measures 5,968 bytes including a JSON-RPC envelope with id 1, for all 18 tools. Tool descriptions <= 300 and parameter descriptions <= 120 characters. Frozen input schemas are retained; output schemas are omitted; six display descriptions are shortened. No SDK handler is running.
+  - Golden transcripts committed -> **fail (incomplete)**. Only `tests/mcp/golden/tools-list-catalog.json` is committed and compared by a passing test. It is a catalog fixture, not a captured transport session or per-tool transcript.
+  - Real Claude Code client creates, searches, and completes memories -> **fail (blocked)**. Not run: no SDK dependency, production domain implementations, or dev core is available in this worktree.
+  - Inspector smoke documented -> **fail (blocked)**. Not run for the same reasons; Wave-0 smoke evidence is not counted as Wave-1 evidence.
+- Additional delivered checks:
+  - Bearer (constant-time hash comparison), exact Host/port, hostile and malformed Origin, cross-origin/DNS-rebinding rejection, duplicate headers, no CORS headers, fail-closed configuration, oversized known-length and chunked bodies -> **pass**, `TestGuard`, `TestGuardRejectsDuplicateAndEmptyHeaders`, `TestGuardInvalidConfiguration`, `TestGuardChunkedAndTokenNeverLogged`.
+  - Token absent from rejection responses and HTTP server logs -> **pass**, `TestGuard` and `TestGuardChunkedAndTokenNeverLogged`. No production logging integration is claimed.
+  - Get/List revision tracking, intervening UI write conflicts for Update/SetStatus, explicit revision precedence, first-write last-write-wins, isolation between sessions with the same client name, concurrent observations -> **pass**, `TestSessionRejectsInterveningUIWrite`, `TestSessionFirstWriteExplicitRevAndIsolation`, `TestSessionConcurrentObservations`. Tests use a local atomic revision-service double because the supplied domain fakes still panic.
+- Verification before the final commit:
+  - `cd sparky/backend && go test ./providers/mcp/... ./tests/mcp/... -race -count=1` -> **pass**, both packages.
+  - `cd sparky/backend && go vet ./providers/mcp/... ./tests/mcp/...` -> **pass**.
+  - `git diff --check` -> **pass**.
+  - `git diff --stat sparky-next...HEAD` -> only W1-MCP owned paths and permitted requests/status paths; frozen schemas unchanged. No pushes, tags, branches, or shared-file edits.
+- Deviations from the plan (and why):
+  - Stopped SDK, production handler, CLI, and real-client sub-tasks per AGENT-PROTOCOL ownership/stop rules. `sparky/backend/go.mod` lacks the pinned SDK; `main.go` is a command stub; core discovery/start and domain implementations are absent. No private domain store, replacement JSON-RPC server, nested module, or temporary module override was introduced.
+  - Mutation ports lack complete atomic revision and actor coverage. A pre-read check in the provider would leave a race; request 3 records the frozen-contract decision needed before implementing those writes.
+  - `polterware` is not on PATH; located the existing binary at `/Users/erickpatrickbarcelos/codes/polterware-total/polterware/dist/polterware`. `format` ran once. `status`, `query cards`, `apply -`, and `handoff` were attempted but could not resolve a project for this worktree. No unrelated project was selected and no new project was initialized.
+- Requests filed:
+  - `plans/sparky-next/requests/w1-mcp-1.md`: pinned SDK dependency in shared module files.
+  - `plans/sparky-next/requests/w1-mcp-2.md`: core discovery, service wiring, stable MCP endpoint/token, and CLI dispatch.
+  - `plans/sparky-next/requests/w1-mcp-3.md`: atomic revision and actor coverage in frozen mutation ports/schemas.
+- Follow-ups for other WS:
+  - Integrator/W0-SCAFFOLD: resolve SDK dependency and CLI dispatch.
+  - W1-CORE: expose discovery/start and MCP registration; enforce IPv4 loopback binding, actual port, enabled setting, and stable token lifecycle. The delivered guard is an immutable per-listener wrapper; rotate it when the token changes.
+  - W0-CONTRACTS/W1-DOMAIN: resolve request 3 with Erick before changing frozen ports.
+  - W1-MCP continuation: register the compact catalog on the official stateful SDK; create/discard one `MemorySession` per SDK session using its initialized client name; implement all tool mappings, remaining revision-aware mutations, attachment guards, response budgets, stdio bridge, full goldens, and real-client smoke. The current primitives are not a shipped MCP server.
