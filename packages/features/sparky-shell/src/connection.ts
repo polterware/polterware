@@ -23,7 +23,7 @@ export function createCoreConnection(bridge: ShellBridge | undefined) {
   onCleanup(() => { disposed = true; });
   const refresh = (): Promise<void> => {
     if (pending) return pending;
-    pending = (async () => {
+    pending = Promise.resolve().then(async () => {
       try {
         if (!bridge) throw new Error("Sparky bridge unavailable");
         const next = await bridge.reminders.status({});
@@ -31,7 +31,7 @@ export function createCoreConnection(bridge: ShellBridge | undefined) {
       } catch {
         if (!disposed) { setStatus(undefined); setState("offline"); }
       } finally { pending = undefined; }
-    })();
+    });
     return pending;
   };
   return { state, status, refresh };

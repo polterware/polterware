@@ -52,7 +52,8 @@ export function findCommands(commands: readonly CommandDef[], query: string): Co
 }
 export type RouteHistory = { entries: string[]; index: number };
 export function pushRoute(history: RouteHistory, path: string): RouteHistory {
-  const next = normalizePath(path);
+  const query = path.includes("?") ? `?${path.split("?").slice(1).join("?")}` : "";
+  const next = `${normalizePath(path)}${query}`;
   if (history.entries[history.index] === next) return history;
   const entries = [...history.entries.slice(0, history.index + 1), next];
   return { entries, index: entries.length - 1 };

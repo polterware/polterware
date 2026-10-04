@@ -12,3 +12,10 @@ export function shellShortcut(event: Pick<KeyboardEvent, "key" | "code" | "metaK
 export function isEditing(target: EventTarget | null): boolean {
   return target instanceof Element && !!target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]');
 }
+
+export type MemoryShortcut = "open" | "toggle-done" | "edit-title" | "pin" | "delete";
+export function memoryShortcut(event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey" | "isComposing">, editing: boolean): MemoryShortcut | undefined {
+  if (editing || event.isComposing || event.altKey || event.shiftKey) return;
+  if (event.metaKey || event.ctrlKey) return event.key === "Backspace" ? "delete" : undefined;
+  return ({ Enter: "open", " ": "toggle-done", e: "edit-title", p: "pin" } as const)[event.key as "Enter"];
+}

@@ -3,7 +3,7 @@ import { Dynamic } from "solid-js/web";
 import {
   Activity, Button, CalendarClock, ChevronLeft, ChevronRight, Clock, DetailPanel, DesignSystemProvider,
   Dialog, DitherIconTile, Folder, HelpCircle, Inbox, MapPin, MenuItem, MenuList, PageEmpty, PageError,
-  PageHeader, PageLoading, PageOffline, Plus, Search, Settings, StatusChip, Surface, TreeView, type TreeViewNode,
+  PageHeader, PageLoading, PageOffline, Plus, Popover, Search, Settings, StatusChip, Surface, TreeView, type TreeViewNode,
 } from "@polterware/frontend-design-system";
 import type { MessageShape } from "@bufbuild/protobuf";
 import type { MindSchema } from "@polterware/sparky-contracts";
@@ -13,7 +13,7 @@ import { ShellContext, type MemoryDetailRenderer } from "./context";
 import { Commander } from "./commander";
 import { createCoreConnection, reminderLabel } from "./connection";
 import { DEFAULT_PATH, deepLinkPath, normalizePath, pushRoute, resolveRoute, SHELL_ROUTES, sidebarItems, type RouteHistory } from "./route";
-import { isEditing, shellShortcut } from "./shortcuts";
+import { isEditing, memoryShortcut, shellShortcut, type MemoryShortcut } from "./shortcuts";
 import "./shell.css";
 
 const icons: Record<string, Component<{ size?: number }>> = { Activity, CalendarClock, Clock, Folder, Inbox, MapPin, Search, Settings };
@@ -33,8 +33,15 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
   const [selectedMemoryId, setSelectedMemoryId] = createSignal<string | null>(null);
   const [expanded, setExpanded] = createSignal(false);
   const [detailRenderer, setDetailRenderer] = createSignal<MemoryDetailRenderer>();
-  const [onboardingOpen, setOnboardingOpen] = createSignal(false);
+  const [onboardingOpen, setOnboardingOpen] = createSignal((() => {
+    try { return localStorage.getItem("sparky.shell.onboarding") !== "complete"; }
+    catch { return true; }
+  })());
   const [onboardingStep, setOnboardingStep] = createSignal(0);
+  const [deepLink, setDeepLink] = createSignal<URL | null>(null);
+  let collectionShortcuts: ((action: MemoryShortcut) => void) | undefined;
+  const [helpMenuOpen, setHelpMenuOpen] = createSignal(false);
+  let helpAnchor: HTMLButtonElement | undefined;
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [dataRevision, setDataRevision] = createSignal(0);
   const [expandedMinds, setExpandedMinds] = createSignal<string[]>([]);
@@ -69,11 +76,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     closeDetail();
     const next = resolveRoute(props.features, normalized) || SHELL_ROUTES.some(route => route.path === normalized) || /^\/mind\/[^/]+$/.test(normalized) ? raw : DEFAULT_PATH;
     // Keep query parameters for feature search/calendar state.
-    setHistory(current => {
-      const pushed = pushRoute(current, next);
-      if (next.includes("?")) pushed.entries[pushed.index] = next;
-      return pushed;
-    });
+    setHistory(current => pushRoute(current, next));
     queueMicrotask(() => main?.focus());
   }
   function moveHistory(delta: number) {
@@ -90,11 +93,16 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     ...SHELL_ROUTES.map(item => ({ id: `navigate:${item.path}`, label: `Go to ${item.title}`, keywords: ["navigate"], run: () => navigate(item.path) })),
     ...props.features.flatMap(feature => feature.routes).filter(item => !SHELL_ROUTES.some(defaultRoute => defaultRoute.path === item.path) && !item.path.includes(":"))
       .map(item => ({ id: `navigate:${item.path}`, label: `Go to ${item.title}`, run: () => navigate(item.path) })),
+    { id: "quick-add", label: "New memory", keywords: ["add", "create"], run: () => setPalette("quick-add") },
     { id: "settings", label: "Open Settings", run: () => setSettingsOpen(true) },
     ...props.features.flatMap(feature => feature.commands ?? []),
   ]);
   const context = {
-    features: props.features, path, params, searchParams, navigate, selectedMemoryId, openMemory, closeDetail, detailSections, settingsPanels,
+    features: props.features, path, params, searchParams, navigate, selectedMemoryId, openMemory, closeDetail, detailSections, settingsPanels, deepLink,
+    registerCollectionShortcuts: (handler: (action: MemoryShortcut) => void) => {
+      collectionShortcuts = handler;
+      return () => { if (collectionShortcuts === handler) collectionShortcuts = undefined; };
+    },
     registerMemoryDetail: (component: MemoryDetailRenderer) => {
       setDetailRenderer(() => component);
       return () => { if (detailRenderer() === component) setDetailRenderer(undefined); };
@@ -104,13 +112,13 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     let url: URL;
     try { url = new URL(link.url); } catch { return; }
     if (url.protocol !== "sparky:") return;
+    setDeepLink(url);
     for (const feature of props.features) if (feature.onDeepLink?.(url)) return;
     const target = deepLinkPath(link.url);
     if (target) navigate(`${target}${url.search}`);
   }
   onMount(() => {
     try {
-      setOnboardingOpen(localStorage.getItem("sparky.shell.onboarding") !== "complete");
       const saved: unknown = JSON.parse(localStorage.getItem("sparky.shell.minds.expanded") ?? "[]");
       if (Array.isArray(saved) && saved.every(value => typeof value === "string")) setExpandedMinds(saved);
     } catch { setOnboardingOpen(true); }
@@ -122,9 +130,14 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const shortcut = shellShortcut(event, isEditing(event.target));
-      if (!shortcut) return;
-      const modal = settingsOpen() || onboardingOpen() || helpOpen() || palette() !== null;
-      if (modal && !["commander", "quick-add"].includes(shortcut)) return;
+      if (settingsOpen() || onboardingOpen() || helpOpen()) return;
+      if (!shortcut) {
+        if (palette() !== null) return;
+        const action = memoryShortcut(event, isEditing(event.target));
+        if (action && collectionShortcuts) { event.preventDefault(); collectionShortcuts(action); }
+        return;
+      }
+      if (palette() !== null && !["commander", "quick-add"].includes(shortcut)) return;
       event.preventDefault();
       switch (shortcut) {
         case "commander": setPalette(current => current === "commands" ? null : "commands"); break;
@@ -166,13 +179,19 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
             <Button variant="icon" aria-label="New memory" onClick={() => setPalette("quick-add")}><Plus size={14} /></Button>
             <StatusChip tone={core.state() === "live" ? "muted" : core.state() === "loading" ? "syncing" : "down"}
               label={core.state() === "live" ? reminderLabel(core.status()) : core.state() === "loading" ? "Connecting…" : "Core offline"} />
-            <Button variant="icon" aria-label="Help" onClick={() => setHelpOpen(true)}><HelpCircle size={14} /></Button>
+            <Button ref={helpAnchor} variant="icon" aria-label="Help" aria-expanded={helpMenuOpen()} aria-haspopup="dialog" onClick={() => setHelpMenuOpen(open => !open)}><HelpCircle size={14} /></Button>
+            <Popover open={helpMenuOpen()} onClose={() => setHelpMenuOpen(false)} title="Help" anchorRef={() => helpAnchor} placement="bottom-end" width={240}>
+              <MenuList>
+                <MenuItem onClick={() => { setHelpMenuOpen(false); setHelpOpen(true); }}>Keyboard shortcuts</MenuItem>
+                <MenuItem onClick={() => { setHelpMenuOpen(false); setOnboardingStep(0); setOnboardingOpen(true); }}>Show onboarding</MenuItem>
+              </MenuList>
+            </Popover>
           </div>
         </header>
         <div class="sparky-workspace">
           <aside class="sparky-sidebar" aria-label="Sidebar">
             <nav aria-label="Main navigation">
-              <MenuList><For each={items()}>{item => <MenuItem aria-current={normalizePath(path()) === normalizePath(item.path) ? "page" : undefined}
+              <MenuList><For each={items()}>{item => <MenuItem aria-label={item.label} aria-current={normalizePath(path()) === normalizePath(item.path) ? "page" : undefined}
                 selected={normalizePath(path()) === normalizePath(item.path)} onClick={() => navigate(item.path)}>
                 <Dynamic component={icons[item.icon ?? ""] ?? Folder} size={15} /><span class="flex-1">{item.label}</span>
                 <Show when={item.path === "/inbox" && !inboxCount.error && inboxCount() !== undefined}><span aria-label="Active Inbox memories">{inboxCount()}</span></Show>

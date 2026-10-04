@@ -44,3 +44,8 @@ export type SparkyFeature = {
   detailSections?: DetailSectionDef[];
   onDeepLink?: (url: URL) => boolean;
 };
+
+// Features access host services through this registry entry point only.
+export { useSparkyShell } from "./context";
+export type { SparkyShellContext, MemoryDetailRenderer } from "./context";
+export type { MemoryShortcut } from "./shortcuts";

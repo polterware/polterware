@@ -49,7 +49,7 @@ export function Commander(props: {
   async function execute(command: CommandDef) {
     if (busy()) return;
     setBusy(true); setError("");
-    try { await command.run(); props.onClose(); }
+    try { const mode = props.mode; await command.run(); if (props.mode === mode) props.onClose(); }
     catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   }
@@ -79,7 +79,7 @@ export function Commander(props: {
     <div ref={dialogBody} onKeyDown={onKeyDown} class="flex min-h-0 flex-col gap-3">
       <form onSubmit={event => { event.preventDefault(); if (props.mode === "quick-add") void add(); }}>
         <Field label={props.mode === "quick-add" ? "Memory" : "Search or command"} for="sparky-command-input">
-          <Input id="sparky-command-input" ref={input} value={query()} onInput={event => { setQuery(event.currentTarget.value); setError(""); }} disabled={busy()} />
+          <Input id="sparky-command-input" autofocus ref={input} value={query()} onInput={event => { setQuery(event.currentTarget.value); setError(""); }} disabled={busy()} />
         </Field>
         <Show when={props.mode === "quick-add"}>
           <div class="flex flex-col gap-3 pt-3">

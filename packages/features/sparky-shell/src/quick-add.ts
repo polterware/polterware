@@ -46,7 +46,7 @@ export function parseQuickAdd(input: string, now = new Date()): QuickAdd {
   });
   result.title = text.replace(/\s+/g, " ").trim();
   if (!result.title) throw new Error("Enter a memory title.");
-  result.tags = [...new Set(result.tags)];
+  result.tags = [...new Map(result.tags.map(tag => [tag.toLowerCase(), tag])).values()];
   result.dueAt = due?.toISOString();
   return result;
 }
