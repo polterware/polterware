@@ -237,7 +237,7 @@ function DayColumn(props: {
       data-outside={props.view === "month" && !props.inMonth ? "" : undefined}
     >
       <CalendarGrid.Header>
-        <Button variant="ghost" onClick={props.onOpenDay}>{props.date.slice(8)}</Button>
+        <Button variant="ghost" aria-label={`Open ${props.date} in day view`} onClick={props.onOpenDay}>{props.date.slice(8)}</Button>
       </CalendarGrid.Header>
       <CalendarGrid.AllDay label="All day">
         <For each={visible()}>{item =>
@@ -256,7 +256,7 @@ function DayColumn(props: {
             aria-label={`New all-day memory on ${props.date}`}
             onClick={() => props.onCreate({ date: props.date, time: "00:00", allDay: true })}
           >
-            New all-day Memory
+            Add memory
           </Button>
         </Show>
       </CalendarGrid.AllDay>
@@ -327,7 +327,8 @@ function OccurrencePill(props: {
       event.dataTransfer?.setData("application/x-sparky-occurrence", JSON.stringify(props.occurrence));
     }}
     onClick={props.onOpen}
-    aria-label={props.occurrence.title}
+    aria-label={`${label()}${props.occurrence.allDay ? " · All day" : ""}${props.occurrence.completed ? " · Completed" : props.occurrence.overdue ? " · Overdue" : ""}`}
+    title={label()}
   >
     {label()}
   </CalendarGrid.Occurrence>;

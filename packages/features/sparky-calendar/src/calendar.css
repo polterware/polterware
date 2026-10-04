@@ -9,7 +9,7 @@
   min-height: 0;
   flex: 1 1 auto;
   overflow: auto;
-  transition: transform var(--duration-moderate) var(--ease-standard);
+  transition: transform var(--spring-moderate-duration) var(--spring-moderate-ease);
 }
 
 .sparky-calendar__grid-wrap[data-shift] {
@@ -22,8 +22,7 @@
 
 .sparky-calendar__now {
   position: absolute;
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   height: 2px;
   background: var(--color-brand);
   pointer-events: none;
@@ -41,6 +40,17 @@
 
 .sparky-calendar__overflow-list {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   padding: 12px;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .sparky-calendar__grid-wrap { transition: none; transform: none; }
+}
+
+.sparky-calendar:focus-visible { outline: 2px solid var(--color-text-secondary); outline-offset: -2px; }
+.sparky-calendar .pw-calendar__day { box-shadow: none; }
+.sparky-calendar .pw-calendar__days { gap: 4px; }
+.sparky-calendar .pw-calendar__header .pw-button { max-inline-size: 100%; }
+.sparky-calendar .pw-calendar__hour { grid-template-columns: 36px minmax(0, 1fr); }
+.sparky-calendar [data-empty-slot] { max-inline-size: 100%; white-space: normal; block-size: auto; min-block-size: 28px; overflow-wrap: anywhere; }
