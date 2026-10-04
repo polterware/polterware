@@ -1,9 +1,21 @@
 import { test, expect } from "../fixtures";
 
-// Product gap: plans/sparky-next/requests/w3-e2e-6.md
-test.fixme(process.env.SPARKY_E2E_RECHECK_GAPS !== "1", "w3-e2e-6 and w3-e2e-3: collection keyboard activation and virtualized rows are blocked. Set SPARKY_E2E_RECHECK_GAPS=1 after the fix.");
+test("virtualized memories render core rows and scroll to the last memory", async ({ sparky, page }) => {
+  await sparky.skipOnboarding();
+  await sparky.seed(120);
+  await page.getByRole("button", { name: "Inbox", exact: true }).click();
+  await expect(page.getByText("Live · 120 memories", { exact: true })).toBeVisible();
+  await expect(page.locator("[data-row-id]").first()).toBeVisible();
+  const count = await page.locator("[data-row-id]").count();
+  expect(count).toBeGreaterThan(0);
+  expect(count).toBeLessThan(100);
+  await page.locator('.pw-data-table-scroll[data-virtualized="true"]').evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await expect(page.getByRole("row", { name: "Performance memory 00119", exact: true })).toBeVisible();
+});
 
 test("keyboard create, edit, pin, complete, undo and delete", async ({ sparky, page }) => {
+  // Remaining shell-owner gap: plans/sparky-next/requests/w3-e2e-6.md.
+  test.fixme(process.env.SPARKY_E2E_RECHECK_GAPS !== "1", "w3-e2e-6: shell intercepts native keyboard activation. Virtualized rows are covered separately.");
   await sparky.skipOnboarding();
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
   await page.getByRole("main").getByRole("button", { name: "New memory", exact: true }).first().focus();
