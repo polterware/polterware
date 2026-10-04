@@ -12,7 +12,7 @@ describe("served character art", () => {
   it("uses /characters assets and preserves a real image failure fallback", () => {
     const [report, setReport] = createSignal(saoPauloFixture());
     const host = document.createElement("div"); document.body.append(host);
-    dispose = render(() => <DesignSystemProvider><SummaryCard report={report()} /></DesignSystemProvider>, host);
+    dispose = render(() => <DesignSystemProvider storagePrefix="sparky-review-art-test"><SummaryCard report={report()} /></DesignSystemProvider>, host);
     const image = host.querySelector<HTMLImageElement>("img")!;
     expect(image.getAttribute("src")).toBe("/characters/me-streak-hopeful.png");
     expect(image.getAttribute("srcset")).toContain("/characters/me-streak-hopeful@2x.png");
