@@ -46,3 +46,5 @@ Record each resolution as a dated line appended below.
 ## Resolutions log
 
 (empty — workstreams append: `YYYY-MM-DD O<n>: <decision> (WS, evidence link)`)
+
+2026-10-03 O1: Use SMAppService.agent (LaunchAgent `com.polterware.sparky.notifier.plist`, KeepAlive + RunAtLoad), registered by Electron with `app.setLoginItemSettings({ type: "agentService", serviceName: "com.polterware.sparky.notifier.plist" })`. loginItem also returns enabled but did not start a process here. Budget stays 60; on macOS 26.6.2 (25G83) 100/100 pending notifications were accepted, so 64 is not the ceiling (capacity >= 100). Shipping minimum is macOS 15.0 (SMAppService API floor 13.0, UNUserNotificationCenter 10.14). Ad-hoc `codesign -s -` delivers a notification after the helper, stub core and Electron are killed; `spctl` rejects ad-hoc, so Developer ID is required for Gatekeeper. launchd still fails to exec the agent (`OS_REASON_CODESIGNING` / `EX_CONFIG`) for ad-hoc and Apple Development, from the worktree and from ~/Applications, so KeepAlive restart and login-start were not observed (no reboot). Not Plan B. (W0-NOTIFIER, plans/sparky-next/status/w0-notifier.md)
