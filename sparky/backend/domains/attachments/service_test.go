@@ -3,6 +3,7 @@ package attachments
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -158,5 +159,117 @@ func TestAddLinkExpectedRev(t *testing.T) {
 	}
 	if _, err := svc.AddLink(context.Background(), "m", "https://example.com/b", "", 2); err != nil {
 		t.Fatal(err)
+	}
+}
+
+type failingStore struct {
+	*testStore
+	cleanupErr     error
+	cleanupContext error
+}
+
+func (s *failingStore) RemoveFile(ctx context.Context, p string) error {
+	s.cleanupContext = ctx.Err()
+	if s.cleanupErr != nil {
+		return s.cleanupErr
+	}
+	return s.testStore.RemoveFile(ctx, p)
+}
+
+type cancelTx struct{ cancel context.CancelFunc }
+
+func (tx cancelTx) Within(ctx context.Context, _ func(context.Context) error) error {
+	tx.cancel()
+	return ctx.Err()
+}
+
+func TestFailedTransactionCleanupIgnoresCancellationAndSurfacesFailure(t *testing.T) {
+	for _, fail := range []bool{false, true} {
+		t.Run(fmt.Sprint(fail), func(t *testing.T) {
+			store := &failingStore{testStore: newTestStore("source")}
+			cleanupErr := errors.New("disk cleanup failure")
+			if fail {
+				store.cleanupErr = cleanupErr
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			svc := NewService(store, &testIDs{}, testClock{}).WithMemoryRev(nil, cancelTx{cancel})
+			_, err := svc.ImportFromPath(ctx, "memory", "source", "", 0)
+			if !errors.Is(err, context.Canceled) || store.cleanupContext != nil {
+				t.Fatalf("cleanup canceled: %v / %v", err, store.cleanupContext)
+			}
+			if fail && !errors.Is(err, cleanupErr) {
+				t.Fatalf("lost cleanup error: %v", err)
+			}
+			if !fail && len(store.files) != 0 {
+				t.Fatal("rollback left a file")
+			}
+		})
+	}
+}
+
+func TestDedupChecksExpectedRevisionAndCleansCopy(t *testing.T) {
+	store := newTestStore("source")
+	svc := NewService(store, &testIDs{}, testClock{}).WithMemoryRev(&revMem{current: memory.Memory{ID: "m", Rev: 2}}, joinTx{})
+	if _, err := svc.ImportFromPath(context.Background(), "m", "source", "", 2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ImportFromPath(context.Background(), "m", "source", "", 1); !fault.IsCode(err, fault.CodeConflict) {
+		t.Fatalf("stale dedup: %v", err)
+	}
+	if len(store.files) != 1 {
+		t.Fatalf("dedup left %d files", len(store.files))
+	}
+}
+
+type pausedStore struct {
+	*testStore
+	listed chan struct{}
+	resume chan struct{}
+}
+
+func (s *pausedStore) List(ctx context.Context, id string) ([]Attachment, error) {
+	rows, err := s.testStore.List(ctx, id)
+	close(s.listed)
+	<-s.resume
+	return rows, err
+}
+
+func TestDeleteCannotInvalidateAnImportDedupSnapshot(t *testing.T) {
+	base := newTestStore("source")
+	hash, rel := "same-hash", "m/original.dat"
+	base.rows["original"] = Attachment{ID: "original", MemoryID: "m", SHA256: &hash, RelPath: &rel}
+	store := &pausedStore{testStore: base, listed: make(chan struct{}), resume: make(chan struct{})}
+	svc := NewService(store, &testIDs{}, testClock{})
+	imported := make(chan Attachment, 1)
+	go func() {
+		a, err := svc.ImportFromPath(context.Background(), "m", "source", "", 0)
+		if err != nil {
+			t.Error(err)
+		}
+		imported <- a
+	}()
+	<-store.listed
+	deleted := make(chan error, 1)
+	go func() { deleted <- svc.Delete(context.Background(), "original") }()
+	select {
+	case err := <-deleted:
+		close(store.resume)
+		<-imported
+		t.Fatalf("delete crossed dedup critical section: %v", err)
+	case <-time.After(30 * time.Millisecond):
+	}
+	close(store.resume)
+	if a := <-imported; a.ID != "original" {
+		t.Fatalf("dedup = %q", a.ID)
+	}
+	if err := <-deleted; err != nil {
+		t.Fatal(err)
+	}
+	// Deletion linearizes after dedup; the next import must create a fresh row.
+	svc.store = base
+	a, err := svc.ImportFromPath(context.Background(), "m", "source", "", 0)
+	if err != nil || a.ID == "original" {
+		t.Fatalf("returned deleted attachment: %+v, %v", a, err)
 	}
 }

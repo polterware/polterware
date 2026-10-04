@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -52,19 +53,25 @@ func checkPublicRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= 5 {
 		return errors.New("too many redirects")
 	}
-	return validatePublicURL(req.URL)
+	return validatePublicURL(req.Context(), req.URL)
 }
 
 // FetchTitle is an opt-in, bounded title fetch. Every initial and redirected host is DNS-checked.
 func FetchTitle(ctx context.Context, raw string) (string, error) {
-	transport := &http.Transport{DialContext: dialPublic}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	// net/http may detach the dial context from the request deadline. Keep
+	// DNS and dialing under the same fetch budget explicitly.
+	transport := &http.Transport{DialContext: func(_ context.Context, network, address string) (net.Conn, error) {
+		return dialPublic(ctx, network, address)
+	}}
 	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: transport, Timeout: 5 * time.Second, CheckRedirect: checkPublicRedirect}
+	client := &http.Client{Transport: transport, CheckRedirect: checkPublicRedirect}
 	u, err := url.Parse(raw)
 	if err != nil {
 		return "", err
 	}
-	if err = validatePublicURL(u); err != nil {
+	if err = validatePublicURL(ctx, u); err != nil {
 		return "", err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -98,7 +105,10 @@ func FetchTitle(ctx context.Context, raw string) (string, error) {
 	return strings.TrimSpace(text[start : start+end]), nil
 }
 
-func validatePublicURL(u *url.URL) error {
+func validatePublicURL(ctx context.Context, u *url.URL) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if u == nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil {
 		return errors.New("URL must be public http(s)")
 	}
@@ -109,7 +119,19 @@ func validatePublicURL(u *url.URL) error {
 		}
 		return nil
 	}
-	ips, err := lookupIPs.LookupNetIP(context.Background(), "ip", host)
+	// Reject legacy inet_aton numeric forms rather than letting DNS interpret
+	// octal/hex/short addresses differently from the HTTP dialer.
+	numeric := true
+	for _, part := range strings.Split(strings.TrimSuffix(host, "."), ".") {
+		if _, err := strconv.ParseUint(part, 0, 32); err != nil {
+			numeric = false
+			break
+		}
+	}
+	if numeric {
+		return errors.New("noncanonical numeric IP is not allowed")
+	}
+	ips, err := lookupIPs.LookupNetIP(ctx, "ip", host)
 	if err != nil {
 		return err
 	}
@@ -124,5 +146,6 @@ func validatePublicURL(u *url.URL) error {
 	return nil
 }
 func blocked(ip netip.Addr) bool {
+	ip = ip.Unmap()
 	return !ip.IsValid() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast()
 }

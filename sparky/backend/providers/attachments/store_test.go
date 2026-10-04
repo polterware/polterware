@@ -2,6 +2,7 @@ package attachments
 
 import (
 	"context"
+	domain "github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"os"
 	"path/filepath"
 	"sync"
@@ -92,5 +93,150 @@ func TestConcurrentImportsUseIndependentTemporaryFiles(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
+	}
+}
+
+func TestStoreRejectsSymlinkAncestorsForEveryFileOperation(t *testing.T) {
+	for _, ancestor := range []string{"attachments", testMemoryID} {
+		t.Run(ancestor, func(t *testing.T) {
+			data, outside := t.TempDir(), t.TempDir()
+			s, err := New(nil, data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			target := filepath.Join(data, "attachments")
+			if ancestor == testMemoryID {
+				target = filepath.Join(target, testMemoryID)
+			} else if err = os.Remove(target); err != nil {
+				t.Fatal(err)
+			}
+			if err = os.Symlink(outside, target); err != nil {
+				t.Fatal(err)
+			}
+			source := filepath.Join(data, "input")
+			if err = os.WriteFile(source, []byte("hello"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			victim := filepath.Join(outside, testAttachmentID+".bin")
+			if err = os.WriteFile(victim, []byte("private"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			rel := filepath.Join(testMemoryID, testAttachmentID+".bin")
+			if _, err = s.ImportFile(context.Background(), testMemoryID, testAttachmentID, source); err == nil {
+				t.Fatal("import followed symlink ancestor")
+			}
+			if _, err = s.AbsolutePath(rel); err == nil {
+				t.Fatal("AbsolutePath followed symlink ancestor")
+			}
+			if err = s.RemoveFile(context.Background(), rel); err == nil {
+				t.Fatal("delete followed symlink ancestor")
+			}
+			if got, err := os.ReadFile(victim); err != nil || string(got) != "private" {
+				t.Fatalf("victim changed: %q %v", got, err)
+			}
+			if ancestor == "attachments" {
+				if _, err := New(nil, data); err == nil {
+					t.Fatal("New followed symlink root")
+				}
+			}
+		})
+	}
+}
+
+func TestAnchoredDirectorySurvivesAncestorSwap(t *testing.T) {
+	data, outside := t.TempDir(), t.TempDir()
+	s, err := New(nil, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir, err := s.openMemory(testMemoryID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dir.Close()
+	original := filepath.Join(data, "attachments", testMemoryID)
+	moved := original + ".moved"
+	if err = os.Rename(original, moved); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Symlink(outside, original); err != nil {
+		t.Fatal(err)
+	}
+	file, name, err := createTemp(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file.Close()
+	if _, err = os.Stat(filepath.Join(moved, name)); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := os.ReadDir(outside)
+	if len(entries) != 0 {
+		t.Fatal("descriptor write escaped to replacement directory")
+	}
+}
+
+func TestImportNormalizesPreviewMIME(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		data      []byte
+		mime, ext string
+	}{
+		{"wave", []byte("RIFF\x00\x00\x00\x00WAVEfmt "), "audio/wav", ".wav"},
+		{"webm", []byte{0x1a, 0x45, 0xdf, 0xa3, 0x87, 0x42, 0x82, 0x84, 'w', 'e', 'b', 'm'}, "audio/webm", ".webm"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := t.TempDir()
+			s, err := New(nil, data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			src := filepath.Join(data, "source")
+			if err = os.WriteFile(src, tc.data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			got, err := s.ImportFile(context.Background(), testMemoryID, testAttachmentID, src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Mime != tc.mime || filepath.Ext(got.RelPath) != tc.ext {
+				t.Fatalf("preview: %+v", got)
+			}
+		})
+	}
+}
+
+func TestImportAppliesMIMELimitBeforeCompletingCopy(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		header []byte
+		limit  int64
+	}{
+		{"photo", []byte("\x89PNG\r\n\x1a\n"), domain.MaxPhotoBytes},
+		{"audio", []byte("RIFF\x00\x00\x00\x00WAVEfmt "), domain.MaxAudioBytes},
+		{"file", []byte("%PDF-1.7"), domain.MaxFileBytes},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := t.TempDir()
+			s, err := New(nil, data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			src := filepath.Join(data, "source")
+			f, err := os.Create(src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.Write(tc.header)
+			f.Truncate(tc.limit + 4096)
+			f.Close()
+			if _, err = s.ImportFile(context.Background(), testMemoryID, testAttachmentID, src); err == nil {
+				t.Fatal("kind limit ignored")
+			}
+			entries, err := os.ReadDir(filepath.Join(data, "attachments", testMemoryID))
+			if err != nil || len(entries) != 0 {
+				t.Fatalf("failed import left files: %v %v", entries, err)
+			}
+		})
 	}
 }

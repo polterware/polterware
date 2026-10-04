@@ -8,12 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"golang.org/x/sys/unix"
 
 	domain "github.com/polterware/polterware/sparky/backend/domains/attachments"
 )
@@ -31,10 +32,19 @@ func New(db *sql.DB, dataDir string) (*Store, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, fmt.Errorf("create attachment directory: %w", err)
 	}
-	return &Store{db: db, root: root}, nil
+	s := &Store{db: db, root: root}
+	dir, err := s.openRoot()
+	if err != nil {
+		return nil, fmt.Errorf("open attachment directory: %w", err)
+	}
+	dir.Close()
+	return s, nil
 }
 
 func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (domain.ImportedFile, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.ImportedFile{}, err
+	}
 	if !ulidPattern.MatchString(memoryID) || !ulidPattern.MatchString(id) {
 		return domain.ImportedFile{}, fmt.Errorf("memory and attachment IDs must be ULIDs")
 	}
@@ -61,7 +71,7 @@ func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (do
 		return domain.ImportedFile{}, fmt.Errorf("attachment source changed or is not a regular file")
 	}
 	buf := make([]byte, 512)
-	n, readErr := io.ReadFull(in, buf)
+	n, readErr := io.ReadFull(contextReader{ctx, in}, buf)
 	if readErr != nil && !errors.Is(readErr, io.EOF) && !errors.Is(readErr, io.ErrUnexpectedEOF) {
 		return domain.ImportedFile{}, readErr
 	}
@@ -70,6 +80,15 @@ func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (do
 	if i := strings.IndexByte(detected, ';'); i >= 0 {
 		detected = detected[:i]
 	}
+	// WebM is the supported audio recording container; net/http sniffs
+	// all WebM containers as video/webm.
+	switch detected {
+	case "audio/wave", "audio/x-wav":
+		detected = "audio/wav"
+	case "video/webm":
+		detected = "audio/webm"
+	}
+	limit := domain.ByteLimit(detected)
 	ext := ".bin"
 	switch detected {
 	case "image/jpeg":
@@ -82,49 +101,50 @@ func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (do
 		ext = ".webp"
 	case "audio/mpeg":
 		ext = ".mp3"
-	case "audio/wav", "audio/x-wav":
+	case "audio/wav":
 		ext = ".wav"
+	case "audio/webm":
+		ext = ".webm"
 	case "audio/mp4":
 		ext = ".m4a"
 	case "application/pdf":
 		ext = ".pdf"
-	case "text/plain; charset=utf-8":
+	case "text/plain":
 		ext = ".txt"
-	}
-	if mt := mime.TypeByExtension(ext); mt != "" && detected == "application/octet-stream" {
-		detected = mt
 	}
 	if err := ctx.Err(); err != nil {
 		return domain.ImportedFile{}, err
 	}
-	// Both directory components are generated IDs; source names never enter the stored path.
-	dir := filepath.Join(s.root, memoryID)
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return domain.ImportedFile{}, err
-	}
-	rel := filepath.Join(memoryID, id+ext)
-	dest := filepath.Join(s.root, rel)
-	tmp, err := os.CreateTemp(dir, ".import-*")
+	dir, err := s.openMemory(memoryID, true)
 	if err != nil {
 		return domain.ImportedFile{}, err
 	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
+	defer dir.Close()
+	rel := filepath.Join(memoryID, id+ext)
+	tmp, tmpName, err := createTemp(dir)
+	if err != nil {
+		return domain.ImportedFile{}, err
+	}
+	defer tmp.Close()
+	defer unix.Unlinkat(int(dir.Fd()), tmpName, 0)
 	h := sha256.New()
 	w := io.MultiWriter(tmp, h)
 	if _, err = w.Write(buf); err != nil {
 		tmp.Close()
 		return domain.ImportedFile{}, err
 	}
-	written, err := io.Copy(w, in)
+	written, err := io.Copy(w, io.LimitReader(contextReader{ctx, in}, limit+1-int64(n)))
 	if err != nil {
 		tmp.Close()
 		return domain.ImportedFile{}, err
 	}
 	size := int64(n) + written
-	if size > domain.HardMaxBytes {
+	if size > limit {
 		tmp.Close()
-		return domain.ImportedFile{}, fmt.Errorf("attachment exceeds hard size limit")
+		return domain.ImportedFile{}, fmt.Errorf("attachment exceeds kind size limit")
+	}
+	if err = ctx.Err(); err != nil {
+		return domain.ImportedFile{}, err
 	}
 	if err = tmp.Sync(); err != nil {
 		tmp.Close()
@@ -133,35 +153,63 @@ func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (do
 	if err = tmp.Close(); err != nil {
 		return domain.ImportedFile{}, err
 	}
-	if err = os.Rename(tmpName, dest); err != nil {
+	if err = unix.Renameat(int(dir.Fd()), tmpName, int(dir.Fd()), id+ext); err != nil {
 		return domain.ImportedFile{}, err
 	}
 	return domain.ImportedFile{RelPath: rel, SizeBytes: size, SHA256: fmt.Sprintf("%x", h.Sum(nil)), Mime: detected}, nil
 }
+
+// contextReader checks cancellation throughout bounded copies.
+type contextReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (r contextReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.reader.Read(p)
+}
+
 func (s *Store) AbsolutePath(rel string) (string, error) {
-	p := filepath.Clean(rel)
-	if p == "." || filepath.IsAbs(p) || strings.HasPrefix(p, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("invalid attachment path")
+	memoryID, name, err := splitPath(rel)
+	if err != nil {
+		return "", err
 	}
-	full := filepath.Join(s.root, p)
-	if !within(s.root, full) {
-		return "", fmt.Errorf("invalid attachment path")
+	dir, err := s.openMemory(memoryID, false)
+	if err != nil {
+		return "", err
 	}
-	return full, nil
+	defer dir.Close()
+	var st unix.Stat_t
+	if err = unix.Fstatat(int(dir.Fd()), name, &st, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+		return "", err
+	}
+	if st.Mode&unix.S_IFMT != unix.S_IFREG {
+		return "", fmt.Errorf("attachment is not a regular file")
+	}
+	return filepath.Join(s.root, rel), nil
 }
-func within(root, path string) bool {
-	r, e := filepath.Rel(root, path)
-	return e == nil && r != ".." && !strings.HasPrefix(r, ".."+string(filepath.Separator))
-}
+
 func (s *Store) RemoveFile(ctx context.Context, rel string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	p, err := s.AbsolutePath(rel)
+	memoryID, name, err := splitPath(rel)
 	if err != nil {
 		return err
 	}
-	err = os.Remove(p)
+	dir, err := s.openMemory(memoryID, false)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	// unlinkat removes the entry itself, never a symlink target.
+	err = unix.Unlinkat(int(dir.Fd()), name, 0)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
@@ -255,6 +303,11 @@ func (s *Store) Reorder(ctx context.Context, memoryID string, ids []string) erro
 
 // SweepOrphans removes files without rows and rows whose files disappeared.
 func (s *Store) SweepOrphans(ctx context.Context) (int, error) {
+	return s.SweepOrphansWith(ctx, s.Delete)
+}
+
+// SweepOrphansWith keeps metadata deletion in the core's transaction/audit path.
+func (s *Store) SweepOrphansWith(ctx context.Context, removeMissing func(context.Context, string) error) (int, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id,rel_path FROM attachments WHERE rel_path IS NOT NULL`)
 	if err != nil {
 		return 0, err
@@ -274,41 +327,64 @@ func (s *Store) SweepOrphans(ctx context.Context) (int, error) {
 	}
 	rows.Close()
 	removed := 0
-	err = filepath.WalkDir(s.root, func(path string, d os.DirEntry, e error) error {
-		if e != nil {
-			return e
+	root, err := s.openRoot()
+	if err != nil {
+		return 0, err
+	}
+	defer root.Close()
+	dirs, err := root.ReadDir(-1)
+	if err != nil {
+		return 0, err
+	}
+	for _, entry := range dirs {
+		if err = ctx.Err(); err != nil {
+			return removed, err
 		}
-		if d.IsDir() {
-			return nil
-		}
-		rel, e := filepath.Rel(s.root, path)
-		if e != nil {
-			return e
-		}
-		if _, ok := known[rel]; !ok {
-			if e = os.Remove(path); e != nil {
-				return e
+		if !entry.IsDir() {
+			if err = unix.Unlinkat(int(root.Fd()), entry.Name(), 0); err != nil {
+				return removed, err
 			}
 			removed++
+			continue
 		}
-		delete(known, rel)
-		return nil
-	})
-	if err != nil {
-		return removed, err
-	}
-	for rel, id := range known {
-		if _, e := s.AbsolutePath(rel); e != nil {
+		dir, e := openDirectory(root, entry.Name())
+		if e != nil {
 			return removed, e
 		}
-		if _, e := os.Stat(filepath.Join(s.root, rel)); errors.Is(e, os.ErrNotExist) {
-			if _, e = s.db.ExecContext(ctx, `DELETE FROM attachments WHERE id=?`, id); e != nil {
+		entries, e := dir.ReadDir(-1)
+		if e != nil {
+			dir.Close()
+			return removed, e
+		}
+		for _, file := range entries {
+			rel := filepath.Join(entry.Name(), file.Name())
+			var info unix.Stat_t
+			e := unix.Fstatat(int(dir.Fd()), file.Name(), &info, unix.AT_SYMLINK_NOFOLLOW)
+			if e != nil {
+				dir.Close()
 				return removed, e
 			}
-			removed++
-		} else if e != nil {
-			return removed, e
+			_, exists := known[rel]
+			if !exists || info.Mode&unix.S_IFMT != unix.S_IFREG {
+				if e = unix.Unlinkat(int(dir.Fd()), file.Name(), 0); e != nil {
+					dir.Close()
+					return removed, e
+				}
+				removed++
+			} else {
+				delete(known, rel)
+			}
 		}
+		dir.Close()
+	}
+	for _, id := range known {
+		if err = ctx.Err(); err != nil {
+			return removed, err
+		}
+		if err = removeMissing(ctx, id); err != nil {
+			return removed, err
+		}
+		removed++
 	}
 	return removed, nil
 }

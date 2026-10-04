@@ -2,10 +2,13 @@ package attachments
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/polterware/polterware/sparky/backend/domains/clock"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
@@ -21,6 +24,7 @@ type ServiceImpl struct {
 	clock    clock.Clock
 	memories memory.Repository
 	tx       tx.Manager
+	audit    func(context.Context, string, string, func(context.Context) error) error
 }
 
 func NewService(store Store, generator ids.Generator, c clock.Clock) *ServiceImpl {
@@ -31,6 +35,28 @@ func (s *ServiceImpl) WithMemoryRev(memories memory.Repository, tx tx.Manager) *
 	s.memories = memories
 	s.tx = tx
 	return s
+}
+
+// WithAudit joins metadata mutations and activity in the same transaction.
+func (s *ServiceImpl) WithAudit(write func(context.Context, string, string, func(context.Context) error) error) *ServiceImpl {
+	s.audit = write
+	return s
+}
+
+func (s *ServiceImpl) mutate(ctx context.Context, id, op string, fn func(context.Context) error) error {
+	if s.audit != nil {
+		return s.audit(ctx, id, op, fn)
+	}
+	return s.within(ctx, fn)
+}
+
+func (s *ServiceImpl) cleanup(ctx context.Context, rel string, cause error) error {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := s.store.RemoveFile(cleanupCtx, rel); err != nil {
+		return errors.Join(cause, fmt.Errorf("cleanup attachment %s: %w", rel, err))
+	}
+	return cause
 }
 
 func (s *ServiceImpl) within(ctx context.Context, fn func(context.Context) error) error {
@@ -75,46 +101,46 @@ func (s *ServiceImpl) ImportFromPath(ctx context.Context, memoryID, sourcePath, 
 	if strings.HasPrefix(file.Mime, "audio/") {
 		kind = KindAudio
 	}
-	limit := int64(MaxFileBytes)
-	if kind == KindPhoto {
-		limit = MaxPhotoBytes
-	}
-	if kind == KindAudio {
-		limit = MaxAudioBytes
-	}
+	limit := ByteLimit(file.Mime)
 	if file.SizeBytes > limit {
-		_ = s.store.RemoveFile(ctx, file.RelPath)
-		return Attachment{}, fault.Exhausted("attachment exceeds kind size limit")
-	}
-	prior, err := s.store.List(ctx, memoryID)
-	if err != nil {
-		_ = s.store.RemoveFile(ctx, file.RelPath)
-		return Attachment{}, err
-	}
-	for _, existing := range prior {
-		if existing.SHA256 != nil && *existing.SHA256 == file.SHA256 {
-			_ = s.store.RemoveFile(ctx, file.RelPath)
-			return existing, nil
-		}
+		return Attachment{}, s.cleanup(ctx, file.RelPath, fault.Exhausted("attachment exceeds kind size limit"))
 	}
 	if name == "" {
 		name = filepath.Base(sourcePath)
 	}
 	mime, size, hash, rel := file.Mime, file.SizeBytes, file.SHA256, file.RelPath
 	a := Attachment{ID: id, MemoryID: memoryID, Kind: kind, Name: &name, Mime: &mime, SizeBytes: &size, SHA256: &hash, RelPath: &rel, CreatedAt: s.clock.Now().UTC()}
+	var duplicate *Attachment
 	if err = s.within(ctx, func(ctx context.Context) error {
 		if err := s.checkMemoryRev(ctx, memoryID, expectedRev); err != nil {
 			return err
 		}
-		return s.store.Insert(ctx, a)
+		prior, err := s.store.List(ctx, memoryID)
+		if err != nil {
+			return err
+		}
+		for _, existing := range prior {
+			if existing.SHA256 != nil && *existing.SHA256 == file.SHA256 {
+				duplicate = &existing
+				return nil
+			}
+		}
+		return s.mutate(ctx, a.ID, "create", func(ctx context.Context) error { return s.store.Insert(ctx, a) })
 	}); err != nil {
-		_ = s.store.RemoveFile(ctx, rel)
-		return Attachment{}, err
+		return Attachment{}, s.cleanup(ctx, rel, err)
+	}
+	if duplicate != nil {
+		if err := s.cleanup(ctx, rel, nil); err != nil {
+			return Attachment{}, err
+		}
+		return *duplicate, nil
 	}
 	return a, nil
 }
 
 func (s *ServiceImpl) AddLink(ctx context.Context, memoryID, rawURL, title string, expectedRev int64) (Attachment, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	u, err := url.ParseRequestURI(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
 		return Attachment{}, fault.Invalid(fault.Violation{Field: "url", Reason: "must be an http or https URL"})
@@ -123,7 +149,7 @@ func (s *ServiceImpl) AddLink(ctx context.Context, memoryID, rawURL, title strin
 	if title != "" {
 		a.Title = &title
 	}
-	err = s.within(ctx, func(ctx context.Context) error {
+	err = s.mutate(ctx, a.ID, "create", func(ctx context.Context) error {
 		if err := s.checkMemoryRev(ctx, memoryID, expectedRev); err != nil {
 			return err
 		}
@@ -138,7 +164,9 @@ func (s *ServiceImpl) List(ctx context.Context, memoryID string) ([]Attachment, 
 	return s.store.List(ctx, memoryID)
 }
 func (s *ServiceImpl) Reorder(ctx context.Context, memoryID string, ids []string) ([]Attachment, error) {
-	if err := s.store.Reorder(ctx, memoryID, ids); err != nil {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.mutate(ctx, memoryID, "update", func(ctx context.Context) error { return s.store.Reorder(ctx, memoryID, ids) }); err != nil {
 		return nil, err
 	}
 	return s.store.List(ctx, memoryID)
@@ -165,15 +193,17 @@ func (s *ServiceImpl) OpenInfo(ctx context.Context, id string) (OpenInfo, error)
 	return OpenInfo{ID: a.ID, AbsolutePath: p, Mime: mime, Name: name, Kind: a.Kind}, nil
 }
 func (s *ServiceImpl) Delete(ctx context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	a, err := s.store.Get(ctx, id)
 	if err != nil {
 		return err
 	}
-	if err = s.store.Delete(ctx, id); err != nil {
+	if err = s.mutate(ctx, id, "delete", func(ctx context.Context) error { return s.store.Delete(ctx, id) }); err != nil {
 		return err
 	}
 	if a.RelPath != nil {
-		if err = s.store.RemoveFile(ctx, *a.RelPath); err != nil {
+		if err = s.cleanup(ctx, *a.RelPath, nil); err != nil {
 			return err
 		}
 	}

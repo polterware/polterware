@@ -1,7 +1,10 @@
 // Package attachments is the attachment metadata and file store.
 package attachments
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 const (
 	KindPhoto = "photo"
@@ -47,4 +50,15 @@ type ImportedFile struct {
 	SizeBytes int64
 	SHA256    string
 	Mime      string
+}
+
+// ByteLimit is the bounded import budget after MIME detection.
+func ByteLimit(mime string) int64 {
+	if strings.HasPrefix(mime, "image/") {
+		return MaxPhotoBytes
+	}
+	if strings.HasPrefix(mime, "audio/") {
+		return MaxAudioBytes
+	}
+	return MaxFileBytes
 }

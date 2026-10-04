@@ -2,12 +2,14 @@ package attachments
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type stubResolver struct {
@@ -19,13 +21,13 @@ func (s stubResolver) LookupNetIP(ctx context.Context, network, host string) ([]
 }
 
 func TestSSRFGuardRejectsPrivateDestinations(t *testing.T) {
-	for _, raw := range []string{"http://127.0.0.1/", "http://10.0.0.1/", "http://169.254.1.2/", "http://[::1]/", "http://localhost/"} {
+	for _, raw := range []string{"http://127.0.0.1/", "http://10.0.0.1/", "http://169.254.1.2/", "http://[::1]/", "http://localhost/", "http://0.0.0.0/", "http://[::]/", "http://[::ffff:0.0.0.0]/", "http://[::ffff:127.0.0.1]/", "http://[::ffff:169.254.169.254]/", "http://2130706433/", "http://0177.0.0.1/", "http://0x7f000001/", "http://user:pass@example.com/"} {
 		t.Run(raw, func(t *testing.T) {
 			u, e := url.Parse(raw)
 			if e != nil {
 				t.Fatal(e)
 			}
-			if e = validatePublicURL(u); e == nil {
+			if e = validatePublicURL(context.Background(), u); e == nil {
 				t.Fatal("private destination accepted")
 			}
 		})
@@ -48,7 +50,7 @@ func TestSSRFGuardRejectsDNSRebindingToPrivateIP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = validatePublicURL(u); err == nil {
+	if err = validatePublicURL(context.Background(), u); err == nil {
 		t.Fatal("hostname resolving to private IP accepted")
 	}
 }
@@ -67,7 +69,7 @@ func TestSSRFGuardRejectsRebindingAtDialTime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = validatePublicURL(u); err != nil {
+	if err = validatePublicURL(context.Background(), u); err != nil {
 		t.Fatalf("expected first lookup to pass validation: %v", err)
 	}
 	if _, err = dialPublic(context.Background(), "tcp", "rebind.example:80"); err == nil {
@@ -112,5 +114,63 @@ func TestSSRFGuardRedirectDialRevalidatesResolvedIP(t *testing.T) {
 	}
 	if _, err = dialPublic(context.Background(), "tcp", net.JoinHostPort("private.example", "80")); err == nil {
 		t.Fatal("dial accepted private address on redirect target")
+	}
+}
+
+func TestTitleValidationSharesDeadline(t *testing.T) {
+	old := lookupIPs
+	t.Cleanup(func() { lookupIPs = old })
+	lookupIPs = stubResolver{lookup: func(ctx context.Context, _, _ string) ([]netip.Addr, error) {
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) > 5*time.Second {
+			t.Error("missing shared title deadline")
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if _, err := FetchTitle(ctx, "https://slow.example"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("validation cancellation: %v", err)
+	}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://slow.example", nil)
+	if err := checkPublicRedirect(req, nil); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("redirect cancellation: %v", err)
+	}
+}
+
+func TestTitleDialSharesValidationDeadline(t *testing.T) {
+	old := lookupIPs
+	t.Cleanup(func() { lookupIPs = old })
+	var deadline time.Time
+	var calls int
+	done := make(chan struct{})
+	lookupIPs = stubResolver{lookup: func(ctx context.Context, _, _ string) ([]netip.Addr, error) {
+		calls++
+		current, ok := ctx.Deadline()
+		if !ok {
+			t.Error("DNS has no deadline")
+		}
+		if calls == 1 {
+			deadline = current
+			return []netip.Addr{netip.MustParseAddr("93.184.216.34")}, nil
+		}
+		if !current.Equal(deadline) {
+			t.Error("dial reset the title deadline")
+		}
+		<-ctx.Done()
+		close(done)
+		return nil, ctx.Err()
+	}}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	if _, err := FetchTitle(ctx, "https://slow-dial.example/"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("dial cancellation: %v", err)
+	}
+	// Join the resolver before restoring the injected resolver.
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("dial DNS did not finish")
 	}
 }
