@@ -14,7 +14,7 @@ export { SparkyShell } from "./shell";
 export { useSparkyShell } from "./context";
 export { parseQuickAdd } from "./quick-add";
 export { createShellBridge } from "./bridge";
-export type { SparkyFeature, RouteDef, SidebarItemDef, CommandDef, SettingsPanelDef, DetailSectionDef, MemoryDetailProps, SidebarTreeDef } from "./feature";
+export type { SparkyFeature, RouteDef, SidebarItemDef, CommandDef, CommandSourceDef, SettingsPanelDef, DetailSectionDef, MemoryDetailProps, SidebarTreeDef } from "./feature";
 export type { SparkyShellContext, MemoryDetailRenderer } from "./context";
 export type { ShellBridge, ShellWireBridge } from "./bridge";
 export type { MemoryShortcut } from "./shortcuts";

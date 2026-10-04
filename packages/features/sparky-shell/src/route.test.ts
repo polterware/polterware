@@ -33,7 +33,7 @@ describe("shell registry and routes", () => {
     expect(pushRoute(history, "/inbox")).toBe(history);
   });
   it.each([
-    ["sparky://today", "/today"], ["sparky://focus", "/focus"], ["sparky://memory/ABC?action=focus", "/memory/ABC"],
+    ["sparky://today", "/today"], ["sparky://focus", "/focus"], ["sparky://map", "/map"], ["sparky://memory/ABC?action=focus", "/memory/ABC"],
     ["sparky://calendar?date=2026-10-04", "/calendar"], ["https://example.com/today", null], ["sparky://unknown", null], ["bad url", null],
   ])("routes deep link %s", (url, expected) => expect(deepLinkPath(url)).toBe(expected));
 });

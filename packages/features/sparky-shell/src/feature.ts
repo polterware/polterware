@@ -21,6 +21,11 @@ export type CommandDef = {
   run: () => void | Promise<void>;
 };
 
+export type CommandSourceDef = {
+  id: string;
+  search: (query: string) => Promise<{ hits: { id: string; label: string; snippet?: string; run: () => void }[] }>;
+};
+
 export type SettingsPanelDef = {
   id: string;
   label: string;
@@ -50,6 +55,7 @@ export type SparkyFeature = {
   routes: RouteDef[];
   sidebar?: SidebarItemDef[];
   commands?: CommandDef[];
+  commandSources?: CommandSourceDef[];
   settingsPanels?: SettingsPanelDef[];
   detailSections?: DetailSectionDef[];
   memoryDetail?: Component<MemoryDetailProps>;

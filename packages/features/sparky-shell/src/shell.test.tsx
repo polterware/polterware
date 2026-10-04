@@ -26,7 +26,7 @@ function mount(extra: SparkyFeature[] = [], options: { offline?: boolean; permis
   const wire = {
     reminders: { status }, minds: { list: async () => ({ minds: [] }) },
     memories: { list: async () => ({ total: 0 }), create, get: async () => ({ memory: { id: "new-memory", title: "Buy milk", note: "Local note", rev: "1" } }) },
-    tags: { list: async () => ({ tags: [] }) }, search: { search: async () => ({ hits: [{ memoryId: "new-memory", title: "Buy milk", snippet: "Local note" }] }) },
+    tags: { list: async () => ({ tags: [] }) }, search: { search: vi.fn(async () => ({ hits: [{ memoryId: "new-memory", title: "Buy milk", snippet: "Local <b>note</b>" }] })) },
     onChange: () => unsubscribe,
     app: {
       onDeepLink: (callback: typeof onLink) => { onLink = callback; return unsubscribe; },
@@ -36,7 +36,7 @@ function mount(extra: SparkyFeature[] = [], options: { offline?: boolean; permis
   } as unknown as ShellWireBridge;
   const host = document.createElement("div"); document.body.append(host);
   dispose = render(() => <SparkyShell features={[shellFeature, ...extra]} bridge={createShellBridge(wire)} />, host);
-  return { host, status, create, onLink: (url: string) => onLink({ url, route: "" }), unsubscribe, requestNotificationAuthorization };
+  return { host, status, create, onLink: (url: string) => onLink({ url, route: "" }), unsubscribe, requestNotificationAuthorization, search: wire.search.search };
 }
 function button(label: string): HTMLButtonElement {
   const found = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(item => item.getAttribute("aria-label") === label || item.textContent?.trim() === label);
@@ -119,6 +119,7 @@ describe("Sparky shell behavior", () => {
     onLink("sparky://calendar?date=2026-10-04"); await vi.waitFor(() => expect(host.textContent).toContain("Calendar is unavailable"));
     key("k"); await vi.waitFor(() => expect(document.querySelector("#sparky-command-input")).not.toBeNull());
     fill("milk"); await vi.waitFor(() => expect(document.body.textContent).toContain("Buy milk"));
+    expect(document.body.textContent).not.toContain("<b>");
     button("Buy milkLocal note").click(); await vi.waitFor(() => expect(host.textContent).toContain("Local note"));
   });
   it("exposes detail sections and parameterized routes without feature imports", async () => {
@@ -190,6 +191,24 @@ it("enables notifications from onboarding and reports real reminder status", asy
   await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Reminders refresh when Sparky runs"));
   expect(document.querySelector('[role="dialog"]')?.textContent).not.toMatch(/Reminders: \d+ armed/);
   expect(button("Enable notifications").disabled).toBe(true);
+});
+it("renders registered Commander sources and strips FTS markers from snippets", async () => {
+  const run = vi.fn();
+  const { host, search } = mount([{
+    id: "search",
+    routes: [],
+    commandSources: [{ id: "memories", search: async query => ({ hits: [{ id: "hit-1", label: `Found ${query}`, snippet: "see <b>milk</b> here", run }] }) }],
+  }]);
+  await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
+  key("k"); await vi.waitFor(() => expect(document.querySelector("#sparky-command-input")).not.toBeNull());
+  fill("milk");
+  await vi.waitFor(() => expect(document.body.textContent).toContain("Found milk"));
+  expect(search).not.toHaveBeenCalled();
+  expect(document.body.textContent).toContain("see milk here");
+  expect(document.body.textContent).not.toContain("<b>");
+  expect(document.querySelector('[role="dialog"]')?.innerHTML).not.toContain("<b>milk</b>");
+  button("Found milksee milk here").click();
+  await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
 });
 it("renders registered memoryDetail, memoryCollection, and sidebarTree", async () => {
   const Detail = (props: { memoryId: string; detailSections: { id: string }[] }) => (
