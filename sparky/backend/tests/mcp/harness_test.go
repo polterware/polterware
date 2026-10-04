@@ -12,6 +12,7 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/activity/fake/testkit"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
+	"github.com/polterware/polterware/sparky/backend/domains/fault"
 	"github.com/polterware/polterware/sparky/backend/domains/memory"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/review"
@@ -33,6 +34,13 @@ func setupMCP(t *testing.T) *harness {
 	t.Helper()
 	f := testkit.Setup()
 	att := &attachStub{items: map[string][]attachments.Attachment{}}
+	att.revs = func(id string) (int64, error) {
+		got, err := f.MS.Get(context.Background(), id, memory.Include{})
+		if err != nil {
+			return 0, err
+		}
+		return got.Memory.Rev, nil
+	}
 	srv, err := provider.New(provider.Deps{
 		Memories: f.MS, Minds: f.NS, Tags: f.TS, Activity: activity.NewService(af.New(f.Store)),
 		Review: review.NewService(rf.New(f.Store)), Search: searchStub{mem: f.MS}, Attachments: att,
@@ -107,14 +115,35 @@ func (searchStub) Reindex(context.Context) (int, error)          { return 0, nil
 
 type attachStub struct {
 	items map[string][]attachments.Attachment
+	revs  func(id string) (int64, error)
 }
 
-func (a *attachStub) ImportFromPath(_ context.Context, memoryID, sourcePath, _ string) (attachments.Attachment, error) {
+func (a *attachStub) checkRev(id string, expectedRev int64) error {
+	if expectedRev == 0 || a.revs == nil {
+		return nil
+	}
+	rev, err := a.revs(id)
+	if err != nil {
+		return err
+	}
+	if rev != expectedRev {
+		return fault.Conflict("memory", id, rev, memory.Memory{ID: id, Rev: rev})
+	}
+	return nil
+}
+
+func (a *attachStub) ImportFromPath(_ context.Context, memoryID, sourcePath, _ string, expectedRev int64) (attachments.Attachment, error) {
+	if err := a.checkRev(memoryID, expectedRev); err != nil {
+		return attachments.Attachment{}, err
+	}
 	item := attachments.Attachment{ID: "file-1", MemoryID: memoryID, Kind: attachments.KindFile}
 	a.items[memoryID] = append(a.items[memoryID], item)
 	return item, nil
 }
-func (a *attachStub) AddLink(_ context.Context, memoryID, url, title string) (attachments.Attachment, error) {
+func (a *attachStub) AddLink(_ context.Context, memoryID, url, title string, expectedRev int64) (attachments.Attachment, error) {
+	if err := a.checkRev(memoryID, expectedRev); err != nil {
+		return attachments.Attachment{}, err
+	}
 	titlePtr, u := title, url
 	item := attachments.Attachment{ID: "link-1", MemoryID: memoryID, Kind: attachments.KindLink, URL: &u, Title: &titlePtr}
 	a.items[memoryID] = append(a.items[memoryID], item)

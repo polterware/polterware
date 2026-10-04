@@ -8,6 +8,7 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
 	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/mind"
 )
 
 func sentence(err error) string {
@@ -23,6 +24,9 @@ func sentence(err error) string {
 			}
 			if current, ok := domain.Current.(memory.Summary); ok && current.Title != "" {
 				title = current.Title
+			}
+			if current, ok := domain.Current.(mind.Mind); ok && current.Name != "" {
+				title = current.Name
 			}
 			return fmt.Sprintf("%s changed since this session last read it (rev %d). Current: %q.", domain.Entity, domain.Rev, title)
 		}
@@ -68,6 +72,11 @@ func itemError(id string, err error) map[string]any {
 	row := map[string]any{"ok": false, "error": sentence(err)}
 	if id != "" {
 		row["id"] = id
+	}
+	var domain *fault.Error
+	if errors.As(err, &domain) && domain.Code == fault.CodeConflict {
+		row["conflict"] = true
+		row["rev"] = domain.Rev
 	}
 	return row
 }

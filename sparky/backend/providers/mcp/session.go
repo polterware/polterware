@@ -75,6 +75,24 @@ func (s *MemorySession) SetStatus(ctx context.Context, id string, explicitRev *i
 	return result, err
 }
 
+func (s *MemorySession) ToggleCheckItem(ctx context.Context, memoryID, itemID string, explicitRev *int64, done *bool) (memory.CheckItem, error) {
+	item, err := s.service.ToggleCheckItem(ctx, s.actor, memoryID, itemID, s.expected(memoryID, explicitRev), done)
+	if err == nil {
+		if got, e := s.service.Get(ctx, memoryID, memory.Include{}); e == nil {
+			s.observe(got.Memory.ID, got.Memory.Rev)
+		}
+	}
+	return item, err
+}
+
+func (s *MemorySession) Delete(ctx context.Context, id string, explicitRev *int64) error {
+	err := s.service.Delete(ctx, s.actor, id, s.expected(id, explicitRev))
+	if err == nil {
+		s.forget(id)
+	}
+	return err
+}
+
 func (s *MemorySession) Create(ctx context.Context, in memory.Create) (memory.Memory, error) {
 	result, err := s.service.Create(ctx, s.actor, in)
 	if err == nil {
@@ -90,3 +108,11 @@ func (s *MemorySession) observeMind(id string, rev int64) { s.observe("mind:"+id
 func (s *MemorySession) expectedMind(id string, explicit *int64) int64 {
 	return s.expected("mind:"+id, explicit)
 }
+
+func (s *MemorySession) forget(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.reads, id)
+}
+
+func (s *MemorySession) forgetMind(id string) { s.forget("mind:" + id) }

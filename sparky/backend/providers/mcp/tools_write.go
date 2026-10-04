@@ -287,9 +287,10 @@ func (s *Server) applyTagChanges(ctx context.Context, sess *MemorySession, item 
 
 func (s *Server) setMemoryStatus(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
-		ID         string `json:"id"`
-		Status     string `json:"status"`
-		Occurrence string `json:"occurrence"`
+		ID          string `json:"id"`
+		Status      string `json:"status"`
+		Occurrence  string `json:"occurrence"`
+		ExpectedRev *int64 `json:"expectedRev"`
 	}
 	if err := decodeArgs(req, &in); err != nil {
 		return fail(err), nil
@@ -305,7 +306,7 @@ func (s *Server) setMemoryStatus(ctx context.Context, req *mcpsdk.CallToolReques
 		}
 		occurrence = at
 	}
-	updated, err := s.session(req).SetStatus(ctx, in.ID, nil, in.Status, occurrence)
+	updated, err := s.session(req).SetStatus(ctx, in.ID, in.ExpectedRev, in.Status, occurrence)
 	if err != nil {
 		return fail(err), nil
 	}
@@ -314,9 +315,10 @@ func (s *Server) setMemoryStatus(ctx context.Context, req *mcpsdk.CallToolReques
 
 func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
-		MemoryID  string `json:"memoryId"`
-		ItemID    string `json:"itemId"`
-		ItemTitle string `json:"itemTitle"`
+		MemoryID    string `json:"memoryId"`
+		ItemID      string `json:"itemId"`
+		ItemTitle   string `json:"itemTitle"`
+		ExpectedRev *int64 `json:"expectedRev"`
 	}
 	if err := decodeArgs(req, &in); err != nil {
 		return fail(err), nil
@@ -330,7 +332,7 @@ func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolReques
 		if in.ItemTitle == "" {
 			return fail(fmt.Errorf("itemId or itemTitle is required")), nil
 		}
-		got, err := sess.Get(ctx, in.MemoryID, memory.Include{Checklist: true})
+		got, err := s.deps.Memories.Get(ctx, in.MemoryID, memory.Include{Checklist: true})
 		if err != nil {
 			return fail(err), nil
 		}
@@ -344,8 +346,7 @@ func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolReques
 			return fail(fmt.Errorf("checklist item %q not found", in.ItemTitle)), nil
 		}
 	}
-	// Request 3: ToggleCheckItem has no expectedRev. Do not pre-read to fake atomicity.
-	item, err := s.deps.Memories.ToggleCheckItem(ctx, sess.Actor(), in.MemoryID, itemID, nil)
+	item, err := sess.ToggleCheckItem(ctx, in.MemoryID, itemID, in.ExpectedRev, nil)
 	if err != nil {
 		return fail(err), nil
 	}
@@ -354,8 +355,9 @@ func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolReques
 
 func (s *Server) deleteMemories(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
-		IDs     []string `json:"ids"`
-		Confirm bool     `json:"confirm"`
+		IDs         []string         `json:"ids"`
+		Confirm     bool             `json:"confirm"`
+		ExpectedRev map[string]int64 `json:"expectedRev"`
 	}
 	if err := decodeArgs(req, &in); err != nil {
 		return fail(err), nil
@@ -382,8 +384,11 @@ func (s *Server) deleteMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 	results := make([]map[string]any, 0, len(in.IDs))
 	okCount := 0
 	for _, id := range in.IDs {
-		// Request 3: Delete has no expectedRev. Call the domain port as-is.
-		if err := s.deps.Memories.Delete(ctx, sess.Actor(), id); err != nil {
+		var explicit *int64
+		if rev, ok := in.ExpectedRev[id]; ok {
+			explicit = &rev
+		}
+		if err := sess.Delete(ctx, id, explicit); err != nil {
 			results = append(results, itemError(id, err))
 			continue
 		}
@@ -493,9 +498,10 @@ func (s *Server) updateMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 
 func (s *Server) deleteMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
-		ID      string `json:"id"`
-		Name    string `json:"name"`
-		Confirm bool   `json:"confirm"`
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		Confirm     bool   `json:"confirm"`
+		ExpectedRev *int64 `json:"expectedRev"`
 	}
 	if err := decodeArgs(req, &in); err != nil {
 		return fail(err), nil
@@ -514,19 +520,21 @@ func (s *Server) deleteMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 	if !in.Confirm {
 		return fail(fmt.Errorf("refusing to delete mind %q. Children are deleted and memories move to Inbox. Set confirm true", got.Name)), nil
 	}
-	// Request 3: mind.Delete has no expectedRev.
-	result, err := s.deps.Minds.Delete(ctx, s.session(req).Actor(), got.ID)
+	sess := s.session(req)
+	result, err := s.deps.Minds.Delete(ctx, sess.Actor(), got.ID, sess.expectedMind(got.ID, in.ExpectedRev))
 	if err != nil {
 		return fail(err), nil
 	}
+	sess.forgetMind(got.ID)
 	return ok("deleted "+got.Name, map[string]any{"deletedMindIds": result.DeletedMindIDs, "movedMemoryCount": result.MovedMemoryCount}), nil
 }
 
 func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
-		MemoryID string   `json:"memoryId"`
-		Links    []linkIn `json:"links"`
-		Files    []struct {
+		MemoryID    string   `json:"memoryId"`
+		Links       []linkIn `json:"links"`
+		ExpectedRev *int64   `json:"expectedRev"`
+		Files       []struct {
 			Path string `json:"path"`
 		} `json:"files"`
 	}
@@ -556,9 +564,10 @@ func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest
 	if s.deps.Attachments == nil {
 		return fail(fault.Unavailable("attachments backend is not wired")), nil
 	}
+	expected := s.session(req).expected(in.MemoryID, in.ExpectedRev)
 	var out []map[string]any
 	for _, link := range in.Links {
-		a, err := s.deps.Attachments.AddLink(ctx, in.MemoryID, link.URL, link.Title)
+		a, err := s.deps.Attachments.AddLink(ctx, in.MemoryID, link.URL, link.Title, expected)
 		if err != nil {
 			return fail(err), nil
 		}
@@ -569,7 +578,7 @@ func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest
 		out = append(out, row)
 	}
 	for _, file := range in.Files {
-		a, err := s.deps.Attachments.ImportFromPath(ctx, in.MemoryID, file.Path, "")
+		a, err := s.deps.Attachments.ImportFromPath(ctx, in.MemoryID, file.Path, "", expected)
 		if err != nil {
 			return fail(err), nil
 		}
@@ -619,7 +628,7 @@ func (s *Server) addLinks(ctx context.Context, memoryID string, links []linkIn) 
 		return fault.Unavailable("attachments backend is not wired")
 	}
 	for _, link := range links {
-		if _, err := s.deps.Attachments.AddLink(ctx, memoryID, link.URL, link.Title); err != nil {
+		if _, err := s.deps.Attachments.AddLink(ctx, memoryID, link.URL, link.Title, 0); err != nil {
 			return err
 		}
 	}

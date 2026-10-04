@@ -55,6 +55,24 @@ func (f *revisionService) SetStatus(ctx context.Context, who actor.Actor, id str
 	return m, err
 }
 
+func (f *revisionService) ToggleCheckItem(ctx context.Context, who actor.Actor, id, itemID string, expected int64, _ *bool) (memory.CheckItem, error) {
+	if _, err := f.Update(ctx, who, id, expected, memory.Patch{}); err != nil {
+		return memory.CheckItem{}, err
+	}
+	return memory.CheckItem{ID: itemID, MemoryID: id, Title: "A", Done: true}, nil
+}
+
+func (f *revisionService) Delete(_ context.Context, who actor.Actor, id string, expected int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lastActor, f.lastExpected = who, expected
+	if expected != 0 && expected != f.current.Rev {
+		return fault.Conflict("memory", id, f.current.Rev, f.current)
+	}
+	f.current = memory.Memory{}
+	return nil
+}
+
 func TestSessionRejectsInterveningUIWrite(t *testing.T) {
 	for _, read := range []string{"get", "list"} {
 		for _, write := range []string{"update", "status"} {
@@ -125,6 +143,32 @@ func TestSessionFirstWriteExplicitRevAndIsolation(t *testing.T) {
 	}
 	if service.lastExpected != 7 {
 		t.Fatal("returned revision not observed")
+	}
+}
+
+func TestSessionDeleteAndToggleHonorReadRev(t *testing.T) {
+	ctx := context.Background()
+	service := &revisionService{current: memory.Memory{ID: "memory-1", Title: "Before", Rev: 1}}
+	s := NewMemorySession(service, "Claude Code")
+	if _, err := s.Get(ctx, "memory-1", memory.Include{}); err != nil {
+		t.Fatal(err)
+	}
+	title := "UI edit"
+	if _, err := service.Update(ctx, actor.UI(), "memory-1", 1, memory.Patch{Title: &title}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.ToggleCheckItem(ctx, "memory-1", "item-1", nil, nil); !fault.IsCode(err, fault.CodeConflict) {
+		t.Fatalf("toggle: %v", err)
+	}
+	if err := s.Delete(ctx, "memory-1", nil); !fault.IsCode(err, fault.CodeConflict) {
+		t.Fatalf("delete: %v", err)
+	}
+	explicit := int64(2)
+	if _, err := s.ToggleCheckItem(ctx, "memory-1", "item-1", &explicit, nil); err != nil {
+		t.Fatal(err)
+	}
+	if service.lastExpected != 2 {
+		t.Fatal("explicit toggle revision ignored")
 	}
 }
 

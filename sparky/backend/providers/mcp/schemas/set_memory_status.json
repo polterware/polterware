@@ -17,6 +17,9 @@
       },
       "occurrence": {
         "type": "string"
+      },
+      "expectedRev": {
+        "type": "integer"
       }
     }
   },

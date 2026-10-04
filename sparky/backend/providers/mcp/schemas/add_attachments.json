@@ -17,6 +17,9 @@
       "files": {
         "type": "array",
         "description": "{path}"
+      },
+      "expectedRev": {
+        "type": "integer"
       }
     }
   },
