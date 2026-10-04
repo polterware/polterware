@@ -271,7 +271,7 @@ describe("FloatingWindow", () => {
     const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
     pointer(item, "pointerdown", 0, 0); item.click();
     expect(panel.open()).toBe(true);
-    expect(action).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(action).toHaveBeenCalledOnce());
     const outside = document.createElement("button"); document.body.append(outside);
     outside.focus();
     const [unrelated, setUnrelated] = createSignal(false);
