@@ -2,18 +2,125 @@ package core
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
+	"sync"
 
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
+	"github.com/polterware/polterware/sparky/backend/domains/fault"
+	attachprovider "github.com/polterware/polterware/sparky/backend/providers/attachments"
+	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
+	"github.com/polterware/polterware/sparky/backend/platform/clock"
+	"github.com/polterware/polterware/sparky/backend/platform/ids"
 )
 
-type attachmentMeta struct{ store attachments.Store }
+var attachmentServices sync.Map
+
+type attachmentMeta struct {
+	store attachments.Store
+}
+
+type attachmentComposite struct {
+	meta  attachments.Store
+	files *attachprovider.Store
+}
+
+func (c attachmentComposite) List(ctx context.Context, memoryID string) ([]attachments.Attachment, error) {
+	return c.meta.List(ctx, memoryID)
+}
+
+func (c attachmentComposite) Get(ctx context.Context, id string) (attachments.Attachment, error) {
+	return c.meta.Get(ctx, id)
+}
+
+func (c attachmentComposite) Insert(ctx context.Context, a attachments.Attachment) error {
+	return c.meta.Insert(ctx, a)
+}
+
+func (c attachmentComposite) Delete(ctx context.Context, id string) error {
+	return c.meta.Delete(ctx, id)
+}
+
+func (c attachmentComposite) Reorder(ctx context.Context, memoryID string, orderedIDs []string) error {
+	return c.meta.Reorder(ctx, memoryID, orderedIDs)
+}
+
+func (c attachmentComposite) ImportFile(ctx context.Context, memoryID, attachmentID, sourcePath string) (attachments.ImportedFile, error) {
+	if c.files == nil {
+		return attachments.ImportedFile{}, fault.Unavailable("attachment files are not available")
+	}
+	return c.files.ImportFile(ctx, memoryID, attachmentID, sourcePath)
+}
+
+func (c attachmentComposite) AbsolutePath(relPath string) (string, error) {
+	if c.files == nil {
+		return "", fault.Unavailable("attachment files are not available")
+	}
+	return c.files.AbsolutePath(relPath)
+}
+
+func (c attachmentComposite) RemoveFile(ctx context.Context, relPath string) error {
+	if c.files == nil {
+		return fault.Unavailable("attachment files are not available")
+	}
+	return c.files.RemoveFile(ctx, relPath)
+}
+
+func buildAttachmentService(store attachments.Store) (attachments.Service, error) {
+	sqliteMeta, ok := store.(sqlite.Attachments)
+	if !ok {
+		return nil, unavailable("attachment files")
+	}
+	composite := attachmentComposite{meta: store}
+	dbPath := sqliteMeta.Handle().Path()
+	if dbPath != ":memory:" {
+		files, err := attachprovider.New(sqliteMeta.Handle().Writer(), filepath.Dir(dbPath))
+		if err != nil {
+			return nil, fmt.Errorf("open attachment files: %w", err)
+		}
+		composite.files = files
+	}
+	return attachments.NewService(composite, ids.Generator{}, clock.Clock{}), nil
+}
+
+func (a attachmentMeta) service() (attachments.Service, error) {
+	if cached, ok := attachmentServices.Load(a.store); ok {
+		return cached.(attachments.Service), nil
+	}
+	svc, err := buildAttachmentService(a.store)
+	if err != nil {
+		return nil, err
+	}
+	actual, _ := attachmentServices.LoadOrStore(a.store, svc)
+	return actual.(attachments.Service), nil
+}
+
+func (a attachmentMeta) ImportFromPath(ctx context.Context, memoryID, sourcePath, name string) (attachments.Attachment, error) {
+	svc, err := a.service()
+	if err != nil {
+		return attachments.Attachment{}, err
+	}
+	return svc.ImportFromPath(ctx, memoryID, sourcePath, name)
+}
+
+func (a attachmentMeta) AddLink(ctx context.Context, memoryID, rawURL, title string) (attachments.Attachment, error) {
+	svc, err := a.service()
+	if err != nil {
+		return attachments.Attachment{}, err
+	}
+	return svc.AddLink(ctx, memoryID, rawURL, title)
+}
 
 func (a attachmentMeta) List(ctx context.Context, memoryID string) ([]attachments.Attachment, error) {
 	return a.store.List(ctx, memoryID)
 }
 
 func (a attachmentMeta) Delete(ctx context.Context, id string) error {
-	return a.store.Delete(ctx, id)
+	svc, err := a.service()
+	if err != nil {
+		return err
+	}
+	return svc.Delete(ctx, id)
 }
 
 func (a attachmentMeta) Reorder(ctx context.Context, memoryID string, orderedIDs []string) ([]attachments.Attachment, error) {
@@ -23,14 +130,10 @@ func (a attachmentMeta) Reorder(ctx context.Context, memoryID string, orderedIDs
 	return a.store.List(ctx, memoryID)
 }
 
-func (attachmentMeta) ImportFromPath(context.Context, string, string, string) (attachments.Attachment, error) {
-	return attachments.Attachment{}, unavailable("attachment files")
-}
-
-func (attachmentMeta) AddLink(context.Context, string, string, string) (attachments.Attachment, error) {
-	return attachments.Attachment{}, unavailable("attachment files")
-}
-
-func (attachmentMeta) OpenInfo(context.Context, string) (attachments.OpenInfo, error) {
-	return attachments.OpenInfo{}, unavailable("attachment files")
+func (a attachmentMeta) OpenInfo(ctx context.Context, id string) (attachments.OpenInfo, error) {
+	svc, err := a.service()
+	if err != nil {
+		return attachments.OpenInfo{}, err
+	}
+	return svc.OpenInfo(ctx, id)
 }

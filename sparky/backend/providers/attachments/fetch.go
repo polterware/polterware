@@ -14,45 +14,52 @@ import (
 
 const maxTitleBody = 1 << 20
 
+type ipResolver interface {
+	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
+}
+
+var lookupIPs ipResolver = net.DefaultResolver
+
+func dialPublic(ctx context.Context, network, address string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, err
+	}
+	ips, err := lookupIPs.LookupNetIP(ctx, "ip", host)
+	if err != nil {
+		return nil, err
+	}
+	if len(ips) == 0 {
+		return nil, errors.New("host has no addresses")
+	}
+	for _, ip := range ips {
+		if blocked(ip) {
+			return nil, errors.New("private address is not allowed")
+		}
+	}
+	var last error
+	for _, ip := range ips {
+		c, e := (&net.Dialer{}).DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		if e == nil {
+			return c, nil
+		}
+		last = e
+	}
+	return nil, last
+}
+
+func checkPublicRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 5 {
+		return errors.New("too many redirects")
+	}
+	return validatePublicURL(req.URL)
+}
+
 // FetchTitle is an opt-in, bounded title fetch. Every initial and redirected host is DNS-checked.
 func FetchTitle(ctx context.Context, raw string) (string, error) {
-	transport := &http.Transport{DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-		host, port, err := net.SplitHostPort(address)
-		if err != nil {
-			return nil, err
-		}
-		ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
-		if err != nil {
-			return nil, err
-		}
-		if len(ips) == 0 {
-			return nil, errors.New("host has no addresses")
-		}
-		for _, ip := range ips {
-			if blocked(ip) {
-				return nil, errors.New("private address is not allowed")
-			}
-		}
-		var last error
-		for _, ip := range ips {
-			c, e := (&net.Dialer{}).DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
-			if e == nil {
-				return c, nil
-			}
-			last = e
-		}
-		return nil, last
-	}}
+	transport := &http.Transport{DialContext: dialPublic}
 	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: transport, Timeout: 5 * time.Second, CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 5 {
-			return errors.New("too many redirects")
-		}
-		if err := validatePublicURL(req.URL); err != nil {
-			return err
-		}
-		return nil
-	}}
+	client := &http.Client{Transport: transport, Timeout: 5 * time.Second, CheckRedirect: checkPublicRedirect}
 	u, err := url.Parse(raw)
 	if err != nil {
 		return "", err
@@ -102,7 +109,7 @@ func validatePublicURL(u *url.URL) error {
 		}
 		return nil
 	}
-	ips, err := net.DefaultResolver.LookupNetIP(context.Background(), "ip", host)
+	ips, err := lookupIPs.LookupNetIP(context.Background(), "ip", host)
 	if err != nil {
 		return err
 	}
