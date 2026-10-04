@@ -54,3 +54,6 @@
 .sparky-calendar .pw-calendar__header .pw-button { max-inline-size: 100%; }
 .sparky-calendar .pw-calendar__hour { grid-template-columns: 36px minmax(0, 1fr); }
 .sparky-calendar [data-empty-slot] { max-inline-size: 100%; white-space: normal; block-size: auto; min-block-size: 28px; overflow-wrap: anywhere; }
+
+.sparky-calendar .pw-calendar[data-view="week"] .pw-calendar__all-day,
+.sparky-calendar .pw-calendar[data-view="day"] .pw-calendar__all-day { block-size: 104px; overflow: auto; align-content: start; }

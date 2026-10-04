@@ -2,7 +2,7 @@ import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount }
 import { useSparkyShell } from "@polterware/feature-sparky-shell/feature";
 import {
   A11yDialog, Button, CalendarGrid, ChevronLeft, ChevronRight, DatePicker, PageContent, PageError, PageHeader,
-  PageLoading, PageToolbar, parseDate, Popover, SegmentedControl, StatusChip, ToolbarIconButton, prefersReducedMotion,
+  PageLoading, PageToolbar, parseDate, Plus, Popover, SegmentedControl, StatusChip, ToolbarIconButton, prefersReducedMotion,
 } from "@polterware/frontend-design-system";
 import {
   civilFromInstant, dayHours, formatYmd, hourLabel, monthDates, occurrenceDate, pad, rangeTitle, sameMonth, shiftedAnchor,
@@ -289,7 +289,7 @@ function DayColumn(props: {
                     aria-label={`Add at ${slot.label} on ${props.date}`}
                     onClick={() => props.onCreate({ date: props.date, time: slot.label, allDay: false })}
                   >
-                    Add at {slot.label}
+                    <Plus size={12} aria-hidden="true" />
                   </Button>
                 </Show>
               </div>
