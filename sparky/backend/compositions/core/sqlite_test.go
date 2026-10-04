@@ -262,7 +262,7 @@ func TestSqliteWatchWriteLatencyReplayAndShutdown(t *testing.T) {
 	stop()
 }
 
-func TestSqlitePlanOmitsNativeRepeats(t *testing.T) {
+func TestSqlitePlanCarriesNativeRepeats(t *testing.T) {
 	clients, _, _ := sqliteLoopback(t)
 	created, err := clients.Memory.Create(t.Context(), connect.NewRequest(&v1.CreateMemoryRequest{Title: "daily"}))
 	if err != nil {
@@ -282,10 +282,18 @@ func TestSqlitePlanOmitsNativeRepeats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	repeats := 0
 	for _, item := range plan.Msg.Items {
-		if strings.Contains(item.Id, ":repeat") || strings.Contains(item.Id, ":wd") {
-			t.Fatalf("serialized native repeat as a one-shot: %s", item.Id)
+		native := strings.Contains(item.Id, ":repeat") || strings.Contains(item.Id, ":wd")
+		if native != (item.Repeat != nil) {
+			t.Fatalf("native repeat id %s without matcher (or the reverse): %v", item.Id, item.Repeat)
 		}
+		if native {
+			repeats++
+		}
+	}
+	if repeats == 0 {
+		t.Fatal("open-ended daily rule was not planned as a native repeat")
 	}
 	until := timestamppb.New(time.Date(2026, 10, 10, 9, 0, 0, 0, time.UTC))
 	end := "until"

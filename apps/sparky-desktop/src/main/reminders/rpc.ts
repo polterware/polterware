@@ -1,7 +1,7 @@
 import { timestampDate, timestampFromDate } from "@bufbuild/protobuf/wkt";
 import type { CoreClients } from "../core/client.js";
 import { BUDGET, type Authorization, type NativeStatus, type ReminderCore, type Reminder } from "./types";
-const leakedRepeat = /:(?:repeat|wd\d+)$/;
+const repeatId = /:(?:repeat|wd\d+)$/;
 // Core stores snake_case permission tokens; the native module reports camelCase.
 const heartbeatAuthorization: Record<Authorization, string> = {
   authorized: "authorized",
@@ -19,10 +19,11 @@ export function createReminderCore(clients: Pick<CoreClients, "reminders" | "sch
       const { settings: config } = await settings.get({}, callOptions());
       return response.items.map((item): Reminder => {
         if (!item.fireAt || !item.occurrenceAt || !["reminder", "reminder-focus", "focus-phase"].includes(item.category)) throw new Error("Invalid core reminder plan");
-        // Frozen ReminderItem has no repeat field. Never arm a native-repeat identifier as a one-shot.
-        if (leakedRepeat.test(item.id)) throw new Error("Invalid core reminder plan");
+        // A native-repeat identifier without its matcher must never be armed as a one-shot.
+        if (repeatId.test(item.id) !== Boolean(item.repeat)) throw new Error("Invalid core reminder plan");
+        const repeat = item.repeat ? { tz: item.repeat.tz, weekday: item.repeat.weekday, hour: item.repeat.hour, minute: item.repeat.minute, second: item.repeat.second } : null;
         return { id: item.id, memoryId: item.memoryId, occurrenceAt: timestampDate(item.occurrenceAt).toISOString(), fireAt: timestampDate(item.fireAt).toISOString(), title: item.title, body: item.body,
-          category: item.category as Reminder["category"], sound: config?.notificationsSound || "default" };
+          category: item.category as Reminder["category"], repeat, sound: config?.notificationsSound || "default" };
       });
     },
     async complete(memoryId, occurrenceAt) { await schedules.completeOccurrence({ memoryId, occurrenceAt: timestampFromDate(new Date(occurrenceAt)) }, callOptions()); },

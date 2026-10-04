@@ -12,7 +12,49 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file sparky/v1/reminder.proto.
  */
 export const file_sparky_v1_reminder: GenFile = /*@__PURE__*/
-  fileDesc("ChhzcGFya3kvdjEvcmVtaW5kZXIucHJvdG8SCXNwYXJreS52MSK8AQoMUmVtaW5kZXJJdGVtEgoKAmlkGAEgASgJEhEKCW1lbW9yeV9pZBgCIAEoCRIxCg1vY2N1cnJlbmNlX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIrCgdmaXJlX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgV0aXRsZRgFIAEoCRIMCgRib2R5GAYgASgJEhAKCGNhdGVnb3J5GAcgASgJInsKFFBsYW5SZW1pbmRlcnNSZXF1ZXN0EicKA25vdxgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGYnVkZ2V0GAIgASgFEioKB2hvcml6b24YAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24iPwoVUGxhblJlbWluZGVyc1Jlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc3Bhcmt5LnYxLlJlbWluZGVySXRlbSIxChJBY2tSZW1pbmRlclJlcXVlc3QSCgoCaWQYASABKAkSDwoHb3V0Y29tZRgCIAEoCSIVChNBY2tSZW1pbmRlclJlc3BvbnNlIm4KFVNub296ZVJlbWluZGVyUmVxdWVzdBIRCgltZW1vcnlfaWQYASABKAkSMQoNb2NjdXJyZW5jZV9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHbWludXRlcxgDIAEoBSJZChZTbm9vemVSZW1pbmRlclJlc3BvbnNlEhIKCm9uZV9vZmZfaWQYASABKAkSKwoHZmlyZV9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAifQoQQXJtT25lT2ZmUmVxdWVzdBIMCgRraW5kGAEgASgJEhEKCW1lbW9yeV9pZBgCIAEoCRIrCgdmaXJlX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgV0aXRsZRgEIAEoCRIMCgRib2R5GAUgASgJIkwKEUFybU9uZU9mZlJlc3BvbnNlEgoKAmlkGAEgASgJEisKB2ZpcmVfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIiEKE0NhbmNlbE9uZU9mZlJlcXVlc3QSCgoCaWQYASABKAkiFgoUQ2FuY2VsT25lT2ZmUmVzcG9uc2UiRgoYUmVtaW5kZXJIZWFydGJlYXRSZXF1ZXN0EhUKDWF1dGhvcml6YXRpb24YASABKAkSEwoLYXJtZWRfY291bnQYAiABKAUiTQoZUmVtaW5kZXJIZWFydGJlYXRSZXNwb25zZRIwCgxsYXN0X3NlZW5fYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhcKFVJlbWluZGVyU3RhdHVzUmVxdWVzdCKHAQoWUmVtaW5kZXJTdGF0dXNSZXNwb25zZRIPCgdwbGFubmVkGAEgASgFEg0KBWFybWVkGAIgASgFEjkKFW5vdGlmaWVyX2xhc3Rfc2Vlbl9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKcGVybWlzc2lvbhgEIAEoCTKxBAoPUmVtaW5kZXJTZXJ2aWNlEkkKBFBsYW4SHy5zcGFya3kudjEuUGxhblJlbWluZGVyc1JlcXVlc3QaIC5zcGFya3kudjEuUGxhblJlbWluZGVyc1Jlc3BvbnNlEkQKA0FjaxIdLnNwYXJreS52MS5BY2tSZW1pbmRlclJlcXVlc3QaHi5zcGFya3kudjEuQWNrUmVtaW5kZXJSZXNwb25zZRJNCgZTbm9vemUSIC5zcGFya3kudjEuU25vb3plUmVtaW5kZXJSZXF1ZXN0GiEuc3Bhcmt5LnYxLlNub296ZVJlbWluZGVyUmVzcG9uc2USRgoJQXJtT25lT2ZmEhsuc3Bhcmt5LnYxLkFybU9uZU9mZlJlcXVlc3QaHC5zcGFya3kudjEuQXJtT25lT2ZmUmVzcG9uc2USTwoMQ2FuY2VsT25lT2ZmEh4uc3Bhcmt5LnYxLkNhbmNlbE9uZU9mZlJlcXVlc3QaHy5zcGFya3kudjEuQ2FuY2VsT25lT2ZmUmVzcG9uc2USVgoJSGVhcnRiZWF0EiMuc3Bhcmt5LnYxLlJlbWluZGVySGVhcnRiZWF0UmVxdWVzdBokLnNwYXJreS52MS5SZW1pbmRlckhlYXJ0YmVhdFJlc3BvbnNlEk0KBlN0YXR1cxIgLnNwYXJreS52MS5SZW1pbmRlclN0YXR1c1JlcXVlc3QaIS5zcGFya3kudjEuUmVtaW5kZXJTdGF0dXNSZXNwb25zZUK0AQoNY29tLnNwYXJreS52MUINUmVtaW5kZXJQcm90b1ABWk9naXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9zcGFya3kvYmFja2VuZC9wbGF0Zm9ybS9nZW4vc3Bhcmt5L3YxO3NwYXJreXYxogIDU1hYqgIJU3Bhcmt5LlYxygIJU3Bhcmt5XFYx4gIVU3Bhcmt5XFYxXEdQQk1ldGFkYXRh6gIKU3Bhcmt5OjpWMWIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("ChhzcGFya3kvdjEvcmVtaW5kZXIucHJvdG8SCXNwYXJreS52MSKiAQoWUmVtaW5kZXJEYXRlQ29tcG9uZW50cxIKCgJ0ehgBIAEoCRIUCgd3ZWVrZGF5GAIgASgFSACIAQESEQoEaG91chgDIAEoBUgBiAEBEhMKBm1pbnV0ZRgEIAEoBUgCiAEBEhMKBnNlY29uZBgFIAEoBUgDiAEBQgoKCF93ZWVrZGF5QgcKBV9ob3VyQgkKB19taW51dGVCCQoHX3NlY29uZCLvAQoMUmVtaW5kZXJJdGVtEgoKAmlkGAEgASgJEhEKCW1lbW9yeV9pZBgCIAEoCRIxCg1vY2N1cnJlbmNlX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIrCgdmaXJlX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgV0aXRsZRgFIAEoCRIMCgRib2R5GAYgASgJEhAKCGNhdGVnb3J5GAcgASgJEjEKBnJlcGVhdBgIIAEoCzIhLnNwYXJreS52MS5SZW1pbmRlckRhdGVDb21wb25lbnRzInsKFFBsYW5SZW1pbmRlcnNSZXF1ZXN0EicKA25vdxgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGYnVkZ2V0GAIgASgFEioKB2hvcml6b24YAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24iPwoVUGxhblJlbWluZGVyc1Jlc3BvbnNlEiYKBWl0ZW1zGAEgAygLMhcuc3Bhcmt5LnYxLlJlbWluZGVySXRlbSIxChJBY2tSZW1pbmRlclJlcXVlc3QSCgoCaWQYASABKAkSDwoHb3V0Y29tZRgCIAEoCSIVChNBY2tSZW1pbmRlclJlc3BvbnNlIm4KFVNub296ZVJlbWluZGVyUmVxdWVzdBIRCgltZW1vcnlfaWQYASABKAkSMQoNb2NjdXJyZW5jZV9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDwoHbWludXRlcxgDIAEoBSJZChZTbm9vemVSZW1pbmRlclJlc3BvbnNlEhIKCm9uZV9vZmZfaWQYASABKAkSKwoHZmlyZV9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAifQoQQXJtT25lT2ZmUmVxdWVzdBIMCgRraW5kGAEgASgJEhEKCW1lbW9yeV9pZBgCIAEoCRIrCgdmaXJlX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBINCgV0aXRsZRgEIAEoCRIMCgRib2R5GAUgASgJIkwKEUFybU9uZU9mZlJlc3BvbnNlEgoKAmlkGAEgASgJEisKB2ZpcmVfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIiEKE0NhbmNlbE9uZU9mZlJlcXVlc3QSCgoCaWQYASABKAkiFgoUQ2FuY2VsT25lT2ZmUmVzcG9uc2UiRgoYUmVtaW5kZXJIZWFydGJlYXRSZXF1ZXN0EhUKDWF1dGhvcml6YXRpb24YASABKAkSEwoLYXJtZWRfY291bnQYAiABKAUiTQoZUmVtaW5kZXJIZWFydGJlYXRSZXNwb25zZRIwCgxsYXN0X3NlZW5fYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhcKFVJlbWluZGVyU3RhdHVzUmVxdWVzdCKHAQoWUmVtaW5kZXJTdGF0dXNSZXNwb25zZRIPCgdwbGFubmVkGAEgASgFEg0KBWFybWVkGAIgASgFEjkKFW5vdGlmaWVyX2xhc3Rfc2Vlbl9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKcGVybWlzc2lvbhgEIAEoCTKxBAoPUmVtaW5kZXJTZXJ2aWNlEkkKBFBsYW4SHy5zcGFya3kudjEuUGxhblJlbWluZGVyc1JlcXVlc3QaIC5zcGFya3kudjEuUGxhblJlbWluZGVyc1Jlc3BvbnNlEkQKA0FjaxIdLnNwYXJreS52MS5BY2tSZW1pbmRlclJlcXVlc3QaHi5zcGFya3kudjEuQWNrUmVtaW5kZXJSZXNwb25zZRJNCgZTbm9vemUSIC5zcGFya3kudjEuU25vb3plUmVtaW5kZXJSZXF1ZXN0GiEuc3Bhcmt5LnYxLlNub296ZVJlbWluZGVyUmVzcG9uc2USRgoJQXJtT25lT2ZmEhsuc3Bhcmt5LnYxLkFybU9uZU9mZlJlcXVlc3QaHC5zcGFya3kudjEuQXJtT25lT2ZmUmVzcG9uc2USTwoMQ2FuY2VsT25lT2ZmEh4uc3Bhcmt5LnYxLkNhbmNlbE9uZU9mZlJlcXVlc3QaHy5zcGFya3kudjEuQ2FuY2VsT25lT2ZmUmVzcG9uc2USVgoJSGVhcnRiZWF0EiMuc3Bhcmt5LnYxLlJlbWluZGVySGVhcnRiZWF0UmVxdWVzdBokLnNwYXJreS52MS5SZW1pbmRlckhlYXJ0YmVhdFJlc3BvbnNlEk0KBlN0YXR1cxIgLnNwYXJreS52MS5SZW1pbmRlclN0YXR1c1JlcXVlc3QaIS5zcGFya3kudjEuUmVtaW5kZXJTdGF0dXNSZXNwb25zZUK0AQoNY29tLnNwYXJreS52MUINUmVtaW5kZXJQcm90b1ABWk9naXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9zcGFya3kvYmFja2VuZC9wbGF0Zm9ybS9nZW4vc3Bhcmt5L3YxO3NwYXJreXYxogIDU1hYqgIJU3Bhcmt5LlYxygIJU3Bhcmt5XFYx4gIVU3Bhcmt5XFYxXEdQQk1ldGFkYXRh6gIKU3Bhcmt5OjpWMWIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
+
+/**
+ * ReminderDateComponents is a native calendar matcher (Foundation
+ * DateComponents subset) for open-ended rules the OS can repeat on its own.
+ *
+ * @generated from message sparky.v1.ReminderDateComponents
+ */
+export type ReminderDateComponents = Message<"sparky.v1.ReminderDateComponents"> & {
+  /**
+   * @generated from field: string tz = 1;
+   */
+  tz: string;
+
+  /**
+   * 1 Sunday ... 7 Saturday
+   *
+   * @generated from field: optional int32 weekday = 2;
+   */
+  weekday?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 hour = 3;
+   */
+  hour?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 minute = 4;
+   */
+  minute?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 second = 5;
+   */
+  second?: number | undefined;
+};
+
+/**
+ * Describes the message sparky.v1.ReminderDateComponents.
+ * Use `create(ReminderDateComponentsSchema)` to create a new message.
+ */
+export const ReminderDateComponentsSchema: GenMessage<ReminderDateComponents> = /*@__PURE__*/
+  messageDesc(file_sparky_v1_reminder, 0);
 
 /**
  * @generated from message sparky.v1.ReminderItem
@@ -52,6 +94,14 @@ export type ReminderItem = Message<"sparky.v1.ReminderItem"> & {
    * @generated from field: string category = 7;
    */
   category: string;
+
+  /**
+   * Set only for native repeating items (ids rem:<memory>:repeat or
+   * rem:<memory>:wd<n>); omitted for concrete one-shots.
+   *
+   * @generated from field: sparky.v1.ReminderDateComponents repeat = 8;
+   */
+  repeat?: ReminderDateComponents | undefined;
 };
 
 /**
@@ -59,7 +109,7 @@ export type ReminderItem = Message<"sparky.v1.ReminderItem"> & {
  * Use `create(ReminderItemSchema)` to create a new message.
  */
 export const ReminderItemSchema: GenMessage<ReminderItem> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 0);
+  messageDesc(file_sparky_v1_reminder, 1);
 
 /**
  * @generated from message sparky.v1.PlanRemindersRequest
@@ -86,7 +136,7 @@ export type PlanRemindersRequest = Message<"sparky.v1.PlanRemindersRequest"> & {
  * Use `create(PlanRemindersRequestSchema)` to create a new message.
  */
 export const PlanRemindersRequestSchema: GenMessage<PlanRemindersRequest> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 1);
+  messageDesc(file_sparky_v1_reminder, 2);
 
 /**
  * @generated from message sparky.v1.PlanRemindersResponse
@@ -103,7 +153,7 @@ export type PlanRemindersResponse = Message<"sparky.v1.PlanRemindersResponse"> &
  * Use `create(PlanRemindersResponseSchema)` to create a new message.
  */
 export const PlanRemindersResponseSchema: GenMessage<PlanRemindersResponse> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 2);
+  messageDesc(file_sparky_v1_reminder, 3);
 
 /**
  * @generated from message sparky.v1.AckReminderRequest
@@ -125,7 +175,7 @@ export type AckReminderRequest = Message<"sparky.v1.AckReminderRequest"> & {
  * Use `create(AckReminderRequestSchema)` to create a new message.
  */
 export const AckReminderRequestSchema: GenMessage<AckReminderRequest> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 3);
+  messageDesc(file_sparky_v1_reminder, 4);
 
 /**
  * @generated from message sparky.v1.AckReminderResponse
@@ -138,7 +188,7 @@ export type AckReminderResponse = Message<"sparky.v1.AckReminderResponse"> & {
  * Use `create(AckReminderResponseSchema)` to create a new message.
  */
 export const AckReminderResponseSchema: GenMessage<AckReminderResponse> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 4);
+  messageDesc(file_sparky_v1_reminder, 5);
 
 /**
  * @generated from message sparky.v1.SnoozeReminderRequest
@@ -165,7 +215,7 @@ export type SnoozeReminderRequest = Message<"sparky.v1.SnoozeReminderRequest"> &
  * Use `create(SnoozeReminderRequestSchema)` to create a new message.
  */
 export const SnoozeReminderRequestSchema: GenMessage<SnoozeReminderRequest> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 5);
+  messageDesc(file_sparky_v1_reminder, 6);
 
 /**
  * @generated from message sparky.v1.SnoozeReminderResponse
@@ -187,7 +237,7 @@ export type SnoozeReminderResponse = Message<"sparky.v1.SnoozeReminderResponse">
  * Use `create(SnoozeReminderResponseSchema)` to create a new message.
  */
 export const SnoozeReminderResponseSchema: GenMessage<SnoozeReminderResponse> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 6);
+  messageDesc(file_sparky_v1_reminder, 7);
 
 /**
  * @generated from message sparky.v1.ArmOneOffRequest
@@ -224,7 +274,7 @@ export type ArmOneOffRequest = Message<"sparky.v1.ArmOneOffRequest"> & {
  * Use `create(ArmOneOffRequestSchema)` to create a new message.
  */
 export const ArmOneOffRequestSchema: GenMessage<ArmOneOffRequest> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 7);
+  messageDesc(file_sparky_v1_reminder, 8);
 
 /**
  * @generated from message sparky.v1.ArmOneOffResponse
@@ -246,7 +296,7 @@ export type ArmOneOffResponse = Message<"sparky.v1.ArmOneOffResponse"> & {
  * Use `create(ArmOneOffResponseSchema)` to create a new message.
  */
 export const ArmOneOffResponseSchema: GenMessage<ArmOneOffResponse> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 8);
+  messageDesc(file_sparky_v1_reminder, 9);
 
 /**
  * @generated from message sparky.v1.CancelOneOffRequest
@@ -263,7 +313,7 @@ export type CancelOneOffRequest = Message<"sparky.v1.CancelOneOffRequest"> & {
  * Use `create(CancelOneOffRequestSchema)` to create a new message.
  */
 export const CancelOneOffRequestSchema: GenMessage<CancelOneOffRequest> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 9);
+  messageDesc(file_sparky_v1_reminder, 10);
 
 /**
  * @generated from message sparky.v1.CancelOneOffResponse
@@ -276,7 +326,7 @@ export type CancelOneOffResponse = Message<"sparky.v1.CancelOneOffResponse"> & {
  * Use `create(CancelOneOffResponseSchema)` to create a new message.
  */
 export const CancelOneOffResponseSchema: GenMessage<CancelOneOffResponse> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 10);
+  messageDesc(file_sparky_v1_reminder, 11);
 
 /**
  * @generated from message sparky.v1.ReminderHeartbeatRequest
@@ -298,7 +348,7 @@ export type ReminderHeartbeatRequest = Message<"sparky.v1.ReminderHeartbeatReque
  * Use `create(ReminderHeartbeatRequestSchema)` to create a new message.
  */
 export const ReminderHeartbeatRequestSchema: GenMessage<ReminderHeartbeatRequest> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 11);
+  messageDesc(file_sparky_v1_reminder, 12);
 
 /**
  * @generated from message sparky.v1.ReminderHeartbeatResponse
@@ -315,7 +365,7 @@ export type ReminderHeartbeatResponse = Message<"sparky.v1.ReminderHeartbeatResp
  * Use `create(ReminderHeartbeatResponseSchema)` to create a new message.
  */
 export const ReminderHeartbeatResponseSchema: GenMessage<ReminderHeartbeatResponse> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 12);
+  messageDesc(file_sparky_v1_reminder, 13);
 
 /**
  * @generated from message sparky.v1.ReminderStatusRequest
@@ -328,7 +378,7 @@ export type ReminderStatusRequest = Message<"sparky.v1.ReminderStatusRequest"> &
  * Use `create(ReminderStatusRequestSchema)` to create a new message.
  */
 export const ReminderStatusRequestSchema: GenMessage<ReminderStatusRequest> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 13);
+  messageDesc(file_sparky_v1_reminder, 14);
 
 /**
  * @generated from message sparky.v1.ReminderStatusResponse
@@ -360,7 +410,7 @@ export type ReminderStatusResponse = Message<"sparky.v1.ReminderStatusResponse">
  * Use `create(ReminderStatusResponseSchema)` to create a new message.
  */
 export const ReminderStatusResponseSchema: GenMessage<ReminderStatusResponse> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_reminder, 14);
+  messageDesc(file_sparky_v1_reminder, 15);
 
 /**
  * @generated from service sparky.v1.ReminderService

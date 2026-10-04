@@ -7,6 +7,16 @@ option go_package = "github.com/polterware/polterware/sparky/backend/platform/ge
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
+// ReminderDateComponents is a native calendar matcher (Foundation
+// DateComponents subset) for open-ended rules the OS can repeat on its own.
+message ReminderDateComponents {
+  string tz = 1;
+  optional int32 weekday = 2; // 1 Sunday ... 7 Saturday
+  optional int32 hour = 3;
+  optional int32 minute = 4;
+  optional int32 second = 5;
+}
+
 message ReminderItem {
   string id = 1;
   string memory_id = 2;
@@ -15,6 +25,9 @@ message ReminderItem {
   string title = 5;
   string body = 6;
   string category = 7;
+  // Set only for native repeating items (ids rem:<memory>:repeat or
+  // rem:<memory>:wd<n>); omitted for concrete one-shots.
+  ReminderDateComponents repeat = 8;
 }
 
 message PlanRemindersRequest {

@@ -20,3 +20,5 @@ ReminderDateComponents repeat = 8;
 
 - Regenerate TS/Go, update the breaking baseline with approval, and publish the new local contract tag according to the protocol.
 - Repeat actions must resolve the **delivered** occurrence, not the first planned occurrence stored in userInfo. No frozen file was changed.
+
+**Status: applied 2026-10-04 as contract v1.4** (`ReminderItem.repeat = 8`; core and Main mappings done, see 00-decisions.md).

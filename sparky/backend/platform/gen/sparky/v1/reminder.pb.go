@@ -23,22 +23,103 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ReminderItem struct {
+// ReminderDateComponents is a native calendar matcher (Foundation
+// DateComponents subset) for open-ended rules the OS can repeat on its own.
+type ReminderDateComponents struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	MemoryId      string                 `protobuf:"bytes,2,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
-	OccurrenceAt  *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurrence_at,json=occurrenceAt,proto3" json:"occurrence_at,omitempty"`
-	FireAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fire_at,json=fireAt,proto3" json:"fire_at,omitempty"`
-	Title         string                 `protobuf:"bytes,5,opt,name=title,proto3" json:"title,omitempty"`
-	Body          string                 `protobuf:"bytes,6,opt,name=body,proto3" json:"body,omitempty"`
-	Category      string                 `protobuf:"bytes,7,opt,name=category,proto3" json:"category,omitempty"`
+	Tz            string                 `protobuf:"bytes,1,opt,name=tz,proto3" json:"tz,omitempty"`
+	Weekday       *int32                 `protobuf:"varint,2,opt,name=weekday,proto3,oneof" json:"weekday,omitempty"` // 1 Sunday ... 7 Saturday
+	Hour          *int32                 `protobuf:"varint,3,opt,name=hour,proto3,oneof" json:"hour,omitempty"`
+	Minute        *int32                 `protobuf:"varint,4,opt,name=minute,proto3,oneof" json:"minute,omitempty"`
+	Second        *int32                 `protobuf:"varint,5,opt,name=second,proto3,oneof" json:"second,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReminderDateComponents) Reset() {
+	*x = ReminderDateComponents{}
+	mi := &file_sparky_v1_reminder_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReminderDateComponents) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReminderDateComponents) ProtoMessage() {}
+
+func (x *ReminderDateComponents) ProtoReflect() protoreflect.Message {
+	mi := &file_sparky_v1_reminder_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReminderDateComponents.ProtoReflect.Descriptor instead.
+func (*ReminderDateComponents) Descriptor() ([]byte, []int) {
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ReminderDateComponents) GetTz() string {
+	if x != nil {
+		return x.Tz
+	}
+	return ""
+}
+
+func (x *ReminderDateComponents) GetWeekday() int32 {
+	if x != nil && x.Weekday != nil {
+		return *x.Weekday
+	}
+	return 0
+}
+
+func (x *ReminderDateComponents) GetHour() int32 {
+	if x != nil && x.Hour != nil {
+		return *x.Hour
+	}
+	return 0
+}
+
+func (x *ReminderDateComponents) GetMinute() int32 {
+	if x != nil && x.Minute != nil {
+		return *x.Minute
+	}
+	return 0
+}
+
+func (x *ReminderDateComponents) GetSecond() int32 {
+	if x != nil && x.Second != nil {
+		return *x.Second
+	}
+	return 0
+}
+
+type ReminderItem struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	MemoryId     string                 `protobuf:"bytes,2,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	OccurrenceAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurrence_at,json=occurrenceAt,proto3" json:"occurrence_at,omitempty"`
+	FireAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fire_at,json=fireAt,proto3" json:"fire_at,omitempty"`
+	Title        string                 `protobuf:"bytes,5,opt,name=title,proto3" json:"title,omitempty"`
+	Body         string                 `protobuf:"bytes,6,opt,name=body,proto3" json:"body,omitempty"`
+	Category     string                 `protobuf:"bytes,7,opt,name=category,proto3" json:"category,omitempty"`
+	// Set only for native repeating items (ids rem:<memory>:repeat or
+	// rem:<memory>:wd<n>); omitted for concrete one-shots.
+	Repeat        *ReminderDateComponents `protobuf:"bytes,8,opt,name=repeat,proto3" json:"repeat,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReminderItem) Reset() {
 	*x = ReminderItem{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[0]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -50,7 +131,7 @@ func (x *ReminderItem) String() string {
 func (*ReminderItem) ProtoMessage() {}
 
 func (x *ReminderItem) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[0]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -63,7 +144,7 @@ func (x *ReminderItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReminderItem.ProtoReflect.Descriptor instead.
 func (*ReminderItem) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{0}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ReminderItem) GetId() string {
@@ -115,6 +196,13 @@ func (x *ReminderItem) GetCategory() string {
 	return ""
 }
 
+func (x *ReminderItem) GetRepeat() *ReminderDateComponents {
+	if x != nil {
+		return x.Repeat
+	}
+	return nil
+}
+
 type PlanRemindersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Now           *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=now,proto3" json:"now,omitempty"`
@@ -126,7 +214,7 @@ type PlanRemindersRequest struct {
 
 func (x *PlanRemindersRequest) Reset() {
 	*x = PlanRemindersRequest{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[1]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -138,7 +226,7 @@ func (x *PlanRemindersRequest) String() string {
 func (*PlanRemindersRequest) ProtoMessage() {}
 
 func (x *PlanRemindersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[1]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -151,7 +239,7 @@ func (x *PlanRemindersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanRemindersRequest.ProtoReflect.Descriptor instead.
 func (*PlanRemindersRequest) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{1}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PlanRemindersRequest) GetNow() *timestamppb.Timestamp {
@@ -184,7 +272,7 @@ type PlanRemindersResponse struct {
 
 func (x *PlanRemindersResponse) Reset() {
 	*x = PlanRemindersResponse{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[2]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -196,7 +284,7 @@ func (x *PlanRemindersResponse) String() string {
 func (*PlanRemindersResponse) ProtoMessage() {}
 
 func (x *PlanRemindersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[2]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -209,7 +297,7 @@ func (x *PlanRemindersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanRemindersResponse.ProtoReflect.Descriptor instead.
 func (*PlanRemindersResponse) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{2}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *PlanRemindersResponse) GetItems() []*ReminderItem {
@@ -229,7 +317,7 @@ type AckReminderRequest struct {
 
 func (x *AckReminderRequest) Reset() {
 	*x = AckReminderRequest{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[3]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -241,7 +329,7 @@ func (x *AckReminderRequest) String() string {
 func (*AckReminderRequest) ProtoMessage() {}
 
 func (x *AckReminderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[3]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -254,7 +342,7 @@ func (x *AckReminderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AckReminderRequest.ProtoReflect.Descriptor instead.
 func (*AckReminderRequest) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{3}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AckReminderRequest) GetId() string {
@@ -279,7 +367,7 @@ type AckReminderResponse struct {
 
 func (x *AckReminderResponse) Reset() {
 	*x = AckReminderResponse{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[4]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -291,7 +379,7 @@ func (x *AckReminderResponse) String() string {
 func (*AckReminderResponse) ProtoMessage() {}
 
 func (x *AckReminderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[4]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -304,7 +392,7 @@ func (x *AckReminderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AckReminderResponse.ProtoReflect.Descriptor instead.
 func (*AckReminderResponse) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{4}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{5}
 }
 
 type SnoozeReminderRequest struct {
@@ -318,7 +406,7 @@ type SnoozeReminderRequest struct {
 
 func (x *SnoozeReminderRequest) Reset() {
 	*x = SnoozeReminderRequest{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[5]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -330,7 +418,7 @@ func (x *SnoozeReminderRequest) String() string {
 func (*SnoozeReminderRequest) ProtoMessage() {}
 
 func (x *SnoozeReminderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[5]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -343,7 +431,7 @@ func (x *SnoozeReminderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnoozeReminderRequest.ProtoReflect.Descriptor instead.
 func (*SnoozeReminderRequest) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{5}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SnoozeReminderRequest) GetMemoryId() string {
@@ -377,7 +465,7 @@ type SnoozeReminderResponse struct {
 
 func (x *SnoozeReminderResponse) Reset() {
 	*x = SnoozeReminderResponse{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[6]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -389,7 +477,7 @@ func (x *SnoozeReminderResponse) String() string {
 func (*SnoozeReminderResponse) ProtoMessage() {}
 
 func (x *SnoozeReminderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[6]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -402,7 +490,7 @@ func (x *SnoozeReminderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnoozeReminderResponse.ProtoReflect.Descriptor instead.
 func (*SnoozeReminderResponse) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{6}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SnoozeReminderResponse) GetOneOffId() string {
@@ -432,7 +520,7 @@ type ArmOneOffRequest struct {
 
 func (x *ArmOneOffRequest) Reset() {
 	*x = ArmOneOffRequest{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[7]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -444,7 +532,7 @@ func (x *ArmOneOffRequest) String() string {
 func (*ArmOneOffRequest) ProtoMessage() {}
 
 func (x *ArmOneOffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[7]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -457,7 +545,7 @@ func (x *ArmOneOffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArmOneOffRequest.ProtoReflect.Descriptor instead.
 func (*ArmOneOffRequest) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{7}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ArmOneOffRequest) GetKind() string {
@@ -505,7 +593,7 @@ type ArmOneOffResponse struct {
 
 func (x *ArmOneOffResponse) Reset() {
 	*x = ArmOneOffResponse{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[8]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -517,7 +605,7 @@ func (x *ArmOneOffResponse) String() string {
 func (*ArmOneOffResponse) ProtoMessage() {}
 
 func (x *ArmOneOffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[8]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -530,7 +618,7 @@ func (x *ArmOneOffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArmOneOffResponse.ProtoReflect.Descriptor instead.
 func (*ArmOneOffResponse) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{8}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ArmOneOffResponse) GetId() string {
@@ -556,7 +644,7 @@ type CancelOneOffRequest struct {
 
 func (x *CancelOneOffRequest) Reset() {
 	*x = CancelOneOffRequest{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[9]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -568,7 +656,7 @@ func (x *CancelOneOffRequest) String() string {
 func (*CancelOneOffRequest) ProtoMessage() {}
 
 func (x *CancelOneOffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[9]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -581,7 +669,7 @@ func (x *CancelOneOffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelOneOffRequest.ProtoReflect.Descriptor instead.
 func (*CancelOneOffRequest) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{9}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CancelOneOffRequest) GetId() string {
@@ -599,7 +687,7 @@ type CancelOneOffResponse struct {
 
 func (x *CancelOneOffResponse) Reset() {
 	*x = CancelOneOffResponse{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[10]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +699,7 @@ func (x *CancelOneOffResponse) String() string {
 func (*CancelOneOffResponse) ProtoMessage() {}
 
 func (x *CancelOneOffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[10]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,7 +712,7 @@ func (x *CancelOneOffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelOneOffResponse.ProtoReflect.Descriptor instead.
 func (*CancelOneOffResponse) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{10}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{11}
 }
 
 type ReminderHeartbeatRequest struct {
@@ -637,7 +725,7 @@ type ReminderHeartbeatRequest struct {
 
 func (x *ReminderHeartbeatRequest) Reset() {
 	*x = ReminderHeartbeatRequest{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[11]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -649,7 +737,7 @@ func (x *ReminderHeartbeatRequest) String() string {
 func (*ReminderHeartbeatRequest) ProtoMessage() {}
 
 func (x *ReminderHeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[11]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -662,7 +750,7 @@ func (x *ReminderHeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReminderHeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*ReminderHeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{11}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ReminderHeartbeatRequest) GetAuthorization() string {
@@ -688,7 +776,7 @@ type ReminderHeartbeatResponse struct {
 
 func (x *ReminderHeartbeatResponse) Reset() {
 	*x = ReminderHeartbeatResponse{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[12]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +788,7 @@ func (x *ReminderHeartbeatResponse) String() string {
 func (*ReminderHeartbeatResponse) ProtoMessage() {}
 
 func (x *ReminderHeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[12]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +801,7 @@ func (x *ReminderHeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReminderHeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*ReminderHeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{12}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ReminderHeartbeatResponse) GetLastSeenAt() *timestamppb.Timestamp {
@@ -731,7 +819,7 @@ type ReminderStatusRequest struct {
 
 func (x *ReminderStatusRequest) Reset() {
 	*x = ReminderStatusRequest{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[13]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -743,7 +831,7 @@ func (x *ReminderStatusRequest) String() string {
 func (*ReminderStatusRequest) ProtoMessage() {}
 
 func (x *ReminderStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[13]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -756,7 +844,7 @@ func (x *ReminderStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReminderStatusRequest.ProtoReflect.Descriptor instead.
 func (*ReminderStatusRequest) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{13}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{14}
 }
 
 type ReminderStatusResponse struct {
@@ -771,7 +859,7 @@ type ReminderStatusResponse struct {
 
 func (x *ReminderStatusResponse) Reset() {
 	*x = ReminderStatusResponse{}
-	mi := &file_sparky_v1_reminder_proto_msgTypes[14]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -783,7 +871,7 @@ func (x *ReminderStatusResponse) String() string {
 func (*ReminderStatusResponse) ProtoMessage() {}
 
 func (x *ReminderStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_reminder_proto_msgTypes[14]
+	mi := &file_sparky_v1_reminder_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -796,7 +884,7 @@ func (x *ReminderStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReminderStatusResponse.ProtoReflect.Descriptor instead.
 func (*ReminderStatusResponse) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{14}
+	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ReminderStatusResponse) GetPlanned() int32 {
@@ -831,7 +919,18 @@ var File_sparky_v1_reminder_proto protoreflect.FileDescriptor
 
 const file_sparky_v1_reminder_proto_rawDesc = "" +
 	"\n" +
-	"\x18sparky/v1/reminder.proto\x12\tsparky.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf7\x01\n" +
+	"\x18sparky/v1/reminder.proto\x12\tsparky.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc5\x01\n" +
+	"\x16ReminderDateComponents\x12\x0e\n" +
+	"\x02tz\x18\x01 \x01(\tR\x02tz\x12\x1d\n" +
+	"\aweekday\x18\x02 \x01(\x05H\x00R\aweekday\x88\x01\x01\x12\x17\n" +
+	"\x04hour\x18\x03 \x01(\x05H\x01R\x04hour\x88\x01\x01\x12\x1b\n" +
+	"\x06minute\x18\x04 \x01(\x05H\x02R\x06minute\x88\x01\x01\x12\x1b\n" +
+	"\x06second\x18\x05 \x01(\x05H\x03R\x06second\x88\x01\x01B\n" +
+	"\n" +
+	"\b_weekdayB\a\n" +
+	"\x05_hourB\t\n" +
+	"\a_minuteB\t\n" +
+	"\a_second\"\xb2\x02\n" +
 	"\fReminderItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tmemory_id\x18\x02 \x01(\tR\bmemoryId\x12?\n" +
@@ -839,7 +938,8 @@ const file_sparky_v1_reminder_proto_rawDesc = "" +
 	"\afire_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06fireAt\x12\x14\n" +
 	"\x05title\x18\x05 \x01(\tR\x05title\x12\x12\n" +
 	"\x04body\x18\x06 \x01(\tR\x04body\x12\x1a\n" +
-	"\bcategory\x18\a \x01(\tR\bcategory\"\x91\x01\n" +
+	"\bcategory\x18\a \x01(\tR\bcategory\x129\n" +
+	"\x06repeat\x18\b \x01(\v2!.sparky.v1.ReminderDateComponentsR\x06repeat\"\x91\x01\n" +
 	"\x14PlanRemindersRequest\x12,\n" +
 	"\x03now\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x03now\x12\x16\n" +
 	"\x06budget\x18\x02 \x01(\x05R\x06budget\x123\n" +
@@ -908,57 +1008,59 @@ func file_sparky_v1_reminder_proto_rawDescGZIP() []byte {
 	return file_sparky_v1_reminder_proto_rawDescData
 }
 
-var file_sparky_v1_reminder_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_sparky_v1_reminder_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_sparky_v1_reminder_proto_goTypes = []any{
-	(*ReminderItem)(nil),              // 0: sparky.v1.ReminderItem
-	(*PlanRemindersRequest)(nil),      // 1: sparky.v1.PlanRemindersRequest
-	(*PlanRemindersResponse)(nil),     // 2: sparky.v1.PlanRemindersResponse
-	(*AckReminderRequest)(nil),        // 3: sparky.v1.AckReminderRequest
-	(*AckReminderResponse)(nil),       // 4: sparky.v1.AckReminderResponse
-	(*SnoozeReminderRequest)(nil),     // 5: sparky.v1.SnoozeReminderRequest
-	(*SnoozeReminderResponse)(nil),    // 6: sparky.v1.SnoozeReminderResponse
-	(*ArmOneOffRequest)(nil),          // 7: sparky.v1.ArmOneOffRequest
-	(*ArmOneOffResponse)(nil),         // 8: sparky.v1.ArmOneOffResponse
-	(*CancelOneOffRequest)(nil),       // 9: sparky.v1.CancelOneOffRequest
-	(*CancelOneOffResponse)(nil),      // 10: sparky.v1.CancelOneOffResponse
-	(*ReminderHeartbeatRequest)(nil),  // 11: sparky.v1.ReminderHeartbeatRequest
-	(*ReminderHeartbeatResponse)(nil), // 12: sparky.v1.ReminderHeartbeatResponse
-	(*ReminderStatusRequest)(nil),     // 13: sparky.v1.ReminderStatusRequest
-	(*ReminderStatusResponse)(nil),    // 14: sparky.v1.ReminderStatusResponse
-	(*timestamppb.Timestamp)(nil),     // 15: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),       // 16: google.protobuf.Duration
+	(*ReminderDateComponents)(nil),    // 0: sparky.v1.ReminderDateComponents
+	(*ReminderItem)(nil),              // 1: sparky.v1.ReminderItem
+	(*PlanRemindersRequest)(nil),      // 2: sparky.v1.PlanRemindersRequest
+	(*PlanRemindersResponse)(nil),     // 3: sparky.v1.PlanRemindersResponse
+	(*AckReminderRequest)(nil),        // 4: sparky.v1.AckReminderRequest
+	(*AckReminderResponse)(nil),       // 5: sparky.v1.AckReminderResponse
+	(*SnoozeReminderRequest)(nil),     // 6: sparky.v1.SnoozeReminderRequest
+	(*SnoozeReminderResponse)(nil),    // 7: sparky.v1.SnoozeReminderResponse
+	(*ArmOneOffRequest)(nil),          // 8: sparky.v1.ArmOneOffRequest
+	(*ArmOneOffResponse)(nil),         // 9: sparky.v1.ArmOneOffResponse
+	(*CancelOneOffRequest)(nil),       // 10: sparky.v1.CancelOneOffRequest
+	(*CancelOneOffResponse)(nil),      // 11: sparky.v1.CancelOneOffResponse
+	(*ReminderHeartbeatRequest)(nil),  // 12: sparky.v1.ReminderHeartbeatRequest
+	(*ReminderHeartbeatResponse)(nil), // 13: sparky.v1.ReminderHeartbeatResponse
+	(*ReminderStatusRequest)(nil),     // 14: sparky.v1.ReminderStatusRequest
+	(*ReminderStatusResponse)(nil),    // 15: sparky.v1.ReminderStatusResponse
+	(*timestamppb.Timestamp)(nil),     // 16: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),       // 17: google.protobuf.Duration
 }
 var file_sparky_v1_reminder_proto_depIdxs = []int32{
-	15, // 0: sparky.v1.ReminderItem.occurrence_at:type_name -> google.protobuf.Timestamp
-	15, // 1: sparky.v1.ReminderItem.fire_at:type_name -> google.protobuf.Timestamp
-	15, // 2: sparky.v1.PlanRemindersRequest.now:type_name -> google.protobuf.Timestamp
-	16, // 3: sparky.v1.PlanRemindersRequest.horizon:type_name -> google.protobuf.Duration
-	0,  // 4: sparky.v1.PlanRemindersResponse.items:type_name -> sparky.v1.ReminderItem
-	15, // 5: sparky.v1.SnoozeReminderRequest.occurrence_at:type_name -> google.protobuf.Timestamp
-	15, // 6: sparky.v1.SnoozeReminderResponse.fire_at:type_name -> google.protobuf.Timestamp
-	15, // 7: sparky.v1.ArmOneOffRequest.fire_at:type_name -> google.protobuf.Timestamp
-	15, // 8: sparky.v1.ArmOneOffResponse.fire_at:type_name -> google.protobuf.Timestamp
-	15, // 9: sparky.v1.ReminderHeartbeatResponse.last_seen_at:type_name -> google.protobuf.Timestamp
-	15, // 10: sparky.v1.ReminderStatusResponse.notifier_last_seen_at:type_name -> google.protobuf.Timestamp
-	1,  // 11: sparky.v1.ReminderService.Plan:input_type -> sparky.v1.PlanRemindersRequest
-	3,  // 12: sparky.v1.ReminderService.Ack:input_type -> sparky.v1.AckReminderRequest
-	5,  // 13: sparky.v1.ReminderService.Snooze:input_type -> sparky.v1.SnoozeReminderRequest
-	7,  // 14: sparky.v1.ReminderService.ArmOneOff:input_type -> sparky.v1.ArmOneOffRequest
-	9,  // 15: sparky.v1.ReminderService.CancelOneOff:input_type -> sparky.v1.CancelOneOffRequest
-	11, // 16: sparky.v1.ReminderService.Heartbeat:input_type -> sparky.v1.ReminderHeartbeatRequest
-	13, // 17: sparky.v1.ReminderService.Status:input_type -> sparky.v1.ReminderStatusRequest
-	2,  // 18: sparky.v1.ReminderService.Plan:output_type -> sparky.v1.PlanRemindersResponse
-	4,  // 19: sparky.v1.ReminderService.Ack:output_type -> sparky.v1.AckReminderResponse
-	6,  // 20: sparky.v1.ReminderService.Snooze:output_type -> sparky.v1.SnoozeReminderResponse
-	8,  // 21: sparky.v1.ReminderService.ArmOneOff:output_type -> sparky.v1.ArmOneOffResponse
-	10, // 22: sparky.v1.ReminderService.CancelOneOff:output_type -> sparky.v1.CancelOneOffResponse
-	12, // 23: sparky.v1.ReminderService.Heartbeat:output_type -> sparky.v1.ReminderHeartbeatResponse
-	14, // 24: sparky.v1.ReminderService.Status:output_type -> sparky.v1.ReminderStatusResponse
-	18, // [18:25] is the sub-list for method output_type
-	11, // [11:18] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	16, // 0: sparky.v1.ReminderItem.occurrence_at:type_name -> google.protobuf.Timestamp
+	16, // 1: sparky.v1.ReminderItem.fire_at:type_name -> google.protobuf.Timestamp
+	0,  // 2: sparky.v1.ReminderItem.repeat:type_name -> sparky.v1.ReminderDateComponents
+	16, // 3: sparky.v1.PlanRemindersRequest.now:type_name -> google.protobuf.Timestamp
+	17, // 4: sparky.v1.PlanRemindersRequest.horizon:type_name -> google.protobuf.Duration
+	1,  // 5: sparky.v1.PlanRemindersResponse.items:type_name -> sparky.v1.ReminderItem
+	16, // 6: sparky.v1.SnoozeReminderRequest.occurrence_at:type_name -> google.protobuf.Timestamp
+	16, // 7: sparky.v1.SnoozeReminderResponse.fire_at:type_name -> google.protobuf.Timestamp
+	16, // 8: sparky.v1.ArmOneOffRequest.fire_at:type_name -> google.protobuf.Timestamp
+	16, // 9: sparky.v1.ArmOneOffResponse.fire_at:type_name -> google.protobuf.Timestamp
+	16, // 10: sparky.v1.ReminderHeartbeatResponse.last_seen_at:type_name -> google.protobuf.Timestamp
+	16, // 11: sparky.v1.ReminderStatusResponse.notifier_last_seen_at:type_name -> google.protobuf.Timestamp
+	2,  // 12: sparky.v1.ReminderService.Plan:input_type -> sparky.v1.PlanRemindersRequest
+	4,  // 13: sparky.v1.ReminderService.Ack:input_type -> sparky.v1.AckReminderRequest
+	6,  // 14: sparky.v1.ReminderService.Snooze:input_type -> sparky.v1.SnoozeReminderRequest
+	8,  // 15: sparky.v1.ReminderService.ArmOneOff:input_type -> sparky.v1.ArmOneOffRequest
+	10, // 16: sparky.v1.ReminderService.CancelOneOff:input_type -> sparky.v1.CancelOneOffRequest
+	12, // 17: sparky.v1.ReminderService.Heartbeat:input_type -> sparky.v1.ReminderHeartbeatRequest
+	14, // 18: sparky.v1.ReminderService.Status:input_type -> sparky.v1.ReminderStatusRequest
+	3,  // 19: sparky.v1.ReminderService.Plan:output_type -> sparky.v1.PlanRemindersResponse
+	5,  // 20: sparky.v1.ReminderService.Ack:output_type -> sparky.v1.AckReminderResponse
+	7,  // 21: sparky.v1.ReminderService.Snooze:output_type -> sparky.v1.SnoozeReminderResponse
+	9,  // 22: sparky.v1.ReminderService.ArmOneOff:output_type -> sparky.v1.ArmOneOffResponse
+	11, // 23: sparky.v1.ReminderService.CancelOneOff:output_type -> sparky.v1.CancelOneOffResponse
+	13, // 24: sparky.v1.ReminderService.Heartbeat:output_type -> sparky.v1.ReminderHeartbeatResponse
+	15, // 25: sparky.v1.ReminderService.Status:output_type -> sparky.v1.ReminderStatusResponse
+	19, // [19:26] is the sub-list for method output_type
+	12, // [12:19] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_sparky_v1_reminder_proto_init() }
@@ -966,13 +1068,14 @@ func file_sparky_v1_reminder_proto_init() {
 	if File_sparky_v1_reminder_proto != nil {
 		return
 	}
+	file_sparky_v1_reminder_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sparky_v1_reminder_proto_rawDesc), len(file_sparky_v1_reminder_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

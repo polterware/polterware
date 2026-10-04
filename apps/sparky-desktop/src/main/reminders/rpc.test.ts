@@ -31,7 +31,7 @@ it("maps frozen RPCs with Budget, exact completion keys, configured snooze and h
   expect(heartbeat.mock.calls[1]?.[0]).toMatchObject({ authorization: "not_determined", armedCount: 0 });
   expect(ack.mock.calls[0]?.[0]).toMatchObject({ id: "one:1", outcome: "done" });
 });
-it("refuses repeating identifiers that leaked onto the frozen one-shot Plan", async () => {
+it("maps repeat matchers from the plan and refuses repeating ids without one", async () => {
   const memoryId = "01ARZ3NDEKTSV4RRFFQ69G5FAV", now = new Date("2026-10-04T11:00:00.000Z"), at = timestampFromDate(now);
   const transport = createRouterTransport(({ service }) => {
     service(ReminderService, { plan: () => ({ items: [{ id: `rem:${memoryId}:repeat`, memoryId, fireAt: at, occurrenceAt: at, title: "Daily", body: "note", category: "reminder" }] }) });
@@ -39,4 +39,11 @@ it("refuses repeating identifiers that leaked onto the frozen one-shot Plan", as
     service(SettingsService, { get: () => ({ settings: {} }) });
   });
   await expect(createReminderCore(clientsFor(transport)).plan(now)).rejects.toThrow("Invalid core reminder plan");
+  const withRepeat = createRouterTransport(({ service }) => {
+    service(ReminderService, { plan: () => ({ items: [{ id: `rem:${memoryId}:wd2`, memoryId, fireAt: at, occurrenceAt: at, title: "Weekly", body: "", category: "reminder", repeat: { tz: "UTC", weekday: 2, hour: 9, minute: 30 } }] }) });
+    service(ScheduleService, {});
+    service(SettingsService, { get: () => ({ settings: {} }) });
+  });
+  const [item] = await createReminderCore(clientsFor(withRepeat)).plan(now);
+  expect(item?.repeat).toMatchObject({ tz: "UTC", weekday: 2, hour: 9, minute: 30 });
 });

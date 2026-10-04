@@ -8,6 +8,7 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/reminder"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 type reminderHandler struct{ s reminder.Service }
@@ -20,13 +21,29 @@ func (h reminderHandler) Plan(ctx context.Context, r *connect.Request[v1.PlanRem
 	items, err := h.s.Plan(ctx, schedule.PlanQuery{Now: instant(in.Now), Budget: int(in.Budget), Horizon: in.Horizon.AsDuration()})
 	out := &v1.PlanRemindersResponse{}
 	for _, i := range items {
-		if i.Repeat != nil {
-			// Frozen ReminderItem has no repeat field; never send a native repeat as a one-shot.
-			continue
-		}
-		out.Items = append(out.Items, &v1.ReminderItem{Id: i.ID, MemoryId: i.MemoryID, OccurrenceAt: stamp(i.OccurrenceAt), FireAt: stamp(i.FireAt), Title: i.Title, Body: i.Body, Category: i.Category})
+		out.Items = append(out.Items, &v1.ReminderItem{Id: i.ID, MemoryId: i.MemoryID, OccurrenceAt: stamp(i.OccurrenceAt), FireAt: stamp(i.FireAt), Title: i.Title, Body: i.Body, Category: i.Category, Repeat: repeatComponents(i.Repeat)})
 	}
 	return response(out, err)
+}
+
+func repeatComponents(c *schedule.DateComponents) *v1.ReminderDateComponents {
+	if c == nil {
+		return nil
+	}
+	out := &v1.ReminderDateComponents{Tz: c.TZ}
+	if c.Weekday != nil {
+		out.Weekday = proto.Int32(int32(*c.Weekday))
+	}
+	if c.Hour != nil {
+		out.Hour = proto.Int32(int32(*c.Hour))
+	}
+	if c.Minute != nil {
+		out.Minute = proto.Int32(int32(*c.Minute))
+	}
+	if c.Second != nil {
+		out.Second = proto.Int32(int32(*c.Second))
+	}
+	return out
 }
 func (h reminderHandler) Ack(ctx context.Context, r *connect.Request[v1.AckReminderRequest]) (*connect.Response[v1.AckReminderResponse], error) {
 	if h.s == nil {
