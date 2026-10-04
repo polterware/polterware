@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -33,12 +35,18 @@ func writeJSON(out io.Writer, msg proto.Message) error {
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintln(out, string(raw))
-	return err
+	return writeJSONBytes(out, raw)
 }
 
+// writeJSONBytes prints compact JSON. protojson deliberately injects random
+// whitespace that varies with the binary, so compacting is what keeps --json
+// output byte-stable across builds (golden tests and scripts rely on it).
 func writeJSONBytes(out io.Writer, raw []byte) error {
-	_, err := fmt.Fprintln(out, string(raw))
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, raw); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintln(out, compact.String())
 	return err
 }
 

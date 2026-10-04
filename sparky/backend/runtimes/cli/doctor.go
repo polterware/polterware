@@ -57,7 +57,9 @@ func runDoctor(ctx context.Context, dbPath string, args []string, out, stderr io
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(out, string(raw))
+		if err := writeJSONBytes(out, raw); err != nil {
+			return err
+		}
 	} else {
 		for _, check := range report.Msg.Checks {
 			fmt.Fprintf(out, "%s: ok=%t %s\n", check.Name, check.Ok, check.Detail)

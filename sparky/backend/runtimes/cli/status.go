@@ -33,8 +33,7 @@ func runStatus(ctx context.Context, dbPath string, args []string, out, stderr io
 		if err != nil {
 			return err
 		}
-		_, err = fmt.Fprintln(out, string(raw))
-		return err
+		return writeJSONBytes(out, raw)
 	}
 	fmt.Fprintf(out, "Core: running\nBuild: %s\nVersion: %s\nDatabase: %s\nMCP: enabled=%t port=%d\n", health.Msg.Build, health.Msg.Version, health.Msg.DbPath, health.Msg.GetMcp().GetEnabled(), health.Msg.GetMcp().GetPort())
 	status, err := clients.Reminder.Status(ctx, connect.NewRequest(&v1.ReminderStatusRequest{}))
