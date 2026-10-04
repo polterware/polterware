@@ -14,8 +14,11 @@ it("configures Sparky branding and the Solid entry point", () => {
     expect(config).toContain("icon: resources/icon.icns");
     expect(config).toContain("from: resources/app-icons");
     expect(config).toContain("from: resources/sounds");
+    expect(config).toContain("from: resources/characters");
     expect(config).toContain("com.polterware.sparky");
   expect(config).toContain('minimumSystemVersion: "15.0"');
     expect(existsSync(new URL("src/renderer/main.tsx", root))).toBe(true);
     expect(existsSync(new URL("src/renderer/public/sounds/bell.webm", root))).toBe(true);
+    expect(existsSync(new URL("src/renderer/public/characters/me-streak-sad.png", root))).toBe(true);
+    expect(existsSync(new URL("src/renderer/public/characters/sparky-character.webp", root))).toBe(true);
   });

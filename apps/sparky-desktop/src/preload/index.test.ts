@@ -40,6 +40,18 @@ describe("sandbox bridge", () => {
     await bridge.app.requestNotificationAuthorization();
     expect(mock.invoke).toHaveBeenCalledWith("sparky:app:requestNotificationAuthorization", undefined);
   });
+  it("maps new Main-owned app methods without taking renderer paths or tokens", async () => {
+    await bridge.app.openLog();
+    expect(mock.invoke).toHaveBeenCalledWith("sparky:app:openLog", undefined);
+    await bridge.app.openDataFolder();
+    expect(mock.invoke).toHaveBeenCalledWith("sparky:app:openDataFolder", undefined);
+    await bridge.app.getReduceTransparency();
+    expect(mock.invoke).toHaveBeenCalledWith("sparky:app:getReduceTransparency", undefined);
+    await bridge.app.setReduceTransparency(true);
+    expect(mock.invoke).toHaveBeenCalledWith("sparky:app:setReduceTransparency", true);
+    await bridge.app.testMcpConnection();
+    expect(mock.invoke).toHaveBeenCalledWith("sparky:app:testMcpConnection", undefined);
+  });
   it("does not expose Electron events and unsubscribes exactly its listener", () => {
     const callback = vi.fn();
     const unsubscribe = bridge.onChange(callback);

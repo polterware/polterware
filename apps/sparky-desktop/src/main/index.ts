@@ -5,11 +5,16 @@ import { createCoreClients, type CoreClients } from "./core/client.js";
 import { ensureCore, resolveBinary, type CoreHandle } from "./core/process-supervisor.js";
 import { startChangeWatcher } from "./core/change-watcher.js";
 import { createRpcHandlers, assertTrustedSender, validateAppInput, channel, handleRequestNotificationAuthorization } from "./ipc.js";
-import { createWindow, rendererDocument } from "./window.js";
+import { publicIpcError } from "./ipc-error.js";
+import { applyReduceTransparency, createWindow, rendererDocument } from "./window.js";
 import { contentSecurityPolicy, isAllowedRendererUrl, parseDeepLink } from "./navigation-policy.js";
 import { attachmentResponse, resolveAttachmentUrl } from "./attachment-protocol.js";
 import { grantImportPaths, resetTempImportDirectory, tempImportDirectory, writeGrantedTempFile } from "./import-paths.js";
 import { matchSoundPath, resolveSoundsRoot, soundResponse } from "./sounds-protocol.js";
+import { matchCharacterPath, resolveCharactersRoot, characterResponse } from "./characters-protocol.js";
+import { createAppLog, ensureAppLogFile, type AppLog } from "./app-log.js";
+import { readReduceTransparency, writeReduceTransparency } from "./appearance.js";
+import { mcpProbePublicResult, probeMcpConnection } from "./mcp-probe.js";
 import { APP_METHODS, EVENTS, type DeepLink } from "../shared/bridge.js";
 import { updateStatus } from "./updater.js";
 import { installReminders, runNotifyInspect } from "./reminders/index.js";
@@ -50,11 +55,20 @@ let core: CoreHandle | undefined;
 let stopWatcher: (() => void) | undefined;
 let pendingLink: DeepLink | null = null;
 let onlineMaps = false;
+let mapGeocoding = false;
+let logs: AppLog | undefined;
 let suppressWindow = hiddenLaunch;
 const grants = { import: new Set<string>(), export: new Set<string>(), backup: new Set<string>() };
 function getClients(): CoreClients {
   if (!clients) throw new Error("Core offline");
   return clients;
+}
+function getLogs(): AppLog {
+  if (!logs) logs = createAppLog(app.getPath("logs"));
+  return logs;
+}
+function userDataDirectory(): string {
+  return app.getPath("userData");
 }
 function emit(event: string, value: unknown): void {
   if (win && !win.isDestroyed()) win.webContents.send(event, value);
@@ -62,7 +76,7 @@ function emit(event: string, value: unknown): void {
 function showWindow(): void {
   app.dock?.show();
   if (!win || win.isDestroyed()) {
-    win = createWindow();
+    win = createWindow({ reduceTransparency: readReduceTransparency(userDataDirectory()) });
     win.on("closed", () => { win = null; });
   }
   if (win.isMinimized()) win.restore();
@@ -78,19 +92,29 @@ function routeDeepLink(raw: string): void {
   else emit(EVENTS.deepLink, link);
 }
 async function reconnect(): Promise<boolean> {
-  const next = await ensureCore({ dbPath, binary: resolveBinary(app.getAppPath(), process.resourcesPath, app.isPackaged) });
-  const changed = next.pid !== core?.pid || next.token !== core?.token || next.endpoint !== core?.endpoint;
-  core = next;
-  clients = createCoreClients(next.endpoint, next.token);
-  await refreshMapPolicy();
-  return changed;
+  try {
+    const next = await ensureCore({ dbPath, binary: resolveBinary(app.getAppPath(), process.resourcesPath, app.isPackaged) });
+    const changed = next.pid !== core?.pid || next.token !== core?.token || next.endpoint !== core?.endpoint;
+    core = next;
+    clients = createCoreClients(next.endpoint, next.token);
+    await refreshMapPolicy();
+    getLogs().write("core.ready", { changed });
+    return changed;
+  } catch (error) {
+    getLogs().write("core.offline", { code: "unavailable" });
+    throw error;
+  }
 }
 async function refreshMapPolicy(): Promise<void> {
-  const previous = onlineMaps;
-  try { onlineMaps = Boolean((await getClients().settings.get({}, { timeoutMs: 2000 })).settings?.mapOnline); }
-  catch { onlineMaps = false; }
-  // A document CSP cannot be widened in place. Reload only when this setting actually changes.
-  if (previous !== onlineMaps && win && !win.isDestroyed()) win.webContents.reload();
+  const previousOnline = onlineMaps;
+  const previousGeocoding = mapGeocoding;
+  try {
+    const settings = (await getClients().settings.get({}, { timeoutMs: 2000 })).settings;
+    onlineMaps = Boolean(settings?.mapOnline);
+    mapGeocoding = Boolean(settings?.mapGeocoding);
+  } catch { onlineMaps = false; mapGeocoding = false; }
+  // A document CSP cannot be widened in place. Reload only when these settings actually change.
+  if ((previousOnline !== onlineMaps || previousGeocoding !== mapGeocoding) && win && !win.isDestroyed()) win.webContents.reload();
 }
 function registerIpc(reminders: { requestAuthorization(): Promise<boolean> }): void {
   const handlers = createRpcHandlers({ getClients, authorizePath: (purpose, path) => grants[purpose].has(path),
@@ -116,6 +140,24 @@ function registerIpc(reminders: { requestAuthorization(): Promise<boolean> }): v
     startMicrophone: async () => process.platform === "darwin" && systemPreferences.askForMediaAccess("microphone"),
     getInfo: () => ({ name: "Sparky", version: app.getVersion(), updates: updateStatus }),
     requestNotificationAuthorization: () => handleRequestNotificationAuthorization(reminders),
+    openLog: () => { shell.showItemInFolder(ensureAppLogFile(getLogs())); },
+    openDataFolder: async () => { await shell.openPath(data); },
+    getReduceTransparency: () => readReduceTransparency(userDataDirectory()),
+    setReduceTransparency: input => {
+      const enabled = writeReduceTransparency(userDataDirectory(), input === true);
+      applyReduceTransparency(enabled);
+      return enabled;
+    },
+    testMcpConnection: async () => {
+      try {
+        const info = await getClients().agents.getInfo({}, { timeoutMs: 2000 });
+        return mcpProbePublicResult(await probeMcpConnection({
+          enabled: Boolean(info.enabled), port: Number(info.mcpPort), token: String(info.token ?? ""),
+        }));
+      } catch {
+        return { ok: false, error: "Core is offline. MCP cannot be tested." };
+      }
+    },
   };
   for (const [name, handler] of Object.entries(appHandlers)) handlers[channel("app", name)] = async input => {
     validateAppInput(name, input);
@@ -123,10 +165,14 @@ function registerIpc(reminders: { requestAuthorization(): Promise<boolean> }): v
   };
   for (const [name, handler] of Object.entries(handlers)) {
     ipcMain.handle(name, async (event, ...args) => {
-      if (!win || win.isDestroyed()) throw new Error("No renderer window");
-      assertTrustedSender(event, win.webContents);
-      if (args.length > 1) throw new Error("Invalid IPC arguments");
-      return handler(args[0]);
+      try {
+        if (!win || win.isDestroyed()) throw new Error("No renderer window");
+        assertTrustedSender(event, win.webContents);
+        if (args.length > 1) throw new Error("Invalid IPC arguments");
+        return await handler(args[0]);
+      } catch (error) {
+        throw publicIpcError(error);
+      }
     });
   }
 }
@@ -148,15 +194,17 @@ function installSessionSecurity(): void {
       systemPreferences.getMediaAccessStatus("microphone") === "granted");
   });
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => callback({ responseHeaders: {
-    ...details.responseHeaders, "Content-Security-Policy": [contentSecurityPolicy(onlineMaps, !app.isPackaged)],
+    ...details.responseHeaders, "Content-Security-Policy": [contentSecurityPolicy(onlineMaps, !app.isPackaged, mapGeocoding)],
   } }));
   void protocol.handle("sparky-file", request => attachmentResponse(request.url, join(data, "attachments")));
   if (!process.env.ELECTRON_RENDERER_URL) {
     const soundsRoot = resolveSoundsRoot(app.getAppPath(), process.resourcesPath, app.isPackaged);
+    const charactersRoot = resolveCharactersRoot(app.getAppPath(), process.resourcesPath, app.isPackaged);
     session.defaultSession.protocol.handle("file", request => {
       let pathname = "";
       try { pathname = decodeURIComponent(new URL(request.url).pathname); } catch { return net.fetch(request, { bypassCustomProtocolHandlers: true }); }
       if (matchSoundPath(pathname)) return soundResponse(pathname, soundsRoot);
+      if (matchCharacterPath(pathname)) return characterResponse(pathname, charactersRoot);
       return net.fetch(request, { bypassCustomProtocolHandlers: true });
     });
   }
@@ -221,6 +269,8 @@ else {
       try { resetTempImportDirectory(tempImportDir); } catch { /* Recreated on the first granted write. */ }
       registerIpc(reminders); installSessionSecurity(); installMenu();
       try {
+        logs = createAppLog(app.getPath("logs"));
+        applyReduceTransparency(readReduceTransparency(userDataDirectory()));
         await reconnect();
         stopWatcher = startChangeWatcher({ getClients, reconnect, emit: event => {
           emit(EVENTS.change, event);

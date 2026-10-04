@@ -39,10 +39,16 @@ export type SparkyBridge = {
     startMicrophone(): Promise<boolean>;
     getInfo(): Promise<{ name: string; version: string; updates: "disabled" }>;
     requestNotificationAuthorization(): Promise<boolean>;
+    openLog(): Promise<void>;
+    openDataFolder(): Promise<void>;
+    getReduceTransparency(): Promise<boolean>;
+    setReduceTransparency(enabled: boolean): Promise<boolean>;
+    testMcpConnection(): Promise<{ ok: boolean; toolCount?: number; error?: string }>;
   };
 };
 export const EVENTS = { change: "sparky:change", deepLink: "sparky:deep-link" } as const;
 export const APP_METHODS = [
   "openDeepLink", "getDeepLink", "pickFiles", "pathsForDroppedFiles", "writeTempFile",
   "saveZip", "saveBackup", "revealInFinder", "startMicrophone", "getInfo", "requestNotificationAuthorization",
+  "openLog", "openDataFolder", "getReduceTransparency", "setReduceTransparency", "testMcpConnection",
 ] as const;
