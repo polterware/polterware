@@ -381,3 +381,40 @@
 .pw-data-table-spacer > td {
   padding: 0;
 }
+
+/* Fixed rows opt in: isolate the viewport and skip intrinsic column sizing on scroll.
+   Size containment is invalid on native table rows, so it belongs on the flex viewport. */
+.pw-data-table-scroll[data-fixed-row-height="true"] {
+  contain: strict;
+}
+
+.pw-data-table-scroll[data-fixed-row-height="true"] .pw-data-table {
+  table-layout: fixed;
+  min-width: 100%;
+}
+
+.pw-data-table-scroll[data-fixed-row-height="true"] .pw-data-table-row {
+  height: calc(var(--table-row-pitch) - 4px);
+}
+
+.pw-data-table-scroll[data-fixed-row-height="true"] .pw-data-table-cell {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.pw-data-table-checkbox {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin: 0;
+  border-radius: 9999px;
+  clip-path: none;
+}
+
+.pw-data-table-checkbox::before {
+  margin: 4px;
+}
+
+.pw-data-table-checkbox:disabled {
+  cursor: not-allowed;
+}

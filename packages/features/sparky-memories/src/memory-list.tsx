@@ -1,5 +1,5 @@
 import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
-import { A11yDialog, Button, Checkbox, DataTable, Field, FilterChip, FilterPopover, Input, ListChecks, PageEmpty, PageError, PageHeader, PageLoading, PageOffline, PageToolbar, SearchBar, SegmentedControl, Select, StatusChip, type CheckboxProps } from "@polterware/frontend-design-system";
+import { A11yDialog, Button, DataTable, Field, FilterChip, FilterPopover, Input, ListChecks, PageEmpty, PageError, PageHeader, PageLoading, PageOffline, PageToolbar, SearchBar, SegmentedControl, Select, StatusChip } from "@polterware/frontend-design-system";
 import { browserBridge } from "./bridge";
 import { errorText, filterRows, todayGroup, DEFAULT_FILTER, type MemoryRow } from "./model";
 import { MemoryDetailHost } from "./host";
@@ -134,19 +134,19 @@ export function MemoryCollection(props: MemoryCollectionProps) {
     <Show when={store.loading() && !store.rows().length}><PageLoading label="Loading memories" /></Show>
     <Show when={!store.loadError() && (!store.loading() || store.rows().length)}>
       <Show when={displayRows().length} fallback={<PageEmpty title={query() || pinned() || tagId() ? "No matching memories" : mode() === "today" ? "Nothing due today" : "No memories here"} description={mode() === "inbox" ? "Memories without a Mind appear here." : "Create a memory or change your filters."} action={<Button onClick={() => setCreating(true)}>New memory</Button>} />}>
-        <DataTable.Root rows={displayRows()} getRowId={row => row.id} selectionMode="multiple" selectedRowIds={selection()} onSelectionChange={setSelection} activeRowId={activeId()} onActiveRowChange={setActiveId} virtualized={props.virtualized !== false} estimateRowHeight={48}>
+        <DataTable.Root rows={displayRows()} getRowId={row => row.id} selectionMode="multiple" selectedRowIds={selection()} onSelectionChange={setSelection} activeRowId={activeId()} onActiveRowChange={setActiveId} virtualized={props.virtualized !== false} fixedRowHeight={48} overscan={4}>
           <DataTable.Table aria-label="Memories">
             <DataTable.Header><DataTable.SelectionCell /><DataTable.ColumnHeader id="title" sortable={false}>Memory</DataTable.ColumnHeader>
-              <DataTable.ColumnHeader id="group" sortable={false}>{mode() === "today" ? "When" : "Section"}</DataTable.ColumnHeader>
+              <DataTable.ColumnHeader id="group" width="160px" sortable={false}>{mode() === "today" ? "When" : "Section"}</DataTable.ColumnHeader>
               <Show when={layout() === "table"}><DataTable.ColumnHeader id="due" sortable={false}>Due</DataTable.ColumnHeader><DataTable.ColumnHeader id="priority" sortable={false}>Priority</DataTable.ColumnHeader></Show>
-              <DataTable.ColumnHeader id="actions" sortable={false}>Actions</DataTable.ColumnHeader>
+              <DataTable.ColumnHeader id="actions" width="144px" sortable={false}>Actions</DataTable.ColumnHeader>
             </DataTable.Header>
             <DataTable.Body>{(row: MemoryRow) => <DataTable.Row row={row} rowId={row.id} aria-label={row.title} onActivate={() => open(row.id)}>
               <DataTable.SelectionCell rowId={row.id} label={`Select ${row.title}`} />
               <DataTable.PrimaryCell leading={<ListChecks size={16} />} title={row.title} />
               <DataTable.Cell><span>{group(row)}</span></DataTable.Cell>
               <Show when={layout() === "table"}><DataTable.Cell>{row.dueAt ? new Date(row.dueAt).toLocaleDateString() : "No due date"}</DataTable.Cell><DataTable.Cell>{row.priority ?? "None"}</DataTable.Cell></Show>
-              <DataTable.Cell><div class="flex items-center gap-2"><Checkbox {...roundCheckbox} aria-label={`Complete ${row.title}`} checked={row.status === "completed"} onCheckedChange={() => void store.toggle(row.id, "status")} /><Button variant="ghost" aria-label={`Pin ${row.title}`} aria-pressed={row.pinned} onClick={() => void store.toggle(row.id, "pinned")}>{row.pinned ? "Unpin" : "Pin"}</Button></div></DataTable.Cell>
+              <DataTable.Cell><div class="flex items-center gap-2"><DataTable.Checkbox aria-label={`Complete ${row.title}`} checked={row.status === "completed"} onCheckedChange={() => void store.toggle(row.id, "status")} /><Button variant="ghost" aria-label={`Pin ${row.title}`} aria-pressed={row.pinned} onClick={() => void store.toggle(row.id, "pinned")}>{row.pinned ? "Unpin" : "Pin"}</Button></div></DataTable.Cell>
             </DataTable.Row>}</DataTable.Body>
           </DataTable.Table>
           <DataTable.SelectionToolbar>{() => <>
@@ -174,5 +174,3 @@ export function MemoryCollection(props: MemoryCollectionProps) {
 export function TodayPage() { return <MemoryCollection mode="today" />; }
 export function InboxPage() { return <MemoryCollection mode="inbox" />; }
 export function MindMemoriesPage(props: { mindId: string }) { return <MemoryCollection mode="mind" mindId={props.mindId} />; }
-
-const roundCheckbox: CheckboxProps = { ["shape"]: "round" };

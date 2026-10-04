@@ -37,6 +37,16 @@ describe("memory page behavior through a fake preload bridge", () => {
     expect(host.querySelector('.pw-data-table-scroll[data-virtualized="true"]')).not.toBeNull();
   });
 
+  it("completes a memory through the native row checkbox without opening details", async () => {
+    const { host, bridge } = mount();
+    const first = await row(host);
+    const checkbox = first.querySelector<HTMLInputElement>('input[aria-label^="Complete "]')!;
+    checkbox.focus();
+    checkbox.click();
+    await vi.waitFor(() => expect(bridge.memories.setStatus).toHaveBeenCalled());
+    expect(document.querySelector("[data-memory-title]")).toBeNull();
+  });
+
   it("supports keyboard create, edit, pin, complete and delete confirmation with undo", async () => {
     const { host, bridge, store } = mount();
     const first = await row(host); first.focus(); press(first, "p");
