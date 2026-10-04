@@ -9,10 +9,10 @@ import { orderedSections } from "./memory-detail";
 
 const cleanups: (() => void)[] = [];
 afterEach(() => { cleanups.splice(0).reverse().forEach(cleanup => cleanup()); document.body.innerHTML = ""; vi.restoreAllMocks(); });
-function mount(seed = [memoryFixture()], debounceMs = 30) {
+function mount(seed = [memoryFixture()], debounceMs = 30, virtualized = false) {
   const fake = fakeBridge(seed), store = createMemoriesStore(() => createMemoriesBridge(fake.bridge as unknown as MemoriesWireBridge), debounceMs);
   const host = document.createElement("div"); document.body.append(host);
-  const dispose = render(() => <MemoryFixtureWorkspace store={store} virtualized={false} />, host);
+  const dispose = render(() => <MemoryFixtureWorkspace store={store} virtualized={virtualized} />, host);
   cleanups.push(() => { dispose(); store.dispose(); host.remove(); });
   return { ...fake, store, host };
 }
@@ -23,6 +23,20 @@ async function row(host: HTMLElement, id = "memory-1") { await vi.waitFor(() => 
 async function open(host: HTMLElement) { press(await row(host), "Enter"); await vi.waitFor(() => expect(document.querySelector("[data-memory-title]")).not.toBeNull()); }
 
 describe("memory page behavior through a fake preload bridge", () => {
+  it("renders a nonempty virtualized subset after asynchronous fake-bridge loading", async () => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(480);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
+    const previous = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = () => {};
+    cleanups.push(() => { HTMLElement.prototype.scrollTo = previous; });
+    const seed = Array.from({ length: 1200 }, (_, index) => memoryFixture(index));
+    const { host } = mount(seed, 30, true);
+    await vi.waitFor(() => expect(host.textContent).toContain("Live · 1200 memories"));
+    await vi.waitFor(() => expect(host.querySelectorAll("[data-row-id]").length).toBeGreaterThan(0));
+    expect(host.querySelectorAll("[data-row-id]").length).toBeLessThan(40);
+    expect(host.querySelector('.pw-data-table-scroll[data-virtualized="true"]')).not.toBeNull();
+  });
+
   it("supports keyboard create, edit, pin, complete and delete confirmation with undo", async () => {
     const { host, bridge, store } = mount();
     const first = await row(host); first.focus(); press(first, "p");

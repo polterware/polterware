@@ -616,11 +616,15 @@ function DataTableBody<T = any>(props: {
   class?: string;
 }) {
   const context = useDataTable<T>("Body");
+  const [mounted, setMounted] = createSignal(false);
+  onMount(() => setMounted(true));
   const virtualizer = createVirtualizer<HTMLDivElement, HTMLTableRowElement>({
     get count() {
       return context.rows().length;
     },
-    getScrollElement: context.scrollElement,
+    // Solid refs run while template nodes still belong to an inert document.
+    // Attach after mount so Virtualizer captures the real window and observers.
+    getScrollElement: () => mounted() ? context.scrollElement() : null,
     estimateSize: context.estimateRowHeight,
     overscan: 8,
   });

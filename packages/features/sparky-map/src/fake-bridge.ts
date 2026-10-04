@@ -50,9 +50,12 @@ export function fakeMapBridge(seed?: {
         if (!memory) throw new Error("Memory not found");
         return { memory: structuredClone(memory) };
       }),
-      list: vi.fn(async (input?: { hasPlace?: boolean }) => {
+      list: vi.fn(async (input?: { hasPlace?: boolean; limit?: number; cursor?: string }) => {
+        const limit = input?.limit ?? 50;
+        if (limit < 1 || limit > 500) throw new Error("must be between 1 and 500");
         const rows = [...memories.values()].filter(memory => !input?.hasPlace || Boolean(memory.place ?? places.get(memory.id ?? "")));
-        return { memories: rows.map(memory => ({ id: memory.id, title: memory.title, snippet: memory.note, rev: memory.rev })), total: rows.length };
+        const offset = Number(input?.cursor ?? 0);
+        return { memories: rows.slice(offset, offset + limit).map(memory => ({ id: memory.id, title: memory.title, snippet: memory.note, rev: memory.rev })), total: rows.length, nextCursor: offset + limit < rows.length ? String(offset + limit) : "" };
       }),
     },
     settings: {

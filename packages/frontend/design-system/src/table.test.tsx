@@ -30,6 +30,44 @@ import {
 const tableSource = readFileSync(resolve(import.meta.dirname, "./table.tsx"), "utf8");
 
 describe("DataTable", () => {
+  it("renders and scrolls a measured virtualized viewport mounted after body creation", async () => {
+    const size = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(240);
+    const width = vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
+    const scrollTo = vi.fn();
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe(target: Element) {
+        queueMicrotask(() => this.callback([{ target, borderBoxSize: [{ inlineSize: 800, blockSize: 240 }] } as unknown as ResizeObserverEntry], this as unknown as ResizeObserver));
+      }
+      unobserve() {}
+      disconnect() {}
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    const previousScrollTo = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = scrollTo;
+    const rows = Array.from({ length: 1000 }, (_, index) => ({ id: String(index) }));
+    const dispose = render(() => <DataTable.Root rows={rows} virtualized estimateRowHeight={40}>
+      <DataTable.Table aria-label="Virtualized fixture">
+        <DataTable.Body>{row => <DataTable.Row row={row} rowId={row.id}><DataTable.Cell>{row.id}</DataTable.Cell></DataTable.Row>}</DataTable.Body>
+      </DataTable.Table>
+    </DataTable.Root>, host);
+    try {
+      await vi.waitFor(() => expect(host.querySelector('[data-row-id="0"]')).not.toBeNull());
+      expect(host.querySelectorAll("[data-row-id]").length).toBeLessThan(30);
+      const scroll = host.querySelector<HTMLElement>(".pw-data-table-scroll")!;
+      scroll.scrollTop = 20000;
+      scroll.dispatchEvent(new Event("scroll"));
+      await vi.waitFor(() => expect(host.querySelector('[data-row-id="500"]')).not.toBeNull());
+      expect(host.querySelector('[data-row-id="0"]')).toBeNull();
+      expect(host.querySelectorAll("[data-row-id]").length).toBeLessThan(30);
+    } finally {
+      dispose(); host.remove(); size.mockRestore(); width.mockRestore();
+      HTMLElement.prototype.scrollTo = previousScrollTo;
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("exports the complete compound component contract", () => {
     expect(Object.keys(DataTable)).toEqual([
       "Root",
