@@ -48,8 +48,8 @@ function pointerClick(element: HTMLElement) {
   element.click();
 }
 
-function mount(path: "map" | "today") {
-  const fake = fakeMapBridge();
+function mount(path: "map" | "today", seed?: Parameters<typeof fakeMapBridge>[0]) {
+  const fake = fakeMapBridge(seed);
   Reflect.set(globalThis, "sparky", fake.wire);
   const store = createMapStore(() => createMapBridge(fake.wire));
   const opener: SparkyFeature = {
@@ -114,4 +114,52 @@ describe("map route and place card", () => {
     const cleared = (fake.wire.places.clear as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as { expectedRev?: string; memoryId?: string };
     expect(cleared).toMatchObject({ memoryId: "memory-1", expectedRev: "4" });
   });
+  it("hides address search while off and never sends typed coordinates", async () => {
+    const send = vi.fn(); vi.stubGlobal("fetch", send);
+    const { host, go } = mount("today");
+    await vi.waitFor(() => namedButton(host, "Open memory")); go();
+    await vi.waitFor(() => expect(host.querySelector("#place-name")).not.toBeNull());
+    expect(host.querySelector("#place-address")).toBeNull();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("searches only on explicit action and keeps the result unsaved until Save place", async () => {
+    const send = vi.fn(async () => new Response(JSON.stringify([{ display_name: "Test place", lat: "1", lon: "2" }])));
+    vi.stubGlobal("fetch", send);
+    const { host, fake, go } = mount("today", { settings: { mapGeocoding: true } });
+    await vi.waitFor(() => namedButton(host, "Open memory")); go();
+    await vi.waitFor(() => expect(host.querySelector("#place-address")).not.toBeNull());
+    const address = host.querySelector<HTMLInputElement>("#place-address")!;
+    address.value = "Test place"; address.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(send).not.toHaveBeenCalled();
+    pointerClick(namedButton(host, "Search address"));
+    await vi.waitFor(() => namedButton(host, "Use Test place"));
+    pointerClick(namedButton(host, "Use Test place"));
+    expect(host.querySelector<HTMLInputElement>("#place-lat")!.value).toBe("1");
+    expect(host.querySelector<HTMLInputElement>("#place-lng")!.value).toBe("2");
+    expect(fake.wire.places.set).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("unsaved place edits may be lost");
+  });
+
+  it("shows a blocked-host error without claiming a saved place", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+    const { host, go } = mount("today", { settings: { mapGeocoding: true } });
+    await vi.waitFor(() => namedButton(host, "Open memory")); go();
+    await vi.waitFor(() => expect(host.querySelector("#place-address")).not.toBeNull());
+    const address = host.querySelector<HTMLInputElement>("#place-address")!;
+    address.value = "Test place"; address.dispatchEvent(new Event("input", { bubbles: true }));
+    pointerClick(namedButton(host, "Search address"));
+    await vi.waitFor(() => expect(host.textContent).toContain("Nominatim may be blocked or unavailable"), { timeout: 2500 });
+    expect(host.textContent).toContain("wait for Sparky to reload");
+  });
+
+  it("registers Map navigation and delegates deep-link routing to the shell", async () => {
+    const { fake } = mount("map");
+    expect(mapFeature.sidebar?.[0]?.path).toBe("/map");
+    await mapFeature.commands?.[0]?.run();
+    expect(fake.wire.app.openDeepLink).toHaveBeenCalledWith("sparky://map");
+    expect(mapFeature.onDeepLink?.(new URL("sparky://map"))).toBe(false);
+    expect(mapFeature.onDeepLink?.(new URL("sparky://search"))).toBe(false);
+  });
+
 });

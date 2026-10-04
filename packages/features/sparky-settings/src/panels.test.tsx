@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "solid-js/web";
 import type { JSX } from "solid-js";
 import { DesignSystemProvider } from "@polterware/frontend-design-system";
-import feature, { AgentsAccessPanel, DataPanel, GeneralPanel, NotificationsPanel, SearchPanel } from "./index";
+import feature, { AdvancedPanel, MapPanel, AgentsAccessPanel, DataPanel, GeneralPanel, NotificationsPanel, SearchPanel } from "./index";
 import { fakeSettingsBridge } from "./fake-bridge";
 import { settingsStore } from "./store";
 
@@ -110,4 +110,27 @@ describe("settings panels", () => {
     expect(host.textContent).toContain("No data was changed");
     expect(bridge.maintenance.export).not.toHaveBeenCalled();
   });
+  it("wires Advanced controls and keeps login unavailable", async () => {
+    const { host, bridge } = mount(() => <AdvancedPanel />);
+    await vi.waitFor(() => expect(button("Open logs")).toBeTruthy());
+    button("Open logs")!.click();
+    await vi.waitFor(() => expect(host.textContent).toContain("Log revealed in Finder."));
+    button("Open data folder")!.click();
+    await vi.waitFor(() => expect(bridge.app.openDataFolder).toHaveBeenCalledWith());
+    const toggle = [...host.querySelectorAll<HTMLElement>(".pw-switch-row")].find(row => row.textContent?.includes("Reduce transparency"))!;
+    pointerClick(toggle);
+    await vi.waitFor(() => expect(bridge.app.setReduceTransparency).toHaveBeenCalledWith(true));
+    expect(host.textContent).toContain("not observed under ad-hoc signing");
+    expect(host.textContent).toContain("Unavailable");
+  });
+
+  it("discloses address sharing and renderer reload before enabling geocoding", async () => {
+    const { host, bridge } = mount(() => <MapPanel />);
+    await vi.waitFor(() => expect(host.textContent).toContain("Typed address text is sent to Nominatim"));
+    expect(host.textContent).toContain("reloads the renderer");
+    const toggle = [...host.querySelectorAll<HTMLElement>(".pw-switch-row")].find(row => row.textContent?.includes("Address search"))!;
+    pointerClick(toggle);
+    await vi.waitFor(() => expect(bridge.settings.set).toHaveBeenCalledWith({ keys: ["map.geocoding"], settings: { mapGeocoding: true } }));
+  });
+
 });

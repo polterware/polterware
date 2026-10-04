@@ -30,6 +30,11 @@ export function createSettingsStore(getBridge: () => SettingsBridge = browserBri
   const [saveError, setSaveError] = createSignal("");
   const [keyError, setKeyError] = createSignal("");
   const [savingKey, setSavingKey] = createSignal("");
+  const [reduceTransparency, setReduceTransparencyValue] = createSignal<boolean | undefined>();
+  const [appearanceState, setAppearanceState] = createSignal<Honesty>("queued");
+  const [appearanceError, setAppearanceError] = createSignal("");
+  const [advancedState, setAdvancedState] = createSignal<Honesty>("live");
+  const [advancedDetail, setAdvancedDetail] = createSignal("");
   const [appInfo, setAppInfo] = createSignal<AppInfo | undefined>();
   const [reminders, setReminders] = createSignal<ReminderStatusJSON | undefined>();
   const [search, setSearch] = createSignal<SearchStatusJSON | undefined>();
@@ -76,12 +81,18 @@ export function createSettingsStore(getBridge: () => SettingsBridge = browserBri
       bridge.reminders.status({}),
       bridge.search.status({}),
       bridge.agents.getInfo({}),
+      bridge.app.getReduceTransparency(),
     ]);
     batch(() => {
       if (results[0].status === "fulfilled") setAppInfo(results[0].value);
       if (results[1].status === "fulfilled") setReminders(results[1].value);
       if (results[2].status === "fulfilled") setSearch(results[2].value);
       if (results[3].status === "fulfilled") setAgent(results[3].value);
+      if (results[4].status === "fulfilled") {
+        setReduceTransparencyValue(results[4].value); setAppearanceState("live"); setAppearanceError("");
+      } else {
+        setReduceTransparencyValue(undefined); setAppearanceState("failed"); setAppearanceError(errorText(results[4].reason));
+      }
     });
   }
 
@@ -170,18 +181,34 @@ export function createSettingsStore(getBridge: () => SettingsBridge = browserBri
     }
   }
 
-  async function testConnection(fetchImpl?: Parameters<typeof testMcpConnection>[0]["fetchImpl"]) {
-    const current = agent();
-    const enabled = current?.enabled ?? settings().agentsMcpEnabled ?? false;
+  async function testConnection() {
     setMcpTestState("queued");
-    const result = await testMcpConnection({
-      enabled: Boolean(enabled),
-      port: current?.mcpPort ?? settings().agentsMcpPort ?? 47600,
-      token: current?.token ?? "",
-      fetchImpl,
-    });
+    const result = await testMcpConnection(getBridge().app);
     setMcpTest(result);
     setMcpTestState(result.ok ? "live" : "failed");
+  }
+
+  async function setReduceTransparency(enabled: boolean) {
+    setAppearanceState("queued"); setAppearanceError("");
+    try {
+      const applied = await getBridge().app.setReduceTransparency(enabled);
+      setReduceTransparencyValue(applied);
+      setAppearanceState(applied === enabled ? "live" : "failed");
+      if (applied !== enabled) setAppearanceError("The requested transparency preference was not applied.");
+    } catch (error) {
+      setAppearanceState("failed"); setAppearanceError(errorText(error));
+    }
+  }
+
+  async function reveal(kind: "log" | "data") {
+    setAdvancedState("queued"); setAdvancedDetail("");
+    try {
+      const app = getBridge().app;
+      if (kind === "log") await app.openLog(); else await app.openDataFolder();
+      setAdvancedState("live"); setAdvancedDetail(kind === "log" ? "Log revealed in Finder." : "Data folder revealed in Finder.");
+    } catch (error) {
+      setAdvancedState("failed"); setAdvancedDetail(errorText(error));
+    }
   }
 
   async function loadActivity() {
@@ -291,6 +318,8 @@ export function createSettingsStore(getBridge: () => SettingsBridge = browserBri
     batch(() => {
       setSettings({ ...DEFAULT_SETTINGS });
       setLoadState("queued"); setLoadError(""); setSaveState("live"); setSaveError(""); setKeyError(""); setSavingKey("");
+      setReduceTransparencyValue(undefined); setAppearanceState("queued"); setAppearanceError("");
+      setAdvancedState("live"); setAdvancedDetail("");
       setAppInfo(undefined); setReminders(undefined); setSearch(undefined); setReindexState("live"); setReindexError("");
       setAgent(undefined); setRevealedToken(false); setPreviousToken(""); setTokenInvalidated(false);
       setMcpTest(undefined); setMcpTestState("live"); setActivity([]); setActivityState("queued"); setActivityError("");
@@ -308,7 +337,7 @@ export function createSettingsStore(getBridge: () => SettingsBridge = browserBri
     mcpTest, mcpTestState, activity, activityState, activityError,
     doctor, doctorOk, doctorState, doctorError,
     exportState, exportDetail, backupState, backupDetail, resetState, resetError,
-    authState, authError,
+    authState, authError, reduceTransparency, appearanceState, appearanceError, advancedState, advancedDetail, setReduceTransparency, reveal,
     refresh, set, rotateToken, requestNotifications, reindex, testConnection,
     loadActivity, loadDoctor, exportZip, backup, resetLocalData, snippets, connect, dispose, reset,
   };

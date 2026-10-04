@@ -1,4 +1,5 @@
 export type CalendarView = "day" | "week" | "month";
+import type { SettingsJSON } from "./bridge";
 export type WeekStart = "mon" | "sun";
 
 export type CivilDate = { year: number; month: number; day: number };
@@ -195,10 +196,8 @@ export function sameMonth(date: string, anchor: string): boolean {
   return left.year === right.year && left.month === right.month;
 }
 
-export function weekStartFromSettings(settings: Record<string, unknown> | undefined): WeekStart {
-  const raw = settings?.calendarWeekStart ?? settings?.weekStart ?? settings?.appearanceWeekStart;
-  if (raw === "sun" || raw === "sunday" || raw === 0 || raw === "0") return "sun";
-  return "mon";
+export function weekStartFromSettings(settings: SettingsJSON | undefined): WeekStart {
+  return settings?.calendarWeekStart === "sun" ? "sun" : "mon";
 }
 
 export function occurrenceDate(iso: string, timeZone: string): string {

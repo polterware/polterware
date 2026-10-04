@@ -13,7 +13,7 @@ export function fakeMapBridge(seed?: {
   const memories = new Map((seed?.memories ?? [{
     id: "memory-1", title: "Buy milk", note: "", status: "active", rev: "3", place: places.get("memory-1"),
   }]).map(memory => [memory.id ?? "", structuredClone(memory)]));
-  let settings: SettingsJSON = { mapOnline: false, mapProvider: "openfreemap", ...seed?.settings };
+  let settings: SettingsJSON = { mapGeocoding: false, mapOnline: false, mapProvider: "openfreemap", ...seed?.settings };
   let listener: Parameters<MapWireBridge["onChange"]>[0] | undefined;
 
   const wire = {

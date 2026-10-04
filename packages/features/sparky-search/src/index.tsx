@@ -1,10 +1,12 @@
 import type { SparkyFeature } from "@polterware/feature-sparky-shell/feature";
 import { openSearchPage } from "./bridge";
+import { createSearchCommandSource } from "./command-source";
 import { SearchPage } from "./search-page";
 
 const feature: SparkyFeature = {
   id: "search",
   routes: [{ path: "/search", title: "Search", component: SearchPage }],
+  commandSources: [createSearchCommandSource()],
   commands: [{
     id: "search.open",
     label: "Search memories",

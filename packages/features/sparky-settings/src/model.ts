@@ -44,6 +44,11 @@ export type SettingsBridge = {
   maintenance: Namespace<typeof MaintenanceService>;
   onChange(callback: (event: { resync: boolean; changes: { entity: string; id: string; op: string }[] }) => void): () => void;
   app: {
+    openLog(): Promise<void>;
+    openDataFolder(): Promise<void>;
+    getReduceTransparency(): Promise<boolean>;
+    setReduceTransparency(enabled: boolean): Promise<boolean>;
+    testMcpConnection(): Promise<{ ok: boolean; toolCount?: number; error?: string }>;
     getInfo(): Promise<AppInfo>;
     requestNotificationAuthorization(): Promise<boolean>;
     saveZip(): Promise<string | null>;
@@ -63,6 +68,7 @@ export const SETTING_KEYS = [
   "focus.autoContinue",
   "focus.sounds",
   "focus.notifications",
+  "map.geocoding",
   "map.online",
   "map.provider",
   "agents.mcpPort",
@@ -86,6 +92,7 @@ export const KEY_TO_FIELD = {
   "focus.autoContinue": "focusAutoContinue",
   "focus.sounds": "focusSounds",
   "focus.notifications": "focusNotifications",
+  "map.geocoding": "mapGeocoding",
   "map.online": "mapOnline",
   "map.provider": "mapProvider",
   "agents.mcpPort": "agentsMcpPort",
@@ -110,6 +117,7 @@ export const DEFAULT_SETTINGS: SettingsJSON = {
   focusAutoContinue: true,
   focusSounds: true,
   focusNotifications: true,
+  mapGeocoding: false,
   mapOnline: false,
   mapProvider: "",
   agentsMcpPort: 47600,

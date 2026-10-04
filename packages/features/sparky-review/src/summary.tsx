@@ -1,4 +1,4 @@
-import { Show, createSignal } from "solid-js";
+import { Show, createSignal, createEffect, on } from "solid-js";
 import { Card, EmptyIllustration, ProgressRing } from "@polterware/frontend-design-system";
 import type { ReviewJSON } from "./bridge";
 import {
@@ -13,6 +13,7 @@ import {
 function CharacterArt(props: { kind: "streak" | "completed"; mood: string | undefined }) {
   const [failed, setFailed] = createSignal(false);
   const asset = () => characterAsset(props.kind, props.mood);
+  createEffect(on(() => asset().src, () => setFailed(false)));
   return (
     <EmptyIllustration>
       <Show when={!failed()} fallback={<span class="sparky-review-metric__caption">Character art unavailable</span>}>

@@ -2,6 +2,7 @@ import { vi } from "vitest";
 import type { ReviewBridge, ReviewDayJSON, ReviewJSON, SettingsJSON } from "./bridge";
 
 export const SETTINGS: SettingsJSON = {
+  calendarWeekStart: "mon",
   appearanceTheme: "dark",
   notificationsSound: "glass",
   notificationsAllDayTime: "09:00",

@@ -51,6 +51,7 @@ export function fakeSettingsBridge(seed: Partial<SettingsJSON> = {}) {
   ];
   let ftsDocuments = 12;
   let permission = "not_determined";
+  let reduceTransparency = false;
   let listener: Parameters<SettingsBridge["onChange"]>[0] | undefined;
   const emit = (entity: string, id: string) => listener?.({ resync: false, changes: [{ entity, id, op: "update" }] });
 
@@ -138,6 +139,13 @@ export function fakeSettingsBridge(seed: Partial<SettingsJSON> = {}) {
     },
     onChange: vi.fn(callback => { listener = callback; return () => { listener = undefined; }; }),
     app: {
+      openLog: vi.fn(async () => {}),
+      openDataFolder: vi.fn(async () => {}),
+      getReduceTransparency: vi.fn(async () => reduceTransparency),
+      setReduceTransparency: vi.fn(async enabled => { reduceTransparency = enabled; return reduceTransparency; }),
+      testMcpConnection: vi.fn(async () => settings.agentsMcpEnabled
+        ? { ok: true, toolCount: 2 }
+        : { ok: false, error: "MCP is off. Enable it in Agents > Access, then test again." }),
       getInfo: vi.fn(async () => ({ name: "Sparky", version: "0.1.0", updates: "disabled" as const })),
       requestNotificationAuthorization: vi.fn(async () => {
         permission = "authorized";

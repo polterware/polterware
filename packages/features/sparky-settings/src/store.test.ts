@@ -49,13 +49,12 @@ describe("settings store", () => {
   });
 
   it("reports Test connection failure when MCP is off", async () => {
-    const { store } = setup({ agentsMcpEnabled: false });
+    const { store, bridge } = setup({ agentsMcpEnabled: false });
     await store.refresh();
-    const fetchImpl = vi.fn();
-    await store.testConnection(fetchImpl);
+    await store.testConnection();
     expect(store.mcpTest()?.ok).toBe(false);
     expect(store.mcpTest()?.detail).toContain("MCP is off");
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(bridge.app.testMcpConnection).toHaveBeenCalledWith();
     expect(store.mcpTestState()).toBe("failed");
   });
 
@@ -94,4 +93,52 @@ describe("settings store", () => {
     await store.loadActivity();
     expect(store.activity()).toEqual([expect.objectContaining({ actor: "mcp:Claude Code", summary: "Updated memory title" })]);
   });
+  it("reveals logs and data through Main and reports failures", async () => {
+    const { store, bridge } = setup();
+    await store.reveal("log");
+    expect(bridge.app.openLog).toHaveBeenCalledWith();
+    expect(store.advancedDetail()).toBe("Log revealed in Finder.");
+    await store.reveal("data");
+    expect(bridge.app.openDataFolder).toHaveBeenCalledWith();
+    vi.mocked(bridge.app.openLog).mockRejectedValueOnce(new Error("Log unavailable"));
+    await store.reveal("log");
+    expect(store.advancedState()).toBe("failed");
+    expect(store.advancedDetail()).toBe("Log unavailable");
+  });
+
+  it("uses the applied transparency value and keeps an honest failure", async () => {
+    const { store, bridge } = setup();
+    await store.refresh();
+    expect(store.reduceTransparency()).toBe(false);
+    await store.setReduceTransparency(true);
+    expect(bridge.app.setReduceTransparency).toHaveBeenCalledWith(true);
+    expect(store.reduceTransparency()).toBe(true);
+    vi.mocked(bridge.app.setReduceTransparency).mockResolvedValueOnce(true);
+    await store.setReduceTransparency(false);
+    expect(store.appearanceState()).toBe("failed");
+    expect(store.reduceTransparency()).toBe(true);
+    vi.mocked(bridge.app.getReduceTransparency).mockRejectedValueOnce(new Error("Appearance unavailable"));
+    await store.refresh();
+    expect(store.reduceTransparency()).toBeUndefined();
+    expect(store.appearanceError()).toBe("Appearance unavailable");
+  });
+
+  it("defaults geocoding off and round-trips only its key", async () => {
+    const { store, bridge } = setup();
+    await store.refresh();
+    expect(store.settings().mapGeocoding).toBe(false);
+    await store.set("map.geocoding", true);
+    expect(bridge.settings.set).toHaveBeenLastCalledWith({ keys: ["map.geocoding"], settings: { mapGeocoding: true } });
+    expect(store.settings().mapGeocoding).toBe(true);
+  });
+
+  it("shows validation reasons delivered only in Error.message", async () => {
+    const { store, bridge } = setup();
+    await store.refresh();
+    vi.mocked(bridge.settings.set).mockRejectedValueOnce(new Error("must be mon or sun"));
+    await store.set("calendar.weekStart", "invalid");
+    expect(store.keyError()).toBe("must be mon or sun");
+    expect(store.settings().calendarWeekStart).toBe("mon");
+  });
+
 });
