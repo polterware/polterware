@@ -1,0 +1,34 @@
+{
+  "name": "add_attachments",
+  "description": "Add links or files. files requires agents.allowFileAttach.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "memoryId"
+    ],
+    "properties": {
+      "memoryId": {
+        "type": "string"
+      },
+      "links": {
+        "type": "array",
+        "description": "{url, title?}"
+      },
+      "files": {
+        "type": "array",
+        "description": "{path}"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "attachments"
+    ],
+    "properties": {
+      "attachments": {
+        "type": "array"
+      }
+    }
+  }
+}

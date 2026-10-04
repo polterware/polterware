@@ -1,0 +1,19 @@
+{
+  "name": "list_tags",
+  "description": "Tags with color and memory counts.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "tags"
+    ],
+    "properties": {
+      "tags": {
+        "type": "array"
+      }
+    }
+  }
+}
