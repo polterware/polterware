@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, X } from "./hugeicons";
 import { DitherIconTile, type DitherIconTone } from "./dither-icon";
-import { detailPanelStore } from "@polterware/frontend-state";
+import { useDesignSystem } from "./provider";
 import {
   For,
   Show,
@@ -706,6 +706,7 @@ function DataTableRow<T = any>(props: {
   class?: string;
 }) {
   const context = useDataTable("Row");
+  const designSystem = useDesignSystem();
   const rowId = () => props.rowId ?? defaultRowId(props.row, props.index ?? 0);
   const selected = () => context.selectedRowIds().has(rowId());
   const active = () => context.activeEnabled() && context.activeRowId() === rowId();
@@ -749,7 +750,7 @@ function DataTableRow<T = any>(props: {
       onDblClick={(event) => {
         if (!interactive() || isDataTableInteractiveTarget(event.target, event.currentTarget)) return;
         activate();
-        detailPanelStore.getState().expand();
+        designSystem.expandDetail();
       }}
       onKeyDown={(event) => {
         if (!interactive() || event.target !== event.currentTarget) return;

@@ -1,0 +1,6 @@
+.pw-heatmap { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 12px); grid-auto-columns: 12px; gap: 3px; overflow-x: auto; }
+.pw-heatmap__cell { border-radius: var(--radius-item); background: var(--color-heatmap-0); }
+.pw-heatmap__cell[data-level="1"] { background: var(--color-heatmap-1); }
+.pw-heatmap__cell[data-level="2"] { background: var(--color-heatmap-2); }
+.pw-heatmap__cell[data-level="3"] { background: var(--color-heatmap-3); }
+.pw-heatmap__cell[data-level="4"] { background: var(--color-heatmap-4); }

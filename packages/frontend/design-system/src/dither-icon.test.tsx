@@ -72,7 +72,7 @@ describe("DitherIconTile", () => {
     expect(styles).toMatch(/color-mix\(\s*in srgb/);
     expect(styles).toContain("currentColor");
     expect(styles).not.toContain("--color-surface-subtle");
-    expect(styles).toContain("border-radius: var(--radius-item)");
+    expect(styles).toContain("border-radius: var(--radius-control)");
     expect(styles).not.toMatch(/\bopacity\b/);
     expect(styles).not.toMatch(/\bgradient\b/);
   });

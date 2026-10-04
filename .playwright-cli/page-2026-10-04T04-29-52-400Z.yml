@@ -1,0 +1,687 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - button "Go back" [disabled] [ref=e6]
+      - button "Go forward" [disabled] [ref=e9]
+    - generic [ref=e13]:
+      - 'button "Switch project: Polterware" [ref=e14]':
+        - generic [ref=e15]: Polterware
+      - generic [ref=e16]: /
+      - 'button "Switch environment: local" [ref=e17]':
+        - status [ref=e18]: LOCAL
+    - generic [ref=e19]:
+      - button "Search or run a command" [ref=e20] [cursor=pointer]
+      - 'button "Local core: running" [ref=e24] [cursor=pointer]'
+  - generic [ref=e34]:
+    - complementary "Project navigation" [ref=e35]:
+      - generic [ref=e38]:
+        - navigation "Primary" [ref=e40]:
+          - generic [ref=e41]:
+            - paragraph [ref=e42]: PROJECT
+            - button "Inbox 69" [ref=e43] [cursor=pointer]:
+              - generic [ref=e48]: Inbox
+              - generic [ref=e49]: "69"
+            - button "Work" [ref=e50] [cursor=pointer]
+            - button "Atlas" [ref=e58] [cursor=pointer]
+            - button "Truth" [ref=e67] [cursor=pointer]
+            - button "Activity" [ref=e74] [cursor=pointer]
+        - generic [ref=e82]:
+          - button "Settings" [ref=e83] [cursor=pointer]
+          - button "Help and about" [ref=e89] [cursor=pointer]
+    - separator "Resize Project navigation" [ref=e94]
+    - main [ref=e97]:
+      - generic [ref=e98]:
+        - generic [ref=e102]:
+          - tablist "Inbox" [ref=e105]:
+            - tab "All 69 items" [selected] [ref=e107] [cursor=pointer]:
+              - generic [ref=e108]: All
+              - generic "69 items": "69"
+            - tab "Decisions 7 items" [ref=e111] [cursor=pointer]:
+              - generic [ref=e112]: Decisions
+              - generic "7 items": "7"
+            - tab "Drift 62 items" [ref=e115] [cursor=pointer]:
+              - generic [ref=e116]: Drift
+              - generic "62 items": "62"
+            - tab "Verify" [ref=e119] [cursor=pointer]
+          - status [ref=e123]: 1 blocking
+        - table "Inbox items" [ref=e131]:
+          - rowgroup [ref=e132]:
+            - row [ref=e133]:
+              - columnheader [ref=e134]:
+                - button "Sort by Item" [ref=e135] [cursor=pointer]:
+                  - generic [ref=e136]: Item
+              - columnheader [ref=e137]:
+                - button "Sort by Type" [ref=e138] [cursor=pointer]:
+                  - generic [ref=e139]: Type
+              - columnheader [ref=e140]:
+                - button "Sort by Status" [ref=e141] [cursor=pointer]:
+                  - generic [ref=e142]: Status
+              - columnheader [ref=e143]:
+                - button "Sort by Context" [ref=e144] [cursor=pointer]:
+                  - generic [ref=e145]: Context
+              - columnheader [ref=e146]:
+                - button "Sort by Source" [ref=e147] [cursor=pointer]:
+                  - generic [ref=e148]: Source
+              - columnheader "Actions" [ref=e149]
+          - rowgroup [ref=e152]:
+            - row "Blocking decision" [ref=e153]:
+              - cell "Who creates the upper levels?" [ref=e154]
+              - cell "Decision" [ref=e297]
+              - cell [ref=e298]:
+                - status [ref=e299]: Blocking
+              - cell "atlas-upper-levels" [ref=e300]
+              - cell "—" [ref=e301]
+              - cell [ref=e302]:
+                - button "Actions for Who creates the upper levels?" [ref=e303] [cursor=pointer]
+            - row "Decision" [ref=e306]:
+              - cell "Did the next agent start from the right point without help?" [ref=e307]
+              - cell "Decision" [ref=e450]
+              - cell [ref=e451]:
+                - status [ref=e452]: Open
+              - cell "continuity-loop" [ref=e453]
+              - cell "—" [ref=e454]
+              - cell [ref=e455]:
+                - button "Actions for Did the next agent start from the right point without help?" [ref=e456] [cursor=pointer]
+            - row "Decision" [ref=e459]:
+              - cell "Which seeded cards and ADR statuses are wrong?" [ref=e460]
+              - cell "Decision" [ref=e603]
+              - cell [ref=e604]:
+                - status [ref=e605]: Open
+              - cell "local-build-dogfood" [ref=e606]
+              - cell "—" [ref=e607]
+              - cell [ref=e608]:
+                - button "Actions for Which seeded cards and ADR statuses are wrong?" [ref=e609] [cursor=pointer]
+            - row "Decision" [ref=e612]:
+              - cell "Does Polterware own tasks or read them from GitHub Issues or Linear?" [ref=e613]
+              - cell "Decision" [ref=e756]
+              - cell [ref=e757]:
+                - status [ref=e758]: Open
+              - cell "external-task-sources" [ref=e759]
+              - cell "—" [ref=e760]
+              - cell [ref=e761]:
+                - button "Actions for Does Polterware own tasks or read them from GitHub Issues or Linear?" [ref=e762] [cursor=pointer]
+            - row "Decision" [ref=e765]:
+              - cell "Should the default route flip from Inbox to Work?" [ref=e766]
+              - cell "Decision" [ref=e909]
+              - cell [ref=e910]:
+                - status [ref=e911]: Open
+              - cell "default-route" [ref=e912]
+              - cell "—" [ref=e913]
+              - cell [ref=e914]:
+                - button "Actions for Should the default route flip from Inbox to Work?" [ref=e915] [cursor=pointer]
+            - row "Decision" [ref=e918]:
+              - cell "Which first check headlines the Guard plan?" [ref=e919]
+              - cell "Decision" [ref=e1062]
+              - cell [ref=e1063]:
+                - status [ref=e1064]: Open
+              - cell "cloud-judge" [ref=e1065]
+              - cell "—" [ref=e1066]
+              - cell [ref=e1067]:
+                - button "Actions for Which first check headlines the Guard plan?" [ref=e1068] [cursor=pointer]
+            - row "Decision" [ref=e1071]:
+              - cell "For a teammate on Cloud, does delivered mean on main or in production?" [ref=e1072]
+              - cell "Decision" [ref=e1215]
+              - cell [ref=e1216]:
+                - status [ref=e1217]: Open
+              - cell "cloud-sync" [ref=e1218]
+              - cell "—" [ref=e1219]
+              - cell [ref=e1220]:
+                - button "Actions for For a teammate on Cloud, does delivered mean on main or in production?" [ref=e1221] [cursor=pointer]
+            - row "Drift" [ref=e1224]:
+              - cell "task navigation-swap T1 is done with no commit on main" [ref=e1225]
+              - cell "Drift" [ref=e1369]
+              - cell [ref=e1370]:
+                - status [ref=e1371]: Open
+              - cell "navigation-swap T1" [ref=e1372]
+              - cell "system" [ref=e1373]
+              - cell [ref=e1374]:
+                - button "Actions for task navigation-swap T1 is done with no commit on main" [ref=e1375] [cursor=pointer]
+            - row "Drift" [ref=e1378]:
+              - cell "task navigation-swap T2 is done with no commit on main" [ref=e1379]
+              - cell "Drift" [ref=e1523]
+              - cell [ref=e1524]:
+                - status [ref=e1525]: Open
+              - cell "navigation-swap T2" [ref=e1526]
+              - cell "system" [ref=e1527]
+              - cell [ref=e1528]:
+                - button "Actions for task navigation-swap T2 is done with no commit on main" [ref=e1529] [cursor=pointer]
+            - row "Drift" [ref=e1532]:
+              - cell "task navigation-swap T3 is done with no commit on main" [ref=e1533]
+              - cell "Drift" [ref=e1677]
+              - cell [ref=e1678]:
+                - status [ref=e1679]: Open
+              - cell "navigation-swap T3" [ref=e1680]
+              - cell "system" [ref=e1681]
+              - cell [ref=e1682]:
+                - button "Actions for task navigation-swap T3 is done with no commit on main" [ref=e1683] [cursor=pointer]
+            - row "Drift" [ref=e1686]:
+              - cell "task work-board T1 is done with no commit on main" [ref=e1687]
+              - cell "Drift" [ref=e1831]
+              - cell [ref=e1832]:
+                - status [ref=e1833]: Open
+              - cell "work-board T1" [ref=e1834]
+              - cell "system" [ref=e1835]
+              - cell [ref=e1836]:
+                - button "Actions for task work-board T1 is done with no commit on main" [ref=e1837] [cursor=pointer]
+            - row "Drift" [ref=e1840]:
+              - cell "task work-board T2 is done with no commit on main" [ref=e1841]
+              - cell "Drift" [ref=e1985]
+              - cell [ref=e1986]:
+                - status [ref=e1987]: Open
+              - cell "work-board T2" [ref=e1988]
+              - cell "system" [ref=e1989]
+              - cell [ref=e1990]:
+                - button "Actions for task work-board T2 is done with no commit on main" [ref=e1991] [cursor=pointer]
+            - row "Drift" [ref=e1994]:
+              - cell "task work-board T3 is done with no commit on main" [ref=e1995]
+              - cell "Drift" [ref=e2139]
+              - cell [ref=e2140]:
+                - status [ref=e2141]: Open
+              - cell "work-board T3" [ref=e2142]
+              - cell "system" [ref=e2143]
+              - cell [ref=e2144]:
+                - button "Actions for task work-board T3 is done with no commit on main" [ref=e2145] [cursor=pointer]
+            - row "Drift" [ref=e2148]:
+              - cell "task polter-work-model T1 is done with no commit on main" [ref=e2149]
+              - cell "Drift" [ref=e2293]
+              - cell [ref=e2294]:
+                - status [ref=e2295]: Open
+              - cell "polter-work-model T1" [ref=e2296]
+              - cell "system" [ref=e2297]
+              - cell [ref=e2298]:
+                - button "Actions for task polter-work-model T1 is done with no commit on main" [ref=e2299] [cursor=pointer]
+            - row "Drift" [ref=e2302]:
+              - cell "task polter-work-model T2 is done with no commit on main" [ref=e2303]
+              - cell "Drift" [ref=e2447]
+              - cell [ref=e2448]:
+                - status [ref=e2449]: Open
+              - cell "polter-work-model T2" [ref=e2450]
+              - cell "system" [ref=e2451]
+              - cell [ref=e2452]:
+                - button "Actions for task polter-work-model T2 is done with no commit on main" [ref=e2453] [cursor=pointer]
+            - row "Drift" [ref=e2456]:
+              - cell "task polter-work-model T3 is done with no commit on main" [ref=e2457]
+              - cell "Drift" [ref=e2601]
+              - cell [ref=e2602]:
+                - status [ref=e2603]: Open
+              - cell "polter-work-model T3" [ref=e2604]
+              - cell "system" [ref=e2605]
+              - cell [ref=e2606]:
+                - button "Actions for task polter-work-model T3 is done with no commit on main" [ref=e2607] [cursor=pointer]
+            - row "Drift" [ref=e2610]:
+              - cell "task agent-channels T1 is done with no commit on main" [ref=e2611]
+              - cell "Drift" [ref=e2755]
+              - cell [ref=e2756]:
+                - status [ref=e2757]: Open
+              - cell "agent-channels T1" [ref=e2758]
+              - cell "system" [ref=e2759]
+              - cell [ref=e2760]:
+                - button "Actions for task agent-channels T1 is done with no commit on main" [ref=e2761] [cursor=pointer]
+            - row "Drift" [ref=e2764]:
+              - cell "task agent-channels T2 is done with no commit on main" [ref=e2765]
+              - cell "Drift" [ref=e2909]
+              - cell [ref=e2910]:
+                - status [ref=e2911]: Open
+              - cell "agent-channels T2" [ref=e2912]
+              - cell "system" [ref=e2913]
+              - cell [ref=e2914]:
+                - button "Actions for task agent-channels T2 is done with no commit on main" [ref=e2915] [cursor=pointer]
+            - row "Drift" [ref=e2918]:
+              - cell "task agent-channels T3 is done with no commit on main" [ref=e2919]
+              - cell "Drift" [ref=e3063]
+              - cell [ref=e3064]:
+                - status [ref=e3065]: Open
+              - cell "agent-channels T3" [ref=e3066]
+              - cell "system" [ref=e3067]
+              - cell [ref=e3068]:
+                - button "Actions for task agent-channels T3 is done with no commit on main" [ref=e3069] [cursor=pointer]
+            - row "Drift" [ref=e3072]:
+              - cell "task polter-hints T1 is done with no commit on main" [ref=e3073]
+              - cell "Drift" [ref=e3217]
+              - cell [ref=e3218]:
+                - status [ref=e3219]: Open
+              - cell "polter-hints T1" [ref=e3220]
+              - cell "system" [ref=e3221]
+              - cell [ref=e3222]:
+                - button "Actions for task polter-hints T1 is done with no commit on main" [ref=e3223] [cursor=pointer]
+            - row "Drift" [ref=e3226]:
+              - cell "task polter-hints T2 is done with no commit on main" [ref=e3227]
+              - cell "Drift" [ref=e3371]
+              - cell [ref=e3372]:
+                - status [ref=e3373]: Open
+              - cell "polter-hints T2" [ref=e3374]
+              - cell "system" [ref=e3375]
+              - cell [ref=e3376]:
+                - button "Actions for task polter-hints T2 is done with no commit on main" [ref=e3377] [cursor=pointer]
+            - row "Drift" [ref=e3380]:
+              - cell "task single-local-core T1 is done with no commit on main" [ref=e3381]
+              - cell "Drift" [ref=e3525]
+              - cell [ref=e3526]:
+                - status [ref=e3527]: Open
+              - cell "single-local-core T1" [ref=e3528]
+              - cell "system" [ref=e3529]
+              - cell [ref=e3530]:
+                - button "Actions for task single-local-core T1 is done with no commit on main" [ref=e3531] [cursor=pointer]
+            - row "Drift" [ref=e3534]:
+              - cell "task single-local-core T2 is done with no commit on main" [ref=e3535]
+              - cell "Drift" [ref=e3679]
+              - cell [ref=e3680]:
+                - status [ref=e3681]: Open
+              - cell "single-local-core T2" [ref=e3682]
+              - cell "system" [ref=e3683]
+              - cell [ref=e3684]:
+                - button "Actions for task single-local-core T2 is done with no commit on main" [ref=e3685] [cursor=pointer]
+            - row "Drift" [ref=e3688]:
+              - cell "task single-local-core T3 is done with no commit on main" [ref=e3689]
+              - cell "Drift" [ref=e3833]
+              - cell [ref=e3834]:
+                - status [ref=e3835]: Open
+              - cell "single-local-core T3" [ref=e3836]
+              - cell "system" [ref=e3837]
+              - cell [ref=e3838]:
+                - button "Actions for task single-local-core T3 is done with no commit on main" [ref=e3839] [cursor=pointer]
+            - row "Drift" [ref=e3842]:
+              - cell "task continuity-loop T1 is done with no commit on main" [ref=e3843]
+              - cell "Drift" [ref=e3987]
+              - cell [ref=e3988]:
+                - status [ref=e3989]: Open
+              - cell "continuity-loop T1" [ref=e3990]
+              - cell "system" [ref=e3991]
+              - cell [ref=e3992]:
+                - button "Actions for task continuity-loop T1 is done with no commit on main" [ref=e3993] [cursor=pointer]
+            - row "Drift" [ref=e3996]:
+              - cell "task continuity-loop T2 is done with no commit on main" [ref=e3997]
+              - cell "Drift" [ref=e4141]
+              - cell [ref=e4142]:
+                - status [ref=e4143]: Open
+              - cell "continuity-loop T2" [ref=e4144]
+              - cell "system" [ref=e4145]
+              - cell [ref=e4146]:
+                - button "Actions for task continuity-loop T2 is done with no commit on main" [ref=e4147] [cursor=pointer]
+            - row "Drift" [ref=e4150]:
+              - cell "task continuity-loop T3 is done with no commit on main" [ref=e4151]
+              - cell "Drift" [ref=e4295]
+              - cell [ref=e4296]:
+                - status [ref=e4297]: Open
+              - cell "continuity-loop T3" [ref=e4298]
+              - cell "system" [ref=e4299]
+              - cell [ref=e4300]:
+                - button "Actions for task continuity-loop T3 is done with no commit on main" [ref=e4301] [cursor=pointer]
+            - row "Drift" [ref=e4304]:
+              - cell "task git-metadata-import T1 is done with no commit on main" [ref=e4305]
+              - cell "Drift" [ref=e4449]
+              - cell [ref=e4450]:
+                - status [ref=e4451]: Open
+              - cell "git-metadata-import T1" [ref=e4452]
+              - cell "system" [ref=e4453]
+              - cell [ref=e4454]:
+                - button "Actions for task git-metadata-import T1 is done with no commit on main" [ref=e4455] [cursor=pointer]
+            - row "Drift" [ref=e4458]:
+              - cell "task git-metadata-import T2 is done with no commit on main" [ref=e4459]
+              - cell "Drift" [ref=e4603]
+              - cell [ref=e4604]:
+                - status [ref=e4605]: Open
+              - cell "git-metadata-import T2" [ref=e4606]
+              - cell "system" [ref=e4607]
+              - cell [ref=e4608]:
+                - button "Actions for task git-metadata-import T2 is done with no commit on main" [ref=e4609] [cursor=pointer]
+            - row "Drift" [ref=e4612]:
+              - cell "task git-metadata-import T3 is done with no commit on main" [ref=e4613]
+              - cell "Drift" [ref=e4757]
+              - cell [ref=e4758]:
+                - status [ref=e4759]: Open
+              - cell "git-metadata-import T3" [ref=e4760]
+              - cell "system" [ref=e4761]
+              - cell [ref=e4762]:
+                - button "Actions for task git-metadata-import T3 is done with no commit on main" [ref=e4763] [cursor=pointer]
+            - row "Drift" [ref=e4766]:
+              - cell "task git-metadata-import T4 is done with no commit on main" [ref=e4767]
+              - cell "Drift" [ref=e4911]
+              - cell [ref=e4912]:
+                - status [ref=e4913]: Open
+              - cell "git-metadata-import T4" [ref=e4914]
+              - cell "system" [ref=e4915]
+              - cell [ref=e4916]:
+                - button "Actions for task git-metadata-import T4 is done with no commit on main" [ref=e4917] [cursor=pointer]
+            - row "Drift" [ref=e4920]:
+              - cell "task claims T1 is done with no commit on main" [ref=e4921]
+              - cell "Drift" [ref=e5065]
+              - cell [ref=e5066]:
+                - status [ref=e5067]: Open
+              - cell "claims T1" [ref=e5068]
+              - cell "system" [ref=e5069]
+              - cell [ref=e5070]:
+                - button "Actions for task claims T1 is done with no commit on main" [ref=e5071] [cursor=pointer]
+            - row "Drift" [ref=e5074]:
+              - cell "task claims T2 is done with no commit on main" [ref=e5075]
+              - cell "Drift" [ref=e5219]
+              - cell [ref=e5220]:
+                - status [ref=e5221]: Open
+              - cell "claims T2" [ref=e5222]
+              - cell "system" [ref=e5223]
+              - cell [ref=e5224]:
+                - button "Actions for task claims T2 is done with no commit on main" [ref=e5225] [cursor=pointer]
+            - row "Drift" [ref=e5228]:
+              - cell "task inbox T1 is done with no commit on main" [ref=e5229]
+              - cell "Drift" [ref=e5373]
+              - cell [ref=e5374]:
+                - status [ref=e5375]: Open
+              - cell "inbox T1" [ref=e5376]
+              - cell "system" [ref=e5377]
+              - cell [ref=e5378]:
+                - button "Actions for task inbox T1 is done with no commit on main" [ref=e5379] [cursor=pointer]
+            - row "Drift" [ref=e5382]:
+              - cell "task inbox T2 is done with no commit on main" [ref=e5383]
+              - cell "Drift" [ref=e5527]
+              - cell [ref=e5528]:
+                - status [ref=e5529]: Open
+              - cell "inbox T2" [ref=e5530]
+              - cell "system" [ref=e5531]
+              - cell [ref=e5532]:
+                - button "Actions for task inbox T2 is done with no commit on main" [ref=e5533] [cursor=pointer]
+            - row "Drift" [ref=e5536]:
+              - cell "task inbox T3 is done with no commit on main" [ref=e5537]
+              - cell "Drift" [ref=e5681]
+              - cell [ref=e5682]:
+                - status [ref=e5683]: Open
+              - cell "inbox T3" [ref=e5684]
+              - cell "system" [ref=e5685]
+              - cell [ref=e5686]:
+                - button "Actions for task inbox T3 is done with no commit on main" [ref=e5687] [cursor=pointer]
+            - row "Drift" [ref=e5690]:
+              - cell "task atlas-hierarchy-oracle T1 is done with no commit on main" [ref=e5691]
+              - cell "Drift" [ref=e5835]
+              - cell [ref=e5836]:
+                - status [ref=e5837]: Open
+              - cell "atlas-hierarchy-oracle T1" [ref=e5838]
+              - cell "system" [ref=e5839]
+              - cell [ref=e5840]:
+                - button "Actions for task atlas-hierarchy-oracle T1 is done with no commit on main" [ref=e5841] [cursor=pointer]
+            - row "Drift" [ref=e5844]:
+              - cell "task atlas-hierarchy-oracle T2 is done with no commit on main" [ref=e5845]
+              - cell "Drift" [ref=e5989]
+              - cell [ref=e5990]:
+                - status [ref=e5991]: Open
+              - cell "atlas-hierarchy-oracle T2" [ref=e5992]
+              - cell "system" [ref=e5993]
+              - cell [ref=e5994]:
+                - button "Actions for task atlas-hierarchy-oracle T2 is done with no commit on main" [ref=e5995] [cursor=pointer]
+            - row "Drift" [ref=e5998]:
+              - cell "task atlas-hierarchy-oracle T3 is done with no commit on main" [ref=e5999]
+              - cell "Drift" [ref=e6143]
+              - cell [ref=e6144]:
+                - status [ref=e6145]: Open
+              - cell "atlas-hierarchy-oracle T3" [ref=e6146]
+              - cell "system" [ref=e6147]
+              - cell [ref=e6148]:
+                - button "Actions for task atlas-hierarchy-oracle T3 is done with no commit on main" [ref=e6149] [cursor=pointer]
+            - row "Drift" [ref=e6152]:
+              - cell "task atlas-hierarchy-oracle T4 is done with no commit on main" [ref=e6153]
+              - cell "Drift" [ref=e6297]
+              - cell [ref=e6298]:
+                - status [ref=e6299]: Open
+              - cell "atlas-hierarchy-oracle T4" [ref=e6300]
+              - cell "system" [ref=e6301]
+              - cell [ref=e6302]:
+                - button "Actions for task atlas-hierarchy-oracle T4 is done with no commit on main" [ref=e6303] [cursor=pointer]
+            - row "Drift" [ref=e6306]:
+              - cell "task new-feature-flow T1 is done with no commit on main" [ref=e6307]
+              - cell "Drift" [ref=e6451]
+              - cell [ref=e6452]:
+                - status [ref=e6453]: Open
+              - cell "new-feature-flow T1" [ref=e6454]
+              - cell "system" [ref=e6455]
+              - cell [ref=e6456]:
+                - button "Actions for task new-feature-flow T1 is done with no commit on main" [ref=e6457] [cursor=pointer]
+            - row "Drift" [ref=e6460]:
+              - cell "task new-feature-flow T2 is done with no commit on main" [ref=e6461]
+              - cell "Drift" [ref=e6605]
+              - cell [ref=e6606]:
+                - status [ref=e6607]: Open
+              - cell "new-feature-flow T2" [ref=e6608]
+              - cell "system" [ref=e6609]
+              - cell [ref=e6610]:
+                - button "Actions for task new-feature-flow T2 is done with no commit on main" [ref=e6611] [cursor=pointer]
+            - row "Drift" [ref=e6614]:
+              - cell "task new-feature-flow T3 is done with no commit on main" [ref=e6615]
+              - cell "Drift" [ref=e6759]
+              - cell [ref=e6760]:
+                - status [ref=e6761]: Open
+              - cell "new-feature-flow T3" [ref=e6762]
+              - cell "system" [ref=e6763]
+              - cell [ref=e6764]:
+                - button "Actions for task new-feature-flow T3 is done with no commit on main" [ref=e6765] [cursor=pointer]
+            - row "Drift" [ref=e6768]:
+              - cell "task decision-lifecycle T1 is done with no commit on main" [ref=e6769]
+              - cell "Drift" [ref=e6913]
+              - cell [ref=e6914]:
+                - status [ref=e6915]: Open
+              - cell "decision-lifecycle T1" [ref=e6916]
+              - cell "system" [ref=e6917]
+              - cell [ref=e6918]:
+                - button "Actions for task decision-lifecycle T1 is done with no commit on main" [ref=e6919] [cursor=pointer]
+            - row "Drift" [ref=e6922]:
+              - cell "task decision-lifecycle T2 is done with no commit on main" [ref=e6923]
+              - cell "Drift" [ref=e7067]
+              - cell [ref=e7068]:
+                - status [ref=e7069]: Open
+              - cell "decision-lifecycle T2" [ref=e7070]
+              - cell "system" [ref=e7071]
+              - cell [ref=e7072]:
+                - button "Actions for task decision-lifecycle T2 is done with no commit on main" [ref=e7073] [cursor=pointer]
+            - row "Drift" [ref=e7076]:
+              - cell "task decision-lifecycle T3 is done with no commit on main" [ref=e7077]
+              - cell "Drift" [ref=e7221]
+              - cell [ref=e7222]:
+                - status [ref=e7223]: Open
+              - cell "decision-lifecycle T3" [ref=e7224]
+              - cell "system" [ref=e7225]
+              - cell [ref=e7226]:
+                - button "Actions for task decision-lifecycle T3 is done with no commit on main" [ref=e7227] [cursor=pointer]
+            - row "Drift" [ref=e7230]:
+              - cell "task architecture-evolution T1 is done with no commit on main" [ref=e7231]
+              - cell "Drift" [ref=e7375]
+              - cell [ref=e7376]:
+                - status [ref=e7377]: Open
+              - cell "architecture-evolution T1" [ref=e7378]
+              - cell "system" [ref=e7379]
+              - cell [ref=e7380]:
+                - button "Actions for task architecture-evolution T1 is done with no commit on main" [ref=e7381] [cursor=pointer]
+            - row "Drift" [ref=e7384]:
+              - cell "task architecture-evolution T2 is done with no commit on main" [ref=e7385]
+              - cell "Drift" [ref=e7529]
+              - cell [ref=e7530]:
+                - status [ref=e7531]: Open
+              - cell "architecture-evolution T2" [ref=e7532]
+              - cell "system" [ref=e7533]
+              - cell [ref=e7534]:
+                - button "Actions for task architecture-evolution T2 is done with no commit on main" [ref=e7535] [cursor=pointer]
+            - row "Drift" [ref=e7538]:
+              - cell "task agent-sessions T1 is done with no commit on main" [ref=e7539]
+              - cell "Drift" [ref=e7683]
+              - cell [ref=e7684]:
+                - status [ref=e7685]: Open
+              - cell "agent-sessions T1" [ref=e7686]
+              - cell "system" [ref=e7687]
+              - cell [ref=e7688]:
+                - button "Actions for task agent-sessions T1 is done with no commit on main" [ref=e7689] [cursor=pointer]
+            - row "Drift" [ref=e7692]:
+              - cell "task agent-sessions T2 is done with no commit on main" [ref=e7693]
+              - cell "Drift" [ref=e7837]
+              - cell [ref=e7838]:
+                - status [ref=e7839]: Open
+              - cell "agent-sessions T2" [ref=e7840]
+              - cell "system" [ref=e7841]
+              - cell [ref=e7842]:
+                - button "Actions for task agent-sessions T2 is done with no commit on main" [ref=e7843] [cursor=pointer]
+            - row "Drift" [ref=e7846]:
+              - cell "task agent-setup T1 is done with no commit on main" [ref=e7847]
+              - cell "Drift" [ref=e7991]
+              - cell [ref=e7992]:
+                - status [ref=e7993]: Open
+              - cell "agent-setup T1" [ref=e7994]
+              - cell "system" [ref=e7995]
+              - cell [ref=e7996]:
+                - button "Actions for task agent-setup T1 is done with no commit on main" [ref=e7997] [cursor=pointer]
+            - row "Drift" [ref=e8000]:
+              - cell "task agent-setup T2 is done with no commit on main" [ref=e8001]
+              - cell "Drift" [ref=e8145]
+              - cell [ref=e8146]:
+                - status [ref=e8147]: Open
+              - cell "agent-setup T2" [ref=e8148]
+              - cell "system" [ref=e8149]
+              - cell [ref=e8150]:
+                - button "Actions for task agent-setup T2 is done with no commit on main" [ref=e8151] [cursor=pointer]
+            - row "Drift" [ref=e8154]:
+              - cell "task agent-setup T3 is done with no commit on main" [ref=e8155]
+              - cell "Drift" [ref=e8299]
+              - cell [ref=e8300]:
+                - status [ref=e8301]: Open
+              - cell "agent-setup T3" [ref=e8302]
+              - cell "system" [ref=e8303]
+              - cell [ref=e8304]:
+                - button "Actions for task agent-setup T3 is done with no commit on main" [ref=e8305] [cursor=pointer]
+            - row "Drift" [ref=e8308]:
+              - cell "task local-build-dogfood T1 is done with no commit on main" [ref=e8309]
+              - cell "Drift" [ref=e8453]
+              - cell [ref=e8454]:
+                - status [ref=e8455]: Open
+              - cell "local-build-dogfood T1" [ref=e8456]
+              - cell "system" [ref=e8457]
+              - cell [ref=e8458]:
+                - button "Actions for task local-build-dogfood T1 is done with no commit on main" [ref=e8459] [cursor=pointer]
+            - row "Drift" [ref=e8462]:
+              - cell "task local-build-dogfood T2 is done with no commit on main" [ref=e8463]
+              - cell "Drift" [ref=e8607]
+              - cell [ref=e8608]:
+                - status [ref=e8609]: Open
+              - cell "local-build-dogfood T2" [ref=e8610]
+              - cell "system" [ref=e8611]
+              - cell [ref=e8612]:
+                - button "Actions for task local-build-dogfood T2 is done with no commit on main" [ref=e8613] [cursor=pointer]
+            - row "Drift" [ref=e8616]:
+              - cell "task local-build-dogfood T3 is done with no commit on main" [ref=e8617]
+              - cell "Drift" [ref=e8761]
+              - cell [ref=e8762]:
+                - status [ref=e8763]: Open
+              - cell "local-build-dogfood T3" [ref=e8764]
+              - cell "system" [ref=e8765]
+              - cell [ref=e8766]:
+                - button "Actions for task local-build-dogfood T3 is done with no commit on main" [ref=e8767] [cursor=pointer]
+            - row "Drift" [ref=e8770]:
+              - cell "commit \"Initialize private Polterware Cloud repository\" is on main with no task" [ref=e8771]
+              - cell "Drift" [ref=e8915]
+              - cell [ref=e8916]:
+                - status [ref=e8917]: Open
+              - cell "c9782a1" [ref=e8918]
+              - cell "system" [ref=e8919]
+              - cell [ref=e8920]:
+                - button "Actions for commit \"Initialize private Polterware Cloud repository\" is on main with no task" [ref=e8921] [cursor=pointer]
+            - row "Drift" [ref=e8924]:
+              - cell "commit \"Normalize README structure\" is on main with no task" [ref=e8925]
+              - cell "Drift" [ref=e9069]
+              - cell [ref=e9070]:
+                - status [ref=e9071]: Open
+              - cell "46c502b" [ref=e9072]
+              - cell "system" [ref=e9073]
+              - cell [ref=e9074]:
+                - button "Actions for commit \"Normalize README structure\" is on main with no task" [ref=e9075] [cursor=pointer]
+            - row "Drift" [ref=e9078]:
+              - 'cell "commit \"docs: add project documentation\" is on main with no task" [ref=e9079]'
+              - cell "Drift" [ref=e9223]
+              - cell [ref=e9224]:
+                - status [ref=e9225]: Open
+              - cell "0bf8447" [ref=e9226]
+              - cell "system" [ref=e9227]
+              - cell [ref=e9228]:
+                - 'button "Actions for commit \"docs: add project documentation\" is on main with no task" [ref=e9229] [cursor=pointer]'
+            - row "Drift" [ref=e9232]:
+              - 'cell "commit \"fix: add translate attribute to body and update metadata structure\" is on main with no task" [ref=e9233]'
+              - cell "Drift" [ref=e9377]
+              - cell [ref=e9378]:
+                - status [ref=e9379]: Open
+              - cell "88c65a9" [ref=e9380]
+              - cell "system" [ref=e9381]
+              - cell [ref=e9382]:
+                - 'button "Actions for commit \"fix: add translate attribute to body and update metadata structure\" is on main with no task" [ref=e9383] [cursor=pointer]'
+            - row "Drift" [ref=e9386]:
+              - 'cell "commit \"feat: add Portfolio link to Studio section\" is on main with no task" [ref=e9387]'
+              - cell "Drift" [ref=e9531]
+              - cell [ref=e9532]:
+                - status [ref=e9533]: Open
+              - cell "d2f9ef7" [ref=e9534]
+              - cell "system" [ref=e9535]
+              - cell [ref=e9536]:
+                - 'button "Actions for commit \"feat: add Portfolio link to Studio section\" is on main with no task" [ref=e9537] [cursor=pointer]'
+            - row "Drift" [ref=e9540]:
+              - 'cell "commit \"chore: Update Duplizen and Converge project button links to polterware.com domain.\" is on main with no task" [ref=e9541]'
+              - cell "Drift" [ref=e9685]
+              - cell [ref=e9686]:
+                - status [ref=e9687]: Open
+              - cell "ba0fa34" [ref=e9688]
+              - cell "system" [ref=e9689]
+              - cell [ref=e9690]:
+                - 'button "Actions for commit \"chore: Update Duplizen and Converge project button links to polterware.com domain.\" is on main with no task" [ref=e9691] [cursor=pointer]'
+            - row "Drift" [ref=e9694]:
+              - 'cell "commit \"chore: Replace converge.jpeg with converge.png, delete tripper.png, and update project image assets.\" is on main with no task" [ref=e9695]'
+              - cell "Drift" [ref=e9839]
+              - cell [ref=e9840]:
+                - status [ref=e9841]: Open
+              - cell "0f1f249" [ref=e9842]
+              - cell "system" [ref=e9843]
+              - cell [ref=e9844]:
+                - 'button "Actions for commit \"chore: Replace converge.jpeg with converge.png, delete tripper.png, and update project image assets.\" is on main with no task" [ref=e9845] [cursor=pointer]'
+            - row "Drift" [ref=e9848]:
+              - cell "commit \"Renomeia polterbase → polter e aumenta padding inferior da seção Creations\" is on main with no task" [ref=e9849]
+              - cell "Drift" [ref=e9993]
+              - cell [ref=e9994]:
+                - status [ref=e9995]: Open
+              - cell "344bf3b" [ref=e9996]
+              - cell "system" [ref=e9997]
+              - cell [ref=e9998]:
+                - button "Actions for commit \"Renomeia polterbase → polter e aumenta padding inferior da seção Creations\" is on main with no task" [ref=e9999] [cursor=pointer]
+            - row "Drift" [ref=e10002]:
+              - cell "commit \"Atualiza layout da seção Kit\" is on main with no task" [ref=e10003]
+              - cell "Drift" [ref=e10147]
+              - cell [ref=e10148]:
+                - status [ref=e10149]: Open
+              - cell "d68d694" [ref=e10150]
+              - cell "system" [ref=e10151]
+              - cell [ref=e10152]:
+                - button "Actions for commit \"Atualiza layout da seção Kit\" is on main with no task" [ref=e10153] [cursor=pointer]
+            - row "Drift" [ref=e10156]:
+              - 'cell "commit \"refactor: remove theme provider and related theme switching logic to enforce dark mode.\" is on main with no task" [ref=e10157]'
+              - cell "Drift" [ref=e10301]
+              - cell [ref=e10302]:
+                - status [ref=e10303]: Open
+              - cell "9687765" [ref=e10304]
+              - cell "system" [ref=e10305]
+              - cell [ref=e10306]:
+                - 'button "Actions for commit \"refactor: remove theme provider and related theme switching logic to enforce dark mode.\" is on main with no task" [ref=e10307] [cursor=pointer]'
+            - row "Drift" [ref=e10310]:
+              - cell "commit \"Descrever polterbase\" is on main with no task" [ref=e10311]
+              - cell "Drift" [ref=e10455]
+              - cell [ref=e10456]:
+                - status [ref=e10457]: Open
+              - cell "ebf3aac" [ref=e10458]
+              - cell "system" [ref=e10459]
+              - cell [ref=e10460]:
+                - button "Actions for commit \"Descrever polterbase\" is on main with no task" [ref=e10461] [cursor=pointer]
+            - row "Drift" [ref=e10464]:
+              - 'cell "commit \"feat: Implement contact form submission directly to Supabase database and remove the Resend API endpoint.\" is on main with no task" [ref=e10465]'
+              - cell "Drift" [ref=e10609]
+              - cell [ref=e10610]:
+                - status [ref=e10611]: Open
+              - cell "294a617" [ref=e10612]
+              - cell "system" [ref=e10613]
+              - cell [ref=e10614]:
+                - 'button "Actions for commit \"feat: Implement contact form submission directly to Supabase database and remove the Resend API endpoint.\" is on main with no task" [ref=e10615] [cursor=pointer]'
+            - row "Drift" [ref=e10618]:
+              - cell "commit \"Remova sticky scroll no mobile\" is on main with no task" [ref=e10619]
+              - cell "Drift" [ref=e10763]
+              - cell [ref=e10764]:
+                - status [ref=e10765]: Open
+              - cell "e7b77e3" [ref=e10766]
+              - cell "system" [ref=e10767]
+              - cell [ref=e10768]:
+                - button "Actions for commit \"Remova sticky scroll no mobile\" is on main with no task" [ref=e10769] [cursor=pointer]

@@ -1,0 +1,8 @@
+.pw-tree { display: grid; gap: 8px; font-size: 12px; color: var(--color-text-secondary); }
+.pw-tree__row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--radius-item); cursor: pointer; }
+.pw-tree__row[data-selected] { color: var(--color-text-primary); background: var(--color-surface-selected); }
+.pw-tree__row[data-focus] { outline: 2px solid var(--color-border-strong); }
+.pw-tree__indicator { display: flex; transition: transform var(--spring-moderate-duration) var(--spring-moderate-ease); }
+.pw-tree__indicator[data-state="open"] { transform: rotate(90deg); }
+.pw-tree__children { padding-left: 16px; }
+@media (prefers-reduced-motion: reduce) { .pw-tree__indicator { transition: none; } }
