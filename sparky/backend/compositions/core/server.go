@@ -83,7 +83,7 @@ func Start(ln net.Listener, cfg Config) (*Server, error) {
 		cancel()
 		return nil, err
 	}
-	s.http = &http.Server{Handler: originGuard(ln.Addr().String(), mux), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
+	s.http = &http.Server{Handler: originGuard(ln.Addr().String(), mux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
 	go func() {
 		err := s.http.Serve(ln)
 		if errors.Is(err, http.ErrServerClosed) {
