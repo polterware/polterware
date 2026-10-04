@@ -10,6 +10,7 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -79,8 +80,8 @@ func TestMemoryCreatePatchAndRev(t *testing.T) {
 	code(t, e, fault.CodeInvalid)
 	_, e = f.MS.SetStatus(ctx, a, m.ID, 0, memory.StatusCompleted, &due)
 	code(t, e, fault.CodeUnavailable)
-	check(t, f.MS.Delete(ctx, a, m.ID))
-	code(t, f.MS.Delete(ctx, a, m.ID), fault.CodeNotFound)
+	check(t, f.MS.Delete(ctx, a, m.ID, 0))
+	code(t, f.MS.Delete(ctx, a, m.ID, 0), fault.CodeNotFound)
 }
 func TestChecklistIdentityAndTags(t *testing.T) {
 	f := setup()
@@ -103,19 +104,19 @@ func TestChecklistIdentityAndTags(t *testing.T) {
 	}
 	_, e = f.MS.ReplaceChecklist(f.Ctx, a, m.ID, 1, nil)
 	code(t, e, fault.CodeConflict)
-	item, e := f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[1].ID, nil)
+	item, e := f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[1].ID, 2, nil)
 	check(t, e)
 	if !item.Done || item.CompletedAt == nil {
 		t.Fatal(item)
 	}
-	item, e = f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[1].ID, ptr(false))
+	item, e = f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[1].ID, 3, ptr(false))
 	check(t, e)
 	if item.Done || item.CompletedAt != nil {
 		t.Fatal(item)
 	}
-	_, e = f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[1].ID, ptr(true))
+	_, e = f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[1].ID, 4, ptr(true))
 	check(t, e)
-	_, e = f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[2].ID, ptr(true))
+	_, e = f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[2].ID, 5, ptr(true))
 	check(t, e)
 	result, e := f.MS.Get(f.Ctx, m.ID, memory.Include{})
 	check(t, e)
@@ -124,9 +125,9 @@ func TestChecklistIdentityAndTags(t *testing.T) {
 	}
 	other, e := f.MS.Create(f.Ctx, a, memory.Create{Title: "Other"})
 	check(t, e)
-	_, e = f.MS.ToggleCheckItem(f.Ctx, a, other.ID, items[0].ID, nil)
+	_, e = f.MS.ToggleCheckItem(f.Ctx, a, other.ID, items[0].ID, 0, nil)
 	code(t, e, fault.CodeInvalid)
-	_, e = f.MS.ToggleCheckItem(f.Ctx, a, m.ID, "missing", nil)
+	_, e = f.MS.ToggleCheckItem(f.Ctx, a, m.ID, "missing", 0, nil)
 	code(t, e, fault.CodeNotFound)
 	_, e = f.MS.ReplaceChecklist(f.Ctx, a, m.ID, 0, nil)
 	check(t, e)
@@ -305,6 +306,90 @@ func TestRecurringValidationAndFailures(t *testing.T) {
 	check(t, e)
 	if m.Status != memory.StatusActive {
 		t.Fatal(m)
+	}
+}
+
+func TestDeleteAndToggleExpectedRev(t *testing.T) {
+	a := actor.UI()
+	for _, tc := range []struct {
+		name string
+		rev  int64
+		want string
+	}{{"zero skips", 0, ""}, {"match", 1, ""}, {"stale", 99, fault.CodeConflict}} {
+		t.Run("delete/"+tc.name, func(t *testing.T) {
+			f := setup()
+			m, e := f.MS.Create(f.Ctx, a, memory.Create{Title: "Gone"})
+			check(t, e)
+			e = f.MS.Delete(f.Ctx, a, m.ID, tc.rev)
+			if tc.want == "" {
+				check(t, e)
+				code(t, f.MS.Delete(f.Ctx, a, m.ID, 0), fault.CodeNotFound)
+				return
+			}
+			code(t, e, tc.want)
+			got, e := f.MS.Get(f.Ctx, m.ID, memory.Include{})
+			check(t, e)
+			if got.Memory.Rev != 1 {
+				t.Fatal(got.Memory)
+			}
+		})
+	}
+	t.Run("toggle", func(t *testing.T) {
+		f := setup()
+		m, e := f.MS.Create(f.Ctx, a, memory.Create{Title: "List", Checklist: []memory.CheckItemInput{{Title: "A"}}})
+		check(t, e)
+		items, e := f.Mem.ListCheckItems(f.Ctx, m.ID)
+		check(t, e)
+		_, e = f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[0].ID, 99, nil)
+		code(t, e, fault.CodeConflict)
+		item, e := f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[0].ID, 1, nil)
+		check(t, e)
+		if !item.Done {
+			t.Fatal(item)
+		}
+		_, e = f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[0].ID, 1, nil)
+		code(t, e, fault.CodeConflict)
+	})
+}
+
+func TestConcurrentToggleWriters(t *testing.T) {
+	f := setup()
+	a := actor.UI()
+	m, e := f.MS.Create(f.Ctx, a, memory.Create{Title: "Race", Checklist: []memory.CheckItemInput{{Title: "A"}}})
+	check(t, e)
+	items, e := f.Mem.ListCheckItems(f.Ctx, m.ID)
+	check(t, e)
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := f.MS.ToggleCheckItem(f.Ctx, a, m.ID, items[0].ID, 1, nil)
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	ok, conflict := 0, 0
+	for err := range errs {
+		if err == nil {
+			ok++
+			continue
+		}
+		if fault.IsCode(err, fault.CodeConflict) {
+			conflict++
+			continue
+		}
+		t.Fatal(err)
+	}
+	if ok != 1 || conflict != 1 {
+		t.Fatalf("ok=%d conflict=%d", ok, conflict)
+	}
+	got, e := f.MS.Get(f.Ctx, m.ID, memory.Include{})
+	check(t, e)
+	if got.Memory.Rev != 2 {
+		t.Fatal(got.Memory)
 	}
 }
 

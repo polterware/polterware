@@ -71,12 +71,16 @@ func (r Minds) Update(ctx context.Context, expectedRev int64, m mind.Mind) error
 	})
 }
 
-func (r Minds) Delete(ctx context.Context, id string) error {
+func (r Minds) Delete(ctx context.Context, expectedRev int64, id string) error {
 	return r.Within(ctx, func(ctx context.Context) error {
-		if _, err := r.Get(ctx, id); err != nil {
+		current, err := r.Get(ctx, id)
+		if err != nil {
 			return err
 		}
-		_, err := r.q(ctx, true).ExecContext(ctx, `DELETE FROM minds WHERE id=?`, id)
+		if expectedRev != 0 && current.Rev != expectedRev {
+			return updateConflict("mind", id, current.Rev, current)
+		}
+		_, err = r.q(ctx, true).ExecContext(ctx, `DELETE FROM minds WHERE id=?`, id)
 		return err
 	})
 }

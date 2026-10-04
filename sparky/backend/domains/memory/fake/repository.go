@@ -69,10 +69,14 @@ func (r *Repository) Update(ctx context.Context, rev int64, m memory.Memory) err
 		return r.Store.Put(ctx, "memories", m.ID, m)
 	})
 }
-func (r *Repository) Delete(ctx context.Context, id string) error {
+func (r *Repository) Delete(ctx context.Context, rev int64, id string) error {
 	return r.Store.Within(ctx, func(ctx context.Context) error {
-		if _, err := r.Get(ctx, id); err != nil {
+		old, err := r.Get(ctx, id)
+		if err != nil {
 			return err
+		}
+		if rev != 0 && old.Rev != rev {
+			return fault.Conflict("memory", id, old.Rev, old)
 		}
 		items, err := r.ListCheckItems(ctx, id)
 		if err != nil {

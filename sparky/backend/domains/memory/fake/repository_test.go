@@ -150,7 +150,7 @@ func TestMemoryRepositoryContract(t *testing.T) {
 	page, e := f.Mem.List(ctx, memory.ListFilter{Limit: 1})
 	check(t, e)
 	first := page.Memories[0].ID
-	check(t, f.Mem.Delete(ctx, first))
+	check(t, f.Mem.Delete(ctx, 0, first))
 	next, e := f.Mem.List(ctx, memory.ListFilter{Limit: 1, Cursor: page.NextCursor})
 	check(t, e)
 	if len(next.Memories) != 1 || next.Memories[0].ID == first {
@@ -164,7 +164,7 @@ func TestMemoryRepositoryContract(t *testing.T) {
 	}
 	check(t, f.Store.Put(ctx, "attachments", "attach", struct{ ID, MemoryID string }{"attach", a.ID}))
 	check(t, f.Focus.InsertSession(ctx, focus.Session{ID: "focus", MemoryID: &a.ID, StartedAt: now}))
-	check(t, f.Mem.Delete(ctx, a.ID))
+	check(t, f.Mem.Delete(ctx, 0, a.ID))
 	if _, e = f.Mem.GetCheckItem(ctx, "i"); !fault.IsCode(e, fault.CodeNotFound) {
 		t.Fatal(e)
 	}
@@ -178,7 +178,7 @@ func TestMemoryRepositoryContract(t *testing.T) {
 	if len(ss) != 1 || ss[0].MemoryID != nil {
 		t.Fatal(ss)
 	}
-	if e = f.Mem.Delete(ctx, "missing"); !fault.IsCode(e, fault.CodeNotFound) {
+	if e = f.Mem.Delete(ctx, 0, "missing"); !fault.IsCode(e, fault.CodeNotFound) {
 		t.Fatal(e)
 	}
 }
@@ -186,7 +186,7 @@ func TestRepositoryCancellation(t *testing.T) {
 	f := testkit.Setup()
 	ctx, cancel := context.WithCancel(f.Ctx)
 	cancel()
-	for _, call := range []func() error{func() error { _, e := f.Mem.Get(ctx, "id"); return e }, func() error { _, e := f.Mem.List(ctx, memory.ListFilter{}); return e }, func() error { return f.Mem.Insert(ctx, memory.Memory{}) }, func() error { return f.Mem.Update(ctx, 1, memory.Memory{}) }, func() error { return f.Mem.Delete(ctx, "id") }, func() error { _, e := f.Mem.ListCheckItems(ctx, "id"); return e }, func() error { _, e := f.Mem.GetCheckItem(ctx, "id"); return e }, func() error { return f.Mem.UpdateCheckItem(ctx, memory.CheckItem{}) }, func() error { return f.Mem.ReplaceCheckItems(ctx, "id", nil) }, func() error { _, e := f.Mem.ListTagIDs(ctx, "id"); return e }, func() error { return f.Mem.SetTagIDs(ctx, "id", nil) }, func() error { _, e := f.Mem.ListCompletions(ctx, "id"); return e }, func() error { return f.Mem.InsertCompletion(ctx, memory.Completion{}) }, func() error { return f.Mem.DeleteCompletion(ctx, "id", time.Time{}) }, func() error { _, e := f.Mem.CountByMinds(ctx, nil); return e }} {
+	for _, call := range []func() error{func() error { _, e := f.Mem.Get(ctx, "id"); return e }, func() error { _, e := f.Mem.List(ctx, memory.ListFilter{}); return e }, func() error { return f.Mem.Insert(ctx, memory.Memory{}) }, func() error { return f.Mem.Update(ctx, 1, memory.Memory{}) }, func() error { return f.Mem.Delete(ctx, 0, "id") }, func() error { _, e := f.Mem.ListCheckItems(ctx, "id"); return e }, func() error { _, e := f.Mem.GetCheckItem(ctx, "id"); return e }, func() error { return f.Mem.UpdateCheckItem(ctx, memory.CheckItem{}) }, func() error { return f.Mem.ReplaceCheckItems(ctx, "id", nil) }, func() error { _, e := f.Mem.ListTagIDs(ctx, "id"); return e }, func() error { return f.Mem.SetTagIDs(ctx, "id", nil) }, func() error { _, e := f.Mem.ListCompletions(ctx, "id"); return e }, func() error { return f.Mem.InsertCompletion(ctx, memory.Completion{}) }, func() error { return f.Mem.DeleteCompletion(ctx, "id", time.Time{}) }, func() error { _, e := f.Mem.CountByMinds(ctx, nil); return e }} {
 		if e := call(); !errors.Is(e, context.Canceled) {
 			t.Fatal(e)
 		}

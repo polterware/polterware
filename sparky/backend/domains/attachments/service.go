@@ -10,20 +10,54 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/clock"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
 	"github.com/polterware/polterware/sparky/backend/domains/ids"
+	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/tx"
 )
 
 type ServiceImpl struct {
-	mu    sync.Mutex
-	store Store
-	ids   ids.Generator
-	clock clock.Clock
+	mu       sync.Mutex
+	store    Store
+	ids      ids.Generator
+	clock    clock.Clock
+	memories memory.Repository
+	tx       tx.Manager
 }
 
 func NewService(store Store, generator ids.Generator, c clock.Clock) *ServiceImpl {
 	return &ServiceImpl{store: store, ids: generator, clock: c}
 }
 
-func (s *ServiceImpl) ImportFromPath(ctx context.Context, memoryID, sourcePath, name string) (Attachment, error) {
+func (s *ServiceImpl) WithMemoryRev(memories memory.Repository, tx tx.Manager) *ServiceImpl {
+	s.memories = memories
+	s.tx = tx
+	return s
+}
+
+func (s *ServiceImpl) within(ctx context.Context, fn func(context.Context) error) error {
+	if s.tx == nil {
+		return fn(ctx)
+	}
+	return s.tx.Within(ctx, fn)
+}
+
+func (s *ServiceImpl) checkMemoryRev(ctx context.Context, memoryID string, expectedRev int64) error {
+	if expectedRev == 0 {
+		return nil
+	}
+	if s.memories == nil {
+		return fault.Unavailable("memory revision check is not wired")
+	}
+	m, err := s.memories.Get(ctx, memoryID)
+	if err != nil {
+		return err
+	}
+	if m.Rev != expectedRev {
+		return fault.Conflict("memory", memoryID, m.Rev, m)
+	}
+	return nil
+}
+
+func (s *ServiceImpl) ImportFromPath(ctx context.Context, memoryID, sourcePath, name string, expectedRev int64) (Attachment, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if memoryID == "" || sourcePath == "" {
@@ -68,14 +102,19 @@ func (s *ServiceImpl) ImportFromPath(ctx context.Context, memoryID, sourcePath, 
 	}
 	mime, size, hash, rel := file.Mime, file.SizeBytes, file.SHA256, file.RelPath
 	a := Attachment{ID: id, MemoryID: memoryID, Kind: kind, Name: &name, Mime: &mime, SizeBytes: &size, SHA256: &hash, RelPath: &rel, CreatedAt: s.clock.Now().UTC()}
-	if err = s.store.Insert(ctx, a); err != nil {
+	if err = s.within(ctx, func(ctx context.Context) error {
+		if err := s.checkMemoryRev(ctx, memoryID, expectedRev); err != nil {
+			return err
+		}
+		return s.store.Insert(ctx, a)
+	}); err != nil {
 		_ = s.store.RemoveFile(ctx, rel)
 		return Attachment{}, err
 	}
 	return a, nil
 }
 
-func (s *ServiceImpl) AddLink(ctx context.Context, memoryID, rawURL, title string) (Attachment, error) {
+func (s *ServiceImpl) AddLink(ctx context.Context, memoryID, rawURL, title string, expectedRev int64) (Attachment, error) {
 	u, err := url.ParseRequestURI(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
 		return Attachment{}, fault.Invalid(fault.Violation{Field: "url", Reason: "must be an http or https URL"})
@@ -84,7 +123,13 @@ func (s *ServiceImpl) AddLink(ctx context.Context, memoryID, rawURL, title strin
 	if title != "" {
 		a.Title = &title
 	}
-	if err = s.store.Insert(ctx, a); err != nil {
+	err = s.within(ctx, func(ctx context.Context) error {
+		if err := s.checkMemoryRev(ctx, memoryID, expectedRev); err != nil {
+			return err
+		}
+		return s.store.Insert(ctx, a)
+	})
+	if err != nil {
 		return Attachment{}, err
 	}
 	return a, nil

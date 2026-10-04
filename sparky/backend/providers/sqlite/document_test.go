@@ -62,7 +62,7 @@ func TestDocumentSourceAndIndex(t *testing.T) {
 	if last.MemoryID != "m1" || last.Mind != "Work / Project" {
 		t.Fatalf("index last %+v", last)
 	}
-	if err := s.Memories().Delete(ctx, "m1"); err != nil {
+	if err := s.Memories().Delete(ctx, 0, "m1"); err != nil {
 		t.Fatal(err)
 	}
 	if len(idx.deleted) == 0 || idx.deleted[len(idx.deleted)-1] != "m1" {

@@ -198,11 +198,15 @@ func (r memMinds) Update(ctx context.Context, expectedRev int64, m mind.Mind) er
 	return nil
 }
 
-func (r memMinds) Delete(ctx context.Context, id string) error {
+func (r memMinds) Delete(ctx context.Context, expectedRev int64, id string) error {
 	unlock := r.lock(ctx)
 	defer unlock()
-	if _, ok := r.minds[id]; !ok {
+	cur, ok := r.minds[id]
+	if !ok {
 		return fault.NotFound("mind", id)
+	}
+	if expectedRev != 0 && cur.Rev != expectedRev {
+		return fault.Conflict("mind", id, cur.Rev, cur)
 	}
 	r.deleteMindLocked(id)
 	return nil
@@ -259,11 +263,15 @@ func (r memMemories) Update(ctx context.Context, expectedRev int64, m memory.Mem
 	return nil
 }
 
-func (r memMemories) Delete(ctx context.Context, id string) error {
+func (r memMemories) Delete(ctx context.Context, expectedRev int64, id string) error {
 	unlock := r.lock(ctx)
 	defer unlock()
-	if _, ok := r.memories[id]; !ok {
+	cur, ok := r.memories[id]
+	if !ok {
 		return fault.NotFound("memory", id)
+	}
+	if expectedRev != 0 && cur.Rev != expectedRev {
+		return fault.Conflict("memory", id, cur.Rev, cur)
 	}
 	delete(r.memories, id)
 	delete(r.checks, id)

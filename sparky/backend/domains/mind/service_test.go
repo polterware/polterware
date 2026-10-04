@@ -8,6 +8,7 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/memory"
 	"github.com/polterware/polterware/sparky/backend/domains/mind"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -62,7 +63,7 @@ func TestTreeRules(t *testing.T) {
 	code(t, e, fault.CodeNotFound)
 	_, e = f.MS.Create(ctx, a, memory.Create{Title: "Survives", MindID: &leaf.ID})
 	check(t, e)
-	result, e := f.NS.Delete(ctx, a, root.ID)
+	result, e := f.NS.Delete(ctx, a, root.ID, 0)
 	check(t, e)
 	if len(result.DeletedMindIDs) != 3 || result.MovedMemoryCount != 1 {
 		t.Fatal(result)
@@ -72,7 +73,7 @@ func TestTreeRules(t *testing.T) {
 	if len(page.Memories) != 1 {
 		t.Fatal(page)
 	}
-	_, e = f.NS.Delete(ctx, a, "missing")
+	_, e = f.NS.Delete(ctx, a, "missing", 0)
 	code(t, e, fault.CodeNotFound)
 }
 func TestMindCreateAndReorder(t *testing.T) {
@@ -146,7 +147,7 @@ func TestMindFailureRollback(t *testing.T) {
 				if !errors.Is(e, err) {
 					t.Fatal(e)
 				}
-				_, e = s.Delete(f.Ctx, actor.UI(), m.ID)
+				_, e = s.Delete(f.Ctx, actor.UI(), m.ID, 0)
 				if e == nil {
 					t.Fatal("delete succeeded")
 				}
@@ -159,7 +160,7 @@ func TestMindFailureRollback(t *testing.T) {
 			case "update":
 				_, e = s.Update(f.Ctx, actor.UI(), m.ID, 1, mind.Patch{})
 			case "count":
-				_, e = s.Delete(f.Ctx, actor.UI(), m.ID)
+				_, e = s.Delete(f.Ctx, actor.UI(), m.ID, 0)
 			}
 			if e == nil {
 				t.Fatal("failure not propagated")
@@ -170,5 +171,69 @@ func TestMindFailureRollback(t *testing.T) {
 				t.Fatal(got)
 			}
 		})
+	}
+}
+
+func TestMindDeleteExpectedRev(t *testing.T) {
+	a := actor.UI()
+	for _, tc := range []struct {
+		name string
+		rev  int64
+		want string
+	}{{"zero skips", 0, ""}, {"match", 1, ""}, {"stale", 99, fault.CodeConflict}} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := setup()
+			m, e := f.NS.Create(f.Ctx, a, mind.Create{Name: "Work"})
+			check(t, e)
+			_, e = f.NS.Delete(f.Ctx, a, m.ID, tc.rev)
+			if tc.want == "" {
+				check(t, e)
+				return
+			}
+			code(t, e, tc.want)
+			got, e := f.NS.Get(f.Ctx, m.ID)
+			check(t, e)
+			if got.Rev != 1 {
+				t.Fatal(got)
+			}
+		})
+	}
+}
+
+func TestConcurrentMindDeleteWriters(t *testing.T) {
+	f := setup()
+	a := actor.UI()
+	m, e := f.NS.Create(f.Ctx, a, mind.Create{Name: "Race"})
+	check(t, e)
+	errs := make(chan error, 2)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		name := "UI"
+		_, err := f.NS.Update(f.Ctx, a, m.ID, 1, mind.Patch{Name: &name})
+		errs <- err
+	}()
+	go func() {
+		defer wg.Done()
+		_, err := f.NS.Delete(f.Ctx, a, m.ID, 1)
+		errs <- err
+	}()
+	wg.Wait()
+	close(errs)
+	ok, lost := 0, 0
+	for err := range errs {
+		if err == nil {
+			ok++
+			continue
+		}
+		if fault.IsCode(err, fault.CodeConflict) || fault.IsCode(err, fault.CodeNotFound) {
+			lost++
+			continue
+		}
+		t.Fatal(err)
+	}
+	if ok != 1 || lost != 1 {
+		t.Fatalf("ok=%d lost=%d", ok, lost)
 	}
 }

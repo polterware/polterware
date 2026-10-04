@@ -127,7 +127,7 @@ func (s *service) Update(ctx context.Context, a actor.Actor, id string, rev int6
 	})
 	return
 }
-func (s *service) Delete(ctx context.Context, a actor.Actor, id string) (out DeleteResult, err error) {
+func (s *service) Delete(ctx context.Context, a actor.Actor, id string, rev int64) (out DeleteResult, err error) {
 	err = s.audit.Write(ctx, a, "mind", id, activity.OpDelete, "Delete mind tree", func(ctx context.Context) error {
 		if _, e := s.repo.Get(ctx, id); e != nil {
 			return e
@@ -154,7 +154,7 @@ func (s *service) Delete(ctx context.Context, a actor.Actor, id string) (out Del
 		if e != nil {
 			return e
 		}
-		return s.repo.Delete(ctx, id)
+		return s.repo.Delete(ctx, rev, id)
 	})
 	return
 }

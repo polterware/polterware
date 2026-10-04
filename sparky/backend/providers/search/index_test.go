@@ -223,7 +223,7 @@ func TestIndexRollbackBulkDeleteMindCascadeReindex(t *testing.T) {
 	}
 
 	for _, id := range []string{"m2", "m3"} {
-		if err := store.Memories().Delete(ctx, id); err != nil {
+		if err := store.Memories().Delete(ctx, 0, id); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -243,7 +243,7 @@ func TestIndexRollbackBulkDeleteMindCascadeReindex(t *testing.T) {
 		t.Fatalf("mind rename reindex: %+v err=%v", hits, err)
 	}
 
-	if err := store.Minds().Delete(ctx, root); err != nil {
+	if err := store.Minds().Delete(ctx, 0, root); err != nil {
 		t.Fatal(err)
 	}
 	hits, err = idx.Search(ctx, "cascade", searchdomain.Filter{Limit: 10})
