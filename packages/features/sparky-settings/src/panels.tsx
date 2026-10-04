@@ -232,6 +232,11 @@ export function SearchPanel() {
 }
 
 function SnippetBlock(props: { label: string; value: string }) {
+  const store = usePanel();
+  const displayed = () => {
+    const token = store.agent()?.token;
+    return !store.revealedToken() && token ? props.value.split(token).join("<mcp-token>") : props.value;
+  };
   return (
     <div class="flex flex-col gap-2">
       <SettingsRow label={props.label}>
@@ -240,7 +245,7 @@ function SnippetBlock(props: { label: string; value: string }) {
           Copy
         </Button>
       </SettingsRow>
-      <Textarea readOnly rows={4} aria-label={props.label} value={props.value} class="font-mono text-[12px]" />
+      <Textarea readOnly rows={4} aria-label={props.label} value={displayed()} class="font-mono text-[12px]" />
     </div>
   );
 }
@@ -269,7 +274,6 @@ export function AgentsAccessPanel() {
         <Show when={store.tokenInvalidated()}>
           <p class="m-0 text-[12px] text-[var(--color-text-secondary)]" data-token-invalidated="true">
             Previous token is no longer valid.
-            <Show when={store.previousToken()}> ({store.previousToken()})</Show>
           </p>
         </Show>
         <SwitchRow

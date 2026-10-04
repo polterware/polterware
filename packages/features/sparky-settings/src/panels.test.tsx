@@ -90,6 +90,28 @@ describe("settings panels", () => {
     expect(settingsStore.previousToken()).toBe(previous);
   });
 
+  it("keeps tokens out of DOM text and form values until explicitly revealed", async () => {
+    const { host } = mount(() => <AgentsAccessPanel />);
+    await vi.waitFor(() => expect(settingsStore.agent()?.token).toBeTruthy());
+    const previous = settingsStore.agent()!.token!;
+    const dom = () => host.textContent + [...host.querySelectorAll("input, textarea")]
+      .map(element => (element as HTMLInputElement).value).join(" ");
+    expect(dom()).not.toContain(previous);
+    button("Reveal token")!.click();
+    expect(dom()).toContain(previous);
+    button("Hide token")!.click();
+    expect(dom()).not.toContain(previous);
+    button("Rotate")!.click();
+    await vi.waitFor(() => expect(settingsStore.tokenInvalidated()).toBe(true));
+    const next = settingsStore.agent()!.token!;
+    expect(settingsStore.revealedToken()).toBe(false);
+    expect(dom()).not.toContain(previous);
+    expect(dom()).not.toContain(next);
+    button("Reveal token")!.click();
+    expect(dom()).toContain(next);
+    expect(dom()).not.toContain(previous);
+  });
+
   it("reports Test connection failure when MCP is off", async () => {
     const { host } = mount(() => <AgentsAccessPanel />, { agentsMcpEnabled: false });
     await vi.waitFor(() => expect(button("Test connection")).toBeTruthy());
