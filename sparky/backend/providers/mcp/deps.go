@@ -37,6 +37,7 @@ type Schedules interface {
 
 // Deps is the same domain surface the UI uses. Optional ports may be nil.
 type Deps struct {
+	Within      func(context.Context, func(context.Context) error) error
 	Version     string
 	Memories    memory.Service
 	Minds       mind.Service

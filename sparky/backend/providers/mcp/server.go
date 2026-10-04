@@ -90,16 +90,20 @@ func (s *Server) fileAttachAllowed(ctx context.Context) (bool, error) {
 }
 
 func (s *Server) session(req *mcpsdk.CallToolRequest) *MemorySession {
-	key, name := "anon", "unknown"
-	if req != nil && req.Session != nil {
-		if id := req.Session.ID(); id != "" {
-			key = id
-		} else {
-			key = fmt.Sprintf("%p", req.Session)
-		}
-		if params := req.Session.InitializeParams(); params != nil && params.ClientInfo != nil && params.ClientInfo.Name != "" {
-			name = params.ClientInfo.Name
-		}
+	if req == nil {
+		return s.sessionFor(nil)
+	}
+	return s.sessionFor(req.Session)
+}
+
+func (s *Server) sessionFor(transport *mcpsdk.ServerSession) *MemorySession {
+	if transport == nil {
+		return NewMemorySession(s.deps.Memories, "unknown")
+	}
+	key := fmt.Sprintf("%p", transport)
+	name := "unknown"
+	if params := transport.InitializeParams(); params != nil && params.ClientInfo != nil && params.ClientInfo.Name != "" {
+		name = params.ClientInfo.Name
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -107,6 +111,12 @@ func (s *Server) session(req *mcpsdk.CallToolRequest) *MemorySession {
 	if sess == nil {
 		sess = NewMemorySession(s.deps.Memories, name)
 		s.sessions[key] = sess
+		go func() {
+			_ = transport.Wait() // closes on DELETE, expiration, or transport termination
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			delete(s.sessions, key)
+		}()
 	}
 	return sess
 }

@@ -24,10 +24,14 @@ func promptText(text string) mcpsdk.PromptHandler {
 	}
 }
 
-func (s *Server) readMinds(ctx context.Context, _ *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
+func (s *Server) readMinds(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
 	rows, err := s.deps.Minds.List(ctx)
 	if err != nil {
 		return nil, err
+	}
+	sess := s.sessionFor(req.Session)
+	for _, row := range rows {
+		sess.observeMind(row.ID, row.Rev)
 	}
 	text := mindTreeText(rows, nil)
 	if text == "" {
@@ -36,26 +40,51 @@ func (s *Server) readMinds(ctx context.Context, _ *mcpsdk.ReadResourceRequest) (
 	return &mcpsdk.ReadResourceResult{Contents: []*mcpsdk.ResourceContents{{URI: "sparky://minds", MIMEType: "text/plain", Text: text}}}, nil
 }
 
-func (s *Server) readToday(ctx context.Context, _ *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
+func (s *Server) readToday(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
 	now := s.deps.now()
 	text := now.Format("Mon 2006-01-02 15:04 MST")
+	snapshots := []memory.Memory{}
 	if s.deps.Schedules != nil {
-		from := startOfDay(now)
-		rows, err := s.deps.Schedules.ListOccurrences(ctx, from, from.Add(24*time.Hour), nil, true, DefaultLimit)
-		if err == nil && len(rows) > 0 {
+		read := func(ctx context.Context) error {
+			from := startOfDay(now)
+			rows, err := s.deps.Schedules.ListOccurrences(ctx, from, from.Add(24*time.Hour), nil, true, DefaultLimit)
+			if err != nil {
+				return err
+			}
 			titles := make([]string, 0, len(rows))
 			for _, row := range rows {
-				titles = append(titles, row.Title)
+				got, err := s.deps.Memories.Get(ctx, row.MemoryID, memory.Include{})
+				if err != nil {
+					return err
+				}
+				titles = append(titles, got.Memory.Title)
+				snapshots = append(snapshots, got.Memory)
 			}
-			text += "\n" + strings.Join(titles, ", ")
+			if len(titles) > 0 {
+				text += "\n" + strings.Join(titles, ", ")
+			}
+			return nil
 		}
+		var err error
+		if s.deps.Within != nil {
+			err = s.deps.Within(ctx, read)
+		} else {
+			err = read(ctx)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	sess := s.sessionFor(req.Session)
+	for _, m := range snapshots {
+		sess.observe(m.ID, m.Rev)
 	}
 	return &mcpsdk.ReadResourceResult{Contents: []*mcpsdk.ResourceContents{{URI: "sparky://today", MIMEType: "text/plain", Text: text}}}, nil
 }
 
 func (s *Server) readMemory(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
 	id := strings.TrimPrefix(req.Params.URI, "sparky://memory/")
-	got, err := s.deps.Memories.Get(ctx, id, memory.Include{Note: true, Checklist: true})
+	got, err := s.sessionFor(req.Session).Get(ctx, id, memory.Include{})
 	if err != nil {
 		return nil, err
 	}

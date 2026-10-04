@@ -42,7 +42,7 @@ func setupMCP(t *testing.T) *harness {
 		return got.Memory.Rev, nil
 	}
 	srv, err := provider.New(provider.Deps{
-		Memories: f.MS, Minds: f.NS, Tags: f.TS, Activity: activity.NewService(af.New(f.Store)),
+		Within: f.Store.Within, Memories: f.MS, Minds: f.NS, Tags: f.TS, Activity: activity.NewService(af.New(f.Store)),
 		Review: review.NewService(rf.New(f.Store)), Search: searchStub{mem: f.MS}, Attachments: att,
 		Places: placeStub{rows: map[string]place.Place{}}, Settings: f.SS, Schedules: scheduleStub{},
 		Now: f.Audit.Clock.Now,
