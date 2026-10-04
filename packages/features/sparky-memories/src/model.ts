@@ -1,4 +1,5 @@
-import type { DescMessage, DescMethodUnary, MessageShape } from "@bufbuild/protobuf";
+// oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- MessageShape is the protobuf library export.
+import type { DescMessage, DescMethodUnary, MessageShape as ContractMessage } from "@bufbuild/protobuf";
 import type { MemorySchema, MemorySummarySchema, MemoryService, MindService, TagService, ActivityService, ScheduleService, OccurrenceSchema, UpdateMemoryRequestSchema, CheckItemInputSchema } from "@polterware/sparky-contracts";
 
 /** Contracts are generated without JSON typings; preserve the preload's protobuf JSON shape. */
@@ -7,10 +8,10 @@ export type Wire<T> = T extends { $typeName: "google.protobuf.Timestamp" } ? str
   : T extends readonly (infer V)[] ? Wire<V>[]
   : T extends object ? { [K in keyof T as K extends "$typeName" ? never : K]?: Wire<T[K]> }
   : T;
-export type JsonOf<S extends DescMessage> = Wire<MessageShape<S>>;
+export type JsonOf<S extends DescMessage> = Wire<ContractMessage<S>>;
 type Namespace<S extends { method: object }> = {
   [K in keyof S["method"]]: S["method"][K] extends DescMethodUnary
-    ? (input?: Wire<MessageShape<S["method"][K]["input"]>>) => Promise<Wire<MessageShape<S["method"][K]["output"]>>> : never;
+    ? (input?: Wire<ContractMessage<S["method"][K]["input"]>>) => Promise<Wire<ContractMessage<S["method"][K]["output"]>>> : never;
 };
 export type MemoriesBridge = {
   memories: Namespace<typeof MemoryService>;
@@ -22,7 +23,8 @@ export type MemoriesBridge = {
   app: { openDeepLink(url: string): Promise<void> };
 };
 export function browserBridge(): MemoriesBridge {
-  const bridge = (window as unknown as { sparky?: MemoriesBridge }).sparky;
+  // SAFETY: Electron preload owns this immutable bridge and Main validates RPC input/output with the frozen protobuf schemas.
+  const bridge = (window as Window & { sparky?: MemoriesBridge }).sparky;
   if (!bridge) throw new Error("Sparky bridge unavailable. Open this page in Sparky Desktop.");
   return bridge;
 }
@@ -51,6 +53,14 @@ export function recordFromJSON(row: MemoryJSON): MemoryRecord {
     tagIds: (row.tags ?? []).map(tag => tag.id ?? ""), autoCompleteOnChecklist: row.autoCompleteOnChecklist ?? false,
     schedule: row.schedule, place: row.place, attachments: row.attachments ?? [], completions: row.completions ?? [] };
 }
+export function mergePatch(previous: Patch, incoming: Patch): Patch {
+  const merged = { ...previous, ...incoming };
+  for (const [field, clear] of [["mindId", "clearMindId"], ["priority", "clearPriority"], ["dueAt", "clearDueAt"]] as const) {
+    if (incoming[clear] === true) delete merged[field];
+    else if (incoming[field] !== undefined) merged[clear] = false;
+  }
+  return merged;
+}
 export function applyPatch<T extends MemoryRow>(row: T, patch: Patch): T {
   return { ...row, ...patch, mindId: patch.clearMindId ? "" : patch.mindId ?? row.mindId,
     priority: patch.clearPriority ? undefined : patch.priority ?? row.priority,
@@ -69,7 +79,7 @@ export function filterRows(rows: readonly MemoryRow[], filter: ListFilter): Memo
     : (a: MemoryRow, b: MemoryRow) => (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999") || a.sortOrder - b.sortOrder;
   return result.sort((a, b) => Number(b.pinned) - Number(a.pinned) || compare(a, b));
 }
-export function todayGroup(row: MemoryRow, now: Date): "Overdue" | "Today" | "Upcoming 7 days" | undefined {
+export function todayGroup(row: Pick<MemoryRow, "dueAt" | "dueAllDay">, now: Date): "Overdue" | "Today" | "Upcoming 7 days" | undefined {
   if (!row.dueAt) return undefined;
   const due = new Date(row.dueAt);
   // All-day deadlines carry a civil date, while timed deadlines use the local timezone.
@@ -93,10 +103,17 @@ export function reorderChecklist(items: ChecklistInput[], index: number, directi
   const next = [...items]; [next[index], next[target]] = [next[target]!, next[index]!];
   return next.map((item, sortOrder) => ({ ...item, sortOrder }));
 }
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This is the parser for caught preload rejection values.
 export function errorText(error: unknown): string { return error instanceof Error ? error.message : String(error); }
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- Parse the rejection at the preload boundary before classifying it.
 export function isConflict(error: unknown): boolean {
-  const code = (error as { code?: unknown })?.code;
+  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This parser handles Electron-serialized RPC errors at the I/O boundary.
+  const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
   return code === 10 || code === "aborted" || code === "conflict" || /\b(conflict|aborted|revision)\b/i.test(errorText(error));
 }
 
 export type OccurrenceJSON = JsonOf<typeof OccurrenceSchema>;
+
+export type MemoryFailure = { message: string; conflict: boolean };
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- Caught RPC failures are untrusted until this parser normalizes them.
+export function parseMemoryFailure(error: unknown): MemoryFailure { return { message: errorText(error), conflict: isConflict(error) }; }

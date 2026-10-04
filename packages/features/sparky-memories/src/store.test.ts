@@ -35,6 +35,17 @@ describe("revision-safe memory store", () => {
     expect(data.get("memory-1")!.title).toBe("Final"); expect(data.get("memory-1")!.note).toBe("Final note");
     expect(vi.mocked(update).mock.calls[1]![0]!.expectedRev).toBe("2"); expect(store.state("memory-1")).toBe("live");
   });
+  it("coalesces rapid set/clear property edits into a valid patch", async () => {
+    const { store, data, bridge } = setup(); await store.load("memory-1");
+    store.edit("memory-1", { mindId: "mind-1", priority: 3, dueAt: "2026-10-05T12:00:00Z" });
+    store.edit("memory-1", { clearMindId: true, clearPriority: true, clearDueAt: true });
+    await store.flush("memory-1");
+    expect(store.state("memory-1")).toBe("live");
+    expect(vi.mocked(bridge.memories.update).mock.calls[0]![0]).toEqual({ id: "memory-1", expectedRev: "1", clearMindId: true, clearPriority: true, clearDueAt: true });
+    expect(data.get("memory-1")!.dueAt).toBeUndefined(); expect(store.record("memory-1")!.priority).toBeUndefined();
+    store.edit("memory-1", { clearMindId: true }); store.edit("memory-1", { mindId: "mind-1" }); await store.flush("memory-1");
+    expect(data.get("memory-1")!.mindId).toBe("mind-1");
+  });
   it("retains the latest local draft on conflict, then overwrites against the reloaded rev", async () => {
     const { store, data, bridge } = setup(); await store.load("memory-1");
     data.set("memory-1", { ...data.get("memory-1")!, note: "Remote edit", rev: "2" });
@@ -75,6 +86,22 @@ describe("revision-safe memory store", () => {
     const task = store.toggle("memory-1", "pinned"); expect(store.rows()[0]!.pinned).toBe(true); await task;
     expect(store.rows()[0]!.pinned).toBe(false); expect(store.state("memory-1")).toBe("failed");
   });
+  it("rolls back a failed optimistic checklist toggle while preserving its title and detail", async () => {
+    const { store, bridge } = setup(); await store.load("memory-1");
+    vi.mocked(bridge.memories.toggleCheckItem).mockRejectedValueOnce(new Error("Core unavailable"));
+    const task = store.toggleChecklist("memory-1", "check-1", true);
+    expect(store.record("memory-1")!.checklist[0]!.done).toBe(true); await task;
+    expect(store.record("memory-1")!.checklist[0]!.done).toBe(false);
+    expect(store.record("memory-1")!.checklist[0]!.detail).toBe("Keep details");
+  });
+  it("flushes a checklist detail edit before a checked toggle and reflects auto completion", async () => {
+    const { store, data, bridge } = setup(); await store.load("memory-1");
+    store.edit("memory-1", { autoCompleteOnChecklist: true });
+    store.editChecklist("memory-1", [{ id: "check-1", title: "First step", detail: "Latest detail", done: false }]);
+    await store.toggleChecklist("memory-1", "check-1", true);
+    expect(vi.mocked(bridge.memories.toggleCheckItem).mock.calls[0]![0]!.expectedRev).toBe("3");
+    expect(store.record("memory-1")!.status).toBe("completed"); expect(data.get("memory-1")!.checklist![0]!.detail).toBe("Latest detail");
+  });
   it("undo reopens a completion with expectedRev", async () => {
     const { store, data, bridge } = setup(); await store.refresh(); await store.toggle("memory-1", "status");
     expect(data.get("memory-1")!.status).toBe("completed");
@@ -87,6 +114,13 @@ describe("revision-safe memory store", () => {
     await store.refresh(); await store.queueDelete("memory-1"); expect(store.rows()).toHaveLength(0);
     await store.undo(store.undos()[0]!); await vi.advanceTimersByTimeAsync(8001);
     expect(bridge.memories.delete).not.toHaveBeenCalled(); expect(data.get("memory-1")!.attachments).toHaveLength(1); expect(store.rows()).toHaveLength(1);
+  });
+  it("does not queue duplicate deletion or undo twice", async () => {
+    const { store, bridge } = setup(); await store.load("memory-1");
+    await Promise.all([store.queueDelete("memory-1"), store.queueDelete("memory-1")]);
+    expect(store.undos()).toHaveLength(1);
+    const undo = store.undos()[0]!; await Promise.all([store.undo(undo), store.undo(undo)]);
+    expect(bridge.memories.delete).not.toHaveBeenCalled(); expect(store.deleting().size).toBe(0);
   });
   it("runs deletion after 8 seconds, with a checked revision, and restores a failed row", async () => {
     vi.useFakeTimers(); const { store, bridge } = setup(); await store.refresh();

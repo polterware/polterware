@@ -23,17 +23,30 @@ export function fakeBridge(seed: MemoryJSON[] = [memoryFixture()]) {
       create: vi.fn<MemoriesBridge["memories"]["create"]>(async input => { const memory = { ...input, id: `created-${data.size}`, status: "active", rev: "1" }; data.set(memory.id, memory); return { memory }; }),
       update: vi.fn<MemoriesBridge["memories"]["update"]>(async input => {
         const { id, expectedRev, clearDueAt, clearPriority, clearMindId, ...patch } = input!;
-        return update(id, expectedRev, { ...patch, ...(clearDueAt ? { dueAt: undefined } : {}), ...(clearPriority ? { priority: undefined } : {}), ...(clearMindId ? { mindId: "" } : {}) });
+        if (clearDueAt && patch.dueAt !== undefined || clearPriority && patch.priority !== undefined || clearMindId && patch.mindId !== undefined) throw new Error("cannot set and clear the same field");
+        if (clearDueAt) patch.dueAt = undefined;
+        if (clearPriority) patch.priority = undefined;
+        if (clearMindId) patch.mindId = "";
+        return update(id, expectedRev, patch);
       }),
       delete: vi.fn<MemoriesBridge["memories"]["delete"]>(async input => { const memory = find(input?.id); if (input?.expectedRev !== memory.rev) throw new Error("memory revision conflict"); data.delete(input!.id!); return {}; }),
       setStatus: vi.fn<MemoriesBridge["memories"]["setStatus"]>(async input => update(input?.id, input?.expectedRev, { status: input?.status })),
       setPinned: vi.fn<MemoriesBridge["memories"]["setPinned"]>(async input => update(input?.id, input?.expectedRev, { pinned: input?.pinned })),
       reorder: vi.fn<MemoriesBridge["memories"]["reorder"]>(async () => ({})),
-      toggleCheckItem: vi.fn<MemoriesBridge["memories"]["toggleCheckItem"]>(async () => ({})),
+      toggleCheckItem: vi.fn<MemoriesBridge["memories"]["toggleCheckItem"]>(async input => {
+        const old = find(input?.memoryId);
+        const checklist = (old.checklist ?? []).map(item => item.id === input?.itemId ? { ...item, done: input?.done ?? !item.done } : item);
+        const patch: MemoryJSON = { checklist };
+        if (old.autoCompleteOnChecklist) patch.status = checklist.length && checklist.every(item => item.done) ? "completed" : "active";
+        const result = update(input?.memoryId, input?.expectedRev, patch);
+        return { ...result, memory: { ...result.memory, note: "" }, item: checklist.find(item => item.id === input?.itemId) };
+      }),
       replaceChecklist: vi.fn<MemoriesBridge["memories"]["replaceChecklist"]>(async input => {
         const items = (input?.items ?? []).map((item, index) => ({ ...item, id: item.id || `new-check-${index}` }));
         const old = find(input?.memoryId);
-        const result = update(input?.memoryId, input?.expectedRev, { checklist: items, ...(old.autoCompleteOnChecklist ? { status: items.length > 0 && items.every(item => item.done) ? "completed" : "active" } : {}) });
+        const patch: MemoryJSON = { checklist: items };
+        if (old.autoCompleteOnChecklist) patch.status = items.length > 0 && items.every(item => item.done) ? "completed" : "active";
+        const result = update(input?.memoryId, input?.expectedRev, patch);
         return { ...result, memory: { ...result.memory, note: "" }, items };
       }),
       setTags: vi.fn<MemoriesBridge["memories"]["setTags"]>(async input => { const tags = input?.tagIds?.map(id => ({ id, name: id })); const result = update(input?.memoryId, input?.expectedRev, { tags }); return { ...result, memory: { ...result.memory, note: "" }, tags }; }),

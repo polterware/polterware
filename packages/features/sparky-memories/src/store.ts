@@ -1,6 +1,6 @@
 import { batch, createSignal } from "solid-js";
 import type { MindSchema, TagSchema, ActivityEventSchema, CreateMemoryRequestSchema } from "@polterware/sparky-contracts";
-import { applyPatch, browserBridge, errorText, isConflict, recordFromJSON, rowFromJSON, type ChecklistInput, type MemoriesBridge, type JsonOf, type MemoryJSON, type MemoryRecord, type MemoryRow, type OccurrenceJSON, type Patch } from "./model";
+import { applyPatch, browserBridge, errorText, parseMemoryFailure, mergePatch, recordFromJSON, rowFromJSON, type ChecklistInput, type MemoriesBridge, type MemoryFailure, type JsonOf, type MemoryJSON, type MemoryRecord, type MemoryRow, type OccurrenceJSON, type Patch } from "./model";
 
 export type SaveState = "live" | "queued" | "saving" | "failed" | "conflict";
 type Draft = { patch: Patch; checklist?: ChecklistInput[]; tagIds?: string[] };
@@ -14,6 +14,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
   const [drafts, setDrafts] = createSignal<Record<string, Draft>>({});
   const [inflight, setInflight] = createSignal<Record<string, Draft>>({});
   const [optimistic, setOptimistic] = createSignal<Record<string, Partial<MemoryRecord>>>({});
+  const [checkToggles, setCheckToggles] = createSignal<Record<string, Record<string, boolean>>>({});
   const [states, setStates] = createSignal<Record<string, SaveState>>({});
   const [errors, setErrors] = createSignal<Record<string, string>>({});
   const [minds, setMinds] = createSignal<JsonOf<typeof MindSchema>[]>([]);
@@ -32,9 +33,9 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
   let generation = 0, unsubscribe: (() => void) | undefined, users = 0;
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   const state = (id: string) => states()[id] ?? "live";
-  const report = (id: string, error: unknown) => batch(() => {
-    setStates(v => ({ ...v, [id]: isConflict(error) ? "conflict" : "failed" }));
-    setErrors(v => ({ ...v, [id]: errorText(error) }));
+  const report = (id: string, error: MemoryFailure) => batch(() => {
+    setStates(v => ({ ...v, [id]: error.conflict ? "conflict" : "failed" }));
+    setErrors(v => ({ ...v, [id]: error.message }));
   });
   function accept(json: MemoryJSON, full = false, relations: Pick<MemoryJSON, "checklist" | "tags"> = {}) {
     if (!json.id) throw new Error("The core returned a memory without an ID.");
@@ -66,7 +67,11 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
     }
     return next;
   }
-  const record = (id: string) => { const value = records()[id]; return value ? overlay(value) : undefined; };
+  const record = (id: string) => {
+    const value = records()[id]; if (!value) return undefined;
+    const next = overlay(value), toggles = checkToggles()[id];
+    return toggles ? { ...next, checklist: next.checklist.map(item => item.id && item.id in toggles ? { ...item, done: toggles[item.id] } : item) } : next;
+  };
   const visibleRows = () => rows().filter(row => !deleting().has(row.id)).map(overlay);
   function enqueue(id: string, action: () => Promise<void>) {
     const previous = queues.get(id) ?? Promise.resolve();
@@ -76,7 +81,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
     return next;
   }
   function mergeDraft(id: string, value: Draft) {
-    setDrafts(v => ({ ...v, [id]: { ...value, ...v[id], patch: { ...value.patch, ...v[id]?.patch } } }));
+    setDrafts(v => ({ ...v, [id]: { ...value, ...v[id], patch: mergePatch(value.patch, v[id]?.patch ?? {}) } }));
   }
   async function saveDraft(id: string) {
     if (state(id) === "conflict" || state(id) === "failed") return;
@@ -108,14 +113,14 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
       setStates(v => ({ ...v, [id]: drafts()[id] ? "queued" : "live" }));
       setErrors(v => ({ ...v, [id]: "" }));
     } catch (error) {
-      mergeDraft(id, remaining); report(id, error);
+      mergeDraft(id, remaining); report(id, parseMemoryFailure(error));
     } finally {
       setInflight(v => { const next = { ...v }; delete next[id]; return next; });
     }
   }
   function edit(id: string, value: Partial<Draft>) {
     if (deleting().has(id)) return;
-    setDrafts(v => ({ ...v, [id]: { ...v[id], ...value, patch: { ...v[id]?.patch, ...value.patch } } }));
+    setDrafts(v => ({ ...v, [id]: { ...v[id], ...value, patch: mergePatch(v[id]?.patch ?? {}, value.patch ?? {}) } }));
     if (state(id) === "conflict" || state(id) === "failed") return;
     setStates(v => ({ ...v, [id]: "queued" }));
     const old = timers.get(id); if (old) clearTimeout(old);
@@ -132,7 +137,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
         if (mode === "reload") setDrafts(v => { const next = { ...v }; delete next[id]; return next; });
         setStates(v => ({ ...v, [id]: "live" })); setErrors(v => ({ ...v, [id]: "" }));
         if (mode === "overwrite") await saveDraft(id);
-      } catch (error) { report(id, error); }
+      } catch (error) { report(id, parseMemoryFailure(error)); }
     });
   }
   function addUndo(id: string, message: string, run: () => Promise<void>, expire?: () => Promise<void>) {
@@ -143,9 +148,9 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
     setUndos(v => [...v, { id, message, run, timer, expiresAt: Date.now() + 8000 }]);
   }
   async function undo(item: Undo) {
-    if (Date.now() >= item.expiresAt) return;
+    if (Date.now() >= item.expiresAt || !undos().includes(item)) return;
     clearTimeout(item.timer); setUndos(v => v.filter(value => value !== item));
-    try { await item.run(); } catch (error) { report(item.id, error); }
+    try { await item.run(); } catch (error) { report(item.id, parseMemoryFailure(error)); }
   }
   async function toggle(id: string, kind: "status" | "pinned", explicit?: boolean) {
     const row = visibleRows().find(row => row.id === id);
@@ -168,10 +173,32 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
         if (kind === "status") await load(id, true);
         setStates(v => ({ ...v, [id]: drafts()[id] ? "queued" : "live" }));
         if (kind === "status" && value) addUndo(id, `Completed “${row.title}”`, () => toggle(id, "status", false));
-      } catch (error) { if (state(id) !== "conflict") report(id, error); }
+      } catch (error) { if (state(id) !== "conflict") report(id, parseMemoryFailure(error)); }
       finally {
         // Later queued toggles still carry their own value into the serialized write.
         if (toggleVersions.get(toggleKey) === version) setOptimistic(v => { const next = { ...v, [id]: { ...v[id] } }; delete next[id]![kind === "pinned" ? "pinned" : "status"]; return next; });
+      }
+    });
+  }
+  async function toggleChecklist(id: string, itemId: string, done: boolean) {
+    const key = `${id}:check:${itemId}`;
+    const version = (toggleVersions.get(key) ?? 0) + 1; toggleVersions.set(key, version);
+    setCheckToggles(v => ({ ...v, [id]: { ...v[id], [itemId]: done } }));
+    await enqueue(id, async () => {
+      try {
+        await saveDraft(id);
+        if (state(id) === "conflict" || state(id) === "failed") throw new Error("Resolve the unsaved edit before toggling a checklist item.");
+        await load(id); setStates(v => ({ ...v, [id]: "saving" }));
+        const response = await getBridge().memories.toggleCheckItem({ memoryId: id, itemId, done, expectedRev: records()[id]!.rev });
+        if (!response.memory) throw new Error("The core did not acknowledge the checklist action.");
+        accept({ ...response.memory, note: records()[id]!.note });
+        await load(id, true);
+        setStates(v => ({ ...v, [id]: drafts()[id] ? "queued" : "live" }));
+      } catch (error) { if (state(id) !== "conflict") report(id, parseMemoryFailure(error)); }
+      finally {
+        if (toggleVersions.get(key) === version) setCheckToggles(v => {
+          const next = { ...v, [id]: { ...v[id] } }; delete next[id]![itemId]; return next;
+        });
       }
     });
   }
@@ -179,6 +206,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
     await flush(id);
     if (state(id) === "conflict" || state(id) === "failed") throw new Error("Resolve unsaved edits before deleting.");
     const snapshot = await load(id);
+    if (deleting().has(id)) return;
     setDeleting(v => new Set([...v, id]));
     addUndo(id, `Deletion queued: “${snapshot.title}”`, async () => { setDeleting(v => { const next = new Set(v); next.delete(id); return next; }); }, async () => {
       await enqueue(id, async () => {
@@ -188,7 +216,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
             setRows(v => v.filter(row => row.id !== id));
             setRecords(v => { const next = { ...v }; delete next[id]; return next; });
           });
-        } catch (error) { report(id, error); }
+        } catch (error) { report(id, parseMemoryFailure(error)); }
         finally { setDeleting(v => { const next = new Set(v); next.delete(id); return next; }); }
       });
     });
@@ -213,7 +241,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
       if (current === generation) {
         setRows(all.map(row => { const cached = records()[row.id]; return cached && BigInt(cached.rev) >= BigInt(row.rev) ? cached : row; }));
         // Do not overwrite unsaved drafts; clean details are invalidated by the same event.
-        await Promise.all(Object.keys(records()).filter(id => !drafts()[id] && !inflight()[id] && !queues.has(id) && !deleting().has(id)).map(id => load(id, true).catch(error => report(id, error))));
+        await Promise.all(Object.keys(records()).filter(id => !drafts()[id] && !inflight()[id] && !queues.has(id) && !deleting().has(id)).map(id => load(id, true).catch(error => report(id, parseMemoryFailure(error)))));
       }
     } catch (error) { if (current === generation) setLoadError(errorText(error)); }
     finally { if (current === generation) setLoading(false); }
@@ -227,7 +255,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
       if (results[0].status === "fulfilled") setMinds(results[0].value.minds ?? []);
       if (results[1].status === "fulfilled") setTags(results[1].value.tags ?? []);
       if (results[2].status === "fulfilled") setActivity(results[2].value.events ?? []);
-      setMetadataError(results.filter(value => value.status === "rejected").map(value => errorText((value as PromiseRejectedResult).reason)).join("; "));
+      setMetadataError(results.filter(value => value.status === "rejected").map(value => errorText(value.reason)).join("; "));
     });
   }
   function connect() {
@@ -255,7 +283,7 @@ export function createMemoriesStore(getBridge: () => MemoriesBridge = browserBri
   }
   return { rows: visibleRows, record, state, errors, drafts, minds, tags, activity, loading, loadError, metadataError, occurrences, scheduleError, undos, deleting,
     load, edit: (id: string, patch: Patch) => edit(id, { patch }), editChecklist: (id: string, checklist: ChecklistInput[]) => edit(id, { checklist }),
-    editTags: (id: string, tagIds: string[]) => edit(id, { tagIds }), flush, resolve, toggle, queueDelete, create, refresh, refreshMetadata, connect, undo, dispose };
+    editTags: (id: string, tagIds: string[]) => edit(id, { tagIds }), flush, resolve, toggle, toggleChecklist, queueDelete, create, refresh, refreshMetadata, connect, undo, dispose };
 }
 export type MemoriesStore = ReturnType<typeof createMemoriesStore>;
 export const memoriesStore = createMemoriesStore();
