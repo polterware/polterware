@@ -131,7 +131,17 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     try { url = new URL(link.url); } catch { return; }
     if (url.protocol !== "sparky:") return;
     setDeepLink(url);
-    for (const feature of props.features) if (feature.onDeepLink?.(url)) return;
+    let handled = false;
+    for (const feature of props.features) {
+      if (feature.onDeepLink?.(url)) { handled = true; break; }
+    }
+    if (url.hostname === "memory" && url.searchParams.get("action") === "focus") {
+      const id = url.pathname.replace(/^\//, "");
+      navigate("/focus");
+      if (id) openMemory(id);
+      return;
+    }
+    if (handled) return;
     const target = deepLinkPath(link.url);
     if (target) navigate(`${target}${url.search}`);
   }

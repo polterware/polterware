@@ -26,6 +26,9 @@ export function parseDeepLink(raw: string): DeepLink | null {
       case "search":
         if ((url.pathname && url.pathname !== "/") || params.some(key => key !== "q") || url.searchParams.getAll("q").length > 1) return null;
         route = `/search${url.search}`; break;
+      case "focus":
+        if ((url.pathname && url.pathname !== "/") || params.length) return null;
+        route = "/focus"; break;
       default: return null;
     }
     return { url: url.href, route };

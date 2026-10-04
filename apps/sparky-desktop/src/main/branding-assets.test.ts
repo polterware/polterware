@@ -11,9 +11,11 @@ describe.skipIf(!existsSync(new URL("resources/icon.icns", root)))("Sparky brand
 });
 it("configures Sparky branding and the Solid entry point", () => {
   const config = readFileSync(new URL("electron-builder.yml", root), "utf8");
-  expect(config).toContain("icon: resources/icon.icns");
-  expect(config).toContain("from: resources/app-icons");
-  expect(config).toContain("com.polterware.sparky");
+    expect(config).toContain("icon: resources/icon.icns");
+    expect(config).toContain("from: resources/app-icons");
+    expect(config).toContain("from: resources/sounds");
+    expect(config).toContain("com.polterware.sparky");
   expect(config).toContain('minimumSystemVersion: "15.0"');
-  expect(existsSync(new URL("src/renderer/main.tsx", root))).toBe(true);
-});
+    expect(existsSync(new URL("src/renderer/main.tsx", root))).toBe(true);
+    expect(existsSync(new URL("src/renderer/public/sounds/bell.webm", root))).toBe(true);
+  });
