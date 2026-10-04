@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { canOpenExternalUrl, contentSecurityPolicy, isAllowedRendererUrl, parseDeepLink } from "./navigation-policy.js";
 const id = "01K6N3QWJ8P9A7B6C5D4E3F2G1";
@@ -20,5 +21,9 @@ describe("navigation policy", () => {
     expect(contentSecurityPolicy(true)).toContain("connect-src 'self' https://tiles.openfreemap.org");
     expect(contentSecurityPolicy(true)).toContain("script-src 'self';");
     expect(contentSecurityPolicy(false)).not.toContain("unsafe-eval");
+  });
+  it("does not ship a document CSP meta; Main owns the enforced policy", () => {
+    const html = readFileSync(new URL("../renderer/index.html", import.meta.url), "utf8");
+    expect(html).not.toMatch(/http-equiv=["']Content-Security-Policy["']/i);
   });
 });

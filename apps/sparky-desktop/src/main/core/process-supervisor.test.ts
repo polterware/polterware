@@ -1,8 +1,8 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildId, isNewerBuild, readCoreState } from "./process-supervisor.js";
+import { buildId, isNewerBuild, readCoreState, resolveBinary } from "./process-supervisor.js";
 describe("supervisor runstate", () => {
   it("validates database identity, token, permissions and loopback endpoint", () => {
     const temp = mkdtempSync(join(tmpdir(), "sparky-state-"));
@@ -19,5 +19,39 @@ describe("supervisor runstate", () => {
       expect(isNewerBuild("200-5", "100-10")).toBe(true);
       expect(isNewerBuild("100-10", "200-5")).toBe(false);
     } finally { rmSync(temp, { recursive: true, force: true }); }
+  });
+  it("prefers an absolute SPARKY_CORE_BIN over the bundled path", () => {
+    const temp = mkdtempSync(join(tmpdir(), "sparky-bin-"));
+    const previous = process.env.SPARKY_CORE_BIN;
+    try {
+      const binary = join(temp, "sparky");
+      writeFileSync(binary, "");
+      process.env.SPARKY_CORE_BIN = binary;
+      expect(resolveBinary("/app", "/resources", false)).toBe(binary);
+      expect(resolveBinary("/app", "/resources", true)).toBe(binary);
+      process.env.SPARKY_CORE_BIN = "relative/sparky";
+      expect(() => resolveBinary("/app", "/resources", false)).toThrow(/absolute/);
+    } finally {
+      if (previous === undefined) delete process.env.SPARKY_CORE_BIN;
+      else process.env.SPARKY_CORE_BIN = previous;
+      rmSync(temp, { recursive: true, force: true });
+    }
+  });
+  it("spawns the frozen CLI argv and health-checks build plus dbPath", () => {
+    const source = readFileSync(new URL("./process-supervisor.ts", import.meta.url), "utf8");
+    expect(source).toContain('["-db", dbPath, "serve", "--listen", "127.0.0.1:0"]');
+    expect(source).toContain("run/core.json");
+    expect(source).toContain("health.build");
+    expect(source).toContain("health.dbPath");
+    expect(source).toContain("SPARKY_CORE_BIN");
+    const previous = process.env.SPARKY_CORE_BIN;
+    delete process.env.SPARKY_CORE_BIN;
+    try {
+      expect(() => resolveBinary("/missing-app", "/missing-resources", false)).toThrow(/build:sparky-core/);
+      expect(() => resolveBinary("/missing-app", "/missing-resources", true)).toThrow(/build:sparky-core/);
+    } finally {
+      if (previous === undefined) delete process.env.SPARKY_CORE_BIN;
+      else process.env.SPARKY_CORE_BIN = previous;
+    }
   });
 });
