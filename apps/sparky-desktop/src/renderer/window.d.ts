@@ -1,8 +1,4 @@
-export interface SparkyBridge {
-  app: {
-    name: string;
-  };
-}
+import type { SparkyBridge } from "../shared/bridge.js";
 
 declare global {
   interface Window {

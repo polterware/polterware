@@ -379,6 +379,9 @@ importers:
       '@polterware/sparky-contracts':
         specifier: workspace:*
         version: link:../../packages/sparky-contracts
+      electron-updater:
+        specifier: ^6.8.9
+        version: 6.8.9(supports-color@8.1.1)
       solid-js:
         specifier: ^1.9.15
         version: 1.9.15
