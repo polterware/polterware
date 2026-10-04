@@ -21,6 +21,11 @@ test("shell: keyboard navigation, Commander quick add, real core, and global det
   const app = await electron.launch({ executablePath, args: [`--user-data-dir=${join(directory, "userdata")}`, `--sparky-e2e-env=${environmentFile}`], env: environment });
   try {
     const page = await app.firstWindow();
+    await expect(page.getByRole("dialog", { name: "Welcome to Sparky" })).toBeVisible();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Enable notifications", exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog")).toContainText("does not arm a reminder");
+    await expect(page.getByRole("dialog")).not.toContainText(/Reminders: \d+ armed/);
     await page.getByRole("button", { name: "Skip onboarding", exact: true }).click();
     await expect(page.getByRole("main")).toHaveAttribute("aria-label", "Today");
     await expect(page.getByText("Connecting…", { exact: true })).toHaveCount(0);

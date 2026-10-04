@@ -36,7 +36,8 @@ export type SparkyBridge = {
     revealInFinder(attachmentUrl: string): Promise<void>;
     startMicrophone(): Promise<boolean>;
     getInfo(): Promise<{ name: string; version: string; updates: "disabled" }>;
+    requestNotificationAuthorization(): Promise<boolean>;
   };
 };
 export const EVENTS = { change: "sparky:change", deepLink: "sparky:deep-link" } as const;
-export const APP_METHODS = ["openDeepLink", "getDeepLink", "pickFiles", "saveZip", "saveBackup", "revealInFinder", "startMicrophone", "getInfo"] as const;
+export const APP_METHODS = ["openDeepLink", "getDeepLink", "pickFiles", "saveZip", "saveBackup", "revealInFinder", "startMicrophone", "getInfo", "requestNotificationAuthorization"] as const;

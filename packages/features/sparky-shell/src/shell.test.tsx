@@ -13,12 +13,14 @@ beforeEach(() => {
   });
 });
 afterEach(() => { dispose?.(); dispose = undefined; document.body.replaceChildren(); vi.restoreAllMocks(); });
-function mount(extra: SparkyFeature[] = [], options: { offline?: boolean } = {}) {
+function mount(extra: SparkyFeature[] = [], options: { offline?: boolean; permission?: string; armed?: number; authorize?: false | (() => Promise<boolean>) } = {}) {
+  let permission = options.permission ?? "authorized";
   const status = vi.fn(async () => {
     if (options.offline) throw new Error("Core disconnected");
-    return { permission: "authorized", armed: 0, planned: 0, notifierLastSeenAt: new Date().toISOString() };
+    return { permission, armed: options.armed ?? 0, planned: 0, notifierLastSeenAt: new Date().toISOString() };
   });
   const create = vi.fn(async (_input?: unknown) => ({ memory: { id: "new-memory", title: "Buy milk", rev: "1" } }));
+  const requestNotificationAuthorization = vi.fn(options.authorize === false ? undefined : (options.authorize ?? (async () => { permission = "authorized"; return true; })));
   let onLink!: (link: { url: string; route: string }) => void;
   const unsubscribe = vi.fn();
   const wire = {
@@ -26,11 +28,15 @@ function mount(extra: SparkyFeature[] = [], options: { offline?: boolean } = {})
     memories: { list: async () => ({ total: 0 }), create, get: async () => ({ memory: { id: "new-memory", title: "Buy milk", note: "Local note", rev: "1" } }) },
     tags: { list: async () => ({ tags: [] }) }, search: { search: async () => ({ hits: [{ memoryId: "new-memory", title: "Buy milk", snippet: "Local note" }] }) },
     onChange: () => unsubscribe,
-    app: { onDeepLink: (callback: typeof onLink) => { onLink = callback; return unsubscribe; }, getDeepLink: async () => null },
+    app: {
+      onDeepLink: (callback: typeof onLink) => { onLink = callback; return unsubscribe; },
+      getDeepLink: async () => null,
+      ...(options.authorize === false ? {} : { requestNotificationAuthorization }),
+    },
   } as unknown as ShellWireBridge;
   const host = document.createElement("div"); document.body.append(host);
   dispose = render(() => <SparkyShell features={[shellFeature, ...extra]} bridge={createShellBridge(wire)} />, host);
-  return { host, status, create, onLink: (url: string) => onLink({ url, route: "" }), unsubscribe };
+  return { host, status, create, onLink: (url: string) => onLink({ url, route: "" }), unsubscribe, requestNotificationAuthorization };
 }
 function button(label: string): HTMLButtonElement {
   const found = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(item => item.getAttribute("aria-label") === label || item.textContent?.trim() === label);
@@ -144,12 +150,57 @@ it("keeps failed registered actions in Commander with honest error text", async 
   fill("fail action"); button("Fail action").click();
   await vi.waitFor(() => expect(document.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain("Action failed"));
 });
-it("shows skippable onboarding and honest authorization-unavailable state", async () => {
+it("shows skippable onboarding without requesting notification authorization on mount", async () => {
   localStorage.removeItem("sparky.shell.onboarding");
-  mount(); await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Welcome to Sparky"));
+  const { requestNotificationAuthorization } = mount([], { permission: "not-determined" });
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Welcome to Sparky"));
+  expect(requestNotificationAuthorization).not.toHaveBeenCalled();
   button("Continue").click();
-  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Notification authorization is unavailable"));
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Reminders: permission required"));
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Enable notifications");
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain("does not arm a reminder");
+  expect(document.querySelector('[role="dialog"]')?.textContent).not.toMatch(/Reminders: \d+ armed/);
   button("Skip onboarding").click();
   await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
   expect(localStorage.getItem("sparky.shell.onboarding")).toBe("complete");
+  expect(requestNotificationAuthorization).not.toHaveBeenCalled();
+});
+it("enables notifications from onboarding and reports real reminder status", async () => {
+  localStorage.removeItem("sparky.shell.onboarding");
+  const { requestNotificationAuthorization } = mount([], { permission: "not-determined" });
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Welcome to Sparky"));
+  button("Continue").click();
+  await vi.waitFor(() => expect(button("Enable notifications").disabled).toBe(false));
+  expect(requestNotificationAuthorization).not.toHaveBeenCalled();
+  button("Enable notifications").click();
+  await vi.waitFor(() => expect(requestNotificationAuthorization).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Reminders refresh when Sparky runs"));
+  expect(document.querySelector('[role="dialog"]')?.textContent).not.toMatch(/Reminders: \d+ armed/);
+  expect(button("Enable notifications").disabled).toBe(true);
+});
+it("renders registered memoryDetail, memoryCollection, and sidebarTree", async () => {
+  const Detail = (props: { memoryId: string; detailSections: { id: string }[] }) => (
+    <DetailPanel.Body><DetailPanel.Main>Memory detail {props.memoryId} {props.detailSections.map(section => section.id).join(",")}</DetailPanel.Main></DetailPanel.Body>
+  );
+  const Collection = () => {
+    const shell = useSparkyShell();
+    return <><p>Mind collection {shell.params().id}</p><Button onClick={() => shell.openMemory("mem-1")}>Open memory</Button></>;
+  };
+  const { host, onLink } = mount([
+    {
+      id: "memories",
+      routes: [],
+      memoryCollection: Collection,
+      memoryDetail: Detail,
+      detailSections: [{ id: "schedule", order: 1, component: () => <p>Schedule card</p> }],
+    },
+    { id: "map", routes: [], detailSections: [{ id: "place", order: 2, component: () => <p>Place card</p> }] },
+    { id: "minds", routes: [], sidebarTree: { id: "minds-tree", component: () => <p>Registered minds tree</p> } },
+  ]);
+  await vi.waitFor(() => expect(host.textContent).toContain("Registered minds tree"));
+  onLink("sparky://mind/home");
+  await vi.waitFor(() => expect(host.textContent).toContain("Mind collection home"));
+  expect(host.textContent).not.toContain("Mind is unavailable");
+  button("Open memory").click();
+  await vi.waitFor(() => expect(host.textContent).toContain("Memory detail mem-1 schedule,place"));
 });
