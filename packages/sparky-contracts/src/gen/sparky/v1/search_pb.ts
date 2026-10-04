@@ -4,13 +4,15 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file sparky/v1/search.proto.
  */
 export const file_sparky_v1_search: GenFile = /*@__PURE__*/
-  fileDesc("ChZzcGFya3kvdjEvc2VhcmNoLnByb3RvEglzcGFya3kudjEiYQoJU2VhcmNoSGl0EhEKCW1lbW9yeV9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRINCgVzY29yZRgDIAEoARIPCgdzbmlwcGV0GAQgASgJEhIKCm1hdGNoZWRfaW4YBSADKAkiigEKFVNlYXJjaE1lbW9yaWVzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIPCgdtaW5kX2lkGAMgASgJEhsKE2luY2x1ZGVfZGVzY2VuZGFudHMYBCABKAgSDwoHdGFnX2lkcxgFIAMoCRIOCgZzdGF0dXMYBiABKAkSDQoFbGltaXQYByABKAVKBAgCEAMiUgoWU2VhcmNoTWVtb3JpZXNSZXNwb25zZRIiCgRoaXRzGAEgAygLMhQuc3Bhcmt5LnYxLlNlYXJjaEhpdBIOCgZub3RpY2UYAyABKAlKBAgCEAMiFQoTU2VhcmNoU3RhdHVzUmVxdWVzdCIzChRTZWFyY2hTdGF0dXNSZXNwb25zZRIVCg1mdHNfZG9jdW1lbnRzGAEgASgFSgQIAhAIIhAKDlJlaW5kZXhSZXF1ZXN0IiMKD1JlaW5kZXhSZXNwb25zZRIQCghtZW1vcmllcxgBIAEoBTLrAQoNU2VhcmNoU2VydmljZRJNCgZTZWFyY2gSIC5zcGFya3kudjEuU2VhcmNoTWVtb3JpZXNSZXF1ZXN0GiEuc3Bhcmt5LnYxLlNlYXJjaE1lbW9yaWVzUmVzcG9uc2USSQoGU3RhdHVzEh4uc3Bhcmt5LnYxLlNlYXJjaFN0YXR1c1JlcXVlc3QaHy5zcGFya3kudjEuU2VhcmNoU3RhdHVzUmVzcG9uc2USQAoHUmVpbmRleBIZLnNwYXJreS52MS5SZWluZGV4UmVxdWVzdBoaLnNwYXJreS52MS5SZWluZGV4UmVzcG9uc2VCsgEKDWNvbS5zcGFya3kudjFCC1NlYXJjaFByb3RvUAFaT2dpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL3NwYXJreS9iYWNrZW5kL3BsYXRmb3JtL2dlbi9zcGFya3kvdjE7c3Bhcmt5djGiAgNTWFiqAglTcGFya3kuVjHKAglTcGFya3lcVjHiAhVTcGFya3lcVjFcR1BCTWV0YWRhdGHqAgpTcGFya3k6OlYxYgZwcm90bzM");
+  fileDesc("ChZzcGFya3kvdjEvc2VhcmNoLnByb3RvEglzcGFya3kudjEiYQoJU2VhcmNoSGl0EhEKCW1lbW9yeV9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRINCgVzY29yZRgDIAEoARIPCgdzbmlwcGV0GAQgASgJEhIKCm1hdGNoZWRfaW4YBSADKAkixgIKFVNlYXJjaE1lbW9yaWVzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIPCgdtaW5kX2lkGAMgASgJEhsKE2luY2x1ZGVfZGVzY2VuZGFudHMYBCABKAgSDwoHdGFnX2lkcxgFIAMoCRIOCgZzdGF0dXMYBiABKAkSDQoFbGltaXQYByABKAUSLAoIZHVlX2Zyb20YCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEioKBmR1ZV90bxgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMdXBkYXRlZF9mcm9tGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX3RvGAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEoECAIQAyJSChZTZWFyY2hNZW1vcmllc1Jlc3BvbnNlEiIKBGhpdHMYASADKAsyFC5zcGFya3kudjEuU2VhcmNoSGl0Eg4KBm5vdGljZRgDIAEoCUoECAIQAyIVChNTZWFyY2hTdGF0dXNSZXF1ZXN0IjMKFFNlYXJjaFN0YXR1c1Jlc3BvbnNlEhUKDWZ0c19kb2N1bWVudHMYASABKAVKBAgCEAgiEAoOUmVpbmRleFJlcXVlc3QiIwoPUmVpbmRleFJlc3BvbnNlEhAKCG1lbW9yaWVzGAEgASgFMusBCg1TZWFyY2hTZXJ2aWNlEk0KBlNlYXJjaBIgLnNwYXJreS52MS5TZWFyY2hNZW1vcmllc1JlcXVlc3QaIS5zcGFya3kudjEuU2VhcmNoTWVtb3JpZXNSZXNwb25zZRJJCgZTdGF0dXMSHi5zcGFya3kudjEuU2VhcmNoU3RhdHVzUmVxdWVzdBofLnNwYXJreS52MS5TZWFyY2hTdGF0dXNSZXNwb25zZRJACgdSZWluZGV4Ehkuc3Bhcmt5LnYxLlJlaW5kZXhSZXF1ZXN0Ghouc3Bhcmt5LnYxLlJlaW5kZXhSZXNwb25zZUKyAQoNY29tLnNwYXJreS52MUILU2VhcmNoUHJvdG9QAVpPZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvc3Bhcmt5L2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3NwYXJreS92MTtzcGFya3l2MaICA1NYWKoCCVNwYXJreS5WMcoCCVNwYXJreVxWMeICFVNwYXJreVxWMVxHUEJNZXRhZGF0YeoCClNwYXJreTo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message sparky.v1.SearchHit
@@ -82,6 +84,26 @@ export type SearchMemoriesRequest = Message<"sparky.v1.SearchMemoriesRequest"> &
    * @generated from field: int32 limit = 7;
    */
   limit: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp due_from = 8;
+   */
+  dueFrom?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp due_to = 9;
+   */
+  dueTo?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_from = 10;
+   */
+  updatedFrom?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_to = 11;
+   */
+  updatedTo?: Timestamp | undefined;
 };
 
 /**

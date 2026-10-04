@@ -11,9 +11,11 @@ export function PageEmpty(props: {
   description?: string;
   action?: JSX.Element;
   children?: JSX.Element;
+  illustration?: JSX.Element;
 }) {
   return (
     <div class="flex h-full min-h-[200px] flex-col items-center justify-center gap-2 p-8 text-center">
+      {props.illustration}
       <p class="text-[14px] font-medium text-[var(--color-text-primary)]">{props.title}</p>
       {props.description ? (
         <p class="max-w-sm text-[13px] text-[var(--color-text-muted)]">{props.description}</p>
@@ -50,6 +52,7 @@ export function FixtureBanner(_props: {
   class?: string;
   visible?: boolean;
   message?: string;
+  icon?: JSX.Element;
 }) {
   return null;
 }
@@ -57,12 +60,13 @@ export function FixtureBanner(_props: {
 export function PageOffline(props: {
   title?: string;
   message?: string;
+  icon?: JSX.Element;
   onRetry?: () => void;
 }) {
   return (
     <div class="flex h-full min-h-[200px] flex-col items-center justify-center gap-3 p-8 text-center" role="status">
       <p class="text-[20px] text-[var(--color-text-muted)]" aria-hidden>
-        ○
+        {props.icon ?? "○"}
       </p>
       <p class="text-[14px] font-medium text-[var(--color-text-primary)]">
         {props.title ?? "Local core offline"}
@@ -83,12 +87,13 @@ export function PageForbidden(props: {
   title?: string;
   permission?: string;
   message?: string;
+  icon?: JSX.Element;
   onRequestAccess?: () => void;
 }) {
   return (
     <div class="flex h-full min-h-[200px] flex-col items-center justify-center gap-3 p-8 text-center" role="alert">
       <p class="text-[20px] text-[var(--color-text-muted)]" aria-hidden>
-        ◈
+        {props.icon ?? "◈"}
       </p>
       <p class="text-[14px] font-medium text-[var(--color-text-primary)]">
         {props.title ?? "You do not have permission"}
@@ -106,4 +111,9 @@ export function PageForbidden(props: {
       ) : null}
     </div>
   );
+}
+
+/** Decorative empty-state artwork supplied by the app; never an extra landmark. */
+export function EmptyIllustration(props: { children: JSX.Element; class?: string }) {
+  return <div aria-hidden="true" class={props.class}>{props.children}</div>;
 }

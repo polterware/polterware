@@ -1,0 +1,93 @@
+package core
+
+import (
+	"connectrpc.com/connect"
+	"context"
+	"github.com/polterware/polterware/sparky/backend/domains/attachments"
+	"github.com/polterware/polterware/sparky/backend/domains/search"
+	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
+)
+
+type searchHandler struct{ s search.Service }
+
+func (h searchHandler) Search(ctx context.Context, r *connect.Request[v1.SearchMemoriesRequest]) (*connect.Response[v1.SearchMemoriesResponse], error) {
+	if h.s == nil {
+		return nil, unavailable("search")
+	}
+	in := r.Msg
+	result, err := h.s.Search(ctx, in.Query, search.Filter{MindID: stringPtr(in.MindId), IncludeDescendants: in.IncludeDescendants, TagIDs: in.TagIds, Status: in.Status, Limit: int(in.Limit)})
+	out := &v1.SearchMemoriesResponse{Notice: result.Notice}
+	for _, hit := range result.Hits {
+		out.Hits = append(out.Hits, &v1.SearchHit{MemoryId: hit.MemoryID, Title: hit.Title, Score: hit.Score, Snippet: hit.Snippet, MatchedIn: hit.MatchedIn})
+	}
+	return response(out, err)
+}
+func (h searchHandler) Status(ctx context.Context, _ *connect.Request[v1.SearchStatusRequest]) (*connect.Response[v1.SearchStatusResponse], error) {
+	if h.s == nil {
+		return nil, unavailable("search")
+	}
+	s, err := h.s.Status(ctx)
+	return response(&v1.SearchStatusResponse{FtsDocuments: int32(s.FTSDocuments)}, err)
+}
+func (h searchHandler) Reindex(ctx context.Context, _ *connect.Request[v1.ReindexRequest]) (*connect.Response[v1.ReindexResponse], error) {
+	if h.s == nil {
+		return nil, unavailable("search")
+	}
+	n, err := h.s.Reindex(ctx)
+	return response(&v1.ReindexResponse{Memories: int32(n)}, err)
+}
+
+type attachmentHandler struct{ s attachments.Service }
+
+func (h attachmentHandler) ImportFromPath(ctx context.Context, r *connect.Request[v1.ImportAttachmentRequest]) (*connect.Response[v1.ImportAttachmentResponse], error) {
+	if h.s == nil {
+		return nil, unavailable("attachments")
+	}
+	in := r.Msg
+	a, err := h.s.ImportFromPath(ctx, in.MemoryId, in.SourcePath, in.Name)
+	return response(&v1.ImportAttachmentResponse{Attachment: attachmentProto(a)}, err)
+}
+func (h attachmentHandler) AddLink(ctx context.Context, r *connect.Request[v1.AddLinkRequest]) (*connect.Response[v1.AddLinkResponse], error) {
+	if h.s == nil {
+		return nil, unavailable("attachments")
+	}
+	in := r.Msg
+	a, err := h.s.AddLink(ctx, in.MemoryId, in.Url, in.Title)
+	return response(&v1.AddLinkResponse{Attachment: attachmentProto(a)}, err)
+}
+func (h attachmentHandler) List(ctx context.Context, r *connect.Request[v1.ListAttachmentsRequest]) (*connect.Response[v1.ListAttachmentsResponse], error) {
+	if h.s == nil {
+		return nil, unavailable("attachments")
+	}
+	items, err := h.s.List(ctx, r.Msg.MemoryId)
+	out := &v1.ListAttachmentsResponse{}
+	for _, a := range items {
+		out.Attachments = append(out.Attachments, attachmentProto(a))
+	}
+	return response(out, err)
+}
+func (h attachmentHandler) Delete(ctx context.Context, r *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error) {
+	if h.s == nil {
+		return nil, unavailable("attachments")
+	}
+	err := h.s.Delete(ctx, r.Msg.Id)
+	return response(&v1.DeleteAttachmentResponse{}, err)
+}
+func (h attachmentHandler) Reorder(ctx context.Context, r *connect.Request[v1.ReorderAttachmentsRequest]) (*connect.Response[v1.ReorderAttachmentsResponse], error) {
+	if h.s == nil {
+		return nil, unavailable("attachments")
+	}
+	items, err := h.s.Reorder(ctx, r.Msg.MemoryId, r.Msg.OrderedIds)
+	out := &v1.ReorderAttachmentsResponse{}
+	for _, a := range items {
+		out.Attachments = append(out.Attachments, attachmentProto(a))
+	}
+	return response(out, err)
+}
+func (h attachmentHandler) OpenInfo(ctx context.Context, r *connect.Request[v1.OpenAttachmentInfoRequest]) (*connect.Response[v1.OpenAttachmentInfoResponse], error) {
+	if h.s == nil {
+		return nil, unavailable("attachments")
+	}
+	i, err := h.s.OpenInfo(ctx, r.Msg.Id)
+	return response(&v1.OpenAttachmentInfoResponse{Id: i.ID, AbsolutePath: i.AbsolutePath, Mime: i.Mime, Name: i.Name, Kind: i.Kind}, err)
+}
