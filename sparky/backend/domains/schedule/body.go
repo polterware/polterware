@@ -32,7 +32,7 @@ func ShapeBody(note string) string {
 		}
 	}
 	for i := 0; i < len(note) && len(out) < 140; {
-		if strings.HasPrefix(note[i:], "```") || strings.HasPrefix(note[i:], "~~~") {
+		if lineStart && (strings.HasPrefix(note[i:], "```") || strings.HasPrefix(note[i:], "~~~")) {
 			fenced = !fenced
 			if end := strings.IndexByte(note[i:], '\n'); end >= 0 {
 				i += end + 1
