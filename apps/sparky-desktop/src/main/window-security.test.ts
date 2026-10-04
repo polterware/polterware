@@ -12,6 +12,7 @@ describe("window security", () => {
     expect(source).toContain('"will-redirect"');
     expect(source).toContain('action: "deny"');
     expect(source).toContain("configureWindowSecurity(win)");
+    expect(source).toContain("setVibrancy(null)");
   });
   it("quits after the last window closes without stopping the detached core", () => {
     const main = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
@@ -28,5 +29,12 @@ describe("window security", () => {
     expect(main).toContain("writeTempFile");
     expect(main).toContain("assertTrustedSender");
     expect(main).toContain("matchSoundPath");
+    expect(main).toContain("matchCharacterPath");
+    expect(main).toContain("openLog");
+    expect(main).toContain("openDataFolder");
+    expect(main).toContain("testMcpConnection");
+    expect(main).toContain("publicIpcError");
+    expect(main).toContain("mapGeocoding");
+    expect(main).not.toContain("setLoginItem");
   });
 });

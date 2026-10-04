@@ -25,6 +25,11 @@ extraResources:
     to: sounds
     filter:
       - "*.webm"
+  - from: resources/characters
+    to: characters
+    filter:
+      - "*.png"
+      - "*.webp"
   - from: native/build/notify.node
     to: native/notify.node
 

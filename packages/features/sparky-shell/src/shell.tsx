@@ -115,6 +115,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     { id: "settings", label: "Open Settings", run: () => setSettingsOpen(true) },
     ...props.features.flatMap(feature => feature.commands ?? []),
   ]);
+  const commandSources = createMemo(() => props.features.flatMap(feature => feature.commandSources ?? []));
   const context = {
     features: props.features, path, params, searchParams, navigate, selectedMemoryId, openMemory, closeDetail, detailSections, settingsPanels, deepLink,
     registerCollectionShortcuts: (handler: (action: MemoryShortcut) => void) => {
@@ -272,7 +273,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
           </main>
         </div>
       </div>
-      <Commander open={palette() !== null} mode={palette() ?? "commands"} bridge={props.bridge} commands={commands()} live={core.state() === "live"} onClose={() => setPalette(null)} onMemory={openMemory} />
+      <Commander open={palette() !== null} mode={palette() ?? "commands"} bridge={props.bridge} commands={commands()} commandSources={commandSources()} live={core.state() === "live"} onClose={() => setPalette(null)} onMemory={openMemory} />
       <Dialog open={settingsOpen()} title="Settings" onClose={() => setSettingsOpen(false)} size="xl">
         <div class="sparky-settings-layout">
           <nav aria-label="Settings panels"><For each={settingsGroups()}>{group => <><p class="text-xs text-[var(--color-text-muted)]">{group}</p><MenuList>
