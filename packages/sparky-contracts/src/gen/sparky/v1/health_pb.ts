@@ -4,13 +4,15 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file sparky/v1/health.proto.
  */
 export const file_sparky_v1_health: GenFile = /*@__PURE__*/
-  fileDesc("ChZzcGFya3kvdjEvaGVhbHRoLnByb3RvEglzcGFya3kudjEiDgoMQ2hlY2tSZXF1ZXN0Ii8KDUNoZWNrUmVzcG9uc2USDQoFYnVpbGQYASABKAkSDwoHdmVyc2lvbhgCIAEoCTJLCg1IZWFsdGhTZXJ2aWNlEjoKBUNoZWNrEhcuc3Bhcmt5LnYxLkNoZWNrUmVxdWVzdBoYLnNwYXJreS52MS5DaGVja1Jlc3BvbnNlQrIBCg1jb20uc3Bhcmt5LnYxQgtIZWFsdGhQcm90b1ABWk9naXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9zcGFya3kvYmFja2VuZC9wbGF0Zm9ybS9nZW4vc3Bhcmt5L3YxO3NwYXJreXYxogIDU1hYqgIJU3Bhcmt5LlYxygIJU3Bhcmt5XFYx4gIVU3Bhcmt5XFYxXEdQQk1ldGFkYXRh6gIKU3Bhcmt5OjpWMWIGcHJvdG8z");
+  fileDesc("ChZzcGFya3kvdjEvaGVhbHRoLnByb3RvEglzcGFya3kudjEiDgoMQ2hlY2tSZXF1ZXN0IioKCU1jcEhlYWx0aBIMCgRwb3J0GAEgASgFEg8KB2VuYWJsZWQYAiABKAgiQgoOTm90aWZpZXJIZWFsdGgSMAoMbGFzdF9zZWVuX2F0GAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLAAQoNQ2hlY2tSZXNwb25zZRINCgVidWlsZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJEi4KCnN0YXJ0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg8KB2RiX3BhdGgYBCABKAkSIQoDbWNwGAUgASgLMhQuc3Bhcmt5LnYxLk1jcEhlYWx0aBIrCghub3RpZmllchgGIAEoCzIZLnNwYXJreS52MS5Ob3RpZmllckhlYWx0aDJLCg1IZWFsdGhTZXJ2aWNlEjoKBUNoZWNrEhcuc3Bhcmt5LnYxLkNoZWNrUmVxdWVzdBoYLnNwYXJreS52MS5DaGVja1Jlc3BvbnNlQrIBCg1jb20uc3Bhcmt5LnYxQgtIZWFsdGhQcm90b1ABWk9naXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9zcGFya3kvYmFja2VuZC9wbGF0Zm9ybS9nZW4vc3Bhcmt5L3YxO3NwYXJreXYxogIDU1hYqgIJU3Bhcmt5LlYxygIJU3Bhcmt5XFYx4gIVU3Bhcmt5XFYxXEdQQk1ldGFkYXRh6gIKU3Bhcmt5OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message sparky.v1.CheckRequest
@@ -26,6 +28,45 @@ export const CheckRequestSchema: GenMessage<CheckRequest> = /*@__PURE__*/
   messageDesc(file_sparky_v1_health, 0);
 
 /**
+ * @generated from message sparky.v1.McpHealth
+ */
+export type McpHealth = Message<"sparky.v1.McpHealth"> & {
+  /**
+   * @generated from field: int32 port = 1;
+   */
+  port: number;
+
+  /**
+   * @generated from field: bool enabled = 2;
+   */
+  enabled: boolean;
+};
+
+/**
+ * Describes the message sparky.v1.McpHealth.
+ * Use `create(McpHealthSchema)` to create a new message.
+ */
+export const McpHealthSchema: GenMessage<McpHealth> = /*@__PURE__*/
+  messageDesc(file_sparky_v1_health, 1);
+
+/**
+ * @generated from message sparky.v1.NotifierHealth
+ */
+export type NotifierHealth = Message<"sparky.v1.NotifierHealth"> & {
+  /**
+   * @generated from field: google.protobuf.Timestamp last_seen_at = 1;
+   */
+  lastSeenAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message sparky.v1.NotifierHealth.
+ * Use `create(NotifierHealthSchema)` to create a new message.
+ */
+export const NotifierHealthSchema: GenMessage<NotifierHealth> = /*@__PURE__*/
+  messageDesc(file_sparky_v1_health, 2);
+
+/**
  * @generated from message sparky.v1.CheckResponse
  */
 export type CheckResponse = Message<"sparky.v1.CheckResponse"> & {
@@ -38,6 +79,26 @@ export type CheckResponse = Message<"sparky.v1.CheckResponse"> & {
    * @generated from field: string version = 2;
    */
   version: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp started_at = 3;
+   */
+  startedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string db_path = 4;
+   */
+  dbPath: string;
+
+  /**
+   * @generated from field: sparky.v1.McpHealth mcp = 5;
+   */
+  mcp?: McpHealth | undefined;
+
+  /**
+   * @generated from field: sparky.v1.NotifierHealth notifier = 6;
+   */
+  notifier?: NotifierHealth | undefined;
 };
 
 /**
@@ -45,7 +106,7 @@ export type CheckResponse = Message<"sparky.v1.CheckResponse"> & {
  * Use `create(CheckResponseSchema)` to create a new message.
  */
 export const CheckResponseSchema: GenMessage<CheckResponse> = /*@__PURE__*/
-  messageDesc(file_sparky_v1_health, 1);
+  messageDesc(file_sparky_v1_health, 3);
 
 /**
  * @generated from service sparky.v1.HealthService
