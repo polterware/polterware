@@ -60,7 +60,7 @@ func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (do
 	if !openedInfo.Mode().IsRegular() {
 		return domain.ImportedFile{}, fmt.Errorf("attachment source must be a regular non-symlink file")
 	}
-	if openedInfo.Size() > domain.HardMaxBytes {
+	if openedInfo.Size() > domain.ImportLimit(ctx) {
 		return domain.ImportedFile{}, fmt.Errorf("attachment exceeds hard size limit")
 	}
 	buf := make([]byte, 512)
@@ -81,7 +81,7 @@ func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (do
 	case "video/webm":
 		detected = "audio/webm"
 	}
-	limit := domain.ByteLimit(detected)
+	limit := min(domain.ByteLimit(detected), domain.ImportLimit(ctx))
 	ext := ".bin"
 	switch detected {
 	case "image/jpeg":

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
 	"github.com/polterware/polterware/sparky/backend/domains/memory"
 	"github.com/polterware/polterware/sparky/backend/domains/mind"
@@ -746,7 +747,7 @@ func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest
 		out = append(out, row)
 	}
 	for _, file := range in.Files {
-		a, err := s.deps.Attachments.ImportFromPath(ctx, in.MemoryID, file.Path, "", expected)
+		a, err := s.deps.Attachments.ImportFromPath(attachments.WithImportLimit(ctx, 50<<20), in.MemoryID, file.Path, "", expected)
 		if err != nil {
 			return fail(err), nil
 		}
