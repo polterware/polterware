@@ -43,6 +43,20 @@ describe("lazy reminder controller", () => {
     await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000);
     expect(f.core.plan).toHaveBeenCalledTimes(7);
   });
+  it("does not replan in response to its own persisted heartbeat", async () => {
+    const f = setup();
+    f.controller.start();
+    await vi.advanceTimersByTimeAsync(500);
+    for (let i = 0; i < 10; i++) {
+      f.controller.onChanges({ snapshot: false, changes: [{ entity: "setting", id: "_internal.reminder.heartbeat" }] });
+      await vi.advanceTimersByTimeAsync(500);
+    }
+    expect(f.core.plan).toHaveBeenCalledTimes(1);
+    expect(f.core.heartbeat).toHaveBeenCalledTimes(1);
+    f.controller.onChanges({ snapshot: false, changes: [{ entity: "setting", id: "notifications.sound" }] });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(f.core.plan).toHaveBeenCalledTimes(2);
+  });
   it("refreshes within 1.5 s even under sustained changes", async () => {
     const f = setup(); f.controller.start();
     for (let i = 0; i < 16; i++) { f.controller.requestRefresh("change"); await vi.advanceTimersByTimeAsync(100); }
