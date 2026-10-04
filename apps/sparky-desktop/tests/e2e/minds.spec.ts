@@ -9,6 +9,9 @@ test("create, rename, and delete a Mind with cascade confirmation", async ({ spa
   await expect(page.getByRole("main").getByRole("button", { name: /Playwright Mind/ })).toBeVisible();
   await page.getByRole("main").getByRole("button", { name: /Playwright Mind/ }).click();
   await expect(page.getByRole("heading", { name: "Playwright Mind" })).toBeVisible();
+  await page.getByRole("button", { name: "Inbox", exact: true }).click();
+  await page.getByRole("complementary", { name: "Sidebar", exact: true }).getByRole("treeitem", { name: /Playwright Mind/ }).click();
+  await expect(page.getByRole("heading", { name: "Playwright Mind", exact: true })).toBeVisible();
   await page.getByLabel("Name").fill("Updated Mind");
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByRole("heading", { name: "Updated Mind" })).toBeVisible();
@@ -28,6 +31,6 @@ test("create, rename, and delete a Mind with cascade confirmation", async ({ spa
   await page.getByRole("button", { name: "Delete Mind" }).click();
   await expect(page.getByText("Deletes 1 child Minds; 1 memories move to Inbox.", { exact: true })).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Delete Mind" }).click();
-  await expect(page.getByRole("heading", { name: "Minds" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Minds", level: 1, exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(async id => (await window.sparky.memories.get({ id: id! })).memory?.mindId ?? "", memoryId)).toBe("");
 });
