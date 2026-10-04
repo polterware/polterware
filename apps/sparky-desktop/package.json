@@ -7,8 +7,9 @@
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "pnpm --dir ../.. build:sparky-core && electron-vite dev",
-    "build": "electron-vite build",
+    "dev": "pnpm build:native && pnpm --dir ../.. build:sparky-core && electron-vite dev",
+    "build:native": "bash native/scripts/build.sh",
+    "build": "pnpm build:native && electron-vite build",
     "preview": "electron-vite preview",
     "dist": "pnpm --dir ../.. build:sparky-core && pnpm build && electron-builder --mac --publish never",
     "dist:mac": "pnpm --dir ../.. build:sparky-core && pnpm build && electron-builder --mac --publish never",

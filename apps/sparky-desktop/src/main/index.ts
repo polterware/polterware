@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, shell, systemPreferences } from "electron";
 import { dirname, isAbsolute, join } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
 import { createCoreClients, type CoreClients } from "./core/client.js";
 import { ensureCore, resolveBinary, type CoreHandle } from "./core/process-supervisor.js";
 import { startChangeWatcher } from "./core/change-watcher.js";
@@ -9,6 +10,23 @@ import { contentSecurityPolicy, isAllowedRendererUrl, parseDeepLink } from "./na
 import { attachmentResponse, resolveAttachmentUrl } from "./attachment-protocol.js";
 import { APP_METHODS, EVENTS, type DeepLink } from "../shared/bridge.js";
 import { updateStatus } from "./updater.js";
+import { installReminders, runNotifyInspect } from "./reminders/index.js";
+
+const e2eEnv = process.argv.find(arg => arg.startsWith("--sparky-e2e-env="))?.slice("--sparky-e2e-env=".length);
+if (e2eEnv) {
+  if (!isAbsolute(e2eEnv)) throw new Error("sparky e2e env path must be absolute");
+  const parsed = JSON.parse(readFileSync(e2eEnv, "utf8")) as Record<string, unknown>;
+  for (const [key, value] of Object.entries(parsed)) {
+    if (key.startsWith("SPARKY_") && typeof value === "string") process.env[key] = value;
+  }
+  if (process.env.SPARKY_NOTIFY_E2E === "1") {
+    const isolated = process.env.SPARKY_CORE_DB || "";
+    if (!isAbsolute(isolated) || !isolated.includes("sparky-w1-native-notify")) {
+      throw new Error("e2e SPARKY_CORE_DB must be an isolated temp database");
+    }
+  }
+  writeFileSync(join(dirname(e2eEnv), "main-started.json"), JSON.stringify({ argv: process.argv, db: process.env.SPARKY_CORE_DB }));
+}
 
 const remoteDebuggingPort = process.env.REMOTE_DEBUGGING_PORT?.trim();
 if (remoteDebuggingPort && /^[1-9]\d{0,4}$/.test(remoteDebuggingPort) && Number(remoteDebuggingPort) <= 65535) {
@@ -29,7 +47,7 @@ let core: CoreHandle | undefined;
 let stopWatcher: (() => void) | undefined;
 let pendingLink: DeepLink | null = null;
 let onlineMaps = false;
-let backgroundTimer: ReturnType<typeof setTimeout> | undefined;
+let suppressWindow = hiddenLaunch;
 const grants = { import: new Set<string>(), export: new Set<string>(), backup: new Set<string>() };
 function getClients(): CoreClients {
   if (!clients) throw new Error("Core offline");
@@ -39,7 +57,6 @@ function emit(event: string, value: unknown): void {
   if (win && !win.isDestroyed()) win.webContents.send(event, value);
 }
 function showWindow(): void {
-  clearTimeout(backgroundTimer);
   app.dock?.show();
   if (!win || win.isDestroyed()) {
     win = createWindow();
@@ -140,37 +157,62 @@ function installMenu(): void {
 }
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
+  const inspectCommand = process.env.SPARKY_NOTIFY_INSPECT;
+  if (inspectCommand) {
+    const inspectResult = process.env.SPARKY_NOTIFY_INSPECT_RESULT || join(app.getPath("temp"), "sparky-notify-inspect.json");
+    app.on("ready", () => { void runNotifyInspect(inspectCommand, inspectResult).finally(() => app.quit()); });
+  } else {
+  const reminders = installReminders({
+    dataDirectory: data,
+    ensureCore: async () => { await reconnect(); return getClients(); },
+    openMemory: url => {
+      suppressWindow = false;
+      app.setActivationPolicy("regular");
+      reminders.setBackgroundLaunch(false);
+      routeDeepLink(url);
+    },
+    hasWindow: () => Boolean(win && !win.isDestroyed()),
+    quit: () => app.quit(),
+  });
   app.on("open-url", (event, url) => { event.preventDefault(); routeDeepLink(url); });
   app.on("second-instance", (_event, argv) => {
     const link = argv.find(arg => arg.startsWith("sparky://"));
     if (link) routeDeepLink(link);
-    else if (!argv.includes("--background-replan")) {
+    else if (argv.includes("--background-replan")) reminders.requestRefresh("core-write");
+    else {
+      suppressWindow = false;
+      reminders.setBackgroundLaunch(false);
+      app.setActivationPolicy("regular");
       if (app.isReady()) showWindow(); else app.once("ready", showWindow);
     }
-    // Native reminder integration handles hidden re-plan requests without creating a window.
   });
   const startupLink = process.argv.find(arg => arg.startsWith("sparky://"));
   if (startupLink) routeDeepLink(startupLink);
   app.on("window-all-closed", () => app.quit());
-  app.on("before-quit", () => { clearTimeout(backgroundTimer); stopWatcher?.(); });
-  app.on("activate", () => { if (!hiddenLaunch || win) showWindow(); });
-  void app.whenReady().then(async () => {
-    if (app.isPackaged) app.setAsDefaultProtocolClient("sparky");
-    else app.setAsDefaultProtocolClient("sparky", process.execPath, [app.getAppPath()]);
-    registerIpc(); installSessionSecurity(); installMenu();
-    try {
-      await reconnect();
-      stopWatcher = startChangeWatcher({ getClients, reconnect, emit: event => {
-        emit(EVENTS.change, event);
-        if (event.resync || event.changes.some(change => change.entity === "settings")) void refreshMapPolicy();
-      } });
-    } catch { console.error("Sparky core offline; inspect the core log"); }
-    if (hiddenLaunch && !pendingLink) {
-      // W1-NATIVE-NOTIFY owns refresh/action completion and can reset this bounded idle exit.
-      backgroundTimer = setTimeout(() => { if (!win) app.quit(); }, 10_000);
-    } else {
+  app.on("before-quit", () => { reminders.close(); stopWatcher?.(); });
+  app.on("activate", () => { if (!suppressWindow || win) showWindow(); });
+  app.on("ready", (_event, launchInfo) => {
+    void (async () => {
+      suppressWindow = reminders.prepareLaunch(launchInfo) || hiddenLaunch;
+      if (app.isPackaged) app.setAsDefaultProtocolClient("sparky");
+      else app.setAsDefaultProtocolClient("sparky", process.execPath, [app.getAppPath()]);
+      registerIpc(); installSessionSecurity(); installMenu();
+      try {
+        await reconnect();
+        stopWatcher = startChangeWatcher({ getClients, reconnect, emit: event => {
+          emit(EVENTS.change, event);
+          reminders.onChanges({ snapshot: event.resync, changes: event.changes });
+          if (event.resync || event.changes.some(change => change.entity === "settings" || change.entity === "setting")) void refreshMapPolicy();
+        } });
+      } catch { console.error("Sparky core offline; inspect the core log"); }
+      reminders.start();
+      if (suppressWindow && !pendingLink) return;
       showWindow();
+      if (process.env.SPARKY_NOTIFY_E2E === "1") {
+        setTimeout(() => { void reminders.requestAuthorization().catch(() => {}); }, 1500);
+      }
       if (pendingLink) routeDeepLink(pendingLink.url);
-    }
-  }).catch(() => { console.error("Sparky startup failed"); app.quit(); });
+    })().catch(() => { console.error("Sparky startup failed"); app.quit(); });
+  });
+  }
 }
