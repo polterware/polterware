@@ -1,33 +1,34 @@
 # w1-recurrence status
-
-- Result: partial
-- Branch / last commit: `sparky/w1-recurrence`; `HEAD` is the status commit containing this file. Implementation/test commits: `8f44331`, `652bd10`, `3fe69d1`. Local commits only; no push or tags.
+- Result: done
+- Branch / last commit: `sparky/w1-recurrence-b`; `HEAD` is the status commit containing this file. Continuation of `sparky/w1-recurrence`. Implementation/test commits: `8f44331`, `652bd10`, `3fe69d1`, `24ce7c3`. Local commits only; no push or tags.
 - Acceptance criteria:
   - All 14 recurrence vectors -> **pass**: `TestRecurrenceVectors` loads the unchanged `testdata/recurrence_vectors.json`, including inclusive until, weekday interval/count, both DST edges and all-day delivery.
-  - Fuzz (strict increase, Next consistency, no panic) -> **pass**: `FuzzRule`, `go test ./domains/schedule -race -count=1 -fuzz=. -fuzztime=20s`; final run 133,733 executions, 291 baseline cases, 3 additional interesting cases. Covers UTC, Pacific/Auckland, Asia/Kolkata, America/Sao_Paulo, Europe/London, America/New_York and Australia/Lord_Howe; seeds span northern/southern DST transitions and arbitrary invalid intervals/rules. `TestWallTransitions`, `TestWeeklySeek`, `TestLargeIntervalsAndLateSeek` add deterministic regressions.
-  - At for one year of hourly <1 ms -> **pass**: `BenchmarkAtHourlyYear`, final three samples 0.248 / 0.262 / 0.258 ms per operation (8,760 occurrences).
-  - Planner for 5,000 memories <50 ms -> **pass**: `BenchmarkPlan5000`, final three samples 8.324 / 8.441 / 8.939 ms; minutely stress case 1.849 / 1.785 / 1.786 ms. Apple M1 Pro, darwin/arm64, Go 1.27.1. Command: `go test ./domains/schedule -run '^$' -bench . -benchmem -count=3`.
+  - Fuzz (strict increase, Next consistency, no panic) -> **pass**: `FuzzRule`, `go test ./domains/schedule -race -count=1 -fuzz=. -fuzztime=20s`; final run 147,078 executions, 294 baseline cases, 0 additional interesting cases. Covers UTC, Pacific/Auckland, Asia/Kolkata, America/Sao_Paulo, Europe/London, America/New_York and Australia/Lord_Howe. `TestWallTransitions`, `TestWeeklySeek`, `TestLargeIntervalsAndLateSeek` add deterministic regressions.
+  - At for one year of hourly <1 ms -> **pass**: `BenchmarkAtHourlyYear`, final three samples 0.581 / 0.598 / 0.589 ms per operation (8,760 occurrences).
+  - Planner for 5,000 memories <50 ms -> **pass**: `BenchmarkPlan5000`, final three samples 7.909 / 11.062 / 10.426 ms; minutely 3.863 / 3.479 / 3.534 ms. Apple M1 Pro, darwin/arm64. Command: `go test ./domains/schedule -run '^$' -bench . -benchmem -count=3`.
+  - Native repeating items -> **pass**: `TestPlanNativeRepeat`. Open-ended interval-1 minutely/hourly/daily/weekly emit `Repeat *DateComponents` (one slot per weekday, Sunday=1); bounded rules, every>1, monthly and yearly stay one-shots. Completions do not suppress a repeating series. Future-anchored series stay one-shots until they start. IDs `rem:<id>:repeat` and `rem:<id>:wd<n>`. `DiffPlan` ignores next-fire drift on repeating items.
 - Additional deliverables:
   - Rule Validate/Next/At/Between/Count/Describe and Preview -> **pass**; range and expansion caps map to `fault.CodeInvalid`; all output instants are UTC.
-  - Swift golden comparison -> **pass**: `TestSwiftGolden`, six fixtures generated with `swift testdata/swift/generate.swift > testdata/swift_golden.json` from a fixture-only adaptation of the reference Calendar stepping. Covers daily, weekly without weekdays, monthly day 28, non-leap yearly, hourly and minutely. Intentional differences documented in `domains/schedule/doc.go`.
-  - Lazy nearest-first global planner, one-offs, completed skipping, all-day delivery, shaping -> **pass**: `TestPlanNearestFirstGlobalBudget`, `TestPlanDefaultsAndBoundaries`, `TestPlanAllDayCompletionKey`, `TestShapeBody`. One candidate per memory; direct seek to now; advance selected series only; stop at Budget. `DiffPlan` and `TestPlanDelta` preserve identical content, including note edits beyond the shaped 140-rune prefix.
-  - Pure calendar range/filter/completion/overdue queries with parameterized cap -> **pass**: `TestListOccurrencesFiltersAndState`, `TestListOccurrencesCap`, `TestListOccurrencesAllDayAndPort`. `OccurrenceQuery.PerMemoryLimit` / `Engine.PerMemoryLimit` defaults to 256 (valid 1..10000), separately from the global limit. The cap applies to examined occurrences before completion filtering; dense series return a prefix. Narrow the range to reach later dates. Descendant mind IDs are supplied by the caller; tag filters use AND matching.
-  - Native repeating items -> **fail / blocked**: frozen `ReminderItem` has no repeat components. The planner deliberately emits concrete one-shots only; it does not imply indefinite reminders with Sparky closed. Request 1 stops this sub-task pending contract-owner approval.
+  - Swift golden comparison -> **pass**: `TestSwiftGolden`, six fixtures generated with `swift testdata/swift/generate.swift > testdata/swift_golden.json`. Intentional differences documented in `domains/schedule/doc.go`.
+  - Lazy nearest-first global planner, one-offs, completed-skipping, all-day delivery, shaping -> **pass**: `TestPlanNearestFirstGlobalBudget`, `TestPlanDefaultsAndBoundaries`, `TestPlanAllDayCompletionKey`, `TestShapeBody`.
+  - Pure calendar range/filter/completion/overdue queries with parameterized cap -> **pass**: `TestListOccurrencesFiltersAndState`, `TestListOccurrencesCap`, `TestListOccurrencesAllDayAndPort`.
 - Verification:
   - Exact mandated `go test ./domains/schedule/... -race -count=1 -fuzz=. -fuzztime=20s` -> **fail before execution**: `cannot use -fuzz flag with multiple packages` (`schedule/fake` is a separate scaffold package).
   - Equivalent split verification -> **pass**: `go test ./domains/schedule/... -race -count=1 && go test ./domains/schedule -race -count=1 -fuzz=. -fuzztime=20s`.
   - `go vet ./...` in `sparky/backend` -> **pass**.
-  - `bash tooling/check-sparky-boundaries.sh`, `git diff --check`, staged diff whitespace check -> **pass**.
+  - `bash tooling/check-sparky-boundaries.sh`, `git diff --check` -> **pass**.
   - Ownership -> **pass**: branch diff contains only `sparky/backend/domains/schedule/**`, this status, and the two request files. No frozen schema or generated contract differences from `sparky-contracts-v1.1`.
 - Deviations from the plan (and why):
-  - Native repetition not implemented because its required transport is missing from frozen contracts; do not silently lose repetition on serialization.
+  - Frozen `ReminderItem` RPC still has no `repeat` field. Domain items carry `Repeat`; W1-CORE must not silently drop it as if unarmed. Request 1 remains for additive proto + native mapping.
   - Verify split into race coverage of all schedule packages and fuzzing of the single package because Go rejects the original multi-package fuzz command.
   - All-day minutely/hourly rules are rejected: sub-day intervals cannot form a strictly increasing sequence of dates while ignoring the time of day. English descriptions are the fallback for all locales, consistent with v1 English product copy.
+  - Monthly/yearly interval-1 native calendar triggers are not emitted (03 lists minutely/hourly/daily/weekly only). Native hourly/minutely matching is wall-clock (OS); occurrence listing stays elapsed-time.
   - `polterware status`, `polterware format`, `polterware query cards`, and `polterware handoff` unavailable (`command not found`); no work-card/store writes attempted through another path.
 - Requests filed:
-  - `plans/sparky-next/requests/w1-recurrence-1.md`: additive repeat-component contract and delivery integration; no frozen files changed.
+  - `plans/sparky-next/requests/w1-recurrence-1.md`: additive repeat-component contract and delivery integration; domain Repeat is implemented; no frozen files changed.
   - `plans/sparky-next/requests/w1-recurrence-2.md`: exact plan edit to split the incompatible Verify command; plan untouched.
 - Follow-ups for other WS:
-  - W0-CONTRACTS / integrator: resolve requests 1 and 2. Resume repeat planning only after approval, coordinating stable identifiers and resolution of future delivered occurrences for Done with W1-NATIVE-NOTIFY.
-  - W1-DOMAIN/W1-CORE: populate PlanSubject status/schedule inactivity, metadata and exact completion instants; load the explicit zone at the I/O boundary and use `Schedule.Rule`. Supply resolved descendant mind IDs to `ListOccurrences`, injected clock to Engine, and configure the independent per-memory cap.
-  - W1-CORE/W1-NATIVE-NOTIFY: debounce changes by 500 ms, call the pure Plan and DiffPlan, wire change/wake/timezone/delivery refreshes, and retain honest concrete-reminder horizon wording until repeat transport is available.
+  - W0-CONTRACTS / integrator: apply request 1 (proto field 8 + `ReminderDateComponents`) and request 2 (Verify split).
+  - W1-CORE: map domain `Repeat` onto the RPC once field 8 exists; until then do not serialize a repeating item as a concrete one-shot. Load the explicit zone at the I/O boundary and use `Schedule.Rule`.
+  - W1-DOMAIN/W1-CORE: populate PlanSubject status/schedule inactivity, metadata and exact completion instants. Supply resolved descendant mind IDs to `ListOccurrences`, injected clock to Engine, and configure the independent per-memory cap.
+  - W1-CORE/W1-NATIVE-NOTIFY: debounce changes by 500 ms, call Plan and DiffPlan, wire change/wake/timezone/delivery refreshes. Stable repeating IDs are `rem:<memoryID>:repeat` and `rem:<memoryID>:wd<n>` (Sunday=1). Resolve the occurrence instant for Done from the delivery time, not a frozen `OccurrenceAt` on a repeating request.

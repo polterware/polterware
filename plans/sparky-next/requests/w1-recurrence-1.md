@@ -1,8 +1,8 @@
 # W1-RECURRENCE: native-repeat transport missing from frozen contracts
 
 - Owner: W0-CONTRACTS / integrator, with Erick's approval for a freeze change.
-- Blocked sub-task: emitting native repeating reminders; concrete planning and recurrence continue independently.
-- Evidence: `03-recurrence-and-reminders.md` requires `ReminderItem.Repeat *DateComponents`; at `sparky-contracts-v1.1`, `sparky/schemas/sparky/v1/reminder.proto` has only fields 1..7. Neither the domain reminder item nor the generated RPC can represent repetition. Silently emitting repeats would either lose them on the wire or change the frozen contract.
+- Domain sub-task: **done** on `sparky/w1-recurrence-b`. `domains/schedule` emits `ReminderItem.Repeat *DateComponents` for open-ended interval=1 minutely/hourly/daily/weekly (one slot per weekday). Bounded rules, every>1, monthly and yearly stay one-shots. IDs: `rem:<memoryID>:repeat` and `rem:<memoryID>:wd<n>` (Sunday=1).
+- Remaining: frozen RPC cannot transport Repeat. At `sparky-contracts-v1.1`, `sparky/schemas/sparky/v1/reminder.proto` has only fields 1..7. W1-CORE must not serialize a repeating item as a concrete one-shot (that would lose indefinite OS delivery).
 - Requested exact schema addition (and regeneration by the owner):
 
 ```diff
@@ -20,4 +20,4 @@
 ```
 
 - Owner should add the corresponding native transport mapping in W1-CORE/W1-NATIVE-NOTIFY, then rerun `buf breaking` against the approved baseline. No frozen files changed by W1-RECURRENCE.
-- Resume domain sub-task after approval: repeat support for open-ended interval=1 daily/weekly/hourly/minutely; one slot per weekday; bounded and interval>1 remain one-shots. Stable repeating identifiers and exact occurrence resolution for Done must be agreed with the native owner (a fixed occurrence timestamp cannot identify future deliveries indefinitely).
+- Done of a repeating delivery must resolve the occurrence instant from the fire time (a stored `OccurrenceAt` cannot identify future deliveries indefinitely).
