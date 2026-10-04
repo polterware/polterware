@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+const MaxResponseBytes = 8 << 20
+
 const sessionHeader = "Mcp-Session-Id"
 
 // Proxy copies stdin MCP messages to the core HTTP endpoint until EOF.
@@ -66,24 +68,30 @@ func postMCP(ctx context.Context, client *http.Client, endpoint, token, session 
 		return nil, session, err
 	}
 	defer res.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(res.Body, MaxBodyBytes))
+	body, err := io.ReadAll(io.LimitReader(res.Body, MaxResponseBytes+1))
 	if err != nil {
 		return nil, session, err
 	}
 	if id := res.Header.Get(sessionHeader); id != "" {
 		session = id
 	}
+	if len(body) > MaxResponseBytes {
+		return nil, session, fmt.Errorf("MCP response exceeds the %d byte limit", MaxResponseBytes)
+	}
 	if res.StatusCode == http.StatusAccepted {
 		return nil, session, nil
 	}
 	if res.StatusCode != http.StatusOK {
-		if strings.Contains(res.Header.Get("Content-Type"), "application/json") && bytes.Contains(body, []byte(`"jsonrpc"`)) {
+		if strings.Contains(res.Header.Get("Content-Type"), "application/json") && json.Valid(body) && bytes.Contains(body, []byte(`"jsonrpc"`)) {
 			return [][]byte{body}, session, nil
 		}
 		return nil, session, fmt.Errorf("mcp http %d: %s", res.StatusCode, strings.TrimSpace(string(body)))
 	}
 	if strings.Contains(res.Header.Get("Content-Type"), "text/event-stream") {
 		return sseData(body), session, nil
+	}
+	if !json.Valid(body) {
+		return nil, session, fmt.Errorf("invalid MCP JSON response")
 	}
 	return [][]byte{body}, session, nil
 }
