@@ -29,7 +29,6 @@
   flex-shrink: 0;
   flex-direction: column;
   gap: 8px;
-  border-left: 1px solid var(--color-border-subtle);
   background: var(--color-surface);
   padding: 12px;
   overflow: auto;
@@ -57,12 +56,9 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  background: transparent;
   color: var(--color-text-primary);
   padding: 8px 10px;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -73,7 +69,6 @@
 
 .sparky-map-page__row.is-selected {
   background: var(--color-surface-selected);
-  border-color: var(--color-border-subtle);
 }
 
 .sparky-map-page__row-title {
@@ -84,4 +79,13 @@
 .sparky-map-page__row-meta {
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+.sparky-map-page__row { block-size: auto; white-space: normal; }
+.sparky-map-page__row-title, .sparky-map-page__row-meta { min-inline-size: 0; max-inline-size: 100%; overflow-wrap: anywhere; }
+.sparky-map-page__layout { gap: 8px; }
+@media (max-width: 960px) {
+  .sparky-map-page__layout { flex-direction: column; block-size: auto; }
+  .sparky-map-page__canvas { min-block-size: 240px; }
+  .sparky-map-page__list { inline-size: auto; max-block-size: 240px; }
 }

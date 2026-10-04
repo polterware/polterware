@@ -15,6 +15,7 @@ import {
   Select,
   type PickerIconName,
 } from "@polterware/frontend-design-system";
+import "./minds.css";
 import { useSparkyShell } from "@polterware/feature-sparky-shell";
 import type { Mind } from "@polterware/sparky-contracts";
 import { hexFromPicker, loadDeletePreview, loadMinds, mindsBridge, parentPatch, toMindNode, wireRev } from "./bridge";
@@ -187,16 +188,16 @@ export function MindPage() {
         fallback={<PageError message="Minds are unavailable while the local core is offline." onRetry={() => void refresh()} />}
       >
         <div class="flex h-full min-h-0">
-          <aside class="w-64 shrink-0 overflow-auto border-r border-[var(--color-border-subtle)] p-3" aria-label="Mind navigation">
+          <aside class="sparky-minds-navigation shrink-0 overflow-auto p-3" aria-label="Mind navigation">
             <div class="mb-3 flex items-center justify-between">
               <h2 class="text-sm font-semibold">Minds</h2>
-              <Button size="sm" onClick={() => openCreate()}>
+              <Button size="sm" aria-label="Create Mind" onClick={() => openCreate()}>
                 New
               </Button>
             </div>
             <MindsSidebarTree />
           </aside>
-          <main class="min-w-0 flex-1 overflow-auto">
+          <section aria-label="Mind workspace" class="min-w-0 flex-1 overflow-auto">
             <Show
               when={selected()}
               fallback={
@@ -226,13 +227,13 @@ export function MindPage() {
                     <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 p-4">
                       <For each={tree()}>
                         {(mind) => (
-                          <button type="button" class="text-left" onClick={() => shell.navigate(`/mind/${encodeURIComponent(mind.id)}`)}>
+                          <Button variant="ghost" class="sparky-mind-tile" onClick={() => shell.navigate(`/mind/${encodeURIComponent(mind.id)}`)}>
                             <Card>
                               <MindMark color={mind.color} icon={mind.icon} size={28} />
-                              <p class="mt-2 text-sm font-medium text-[var(--color-text-primary)]">{mind.name}</p>
+                              <p class="mt-2 break-words text-sm font-medium text-[var(--color-text-primary)]">{mind.name}</p>
                               <p class="text-xs text-[var(--color-text-muted)]">{mind.children.length} child Minds</p>
                             </Card>
-                          </button>
+                          </Button>
                         )}
                       </For>
                     </div>
@@ -318,10 +319,10 @@ export function MindPage() {
                           <For each={children()}>
                             {(child) => (
                               <Card>
-                                <button type="button" class="text-left" onClick={() => shell.navigate(`/mind/${encodeURIComponent(child.id)}`)}>
+                                <Button variant="ghost" class="sparky-mind-tile" onClick={() => shell.navigate(`/mind/${encodeURIComponent(child.id)}`)}>
                                   <MindMark color={child.color} icon={child.icon} size={24} />
                                   <p class="mt-2 text-sm text-[var(--color-text-primary)]">{child.name}</p>
-                                </button>
+                                </Button>
                                 <div class="mt-2 flex gap-2">
                                   <Button size="sm" aria-label={`Move ${child.name} up`} onClick={() => void reorderChild(child, -1)}>
                                     Move up
@@ -340,7 +341,7 @@ export function MindPage() {
                 </>
               )}
             </Show>
-          </main>
+          </section>
         </div>
         <Dialog
           open={createOpen()}
