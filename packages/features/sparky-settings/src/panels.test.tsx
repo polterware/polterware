@@ -120,14 +120,14 @@ describe("settings panels", () => {
     const toggle = [...host.querySelectorAll<HTMLElement>(".pw-switch-row")].find(row => row.textContent?.includes("Reduce transparency"))!;
     pointerClick(toggle);
     await vi.waitFor(() => expect(bridge.app.setReduceTransparency).toHaveBeenCalledWith(true));
-    expect(host.textContent).toContain("not observed under ad-hoc signing");
+    expect(host.textContent).toContain("Automatic launch at login is unavailable");
     expect(host.textContent).toContain("Unavailable");
   });
 
   it("discloses address sharing and renderer reload before enabling geocoding", async () => {
     const { host, bridge } = mount(() => <MapPanel />);
     await vi.waitFor(() => expect(host.textContent).toContain("Typed address text is sent to Nominatim"));
-    expect(host.textContent).toContain("reloads the renderer");
+    expect(host.textContent).toContain("reloads Sparky");
     const toggle = [...host.querySelectorAll<HTMLElement>(".pw-switch-row")].find(row => row.textContent?.includes("Address search"))!;
     pointerClick(toggle);
     await vi.waitFor(() => expect(bridge.settings.set).toHaveBeenCalledWith({ keys: ["map.geocoding"], settings: { mapGeocoding: true } }));
