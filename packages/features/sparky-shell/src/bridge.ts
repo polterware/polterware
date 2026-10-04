@@ -18,6 +18,7 @@ export type ShellBridge = {
   app: {
     onDeepLink(callback: (link: { url: string; route: string }) => void): () => void;
     getDeepLink(): Promise<{ url: string; route: string } | null>;
+    requestNotificationAuthorization(): Promise<boolean>;
   };
 };
 

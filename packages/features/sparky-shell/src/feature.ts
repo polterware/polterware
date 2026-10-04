@@ -35,6 +35,16 @@ export type DetailSectionDef = {
   visible?: (memoryId: string) => boolean;
 };
 
+export type MemoryDetailProps = {
+  memoryId: string;
+  detailSections: DetailSectionDef[];
+};
+
+export type SidebarTreeDef = {
+  id: string;
+  component: Component;
+};
+
 export type SparkyFeature = {
   id: string;
   routes: RouteDef[];
@@ -42,6 +52,9 @@ export type SparkyFeature = {
   commands?: CommandDef[];
   settingsPanels?: SettingsPanelDef[];
   detailSections?: DetailSectionDef[];
+  memoryDetail?: Component<MemoryDetailProps>;
+  memoryCollection?: Component;
+  sidebarTree?: SidebarTreeDef;
   onDeepLink?: (url: URL) => boolean;
 };
 

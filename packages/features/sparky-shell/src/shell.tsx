@@ -38,6 +38,8 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     catch { return true; }
   })());
   const [onboardingStep, setOnboardingStep] = createSignal(0);
+  const [authorizationBusy, setAuthorizationBusy] = createSignal(false);
+  const [authorizationError, setAuthorizationError] = createSignal<string | null>(null);
   const [deepLink, setDeepLink] = createSignal<URL | null>(null);
   let collectionShortcuts: ((action: MemoryShortcut) => void) | undefined;
   const [helpMenuOpen, setHelpMenuOpen] = createSignal(false);
@@ -53,6 +55,11 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
   const settingsGroups = createMemo(() => [...new Set(settingsPanels().map(panel => panel.group))]);
   const activeSettings = createMemo(() => settingsPanels().find(panel => panel.id === settingsPanel()) ?? settingsPanels()[0]);
   const detailSections = createMemo(() => props.features.flatMap(feature => feature.detailSections ?? []).sort((a, b) => a.order - b.order));
+  const memoryDetail = createMemo(() => props.features.find(feature => feature.memoryDetail)?.memoryDetail);
+  const memoryCollection = createMemo(() => props.features.find(feature => feature.memoryCollection)?.memoryCollection);
+  const sidebarTree = createMemo(() => props.features.find(feature => feature.sidebarTree)?.sidebarTree);
+  const canRequestNotifications = () => typeof props.bridge?.app.requestNotificationAuthorization === "function";
+  const notificationGranted = () => ["authorized", "provisional", "ephemeral"].includes(core.status()?.permission ?? "");
   const [minds] = createResource(() => core.state() === "live" ? dataRevision() : false, async () => (await props.bridge!.minds.list({})).minds ?? []);
   const [inboxCount] = createResource(() => core.state() === "live" ? dataRevision() : false, async () => (await props.bridge!.memories.list({ inboxOnly: true, status: "active", limit: 1 })).total);
   const tree = createMemo(() => mindTree(minds.error ? [] : minds() ?? []));
@@ -88,6 +95,17 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
   function finishOnboarding() {
     try { localStorage.setItem("sparky.shell.onboarding", "complete"); } catch { /* Session-only when storage is unavailable. */ }
     setOnboardingOpen(false);
+  }
+  async function enableNotifications() {
+    if (!canRequestNotifications() || authorizationBusy()) return;
+    setAuthorizationBusy(true);
+    setAuthorizationError(null);
+    try {
+      await props.bridge!.app.requestNotificationAuthorization();
+      await core.refresh();
+    } catch (error) {
+      setAuthorizationError(error instanceof Error ? error.message : "Notification authorization failed.");
+    } finally { setAuthorizationBusy(false); }
   }
   const commands = createMemo(() => [
     ...SHELL_ROUTES.map(item => ({ id: `navigate:${item.path}`, label: `Go to ${item.title}`, keywords: ["navigate"], run: () => navigate(item.path) })),
@@ -198,13 +216,15 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
                 <Show when={item.badge !== undefined && item.path !== "/inbox"}><span>{item.badge}</span></Show>
               </MenuItem>}</For></MenuList>
             </nav>
-            <Show when={core.state() === "live"}>
-              <Show when={!minds.error} fallback={<p role="status">Minds unavailable</p>}>
-                <Show when={tree().length}><TreeView label="Minds" nodes={tree()} expandedValue={expandedMinds()} selectedValue={params().id ? [params().id!] : []}
-                  onExpandedChange={details => { setExpandedMinds(details.expandedValue); try { localStorage.setItem("sparky.shell.minds.expanded", JSON.stringify(details.expandedValue)); } catch { /* Session-only. */ } }}
-                  onSelectionChange={details => { const id = details.selectedValue[0]; if (id) navigate(`/mind/${encodeURIComponent(id)}`); }} /></Show>
+            <Show when={sidebarTree()} fallback={
+              <Show when={core.state() === "live"}>
+                <Show when={!minds.error} fallback={<p role="status">Minds unavailable</p>}>
+                  <Show when={tree().length}><TreeView label="Minds" nodes={tree()} expandedValue={expandedMinds()} selectedValue={params().id ? [params().id!] : []}
+                    onExpandedChange={details => { setExpandedMinds(details.expandedValue); try { localStorage.setItem("sparky.shell.minds.expanded", JSON.stringify(details.expandedValue)); } catch { /* Session-only. */ } }}
+                    onSelectionChange={details => { const id = details.selectedValue[0]; if (id) navigate(`/mind/${encodeURIComponent(id)}`); }} /></Show>
+                </Show>
               </Show>
-            </Show>
+            }>{treeDef => <Dynamic component={treeDef().component} />}</Show>
             <div class="sparky-sidebar-footer"><Button variant="ghost" class="w-full justify-start" onClick={() => setSettingsOpen(true)}><Settings size={15} />Settings</Button></div>
           </aside>
           <main ref={main} tabIndex={-1} aria-label={title()} class="sparky-main">
@@ -214,13 +234,15 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
                   <DetailPanel.Root open={!!selectedMemoryId()} expanded={expanded()} activeEntityId={selectedMemoryId()} onOpenChange={open => { if (!open) closeDetail(); }} onExpandedChange={setExpanded} aria-label="Memory details">
                     <DetailPanel.Collection>
                       <Show keyed when={path()}>{(_path) => <ErrorBoundary fallback={boundary}>
-                        <Show when={route()} fallback={<><PageHeader title={title()} subtitle={<StatusChip tone="muted" label="Unavailable" />} /><PageEmpty title={`${title()} is unavailable`} description="This feature has not registered a route yet." /></>}>
-                          {resolved => <Dynamic component={resolved().route.component} />}
-                        </Show>
+                        <Show when={/^\/mind\/[^/]+$/.test(normalizePath(path())) && memoryCollection()} fallback={
+                          <Show when={route()} fallback={<><PageHeader title={title()} subtitle={<StatusChip tone="muted" label="Unavailable" />} /><PageEmpty title={`${title()} is unavailable`} description="This feature has not registered a route yet." /></>}>
+                            {resolved => <Dynamic component={resolved().route.component} />}
+                          </Show>
+                        }>{collection => <Dynamic component={collection()} />}</Show>
                       </ErrorBoundary>}</Show>
                     </DetailPanel.Collection>
                     <DetailPanel.Content><DetailPanel.Header /><ErrorBoundary fallback={boundary}>
-                      <Show when={selectedMemoryId()}>{id => <Show when={detailRenderer() ?? detailRoute()?.route.component} fallback={
+                      <Show when={selectedMemoryId()}>{id => <Show when={memoryDetail() ?? detailRenderer() ?? detailRoute()?.route.component} fallback={
                         <DetailPanel.Body layout="document"><DetailPanel.Main>
                           <Show when={!memory.loading} fallback={<PageLoading label="Loading memory…" />}>
                             <Show when={!memory.error && memory()} fallback={<PageError message="The selected memory could not be loaded." onRetry={() => setDataRevision(value => value + 1)} />}>
@@ -231,7 +253,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
                             </Show>
                           </Show>
                         </DetailPanel.Main></DetailPanel.Body>
-                      }>{component => <Dynamic component={component()} memoryId={id()} />}</Show>}</Show>
+                      }>{component => <Dynamic component={component()} memoryId={id()} detailSections={detailSections()} />}</Show>}</Show>
                     </ErrorBoundary></DetailPanel.Content>
                   </DetailPanel.Root>
                 </Show>
@@ -256,7 +278,12 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
           <Button onClick={() => onboardingStep() === 2 ? finishOnboarding() : setOnboardingStep(step => step + 1)}>{onboardingStep() === 2 ? "Get started" : "Continue"}</Button></>}>
         <Show when={onboardingStep() === 0}><DitherIconTile><Inbox size={24} /></DitherIconTile><p>Keep memories, plans, and Minds together on your Mac. Your data stays in the local core.</p></Show>
         <Show when={onboardingStep() === 1}><p>macOS delivers armed reminders even after Sparky closes. Reminders are refreshed when Sparky runs.</p>
-          <StatusChip label={reminderLabel(core.status())} /><p>Notification authorization is unavailable in this build. No reminder is armed by this step.</p>
+          <StatusChip label={reminderLabel(core.status())} />
+          <Show when={canRequestNotifications()} fallback={<p>Notification authorization is unavailable in this build. No reminder is armed by this step.</p>}>
+            <Button disabled={authorizationBusy() || notificationGranted()} onClick={() => void enableNotifications()}>Enable notifications</Button>
+            <Show when={authorizationError()}><p role="alert">{authorizationError()}</p></Show>
+            <p>Enabling notifications does not arm a reminder. Armed reminders appear only after a live schedule.</p>
+          </Show>
         </Show>
         <Show when={onboardingStep() === 2}><p>Connecting an AI coding agent is optional. Configure local MCP access in Settings → Agents when that panel is available.</p>
           <Button onClick={() => { finishOnboarding(); const agents = settingsPanels().find(panel => panel.group.toLowerCase() === "agents"); if (agents) setSettingsPanel(agents.id); setSettingsOpen(true); }}>Open agent settings</Button>
