@@ -49,13 +49,8 @@ export function resolveTimezone(tz?: string): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
-/**
- * Frozen Settings has no week-start field. Monday matches MCP `get_review`.
- * Callers still load `settings.get` so a later calendar key can be wired here.
- */
-export function weekStartFromSettings(_settings: SettingsJSON | undefined, localeFirstDay?: number): WeekStart {
-  if (localeFirstDay === 7) return 0;
-  return 1;
+export function weekStartFromSettings(settings: SettingsJSON | undefined): WeekStart {
+  return settings?.calendarWeekStart === "sun" ? 0 : 1;
 }
 
 export function civilDateInZone(date: Date, tz: string): CivilDate {

@@ -1,18 +1,8 @@
 import { vi } from "vitest";
-import type { CalendarWireBridge } from "./bridge";
+import type { CalendarWireBridge, OccurrenceJSON } from "./bridge";
 import type { ScheduleJSON } from "./mapping";
 
-export type FakeOccurrence = {
-  memoryId: string;
-  title: string;
-  occurrenceAt: string;
-  fireAt?: string;
-  completed?: boolean;
-  overdue?: boolean;
-  allDay?: boolean;
-  mindId?: string;
-  tz?: string;
-};
+export type FakeOccurrence = OccurrenceJSON & { memoryId: string; title: string; occurrenceAt: string };
 
 export type FakeMemory = {
   id: string;

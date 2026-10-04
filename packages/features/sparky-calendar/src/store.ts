@@ -1,5 +1,5 @@
 import { batch, createSignal } from "solid-js";
-import { browserBridge, type CalendarBridge } from "./bridge";
+import { browserBridge, type CalendarBridge, type OccurrenceJSON } from "./bridge";
 import { occurrenceDate, systemTimeZone, visibleRange, weekStartFromSettings, type CalendarView, type WeekStart } from "./grid";
 import { errorText, isRecurring, moveSeriesAnchor, revisionString, slotInstant, toOneShotSchedule, type ScheduleJSON, type SlotDraft } from "./mapping";
 
@@ -24,7 +24,7 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
-function occurrenceFromJson(row: Record<string, unknown>, minds: Record<string, string>, fallbackTz: string): CalendarOccurrence | undefined {
+function occurrenceFromJson(row: OccurrenceJSON, minds: Record<string, string>, fallbackTz: string): CalendarOccurrence | undefined {
   const memoryId = String(row.memoryId ?? "");
   const occurrenceAt = String(row.occurrenceAt ?? "");
   if (!memoryId || !occurrenceAt) return undefined;
@@ -33,7 +33,7 @@ function occurrenceFromJson(row: Record<string, unknown>, minds: Record<string, 
     memoryId,
     title: String(row.title ?? "Untitled memory"),
     occurrenceAt,
-    fireAt: String(row.fireAt ?? occurrenceAt),
+    fireAt: row.fireAt ?? occurrenceAt,
     completed: Boolean(row.completed),
     overdue: Boolean(row.overdue),
     allDay: Boolean(row.allDay),
@@ -59,8 +59,7 @@ export function createCalendarStore(getBridge: () => CalendarBridge = browserBri
 
   async function loadSettings() {
     try {
-      const response = asRecord(await getBridge().settings.get({}));
-      const settings = asRecord(response.settings);
+      const { settings } = await getBridge().settings.get({});
       setWeekStart(weekStartFromSettings(settings));
     } catch {
       setWeekStart("mon");
@@ -82,7 +81,7 @@ export function createCalendarStore(getBridge: () => CalendarBridge = browserBri
         const id = String(mind.id ?? "");
         if (id) colors[id] = String(mind.color ?? "");
       }
-      const rows = ((asRecord(list).occurrences as Record<string, unknown>[] | undefined) ?? [])
+      const rows = (list.occurrences ?? [])
         .map(row => occurrenceFromJson(row, colors, displayTz()))
         .filter((row): row is CalendarOccurrence => Boolean(row));
       batch(() => {

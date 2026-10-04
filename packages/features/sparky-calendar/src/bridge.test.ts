@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ListOccurrencesRequestSchema, SetScheduleRequestSchema } from "@polterware/sparky-contracts";
+import { ListOccurrencesRequestSchema, ListOccurrencesResponseSchema, SettingsSchema, SetScheduleRequestSchema } from "@polterware/sparky-contracts";
 import { fromJson, toJson } from "@bufbuild/protobuf";
 import { createCalendarBridge, revisionString, type CalendarWireBridge } from "./bridge";
 
@@ -47,4 +47,10 @@ describe("protobuf JSON calendar bridge", () => {
     expect(revisionString(undefined)).toBe("0");
     expect(revisionString(9007199254740993n)).toBe("9007199254740993");
   });
+  it("round-trips calendarWeekStart and occurrence.tz as declared contract fields", () => {
+    expect(toJson(SettingsSchema, fromJson(SettingsSchema, { calendarWeekStart: "sun" }))).toMatchObject({ calendarWeekStart: "sun" });
+    const json = toJson(ListOccurrencesResponseSchema, fromJson(ListOccurrencesResponseSchema, { occurrences: [{ memoryId: "memory-1", occurrenceAt: "2026-10-04T01:00:00.000Z", tz: "America/Sao_Paulo" }] }));
+    expect(json).toMatchObject({ occurrences: [{ tz: "America/Sao_Paulo" }] });
+  });
+
 });

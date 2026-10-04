@@ -104,4 +104,13 @@ describe("calendar store against a fake preload bridge", () => {
     expect(store.weekStart()).toBe("sun");
     expect(fake.wire.settings.get).toHaveBeenCalled();
   });
+  it("uses typed occurrence.tz to keep all-day civil dates in the schedule timezone", async () => {
+    const fake = fakeCalendarBridge({ occurrences: [{ memoryId: "memory-zone", title: "All day", occurrenceAt: "2026-10-04T01:00:00.000Z", fireAt: "2026-10-04T01:00:00.000Z", allDay: true, tz: "America/Sao_Paulo" }] });
+    const store = createCalendarStore(() => createCalendarBridge(fake.wire));
+    await store.loadRange({ from: "2026-10-03T00:00:00.000Z", to: "2026-10-05T00:00:00.000Z" });
+    expect(store.occurrences()[0]?.tz).toBe("America/Sao_Paulo");
+    expect(store.forDate("2026-10-03")[0]?.memoryId).toBe("memory-zone");
+    expect(store.forDate("2026-10-04")).toEqual([]);
+  });
+
 });

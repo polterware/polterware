@@ -49,4 +49,14 @@ describe("review store", () => {
     await vi.waitFor(() => expect(store.loadState()).toBe("unavailable"));
     expect(store.loadError()).toContain("unreachable");
   });
+  it("uses Sunday from SettingsService for the review window", async () => {
+    const fake = fakeBridge({ settings: { calendarWeekStart: "sun" } });
+    const store = createReviewStore(() => fake.bridge, { now: () => Date.parse("2026-10-04T12:00:00.000Z"), tz: "UTC" });
+    cleanups.push(() => store.dispose());
+    store.connect();
+    await vi.waitFor(() => expect(store.loadState()).toBe("live"));
+    expect(store.weekStart()).toBe(0);
+    expect(fake.bridge.review.get).toHaveBeenCalledWith({ from: "2026-10-04T00:00:00.000Z", to: "2026-10-04T12:00:00.001Z", tz: "UTC" });
+  });
+
 });

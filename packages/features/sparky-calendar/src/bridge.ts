@@ -1,7 +1,20 @@
-import type { DescService, JsonValue } from "@bufbuild/protobuf";
+import type { DescMessage, DescMethodUnary, MessageShape, DescService, JsonValue } from "@bufbuild/protobuf";
 import { fromJson } from "@bufbuild/protobuf";
 import * as Contracts from "@polterware/sparky-contracts";
 import { revisionString } from "./mapping";
+
+type Wire<T> = T extends { $typeName: "google.protobuf.Timestamp" } ? string
+  : T extends bigint ? string
+  : T extends readonly (infer V)[] ? Wire<V>[]
+  : T extends object ? { [K in keyof T as K extends "$typeName" ? never : K]?: Wire<T[K]> }
+  : T;
+export type JsonOf<S extends DescMessage> = Wire<MessageShape<S>>;
+type Namespace<S extends { method: object }> = {
+  [K in keyof S["method"]]: S["method"][K] extends DescMethodUnary
+    ? (input?: Wire<MessageShape<S["method"][K]["input"]>>) => Promise<Wire<MessageShape<S["method"][K]["output"]>>> : never;
+};
+export type SettingsJSON = JsonOf<typeof Contracts.SettingsSchema>;
+export type OccurrenceJSON = JsonOf<typeof Contracts.OccurrenceSchema>;
 
 type Rpc = (input?: JsonValue) => Promise<JsonValue>;
 type WireNamespace = Record<string, Rpc>;
@@ -18,8 +31,8 @@ export type CalendarWireBridge = {
 export type CalendarBridge = {
   memories: { create: Rpc; get: Rpc };
   minds: { list: Rpc };
-  schedule: { listOccurrences: Rpc; set: Rpc };
-  settings: { get: Rpc };
+  schedule: Pick<Namespace<typeof Contracts.ScheduleService>, "listOccurrences"> & { set: Rpc };
+  settings: Pick<Namespace<typeof Contracts.SettingsService>, "get">;
   onChange: CalendarWireBridge["onChange"];
 };
 

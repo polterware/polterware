@@ -111,9 +111,10 @@ describe("reviewWindow", () => {
 });
 
 describe("week start and heatmap padding", () => {
-  it("defaults to Monday because Settings has no week-start field", () => {
+  it("uses the typed calendarWeekStart setting", () => {
     expect(weekStartFromSettings({})).toBe(1);
-    expect(weekStartFromSettings({}, 7)).toBe(0);
+    expect(weekStartFromSettings({ calendarWeekStart: "sun" })).toBe(0);
+    expect(weekStartFromSettings({ calendarWeekStart: "mon" })).toBe(1);
   });
 
   it("pads complete weeks without inventing completions", () => {
