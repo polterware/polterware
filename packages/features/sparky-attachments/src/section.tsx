@@ -5,7 +5,7 @@ import {
 } from "@polterware/frontend-design-system";
 import { useSparkyShell } from "@polterware/feature-sparky-shell/feature";
 import {
-  DROP_PATH_UNAVAILABLE, FETCH_TITLES_OFF, FETCH_TITLES_ON, linkHost, previewUrl,
+  FETCH_TITLES_OFF, FETCH_TITLES_ON, linkHost, previewUrl,
   type AttachmentJSON,
 } from "./model";
 import { attachmentsStore } from "./store";
@@ -37,7 +37,7 @@ export function AttachmentsSection() {
     setDragging(false);
     const list = event.dataTransfer?.files;
     if (!list?.length || !memoryId()) return;
-    store.importDropped(memoryId(), list);
+    void store.importDropped(memoryId(), list);
   }
   async function startRecording() {
     const permission = await store.requestMicrophone();
@@ -48,13 +48,21 @@ export function AttachmentsSection() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunks = [];
-      recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : undefined });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
       recorder.onstop = () => {
         stream.getTracks().forEach(track => track.stop());
+        const blob = new Blob(chunks, { type: mimeType || "audio/webm" });
         if (localBlob()) URL.revokeObjectURL(localBlob());
-        if (chunks.length) setLocalBlob(URL.createObjectURL(new Blob(chunks, { type: recorder?.mimeType || "audio/webm" })));
-        store.recordingImportUnavailable();
+        if (!chunks.length) return;
+        const preview = URL.createObjectURL(blob);
+        setLocalBlob(preview);
+        void store.importRecording(memoryId(), blob).then(() => {
+          if (store.state() === "failed") return;
+          URL.revokeObjectURL(preview);
+          setLocalBlob(current => current === preview ? "" : current);
+        });
       };
       recorder.start();
       store.setRecording(true);
@@ -111,7 +119,7 @@ export function AttachmentsSection() {
         onDrop={drop}
       >
         <Card>
-          <p class="text-[12px] text-[var(--color-text-muted)]">Drop files here. {DROP_PATH_UNAVAILABLE}</p>
+          <p class="text-[12px] text-[var(--color-text-muted)]">Drop files here.</p>
         </Card>
       </div>
       <Show when={store.microphone() === "denied" || store.microphone() === "unavailable"}>

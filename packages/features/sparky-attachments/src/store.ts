@@ -1,8 +1,8 @@
 import { batch, createSignal } from "solid-js";
 import { browserBridge } from "./bridge";
 import {
-  DROP_PATH_UNAVAILABLE, MICROPHONE_DENIED, MICROPHONE_UNAVAILABLE, RECORDING_IMPORT_UNAVAILABLE,
-  droppedFilePath, errorText, previewUrl, reorderIds, revisionString,
+  DROP_PATH_REFUSED, MAX_RECORDING_BYTES, MICROPHONE_DENIED, MICROPHONE_UNAVAILABLE, RECORDING_OVERSIZE,
+  errorText, previewUrl, recordingFileName, reorderIds, revisionString,
   type AttachmentJSON, type AttachmentsBridge, type MicrophoneState, type SaveState,
 } from "./model";
 
@@ -103,13 +103,40 @@ export function createAttachmentsStore(getBridge: () => AttachmentsBridge = brow
       await importPaths(memoryId, paths);
     } catch (value) { fail(value); }
   }
-  function importDropped(memoryId: string, files: FileList | File[]) {
-    const paths = [...files].map(droppedFilePath).filter((path): path is string => Boolean(path));
-    if (!paths.length) {
-      batch(() => { setState("failed"); setError(DROP_PATH_UNAVAILABLE); });
+  async function importDropped(memoryId: string, files: FileList | File[]) {
+    const list = [...files];
+    if (!list.length) return;
+    setState("queued");
+    try {
+      const granted = await getBridge().app.pathsForDroppedFiles(list);
+      const refused = list.length - granted.length;
+      if (!granted.length) {
+        batch(() => { setState("failed"); setError(DROP_PATH_REFUSED); });
+        return;
+      }
+      await importPaths(memoryId, granted);
+      if (refused > 0) {
+        const coreError = error();
+        batch(() => { setState("failed"); setError([coreError, DROP_PATH_REFUSED].filter(Boolean).join(" ")); });
+      }
+    } catch (value) { fail(value); }
+  }
+  async function importRecording(memoryId: string, blob: Blob) {
+    if (blob.size > MAX_RECORDING_BYTES) {
+      fail(new Error(RECORDING_OVERSIZE));
       return;
     }
-    void importPaths(memoryId, paths);
+    setState("queued");
+    try {
+      const name = recordingFileName(blob.type);
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      if (bytes.byteLength > MAX_RECORDING_BYTES) {
+        fail(new Error(RECORDING_OVERSIZE));
+        return;
+      }
+      const sourcePath = await getBridge().app.writeTempFile(bytes, name);
+      await importPaths(memoryId, [sourcePath]);
+    } catch (value) { fail(value); }
   }
   async function requestMicrophone(): Promise<MicrophoneState> {
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
@@ -129,9 +156,6 @@ export function createAttachmentsStore(getBridge: () => AttachmentsBridge = brow
     if (value === "denied") return MICROPHONE_DENIED;
     if (value === "unavailable") return MICROPHONE_UNAVAILABLE;
     return "";
-  }
-  function recordingImportUnavailable() {
-    batch(() => { setRecording(false); setState("failed"); setError(RECORDING_IMPORT_UNAVAILABLE); });
   }
   function connect() {
     users += 1;
@@ -153,8 +177,8 @@ export function createAttachmentsStore(getBridge: () => AttachmentsBridge = brow
   }
   return {
     items, state, error, microphone, fetchTitles, memoryRev, recording, setRecording,
-    load, importPaths, addLink, remove, move, reveal, pickAndImport, importDropped,
-    requestMicrophone, microphoneCopy, recordingImportUnavailable, connect, dispose, fail,
+    load, importPaths, addLink, remove, move, reveal, pickAndImport, importDropped, importRecording,
+    requestMicrophone, microphoneCopy, connect, dispose, fail,
   };
 }
 

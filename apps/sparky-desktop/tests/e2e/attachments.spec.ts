@@ -63,20 +63,26 @@ test("imports 20 mixed files through pickFiles and never uses file:// previews",
   expect(await page.locator("[src^='file:']").count()).toBe(0);
 });
 
-test("drag-drop import uses granted paths, otherwise shows the honest missing-path error", async () => {
-  await openInboxMemory("Attachment drop");
+test("drag-drop import uses a real drop and granted paths", async () => {
+  const memoryId = await openInboxMemory("Attachment drop");
   const zone = page.locator("[data-drop-zone]");
   await expect(zone).toBeVisible();
-  const file = { name: "drop.txt", mimeType: "text/plain", buffer: Buffer.from("dropped") };
-  await zone.dispatchEvent("drop", { dataTransfer: { files: [file] } }).catch(() => {});
-  await page.evaluate(() => {
-    const zone = document.querySelector("[data-drop-zone]");
-    const event = new Event("drop", { bubbles: true, cancelable: true });
-    Object.defineProperty(event, "dataTransfer", { value: { files: [new File(["dropped"], "drop.txt", { type: "text/plain" })] } });
-    zone?.dispatchEvent(event);
-  });
-  await expect(page.getByText(/Dropped files have no filesystem path/)).toBeVisible();
+  const path = join(directory, "drop.txt");
+  await writeFile(path, "dropped");
+  const box = await zone.boundingBox();
+  expect(box).toBeTruthy();
+  const session = await page.context().newCDPSession(page);
+  const point = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
+  const data = { items: [{ mimeType: "Files", data: path }], files: [path], dragOperationsMask: 1 };
+  await session.send("Input.dispatchDragEvent", { type: "dragEnter", ...point, data });
+  await session.send("Input.dispatchDragEvent", { type: "dragOver", ...point, data });
+  await session.send("Input.dispatchDragEvent", { type: "drop", ...point, data });
+  await expect(page.getByText("drop.txt")).toBeVisible();
+  await expect(page.getByText("Live", { exact: true })).toBeVisible();
+  const listed = await page.evaluate(async (id) => window.sparky.attachments.list({ memoryId: id }), memoryId);
+  expect(listed.attachments?.some(item => item.name === "drop.txt")).toBe(true);
   expect(await page.locator("[src^='file:']").count()).toBe(0);
+  await expect(page.getByText(/no filesystem path/)).toHaveCount(0);
 });
 
 test("denied microphone permission is shown honestly", async () => {

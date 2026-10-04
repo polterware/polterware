@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAttachmentsBridge, type AttachmentsWireBridge } from "./bridge";
 import { fakeBridge, MEMORY_ID, PHOTO_ID, attachmentFixture, AUDIO_ID, FILE_ID, LINK_ID } from "./fake-bridge";
-import { DROP_PATH_UNAVAILABLE, MICROPHONE_DENIED, RECORDING_IMPORT_UNAVAILABLE } from "./model";
+import { DROP_PATH_REFUSED, MAX_RECORDING_BYTES, MICROPHONE_DENIED, RECORDING_OVERSIZE } from "./model";
 import { createAttachmentsStore } from "./store";
 
 beforeEach(() => {
@@ -29,18 +29,65 @@ describe("attachments store", () => {
     expect(store.error()).toContain("attachment exceeds kind size limit");
     expect(store.error()).toContain("attachment quota exceeded");
   });
-  it("adds links with expectedRev and surfaces microphone denied plus recording import unavailability", async () => {
+  it("imports two of three dropped files and reports the refused path", async () => {
+    const { store, bridge } = storeFrom(fakeBridge([]));
+    const files = [
+      new File(["a"], "a.png", { type: "image/png" }),
+      new File(["b"], "refused.bin", { type: "application/octet-stream" }),
+      new File(["c"], "c.txt", { type: "text/plain" }),
+    ];
+    await store.importDropped(MEMORY_ID, files);
+    expect(bridge.app.pathsForDroppedFiles).toHaveBeenCalledWith(files);
+    expect(bridge.attachments.importFromPath).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(bridge.attachments.importFromPath).mock.calls.map(call => call[0]?.sourcePath)).toEqual(["/tmp/a.png", "/tmp/c.txt"]);
+    expect(vi.mocked(bridge.attachments.importFromPath).mock.calls[0]![0]).toMatchObject({ memoryId: MEMORY_ID, expectedRev: "1" });
+    expect(store.items()).toHaveLength(2);
+    expect(store.state()).toBe("failed");
+    expect(store.error()).toBe(DROP_PATH_REFUSED);
+  });
+  it("imports a finished recording through writeTempFile then importFromPath", async () => {
+    const { store, bridge } = storeFrom(fakeBridge([]));
+    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: "audio/webm;codecs=opus" });
+    await store.importRecording(MEMORY_ID, blob);
+    expect(bridge.app.writeTempFile).toHaveBeenCalledOnce();
+    const [bytes, name] = vi.mocked(bridge.app.writeTempFile).mock.calls[0]!;
+    expect(name).toBe("recording.webm");
+    expect(bytes).toBeInstanceOf(Uint8Array);
+    expect([...bytes]).toEqual([1, 2, 3]);
+    expect(bridge.attachments.importFromPath).toHaveBeenCalledWith(expect.objectContaining({
+      memoryId: MEMORY_ID, sourcePath: "/tmp/tmp-import/recording.webm", expectedRev: "1",
+    }));
+    expect(store.items()[0]?.kind).toBe("audio");
+    expect(store.state()).toBe("live");
+  });
+  it("refuses an oversize recording before writeTempFile", async () => {
+    const { store, bridge } = storeFrom(fakeBridge([]));
+    const blob = {
+      size: MAX_RECORDING_BYTES + 1,
+      type: "audio/webm",
+      arrayBuffer: vi.fn(async () => { throw new Error("should not read oversize bytes"); }),
+    } as unknown as Blob;
+    await store.importRecording(MEMORY_ID, blob);
+    expect(blob.arrayBuffer).not.toHaveBeenCalled();
+    expect(bridge.app.writeTempFile).not.toHaveBeenCalled();
+    expect(bridge.attachments.importFromPath).not.toHaveBeenCalled();
+    expect(store.state()).toBe("failed");
+    expect(store.error()).toBe(RECORDING_OVERSIZE);
+  });
+  it("surfaces microphone denied", async () => {
+    const { store, bridge } = storeFrom(fakeBridge([]));
+    vi.mocked(bridge.app.startMicrophone).mockResolvedValueOnce(false);
+    expect(await store.requestMicrophone()).toBe("denied");
+    expect(store.microphone()).toBe("denied");
+    expect(store.microphoneCopy("denied")).toBe(MICROPHONE_DENIED);
+  });
+  it("adds links with expectedRev", async () => {
     const { store, bridge } = storeFrom(fakeBridge([]));
     await store.addLink(MEMORY_ID, "https://example.com/page", "Example");
     expect(bridge.attachments.addLink).toHaveBeenCalledWith(expect.objectContaining({ expectedRev: "1", url: "https://example.com/page" }));
     expect(store.items()[0]?.kind).toBe("link");
-    vi.mocked(bridge.app.startMicrophone).mockResolvedValueOnce(false);
-    expect(await store.requestMicrophone()).toBe("denied");
-    expect(store.microphoneCopy("denied")).toBe(MICROPHONE_DENIED);
-    store.recordingImportUnavailable();
-    expect(store.error()).toBe(RECORDING_IMPORT_UNAVAILABLE);
   });
-  it("deletes, reorders, reveals through sparky-file URLs, and refuses pathless drops", async () => {
+  it("deletes, reorders, and reveals through sparky-file URLs", async () => {
     const seed = [
       attachmentFixture(),
       attachmentFixture({ id: AUDIO_ID, kind: "audio", name: "clip.webm", mime: "audio/webm", relPath: `${MEMORY_ID}/${AUDIO_ID}.webm`, sortOrder: 1 }),
@@ -55,8 +102,5 @@ describe("attachments store", () => {
     expect(bridge.app.revealInFinder).toHaveBeenCalledWith(`sparky-file://attachment/${MEMORY_ID}/${AUDIO_ID}.webm`);
     await store.remove(MEMORY_ID, FILE_ID);
     expect(bridge.attachments.delete).toHaveBeenCalledWith({ id: FILE_ID });
-    store.importDropped(MEMORY_ID, [{ name: "drop.png" } as File]);
-    expect(store.error()).toBe(DROP_PATH_UNAVAILABLE);
-    expect(bridge.attachments.importFromPath).not.toHaveBeenCalled();
   });
 });

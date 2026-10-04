@@ -17,7 +17,7 @@ describe("protobuf JSON attachment bridge", () => {
       memories: { get: async () => ({ memory: { id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", rev: "9007199254740993" } }) },
       settings: { get: async () => ({ settings: { linksFetchTitles: false } }) },
       onChange: () => () => {},
-      app: { pickFiles: async () => [], revealInFinder: async () => {}, startMicrophone: async () => false },
+      app: { pickFiles: async () => [], pathsForDroppedFiles: async () => [], writeTempFile: async () => "", revealInFinder: async () => {}, startMicrophone: async () => false },
     } as unknown as AttachmentsWireBridge);
     const imported = await bridge.attachments.importFromPath({ memoryId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", sourcePath: "/tmp/a.png", name: "a.png", expectedRev: "9007199254740993" });
     expect(imported.attachment?.sizeBytes).toBe("12");
@@ -31,7 +31,7 @@ describe("protobuf JSON attachment bridge", () => {
       attachments: { importFromPath },
       memories: {}, settings: {},
       onChange: () => () => {},
-      app: { pickFiles: async () => [], revealInFinder: async () => {}, startMicrophone: async () => false },
+      app: { pickFiles: async () => [], pathsForDroppedFiles: async () => [], writeTempFile: async () => "", revealInFinder: async () => {}, startMicrophone: async () => false },
     } as unknown as AttachmentsWireBridge);
     await bridge.attachments.importFromPath({ memoryId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", sourcePath: "/tmp/a.png", expectedRev: 1 as never });
     const sent = (importFromPath.mock.calls as unknown as [{ expectedRev: string }][])[0]![0]!;
