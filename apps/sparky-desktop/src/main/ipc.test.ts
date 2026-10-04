@@ -39,6 +39,12 @@ describe("IPC allowlist and schemas", () => {
     expect(() => validateAppInput("getInfo", undefined)).not.toThrow();
     expect(() => validateAppInput("requestNotificationAuthorization", undefined)).not.toThrow();
     expect(() => validateAppInput("requestNotificationAuthorization", true)).toThrow();
+    expect(() => validateAppInput("pathsForDroppedFiles", ["/tmp/a.png"])).not.toThrow();
+    expect(() => validateAppInput("pathsForDroppedFiles", { path: "/etc/passwd" })).toThrow();
+    expect(() => validateAppInput("pathsForDroppedFiles", ["relative"])).not.toThrow();
+    expect(() => validateAppInput("writeTempFile", { bytes: new Uint8Array([1]), name: "clip.webm" })).not.toThrow();
+    expect(() => validateAppInput("writeTempFile", { bytes: "nope", name: "clip.webm" })).toThrow();
+    expect(() => validateAppInput("writeTempFile", undefined)).toThrow();
   });
   it("forwards notification authorization to the reminders controller", async () => {
     expect(APP_METHODS).toContain("requestNotificationAuthorization");
@@ -49,7 +55,8 @@ describe("IPC allowlist and schemas", () => {
   it("rejects iframes, foreign windows and absent senders", () => {
     const contents = { mainFrame: {} };
     expect(() => assertTrustedSender({ sender: contents, senderFrame: contents.mainFrame }, contents)).not.toThrow();
-    expect(() => assertTrustedSender({ sender: {}, senderFrame: contents.mainFrame }, contents)).toThrow();
-    expect(() => assertTrustedSender({ sender: contents, senderFrame: {} }, contents)).toThrow();
+    expect(() => assertTrustedSender({ sender: {}, senderFrame: contents.mainFrame }, contents)).toThrow("Untrusted IPC sender");
+    expect(() => assertTrustedSender({ sender: contents, senderFrame: {} }, contents)).toThrow("Untrusted IPC sender");
+    expect(APP_METHODS).toEqual(expect.arrayContaining(["pathsForDroppedFiles", "writeTempFile"]));
   });
 });

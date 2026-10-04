@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-const mock = vi.hoisted(() => ({ expose: vi.fn(), invoke: vi.fn(), on: vi.fn(), remove: vi.fn() }));
-vi.mock("electron", () => ({ contextBridge: { exposeInMainWorld: mock.expose }, ipcRenderer: { invoke: mock.invoke, on: mock.on, removeListener: mock.remove } }));
+const mock = vi.hoisted(() => ({ expose: vi.fn(), invoke: vi.fn(), on: vi.fn(), remove: vi.fn(), getPathForFile: vi.fn() }));
+vi.mock("electron", () => ({
+  contextBridge: { exposeInMainWorld: mock.expose },
+  ipcRenderer: { invoke: mock.invoke, on: mock.on, removeListener: mock.remove },
+  webUtils: { getPathForFile: mock.getPathForFile },
+}));
 import "./index.js";
 import type { SparkyBridge } from "../shared/bridge.js";
 const exposedName = mock.expose.mock.calls[0]![0];
@@ -14,6 +18,19 @@ describe("sandbox bridge", () => {
     expect(bridge).not.toHaveProperty("token");
     expect(bridge.app).not.toHaveProperty("require");
     expect(bridge.app).not.toHaveProperty("process");
+    expect(bridge.app).not.toHaveProperty("webUtils");
+    expect(bridge).not.toHaveProperty("webUtils");
+  });
+  it("maps dropped Files in preload and writes temp files through Main", async () => {
+    mock.getPathForFile.mockReturnValueOnce("/tmp/photo.png").mockReturnValueOnce("");
+    const file = new File(["x"], "photo.png");
+    const skipped = new File(["y"], "no-path.png");
+    await bridge.app.pathsForDroppedFiles([file, skipped]);
+    expect(mock.getPathForFile).toHaveBeenCalledWith(file);
+    expect(mock.invoke).toHaveBeenCalledWith("sparky:app:pathsForDroppedFiles", ["/tmp/photo.png"]);
+    const bytes = new Uint8Array([1, 2, 3]);
+    await bridge.app.writeTempFile(bytes, "clip.webm");
+    expect(mock.invoke).toHaveBeenCalledWith("sparky:app:writeTempFile", { bytes, name: "clip.webm" });
   });
   it("uses fixed channels", async () => {
     await bridge.memories.list();
