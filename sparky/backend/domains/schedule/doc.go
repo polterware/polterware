@@ -29,12 +29,15 @@
 // callers narrow the range for later dates. The frozen RPC limit maps to the
 // global limit; W1-CORE can configure the separate per-memory domain parameter.
 // Plan seeks directly to now, lazily merges series with one candidate each, and
-// stops at Budget (default/hard ceiling 60). DiffPlan avoids delivery work for
-// identical content; debounce and change-stream routing belong to W1-CORE and
-// W1-NATIVE-NOTIFY. No package cache or implicit clock is used.
-//
-// Native repeating reminder transport is blocked: sparky-contracts-v1.1 has no
-// ReminderItem.repeat field. Request w1-recurrence-1 asks the contract owner to
-// add it. Until resolved, this planner emits concrete one-shots; these do not
-// continue indefinitely while Sparky is closed. No frozen contract is modified.
+// stops at Budget (default/hard ceiling 60). Open-ended interval-1 minutely,
+// hourly, daily and weekly rules emit native Repeat matchers (one slot per
+// weekday) that never run out; bounded rules, every>1, monthly and yearly stay
+// concrete one-shots. Repeating identifiers are rem:<id>:repeat or rem:<id>:wd<n>
+// (Sunday=1). Completions cannot suppress a repeating trigger. DiffPlan ignores
+// next-fire drift on repeating items so OS calendar triggers are not restarted;
+// debounce and change-stream routing belong to W1-CORE and W1-NATIVE-NOTIFY.
+// Native hourly/minutely matching is wall-clock (OS); occurrence listing stays
+// elapsed-time. Wire mapping of Repeat is tracked in request w1-recurrence-1;
+// this package does not change frozen contracts. No package cache or implicit
+// clock is used.
 package schedule

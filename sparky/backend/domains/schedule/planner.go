@@ -118,6 +118,7 @@ type planCandidate struct {
 	completed map[time.Time]struct{}
 	at, fire  time.Time
 	id        string
+	repeat    *DateComponents
 }
 
 type planHeap []planCandidate
@@ -137,7 +138,7 @@ func reminderID(memoryID string, at time.Time) string {
 	return "rem:" + memoryID + ":" + strconv.FormatInt(at.UnixMilli(), 10)
 }
 
-func (c *planCandidate) advance(subject PlanSubject, now, until time.Time, hour, minute int) bool {
+func (c *planCandidate) advance(subject PlanSubject, now, until time.Time, hour, minute int, skipCompleted bool) bool {
 	for {
 		at, ok := c.cursor.next()
 		if !ok {
@@ -147,7 +148,7 @@ func (c *planCandidate) advance(subject PlanSubject, now, until time.Time, hour,
 		if fire.After(until) {
 			return false
 		}
-		if fire.Before(now) || completed(c.completed, at) {
+		if fire.Before(now) || (skipCompleted && completed(c.completed, at)) {
 			continue
 		}
 		c.at, c.fire, c.id = at, fire, reminderID(subject.MemoryID, at)
@@ -155,11 +156,10 @@ func (c *planCandidate) advance(subject PlanSubject, now, until time.Time, hour,
 	}
 }
 
-// Plan merges one upcoming occurrence per memory and pending one-offs using a
-// heap. Only a selected series advances; title/body shaping happens only for
-// selected items. No database, wall clock, cache, or full-horizon expansion.
-// Native-repeat transport is blocked by requests/w1-recurrence-1.md: the frozen
-// ReminderItem RPC has no repeat field. This returns concrete one-shot items.
+// Plan merges native repeating slots and one upcoming occurrence per remaining
+// memory with pending one-offs. Native repeats occupy one budget slot each
+// (one per weekday) and are not expanded. Only a selected one-shot series
+// advances. Title/body shaping happens only for selected items.
 func Plan(q PlanQuery, subjects []PlanSubject, oneOffs []PendingOneOff, allDayTime string) ([]ReminderItem, error) {
 	if q.Now.IsZero() {
 		return nil, invalid("now", "an explicit instant is required")
@@ -201,8 +201,30 @@ func Plan(q PlanQuery, subjects []PlanSubject, oneOffs []PendingOneOff, allDayTi
 			local := from.In(subject.Rule.TZ)
 			from = resolveWall(time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC), subject.Rule.TZ)
 		}
+		if repeats := nativeRepeats(subject.Rule, hour, minute); len(repeats) > 0 && !s.start.After(q.Now) {
+			if subject.Rule.WeekdayMask != 0 {
+				for _, rep := range repeats {
+					at, fire, ok := nextWeekdayFire(q.Now, subject.Rule, rep)
+					if !ok || fire.After(until) {
+						continue
+					}
+					candidates = append(candidates, planCandidate{
+						subject: i, at: at, fire: fire,
+						id: repeatID(subject.MemoryID, true, *rep.Weekday), repeat: copyRepeat(rep),
+					})
+				}
+			} else {
+				c := planCandidate{subject: i, cursor: cursor{s: s, k: s.seek(from)}}
+				if c.advance(subject, q.Now, until, hour, minute, false) {
+					c.repeat = copyRepeat(repeats[0])
+					c.id = repeatID(subject.MemoryID, false, 0)
+					candidates = append(candidates, c)
+				}
+			}
+			continue
+		}
 		c := planCandidate{subject: i, cursor: cursor{s: s, k: s.seek(from)}, completed: completionSet(subject.CompletedAt)}
-		if c.advance(subject, q.Now, until, hour, minute) {
+		if c.advance(subject, q.Now, until, hour, minute, true) {
 			candidates = append(candidates, c)
 		}
 	}
@@ -232,7 +254,9 @@ func Plan(q PlanQuery, subjects []PlanSubject, oneOffs []PendingOneOff, allDayTi
 			if subject.FocusEnabled {
 				item.Category = CategoryReminderFocus
 			}
-			if len(items)+1 < q.Budget && c.advance(subject, q.Now, until, hour, minute) {
+			if c.repeat != nil {
+				item.Repeat = copyRepeat(*c.repeat)
+			} else if len(items)+1 < q.Budget && c.advance(subject, q.Now, until, hour, minute, true) {
 				heap.Push(&candidates, c)
 			}
 		}
@@ -256,8 +280,9 @@ func DiffPlan(previous, next []ReminderItem) PlanDelta {
 	delta := PlanDelta{}
 	for _, item := range next {
 		before, exists := old[item.ID]
-		if !exists || before.MemoryID != item.MemoryID || !before.OccurrenceAt.Equal(item.OccurrenceAt) || !before.FireAt.Equal(item.FireAt) ||
-			before.Title != item.Title || before.Body != item.Body || before.Category != item.Category {
+		if !exists || before.MemoryID != item.MemoryID || before.Title != item.Title || before.Body != item.Body ||
+			before.Category != item.Category || !sameRepeat(before.Repeat, item.Repeat) ||
+			(item.Repeat == nil && (!before.OccurrenceAt.Equal(item.OccurrenceAt) || !before.FireAt.Equal(item.FireAt))) {
 			delta.Upsert = append(delta.Upsert, item)
 		}
 		delete(old, item.ID)

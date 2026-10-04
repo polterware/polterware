@@ -17,6 +17,7 @@ func TestPlanNearestFirstGlobalBudget(t *testing.T) {
 	fast := daily(t)
 	fast.Anchor = now
 	fast.Freq = FreqMinutely
+	fast.End = End{Type: EndCount, Count: 1000}
 	slow := fast
 	slow.Freq = FreqHourly
 	slow.Anchor = now.Add(30 * time.Second)
@@ -63,11 +64,17 @@ func TestPlanDefaultsAndBoundaries(t *testing.T) {
 	r.Freq = FreqMinutely
 	subjects := []PlanSubject{{MemoryID: "m", Rule: r}}
 	got, err := Plan(PlanQuery{Now: r.Anchor}, subjects, nil, "")
-	if err != nil || len(got) != DefaultBudget {
-		t.Fatalf("default budget: %d %v", len(got), err)
+	if err != nil || len(got) != 1 || got[0].Repeat == nil || got[0].ID != "rem:m:repeat" {
+		t.Fatalf("native minutely: %v %v", got, err)
 	}
 	if !got[0].FireAt.Equal(r.Anchor) {
 		t.Fatal("now is inclusive")
+	}
+	r.End = End{Type: EndCount, Count: 1000}
+	subjects[0].Rule = r
+	got, err = Plan(PlanQuery{Now: r.Anchor}, subjects, nil, "")
+	if err != nil || len(got) != DefaultBudget {
+		t.Fatalf("default budget: %d %v", len(got), err)
 	}
 	got, err = Plan(PlanQuery{Now: r.Anchor, Horizon: 2 * time.Minute}, subjects, nil, "")
 	if err != nil || len(got) != 3 {
@@ -98,6 +105,7 @@ func TestPlanAllDayCompletionKey(t *testing.T) {
 	r := daily(t)
 	r.TZ = location(t, "America/Sao_Paulo")
 	r.AllDay = true
+	r.End = End{Type: EndCount, Count: 10}
 	r.Anchor = instant(t, "2026-10-03T18:30:00-03:00") // anchor time ignored
 	key := instant(t, "2026-10-03T00:00:00-03:00")
 	subjects := []PlanSubject{{MemoryID: "all", Rule: r}}
@@ -123,6 +131,7 @@ func TestPlanAllDayCompletionKey(t *testing.T) {
 
 func TestPlanDelta(t *testing.T) {
 	r := daily(t)
+	r.End = End{Type: EndCount, Count: 10}
 	subjects := []PlanSubject{{MemoryID: "m", Rule: r, Title: "Title", Note: strings.Repeat("a", 140) + "tail"}}
 	q := PlanQuery{Now: r.Anchor, Budget: 2}
 	before, err := Plan(q, subjects, nil, "")
@@ -153,6 +162,92 @@ func TestPlanDelta(t *testing.T) {
 	after[0].FireAt = after[0].FireAt.UTC()
 	if delta := DiffPlan(before, after); len(delta.Upsert) != 0 {
 		t.Fatal("equivalent instant must not replace")
+	}
+}
+
+func TestPlanNativeRepeat(t *testing.T) {
+	now := instant(t, "2026-10-05T08:00:00Z") // Monday
+	tz := location(t, "America/Sao_Paulo")
+	dailyRule := Rule{Anchor: now, TZ: tz, Freq: FreqDaily, Every: 1}
+	weekly := dailyRule
+	weekly.Freq = FreqWeekly
+	weekly.WeekdayMask = WeekdayMonday | WeekdayWednesday
+	hourly := dailyRule
+	hourly.Freq = FreqHourly
+	minutely := dailyRule
+	minutely.Freq = FreqMinutely
+	monthly := dailyRule
+	monthly.Freq = FreqMonthly
+	everyTwo := dailyRule
+	everyTwo.Every = 2
+	until := now.AddDate(0, 0, 10)
+	bounded := dailyRule
+	bounded.End = End{Type: EndUntil, Until: &until}
+	future := dailyRule
+	future.Anchor = now.AddDate(0, 0, 7)
+	allDay := dailyRule
+	allDay.AllDay = true
+	allDay.Anchor = instant(t, "2026-10-05T18:00:00-03:00")
+	subjects := []PlanSubject{
+		{MemoryID: "daily", Rule: dailyRule, Title: "Daily", CompletedAt: []time.Time{now}},
+		{MemoryID: "weekly", Rule: weekly},
+		{MemoryID: "hourly", Rule: hourly, FocusEnabled: true},
+		{MemoryID: "minutely", Rule: minutely},
+		{MemoryID: "monthly", Rule: monthly},
+		{MemoryID: "every-two", Rule: everyTwo},
+		{MemoryID: "bounded", Rule: bounded},
+		{MemoryID: "future", Rule: future},
+		{MemoryID: "all-day", Rule: allDay},
+	}
+	got, err := Plan(PlanQuery{Now: now, Budget: 60, Horizon: 30 * 24 * time.Hour}, subjects, nil, "09:00")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := map[string]ReminderItem{}
+	for _, item := range got {
+		byID[item.ID] = item
+	}
+	dailyItem, ok := byID["rem:daily:repeat"]
+	if !ok || dailyItem.Repeat == nil || dailyItem.Repeat.TZ != "America/Sao_Paulo" ||
+		dailyItem.Repeat.Hour == nil || *dailyItem.Repeat.Hour != 5 || dailyItem.Repeat.Minute == nil || *dailyItem.Repeat.Minute != 0 ||
+		dailyItem.Repeat.Weekday != nil {
+		t.Fatalf("daily repeat: %+v", dailyItem.Repeat)
+	}
+	mon, wed := byID["rem:weekly:wd2"], byID["rem:weekly:wd4"]
+	if mon.Repeat == nil || wed.Repeat == nil || *mon.Repeat.Weekday != 2 || *wed.Repeat.Weekday != 4 {
+		t.Fatalf("weekday slots: %v %v", mon, wed)
+	}
+	if hourlyItem := byID["rem:hourly:repeat"]; hourlyItem.Repeat == nil || hourlyItem.Repeat.Minute == nil ||
+		*hourlyItem.Repeat.Minute != 0 || hourlyItem.Repeat.Hour != nil || hourlyItem.Category != CategoryReminderFocus {
+		t.Fatalf("hourly: %+v", byID["rem:hourly:repeat"])
+	}
+	if minutelyItem := byID["rem:minutely:repeat"]; minutelyItem.Repeat == nil || minutelyItem.Repeat.Second == nil ||
+		*minutelyItem.Repeat.Second != 0 || minutelyItem.Repeat.Minute != nil {
+		t.Fatalf("minutely: %+v", byID["rem:minutely:repeat"])
+	}
+	if allDayItem := byID["rem:all-day:repeat"]; allDayItem.Repeat == nil || *allDayItem.Repeat.Hour != 9 || *allDayItem.Repeat.Minute != 0 {
+		t.Fatalf("all-day: %+v", byID["rem:all-day:repeat"])
+	}
+	for _, id := range []string{"rem:monthly:repeat", "rem:every-two:repeat", "rem:bounded:repeat", "rem:future:repeat"} {
+		if _, found := byID[id]; found {
+			t.Fatalf("unexpected native repeat %s", id)
+		}
+	}
+	budgeted, err := Plan(PlanQuery{Now: now, Budget: 1, Horizon: 30 * 24 * time.Hour}, []PlanSubject{{MemoryID: "weekly", Rule: weekly}}, nil, "")
+	if err != nil || len(budgeted) != 1 || budgeted[0].ID != "rem:weekly:wd2" {
+		t.Fatalf("weekday budget slot: %v %v", budgeted, err)
+	}
+	later := now.Add(24 * time.Hour)
+	next, err := Plan(PlanQuery{Now: later, Budget: 1, Horizon: 30 * 24 * time.Hour}, []PlanSubject{{MemoryID: "daily", Rule: dailyRule, Title: "Daily"}}, nil, "")
+	if err != nil || len(next) != 1 {
+		t.Fatal(err)
+	}
+	if delta := DiffPlan([]ReminderItem{dailyItem}, next); len(delta.Upsert) != 0 || len(delta.Remove) != 0 {
+		t.Fatalf("repeat fire drift: %v", delta)
+	}
+	next[0].Title = "Changed"
+	if delta := DiffPlan([]ReminderItem{dailyItem}, next); len(delta.Upsert) != 1 {
+		t.Fatalf("repeat title: %v", delta)
 	}
 }
 
