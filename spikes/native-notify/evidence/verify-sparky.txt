@@ -1,0 +1,142 @@
+?   	github.com/polterware/polterware/sparky/backend/compositions/core	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/activity	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/activity/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/actor	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/agentaccess	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/attachments	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/attachments/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/clock	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/clock/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/fault	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/focus	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/focus/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/ids	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/ids/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/maintenance	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/maintenance/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/memory	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/memory/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/mind	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/mind/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/place	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/place/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/reminder	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/reminder/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/review	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/review/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/schedule	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/schedule/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/search	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/search/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/settings	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/settings/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/tag	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/tag/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/tx	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/domains/tx/fake	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/platform	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1/sparkyv1connect	[no test files]
+?   	github.com/polterware/polterware/sparky/backend/providers	[no test files]
+ok  	github.com/polterware/polterware/sparky/backend/runtimes/cli	0.337s
+?   	github.com/polterware/polterware/sparky/backend/tests	[no test files]
+packages/sparky-contracts typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-shell typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-shell typecheck: Done
+packages/features/sparky-attachments typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-focus typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-calendar typecheck$ tsc --noEmit -p tsconfig.json
+packages/sparky-contracts typecheck: Done
+packages/features/sparky-map typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-calendar typecheck: Done
+packages/features/sparky-memories typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-attachments typecheck: Done
+packages/features/sparky-focus typecheck: Done
+packages/features/sparky-minds typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-review typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-map typecheck: Done
+packages/features/sparky-schedule typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-minds typecheck: Done
+packages/features/sparky-memories typecheck: Done
+packages/features/sparky-search typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-settings typecheck$ tsc --noEmit -p tsconfig.json
+packages/features/sparky-review typecheck: Done
+packages/features/sparky-schedule typecheck: Done
+packages/features/sparky-search typecheck: Done
+packages/features/sparky-settings typecheck: Done
+apps/sparky-desktop typecheck$ tsc --noEmit -p tsconfig.json
+apps/sparky-desktop typecheck: Done
+Scope: 13 of 27 workspace projects
+packages/features/sparky-shell test$ vitest run --passWithNoTests --config vitest.config.ts
+packages/sparky-contracts test$ vitest run --passWithNoTests --config vitest.config.ts
+packages/features/sparky-shell test:
+packages/sparky-contracts test:
+packages/features/sparky-shell test:  RUN  v5.0.1 /Users/erickpatrickbarcelos/codes/polterware-total/polterware-wt/w0-native-notify/packages/features/sparky-shell
+packages/features/sparky-shell test:
+packages/sparky-contracts test:  RUN  v5.0.1 /Users/erickpatrickbarcelos/codes/polterware-total/polterware-wt/w0-native-notify/packages/sparky-contracts
+packages/sparky-contracts test:
+packages/features/sparky-shell test: No test files found, exiting with code 0
+packages/features/sparky-shell test:
+packages/features/sparky-shell test: include: src/**/*.test.ts
+packages/features/sparky-shell test: exclude:  **/node_modules/**, **/.git/**
+packages/features/sparky-shell test:
+packages/features/sparky-shell test: Done
+packages/features/sparky-attachments test$ vitest run --passWithNoTests --config vitest.config.ts
+packages/features/sparky-focus test$ vitest run --passWithNoTests --config vitest.config.ts
+packages/features/sparky-calendar test$ vitest run --passWithNoTests --config vitest.config.ts
+packages/sparky-contracts test:  ❯ src/baseline.test.mjs (2 tests | 1 failed) 8ms
+packages/sparky-contracts test:    ❯ SQL baseline (2)
+packages/sparky-contracts test:      × matches the specification fence 5ms
+packages/sparky-contracts test:
+packages/sparky-contracts test: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+packages/sparky-contracts test:
+packages/sparky-contracts test:  FAIL  src/baseline.test.mjs > SQL baseline > matches the specification fence
+packages/sparky-contracts test: AssertionError: expected 'CREATE TABLE minds (\n  id TEXT PRIMA…' to be 'CREATE TABLE minds (\n  id TEXT PRIMA…' // Object.is equality
+packages/sparky-contracts test:
+packages/sparky-contracts test: - Expected
+packages/sparky-contracts test: + Received
+packages/sparky-contracts test:
+packages/sparky-contracts test: @@ -138,7 +138,12 @@
+packages/sparky-contracts test:
+packages/sparky-contracts test:   -- search (see 05-search-attachments-map.md)
+packages/sparky-contracts test:   CREATE VIRTUAL TABLE memory_fts USING fts5(
+packages/sparky-contracts test:     memory_id UNINDEXED, title, note, checklist, tags, mind,
+packages/sparky-contracts test:     tokenize = 'unicode61 remove_diacritics 2', prefix = '2 3'
+packages/sparky-contracts test: - );
+packages/sparky-contracts test: + );
+packages/sparky-contracts test: + CREATE TABLE embeddings (
+packages/sparky-contracts test: +   memory_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
+packages/sparky-contracts test: +   model TEXT NOT NULL, dims INTEGER NOT NULL, vector BLOB NOT NULL,   -- float32 little-endian, L2-normalized
+packages/sparky-contracts test: +   text_hash TEXT NOT NULL, updated_at TEXT NOT NULL
+packages/sparky-contracts test: + ) STRICT;
+packages/sparky-contracts test:
+packages/sparky-contracts test:
+packages/sparky-contracts test:  ❯ src/baseline.test.mjs:15:17
+packages/sparky-contracts test:      13|     const start = spec.indexOf("```sql\n") + "```sql\n".length;
+packages/sparky-contracts test:      14|     const end = spec.indexOf("```", start);
+packages/sparky-contracts test:      15|     expect(sql).toBe(spec.slice(start, end));
+packages/sparky-contracts test:        |                 ^
+packages/sparky-contracts test:      16|   });
+packages/sparky-contracts test:      17|
+packages/sparky-contracts test:
+packages/sparky-contracts test: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+packages/sparky-contracts test:
+packages/sparky-contracts test:
+packages/sparky-contracts test:  Test Files  1 failed | 3 passed (4)
+packages/sparky-contracts test:       Tests  1 failed | 25 passed (26)
+packages/sparky-contracts test:    Start at  23:55:40
+packages/sparky-contracts test:    Duration  127ms (transform 48%, import 26%, tests 17%, worker 9%)
+packages/sparky-contracts test:
+packages/sparky-contracts test: Failed
+[ELIFECYCLE] Test failed. See above for more details.
+packages/features/sparky-calendar test: Failed
+[ELIFECYCLE] Test failed. See above for more details.
+packages/features/sparky-focus test: Failed
+[ELIFECYCLE] Test failed. See above for more details.
+packages/features/sparky-attachments test: Failed
+[ELIFECYCLE] Test failed. See above for more details.
+Error: ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL
+
+  × "pnpm recursive run" failed in /Users/erickpatrickbarcelos/codes/
+  │ polterware-total/polterware-wt/w0-native-notify/packages/sparky-contracts

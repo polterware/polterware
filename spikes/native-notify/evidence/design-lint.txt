@@ -1,0 +1,2 @@
+$ node tooling/check-ui-opacity.mjs
+ui opacity check OK
