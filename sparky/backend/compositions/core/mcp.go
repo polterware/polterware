@@ -8,11 +8,35 @@ import (
 	"time"
 
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
+	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
 	"github.com/polterware/polterware/sparky/backend/platform/listen"
 	"github.com/polterware/polterware/sparky/backend/providers/mcp"
 )
+
+// mcpHandler keeps the live authorization source with the mounted provider.
+type mcpHandler struct {
+	http.Handler
+	currentToken func() (string, error)
+}
+
+func (h mcpHandler) guard(token string, port int) (func(http.Handler) http.Handler, error) {
+	if h.currentToken != nil {
+		return mcp.NewLiveGuard(h.currentToken, port, mcp.MaxBodyBytes)
+	}
+	return mcp.NewGuard(token, port, mcp.MaxBodyBytes)
+}
+
+// mcpPlaces supplies the session actor to the unchanged Place domain port.
+type mcpPlaces struct{ place.Service }
+
+func (p mcpPlaces) Set(ctx context.Context, who actor.Actor, in place.Place) (place.Place, error) {
+	return p.Service.Set(context.WithValue(ctx, actorKey{}, who), in)
+}
+func (p mcpPlaces) Clear(ctx context.Context, who actor.Actor, id string) error {
+	return p.Service.Clear(context.WithValue(ctx, actorKey{}, who), id)
+}
 
 type mcpSchedules struct{ ScheduleUseCases }
 
@@ -39,7 +63,17 @@ func bindMCP(services Services, token string, port int, enabled bool, version st
 	deps := mcp.Deps{
 		Version: version, Memories: services.Memories, Minds: services.Minds, Tags: services.Tags,
 		Activity: services.Activity, Review: services.Review, Search: services.Search,
-		Attachments: services.Attachments, Places: services.Places, Settings: services.Settings,
+		Attachments: services.Attachments, Settings: services.Settings,
+	}
+	var currentToken func() (string, error)
+	if agents, ok := services.Agents.(agentService); ok {
+		currentToken = agents.currentToken
+		if agents.audit.Transactions != nil {
+			deps.Within = agents.audit.Transactions.Within
+		}
+	}
+	if services.Places != nil {
+		deps.Places = mcpPlaces{services.Places}
 	}
 	if services.ScheduleReader != nil {
 		deps.GetSchedule = services.ScheduleReader.Get
@@ -54,7 +88,7 @@ func bindMCP(services Services, token string, port int, enabled bool, version st
 	if err != nil {
 		return MCP{}, err
 	}
-	return MCP{Handler: srv.Handler(), Token: token, Port: port, Enabled: enabled}, nil
+	return MCP{Handler: mcpHandler{srv.Handler(), currentToken}, Token: token, Port: port, Enabled: enabled}, nil
 }
 
 func (s *Server) mountMCP(connectMux *http.ServeMux, connectPort int) error {
@@ -63,6 +97,12 @@ func (s *Server) mountMCP(connectMux *http.ServeMux, connectPort int) error {
 	}
 	if s.config.MCP.Token == "" {
 		return fmt.Errorf("MCP token is required")
+	}
+	guard := func(port int) (func(http.Handler) http.Handler, error) {
+		if h, ok := s.config.MCP.Handler.(mcpHandler); ok {
+			return h.guard(s.config.MCP.Token, port)
+		}
+		return mcp.NewGuard(s.config.MCP.Token, port, mcp.MaxBodyBytes)
 	}
 	port := s.config.MCP.Port
 	if port < 1 || port > 65535 {
@@ -73,7 +113,7 @@ func (s *Server) mountMCP(connectMux *http.ServeMux, connectPort int) error {
 		ln, _, err = listen.Open("127.0.0.1:0")
 	}
 	if err != nil {
-		wrap, gerr := mcp.NewGuard(s.config.MCP.Token, connectPort, mcp.MaxBodyBytes)
+		wrap, gerr := guard(connectPort)
 		if gerr != nil {
 			return gerr
 		}
@@ -82,7 +122,7 @@ func (s *Server) mountMCP(connectMux *http.ServeMux, connectPort int) error {
 		return nil
 	}
 	actual := ln.Addr().(*net.TCPAddr).Port
-	wrap, err := mcp.NewGuard(s.config.MCP.Token, actual, mcp.MaxBodyBytes)
+	wrap, err := guard(actual)
 	if err != nil {
 		_ = ln.Close()
 		return err

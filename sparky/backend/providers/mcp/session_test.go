@@ -184,3 +184,52 @@ func TestSessionConcurrentObservations(t *testing.T) {
 		t.Fatalf("revision regressed: %d", got)
 	}
 }
+
+func TestSessionRejectsExplicitNonpositiveRevision(t *testing.T) {
+	for _, rev := range []int64{0, -1} {
+		service := &revisionService{current: memory.Memory{ID: "m", Rev: 1}}
+		sess := NewMemorySession(service, "test")
+		if _, err := sess.Update(t.Context(), "m", &rev, memory.Patch{}); !fault.IsCode(err, fault.CodeInvalid) {
+			t.Fatalf("update %d: %v", rev, err)
+		}
+		if _, err := sess.SetStatus(t.Context(), "m", &rev, "completed", nil); !fault.IsCode(err, fault.CodeInvalid) {
+			t.Fatalf("status %d: %v", rev, err)
+		}
+		if _, err := sess.ToggleCheckItem(t.Context(), "m", "i", &rev, nil); !fault.IsCode(err, fault.CodeInvalid) {
+			t.Fatalf("toggle %d: %v", rev, err)
+		}
+		if err := sess.Delete(t.Context(), "m", &rev); !fault.IsCode(err, fault.CodeInvalid) {
+			t.Fatalf("delete %d: %v", rev, err)
+		}
+		if service.current.Rev != 1 {
+			t.Fatal("invalid revision mutated memory")
+		}
+	}
+}
+
+type interveningToggle struct{ *revisionService }
+
+func (f interveningToggle) ToggleCheckItem(ctx context.Context, who actor.Actor, id, itemID string, rev int64, done *bool) (memory.CheckItem, error) {
+	item, err := f.revisionService.ToggleCheckItem(ctx, who, id, itemID, rev, done)
+	if err != nil {
+		return item, err
+	}
+	// Force the exact race from the review before the MCP service returns.
+	title := "UI edit after toggle"
+	_, err = f.revisionService.Update(ctx, actor.UI(), id, rev+1, memory.Patch{Title: &title})
+	return item, err
+}
+func TestToggleReturnsOwnRevisionWithoutObservingLaterUIWrite(t *testing.T) {
+	service := &revisionService{current: memory.Memory{ID: "m", Rev: 1}}
+	sess := NewMemorySession(interveningToggle{service}, "test")
+	_, rev, err := sess.ToggleWithRevision(t.Context(), "m", "i", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rev != 2 || sess.expected("m", nil) != 2 {
+		t.Fatalf("returned %d, observed %d", rev, sess.expected("m", nil))
+	}
+	if _, err := sess.Update(t.Context(), "m", nil, memory.Patch{}); !fault.IsCode(err, fault.CodeConflict) {
+		t.Fatalf("UI write was not protected: %v", err)
+	}
+}

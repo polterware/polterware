@@ -30,7 +30,7 @@ type harness struct {
 	att  *attachStub
 }
 
-func setupMCP(t *testing.T) *harness {
+func setupMCP(t *testing.T, configure ...func(*provider.Deps)) *harness {
 	t.Helper()
 	f := testkit.Setup()
 	att := &attachStub{items: map[string][]attachments.Attachment{}}
@@ -41,12 +41,16 @@ func setupMCP(t *testing.T) *harness {
 		}
 		return got.Memory.Rev, nil
 	}
-	srv, err := provider.New(provider.Deps{
-		Memories: f.MS, Minds: f.NS, Tags: f.TS, Activity: activity.NewService(af.New(f.Store)),
+	deps := provider.Deps{
+		Within: f.Store.Within, Memories: f.MS, Minds: f.NS, Tags: f.TS, Activity: activity.NewService(af.New(f.Store)),
 		Review: review.NewService(rf.New(f.Store)), Search: searchStub{mem: f.MS}, Attachments: att,
 		Places: placeStub{rows: map[string]place.Place{}}, Settings: f.SS, Schedules: scheduleStub{},
 		Now: f.Audit.Clock.Now,
-	})
+	}
+	for _, fn := range configure {
+		fn(&deps)
+	}
+	srv, err := provider.New(deps)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,11 +166,14 @@ func (*attachStub) OpenInfo(context.Context, string) (attachments.OpenInfo, erro
 
 type placeStub struct{ rows map[string]place.Place }
 
-func (p placeStub) Set(_ context.Context, in place.Place) (place.Place, error) {
+func (p placeStub) Set(_ context.Context, _ actor.Actor, in place.Place) (place.Place, error) {
 	p.rows[in.MemoryID] = in
 	return in, nil
 }
-func (p placeStub) Clear(_ context.Context, id string) error { delete(p.rows, id); return nil }
+func (p placeStub) Clear(_ context.Context, _ actor.Actor, id string) error {
+	delete(p.rows, id)
+	return nil
+}
 func (placeStub) ListInBounds(context.Context, place.Bounds) ([]place.Place, error) {
 	return nil, nil
 }

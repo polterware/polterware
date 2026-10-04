@@ -66,3 +66,9 @@ func (s agentService) SetAllowFileAttach(ctx context.Context, who actor.Actor, a
 	_, err := s.settings.Set(ctx, who, []string{settings.KeyAgentsAllowFileAttach}, settings.Settings{AgentsAllowFileAttach: allow})
 	return err
 }
+
+// currentToken reads the atomically replaced token file used by the live guard.
+func (s agentService) currentToken() (string, error) {
+	raw, err := os.ReadFile(s.tokenPath)
+	return strings.TrimSpace(string(raw)), err
+}

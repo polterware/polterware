@@ -186,7 +186,7 @@ func (s *Server) searchMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 		tagIDs = []string{got.ID}
 	}
 	if s.deps.Search == nil {
-		page, err := s.session(req).List(ctx, memory.ListFilter{MindID: mindID, TagIDs: tagIDs, Limit: MaxLimit})
+		page, err := s.deps.Memories.List(ctx, memory.ListFilter{MindID: mindID, TagIDs: tagIDs, Limit: MaxLimit})
 		if err != nil {
 			return fail(err), nil
 		}
@@ -197,24 +197,56 @@ func (s *Server) searchMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 			if !strings.Contains(blob, needle) {
 				continue
 			}
-			hits = append(hits, map[string]any{"id": item.ID, "title": item.Title, "score": 0, "snippet": clipSnippet(item.Snippet)})
+			s.session(req).observe(item.ID, item.Rev)
+			hits = append(hits, map[string]any{"id": item.ID, "rev": item.Rev, "title": item.Title, "score": 0, "snippet": clipSnippet(item.Snippet)})
 			if len(hits) >= limit {
 				break
 			}
 		}
 		return ok(fmt.Sprintf("%d hits", len(hits)), map[string]any{"hits": hits, "notice": "ranked search is not wired; results are unranked title matches"}), nil
 	}
-	result, err := s.deps.Search.Search(ctx, in.Query, search.Filter{MindID: mindID, TagIDs: tagIDs, Limit: limit})
+	var result search.Result
+	hits := make([]map[string]any, 0, limit)
+	snapshots := make([]memory.Memory, 0, limit)
+	read := func(ctx context.Context) error {
+		var err error
+		result, err = s.deps.Search.Search(ctx, in.Query, search.Filter{MindID: mindID, TagIDs: tagIDs, Limit: limit})
+		if err != nil {
+			return err
+		}
+		for _, hit := range result.Hits {
+			got, err := s.deps.Memories.Get(ctx, hit.MemoryID, memory.Include{Note: true})
+			if fault.IsCode(err, fault.CodeNotFound) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			// Hydrate the returned entity from the same snapshot as its revision.
+			snippet := got.Memory.Note
+			if s.deps.Within != nil {
+				snippet = hit.Snippet
+			}
+			row := map[string]any{"id": got.Memory.ID, "title": got.Memory.Title, "rev": got.Memory.Rev, "score": hit.Score, "snippet": clipSnippet(snippet)}
+			if len(hit.MatchedIn) > 0 {
+				row["matchedIn"] = hit.MatchedIn
+			}
+			hits = append(hits, row)
+			snapshots = append(snapshots, got.Memory)
+		}
+		return nil
+	}
+	if s.deps.Within != nil {
+		err = s.deps.Within(ctx, read)
+	} else {
+		err = read(ctx)
+	}
 	if err != nil {
 		return fail(err), nil
 	}
-	hits := make([]map[string]any, 0, len(result.Hits))
-	for _, hit := range result.Hits {
-		row := map[string]any{"id": hit.MemoryID, "title": hit.Title, "score": hit.Score, "snippet": clipSnippet(hit.Snippet)}
-		if len(hit.MatchedIn) > 0 {
-			row["matchedIn"] = hit.MatchedIn
-		}
-		hits = append(hits, row)
+	sess := s.session(req)
+	for _, snapshot := range snapshots {
+		sess.observe(snapshot.ID, snapshot.Rev)
 	}
 	out := map[string]any{"hits": hits}
 	if result.Notice != "" {
@@ -431,6 +463,28 @@ func decodeArgs(req *mcpsdk.CallToolRequest, dest any) error {
 	}
 	if err := json.Unmarshal(req.Params.Arguments, dest); err != nil {
 		return fault.Invalid(fault.Violation{Field: "arguments", Reason: "invalid JSON"})
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(req.Params.Arguments, &fields); err != nil {
+		return err
+	}
+	if raw, present := fields["expectedRev"]; present {
+		var rev int64
+		if err := json.Unmarshal(raw, &rev); err == nil {
+			if rev <= 0 {
+				return fmt.Errorf("expectedRev must be positive")
+			}
+		} else {
+			var revs map[string]int64
+			if err := json.Unmarshal(raw, &revs); err != nil {
+				return fmt.Errorf("expectedRev must be a positive revision or revision map")
+			}
+			for _, rev := range revs {
+				if rev <= 0 {
+					return fmt.Errorf("expectedRev must be positive")
+				}
+			}
+		}
 	}
 	return nil
 }

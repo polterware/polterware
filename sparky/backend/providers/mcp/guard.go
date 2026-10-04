@@ -15,13 +15,21 @@ import (
 )
 
 // NewGuard returns a fail-closed gate for the actual IPv4 loopback listener
-// port. Configure it once per listener; token rotation creates a new gate.
+// port. The static form is useful for standalone listeners.
 // It adds no CORS headers and never logs credentials or request contents.
 func NewGuard(token string, port int, maxBodyBytes int64) (func(http.Handler) http.Handler, error) {
 	if token == "" || strings.ContainsAny(token, " \t\r\n") || port < 1 || port > 65535 || maxBodyBytes < 1 {
 		return nil, errors.New("invalid MCP security configuration")
 	}
-	wantToken := sha256.Sum256([]byte(token))
+	return NewLiveGuard(func() (string, error) { return token, nil }, port, maxBodyBytes)
+}
+
+// NewLiveGuard reads the current bearer for each authorization decision. The
+// source must publish complete tokens atomically and fails closed on read errors.
+func NewLiveGuard(current func() (string, error), port int, maxBodyBytes int64) (func(http.Handler) http.Handler, error) {
+	if current == nil || port < 1 || port > 65535 || maxBodyBytes < 1 {
+		return nil, errors.New("invalid MCP security configuration")
+	}
 	wantPort := strconv.Itoa(port)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +38,12 @@ func NewGuard(token string, port int, maxBodyBytes int64) (func(http.Handler) ht
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
+			token, err := current()
+			if err != nil || token == "" || strings.ContainsAny(token, " \t\r\n") {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			wantToken := sha256.Sum256([]byte(token))
 			gotToken := sha256.Sum256([]byte(auth[0][7:]))
 			if subtle.ConstantTimeCompare(gotToken[:], wantToken[:]) != 1 {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
