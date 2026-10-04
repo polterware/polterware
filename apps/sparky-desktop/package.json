@@ -14,7 +14,7 @@
     "dist:mac": "pnpm --dir ../.. build:sparky-core && pnpm build && electron-builder --mac --publish never",
     "deps:electron": "node -e \"const pkg = require('./package.json'); console.log(pkg.devDependencies.electron);\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run src/main src/preload",
     "test:e2e": "echo e2e via sparky integration gate"
   },
   "dependencies": {

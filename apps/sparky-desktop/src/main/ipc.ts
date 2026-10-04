@@ -38,3 +38,9 @@ export function createRpcHandlers(options: {
   }
   return handlers;
 }
+
+export function validateAppInput(method: string, input: unknown): void {
+  if (["openDeepLink", "revealInFinder"].includes(method)) {
+    if (typeof input !== "string" || input.length > 4096) throw new Error("Invalid app input");
+  } else if (input !== undefined) throw new Error("This app method takes no input");
+}
