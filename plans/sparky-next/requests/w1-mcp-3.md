@@ -1,0 +1,8 @@
+# W1-MCP: resolve atomic revision coverage in frozen ports
+
+- Owner: W0-CONTRACTS / W1-DOMAIN / integrator; contract changes require Erick's approval.
+- Blocked sub-task: applying the same-session conflict rule to every existing-entity mutation, including deletes and checklist toggles.
+- Why: `memory.Service.Delete`, `mind.Service.Delete`, and `memory.Service.ToggleCheckItem` do not accept an expected revision. Reading the entity first in MCP would introduce a check/write race. The current `attachments.Service` and `place.Service` also have no actor parameter for attributed writes. These ports are frozen at `sparky-contracts-v1.1` and outside Owns.
+- Required port changes: add `expectedRev int64` to the memory/mind deletion and memory checklist-toggle use cases; implement the check and mutation in one domain transaction. Add an explicit `actor.Actor` argument to attachment/place mutation use cases (or document and supply an equivalent frozen actor propagation API). Update their implementations/fakes and Connect adapters together.
+- MCP contract clarification needed: `set_memory_status`, `toggle_check_item`, `delete_memories`, `delete_mind`, and `add_attachments` do not expose `expectedRev`, although 04 says existing-entity mutations accept it. Approve precise optional revision fields, including a per-id revision map for batch deletion, or narrow that requirement explicitly. Keep compact schemas within the catalog budget.
+- Resume: wire the session revision to atomic domain use cases after the contracts are resolved. The delivered `MemorySession` covers Get/List tracking and Update/SetStatus with the existing atomic revision ports; it makes no claim about the blocked mutations.
