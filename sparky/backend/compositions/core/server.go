@@ -76,13 +76,13 @@ func Start(ln net.Listener, cfg Config) (*Server, error) {
 	mux.Handle(rpc.NewPlaceServiceHandler(placeHandler{s: cfg.Services.Places}, opts...))
 	mux.Handle(rpc.NewScheduleServiceHandler(scheduleHandler{s: cfg.Services.Schedules}, opts...))
 	mux.Handle(rpc.NewReminderServiceHandler(reminderHandler{s: cfg.Services.Reminders}, opts...))
-	mux.Handle(rpc.NewAgentAccessServiceHandler(agentHandler{s: cfg.Services.Agents}, opts...))
 	mux.Handle(rpc.NewMaintenanceServiceHandler(maintenanceHandler{s: cfg.Services.Maintenance}, opts...))
 	mux.Handle(rpc.NewChangeServiceHandler(changeHandler{s: s}, opts...))
 	if err := s.mountMCP(mux, address.Port); err != nil {
 		cancel()
 		return nil, err
 	}
+	mux.Handle(rpc.NewAgentAccessServiceHandler(agentHandler{s: cfg.Services.Agents, port: s.config.MCP.Port}, opts...))
 	s.http = &http.Server{Handler: originGuard(ln.Addr().String(), mux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, BaseContext: func(net.Listener) context.Context { return ctx }}
 	go func() {
 		err := s.http.Serve(ln)

@@ -151,9 +151,12 @@ function registerIpc(reminders: { requestAuthorization(): Promise<boolean> }): v
     },
     testMcpConnection: async () => {
       try {
-        const info = await getClients().agents.getInfo({}, { timeoutMs: 2000 });
+        const [info, health] = await Promise.all([
+          getClients().agents.getInfo({}, { timeoutMs: 2000 }),
+          getClients().health.check({}, { timeoutMs: 2000 }),
+        ]);
         return mcpProbePublicResult(await probeMcpConnection({
-          enabled: Boolean(info.enabled), port: Number(info.mcpPort), token: String(info.token ?? ""),
+          enabled: Boolean(info.enabled), port: Number(health.mcp?.port), token: String(info.token ?? ""),
         }));
       } catch {
         return { ok: false, error: "Core is offline. MCP cannot be tested." };

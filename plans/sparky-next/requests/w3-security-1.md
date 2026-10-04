@@ -1,6 +1,6 @@
 # W3-SECURITY-1: remediate the shared MapLibre sanitizer vulnerability
 
-- Finding SEC-09, Critical dependency advisory: `pnpm audit --prod` reports `maplibre-gl@5.24.0`, GHSA-jrc7-96c5-q579 / CVE-2026-85061. Versions <=6.4.0 are affected; 6.4.1 is patched.
+- Finding SEC-15, Critical dependency advisory: `pnpm audit --prod` reports `maplibre-gl@5.24.0`, GHSA-jrc7-96c5-q579 / CVE-2026-85061. Versions <=6.4.0 are affected; 6.4.1 is patched.
 - Primary evidence: https://github.com/maplibre/maplibre-gl-js/security/advisories/GHSA-jrc7-96c5-q579 and the installed `src/util/dom.ts` live attribute iterator.
 - Reachable surface: shared `packages/frontend/map/src/engine.ts` renders third-party OpenFreeMap/TileJSON attribution through MapLibre. Sparky's enforced `script-src 'self'` blocks injected event handlers, but retaining the dependency is not a completed supply-chain fix.
 - Ownership blocker: `packages/frontend/map/**` and `pnpm-lock.yaml` are explicitly excluded from W3-SECURITY. Stop this subtask; request the integrator's change.

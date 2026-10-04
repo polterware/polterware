@@ -25,6 +25,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     await call('SettingsService','Set',{keys:['agents.mcpEnabled'],settings:{agentsMcpEnabled:true}});
     const health=await call('HealthService','Check');
     const port=health.mcp.port;
+    const info=await call('AgentAccessService','GetInfo');
+    assert.equal(info.mcpPort,port);
     const token=fs.readFileSync(path.join(data,'run/mcp-token'),'utf8').trim();
     const endpoint=`http://127.0.0.1:${port}/mcp`;
     const body=JSON.stringify({jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'security-poc',version:'1'}}});

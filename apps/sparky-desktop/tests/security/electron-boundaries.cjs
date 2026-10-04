@@ -36,8 +36,17 @@ const { _electron } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
     });
     assert.match(policy, /script-src 'self'/);
     assert.doesNotMatch(policy, /\*|127\.0\.0\.1|localhost|nominatim/);
-    const probe = await page.evaluate(() => window.sparky.app.testMcpConnection());
-    assert.equal(typeof probe.ok, 'boolean');
+    const off = await page.evaluate(async () => {
+      await window.sparky.settings.set({ keys: ['agents.mcpEnabled'], settings: { agentsMcpEnabled: false } });
+      return window.sparky.app.testMcpConnection();
+    });
+    assert.equal(off.ok, false);
+    const probe = await page.evaluate(async () => {
+      await window.sparky.settings.set({ keys: ['agents.mcpEnabled'], settings: { agentsMcpEnabled: true } });
+      return window.sparky.app.testMcpConnection();
+    });
+    assert.equal(probe.ok, true);
+    assert.equal(probe.toolCount, 18);
     assert.equal('token' in probe, false);
     const preferences = await app.evaluate(({BrowserWindow}) => BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences());
     assert.equal(preferences.contextIsolation, true);
