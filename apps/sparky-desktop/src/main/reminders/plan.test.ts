@@ -55,6 +55,14 @@ describe("notification plan", () => {
     }
     expect(normalizePlan([item({ id: "one:focus", memoryId: "", category: "focus-phase" })], now)).toHaveLength(1);
   });
+  it("accepts planner-shaped repeats and stable rem:repeat / rem:wdN identifiers", () => {
+    const daily = normalizePlan([item({ id: `rem:${memoryId}:repeat`, repeat: { tz: "UTC", hour: 11, minute: 0 } })], now)[0];
+    expect(daily.repeat).toEqual({ tz: "UTC", hour: 11, minute: 0, second: 0 });
+    expect(daily.hash).toBe(normalizePlan([item({ id: `rem:${memoryId}:repeat`, repeat: { tz: "UTC", hour: 11, minute: 0, second: 0 } })], now)[0].hash);
+    const weekly = normalizePlan([item({ id: `rem:${memoryId}:wd2`, repeat: { tz: "America/Sao_Paulo", weekday: 2, hour: 9, minute: 0 } })], now)[0];
+    expect(weekly.repeat).toEqual({ tz: "America/Sao_Paulo", weekday: 2, hour: 9, minute: 0, second: 0 });
+    expect(normalizePlan([item({ repeat: { tz: "UTC", minute: 15 } })], now)[0].repeat).toEqual({ tz: "UTC", minute: 15, second: 0 });
+  });
 });
 it("classifies explicit replan and actual notification ready launchInfo only", () => {
   expect(isBackgroundReminderLaunch(["--background-replan"])).toBe(true);

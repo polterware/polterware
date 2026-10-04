@@ -2,23 +2,21 @@
 
 - Owner: W0-CONTRACTS / integrator, with Erick's approval required for the frozen contract.
 - Blocked sub-task: receiving native repeating descriptors from the real core.
-- Evidence: `sparky-contracts-v1.1:sparky/schemas/sparky/v1/reminder.proto` defines ReminderItem fields 1–7 only; `domains/schedule/types.go` has no Repeat either. Doc 03 requires open-ended rules to use native calendar triggers. Reconstructing recurrence in Main would duplicate the planner and violate the core authority.
-- Proposed exact schema addition (leave fields 1–7 unchanged):
+- Status after `sparky-next` merge: `domains/schedule` now emits `ReminderItem.Repeat *DateComponents` for open-ended interval-1 minutely/hourly/daily/weekly (one slot per weekday; IDs `rem:<memoryID>:repeat` and `rem:<memoryID>:wd<n>`, Sunday=1). Frozen `ReminderItem` at `sparky-contracts-v1.1` still has fields 1–7 only. Reconstructing recurrence in Main would duplicate the planner and violate the core authority.
+- Native adapter (this WS): accepts the planner-shaped descriptors, defaults omitted `second` to 0, diffs by id + content hash + repeat, and resolves Done from the OS delivery date. RPC mapping stays blocked until the wire field exists. W1-CORE must not serialize a repeating item as a concrete one-shot.
+- Proposed exact schema addition (leave fields 1–7 unchanged; matches merged `schedule.DateComponents`, no month/day):
 
 ```proto
-message ReminderRepeat {
+message ReminderDateComponents {
   string tz = 1;
-  optional int32 month = 2;
-  optional int32 day = 3;
-  optional int32 weekday = 4; // Foundation: 1 Sunday ... 7 Saturday
-  optional int32 hour = 5;
-  optional int32 minute = 6;
-  optional int32 second = 7;
+  optional int32 weekday = 2; // Foundation: 1 Sunday ... 7 Saturday
+  optional int32 hour = 3;
+  optional int32 minute = 4;
+  optional int32 second = 5;
 }
 // Inside ReminderItem:
-ReminderRepeat repeat = 8;
+ReminderDateComponents repeat = 8;
 ```
 
-- Add equivalent optional Go DateComponents to schedule.ReminderItem; W1-RECURRENCE must emit stable repeating identifiers and descriptors (one slot per weekday). Repeat actions must resolve the **delivered** occurrence, not the first planned occurrence stored in userInfo. The native adapter supports this by resolving the matching calendar components around the OS delivery date, bounded below by the planned occurrence.
 - Regenerate TS/Go, update the breaking baseline with approval, and publish the new local contract tag according to the protocol.
-- Native support and pure TS tests can proceed within Owns. No frozen file was changed; RPC repeat mapping stops until approval.
+- Repeat actions must resolve the **delivered** occurrence, not the first planned occurrence stored in userInfo. No frozen file was changed.

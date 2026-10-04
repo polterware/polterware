@@ -11,7 +11,8 @@ export function createReminderCore(transport: Transport): ReminderCore {
       const { settings: config } = await settings.get({}, callOptions());
       return response.items.map((item): Reminder => {
         if (!item.fireAt || !item.occurrenceAt || !["reminder", "reminder-focus", "focus-phase"].includes(item.category)) throw new Error("Invalid core reminder plan");
-        // Contract v1.1 has no repeat descriptor. Request 1 owns that blocked mapping.
+        // Contract v1.1 has no repeat field. Domain Repeat exists after the schedule merge;
+        // mapping waits on request 1. Do not invent recurrence in Main.
         return { id: item.id, memoryId: item.memoryId, occurrenceAt: timestampDate(item.occurrenceAt).toISOString(), fireAt: timestampDate(item.fireAt).toISOString(), title: item.title, body: item.body,
           category: item.category as Reminder["category"], sound: config?.notificationsSound || "default" };
       });

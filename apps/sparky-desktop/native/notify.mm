@@ -145,6 +145,8 @@ static UNNotificationRequest *Request(NSDictionary *item) {
     c.calendar = [NSCalendar calendarWithIdentifier:NSCalendarIdentifierGregorian];
     c.timeZone = [NSTimeZone timeZoneWithName:repeat[@"tz"]];
     for (NSString *key in @[@"month", @"day", @"weekday", @"hour", @"minute", @"second"]) if (repeat[key]) [c setValue:repeat[key] forKey:key];
+    // Planner omits second for hourly/daily/weekly. A wildcard second would fire 60 times.
+    if (c.second == NSDateComponentUndefined && (c.hour != NSDateComponentUndefined || c.minute != NSDateComponentUndefined)) c.second = 0;
     trigger = [UNCalendarNotificationTrigger triggerWithDateMatchingComponents:c repeats:YES];
     info[@"repeat"] = repeat;
   } else {

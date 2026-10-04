@@ -23,10 +23,14 @@ function components(rule: RepeatComponents | null | undefined): RepeatComponents
     if (!Number.isInteger(value) || value < min || value > max) throw new Error("Invalid repeat component");
     result[key] = value;
   }
-  // Shipping simple rules: minutely, hourly, daily, weekly. Reject unsafe calendar combinations.
-  if (result.second === undefined || result.month !== undefined || result.day !== undefined ||
+  // Planner DateComponents: minutely={second}, hourly={minute}, daily={hour,minute},
+  // weekly={weekday,hour,minute}. Month/day are not emitted. Default second=0 so the OS
+  // trigger does not wildcard seconds on hour/minute rules.
+  if (result.month !== undefined || result.day !== undefined ||
       (result.weekday !== undefined && result.hour === undefined) ||
       (result.hour !== undefined && result.minute === undefined)) throw new Error("Unsupported repeat descriptor");
+  if (result.second === undefined && (result.hour !== undefined || result.minute !== undefined)) result.second = 0;
+  if (result.second === undefined) throw new Error("Unsupported repeat descriptor");
   return result;
 }
 function occurrenceWallKey(occurrenceAt: string, fireAt: string, repeat: RepeatComponents | null) {
