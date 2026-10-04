@@ -24,7 +24,7 @@
 | A4 | MCP is local only: loopback HTTP + stdio bridge, no OAuth, no pairing, no remote | Yes; remote MCP is out of scope |
 | A5 | The Swift "Me" tab becomes **Review** | Yes |
 | A6 | Focus timer runs in the renderer; it arms a one-off OS notification for each phase end through the notifier | Yes |
-| A7 | Semantic search is **off by default**; it needs an embedding provider the user configures (Ollama or an OpenAI-compatible endpoint). No model ships in the app | Yes |
+| A7 | Semantic search is **off by default**; it needs an embedding provider the user configures: an **OpenAI-compatible remote endpoint only**. No Ollama, no local model, no model in the app (Erick: too heavy) | Decided |
 | A8 | Brute-force cosine search over float32 BLOBs in Go (no `sqlite-vec`) | Yes; revisit only if W0-STORE measures > 50 ms at 20k memories |
 | A9 | Map uses free tiles without an API key; provider chosen by W0-MAP. Geocoding (address search) is opt-in and disabled by default because it sends text to a third party | Yes |
 | A10 | App display name "Sparky"; bundle ids `com.polterware.sparky`, `com.polterware.sparky.notifier`; URL scheme `sparky://`; data dir `~/Library/Application Support/Sparky/` | Yes |

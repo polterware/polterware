@@ -112,7 +112,7 @@ one writer + several readers; `PreUpdate`/`Commit` hooks (copy the idea from `ba
 entity-level change events; load the baseline SQL from W0-CONTRACTS if merged, otherwise the DDL in doc 02. Benchmarks on
 synthetic data: 10k and 50k memories — FTS query p50/p95, `list_memories` with filters, insert throughput, DB size; brute-force
 cosine over 10k/20k/50k × 384/768-dim vectors (single-thread and 4 goroutines) with a heap top-K. Embedding provider probe:
-call a local Ollama if installed (skip with note if not).
+(Ollama is **not** part of the product: skip any embedding-provider probe.)
 **Acceptance.** Benchmarks table (ns/op and p95) in the status file; pass/fail against budgets (FTS p95 < 30 ms @10k; vector
 top-K < 50 ms @20k×768); statement on any missing capability and the fallback (`ncruces/go-sqlite3` WASM, `sqlite-vec`).
 **Output decision.** O3 and A8 confirmation.

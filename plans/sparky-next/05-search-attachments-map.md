@@ -16,9 +16,13 @@
 - **Off by default.** No model ships in the app, nothing is sent anywhere until the user configures a provider
   ("Execution honesty": the Search settings page shows `not configured | indexing n/m | ready | provider unreachable`).
 - Provider interface (`providers/embeddings`): `Embed(ctx, []string) ([][]float32, error)`, `Dims()`, `Name()`.
-  Implementations: `ollama` (default URL `http://127.0.0.1:11434`, model chosen by the user, e.g. `nomic-embed-text`) and
-  `openai-compatible` (base URL + API key stored in the macOS Keychain via Electron Main `safeStorage`, passed to the core
-  at runtime, **never** written to SQLite). A `test` RPC embeds a fixed sentence and reports dims/latency.
+  **No local model runtime ships or is recommended** (Erick: Ollama is too heavy). The single v1 implementation is
+  `openai-compatible` (base URL + model + API key stored in the macOS Keychain via Electron Main `safeStorage`, passed to the
+  core at runtime, **never** written to SQLite): a remote embeddings API the user chooses. The interface stays open so a
+  light in-process model can be added later without contract changes. A `test` RPC embeds a fixed sentence and reports
+  dims/latency. Cost control: only title+note excerpt is sent, batches of 16, `text_hash` skips unchanged content, and the
+  settings page shows the number of memories pending/embedded so the user sees what will be sent before enabling it.
+  Cheapest path without any provider: an MCP agent can rerank `search_memories` (FTS) results itself.
 - Text embedded per memory: `title + "\n" + note(plain, first 2 000 chars) + "\n" + checklist titles`. Stored in
   `embeddings(vector float32 LE, L2-normalized, text_hash)`. A background worker (bounded concurrency 2, batch 16, retry with
   backoff) embeds queued memories; `text_hash` prevents re-embedding unchanged content; changing the model drops and rebuilds.

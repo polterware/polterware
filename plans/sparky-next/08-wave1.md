@@ -94,7 +94,7 @@ Claude Code client creating, searching and completing memories; Inspector smoke 
 **Owns.** `sparky/backend/domains/search/**`, `sparky/backend/providers/search/**`, `sparky/backend/providers/embeddings/**`.
 **Goal.** Implement the search section of [05-search-attachments-map.md](05-search-attachments-map.md).
 **Do.** `search.Index` implementation (FTS5 upsert/delete/rebuild; coordinates with W1-STORE through the port), query builder
-(tokenizer-safe, prefix, bm25 weights, snippets), embedding workers + providers (`ollama`, `openai-compatible`; HTTP client with
+(tokenizer-safe, prefix, bm25 weights, snippets), embedding workers + providers (`openai-compatible` only; no local runtime; HTTP client with
 timeouts/backoff; key received at runtime, never persisted), brute-force vector search with heap top-K, RRF fusion, status
 reporting, `Reindex`, filters applied pre-fusion.
 **Acceptance.** Fixtures in Portuguese/English (diacritics, prefix, phrases, operators escaped); budgets from W0-STORE; with a
