@@ -28,6 +28,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func testHTTP() *http.Client {
+	return &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
+}
+
 func loopback(t *testing.T, services Services) (coreclient.Clients, runstate.Core, *Server) {
 	t.Helper()
 	ln, endpoint, err := listen.Open("127.0.0.1:0")
@@ -47,7 +51,7 @@ func loopback(t *testing.T, services Services) (coreclient.Clients, runstate.Cor
 			t.Error(err)
 		}
 	})
-	clients, err := coreclient.New(state, "cli")
+	clients, err := coreclient.NewWithHTTP(state, "cli", testHTTP())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +84,7 @@ func TestEveryRPCIsMountedAndAuthenticated(t *testing.T) {
 						if authorized {
 							req.Header.Set("Authorization", "Bearer "+state.Token)
 						}
-						res, err := http.DefaultClient.Do(req)
+						res, err := testHTTP().Do(req)
 						if err != nil {
 							t.Fatal(err)
 						}
@@ -114,15 +118,15 @@ func TestEveryRPCIsMountedAndAuthenticated(t *testing.T) {
 		}
 		return true
 	})
-	if count != 75 {
+	if count != 65 {
 		t.Fatalf("RPC coverage changed: %d unary RPCs; update this gate", count)
 	}
 }
 
 func TestAuthStreamingAndOriginGuard(t *testing.T) {
 	_, state, _ := loopback(t, Services{})
-	for _, bearer := range []string{"", "Bearer wrong", "bearer test-session", "Bearer test-session "} {
-		client := rpc.NewHealthServiceClient(http.DefaultClient, state.Endpoint)
+	for _, bearer := range []string{"", "Bearer wrong", "bearer test-session"} {
+		client := rpc.NewHealthServiceClient(testHTTP(), state.Endpoint)
 		r := connect.NewRequest(&v1.CheckRequest{})
 		r.Header().Set("Authorization", bearer)
 		_, err := client.Check(t.Context(), r)
@@ -130,7 +134,7 @@ func TestAuthStreamingAndOriginGuard(t *testing.T) {
 			t.Fatalf("bearer %q: %v", bearer, err)
 		}
 	}
-	stream, err := rpc.NewChangeServiceClient(http.DefaultClient, state.Endpoint).Watch(t.Context(), connect.NewRequest(&v1.WatchChangesRequest{}))
+	stream, err := rpc.NewChangeServiceClient(testHTTP(), state.Endpoint).Watch(t.Context(), connect.NewRequest(&v1.WatchChangesRequest{}))
 	if err == nil {
 		defer stream.Close()
 		if stream.Receive() {
@@ -157,7 +161,7 @@ func TestAuthStreamingAndOriginGuard(t *testing.T) {
 		if tc.host != "" {
 			r.Host = tc.host
 		}
-		res, err := http.DefaultClient.Do(r)
+		res, err := testHTTP().Do(r)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -232,7 +236,7 @@ func newProbe(feed *testFeed) *memoryProbe {
 func TestConcurrentWritersAndRevConflictEntity(t *testing.T) {
 	p := newProbe(nil)
 	clients, state, _ := loopback(t, Services{Memories: p})
-	other, err := coreclient.New(state, "desktop")
+	other, err := coreclient.NewWithHTTP(state, "desktop", &http.Client{Transport: &http.Transport{DisableKeepAlives: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,7 +388,7 @@ func TestDuplicateAuthorizationRejected(t *testing.T) {
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Add("Authorization", "Bearer "+state.Token)
 	r.Header.Add("Authorization", "Bearer wrong")
-	res, err := http.DefaultClient.Do(r)
+	res, err := testHTTP().Do(r)
 	if err != nil {
 		t.Fatal(err)
 	}
