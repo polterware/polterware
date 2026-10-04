@@ -1,0 +1,42 @@
+import type { DescMethodUnary, MessageJsonType } from "@bufbuild/protobuf";
+import type * as Contracts from "@polterware/sparky-contracts";
+
+/** RPC inputs and outputs use protobuf JSON (timestamps ISO, int64 decimal strings). */
+type Namespace<S extends { method: object }> = {
+  [K in keyof S["method"]]: S["method"][K] extends DescMethodUnary
+    ? (input?: MessageJsonType<S["method"][K]["input"]>) => Promise<MessageJsonType<S["method"][K]["output"]>>
+    : never;
+};
+export type ChangeEvent = { seq: string; changes: { entity: string; id: string; op: string }[]; resync: boolean };
+export type DeepLink = { url: string; route: string };
+export type SparkyBridge = {
+  memories: Namespace<typeof Contracts.MemoryService>;
+  minds: Namespace<typeof Contracts.MindService>;
+  tags: Namespace<typeof Contracts.TagService>;
+  schedule: Namespace<typeof Contracts.ScheduleService>;
+  places: Namespace<typeof Contracts.PlaceService>;
+  attachments: Namespace<typeof Contracts.AttachmentService>;
+  focus: Namespace<typeof Contracts.FocusService>;
+  review: Namespace<typeof Contracts.ReviewService>;
+  search: Namespace<typeof Contracts.SearchService>;
+  reminders: Namespace<typeof Contracts.ReminderService>;
+  activity: Namespace<typeof Contracts.ActivityService>;
+  settings: Namespace<typeof Contracts.SettingsService>;
+  agents: Namespace<typeof Contracts.AgentAccessService>;
+  maintenance: Namespace<typeof Contracts.MaintenanceService>;
+  onChange(callback: (event: ChangeEvent) => void): () => void;
+  app: {
+    name: "Sparky";
+    openDeepLink(url: string): Promise<void>;
+    onDeepLink(callback: (link: DeepLink) => void): () => void;
+    getDeepLink(): Promise<DeepLink | null>;
+    pickFiles(): Promise<string[]>;
+    saveZip(): Promise<string | null>;
+    saveBackup(): Promise<string | null>;
+    revealInFinder(attachmentUrl: string): Promise<void>;
+    startMicrophone(): Promise<boolean>;
+    getInfo(): Promise<{ name: string; version: string; updates: "disabled" }>;
+  };
+};
+export const EVENTS = { change: "sparky:change", deepLink: "sparky:deep-link" } as const;
+export const APP_METHODS = ["openDeepLink", "getDeepLink", "pickFiles", "saveZip", "saveBackup", "revealInFinder", "startMicrophone", "getInfo"] as const;
