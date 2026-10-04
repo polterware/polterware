@@ -1,0 +1,24 @@
+# w1-store status
+
+- Result: partial
+- Branch / last commit: `sparky/w1-store`; implementation `6acd251`; final status commit is `git log -1 --format=%h` on this branch.
+- Acceptance criteria:
+  - Repository contract tests shared with in-memory fakes -> **fail / blocked**. No SQLite repositories or `tests/repotest` suite are implemented. The shared suite is outside Owns.
+  - `foreign_key_check` clean after random operation fuzz -> **fail / unverified**. SQLite provider work is stopped pending the dependency request.
+  - Mind deletion cascades children and nulls memory `mind_id` -> **fail / unverified**. Baseline SQL expresses these constraints, but no provider integration test exists.
+  - Change events only after commit and never on rollback -> **fail / unverified**. The broadcaster is implemented, but SQLite hooks and post-commit publication are not. `Publish` explicitly requires a successful commit; that requirement is not proof of SQLite integration.
+  - Concurrent reader during a write does not block (WAL) -> **fail / unverified**. No database opener or WAL integration test is implemented.
+- Verification:
+  - Required command: `cd sparky/backend && go vet ./providers/sqlite/... ./platform/... && go test ./providers/sqlite/... ./platform/... -race -count=1` -> exit 0, **incomplete coverage**: both commands warn `"./providers/sqlite/..." matched no packages`. Broadcaster tests pass; this is not a passing store acceptance result.
+  - Standalone broadcaster: `cd sparky/backend && GOWORK=off go vet ./platform/changes/... && GOWORK=off go test ./platform/changes/... -race -count=1` -> pass.
+  - Tests: `TestSnapshotReplayAndIsolation`, `TestReplayBounds`, `TestFreshWatchAndEmptyBatch`, `TestSlowConsumerAndCancellation`, `TestConcurrentPublishWatchClose` -> pass with race detection.
+  - `git diff --check` -> pass. `git diff --name-only sparky-contracts-v1.1 -- sparky/schemas sparky/backend/platform/gen packages/sparky-contracts/src/gen` -> empty; frozen contracts unchanged.
+- Deviations from the plan (and why):
+  - SQLite-dependent work stopped under AGENT-PROTOCOL ownership rules: adding the locked driver requires changing `sparky/backend/go.mod` and `go.sum`, outside Owns. No dependency was borrowed from Polterware's module to disguise a missing standalone dependency.
+  - Independent broadcaster work ships without SQLite integration. Sequence increments once per nonempty committed batch; replay retains at most 1,000 entity changes, evicting whole batches. Cursor zero starts with a current snapshot and live changes; nonzero cursors replay after the snapshot. Expired/future cursors fail explicitly. Slow consumers disconnect and reconnect rather than silently dropping changes.
+  - `polterware` is absent from PATH. The existing binary at `/Users/erickpatrickbarcelos/codes/polterware-total/polterware/dist/polterware` was used: `format` read successfully; `status`, `query cards`, and `handoff` cannot resolve a project for this worktree. No project was initialized or unrelated store modified.
+- Requests filed: `plans/sparky-next/requests/w1-store-1.md` (driver dependency and shared repository-suite ownership).
+- Follow-ups for other WS:
+  - Integrator/W0-SCAFFOLD: apply the dependency change and assign/supply `tests/repotest`, then resume W1-STORE's SQLite implementation and all five acceptance checks.
+  - W1-CORE: broadcaster API is `changes.New`, `Publish`, `Watch`, `Subscription.Next` and `Close`. Publish only after successful commit. Handle cursor expiry and slow consumers by refreshing/reconnecting. No repository or transaction manager is available yet.
+  - W1-SEARCH: transaction-bound index wiring remains pending with the SQLite provider.
