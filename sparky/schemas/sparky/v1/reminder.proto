@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package sparky.v1;
+
+option go_package = "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1;sparkyv1";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+message ReminderItem {
+  string id = 1;
+  string memory_id = 2;
+  google.protobuf.Timestamp occurrence_at = 3;
+  google.protobuf.Timestamp fire_at = 4;
+  string title = 5;
+  string body = 6;
+  string category = 7;
+}
+
+message PlanRemindersRequest {
+  google.protobuf.Timestamp now = 1;
+  int32 budget = 2;
+  google.protobuf.Duration horizon = 3;
+}
+
+message PlanRemindersResponse {
+  repeated ReminderItem items = 1;
+}
+
+message AckReminderRequest {
+  string id = 1;
+  string outcome = 2;
+}
+
+message AckReminderResponse {}
+
+message SnoozeReminderRequest {
+  string memory_id = 1;
+  google.protobuf.Timestamp occurrence_at = 2;
+  int32 minutes = 3;
+}
+
+message SnoozeReminderResponse {
+  string one_off_id = 1;
+  google.protobuf.Timestamp fire_at = 2;
+}
+
+message ArmOneOffRequest {
+  string kind = 1;
+  string memory_id = 2;
+  google.protobuf.Timestamp fire_at = 3;
+  string title = 4;
+  string body = 5;
+}
+
+message ArmOneOffResponse {
+  string id = 1;
+  google.protobuf.Timestamp fire_at = 2;
+}
+
+message CancelOneOffRequest {
+  string id = 1;
+}
+
+message CancelOneOffResponse {}
+
+message ReminderHeartbeatRequest {
+  string authorization = 1;
+  int32 armed_count = 2;
+}
+
+message ReminderHeartbeatResponse {
+  google.protobuf.Timestamp last_seen_at = 1;
+}
+
+message ReminderStatusRequest {}
+
+message ReminderStatusResponse {
+  int32 planned = 1;
+  int32 armed = 2;
+  google.protobuf.Timestamp notifier_last_seen_at = 3;
+  string permission = 4;
+}
+
+service ReminderService {
+  rpc Plan(PlanRemindersRequest) returns (PlanRemindersResponse);
+  rpc Ack(AckReminderRequest) returns (AckReminderResponse);
+  rpc Snooze(SnoozeReminderRequest) returns (SnoozeReminderResponse);
+  rpc ArmOneOff(ArmOneOffRequest) returns (ArmOneOffResponse);
+  rpc CancelOneOff(CancelOneOffRequest) returns (CancelOneOffResponse);
+  rpc Heartbeat(ReminderHeartbeatRequest) returns (ReminderHeartbeatResponse);
+  rpc Status(ReminderStatusRequest) returns (ReminderStatusResponse);
+}

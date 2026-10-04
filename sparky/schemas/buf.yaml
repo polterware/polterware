@@ -6,6 +6,11 @@ lint:
     - STANDARD
   except:
     - PACKAGE_VERSION_SUFFIX
+    # Doc 02 uses the same short RPC names (List, Get, Create) on several
+    # services. Request and response messages are prefixed instead
+    # (ListMindsRequest) so RPC_REQUEST_RESPONSE_UNIQUE still holds.
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
 breaking:
   use:
     - FILE

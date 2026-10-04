@@ -1,0 +1,25 @@
+{
+  "name": "get_memory",
+  "description": "One memory. include defaults to note, checklist, schedule.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "id"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "include": {
+        "type": "array",
+        "description": "note, checklist, schedule, place, attachments, completions",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object"
+  }
+}

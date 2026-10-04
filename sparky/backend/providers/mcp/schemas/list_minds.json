@@ -1,0 +1,23 @@
+{
+  "name": "list_minds",
+  "description": "Mind tree. parent is a name or id.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "parent": {
+        "type": "string"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "minds"
+    ],
+    "properties": {
+      "minds": {
+        "type": "array"
+      }
+    }
+  }
+}

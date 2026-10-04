@@ -1,0 +1,46 @@
+{
+  "name": "search_memories",
+  "description": "Ranked search. Uses full text when semantic search is off.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "string"
+      },
+      "mode": {
+        "type": "string",
+        "description": "hybrid|fts|semantic"
+      },
+      "mind": {
+        "type": "string"
+      },
+      "tag": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "hits",
+      "modeUsed"
+    ],
+    "properties": {
+      "hits": {
+        "type": "array"
+      },
+      "modeUsed": {
+        "type": "string"
+      },
+      "notice": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "name": "create_memories",
+  "description": "Create up to 50 memories. Each item is ok or error.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "items"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "title"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            },
+            "mind": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "due": {
+              "type": "string"
+            },
+            "pinned": {
+              "type": "boolean"
+            },
+            "checklist": {
+              "type": "array",
+              "description": "String or {title, detail?}."
+            },
+            "schedule": {
+              "type": "object",
+              "description": "at, tz?, repeat {freq, every?, weekdays?, until?|count?}, focus?."
+            },
+            "place": {
+              "type": "object",
+              "description": "lat, lng, name?, radiusM?, event?."
+            },
+            "links": {
+              "type": "array",
+              "description": "{url, title?}"
+            }
+          }
+        }
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "results"
+    ],
+    "properties": {
+      "results": {
+        "type": "array"
+      }
+    }
+  }
+}

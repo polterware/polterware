@@ -1,0 +1,29 @@
+{
+  "name": "list_activity",
+  "description": "Who changed what.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "integer"
+      },
+      "actor": {
+        "type": "string"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "events"
+    ],
+    "properties": {
+      "events": {
+        "type": "array"
+      },
+      "nextCursor": {
+        "type": "string"
+      }
+    }
+  }
+}

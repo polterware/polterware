@@ -9,6 +9,7 @@ package sparkyv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -57,17 +58,117 @@ func (*CheckRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_health_proto_rawDescGZIP(), []int{0}
 }
 
+type McpHealth struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Port          int32                  `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`
+	Enabled       bool                   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpHealth) Reset() {
+	*x = McpHealth{}
+	mi := &file_sparky_v1_health_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpHealth) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpHealth) ProtoMessage() {}
+
+func (x *McpHealth) ProtoReflect() protoreflect.Message {
+	mi := &file_sparky_v1_health_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpHealth.ProtoReflect.Descriptor instead.
+func (*McpHealth) Descriptor() ([]byte, []int) {
+	return file_sparky_v1_health_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *McpHealth) GetPort() int32 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
+func (x *McpHealth) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+type NotifierHealth struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LastSeenAt    *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NotifierHealth) Reset() {
+	*x = NotifierHealth{}
+	mi := &file_sparky_v1_health_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotifierHealth) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotifierHealth) ProtoMessage() {}
+
+func (x *NotifierHealth) ProtoReflect() protoreflect.Message {
+	mi := &file_sparky_v1_health_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotifierHealth.ProtoReflect.Descriptor instead.
+func (*NotifierHealth) Descriptor() ([]byte, []int) {
+	return file_sparky_v1_health_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *NotifierHealth) GetLastSeenAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastSeenAt
+	}
+	return nil
+}
+
 type CheckResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Build         string                 `protobuf:"bytes,1,opt,name=build,proto3" json:"build,omitempty"`
 	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	DbPath        string                 `protobuf:"bytes,4,opt,name=db_path,json=dbPath,proto3" json:"db_path,omitempty"`
+	Mcp           *McpHealth             `protobuf:"bytes,5,opt,name=mcp,proto3" json:"mcp,omitempty"`
+	Notifier      *NotifierHealth        `protobuf:"bytes,6,opt,name=notifier,proto3" json:"notifier,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CheckResponse) Reset() {
 	*x = CheckResponse{}
-	mi := &file_sparky_v1_health_proto_msgTypes[1]
+	mi := &file_sparky_v1_health_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -79,7 +180,7 @@ func (x *CheckResponse) String() string {
 func (*CheckResponse) ProtoMessage() {}
 
 func (x *CheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_sparky_v1_health_proto_msgTypes[1]
+	mi := &file_sparky_v1_health_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -92,7 +193,7 @@ func (x *CheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckResponse.ProtoReflect.Descriptor instead.
 func (*CheckResponse) Descriptor() ([]byte, []int) {
-	return file_sparky_v1_health_proto_rawDescGZIP(), []int{1}
+	return file_sparky_v1_health_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CheckResponse) GetBuild() string {
@@ -109,15 +210,54 @@ func (x *CheckResponse) GetVersion() string {
 	return ""
 }
 
+func (x *CheckResponse) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *CheckResponse) GetDbPath() string {
+	if x != nil {
+		return x.DbPath
+	}
+	return ""
+}
+
+func (x *CheckResponse) GetMcp() *McpHealth {
+	if x != nil {
+		return x.Mcp
+	}
+	return nil
+}
+
+func (x *CheckResponse) GetNotifier() *NotifierHealth {
+	if x != nil {
+		return x.Notifier
+	}
+	return nil
+}
+
 var File_sparky_v1_health_proto protoreflect.FileDescriptor
 
 const file_sparky_v1_health_proto_rawDesc = "" +
 	"\n" +
-	"\x16sparky/v1/health.proto\x12\tsparky.v1\"\x0e\n" +
-	"\fCheckRequest\"?\n" +
+	"\x16sparky/v1/health.proto\x12\tsparky.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x0e\n" +
+	"\fCheckRequest\"9\n" +
+	"\tMcpHealth\x12\x12\n" +
+	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x18\n" +
+	"\aenabled\x18\x02 \x01(\bR\aenabled\"N\n" +
+	"\x0eNotifierHealth\x12<\n" +
+	"\flast_seen_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastSeenAt\"\xf2\x01\n" +
 	"\rCheckResponse\x12\x14\n" +
 	"\x05build\x18\x01 \x01(\tR\x05build\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\tR\aversion2K\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x129\n" +
+	"\n" +
+	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12\x17\n" +
+	"\adb_path\x18\x04 \x01(\tR\x06dbPath\x12&\n" +
+	"\x03mcp\x18\x05 \x01(\v2\x14.sparky.v1.McpHealthR\x03mcp\x125\n" +
+	"\bnotifier\x18\x06 \x01(\v2\x19.sparky.v1.NotifierHealthR\bnotifier2K\n" +
 	"\rHealthService\x12:\n" +
 	"\x05Check\x12\x17.sparky.v1.CheckRequest\x1a\x18.sparky.v1.CheckResponseB\xb2\x01\n" +
 	"\rcom.sparky.v1B\vHealthProtoP\x01ZOgithub.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1;sparkyv1\xa2\x02\x03SXX\xaa\x02\tSparky.V1\xca\x02\tSparky\\V1\xe2\x02\x15Sparky\\V1\\GPBMetadata\xea\x02\n" +
@@ -135,19 +275,26 @@ func file_sparky_v1_health_proto_rawDescGZIP() []byte {
 	return file_sparky_v1_health_proto_rawDescData
 }
 
-var file_sparky_v1_health_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_sparky_v1_health_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_sparky_v1_health_proto_goTypes = []any{
-	(*CheckRequest)(nil),  // 0: sparky.v1.CheckRequest
-	(*CheckResponse)(nil), // 1: sparky.v1.CheckResponse
+	(*CheckRequest)(nil),          // 0: sparky.v1.CheckRequest
+	(*McpHealth)(nil),             // 1: sparky.v1.McpHealth
+	(*NotifierHealth)(nil),        // 2: sparky.v1.NotifierHealth
+	(*CheckResponse)(nil),         // 3: sparky.v1.CheckResponse
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_sparky_v1_health_proto_depIdxs = []int32{
-	0, // 0: sparky.v1.HealthService.Check:input_type -> sparky.v1.CheckRequest
-	1, // 1: sparky.v1.HealthService.Check:output_type -> sparky.v1.CheckResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	4, // 0: sparky.v1.NotifierHealth.last_seen_at:type_name -> google.protobuf.Timestamp
+	4, // 1: sparky.v1.CheckResponse.started_at:type_name -> google.protobuf.Timestamp
+	1, // 2: sparky.v1.CheckResponse.mcp:type_name -> sparky.v1.McpHealth
+	2, // 3: sparky.v1.CheckResponse.notifier:type_name -> sparky.v1.NotifierHealth
+	0, // 4: sparky.v1.HealthService.Check:input_type -> sparky.v1.CheckRequest
+	3, // 5: sparky.v1.HealthService.Check:output_type -> sparky.v1.CheckResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_sparky_v1_health_proto_init() }
@@ -161,7 +308,7 @@ func file_sparky_v1_health_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sparky_v1_health_proto_rawDesc), len(file_sparky_v1_health_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
