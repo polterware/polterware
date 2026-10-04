@@ -1,0 +1,97 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createSettingsBridge, type SettingsWireBridge } from "./bridge";
+import { createSettingsStore, type SettingsStore } from "./store";
+import { fakeSettingsBridge } from "./fake-bridge";
+
+const stores: SettingsStore[] = [];
+function setup(seed?: Parameters<typeof fakeSettingsBridge>[0]) {
+  const fake = fakeSettingsBridge(seed);
+  const store = createSettingsStore(() => createSettingsBridge(fake.bridge as unknown as SettingsWireBridge));
+  stores.push(store);
+  return { ...fake, store };
+}
+afterEach(() => { stores.splice(0).forEach(store => store.dispose()); });
+
+describe("settings store", () => {
+  it("round-trips each change through SettingsService.Set with one key", async () => {
+    const { store, bridge } = setup();
+    await store.refresh();
+    await store.set("app.keepRunningInBackground", false);
+    expect(bridge.settings.set).toHaveBeenCalledWith({ keys: ["app.keepRunningInBackground"], settings: { appKeepRunningInBackground: false } });
+    expect(store.settings().appKeepRunningInBackground).toBe(false);
+    expect(store.saveState()).toBe("live");
+    await store.set("calendar.weekStart", "sun");
+    expect(bridge.settings.set).toHaveBeenLastCalledWith({ keys: ["calendar.weekStart"], settings: { calendarWeekStart: "sun" } });
+    expect(store.settings().calendarWeekStart).toBe("sun");
+  });
+
+  it("shows the core validation error text and does not keep an invalid value", async () => {
+    const { store, settings } = setup();
+    await store.refresh();
+    await store.set("notifications.allDayTime", "9:00");
+    expect(store.saveState()).toBe("failed");
+    expect(store.keyError()).toBe("notifications.allDayTime: must be HH:MM");
+    expect(store.settings().notificationsAllDayTime).toBe("09:00");
+    expect(settings.notificationsAllDayTime).toBe("09:00");
+  });
+
+  it("invalidates the previous token after rotation", async () => {
+    const { store, valid, token } = setup();
+    await store.refresh();
+    const previous = token();
+    expect(valid.has(previous)).toBe(true);
+    await store.rotateToken();
+    expect(store.agent()?.token).not.toBe(previous);
+    expect(store.previousToken()).toBe(previous);
+    expect(store.tokenInvalidated()).toBe(true);
+    expect(valid.has(previous)).toBe(false);
+    expect(valid.has(store.agent()?.token ?? "")).toBe(true);
+  });
+
+  it("reports Test connection failure when MCP is off", async () => {
+    const { store } = setup({ agentsMcpEnabled: false });
+    await store.refresh();
+    const fetchImpl = vi.fn();
+    await store.testConnection(fetchImpl);
+    expect(store.mcpTest()?.ok).toBe(false);
+    expect(store.mcpTest()?.detail).toContain("MCP is off");
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(store.mcpTestState()).toBe("failed");
+  });
+
+  it("reindexes with a progress state then a live document count", async () => {
+    const { store } = setup();
+    await store.refresh();
+    expect(store.search()?.ftsDocuments).toBe(12);
+    const task = store.reindex();
+    expect(store.reindexState()).toBe("progress");
+    await task;
+    expect(store.reindexState()).toBe("live");
+    expect(store.search()?.ftsDocuments).toBe(24);
+  });
+
+  it("keeps reset unavailable and does not invent a destructive RPC", async () => {
+    const { store, bridge } = setup();
+    store.resetLocalData("RESET");
+    expect(store.resetState()).toBe("unavailable");
+    expect(store.resetError()).toContain("No data was changed");
+    expect(bridge.maintenance.export).not.toHaveBeenCalled();
+  });
+
+  it("exports and backs up through the save dialog paths", async () => {
+    const { store, bridge } = setup();
+    await store.exportZip();
+    expect(bridge.app.saveZip).toHaveBeenCalled();
+    expect(bridge.maintenance.export).toHaveBeenCalledWith({ zipPath: "/tmp/sparky-export.zip" });
+    await store.backup();
+    expect(bridge.maintenance.backup).toHaveBeenCalledWith({ destPath: "/tmp/sparky-backup.db" });
+    expect(store.exportDetail()).toContain("Exported");
+    expect(store.backupDetail()).toContain("Backed up");
+  });
+
+  it("lists only MCP-attributed activity", async () => {
+    const { store } = setup();
+    await store.loadActivity();
+    expect(store.activity()).toEqual([expect.objectContaining({ actor: "mcp:Claude Code", summary: "Updated memory title" })]);
+  });
+});
