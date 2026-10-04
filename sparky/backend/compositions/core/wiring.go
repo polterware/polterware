@@ -25,13 +25,14 @@ type Runtime struct {
 	Close    func() error
 }
 
-// OpenRuntime binds SQLite repositories to domain services. Search query
-// execution stays nil until W1-SEARCH; attachment bytes stay unavailable until W1-ATTACH.
+// OpenRuntime binds SQLite repositories to domain services. Attachment bytes
+// stay unavailable until W1-ATTACH.
 func OpenRuntime(_ context.Context, dbPath string) (Runtime, error) {
 	store, err := sqlite.Open(dbPath)
 	if err != nil {
 		return Runtime{}, fmt.Errorf("open sqlite: %w", err)
 	}
+	searchSvc := WireSearch(store)
 	clk := clock.Clock{}
 	idgen := ids.Generator{}
 	audit := activity.Audit{Repository: store.Activity(), Transactions: store, Clock: clk, IDs: idgen}
@@ -76,6 +77,7 @@ func OpenRuntime(_ context.Context, dbPath string) (Runtime, error) {
 			ScheduleReader: store.Schedules(),
 			PlaceReader:    store.Places(),
 			Changes:        liveFeed{bus: store.Changes()},
+			Search:         searchSvc,
 		},
 		MCP:   MCP{Port: doc.AgentsMCPPort, Enabled: doc.AgentsMCPEnabled},
 		Close: store.Close,

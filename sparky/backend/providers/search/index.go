@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	domain "github.com/polterware/polterware/sparky/backend/domains/search"
+	"github.com/polterware/polterware/sparky/backend/platform/db"
 )
 
 type dbtx interface {
@@ -21,20 +22,45 @@ type dbtx interface {
 }
 
 // Index uses the caller-owned connection so callers can share their write transaction.
-type Index struct{ db dbtx }
+type Index struct {
+	writer *sql.DB
+	read   dbtx
+}
 
 var _ domain.Index = (*Index)(nil)
 
-func New(db dbtx) *Index { return &Index{db: db} }
+func New(writer *sql.DB) *Index { return &Index{writer: writer, read: writer} }
+
+func NewWithReader(writer *sql.DB, read dbtx) *Index {
+	return &Index{writer: writer, read: read}
+}
+
+func (i *Index) writeConn(ctx context.Context) dbtx {
+	if tx, ok := db.TxFrom(ctx); ok {
+		return tx
+	}
+	return i.writer
+}
+
+func (i *Index) readConn(ctx context.Context) dbtx {
+	if tx, ok := db.TxFrom(ctx); ok {
+		return tx
+	}
+	return i.read
+}
 
 func (i *Index) Upsert(ctx context.Context, doc domain.Document) error {
+	return i.upsert(ctx, i.writeConn(ctx), doc)
+}
+
+func (i *Index) upsert(ctx context.Context, conn dbtx, doc domain.Document) error {
 	if strings.TrimSpace(doc.MemoryID) == "" {
 		return errors.New("search: memory id is required")
 	}
-	if _, err := i.db.ExecContext(ctx, `DELETE FROM memory_fts WHERE memory_id = ?`, doc.MemoryID); err != nil {
+	if _, err := conn.ExecContext(ctx, `DELETE FROM memory_fts WHERE memory_id = ?`, doc.MemoryID); err != nil {
 		return fmt.Errorf("search delete existing index row: %w", err)
 	}
-	_, err := i.db.ExecContext(ctx, `INSERT INTO memory_fts(memory_id,title,note,checklist,tags,mind) VALUES(?,?,?,?,?,?)`,
+	_, err := conn.ExecContext(ctx, `INSERT INTO memory_fts(memory_id,title,note,checklist,tags,mind) VALUES(?,?,?,?,?,?)`,
 		doc.MemoryID, doc.Title, StripMarkdown(doc.Note), doc.Checklist, doc.Tags, doc.Mind)
 	if err != nil {
 		return fmt.Errorf("search insert index row: %w", err)
@@ -43,7 +69,7 @@ func (i *Index) Upsert(ctx context.Context, doc domain.Document) error {
 }
 
 func (i *Index) Delete(ctx context.Context, memoryID string) error {
-	if _, err := i.db.ExecContext(ctx, `DELETE FROM memory_fts WHERE memory_id = ?`, memoryID); err != nil {
+	if _, err := i.writeConn(ctx).ExecContext(ctx, `DELETE FROM memory_fts WHERE memory_id = ?`, memoryID); err != nil {
 		return fmt.Errorf("search delete index row: %w", err)
 	}
 	return nil
@@ -100,7 +126,7 @@ func (i *Index) Search(ctx context.Context, query string, filter domain.Filter) 
 		`snippet(memory_fts,2,'<b>','</b>','…',12), snippet(memory_fts,3,'<b>','</b>','…',12), ` +
 		`snippet(memory_fts,4,'<b>','</b>','…',12), snippet(memory_fts,5,'<b>','</b>','…',12) ` +
 		`FROM memory_fts JOIN memories m ON m.id=memory_fts.memory_id WHERE ` + where.String() + ` ORDER BY bm25(memory_fts,10.0,1.0,2.0,3.0,1.5), memory_fts.memory_id LIMIT ?`
-	rows, err := i.db.QueryContext(ctx, sqlQuery, args...)
+	rows, err := i.readConn(ctx).QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("search query: %w", err)
 	}
@@ -129,23 +155,16 @@ func (i *Index) Search(ctx context.Context, query string, filter domain.Filter) 
 }
 
 func (i *Index) Rebuild(ctx context.Context, docs []domain.Document) error {
-	tx, ok := i.db.(interface {
-		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-	})
-	if !ok {
-		return errors.New("search: rebuild requires a transactional database handle")
-	}
-	dbtx, err := tx.BeginTx(ctx, nil)
+	dbtx, err := i.writer.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("search begin rebuild: %w", err)
 	}
 	defer dbtx.Rollback()
-	index := New(dbtx)
 	if _, err := dbtx.ExecContext(ctx, `DELETE FROM memory_fts`); err != nil {
 		return fmt.Errorf("search clear index: %w", err)
 	}
 	for _, doc := range docs {
-		if err := index.Upsert(ctx, doc); err != nil {
+		if err := i.upsert(ctx, dbtx, doc); err != nil {
 			return err
 		}
 	}
@@ -157,7 +176,7 @@ func (i *Index) Rebuild(ctx context.Context, docs []domain.Document) error {
 
 func (i *Index) Count(ctx context.Context) (int, error) {
 	var count int
-	if err := i.db.QueryRowContext(ctx, `SELECT count(*) FROM memory_fts`).Scan(&count); err != nil {
+	if err := i.readConn(ctx).QueryRowContext(ctx, `SELECT count(*) FROM memory_fts`).Scan(&count); err != nil {
 		return 0, fmt.Errorf("search count index: %w", err)
 	}
 	return count, nil

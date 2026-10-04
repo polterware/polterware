@@ -1,21 +1,68 @@
 package core
 
 import (
-	"connectrpc.com/connect"
 	"context"
+
+	"connectrpc.com/connect"
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/search"
 	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
+	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
+	searchprovider "github.com/polterware/polterware/sparky/backend/providers/search"
 )
 
 type searchHandler struct{ s search.Service }
+
+// WireSearch registers the FTS index on the store and returns the search service.
+func WireSearch(store *sqlite.Store) search.Service {
+	idx := searchprovider.NewWithReader(store.Handle().Writer(), store.Handle().Q(context.Background(), false))
+	store.SetIndex(idx)
+	return search.NewService(idx, storeDocuments{store: store})
+}
+
+type storeDocuments struct{ store *sqlite.Store }
+
+func (s storeDocuments) ListSearchDocuments(ctx context.Context) ([]search.Document, error) {
+	rows, err := s.store.Handle().Q(ctx, false).QueryContext(ctx, `SELECT id FROM memories ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var docs []search.Document
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		doc, err := s.store.Documents().Document(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		docs = append(docs, doc)
+	}
+	return docs, rows.Err()
+}
+
+func searchFilterFromRequest(in *v1.SearchMemoriesRequest) search.Filter {
+	return search.Filter{
+		MindID:             stringPtr(in.MindId),
+		IncludeDescendants: in.IncludeDescendants,
+		TagIDs:             in.TagIds,
+		Status:             in.Status,
+		DueFrom:            instantPtr(in.DueFrom),
+		DueTo:              instantPtr(in.DueTo),
+		UpdatedFrom:        instantPtr(in.UpdatedFrom),
+		UpdatedTo:          instantPtr(in.UpdatedTo),
+		Limit:              int(in.Limit),
+	}
+}
 
 func (h searchHandler) Search(ctx context.Context, r *connect.Request[v1.SearchMemoriesRequest]) (*connect.Response[v1.SearchMemoriesResponse], error) {
 	if h.s == nil {
 		return nil, unavailable("search")
 	}
 	in := r.Msg
-	result, err := h.s.Search(ctx, in.Query, search.Filter{MindID: stringPtr(in.MindId), IncludeDescendants: in.IncludeDescendants, TagIDs: in.TagIds, Status: in.Status, Limit: int(in.Limit)})
+	result, err := h.s.Search(ctx, in.Query, searchFilterFromRequest(in))
 	out := &v1.SearchMemoriesResponse{Notice: result.Notice}
 	for _, hit := range result.Hits {
 		out.Hits = append(out.Hits, &v1.SearchHit{MemoryId: hit.MemoryID, Title: hit.Title, Score: hit.Score, Snippet: hit.Snippet, MatchedIn: hit.MatchedIn})
