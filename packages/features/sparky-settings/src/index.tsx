@@ -21,7 +21,7 @@ const feature: SparkyFeature = {
     { id: "notifications", label: "Notifications", group: "App", component: NotificationsPanel },
     { id: "focus", label: "Focus", group: "App", component: FocusPanel },
     { id: "calendar", label: "Calendar", group: "App", component: CalendarPanel },
-    { id: "map", label: "Map", group: "App", component: MapPanel },
+    { id: "settings-map", label: "Map", group: "App", component: MapPanel },
     { id: "search", label: "Search", group: "App", component: SearchPanel },
     { id: "agents-access", label: "Access", group: "Agents", component: AgentsAccessPanel },
     { id: "agents-activity", label: "Activity", group: "Agents", component: AgentsActivityPanel },

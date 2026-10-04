@@ -1,7 +1,6 @@
 import type { DescMessage, DescMethodUnary, MessageShape, DescService, JsonValue } from "@bufbuild/protobuf";
 import { fromJson } from "@bufbuild/protobuf";
 import * as Contracts from "@polterware/sparky-contracts";
-import { revisionString } from "./mapping";
 
 type Wire<T> = T extends { $typeName: "google.protobuf.Timestamp" } ? string
   : T extends bigint ? string
@@ -31,7 +30,7 @@ export type CalendarWireBridge = {
 export type CalendarBridge = {
   memories: { create: Rpc; get: Rpc };
   minds: { list: Rpc };
-  schedule: Pick<Namespace<typeof Contracts.ScheduleService>, "listOccurrences"> & { set: Rpc };
+  schedule: Pick<Namespace<typeof Contracts.ScheduleService>, "listOccurrences" | "set">;
   settings: Pick<Namespace<typeof Contracts.SettingsService>, "get">;
   onChange: CalendarWireBridge["onChange"];
 };
@@ -40,17 +39,12 @@ function jsonValue(value: unknown): JsonValue {
   return JSON.parse(JSON.stringify(value ?? {}, (_key, item) => typeof item === "bigint" ? item.toString() : item)) as JsonValue;
 }
 
-function withStringRev(value: JsonValue): JsonValue {
-  if (!value || typeof value !== "object" || Array.isArray(value) || !("expectedRev" in value) || value.expectedRev == null) return value;
-  return { ...value, expectedRev: revisionString(value.expectedRev as string | number | bigint | undefined) };
-}
-
 function bind(source: WireNamespace, service: DescService): WireNamespace {
   const result: WireNamespace = {};
   for (const method of service.methods) {
     result[method.localName] = async (input = {}) => {
-      const request = withStringRev(jsonValue(input ?? {}));
-      fromJson(method.input, request, { ignoreUnknownFields: true });
+      const request = jsonValue(input ?? {});
+      fromJson(method.input, request);
       const json = jsonValue(await source[method.localName]!(request));
       fromJson(method.output, json, { ignoreUnknownFields: true });
       return json;
@@ -76,4 +70,4 @@ export function browserBridge(): CalendarBridge {
   return createCalendarBridge(wire);
 }
 
-export { revisionString };
+export { revisionString } from "./mapping";

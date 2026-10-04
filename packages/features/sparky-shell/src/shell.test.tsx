@@ -151,6 +151,33 @@ it("delegates collection keyboard actions and unregisters them on navigation", a
   key("1"); await vi.waitFor(() => expect(host.textContent).toContain("Inbox is unavailable"));
   key("Enter", false); expect(action).toHaveBeenCalledTimes(5);
 });
+it("leaves native controls, editable ancestors and overlays out of collection shortcuts", async () => {
+  const action = vi.fn();
+  const Page = () => {
+    const shell = useSparkyShell();
+    onMount(() => { onCleanup(shell.registerCollectionShortcuts(action)); });
+    return <div data-keyboard-fixture><button><span>Native button</span></button><a href="#">Link</a><input /><div contenteditable="true"><span>Editable</span></div><div role="dialog"><span>Dialog</span></div><div role="menu"><span>Menu</span></div><div role="listbox"><span>Option</span></div><div role="row" tabindex="0">Row</div><p>Other content</p></div>;
+  };
+  const { host } = mount([{ id: "memories", routes: [{ path: "/today", title: "Today", component: Page }] }]);
+  await vi.waitFor(() => expect(host.querySelector("[data-keyboard-fixture]")).not.toBeNull());
+  host.querySelector("[contenteditable]")!.setAttribute("contenteditable", "");
+  for (const target of host.querySelectorAll('[data-keyboard-fixture] button span, a, input, [contenteditable] span, [role="dialog"] span, [role="menu"] span, [role="listbox"] span, [data-keyboard-fixture] p')) {
+    for (const value of ["Enter", " ", "e", "p"]) {
+      const event = new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    }
+  }
+  expect(action).not.toHaveBeenCalled();
+  const row = host.querySelector('[role="row"]')!;
+  const handled = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+  row.dispatchEvent(handled);
+  expect(handled.defaultPrevented).toBe(true);
+  expect(action).toHaveBeenCalledWith("open");
+  const prevented = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+  prevented.preventDefault(); row.dispatchEvent(prevented);
+  expect(action).toHaveBeenCalledOnce();
+});
 it("contains a feature render failure and permits navigation away", async () => {
   const { host } = mount([{ id: "calendar", routes: [{ path: "/calendar", title: "Calendar", component: () => { throw new Error("Calendar render failed"); } }] }]);
   await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));

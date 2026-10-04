@@ -1,8 +1,5 @@
 import { test, expect } from "../fixtures";
 
-// Product gap: plans/sparky-next/requests/w3-e2e-4.md
-test.fixme(process.env.SPARKY_E2E_RECHECK_GAPS !== "1", "w3-e2e-4: Calendar slot does not open the created memory details. Set SPARKY_E2E_RECHECK_GAPS=1 after the fix.");
-
 test("create a memory by clicking an empty calendar slot", async ({ sparky, page }) => {
   await page.getByRole("button", { name: "Skip onboarding", exact: true }).click().catch(() => {});
   await page.evaluate(() => window.sparky.settings.set({ keys: ["calendar.weekStart"], settings: { calendarWeekStart: "sun" } }));
@@ -21,4 +18,46 @@ test("create a memory by clicking an empty calendar slot", async ({ sparky, page
   });
   expect(persisted.occurrences.some(item => item.title === "Untitled memory")).toBe(true);
   expect(persisted.occurrences.find(item => item.title === "Untitled memory")?.tz).toBeTruthy();
+});
+
+test("calendar: roving focus, native toolbar arrows and Enter activation", async ({ sparky, page }) => {
+  await sparky.skipOnboarding();
+  await page.getByRole("button", { name: "Calendar", exact: true }).click();
+  const calendar = page.locator("[data-calendar]");
+  const main = page.getByRole("main");
+  const grid = page.locator(".sparky-calendar__grid-wrap");
+  await expect(calendar).toHaveAttribute("data-calendar-view", "week");
+  await expect.poll(() => grid.locator("button").evaluateAll(buttons => buttons.filter(button => (button as HTMLButtonElement).tabIndex === 0).length)).toBe(1);
+  const first = calendar.getByRole("button", { name: /Add at 09:00/ }).first();
+  const date = await first.getAttribute("data-slot-date");
+  await first.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator(":focus")).toHaveAttribute("data-slot-time", "10:00");
+  await expect(page.locator(":focus")).toHaveAttribute("data-slot-date", date!);
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator(":focus")).toHaveAttribute("data-slot-time", "10:00");
+  await expect(page.locator(":focus")).not.toHaveAttribute("data-slot-date", date!);
+  const range = await calendar.getAttribute("data-calendar-from");
+  await main.getByRole("button", { name: "Next", exact: true }).press("ArrowRight");
+  await expect(calendar).toHaveAttribute("data-calendar-from", range!);
+  await main.getByRole("radio", { name: "Week", exact: true }).press("ArrowRight");
+  await expect(calendar).toHaveAttribute("data-calendar-view", "month");
+  await main.getByRole("button", { name: "Choose date", exact: true }).click();
+  const datePopup = page.locator('[data-scope="date-picker"][data-part="content"]');
+  await expect(datePopup).toBeVisible();
+  const monthRange = await calendar.getAttribute("data-calendar-from");
+  await datePopup.getByRole("button", { name: "Next month", exact: true }).press("ArrowRight");
+  await expect(calendar).toHaveAttribute("data-calendar-from", monthRange!);
+  await page.keyboard.press("Escape");
+  await main.getByRole("radio", { name: "Day", exact: true }).press("Space");
+  await calendar.getByRole("button", { name: /Add at 09:00/ }).press("Enter");
+  await expect(page.locator("[data-memory-title]")).toHaveValue("Untitled memory");
+  await page.keyboard.press("Meta+j");
+  const occurrence = grid.locator("[data-occurrence]").first();
+  await expect(occurrence).toBeVisible();
+  await occurrence.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(occurrence).not.toBeFocused();
+  await occurrence.press("Enter");
+  await expect(page.locator("[data-memory-title]")).toHaveValue("Untitled memory");
 });

@@ -13,7 +13,7 @@ import { ShellContext, type MemoryDetailRenderer } from "./context";
 import { Commander } from "./commander";
 import { createCoreConnection, reminderLabel } from "./connection";
 import { DEFAULT_PATH, deepLinkPath, normalizePath, pushRoute, resolveRoute, SHELL_ROUTES, sidebarItems, type RouteHistory } from "./route";
-import { isEditing, memoryShortcut, shellShortcut, type MemoryShortcut } from "./shortcuts";
+import { isCollectionTarget, isEditing, memoryShortcut, shellShortcut, type MemoryShortcut } from "./shortcuts";
 import "./shell.css";
 
 const icons: Record<string, Component<{ size?: number }>> = { Activity, CalendarClock, Clock, Folder, Inbox, MapPin, Search, Settings };
@@ -50,6 +50,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
   let main: HTMLElement | undefined;
   let restoredFocus: HTMLElement | undefined;
   const route = createMemo(() => resolveRoute(props.features, path()));
+  const hasFeatureRoute = createMemo(() => props.features.some(feature => feature.id !== "shell" && feature.routes.some(item => item === route()?.route)));
   const items = createMemo(() => sidebarItems(props.features));
   const settingsPanels = createMemo(() => props.features.flatMap(feature => feature.settingsPanels ?? []));
   const settingsGroups = createMemo(() => [...new Set(settingsPanels().map(panel => panel.group))]);
@@ -163,7 +164,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
       if (!shortcut) {
         if (palette() !== null) return;
         const action = memoryShortcut(event, isEditing(event.target));
-        if (action && collectionShortcuts) { event.preventDefault(); collectionShortcuts(action); }
+        if (action && collectionShortcuts && isCollectionTarget(event.target)) { event.preventDefault(); collectionShortcuts(action); }
         return;
       }
       if (palette() !== null && !["commander", "quick-add"].includes(shortcut)) return;
@@ -245,7 +246,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
                   <DetailPanel.Root open={!!selectedMemoryId()} expanded={expanded()} activeEntityId={selectedMemoryId()} onOpenChange={open => { if (!open) closeDetail(); }} onExpandedChange={setExpanded} aria-label="Memory details">
                     <DetailPanel.Collection>
                       <Show keyed when={path()}>{(_path) => <ErrorBoundary fallback={boundary}>
-                        <Show when={/^\/mind\/[^/]+$/.test(normalizePath(path())) && memoryCollection()} fallback={
+                        <Show when={!hasFeatureRoute() && /^\/mind\/[^/]+$/.test(normalizePath(path())) && memoryCollection()} fallback={
                           <Show when={route()} fallback={<><PageHeader title={title()} subtitle={<StatusChip tone="muted" label="Unavailable" />} /><PageEmpty title={`${title()} is unavailable`} description="This feature has not registered a route yet." /></>}>
                             {resolved => <Dynamic component={resolved().route.component} />}
                           </Show>

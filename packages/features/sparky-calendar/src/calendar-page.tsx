@@ -25,6 +25,10 @@ function todayYmd(timeZone = systemTimeZone()): string {
   return formatYmd(wall);
 }
 
+function dateLabel(date: string): string {
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+}
+
 function tone(state: string): "ok" | "syncing" | "danger" | "muted" {
   if (state === "live") return "ok";
   if (state === "queued") return "syncing";
@@ -45,6 +49,8 @@ export function CalendarPage(props: { store?: CalendarStore }) {
   const [view, setView] = createSignal<CalendarView>("week");
   const [anchor, setAnchor] = createSignal(todayYmd());
   const [focused, setFocused] = createSignal(todayYmd());
+  const [focusPosition, setFocusPosition] = createSignal({ date: todayYmd(), index: 0 });
+  let focusAfterRender = false;
   const [shift, setShift] = createSignal(false);
   const [overflow, setOverflow] = createSignal<{ date: string; items: CalendarOccurrence[] }>();
   const [pendingMove, setPendingMove] = createSignal<{ occurrence: CalendarOccurrence; draft: SlotDraft }>();
@@ -67,6 +73,32 @@ export function CalendarPage(props: { store?: CalendarStore }) {
     root?.setAttribute("data-calendar-to", next.to);
   });
 
+  const gridButtons = () => [...(root?.querySelectorAll<HTMLButtonElement>(".sparky-calendar__grid-wrap button:not(:disabled)") ?? [])];
+  const dayButtons = (date: string) => gridButtons().filter(button => button.closest<HTMLElement>("[data-day]")?.dataset.day === date);
+  function syncFocus() {
+    const position = focusPosition();
+    const buttons = gridButtons();
+    const day = dayButtons(position.date);
+    const active = day[Math.min(position.index, day.length - 1)] ?? buttons[0];
+    for (const button of buttons) button.tabIndex = button === active ? 0 : -1;
+    if (focusAfterRender && active) {
+      focusAfterRender = false;
+      active.focus();
+    }
+  }
+  createEffect(() => {
+    dates(); view(); store.occurrences(); store.pending(); focusPosition();
+    queueMicrotask(syncFocus);
+  });
+  function focusGrid(event: FocusEvent) {
+    const button = event.target;
+    if (!(button instanceof HTMLButtonElement)) return;
+    const date = button.closest<HTMLElement>("[data-day]")?.dataset.day;
+    if (!date) return;
+    setFocused(date);
+    setFocusPosition({ date, index: dayButtons(date).indexOf(button) });
+    syncFocus();
+  }
   function bump() {
     if (prefersReducedMotion()) return;
     setShift(true);
@@ -75,13 +107,13 @@ export function CalendarPage(props: { store?: CalendarStore }) {
   function go(next: string, nextView = view()) {
     setAnchor(next);
     setFocused(next);
+    setFocusPosition({ date: next, index: 0 });
     setView(nextView);
     bump();
   }
   async function create(draft: SlotDraft) {
     try {
-      const id = await store.createFromSlot(draft);
-      shell.openMemory(id);
+      await store.createFromSlot(draft, id => shell.openMemory(id));
     } catch {
       /* The status chip already reports failed. */
     }
@@ -106,25 +138,50 @@ export function CalendarPage(props: { store?: CalendarStore }) {
     setPendingMove(undefined);
   }
   function keyboard(event: KeyboardEvent) {
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    if (event.defaultPrevented || event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const inGrid = target.closest(".sparky-calendar__grid-wrap");
+    if (!inGrid && target !== root) return;
     const key = event.key;
-    if (key === "ArrowLeft" || key === "ArrowRight") {
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(key)) {
+      if (!inGrid || !(target instanceof HTMLButtonElement)) return;
+      const date = target.closest<HTMLElement>("[data-day]")?.dataset.day;
+      if (!date) return;
       event.preventDefault();
-      go(shiftedAnchor(focused(), "day", key === "ArrowRight" ? 1 : -1));
-    } else if (key === "ArrowUp" || key === "ArrowDown") {
+      const day = dayButtons(date);
+      const index = day.indexOf(target);
+      let nextDate = date;
+      let nextIndex = index;
+      if (key === "Home" || key === "End") nextIndex = key === "Home" ? 0 : day.length - 1;
+      else if (view() === "month" && (key === "ArrowUp" || key === "ArrowDown")) {
+        nextDate = shiftedAnchor(date, "day", key === "ArrowDown" ? 7 : -7);
+      } else if (view() !== "month" && (key === "ArrowLeft" || key === "ArrowRight")) {
+        nextDate = shiftedAnchor(date, "day", key === "ArrowRight" ? 1 : -1);
+        const time = target.closest<HTMLElement>("[data-slot-time]")?.dataset.slotTime;
+        const destination = dayButtons(nextDate);
+        const sameTime = time ? destination.findIndex(button => button.closest<HTMLElement>("[data-slot-time]")?.dataset.slotTime === time) : -1;
+        if (sameTime >= 0) nextIndex = sameTime;
+      } else {
+        nextIndex += key === "ArrowDown" || key === "ArrowRight" ? 1 : -1;
+        if (nextIndex < 0 || nextIndex >= day.length) {
+          nextDate = shiftedAnchor(date, "day", nextIndex < 0 ? -1 : 1);
+          nextIndex = nextIndex < 0 ? Math.max(0, dayButtons(nextDate).length - 1) : 0;
+        }
+      }
+      if (!dates().includes(nextDate)) setAnchor(nextDate);
+      setFocused(nextDate);
+      focusAfterRender = true;
+      setFocusPosition({ date: nextDate, index: nextIndex });
+      queueMicrotask(syncFocus);
+    } else if (key === "t" || key === "d" || key === "w" || key === "m") {
       event.preventDefault();
-      const step = view() === "month" || view() === "week" ? 7 : 1;
-      go(shiftedAnchor(focused(), "day", key === "ArrowDown" ? step : -step));
-    } else if (key === "t") {
-      event.preventDefault();
-      go(todayYmd(store.displayTz()));
-    } else if (key === "d" || key === "w" || key === "m") {
-      event.preventDefault();
-      go(focused(), key === "d" ? "day" : key === "w" ? "week" : "month");
+      focusAfterRender = Boolean(inGrid);
+      go(key === "t" ? todayYmd(store.displayTz()) : focused(), key === "d" ? "day" : key === "w" ? "week" : key === "m" ? "month" : view());
     }
   }
 
-  return <div ref={root} class="sparky-calendar" data-calendar data-calendar-view={view()} tabindex="0" onKeyDown={keyboard}>
+  return <div ref={root} class="sparky-calendar" data-calendar data-calendar-view={view()} tabindex="-1" onKeyDown={keyboard}>
     <PageHeader
       title={`${title().leading} ${title().trailing}`.trim()}
       subtitle={<span data-save-state={store.saveState()}><StatusChip tone={tone(store.saveState())}>{stateLabel(store.saveState())}</StatusChip></span>}
@@ -148,7 +205,7 @@ export function CalendarPage(props: { store?: CalendarStore }) {
       <Show when={store.loadError()}><PageError title="Calendar unavailable" message={store.loadError()} onRetry={() => void store.refresh()} /></Show>
       <Show when={store.actionError()}><p role="alert">{store.actionError()}</p></Show>
       <Show when={!store.loadError()}>
-        <div class="sparky-calendar__grid-wrap" data-shift={shift() ? "" : undefined}>
+        <div class="sparky-calendar__grid-wrap" onFocusIn={focusGrid} data-shift={shift() ? "" : undefined}>
           <CalendarGrid.Root view={view()} label={`${title().leading} ${title().trailing}`.trim()}>
             <Show when={view() !== "day"}>
               <CalendarGrid.Days>
@@ -229,7 +286,7 @@ function DayColumn(props: {
     return all.slice(visible().length);
   };
   const nowParts = () => civilFromInstant(props.now.toISOString(), props.displayTz);
-  return <CalendarGrid.Day label={props.date} today={props.date === props.today}>
+  return <CalendarGrid.Day label={dateLabel(props.date)} today={props.date === props.today}>
     <div
       class="sparky-calendar__day"
       data-day={props.date}
@@ -237,7 +294,7 @@ function DayColumn(props: {
       data-outside={props.view === "month" && !props.inMonth ? "" : undefined}
     >
       <CalendarGrid.Header>
-        <Button variant="ghost" aria-label={`Open ${props.date} in day view`} onClick={props.onOpenDay}>{props.date.slice(8)}</Button>
+        <Button variant="ghost" aria-label={`Open ${dateLabel(props.date)} in day view`} onClick={props.onOpenDay}>{props.date.slice(8)}</Button>
       </CalendarGrid.Header>
       <CalendarGrid.AllDay label="All day">
         <For each={visible()}>{item =>
@@ -251,9 +308,10 @@ function DayColumn(props: {
             variant="ghost"
             size="sm"
             data-empty-slot
+            data-detail-opener
             data-slot-date={props.date}
             data-slot-all-day="true"
-            aria-label={`New all-day memory on ${props.date}`}
+            aria-label={`New all-day memory on ${dateLabel(props.date)}`}
             onClick={() => props.onCreate({ date: props.date, time: "00:00", allDay: true })}
           >
             Add memory
@@ -284,9 +342,10 @@ function DayColumn(props: {
                     variant="ghost"
                     size="sm"
                     data-empty-slot
+                    data-detail-opener
                     data-slot-date={props.date}
                     data-slot-time={slot.label}
-                    aria-label={`Add at ${slot.label} on ${props.date}`}
+                    aria-label={`Add at ${slot.label} on ${dateLabel(props.date)}`}
                     onClick={() => props.onCreate({ date: props.date, time: slot.label, allDay: false })}
                   >
                     <Plus size={12} aria-hidden="true" />
@@ -319,6 +378,7 @@ function OccurrencePill(props: {
     class="sparky-calendar__pill"
     style={{ "--occurrence-accent": props.occurrence.color || "var(--color-brand)" } as Record<string, string>}
     data-occurrence={props.occurrence.memoryId}
+    data-detail-opener
     data-occurrence-at={props.occurrence.occurrenceAt}
     completed={props.occurrence.completed}
     overdue={props.occurrence.overdue}
@@ -333,4 +393,3 @@ function OccurrencePill(props: {
     {label()}
   </CalendarGrid.Occurrence>;
 }
-

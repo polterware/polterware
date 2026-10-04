@@ -41,7 +41,7 @@ function pointerClick(element: HTMLElement) {
 describe("settings panels", () => {
   it("registers every settings panel on the feature", () => {
     expect(feature.settingsPanels?.map(panel => panel.id)).toEqual([
-      "general", "notifications", "focus", "calendar", "map", "search", "agents-access", "agents-activity", "data", "shortcuts", "advanced",
+      "general", "notifications", "focus", "calendar", "settings-map", "search", "agents-access", "agents-activity", "data", "shortcuts", "advanced",
     ]);
   });
 

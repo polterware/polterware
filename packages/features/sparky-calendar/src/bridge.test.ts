@@ -4,13 +4,12 @@ import { fromJson, toJson } from "@bufbuild/protobuf";
 import { createCalendarBridge, revisionString, type CalendarWireBridge } from "./bridge";
 
 describe("protobuf JSON calendar bridge", () => {
-  it("sends expectedRev as a decimal string and keeps RFC 3339 timestamps", async () => {
+  it("keeps RFC 3339 timestamps and rejects fields outside the frozen contract", async () => {
     const set = vi.fn(async (input?: unknown) => {
       expect(input).toMatchObject({
-        expectedRev: "2",
         schedule: { memoryId: "memory-1", fireAt: "2026-10-03T21:30:00.000Z" },
       });
-      expect(typeof (input as { expectedRev: string }).expectedRev).toBe("string");
+      expect(input).not.toHaveProperty("expectedRev");
       return { schedule: { memoryId: "memory-1", fireAt: "2026-10-03T21:30:00.000Z", tz: "UTC" } };
     });
     const list = vi.fn(async (input?: unknown) => {
@@ -24,9 +23,10 @@ describe("protobuf JSON calendar bridge", () => {
       settings: {},
       onChange: () => () => {},
     } as unknown as CalendarWireBridge);
-    await bridge.schedule.set({ schedule: { memoryId: "memory-1", fireAt: "2026-10-03T21:30:00.000Z", tz: "UTC" }, expectedRev: 2 as never });
+    await bridge.schedule.set({ schedule: { memoryId: "memory-1", fireAt: "2026-10-03T21:30:00.000Z", tz: "UTC" } });
     const listed = await bridge.schedule.listOccurrences({ from: "2026-10-01T00:00:00.000Z", to: "2026-11-01T00:00:00.000Z" });
     expect(listed).toMatchObject({ occurrences: [{ occurrenceAt: "2026-10-03T21:30:00.000Z" }] });
+    await expect(bridge.schedule.set({ schedule: { memoryId: "memory-1" }, expectedRev: "2" } as never)).rejects.toThrow("expectedRev");
     expect(set).toHaveBeenCalledOnce();
   });
 

@@ -1,5 +1,21 @@
 import { test, expect } from "../fixtures";
 
+test("settings: Map Tiles and App Map select distinct panels", async ({ sparky, page }) => {
+  await sparky.skipOnboarding();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  await settings.getByRole("button", { name: "Tiles", exact: true }).click();
+  await expect(settings.locator("[data-map-settings]")).toBeVisible();
+  await settings.getByRole("button", { name: "Map", exact: true }).click();
+  await expect(settings.getByRole("checkbox", { name: "Address search", exact: true })).toBeVisible();
+  await expect(settings.getByLabel("Map provider", { exact: true })).toBeVisible();
+  await expect(settings.locator("[data-map-settings]")).toHaveCount(0);
+  await expect(settings.getByRole("button", { name: "Tiles", exact: true })).not.toHaveAttribute("aria-current", "page");
+  await expect(settings.getByRole("button", { name: "Map", exact: true })).toHaveAttribute("aria-current", "page");
+  await settings.getByRole("button", { name: "Tiles", exact: true }).click();
+  await expect(settings.locator("[data-map-settings]")).toBeVisible();
+});
+
 test("settings: round-trip, MCP off test, and token rotation against the real core", async ({ sparky, page }) => {
   await sparky.skipOnboarding();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
@@ -16,7 +32,7 @@ test("settings: round-trip, MCP off test, and token rotation against the real co
   if (await enabled.isChecked()) await enabled.press("Space");
   await expect.poll(() => page.evaluate(async () => (await window.sparky.settings.get({})).settings?.agentsMcpEnabled ?? false)).toBe(false);
   await settings.getByRole("button", { name: "Test connection", exact: true }).click();
-  await expect(settings).toContainText("MCP is off");
+  await expect(settings).toContainText("MCP is disabled. Enable it in Settings → Agents, then test again.");
 
   await enabled.press("Space");
   await expect.poll(() => page.evaluate(async () => (await window.sparky.settings.get({})).settings?.agentsMcpEnabled)).toBe(true);
@@ -36,7 +52,7 @@ test("settings: round-trip, MCP off test, and token rotation against the real co
   const oldTransparency = await page.evaluate(() => window.sparky.app.getReduceTransparency());
   await transparency.press("Space");
   await expect.poll(() => page.evaluate(() => window.sparky.app.getReduceTransparency())).toBe(!oldTransparency);
-  await expect(settings).toContainText("not observed under ad-hoc signing");
+  await expect(settings).toContainText("Automatic launch at login is unavailable in this build.");
   const violation = await page.evaluate(async () => {
     try { await window.sparky.settings.set({ keys: ["calendar.weekStart"], settings: { calendarWeekStart: "invalid" } }); return "unexpected success"; }
     catch (error) { return error instanceof Error ? error.message : String(error); }
@@ -44,6 +60,6 @@ test("settings: round-trip, MCP off test, and token rotation against the real co
   expect(violation).toContain("must be mon or sun");
 
   await settings.getByRole("button", { name: "Search", exact: true }).click();
-  await expect(settings).toContainText("FTS5");
-  await expect(settings).toContainText("no semantic search");
+  await expect(settings).toContainText("Search matches words in your memories.");
+  await expect(settings).toContainText("Semantic search is unavailable.");
 });
