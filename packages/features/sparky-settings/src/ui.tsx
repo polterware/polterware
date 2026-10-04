@@ -1,0 +1,54 @@
+import { Show, type JSX } from "solid-js";
+import { Card, PageError, PageLoading, PageOffline, StatusChip } from "@polterware/frontend-design-system";
+import type { Honesty } from "./model";
+
+export function SettingsSection(props: { title: string; description?: string; children: JSX.Element }) {
+  return (
+    <section class="flex flex-col gap-2">
+      <div class="px-1">
+        <h3 class="m-0 text-[12px] font-medium text-[var(--color-text-muted)]">{props.title}</h3>
+        <Show when={props.description}>
+          <p class="m-0 mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{props.description}</p>
+        </Show>
+      </div>
+      <Card class="flex flex-col gap-4 p-4">{props.children}</Card>
+    </section>
+  );
+}
+
+export function SettingsRow(props: { label: JSX.Element; description?: JSX.Element; for?: string; children?: JSX.Element }) {
+  return (
+    <div class="flex items-center justify-between gap-4">
+      <div class="min-w-0 flex-1">
+        <label for={props.for} class="block text-[12.5px] text-[var(--color-text-primary)]">{props.label}</label>
+        <Show when={props.description}>
+          <p class="m-0 mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{props.description}</p>
+        </Show>
+      </div>
+      <Show when={props.children}>
+        <div class="flex shrink-0 items-center gap-2">{props.children}</div>
+      </Show>
+    </div>
+  );
+}
+
+export function HonestyLine(props: { state: Honesty; error?: string; idle?: string }) {
+  const tone = () => props.state === "failed" || props.state === "unavailable" ? "danger" : props.state === "queued" ? "syncing" : "ok";
+  const label = () => props.error || (props.state === "queued" ? "Saving…" : props.state === "failed" ? "Save failed" : props.state === "unavailable" ? "Unavailable" : props.idle ?? "Live");
+  return <StatusChip tone={tone()} label={label()} />;
+}
+
+export function PanelFrame(props: { state: Honesty; error?: string; onRetry?: () => void; children: JSX.Element }) {
+  return (
+    <div class="flex flex-col gap-6">
+      <Show when={props.state === "queued"}><PageLoading label="Loading settings…" /></Show>
+      <Show when={props.state === "unavailable"}>
+        <PageOffline title="Settings unavailable" message={props.error || "The core did not return settings."} onRetry={props.onRetry} />
+      </Show>
+      <Show when={props.state === "failed"}>
+        <PageError title="Settings failed to load" message={props.error || "Settings failed to load."} onRetry={props.onRetry} />
+      </Show>
+      <Show when={props.state === "live"}>{props.children}</Show>
+    </div>
+  );
+}
