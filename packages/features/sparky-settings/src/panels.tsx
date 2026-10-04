@@ -187,6 +187,13 @@ export function MapPanel() {
           checked={store.settings().mapOnline ?? false}
           onCheckedChange={value => void store.set("map.online", value)}
         />
+        <SwitchRow
+          label="Address search"
+          checked={store.settings().mapGeocoding === true}
+          disabled={store.saveState() === "queued"}
+          onCheckedChange={value => void store.set("map.geocoding", value)}
+        />
+        <p class="text-[12px] text-[var(--color-text-muted)]">Typed address text is sent to Nominatim, a third party. Off by default. Main allows the host only while this is on and reloads the renderer when it changes. Save place edits before changing it.</p>
         <SettingsRow label="Provider" description="pmtiles is for a user-provided or bundled region file. Empty keeps the core default.">
           <Select
             aria-label="Map provider"
@@ -403,7 +410,7 @@ export function AdvancedPanel() {
   const store = usePanel();
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
-      <SettingsSection title="Appearance" description="Theme is stored by SettingsService. Reduce transparency needs Main support and is not shown as a working control.">
+      <SettingsSection title="Appearance" description="Theme is stored by SettingsService. Reduce transparency is applied by Main to open windows.">
         <SettingsRow label="Theme">
           <Select
             aria-label="Theme"
@@ -419,11 +426,13 @@ export function AdvancedPanel() {
         />
         <SaveStatus />
       </SettingsSection>
-      <SettingsSection title="Needs Main support" description="These exist as product intents only. They are not wired on window.sparky.app, so Settings does not pretend they work.">
-        <SettingsRow label="Logs" description="Open the core log file."><StatusChip tone="muted" label="Unavailable" /></SettingsRow>
-        <SettingsRow label="Open data folder" description="Reveal ~/Library/Application Support/Sparky/."><StatusChip tone="muted" label="Unavailable" /></SettingsRow>
-        <SettingsRow label="Open at login" description="SMAppService login item."><StatusChip tone="muted" label="Unavailable" /></SettingsRow>
-        <SettingsRow label="Reduce transparency" description="Window vibrancy."><StatusChip tone="muted" label="Unavailable" /></SettingsRow>
+      <SettingsSection title="Desktop" description="Main reveals local files and applies window appearance preferences.">
+        <SettingsRow label="Logs" description="Reveal the Sparky log file in Finder."><Button size="sm" disabled={store.advancedState() === "queued"} onClick={() => void store.reveal("log")}>Open logs</Button></SettingsRow>
+        <SettingsRow label="Open data folder" description="Reveal the Sparky data directory in Finder."><Button size="sm" disabled={store.advancedState() === "queued"} onClick={() => void store.reveal("data")}>Open data folder</Button></SettingsRow>
+        <HonestyLine state={store.advancedState()} idle={store.advancedDetail() || "Live"} error={store.advancedState() === "failed" ? store.advancedDetail() : ""} />
+        <SettingsRow label="Open at login" description="Automatic launch at login is unavailable in this build; it was not observed under ad-hoc signing."><StatusChip tone="muted" label="Unavailable" /></SettingsRow>
+        <SwitchRow label="Reduce transparency" checked={store.reduceTransparency() === true} disabled={store.reduceTransparency() === undefined || store.appearanceState() === "queued"} onCheckedChange={value => void store.setReduceTransparency(value)} />
+        <HonestyLine state={store.appearanceState()} idle="Window preference applied" error={store.appearanceError()} />
       </SettingsSection>
     </PanelFrame>
   );
