@@ -20,6 +20,8 @@ export type AttachmentsBridge = {
   onChange(callback: (event: { resync: boolean; changes: { entity: string; id: string; op: string }[] }) => void): () => void;
   app: {
     pickFiles(): Promise<string[]>;
+    pathsForDroppedFiles(files: File[]): Promise<string[]>;
+    writeTempFile(bytes: Uint8Array, name: string): Promise<string>;
     revealInFinder(attachmentUrl: string): Promise<void>;
     startMicrophone(): Promise<boolean>;
   };
@@ -53,9 +55,32 @@ export function linkHost(url: string | undefined): string {
   try { return new URL(url).host || url; } catch { return url; }
 }
 
-export function droppedFilePath(file: File): string | undefined {
-  const path = (file as File & { path?: string }).path;
-  return typeof path === "string" && path.startsWith("/") ? path : undefined;
+const AUDIO_MIME_TO_EXT: Record<string, string> = {
+  "audio/webm": "webm",
+  "video/webm": "webm",
+  "audio/wav": "wav",
+  "audio/wave": "wav",
+  "audio/x-wav": "wav",
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/mp4": "m4a",
+  "audio/m4a": "m4a",
+  "audio/x-m4a": "m4a",
+  "audio/aac": "aac",
+  "audio/ogg": "ogg",
+  "application/ogg": "ogg",
+};
+
+/** Main `writeTempFile` cap. Refuse in the renderer before IPC. */
+export const MAX_RECORDING_BYTES = 100 * 1024 * 1024;
+
+/** Basename-only name with an audio extension Main already accepts. */
+export function recordingFileName(mime: string | undefined): string {
+  const subtype = mime?.split(";")[0]?.trim().toLowerCase() ?? "";
+  if (!subtype) return "recording.webm";
+  const ext = AUDIO_MIME_TO_EXT[subtype];
+  if (!ext) throw new Error("Temp file name must use an audio extension");
+  return `recording.${ext}`;
 }
 
 export function reorderIds(ids: readonly string[], index: number, direction: -1 | 1): string[] {
@@ -72,7 +97,7 @@ export function errorText(error: unknown): string {
 
 export const FETCH_TITLES_ON = "Title fetching is on. Sparky will request this URL to read the page title (5 second timeout, no cookies). Private and loopback addresses are refused. Turn this off in Settings (links.fetchTitles).";
 export const FETCH_TITLES_OFF = "Title fetching is off. Sparky will not contact this site. Add a title yourself, or enable links.fetchTitles in Settings.";
-export const DROP_PATH_UNAVAILABLE = "Dropped files have no filesystem path in the renderer. Use Add photo or Add file so Main can grant the path, then import.";
-export const RECORDING_IMPORT_UNAVAILABLE = "Recording finished, but Main cannot write a granted temp file yet. Save the clip and import it with Add file.";
+export const DROP_PATH_REFUSED = "One or more dropped files could not be imported. Sparky only imports existing regular files with a granted path.";
+export const RECORDING_OVERSIZE = "Recording exceeds 100 MB";
 export const MICROPHONE_DENIED = "Microphone permission denied. Grant access in System Settings to record audio.";
 export const MICROPHONE_UNAVAILABLE = "Microphone is unavailable on this device.";

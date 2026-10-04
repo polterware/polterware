@@ -85,6 +85,10 @@ export function fakeBridge(seed: AttachmentJSON[] = [attachmentFixture()]) {
     onChange: vi.fn(callback => { listener = callback; return () => { listener = undefined; }; }),
     app: {
       pickFiles: vi.fn(async () => [] as string[]),
+      pathsForDroppedFiles: vi.fn(async (files: File[]) =>
+        [...files].filter(file => file?.name && !file.name.includes("refused")).map(file => `/tmp/${file.name}`),
+      ),
+      writeTempFile: vi.fn(async (_bytes: Uint8Array, name: string) => `/tmp/tmp-import/${name}`),
       revealInFinder: vi.fn(async () => {}),
       startMicrophone: vi.fn(async () => false),
     },

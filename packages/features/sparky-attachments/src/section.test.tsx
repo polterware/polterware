@@ -2,7 +2,7 @@ import { render } from "solid-js/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DesignSystemProvider } from "@polterware/frontend-design-system";
 import { AUDIO_ID, FILE_ID, LINK_ID, MEMORY_ID, attachmentFixture, fakeBridge } from "./fake-bridge";
-import { DROP_PATH_UNAVAILABLE, FETCH_TITLES_OFF, MICROPHONE_DENIED } from "./model";
+import { DROP_PATH_REFUSED, FETCH_TITLES_OFF, MICROPHONE_DENIED } from "./model";
 import { attachmentsStore } from "./store";
 import { AttachmentsSection } from "./section";
 
@@ -85,16 +85,40 @@ describe("attachments section", () => {
     expect(await attachmentsStore.requestMicrophone()).toBe("denied");
     await vi.waitFor(() => expect(host.textContent).toContain(MICROPHONE_DENIED));
   });
-  it("shows an honest error when a drop has no filesystem path", async () => {
+  it("imports two of three dropped files and reports the refused path", async () => {
     const host = mount();
     await ready(host);
     const zone = host.querySelector("[data-drop-zone]")!;
-    const file = new File(["x"], "drop.png", { type: "image/png" });
+    expect(zone.textContent).toContain("Drop files here");
+    expect(zone.textContent).not.toContain("no filesystem path");
+    const files = [
+      new File(["a"], "a.png", { type: "image/png" }),
+      new File(["b"], "refused.bin", { type: "application/octet-stream" }),
+      new File(["c"], "c.txt", { type: "text/plain" }),
+    ];
     const event = new Event("drop", { bubbles: true, cancelable: true });
-    Object.defineProperty(event, "dataTransfer", { value: { files: [file] } });
+    Object.defineProperty(event, "dataTransfer", { value: { files } });
     zone.dispatchEvent(event);
-    await vi.waitFor(() => expect(host.querySelector("[role='alert']")?.textContent).toContain(DROP_PATH_UNAVAILABLE));
-    expect(fake.bridge.attachments.importFromPath).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(host.querySelector("[role='alert']")?.textContent).toBe(DROP_PATH_REFUSED));
+    expect(fake.bridge.app.pathsForDroppedFiles).toHaveBeenCalledWith(files);
+    expect(fake.bridge.attachments.importFromPath).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toContain("a.png");
+    expect(host.textContent).toContain("c.txt");
+    expect(host.textContent).not.toContain("refused.bin");
+  });
+  it("imports a finished recording and refuses oversize bytes before IPC", async () => {
+    const host = mount();
+    await ready(host);
+    await attachmentsStore.importRecording(MEMORY_ID, new Blob([new Uint8Array([9])], { type: "audio/wav" }));
+    await vi.waitFor(() => expect(fake.bridge.app.writeTempFile).toHaveBeenCalledWith(expect.any(Uint8Array), "recording.wav"));
+    expect(fake.bridge.attachments.importFromPath).toHaveBeenCalledWith(expect.objectContaining({
+      sourcePath: "/tmp/tmp-import/recording.wav", expectedRev: "1",
+    }));
+    vi.mocked(fake.bridge.app.writeTempFile).mockClear();
+    vi.mocked(fake.bridge.attachments.importFromPath).mockClear();
+    await attachmentsStore.importRecording(MEMORY_ID, { size: 100 * 1024 * 1024 + 1, type: "audio/webm", arrayBuffer: vi.fn() } as unknown as Blob);
+    await vi.waitFor(() => expect(host.querySelector("[role='alert']")?.textContent).toContain("Recording exceeds 100 MB"));
+    expect(fake.bridge.app.writeTempFile).not.toHaveBeenCalled();
   });
   it("discloses links.fetchTitles copy", async () => {
     const host = mount();

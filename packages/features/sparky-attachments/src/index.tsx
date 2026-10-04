@@ -11,4 +11,4 @@ export default feature;
 export { AttachmentsSection };
 export { createAttachmentsBridge, browserBridge } from "./bridge";
 export { createAttachmentsStore, attachmentsStore } from "./store";
-export { previewUrl, droppedFilePath, revisionString } from "./model";
+export { previewUrl, recordingFileName, revisionString } from "./model";
