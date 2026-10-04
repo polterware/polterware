@@ -7,6 +7,8 @@ import {
 } from "./model";
 
 export type MapBoundsQuery = { south: number; west: number; north: number; east: number };
+const MEMORY_PAGE_SIZE = 500;
+const MAX_MEMORY_PAGES = 20;
 
 export function createMapStore(getBridge: () => MapBridge = browserBridge) {
   const [places, setPlaces] = createSignal<MapPlaceRow[]>([]);
@@ -26,27 +28,49 @@ export function createMapStore(getBridge: () => MapBridge = browserBridge) {
   let users = 0;
   let io = Promise.resolve();
   let fitted = false;
+  let generation = 0;
 
-  async function loadSettings(bridge: MapBridge): Promise<SettingsJSON | undefined> {
+  async function loadSettings(bridge: MapBridge, current: number): Promise<SettingsJSON | undefined> {
     const result = await bridge.settings.get({}) as { settings?: SettingsJSON };
     const settings = result.settings;
+    if (current !== generation) return;
     setMapOnline(Boolean(settings?.mapOnline));
     setProvider(settings?.mapProvider === "pmtiles" ? "pmtiles" : "maplibre");
     setGeocoding(geocodingEnabled(settings));
     return settings;
   }
 
+  async function loadMemoryTitles(bridge: MapBridge, current: number) {
+    const titles = new Map<string, string>();
+    const cursors = new Set<string>();
+    let cursor: string | undefined;
+    for (let page = 0; page < MAX_MEMORY_PAGES; page++) {
+      const response = await bridge.memories.list({ hasPlace: true, limit: MEMORY_PAGE_SIZE, ...(cursor ? { cursor } : {}) }) as {
+        memories?: { id?: string; title?: string }[]; nextCursor?: string;
+      };
+      if (current !== generation) return titles;
+      for (const row of response.memories ?? []) titles.set(row.id ?? "", row.title ?? "");
+      if (!response.nextCursor) return titles;
+      if (cursors.has(response.nextCursor)) throw new Error("Map memory query returned a repeated cursor.");
+      cursors.add(response.nextCursor);
+      cursor = response.nextCursor;
+    }
+    throw new Error("Map memory query exceeds 10000 memories.");
+  }
+
   async function loadPlaces(next = bounds()) {
+    const current = ++generation;
     setLoadState("queued");
     setLoadError("");
     try {
       const bridge = getBridge();
-      await loadSettings(bridge);
-      const [placeResponse, memoryResponse] = await Promise.all([
+      await loadSettings(bridge, current);
+      if (current !== generation) return;
+      const [placeResponse, titles] = await Promise.all([
         bridge.places.listInBounds(next) as Promise<{ places?: PlaceJSON[] }>,
-        bridge.memories.list({ hasPlace: true, limit: 1000 }) as Promise<{ memories?: { id?: string; title?: string }[] }>,
+        loadMemoryTitles(bridge, current),
       ]);
-      const titles = new Map((memoryResponse.memories ?? []).map(row => [row.id ?? "", row.title ?? ""]));
+      if (current !== generation) return;
       const rows = (placeResponse.places ?? []).map(place => ({
         memoryId: place.memoryId ?? "",
         title: titles.get(place.memoryId ?? "") || place.name || "Untitled place",
@@ -64,6 +88,7 @@ export function createMapStore(getBridge: () => MapBridge = browserBridge) {
       }
       setLoadState("live");
     } catch (error) {
+      if (current !== generation) return;
       const message = errorText(error);
       setLoadError(message);
       setLoadState(message.toLowerCase().includes("unavailable") || message.toLowerCase().includes("unreachable") ? "unavailable" : "failed");
@@ -92,7 +117,7 @@ export function createMapStore(getBridge: () => MapBridge = browserBridge) {
       }
       return () => {
         users = Math.max(0, users - 1);
-        if (users === 0) { unsubscribe?.(); unsubscribe = undefined; }
+        if (users === 0) { generation++; unsubscribe?.(); unsubscribe = undefined; }
       };
     },
     reload: () => loadPlaces(bounds()),
@@ -124,7 +149,7 @@ export function createMapStore(getBridge: () => MapBridge = browserBridge) {
       }
     },
     flush: () => io,
-    dispose() { unsubscribe?.(); unsubscribe = undefined; users = 0; },
+    dispose() { generation++; unsubscribe?.(); unsubscribe = undefined; users = 0; },
     disclosureKey: DISCLOSURE_KEY,
   };
   return store;
