@@ -3,7 +3,12 @@
   "tasks": {
     "generate": {
       "cache": false,
-      "outputs": ["backend/platform/gen/**", "packages/contracts/src/gen/**"]
+      "outputs": [
+        "backend/platform/gen/**",
+        "packages/contracts/src/gen/**",
+        "sparky/backend/platform/gen/**",
+        "packages/sparky-contracts/src/gen/**"
+      ]
     },
     "dev": {
       "cache": false,
