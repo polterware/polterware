@@ -1,0 +1,276 @@
+{
+  "version": 1,
+  "notes": "Times are RFC 3339 with milliseconds. weekdayMask bit 0 is Sunday. query.kind first returns the first n occurrences including the anchor. query.kind next returns the first occurrence strictly after `after`, or null. Weekly masks use ISO weeks (Monday-start) counted from the week that contains the anchor. Case 14 notifications use notifications.allDayTime 09:00 in the rule zone; the series is unbounded and the vector samples the first 3.",
+  "cases": [
+    {
+      "id": 1,
+      "name": "daily every 1, first 3",
+      "rule": {
+        "anchor": "2026-03-01T09:00:00.000-03:00",
+        "tz": "America/Sao_Paulo",
+        "allDay": false,
+        "freq": "daily",
+        "every": 1,
+        "weekdayMask": 0,
+        "end": { "type": "never" }
+      },
+      "query": { "kind": "first", "n": 3 },
+      "expect": [
+        "2026-03-01T09:00:00.000-03:00",
+        "2026-03-02T09:00:00.000-03:00",
+        "2026-03-03T09:00:00.000-03:00"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "monthly every 1, count 4, month-end clamp from the anchor",
+      "rule": {
+        "anchor": "2026-01-31T09:00:00.000-03:00",
+        "tz": "America/Sao_Paulo",
+        "allDay": false,
+        "freq": "monthly",
+        "every": 1,
+        "weekdayMask": 0,
+        "end": { "type": "count", "count": 4 }
+      },
+      "query": { "kind": "first", "n": 4 },
+      "expect": [
+        "2026-01-31T09:00:00.000-03:00",
+        "2026-02-28T09:00:00.000-03:00",
+        "2026-03-31T09:00:00.000-03:00",
+        "2026-04-30T09:00:00.000-03:00"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "yearly every 1 from Feb 29, first 5",
+      "rule": {
+        "anchor": "2028-02-29T09:00:00.000Z",
+        "tz": "UTC",
+        "allDay": false,
+        "freq": "yearly",
+        "every": 1,
+        "weekdayMask": 0,
+        "end": { "type": "never" }
+      },
+      "query": { "kind": "first", "n": 5 },
+      "expect": [
+        "2028-02-29T09:00:00.000Z",
+        "2029-02-28T09:00:00.000Z",
+        "2030-02-28T09:00:00.000Z",
+        "2031-02-28T09:00:00.000Z",
+        "2032-02-29T09:00:00.000Z"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "weekly Mon+Wed every 1, first 4",
+      "rule": {
+        "anchor": "2026-10-05T08:00:00.000Z",
+        "tz": "UTC",
+        "allDay": false,
+        "freq": "weekly",
+        "every": 1,
+        "weekdayMask": 10,
+        "end": { "type": "never" }
+      },
+      "query": { "kind": "first", "n": 4 },
+      "expect": [
+        "2026-10-05T08:00:00.000Z",
+        "2026-10-07T08:00:00.000Z",
+        "2026-10-12T08:00:00.000Z",
+        "2026-10-14T08:00:00.000Z"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "weekly Mon+Wed every 2, first 4",
+      "rule": {
+        "anchor": "2026-10-05T08:00:00.000Z",
+        "tz": "UTC",
+        "allDay": false,
+        "freq": "weekly",
+        "every": 2,
+        "weekdayMask": 10,
+        "end": { "type": "never" }
+      },
+      "query": { "kind": "first", "n": 4 },
+      "expect": [
+        "2026-10-05T08:00:00.000Z",
+        "2026-10-07T08:00:00.000Z",
+        "2026-10-19T08:00:00.000Z",
+        "2026-10-21T08:00:00.000Z"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "weekly Mon+Wed, anchor Wednesday skips the previous Monday",
+      "rule": {
+        "anchor": "2026-10-07T08:00:00.000Z",
+        "tz": "UTC",
+        "allDay": false,
+        "freq": "weekly",
+        "every": 1,
+        "weekdayMask": 10,
+        "end": { "type": "never" }
+      },
+      "query": { "kind": "first", "n": 3 },
+      "expect": [
+        "2026-10-07T08:00:00.000Z",
+        "2026-10-12T08:00:00.000Z",
+        "2026-10-14T08:00:00.000Z"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "weekly Mon+Wed, count 3",
+      "rule": {
+        "anchor": "2026-10-05T08:00:00.000Z",
+        "tz": "UTC",
+        "allDay": false,
+        "freq": "weekly",
+        "every": 1,
+        "weekdayMask": 10,
+        "end": { "type": "count", "count": 3 }
+      },
+      "query": { "kind": "first", "n": 3 },
+      "expect": [
+        "2026-10-05T08:00:00.000Z",
+        "2026-10-07T08:00:00.000Z",
+        "2026-10-12T08:00:00.000Z"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "daily spring-forward, missing 02:30 resolves to 03:30",
+      "rule": {
+        "anchor": "2026-03-07T02:30:00.000-05:00",
+        "tz": "America/New_York",
+        "allDay": false,
+        "freq": "daily",
+        "every": 1,
+        "weekdayMask": 0,
+        "end": { "type": "never" }
+      },
+      "query": { "kind": "first", "n": 3 },
+      "expect": [
+        "2026-03-07T02:30:00.000-05:00",
+        "2026-03-08T03:30:00.000-04:00",
+        "2026-03-09T02:30:00.000-04:00"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "daily fall-back, ambiguous 01:30 uses the earlier instant",
+      "rule": {
+        "anchor": "2026-10-31T01:30:00.000-04:00",
+        "tz": "America/New_York",
+        "allDay": false,
+        "freq": "daily",
+        "every": 1,
+        "weekdayMask": 0,
+        "end": { "type": "never" }
+      },
+      "query": { "kind": "first", "n": 3 },
+      "expect": [
+        "2026-10-31T01:30:00.000-04:00",
+        "2026-11-01T01:30:00.000-04:00",
+        "2026-11-02T01:30:00.000-05:00"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "hourly every 6, absolute spacing",
+      "rule": {
+        "anchor": "2026-10-03T22:00:00.000-03:00",
+        "tz": "America/Sao_Paulo",
+        "allDay": false,
+        "freq": "hourly",
+        "every": 6,
+        "weekdayMask": 0,
+        "end": { "type": "never" }
+      },
+      "query": { "kind": "first", "n": 4 },
+      "expect": [
+        "2026-10-03T22:00:00.000-03:00",
+        "2026-10-04T04:00:00.000-03:00",
+        "2026-10-04T10:00:00.000-03:00",
+        "2026-10-04T16:00:00.000-03:00"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "daily until inclusive",
+      "rule": {
+        "anchor": "2026-10-01T09:00:00.000Z",
+        "tz": "UTC",
+        "allDay": false,
+        "freq": "daily",
+        "every": 1,
+        "weekdayMask": 0,
+        "end": { "type": "until", "until": "2026-10-03T09:00:00.000Z" }
+      },
+      "query": { "kind": "first", "n": 10 },
+      "expect": [
+        "2026-10-01T09:00:00.000Z",
+        "2026-10-02T09:00:00.000Z",
+        "2026-10-03T09:00:00.000Z"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "monthly every 2 from Aug 31, first 4",
+      "rule": {
+        "anchor": "2026-08-31T09:00:00.000Z",
+        "tz": "UTC",
+        "allDay": false,
+        "freq": "monthly",
+        "every": 2,
+        "weekdayMask": 0,
+        "end": { "type": "never" }
+      },
+      "query": { "kind": "first", "n": 4 },
+      "expect": [
+        "2026-08-31T09:00:00.000Z",
+        "2026-10-31T09:00:00.000Z",
+        "2026-12-31T09:00:00.000Z",
+        "2027-02-28T09:00:00.000Z"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "one-shot Next is strictly after the anchor",
+      "rule": {
+        "anchor": "2026-10-03T21:30:00.000Z",
+        "tz": "UTC",
+        "allDay": false,
+        "freq": null,
+        "every": 1,
+        "weekdayMask": 0,
+        "end": { "type": "never" }
+      },
+      "query": { "kind": "next", "after": "2026-10-03T21:30:00.000Z" },
+      "expect": null
+    },
+    {
+      "id": 14,
+      "name": "all-day daily notifications at 09:00",
+      "rule": {
+        "anchor": "2026-10-03T00:00:00.000-03:00",
+        "tz": "America/Sao_Paulo",
+        "allDay": true,
+        "freq": "daily",
+        "every": 1,
+        "weekdayMask": 0,
+        "end": { "type": "never" }
+      },
+      "notificationTime": "09:00",
+      "query": { "kind": "first", "n": 3 },
+      "expect": [
+        "2026-10-03T09:00:00.000-03:00",
+        "2026-10-04T09:00:00.000-03:00",
+        "2026-10-05T09:00:00.000-03:00"
+      ]
+    }
+  ]
+}
