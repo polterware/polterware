@@ -21,6 +21,8 @@ extraResources:
     to: app-icons
   - from: resources/logo
     to: logo
+  - from: native/build/notify.node
+    to: native/notify.node
 
 protocols:
   - name: Sparky
