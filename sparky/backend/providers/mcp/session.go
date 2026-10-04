@@ -74,3 +74,19 @@ func (s *MemorySession) SetStatus(ctx context.Context, id string, explicitRev *i
 	}
 	return result, err
 }
+
+func (s *MemorySession) Create(ctx context.Context, in memory.Create) (memory.Memory, error) {
+	result, err := s.service.Create(ctx, s.actor, in)
+	if err == nil {
+		s.observe(result.ID, result.Rev)
+	}
+	return result, err
+}
+
+func (s *MemorySession) Actor() actor.Actor { return s.actor }
+
+func (s *MemorySession) observeMind(id string, rev int64) { s.observe("mind:"+id, rev) }
+
+func (s *MemorySession) expectedMind(id string, explicit *int64) int64 {
+	return s.expected("mind:"+id, explicit)
+}
