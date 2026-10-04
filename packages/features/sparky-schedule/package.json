@@ -1,0 +1,24 @@
+{
+  "name": "@polterware/feature-sparky-schedule",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.tsx",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests --config vitest.config.ts"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.9.15"
+  },
+  "dependencies": {
+    "@polterware/feature-sparky-shell": "workspace:*"
+  },
+  "devDependencies": {
+    "solid-js": "^1.9.15",
+    "vitest": "^5.0.1"
+  }
+}

@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE_ROOTS = [
   "apps/desktop/src",
+  "apps/sparky-desktop/src",
   "packages/configuration",
   "packages/features",
   "packages/frontend",
@@ -44,10 +45,13 @@ const ALPHA_TOKEN_DECLARATIONS = new Map([
 ]);
 const DESKTOP_WINDOW_ALPHA_HEX = new Set(["#00000000"]);
 const PRESENCE_MOTION_PATHS = new Set([
+  "apps/desktop/src/renderer/boot-splash.css",
   "packages/frontend/design-system/src/dialog.css",
   "packages/frontend/design-system/src/drawer.css",
   "packages/frontend/design-system/src/dropdown-menu.css",
+  "packages/frontend/design-system/src/markdown-editor.css",
   "packages/frontend/design-system/src/popover.css",
+  "packages/frontend/design-system/src/template-card.css",
   "packages/frontend/design-system/src/toast.css",
   "packages/features/architecture/src/atlas-tree.css",
 ]);

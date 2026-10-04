@@ -298,6 +298,103 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@24.13.6)(typescript@7.0.2))(vite@7.3.6(@types/node@24.13.6)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
 
+  apps/sparky-desktop:
+    dependencies:
+      '@bufbuild/protobuf':
+        specifier: ^2.15.0
+        version: 2.15.0
+      '@connectrpc/connect':
+        specifier: ^2.2.0
+        version: 2.2.0(@bufbuild/protobuf@2.15.0)
+      '@connectrpc/connect-node':
+        specifier: ^2.2.0
+        version: 2.2.0(@bufbuild/protobuf@2.15.0)(@connectrpc/connect@2.2.0(@bufbuild/protobuf@2.15.0))
+      '@polterware/feature-sparky-attachments':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-attachments
+      '@polterware/feature-sparky-calendar':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-calendar
+      '@polterware/feature-sparky-focus':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-focus
+      '@polterware/feature-sparky-map':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-map
+      '@polterware/feature-sparky-memories':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-memories
+      '@polterware/feature-sparky-minds':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-minds
+      '@polterware/feature-sparky-review':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-review
+      '@polterware/feature-sparky-schedule':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-schedule
+      '@polterware/feature-sparky-search':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-search
+      '@polterware/feature-sparky-settings':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-settings
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../../packages/features/sparky-shell
+      '@polterware/frontend-design-system':
+        specifier: workspace:*
+        version: link:../../packages/frontend/design-system
+      '@polterware/sparky-contracts':
+        specifier: workspace:*
+        version: link:../../packages/sparky-contracts
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+    devDependencies:
+      '@electron-toolkit/utils':
+        specifier: ^4.0.0
+        version: 4.0.0(electron@44.4.5(supports-color@8.1.1))
+      '@fontsource-variable/inter':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@7.3.6(@types/node@24.13.6)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+      '@types/node':
+        specifier: ^24.13.6
+        version: 24.13.6
+      electron:
+        specifier: ^44.4.5
+        version: 44.4.5(supports-color@8.1.1)
+      electron-builder:
+        specifier: ^26.15.3
+        version: 26.15.3(electron-builder-squirrel-windows@26.15.3)(supports-color@8.1.1)
+      electron-log:
+        specifier: ^5.4.4
+        version: 5.4.4
+      electron-vite:
+        specifier: ^5.0.0
+        version: 5.0.0(supports-color@8.1.1)(vite@7.3.6(@types/node@24.13.6)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+      jsdom:
+        specifier: ^30.1.1
+        version: 30.1.1(@noble/hashes@2.4.0)
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: ^7.3.6
+        version: 7.3.6(@types/node@24.13.6)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3)
+      vite-plugin-solid:
+        specifier: ^2.11.14
+        version: 2.11.14(solid-js@1.9.15)(supports-color@8.1.1)(vite@7.3.6(@types/node@24.13.6)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@24.13.6)(typescript@7.0.2))(vite@7.3.6(@types/node@24.13.6)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
   packages/contracts:
     dependencies:
       '@bufbuild/protobuf':
@@ -453,6 +550,145 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@24.13.6)(typescript@7.0.2))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
 
+  packages/features/sparky-attachments:
+    dependencies:
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../sparky-shell
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/features/sparky-calendar:
+    dependencies:
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../sparky-shell
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/features/sparky-focus:
+    dependencies:
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../sparky-shell
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/features/sparky-map:
+    dependencies:
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../sparky-shell
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/features/sparky-memories:
+    dependencies:
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../sparky-shell
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/features/sparky-minds:
+    dependencies:
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../sparky-shell
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/features/sparky-review:
+    dependencies:
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../sparky-shell
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/features/sparky-schedule:
+    dependencies:
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../sparky-shell
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/features/sparky-search:
+    dependencies:
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../sparky-shell
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/features/sparky-settings:
+    dependencies:
+      '@polterware/feature-sparky-shell':
+        specifier: workspace:*
+        version: link:../sparky-shell
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/features/sparky-shell:
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
   packages/frontend/canvas:
     dependencies:
       solid-js:
@@ -518,6 +754,15 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@24.13.6)(typescript@7.0.2))(vite@8.3.0(@types/node@24.13.6)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
 
+  packages/frontend/map:
+    devDependencies:
+      solid-js:
+        specifier: ^1.9.15
+        version: 1.9.15
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
   packages/frontend/platform: {}
 
   packages/frontend/state:
@@ -528,6 +773,19 @@ importers:
       zustand:
         specifier: ^5.0.15
         version: 5.0.15(@types/react@19.2.14)(react@19.2.5)
+    devDependencies:
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(jsdom@30.1.1(@noble/hashes@2.4.0))(msw@2.14.6(@types/node@26.6.2)(typescript@7.0.2))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/sparky-contracts:
+    dependencies:
+      '@bufbuild/protobuf':
+        specifier: ^2.15.0
+        version: 2.15.0
+      '@connectrpc/connect':
+        specifier: ^2.2.0
+        version: 2.2.0(@bufbuild/protobuf@2.15.0)
     devDependencies:
       vitest:
         specifier: ^5.0.1
