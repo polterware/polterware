@@ -1,6 +1,6 @@
 {
   "name": "add_attachments",
-  "description": "Add links or files. files requires agents.allowFileAttach.",
+  "description": "Add links or files. files needs agents.allowFileAttach.",
   "inputSchema": {
     "type": "object",
     "required": [

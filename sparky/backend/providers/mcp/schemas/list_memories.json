@@ -1,6 +1,6 @@
 {
   "name": "list_memories",
-  "description": "Memory summaries by mind, tag, status, due, text, or schedule.",
+  "description": "Memory summaries by mind, tag, status, due, text, schedule.",
   "inputSchema": {
     "type": "object",
     "properties": {

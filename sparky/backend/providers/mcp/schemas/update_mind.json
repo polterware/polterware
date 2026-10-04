@@ -1,6 +1,6 @@
 {
   "name": "update_mind",
-  "description": "Patch a mind by id or name. null clears parent, color, or icon.",
+  "description": "Patch a mind by id or name. null clears parent, color, icon.",
   "inputSchema": {
     "type": "object",
     "properties": {

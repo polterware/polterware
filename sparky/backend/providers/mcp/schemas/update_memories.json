@@ -1,6 +1,6 @@
 {
   "name": "update_memories",
-  "description": "Patch up to 50. null clears. tags replace; addTags and removeTags adjust.",
+  "description": "Patch up to 50. null clears. tags replace; addTags/removeTags adjust.",
   "inputSchema": {
     "type": "object",
     "required": [
@@ -71,25 +71,25 @@
             },
             "checklist": {
               "type": "array",
-              "description": "String or {title, detail?}."
+              "description": "String or {title,detail?}"
             },
             "schedule": {
               "type": [
                 "object",
                 "null"
               ],
-              "description": "at, tz?, repeat {freq, every?, weekdays?, until?|count?}, focus?."
+              "description": "at,tz?,repeat{freq,every?,weekdays?,until?|count?},focus?"
             },
             "place": {
               "type": [
                 "object",
                 "null"
               ],
-              "description": "lat, lng, name?, radiusM?, event?."
+              "description": "lat,lng,name?,radiusM?,event?"
             },
             "links": {
               "type": "array",
-              "description": "{url, title?}"
+              "description": "{url,title?}"
             }
           }
         }

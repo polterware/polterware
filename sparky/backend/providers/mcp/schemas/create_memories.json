@@ -38,19 +38,19 @@
             },
             "checklist": {
               "type": "array",
-              "description": "String or {title, detail?}."
+              "description": "String or {title,detail?}"
             },
             "schedule": {
               "type": "object",
-              "description": "at, tz?, repeat {freq, every?, weekdays?, until?|count?}, focus?."
+              "description": "at,tz?,repeat{freq,every?,weekdays?,until?|count?},focus?"
             },
             "place": {
               "type": "object",
-              "description": "lat, lng, name?, radiusM?, event?."
+              "description": "lat,lng,name?,radiusM?,event?"
             },
             "links": {
               "type": "array",
-              "description": "{url, title?}"
+              "description": "{url,title?}"
             }
           }
         }

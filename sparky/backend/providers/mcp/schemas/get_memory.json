@@ -1,6 +1,6 @@
 {
   "name": "get_memory",
-  "description": "One memory. include defaults to note, checklist, schedule.",
+  "description": "One memory. include defaults to note,checklist,schedule.",
   "inputSchema": {
     "type": "object",
     "required": [

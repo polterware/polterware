@@ -1,6 +1,6 @@
 {
   "name": "delete_mind",
-  "description": "Delete a mind and its children. Memories move to Inbox. confirm true.",
+  "description": "Delete a mind and children. Memories move to Inbox. confirm true.",
   "inputSchema": {
     "type": "object",
     "required": [
