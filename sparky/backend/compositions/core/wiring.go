@@ -15,6 +15,7 @@ import (
 	"github.com/polterware/polterware/sparky/backend/platform/clock"
 	"github.com/polterware/polterware/sparky/backend/platform/ids"
 	"github.com/polterware/polterware/sparky/backend/platform/runstate"
+	"github.com/polterware/polterware/sparky/backend/platform/token"
 	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
 )
 
@@ -53,33 +54,40 @@ func OpenRuntime(_ context.Context, dbPath string) (Runtime, error) {
 		_ = store.Close()
 		return Runtime{}, fmt.Errorf("load settings: %w", err)
 	}
-	return Runtime{
-		Services: Services{
-			Memories: memories,
-			Minds:    mind.NewService(store.Minds(), store.Memories(), audit),
-			Tags:     tag.NewService(store.Tags(), audit),
-			Focus:    focus.NewService(store.Focus(), store.Settings(), store.Memories(), audit),
-			Review:   review.NewService(store.Review()),
-			Activity: activity.NewService(store.Activity()),
-			Settings: settingsSvc,
-			Places: placeService{
-				repo: store.Places(), memories: store.Memories(), clock: clk, audit: audit,
-			},
-			Attachments: attachmentMeta{store: store.Attachments()},
-			Reminders:   remind,
-			Agents:      agentService{settings: settingsSvc, tokenPath: runstate.TokenPath(dbPath), audit: audit},
-			Maintenance: maintenanceService{
-				store: store, minds: store.Minds(), memories: store.Memories(), tags: store.Tags(),
-				schedules: store.Schedules(), places: store.Places(), attachments: store.Attachments(),
-				activity: store.Activity(), settings: settingsSvc, clock: clk,
-			},
-			Schedules:      sched,
-			ScheduleReader: store.Schedules(),
-			PlaceReader:    store.Places(),
-			Changes:        liveFeed{bus: store.Changes()},
-			Search:         searchSvc,
+	stable, err := token.LoadOrMint(runstate.TokenPath(dbPath))
+	if err != nil {
+		_ = store.Close()
+		return Runtime{}, fmt.Errorf("load MCP token: %w", err)
+	}
+	services := Services{
+		Memories: memories,
+		Minds:    mind.NewService(store.Minds(), store.Memories(), audit),
+		Tags:     tag.NewService(store.Tags(), audit),
+		Focus:    focus.NewService(store.Focus(), store.Settings(), store.Memories(), audit),
+		Review:   review.NewService(store.Review()),
+		Activity: activity.NewService(store.Activity()),
+		Settings: settingsSvc,
+		Places: placeService{
+			repo: store.Places(), memories: store.Memories(), clock: clk, audit: audit,
 		},
-		MCP:   MCP{Port: doc.AgentsMCPPort, Enabled: doc.AgentsMCPEnabled},
-		Close: store.Close,
-	}, nil
+		Attachments: attachmentMeta{store: store.Attachments()},
+		Reminders:   remind,
+		Agents:      agentService{settings: settingsSvc, tokenPath: runstate.TokenPath(dbPath), audit: audit},
+		Maintenance: maintenanceService{
+			store: store, minds: store.Minds(), memories: store.Memories(), tags: store.Tags(),
+			schedules: store.Schedules(), places: store.Places(), attachments: store.Attachments(),
+			activity: store.Activity(), settings: settingsSvc, clock: clk,
+		},
+		Schedules:      sched,
+		ScheduleReader: store.Schedules(),
+		PlaceReader:    store.Places(),
+		Changes:        liveFeed{bus: store.Changes()},
+		Search:         searchSvc,
+	}
+	bound, err := bindMCP(services, stable, doc.AgentsMCPPort, doc.AgentsMCPEnabled, "")
+	if err != nil {
+		_ = store.Close()
+		return Runtime{}, fmt.Errorf("bind MCP: %w", err)
+	}
+	return Runtime{Services: services, MCP: bound, Close: store.Close}, nil
 }
