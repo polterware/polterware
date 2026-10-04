@@ -1,0 +1,33 @@
+# W2-SHELL status
+
+- Result: partial
+- Branch / last commit: `sparky/w2-shell` / `ae8915460dbf7ca47ffcd562a45fadaa33cadebb` (implementation and tests; this status is committed separately).
+- Acceptance criteria:
+  - All routes render feature stubs from the registry → PASS. Shell registers Today, Inbox, Calendar, Minds, Map, Focus, Review, Search and `/mind/:id` stubs; feature routes take precedence. `shell.test.tsx`: `renders every primary registry stub, landmarks and active navigation`, `renders registered routes and runs registered Commander actions`; `route.test.ts`: route matching and precedence.
+  - Commander finds routes and runs registered commands → PASS. Registry commands support labels/keywords, keyboard activation and honest failures; palette New memory opens the natural-input form; search calls the real bridge namespace. `shell.test.tsx`: registered actions, Commander creation, search selection, failed action; `route.test.ts`: keyword matching/callback execution.
+  - Quick-add parser has table tests for English dates, duration, tags, Mind and priority → PASS. `quick-add.test.ts`: today/tomorrow/all weekdays, AM/PM/24-hour times, hours/minutes, quoted Mind names, tags, `!`/`!!`/`!!!`, invalid/ambiguous input and metadata resolution before one Create payload.
+  - Core-offline state is shown and recovers → PASS in behavior tests with a simulated bridge failure. `shell.test.tsx`: `recovers from offline via reconnect UI`; `connection.test.ts`: failed probe/recovery, probe deduplication, disposed responses and honest reminder status. Production probes use `window.sparky.reminders.status`, change-stream invalidation and a five-second reconnect poll. Real packaged-core recovery is not yet observed.
+  - Keyboard shortcuts work → PASS for the host and delegation contract. `shortcuts.test.ts`: Command/Ctrl K, N, comma, brackets, J, 1–6, slash, IME/editable protection and memory actions; `shell.test.tsx`: history, Settings, palette focus, creation, detail close and collection-handler cleanup. Memory mutation/selection/delete confirmation belongs to W2-MEMORIES and must register its handler.
+  - Accessibility: landmarks, focus order, aria-current → PASS in DOM behavior tests. Header/sidebar/nav/main landmarks; active-route aria-current; focus moves to main after navigation and starts in the Commander input; shared Ark dialogs handle trapping and restore. VoiceOver and packaged UI review remain W3-POLISH work.
+- Verification (2026-10-04):
+  - `pnpm --filter @polterware/feature-sparky-shell test`: PASS, 5 files / 90 tests.
+  - `pnpm --filter @polterware/feature-sparky-shell typecheck`: PASS.
+  - `pnpm --filter @polterware/sparky-desktop typecheck`: PASS (including the renderer host integration).
+  - `pnpm design:lint`: PASS.
+  - `bash tooling/check-ts-boundaries.sh` and `bash tooling/check-sparky-boundaries.sh`: PASS.
+  - `git diff --check`: PASS.
+  - Literal section Verify command `pnpm --filter @polterware/feature-sparky-shell test typecheck`: pnpm forwards `typecheck` to Vitest as a test-name filter and runs no tests. Both actual scripts were therefore executed separately, as above; the literal command is not counted as test/typecheck evidence.
+  - Electron smoke written in `apps/sparky-desktop/tests/e2e/shell.spec.ts`, NOT RUN. No W3 Playwright runner, @playwright/test dependency or packaged executable is available out of the box. The spec launches an explicitly provided packaged executable against an isolated temporary database/user-data directory, exercises keyboard navigation/Commander creation/global details/Settings, and confirms the created memory through the real bridge. W3 supplies `SPARKY_E2E_EXECUTABLE`.
+- Deviations from the plan (and why):
+  - Notification authorization is unavailable in onboarding pending request 1. The UI explains OS delivery and refresh semantics, reports actual permission/reminder status and never claims that this step armed a reminder.
+  - Local installation used `pnpm install --lockfile=false` because the shared lockfile is integrator-owned; local Vitest was 5.0.3. Request 2 records the required shell importer update. Shared files, frozen contracts and build output were not edited/committed.
+  - `SparkyFeature`, RouteDef, SidebarItemDef and existing registry member shapes are unchanged. The registry entry point additively exports the host context hook/types; no feature package is imported by the host package.
+  - The local Polterware binary was found outside PATH. `polterware format` succeeded; `status`, `query cards` and `handoff --card w2-shell --note ...` failed with `no project for this directory`. No project/store was initialized and no unrelated store was changed. This committed status provides the workstream handoff.
+- Requests filed:
+  - `plans/sparky-next/requests/w2-shell-1.md`: Main/preload notification authorization method.
+  - `plans/sparky-next/requests/w2-shell-2.md`: shared pnpm-lock.yaml importer.
+- Follow-ups for other WS:
+  - W2-MEMORIES: import `useSparkyShell` ONLY from `@polterware/feature-sparky-shell/feature`; use `params()`/`searchParams()` for collection routes, `openMemory(id)` for selection and `selectedMemoryId()` for details. Register the editor with `registerMemoryDetail(Component<{ memoryId: string }>)` and clean it up on unmount, or register `/memory/:id` as a detail component. The shell owns the single DetailPanel.Root/Content/Header; the editor owns Body/Main/Rail and the sorted `detailSections()` content. Register selection/mutation handlers through `registerCollectionShortcuts`; delete must confirm in the collection owner.
+  - W2-MINDS: shell currently renders the live Minds hierarchy through DS TreeView with persisted expansion and core-backed Inbox count. Registered sidebar items and routes override defaults; richer tree identity/count contributions should coordinate through the registry without cross-feature imports.
+  - Other features: `navigate`, `settingsPanels`, `detailSections` and `deepLink()` are available through the same registry entry point. Existing `onDeepLink(url)` callbacks are dispatched first; validated unhandled links fall back to the host, retaining query state.
+  - Integrator: apply requests 1/2; after 1, connect an explicit Enable notifications button and refresh status. W3-E2E: run the smoke against the packaged real core. W3-POLISH: manual UI/VoiceOver review.
