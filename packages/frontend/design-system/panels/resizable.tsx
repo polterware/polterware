@@ -2,7 +2,7 @@ import Resizable, { type Size } from "@corvu/resizable";
 import type { JSX } from "solid-js";
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { isServer } from "solid-js/web";
-import { matchesShortcut } from "@polterware/frontend-state";
+import { useDesignSystem } from "../src/provider";
 import "./resizable.css";
 
 /** Simple resizable split (Corvu behavior with product-owned layout). */
@@ -127,6 +127,8 @@ function readStoredSidebarState(
  * The handle owns pointer capture, keyboard resizing and the collapse threshold.
  */
 export function ResizableSidebar(props: ResizableSidebarProps) {
+  const designSystem = useDesignSystem();
+  const storageKey = () => props.storageKey ?? designSystem.storageKey("shell.sidebar.sizes");
   const side = () => props.side ?? "left";
   const defaultWidth = () => props.defaultWidth ?? DEFAULT_WIDTH;
   const minWidth = () => props.minWidth ?? DEFAULT_MIN_WIDTH;
@@ -135,7 +137,7 @@ export function ResizableSidebar(props: ResizableSidebarProps) {
   const collapsible = () => props.collapsible ?? true;
   const sidebarIndex = () => side() === "left" ? 0 : 1;
   const storedState = readStoredSidebarState(
-    props.storageKey,
+    storageKey(),
     sidebarIndex(),
     defaultWidth(),
     minWidth(),
@@ -166,9 +168,9 @@ export function ResizableSidebar(props: ResizableSidebarProps) {
   });
 
   function persistState(isCollapsed = collapsed()) {
-    if (!props.storageKey || isServer) return;
+    if (!storageKey() || isServer) return;
     window.localStorage.setItem(
-      props.storageKey,
+      storageKey()!,
       JSON.stringify({ width: lastExpandedWidth, collapsed: isCollapsed }),
     );
   }
@@ -281,7 +283,7 @@ export function ResizableSidebar(props: ResizableSidebarProps) {
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || !matchesShortcut("shell.toggle_sidebar", event)) {
+      if (event.repeat || !designSystem.matchesShortcut("shell.toggle_sidebar", event)) {
         return;
       }
       event.preventDefault();

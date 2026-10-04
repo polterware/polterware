@@ -71,6 +71,8 @@ export default defineConfig({
           /packages[\\/]frontend[\\/].*\.tsx$/,
           /node_modules[\\/]\.pnpm[\\/].*@ark-ui\+solid@.*[\\/].*\.jsx$/,
           /node_modules[\\/]@ark-ui[\\/]solid[\\/].*\.jsx$/,
+          /node_modules[\\/]\.pnpm[\\/].*@corvu\+.*[\\/].*\.jsx$/,
+          /node_modules[\\/]@corvu[\\/].*\.jsx$/,
         ],
         extensions: [".tsx", ".jsx"],
       }),
@@ -107,14 +109,14 @@ export default defineConfig({
     },
     optimizeDeps: {
       include: ["solid-js", "solid-js/web", "solid-js/store"],
-      exclude: ["@ark-ui/solid"],
+      exclude: ["@ark-ui/solid", "@corvu/resizable", "@corvu/utils"],
       esbuildOptions: {
         jsx: "automatic",
         jsxImportSource: "solid-js",
       },
     },
     ssr: {
-      noExternal: ["@ark-ui/solid"],
+      noExternal: ["@ark-ui/solid", "@corvu/resizable", "@corvu/utils"],
     },
     build: {
       outDir: resolve(rootDir, "out/renderer"),

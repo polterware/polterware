@@ -6,9 +6,14 @@ import "context"
 type Index interface {
 	Upsert(ctx context.Context, doc Document) error
 	Delete(ctx context.Context, memoryID string) error
-	Search(ctx context.Context, query string, limit int) ([]Hit, error)
+	Search(ctx context.Context, query string, filter Filter) ([]Hit, error)
 	Rebuild(ctx context.Context, docs []Document) error
 	Count(ctx context.Context) (int, error)
+}
+
+// DocumentSource provides the current searchable projection for a full rebuild.
+type DocumentSource interface {
+	ListSearchDocuments(ctx context.Context) ([]Document, error)
 }
 
 // Service is the search use-case port.

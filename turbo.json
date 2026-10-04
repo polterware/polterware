@@ -12,7 +12,8 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["SPARKY_CORE_DB", "SPARKY_CORE_BIN", "SPARKY_CORE_ENDPOINT", "SPARKY_CORE_TOKEN", "REMOTE_DEBUGGING_PORT", "ELECTRON_CLI_ARGS"]
     },
     "build": {
       "dependsOn": ["^build"],

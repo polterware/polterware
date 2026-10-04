@@ -20,6 +20,7 @@ export type DitherIconTileProps = {
   size?: DitherIconSize;
   tone?: DitherIconTone;
   brand?: string | readonly string[];
+  accent?: string;
   dimmed?: boolean;
   class?: string;
 };
@@ -89,9 +90,24 @@ const BRAND_ALIASES = {
   postgresql: "postgres",
 } satisfies Record<string, keyof typeof DITHER_BRAND_ACCENTS>;
 
-const BRAND_KEYS = Object.keys(DITHER_BRAND_ACCENTS).sort(
-  (left, right) => right.length - left.length,
-);
+const accentRegistry: Record<string, string> = { ...DITHER_BRAND_ACCENTS };
+
+/** Register app accents before rendering. Returns cleanup for isolated previews/tests. */
+export function registerDitherAccents(accents: Readonly<Record<string, string>>): () => void {
+  const previous = new Map<string, string | undefined>();
+  for (const [name, color] of Object.entries(accents)) {
+    const key = normalizeBrandCandidate(name);
+    if (!key) continue;
+    previous.set(key, accentRegistry[key]);
+    accentRegistry[key] = color;
+  }
+  return () => {
+    for (const [key, color] of previous) {
+      if (color === undefined) delete accentRegistry[key];
+      else accentRegistry[key] = color;
+    }
+  };
+}
 
 const BAYER_4X4 = [
   [0, 8, 2, 10],
@@ -136,17 +152,17 @@ function resolveBrandAccent(candidate: string): string | undefined {
   if (!normalized) return undefined;
 
   if (hasOwnKey(BRAND_ALIASES, normalized)) {
-    return DITHER_BRAND_ACCENTS[BRAND_ALIASES[normalized]];
+    return accentRegistry[BRAND_ALIASES[normalized]];
   }
 
-  if (hasOwnKey(DITHER_BRAND_ACCENTS, normalized)) {
-    return DITHER_BRAND_ACCENTS[normalized];
+  if (hasOwnKey(accentRegistry, normalized)) {
+    return accentRegistry[normalized];
   }
 
   const bounded = `_${normalized}_`;
-  const key = BRAND_KEYS.find((brandKey) => bounded.includes(`_${brandKey}_`));
-  return key && hasOwnKey(DITHER_BRAND_ACCENTS, key)
-    ? DITHER_BRAND_ACCENTS[key]
+  const key = Object.keys(accentRegistry).sort((a, b) => b.length - a.length).find((brandKey) => bounded.includes(`_${brandKey}_`));
+  return key && hasOwnKey(accentRegistry, key)
+    ? accentRegistry[key]
     : undefined;
 }
 
@@ -167,7 +183,7 @@ export function DitherIconTile(props: DitherIconTileProps) {
   const accent = () =>
     props.dimmed
       ? "var(--color-dither-accent-neutral)"
-      : resolveDitherIconAccent(props.brand, props.tone);
+      : props.accent ?? resolveDitherIconAccent(props.brand, props.tone);
 
   return (
     <span

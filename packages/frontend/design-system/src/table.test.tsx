@@ -400,7 +400,7 @@ describe("DataTable", () => {
   it("delegates background dismissal to DetailPanel and keeps row double-click expansion", () => {
     expect(tableSource).not.toContain("hideDetailPanelFromCollectionBackground");
     expect(tableSource).toContain("onDblClick");
-    expect(tableSource).toContain("detailPanelStore.getState().expand()");
+    expect(tableSource).toContain("designSystem.expandDetail()");
   });
 
   it("closes the shared floating detail on empty scroll background without clearing its target", () => {

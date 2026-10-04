@@ -537,7 +537,7 @@ describe("lateral DetailPanel", () => {
     const item = document.querySelector<HTMLElement>('[role="menuitem"]')!;
     pointer(item, "pointerdown", 0, 0); pointer(item, "pointerup", 0, 0); pointerClick(item);
     expect(panel.open()).toBe(true);
-    expect(action).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(action).toHaveBeenCalledOnce());
     const outside = document.createElement("button"); document.body.append(outside);
     outside.focus();
     const [unrelated, setUnrelated] = createSignal(false);
@@ -559,7 +559,9 @@ describe("lateral DetailPanel", () => {
     await nextPaint();
     const pose = panel.sidebar().style.transform;
     panel.host.querySelector<HTMLButtonElement>("[data-detail-opener]")!.click();
-    expect(panel.sidebar().style.transform).toBe(pose);
+    // Interrupting resamples the in-flight spring between paints; it must not snap to an endpoint.
+    const offset = (value: string) => Number(/translate3d\(([^p]+)px/.exec(value)?.[1]);
+    expect(Math.abs(offset(panel.sidebar().style.transform) - offset(pose))).toBeLessThan(2);
     await vi.waitFor(() => expect(panel.positioner().style.opacity).toBe("1"));
     expect(panel.root().dataset.state).toBe("open");
     expect(panel.positioner().hidden).toBe(false);
