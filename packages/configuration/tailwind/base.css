@@ -176,6 +176,11 @@
   --color-status-info-foreground: #26364f;
   --color-status-muted-background: var(--color-surface-selected);
   --color-status-muted-foreground: var(--color-text-secondary);
+  --color-heatmap-0: #1e1e1e;
+  --color-heatmap-1: #164b3a;
+  --color-heatmap-2: #167451;
+  --color-heatmap-3: #159f6d;
+  --color-heatmap-4: #01dd96;
   /* Tokenized edge light — real border + top highlight (see DESIGN.md Materials).
    * Structural fills remain opaque; these low-alpha highlights describe edges.
    * field   = inputs/selects

@@ -13,5 +13,4 @@
 .pw-color-swatches__swatch { position: absolute; inset: 0; }
 .pw-color-swatches__indicator { position: relative; display: grid; place-items: center; height: 100%; color: var(--color-app-background); }
 .pw-icon-picker__options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.pw-icon-picker__options .pw-segmented__indicator { display: none; }
-.pw-icon-picker__options .pw-segmented__item[data-state="checked"] { background: var(--color-surface-selected); border-radius: var(--radius-item); }
+.pw-icon-picker__option[aria-selected="true"] { background: var(--color-surface-selected); color: var(--color-text-primary); }

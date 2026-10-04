@@ -1,4 +1,5 @@
-.pw-progress-ring { display: inline-grid; place-items: center; color: var(--color-text-primary); }
+.pw-progress-ring { position: relative; display: inline-grid; place-items: center; color: var(--color-text-primary); }
+.pw-progress-ring__label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
 .pw-progress-ring > svg, .pw-progress-ring__value { grid-area: 1 / 1; }
 .pw-progress-ring > svg { width: var(--size); height: var(--size); fill: none; }
 .pw-progress-ring__track { stroke: var(--color-border-subtle); }

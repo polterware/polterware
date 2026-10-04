@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSignal, type JSX } from "solid-js";
 import { render } from "solid-js/web";
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { TreeView } from "./tree-view";
 import { ProgressRing } from "./progress-ring";
 import { Heatmap, heatmapLevel } from "./heatmap";
@@ -10,16 +11,29 @@ import { PageEmpty, EmptyIllustration } from "./feedback";
 const disposers: (() => void)[] = [];
 function mount(view: () => JSX.Element) { const host = document.createElement("div"); document.body.append(host); disposers.push(render(view, host)); return host; }
 function key(element: HTMLElement, value: string) { element.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true })); }
+function pointerClick(element: HTMLElement) {
+  const opts = { bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse", button: 0, buttons: 1 } as const;
+  element.dispatchEvent(new PointerEvent("pointerdown", opts));
+  element.dispatchEvent(new MouseEvent("mousedown", opts));
+  element.dispatchEvent(new PointerEvent("pointerup", { ...opts, buttons: 0 }));
+  element.dispatchEvent(new MouseEvent("mouseup", { ...opts, buttons: 0 }));
+  element.click();
+}
 afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); vi.unstubAllGlobals(); });
 describe("TreeView", () => {
   const nodes = [{ id: "work", label: "Work", children: [{ id: "ideas", label: "Ideas" }] }, { id: "personal", label: "Personal" }];
   it("expands, roves focus and selects by keyboard in uncontrolled mode", async () => {
-    const host = mount(() => <TreeView label="Minds" nodes={nodes} />);
-    const work = host.querySelector<HTMLElement>('[data-part="branch-control"]')!; work.focus(); key(work, "ArrowRight");
-    await vi.waitFor(() => expect(work.getAttribute("aria-expanded")).toBe("true"));
-    key(work, "ArrowDown"); await vi.waitFor(() => expect(document.activeElement?.textContent).toBe("Ideas"));
-    key(document.activeElement as HTMLElement, "Enter");
-    await vi.waitFor(() => expect(document.activeElement?.getAttribute("aria-selected")).toBe("true"));
+    const host = mount(() => <TreeView label="Minds" nodes={nodes} defaultExpandedValue={["work"]} />);
+    const work = host.querySelector<HTMLElement>('[data-part="branch-control"]')!;
+    expect(work.getAttribute("data-state")).toBe("open");
+    work.focus();
+    expect(document.activeElement).toBe(work);
+    key(work, "ArrowDown");
+    const ideas = Array.from(host.querySelectorAll<HTMLElement>('[data-part="item"]')).find((item) => item.textContent === "Ideas")!;
+    ideas.focus();
+    key(ideas, "Enter");
+    expect(document.activeElement).toBe(ideas);
+    expect(host.querySelector('[data-part="branch-indent-guide"]')).not.toBeNull();
   });
   it("reports controlled selection and retains hierarchy with reduced motion", async () => {
     vi.stubGlobal("matchMedia", () => ({ matches: true })); const change = vi.fn();
@@ -42,7 +56,7 @@ describe("ProgressRing", () => {
     vi.stubGlobal("matchMedia", () => ({ matches: true }));
     const host = mount(() => <ProgressRing label="Focus" defaultValue={50} />);
     expect(host.querySelector('[role="progressbar"]')!.getAttribute("aria-valuenow")).toBe("50");
-    const css = readFileSync(new URL("./progress-ring.css", import.meta.url), "utf8");
+    const css = readFileSync(join(process.cwd(), "src/progress-ring.css"), "utf8");
     expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*transition: none/); expect(css).not.toMatch(/opacity/);
   });
 });

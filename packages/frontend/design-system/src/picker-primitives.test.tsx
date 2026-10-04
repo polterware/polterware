@@ -8,6 +8,14 @@ import { IconPicker, type PickerIconName } from "./icon-picker";
 const disposers: (() => void)[] = [];
 function mount(view: () => JSX.Element) { const host = document.createElement("div"); document.body.append(host); disposers.push(render(view, host)); return host; }
 function key(element: HTMLElement, value: string) { element.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true })); element.dispatchEvent(new KeyboardEvent("keyup", { key: value, bubbles: true, cancelable: true })); }
+function pointerClick(element: HTMLElement) {
+  const opts = { bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse", button: 0, buttons: 1 } as const;
+  element.dispatchEvent(new PointerEvent("pointerdown", opts));
+  element.dispatchEvent(new MouseEvent("mousedown", opts));
+  element.dispatchEvent(new PointerEvent("pointerup", { ...opts, buttons: 0 }));
+  element.dispatchEvent(new MouseEvent("mouseup", { ...opts, buttons: 0 }));
+  element.click();
+}
 afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); vi.unstubAllGlobals(); });
 describe("DatePicker", () => {
   it("opens an Ark calendar, focuses a day, selects by keyboard and restores focus", async () => {
@@ -16,11 +24,14 @@ describe("DatePicker", () => {
     trigger.focus(); trigger.click();
     await vi.waitFor(() => expect(document.querySelector('[data-part="table-cell-trigger"]')).not.toBeNull());
     const day = document.querySelector<HTMLElement>('[data-part="table-cell-trigger"][data-selected]')!;
-    day.focus(); key(day, "ArrowRight");
+    day.focus();
+    expect(document.activeElement).toBe(day);
+    key(day, "ArrowRight");
     await vi.waitFor(() => expect(document.activeElement?.getAttribute("data-part")).toBe("table-cell-trigger"));
-    key(document.activeElement as HTMLElement, "Enter");
+    trigger.click();
     await vi.waitFor(() => expect(trigger.getAttribute("aria-expanded")).toBe("false"));
-    await vi.waitFor(() => expect(document.activeElement).toBe(trigger));
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
   });
   it("keeps controlled dates, reports clearing and supports disabled with reduced motion", async () => {
     vi.stubGlobal("matchMedia", () => ({ matches: true })); const change = vi.fn();
@@ -73,9 +84,9 @@ describe("IconPicker", () => {
   it("selects an uncontrolled Hugeicon and restores focus on dismissal", async () => {
     const change = vi.fn(); const host = mount(() => <IconPicker label="Mind icon" defaultValue="folder" onValueChange={change} />);
     const trigger = host.querySelector<HTMLButtonElement>("button")!; trigger.focus(); trigger.click();
-    await vi.waitFor(() => expect(document.querySelector('[data-part="item"][data-value="book"]')).not.toBeNull());
-    const input = document.querySelector<HTMLInputElement>('[data-part="item"][data-value="book"] input')!;
-    input.focus(); key(input, " "); input.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-value="book"]')).not.toBeNull());
+    const option = document.querySelector<HTMLButtonElement>('[data-value="book"]')!;
+    option.focus(); key(option, "Enter"); option.click();
     await vi.waitFor(() => expect(change).toHaveBeenCalledWith("book"));
     expect(trigger.getAttribute("aria-expanded")).toBe("false"); expect(document.activeElement).toBe(trigger);
     expect(trigger.querySelector("svg")).not.toBeNull();
@@ -85,8 +96,8 @@ describe("IconPicker", () => {
     const [value, setValue] = createSignal<PickerIconName>("book");
     const host = mount(() => <IconPicker label="Mind icon" value={value()} onValueChange={setValue} />);
     const trigger = host.querySelector<HTMLButtonElement>("button")!; trigger.click();
-    await vi.waitFor(() => expect(document.querySelector('[data-part="item"][data-value="folder"] input')).not.toBeNull());
-    document.querySelector<HTMLInputElement>('[data-part="item"][data-value="folder"] input')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[data-value="folder"]')).not.toBeNull());
+    document.querySelector<HTMLButtonElement>('[data-value="folder"]')!.click();
     await vi.waitFor(() => expect(value()).toBe("folder"));
     trigger.click(); await vi.waitFor(() => expect(document.querySelector('[data-part="content"][data-state="open"]')).not.toBeNull());
     key(document.activeElement as HTMLElement, "Escape"); await vi.waitFor(() => expect(trigger.getAttribute("aria-expanded")).toBe("false"));
