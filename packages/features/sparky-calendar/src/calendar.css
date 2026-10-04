@@ -1,0 +1,46 @@
+.sparky-calendar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.sparky-calendar__grid-wrap {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  transition: transform var(--duration-moderate) var(--ease-standard);
+}
+
+.sparky-calendar__grid-wrap[data-shift] {
+  transform: translateY(8px);
+}
+
+.sparky-calendar__pill {
+  box-shadow: inset 3px 0 0 var(--occurrence-accent, var(--color-brand));
+}
+
+.sparky-calendar__now {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-brand);
+  pointer-events: none;
+}
+
+.sparky-calendar__day[data-outside] .pw-calendar__header {
+  color: var(--color-text-muted);
+}
+
+.sparky-calendar__slots {
+  display: grid;
+  gap: 4px;
+  min-height: 0;
+}
+
+.sparky-calendar__overflow-list {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}

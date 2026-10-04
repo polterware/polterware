@@ -1,0 +1,26 @@
+# w2-calendar status
+- Result: partial
+- Branch / last commit: `sparky/w2-calendar` / `fc98692` (`sparky(w2-calendar): add the day week and month calendar route`)
+- Acceptance criteria:
+  - Matches `ListOccurrences` for 3 months of mixed recurring data → pass in the fake-bridge store. Evidence: `store.test.ts` `requests only the visible month grid and groups mixed recurring data` (90 mixed rows; month query is the 42-cell range only). Live core expansion for 3 months was not observed (packaged e2e not run).
+  - DST week renders correctly → pass for grid math. Evidence: `grid.test.ts` `America/New_York DST weeks` (23h spring-forward 2026-03-08, 25h fall-back 2026-11-01, Sunday-start weeks). Day view paints `dayHours()`; week view keeps a 24-row gutter like the Swift desktop week.
+  - Keyboard navigation across days → pass in DOM tests. Evidence: `calendar-page.test.tsx` `moves keyboard focus across days and keeps month fetches on the visible range` (ArrowRight focus, `m` switches to month). Packaged keyboard e2e not run.
+  - 60 fps month switch → partial. Month cells cap at 1 pill + `+n` overflow; switching months refetches only the next 42-cell range (`store.test.ts` `ensureVisible` does not re-request the same range). View change uses an interruptible 8px token transform (no custom opacity). Frame rate was not measured in Playwright.
+  - Playwright test creating via slot click → written, not run. Evidence: `apps/sparky-desktop/tests/e2e/calendar.spec.ts` skipped without `SPARKY_E2E_EXECUTABLE`. Slot-click create is covered by `calendar-page.test.tsx` `creates a memory from an empty slot and opens the detail panel`.
+- Verification:
+  - `pnpm --filter @polterware/feature-sparky-calendar test`: pass (5 files / 41 tests).
+  - `pnpm --filter @polterware/feature-sparky-calendar typecheck`: pass.
+  - Literal `pnpm --filter @polterware/feature-sparky-calendar test typecheck` was not used as evidence: pnpm forwards `typecheck` to Vitest as a name filter. Scripts were run separately.
+  - `pnpm design:lint`: pass.
+  - `pnpm typecheck` (whole repo, including `@polterware/sparky-desktop`): pass.
+  - `git diff --check`: pass.
+  - `apps/sparky-desktop/tests/e2e/calendar.spec.ts`: written, **not run** (no W3-E2E packaged runner / `SPARKY_E2E_EXECUTABLE`).
+  - Browser was not run.
+- Deviations from the plan (and why):
+  - `Occurrence.tz` and `Settings.calendar_week_start` are not on contracts v1.4. The calendar reads extra JSON keys when present and otherwise uses the system time zone and Monday week start. Requested in `w2-calendar-2.md`.
+  - One-shot `Schedule` mapping is local (`toOneShotSchedule` / `moveSeriesAnchor`); `sparky-schedule` was not imported.
+  - Recurring drag always moves the series anchor after an explicit confirm. Per-occurrence move is not offered.
+  - View-switch fade was omitted (opacity animation is reserved for shared presence primitives); only the 8px shift runs.
+  - Root `pnpm-lock.yaml` was not committed; local install used `pnpm install --lockfile=false`.
+- Requests filed (plans/sparky-next/requests/...): `plans/sparky-next/requests/w2-calendar-1.md`, `plans/sparky-next/requests/w2-calendar-2.md`
+- Follow-ups for other WS: W0-SCAFFOLD regenerate `pnpm-lock.yaml` from request 1; W2-SETTINGS persist `calendarWeekStart`; contracts add `Occurrence.tz` after Erick OK; W3-E2E run `apps/sparky-desktop/tests/e2e/calendar.spec.ts` against a packaged app.
