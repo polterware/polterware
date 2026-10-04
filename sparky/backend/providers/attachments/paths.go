@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -33,7 +34,12 @@ func openDirectory(parent *os.File, name string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.NewFile(uintptr(fd), name), nil
+	dir := os.NewFile(uintptr(fd), name)
+	if err := dir.Chmod(0700); err != nil {
+		dir.Close()
+		return nil, err
+	}
+	return dir, nil
 }
 
 func (s *Store) openMemory(memoryID string, create bool) (*os.File, error) {
@@ -72,4 +78,52 @@ func createTemp(dir *os.File) (*os.File, string, error) {
 		return nil, "", err
 	}
 	return os.NewFile(uintptr(fd), name), name, nil
+}
+
+// openSource anchors the original path components before ingestion. MCP's
+// preliminary path gate cannot protect a later pathname open against a rename.
+func openSource(source string) (*os.File, error) {
+	if !filepath.IsAbs(source) || strings.ContainsRune(source, 0) {
+		return nil, fmt.Errorf("attachment source must be absolute")
+	}
+	for _, part := range strings.Split(source, "/") {
+		if part == "." || part == ".." {
+			return nil, fmt.Errorf("attachment source must not contain traversal")
+		}
+	}
+	// The OS temp aliases are trusted; symlinks below them are still refused.
+	if runtime.GOOS == "darwin" {
+		for _, alias := range []string{"/var", "/tmp"} {
+			if strings.HasPrefix(source, alias+"/") {
+				target, err := filepath.EvalSymlinks(alias)
+				if err != nil {
+					return nil, err
+				}
+				source = target + strings.TrimPrefix(source, alias)
+				break
+			}
+		}
+	}
+	fd, err := unix.Open("/", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, err
+	}
+	dir := os.NewFile(uintptr(fd), "/")
+	defer func() { dir.Close() }()
+	for _, part := range strings.Split(strings.TrimPrefix(filepath.Dir(source), "/"), "/") {
+		if part == "" {
+			continue
+		}
+		fd, err := unix.Openat(int(dir.Fd()), part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if err != nil {
+			return nil, fmt.Errorf("open attachment source ancestor: %w", err)
+		}
+		dir.Close()
+		dir = os.NewFile(uintptr(fd), part)
+	}
+	fd, err = unix.Openat(int(dir.Fd()), filepath.Base(source), unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, fmt.Errorf("open attachment source: %w", err)
+	}
+	return os.NewFile(uintptr(fd), source), nil
 }

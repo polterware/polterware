@@ -2,6 +2,7 @@ import { app } from "electron";
 import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import type { CoreClients } from "../core/client.js";
+import { createActionReceipts } from "./receipts";
 import { createReminderController } from "./controller";
 import { loadNativeNotify } from "./native";
 import { createNotifyLog } from "./log";
@@ -72,7 +73,7 @@ export function installReminders(options: InstallOptions) {
     log("delegate-installed");
     if (process.env.SPARKY_NOTIFY_E2E === "1") app.setActivationPolicy("regular");
     const stopHooks = attachE2eHooks(native, options.dataDirectory);
-    const controller = createReminderController({ ...options, background, native, log, ensureCore: async () => createReminderCore(await options.ensureCore()) });
+    const controller = createReminderController({ ...options, background, native, log, receipts: createActionReceipts(options.dataDirectory), ensureCore: async () => createReminderCore(await options.ensureCore()) });
     return { ...controller,
       prepareLaunch(launchInfo?: unknown) {
         const hidden = controller.shouldStartHidden() || isBackgroundReminderLaunch(process.argv, launchInfo);

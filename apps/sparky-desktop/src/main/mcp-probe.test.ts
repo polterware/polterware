@@ -32,6 +32,18 @@ describe("MCP connection probe", () => {
     expect(JSON.stringify(denied)).not.toContain(token);
   });
 
+  it("parses the complete tool catalog before redacting public errors", async () => {
+    const token = "secret-token";
+    const tools = Array.from({ length: 18 }, (_, i) => ({ name: `tool_${i}`, description: "x".repeat(300) }));
+    const fetchImpl = vi.fn(async (_url: string, init: { body: string }) => ({
+      ok: true, status: 200, headers: { get: () => null },
+      text: async () => JSON.stringify({ result: init.body.includes("tools/list") ? { tools } : {} }),
+    }));
+    const result = await probeMcpConnection({ enabled: true, port: 47600, token, fetchImpl });
+    expect(result).toEqual({ ok: true, toolCount: 18 });
+    expect(JSON.stringify(result)).not.toContain(token);
+  });
+
   it("returns a clear error when MCP is unreachable", async () => {
     const fetchImpl = vi.fn(async () => { throw new Error("connect ECONNREFUSED 127.0.0.1:9"); });
     await expect(probeMcpConnection({ enabled: true, port: 9, token: "t", fetchImpl })).resolves.toEqual({

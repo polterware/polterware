@@ -60,12 +60,13 @@ export async function probeMcpConnection(input: {
         clientInfo: { name: "sparky-desktop", version: "0" },
       }),
     });
-    const initBody = scrub(await init.text(), input.token);
+    const initBody = await init.text();
+    if (initBody.length > 8 * 1024 * 1024) return { ok: false, error: "MCP response is too large." };
     if (init.status === 403 || /MCP is disabled/i.test(initBody)) {
       return { ok: false, error: "MCP is disabled. Enable it in Settings → Agents, then test again." };
     }
     if (init.status === 401) return { ok: false, error: "The MCP token was rejected. Rotate the token and try again." };
-    if (!init.ok) return { ok: false, error: initBody || `MCP initialize failed (${init.status}).` };
+    if (!init.ok) return { ok: false, error: scrub(initBody, input.token) || `MCP initialize failed (${init.status}).` };
     const initialized = parseRpc(initBody);
     if (initialized.error?.message) return { ok: false, error: scrub(initialized.error.message, input.token) };
     const session = init.headers.get("mcp-session-id");
@@ -77,8 +78,9 @@ export async function probeMcpConnection(input: {
       body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
     }).catch(() => undefined);
     const listed = await fetchImpl(endpoint, { method: "POST", headers, signal, body: rpc(2, "tools/list") });
-    const listedBody = scrub(await listed.text(), input.token);
-    if (!listed.ok) return { ok: false, error: listedBody || `MCP tools/list failed (${listed.status}).` };
+    const listedBody = await listed.text();
+    if (listedBody.length > 8 * 1024 * 1024) return { ok: false, error: "MCP response is too large." };
+    if (!listed.ok) return { ok: false, error: scrub(listedBody, input.token) || `MCP tools/list failed (${listed.status}).` };
     const parsed = parseRpc(listedBody);
     if (parsed.error?.message) return { ok: false, error: scrub(parsed.error.message, input.token) };
     return { ok: true, toolCount: parsed.result?.tools?.length ?? 0 };

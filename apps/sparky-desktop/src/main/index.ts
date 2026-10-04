@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell, systemPreferences } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, shell, systemPreferences } from "electron";
 import { dirname, isAbsolute, join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createCoreClients, type CoreClients } from "./core/client.js";
@@ -8,6 +8,7 @@ import { createRpcHandlers, assertTrustedSender, validateAppInput, channel, hand
 import { publicIpcError } from "./ipc-error.js";
 import { applyReduceTransparency, createWindow, rendererDocument } from "./window.js";
 import { contentSecurityPolicy, isAllowedRendererUrl, parseDeepLink } from "./navigation-policy.js";
+import { rendererFileResponse } from "./renderer-protocol.js";
 import { attachmentResponse, resolveAttachmentUrl } from "./attachment-protocol.js";
 import { grantImportPaths, resetTempImportDirectory, tempImportDirectory, writeGrantedTempFile } from "./import-paths.js";
 import { matchSoundPath, resolveSoundsRoot, soundResponse } from "./sounds-protocol.js";
@@ -150,9 +151,12 @@ function registerIpc(reminders: { requestAuthorization(): Promise<boolean> }): v
     },
     testMcpConnection: async () => {
       try {
-        const info = await getClients().agents.getInfo({}, { timeoutMs: 2000 });
+        const [info, health] = await Promise.all([
+          getClients().agents.getInfo({}, { timeoutMs: 2000 }),
+          getClients().health.check({}, { timeoutMs: 2000 }),
+        ]);
         return mcpProbePublicResult(await probeMcpConnection({
-          enabled: Boolean(info.enabled), port: Number(info.mcpPort), token: String(info.token ?? ""),
+          enabled: Boolean(info.enabled), port: Number(health.mcp?.port), token: String(info.token ?? ""),
         }));
       } catch {
         return { ok: false, error: "Core is offline. MCP cannot be tested." };
@@ -202,10 +206,10 @@ function installSessionSecurity(): void {
     const charactersRoot = resolveCharactersRoot(app.getAppPath(), process.resourcesPath, app.isPackaged);
     session.defaultSession.protocol.handle("file", request => {
       let pathname = "";
-      try { pathname = decodeURIComponent(new URL(request.url).pathname); } catch { return net.fetch(request, { bypassCustomProtocolHandlers: true }); }
+      try { pathname = decodeURIComponent(new URL(request.url).pathname); } catch { return new Response(null, { status: 404 }); }
       if (matchSoundPath(pathname)) return soundResponse(pathname, soundsRoot);
       if (matchCharacterPath(pathname)) return characterResponse(pathname, charactersRoot);
-      return net.fetch(request, { bypassCustomProtocolHandlers: true });
+      return rendererFileResponse(request.url, join(__dirname, "../renderer"));
     });
   }
 }

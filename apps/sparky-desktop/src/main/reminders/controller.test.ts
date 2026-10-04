@@ -13,7 +13,7 @@ function fixture(background = false) {
   };
   const core: ReminderCore = { plan: vi.fn(async () => []), complete: vi.fn(async () => {}), snooze: vi.fn(async () => {}), ack: vi.fn(async () => {}), heartbeat: vi.fn(async () => {}) };
   const ensureCore = vi.fn(async () => core), quit = vi.fn(), openMemory = vi.fn(), log = vi.fn(), hasWindow = vi.fn(() => !background);
-  const controller = createReminderController({ native, ensureCore, quit, openMemory, hasWindow, background, log });
+  const controller = createReminderController({ native, ensureCore, quit, openMemory, hasWindow, background, log, receipts: { record: vi.fn(), authorize: () => true } });
   const sendAction = (overrides: Partial<NotificationAction> = {}) => action({ event: "action", id: `rem:${memoryId}:1791111600000`, memoryId, occurrenceAt: "2026-10-04T11:00:00.000Z", action: "DONE", token: "opaque", receivedAtMs: Date.now(), ...overrides });
   return { controller, native, core, ensureCore, quit, openMemory, hasWindow, log, sendAction, event: (value: NativeRefresh) => event(value) };
 }
@@ -42,6 +42,20 @@ describe("lazy reminder controller", () => {
     expect(f.core.plan).toHaveBeenCalledTimes(6);
     await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000);
     expect(f.core.plan).toHaveBeenCalledTimes(7);
+  });
+  it("does not replan in response to its own persisted heartbeat", async () => {
+    const f = setup();
+    f.controller.start();
+    await vi.advanceTimersByTimeAsync(500);
+    for (let i = 0; i < 10; i++) {
+      f.controller.onChanges({ snapshot: false, changes: [{ entity: "setting", id: "_internal.reminder.heartbeat" }] });
+      await vi.advanceTimersByTimeAsync(500);
+    }
+    expect(f.core.plan).toHaveBeenCalledTimes(1);
+    expect(f.core.heartbeat).toHaveBeenCalledTimes(1);
+    f.controller.onChanges({ snapshot: false, changes: [{ entity: "setting", id: "notifications.sound" }] });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(f.core.plan).toHaveBeenCalledTimes(2);
   });
   it("refreshes within 1.5 s even under sustained changes", async () => {
     const f = setup(); f.controller.start();

@@ -44,6 +44,7 @@ type Places interface {
 // Deps is the same domain surface the UI uses. Optional ports may be nil.
 type Deps struct {
 	Within      func(context.Context, func(context.Context) error) error
+	WithActor   func(context.Context, actor.Actor) context.Context
 	Version     string
 	Memories    memory.Service
 	Minds       mind.Service

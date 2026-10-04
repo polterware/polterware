@@ -147,5 +147,15 @@ func validatePublicURL(ctx context.Context, u *url.URL) error {
 }
 func blocked(ip netip.Addr) bool {
 	ip = ip.Unmap()
-	return !ip.IsValid() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast()
+	if !ip.IsValid() || !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+		return true
+	}
+	// Public-only fetches exclude shared/special-use space and translation/tunnel
+	// ranges that can carry an otherwise blocked IPv4 destination.
+	for _, cidr := range []string{"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4", "64:ff9b::/96", "64:ff9b:1::/48", "2001::/32", "2001:db8::/32", "2002::/16"} {
+		if netip.MustParsePrefix(cidr).Contains(ip) {
+			return true
+		}
+	}
+	return false
 }

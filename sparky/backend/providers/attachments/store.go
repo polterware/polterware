@@ -48,27 +48,20 @@ func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (do
 	if !ulidPattern.MatchString(memoryID) || !ulidPattern.MatchString(id) {
 		return domain.ImportedFile{}, fmt.Errorf("memory and attachment IDs must be ULIDs")
 	}
-	info, err := os.Lstat(source)
+	in, err := openSource(source)
 	if err != nil {
-		return domain.ImportedFile{}, fmt.Errorf("stat source: %w", err)
-	}
-	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		return domain.ImportedFile{}, fmt.Errorf("attachment source must be a regular non-symlink file")
-	}
-	if info.Size() > domain.HardMaxBytes {
-		return domain.ImportedFile{}, fmt.Errorf("attachment exceeds hard size limit")
-	}
-	in, err := os.Open(source)
-	if err != nil {
-		return domain.ImportedFile{}, fmt.Errorf("open source: %w", err)
+		return domain.ImportedFile{}, err
 	}
 	defer in.Close()
 	openedInfo, err := in.Stat()
 	if err != nil {
 		return domain.ImportedFile{}, fmt.Errorf("stat opened source: %w", err)
 	}
-	if !openedInfo.Mode().IsRegular() || !os.SameFile(info, openedInfo) {
-		return domain.ImportedFile{}, fmt.Errorf("attachment source changed or is not a regular file")
+	if !openedInfo.Mode().IsRegular() {
+		return domain.ImportedFile{}, fmt.Errorf("attachment source must be a regular non-symlink file")
+	}
+	if openedInfo.Size() > domain.ImportLimit(ctx) {
+		return domain.ImportedFile{}, fmt.Errorf("attachment exceeds hard size limit")
 	}
 	buf := make([]byte, 512)
 	n, readErr := io.ReadFull(contextReader{ctx, in}, buf)
@@ -88,7 +81,7 @@ func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (do
 	case "video/webm":
 		detected = "audio/webm"
 	}
-	limit := domain.ByteLimit(detected)
+	limit := min(domain.ByteLimit(detected), domain.ImportLimit(ctx))
 	ext := ".bin"
 	switch detected {
 	case "image/jpeg":

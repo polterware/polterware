@@ -48,10 +48,10 @@ export function canOpenExternalUrl(raw: string): boolean {
   try { const url = new URL(raw); return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password; }
   catch { return false; }
 }
-export function contentSecurityPolicy(onlineMaps: boolean, development = false, geocoding = false): string {
+export function contentSecurityPolicy(onlineMaps: boolean, _development = false, geocoding = false): string {
   return ["default-src 'none'", "script-src 'self'",
     "style-src 'self' 'unsafe-inline'", "font-src 'self'", "img-src 'self' data: blob: sparky-file:",
     "media-src 'self' blob: sparky-file:",
-    `connect-src 'self'${development ? " ws://127.0.0.1:* ws://localhost:*" : ""}${onlineMaps ? " https://tiles.openfreemap.org" : ""}${geocoding ? " https://nominatim.openstreetmap.org" : ""}`,
+    `connect-src 'self'${onlineMaps ? " https://tiles.openfreemap.org" : ""}${geocoding ? " https://nominatim.openstreetmap.org" : ""}`,
     `worker-src 'self'${onlineMaps ? " blob:" : ""}`, "object-src 'none'", "base-uri 'none'", "frame-src 'none'", "form-action 'none'"].join("; ");
 }

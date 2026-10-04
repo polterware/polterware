@@ -3,12 +3,14 @@ package core
 import (
 	"connectrpc.com/connect"
 	"context"
+	"fmt"
 	"github.com/polterware/polterware/sparky/backend/domains/agentaccess"
 	"github.com/polterware/polterware/sparky/backend/domains/maintenance"
 	"github.com/polterware/polterware/sparky/backend/domains/reminder"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
 	"google.golang.org/protobuf/proto"
+	"strings"
 )
 
 type reminderHandler struct{ s reminder.Service }
@@ -96,13 +98,23 @@ func (h reminderHandler) Status(ctx context.Context, _ *connect.Request[v1.Remin
 	return response(&v1.ReminderStatusResponse{Planned: int32(s.Planned), Armed: int32(s.Armed), NotifierLastSeenAt: stampPtr(s.NotifierLastSeenAt), Permission: s.Permission}, err)
 }
 
-type agentHandler struct{ s agentaccess.Service }
+type agentHandler struct {
+	s    agentaccess.Service
+	port int
+}
 
 func (h agentHandler) GetInfo(ctx context.Context, _ *connect.Request[v1.GetAgentInfoRequest]) (*connect.Response[v1.GetAgentInfoResponse], error) {
 	if h.s == nil {
 		return nil, unavailable("agent access")
 	}
 	i, err := h.s.GetInfo(ctx)
+	if err == nil && h.port > 0 && i.MCPPort != h.port {
+		previous := fmt.Sprintf("http://127.0.0.1:%d/mcp", i.MCPPort)
+		current := fmt.Sprintf("http://127.0.0.1:%d/mcp", h.port)
+		i.MCPPort = h.port
+		i.ClaudeHTTP = strings.ReplaceAll(i.ClaudeHTTP, previous, current)
+		i.CursorHTTPJSON = strings.ReplaceAll(i.CursorHTTPJSON, previous, current)
+	}
 	return response(&v1.GetAgentInfoResponse{McpPort: int32(i.MCPPort), TokenPresent: i.TokenPresent, Token: i.Token, Enabled: i.Enabled, AllowFileAttach: i.AllowFileAttach, ClaudeStdio: i.ClaudeStdio, ClaudeHttp: i.ClaudeHTTP, CursorStdioJson: i.CursorStdioJSON, CursorHttpJson: i.CursorHTTPJSON}, err)
 }
 func (h agentHandler) RotateToken(ctx context.Context, _ *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error) {

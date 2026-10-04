@@ -61,6 +61,9 @@ func bindMCP(services Services, token string, port int, enabled bool, version st
 		return MCP{Port: port, Enabled: enabled}, nil
 	}
 	deps := mcp.Deps{
+		WithActor: func(ctx context.Context, who actor.Actor) context.Context {
+			return context.WithValue(ctx, actorKey{}, who)
+		},
 		Version: version, Memories: services.Memories, Minds: services.Minds, Tags: services.Tags,
 		Activity: services.Activity, Review: services.Review, Search: services.Search,
 		Attachments: services.Attachments, Settings: services.Settings,
@@ -129,7 +132,7 @@ func (s *Server) mountMCP(connectMux *http.ServeMux, connectPort int) error {
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", wrap(s.config.MCP.Handler))
-	s.mcpHTTP = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, BaseContext: func(net.Listener) context.Context { return s.ctx }}
+	s.mcpHTTP = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, BaseContext: func(net.Listener) context.Context { return s.ctx }}
 	s.config.MCP.Port = actual
 	go func() { _ = s.mcpHTTP.Serve(ln) }()
 	return nil

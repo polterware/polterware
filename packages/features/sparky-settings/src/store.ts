@@ -143,7 +143,7 @@ export function createSettingsStore(getBridge: () => SettingsBridge = browserBri
       batch(() => {
         setPreviousToken(current);
         setTokenInvalidated(Boolean(current) && current !== next);
-        setRevealedToken(true);
+        setRevealedToken(false);
         setAgent(value => ({ ...value, token: next, tokenPresent: Boolean(next) }));
         setSaveState("live");
       });

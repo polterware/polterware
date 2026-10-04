@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
@@ -20,6 +19,7 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
+	"github.com/polterware/polterware/sparky/backend/platform/privatedest"
 	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
 )
 
@@ -60,49 +60,26 @@ func (s maintenanceService) Export(ctx context.Context, zipPath string) (int64, 
 	if zipPath == "" {
 		return 0, invalid("zip_path", "required")
 	}
-	if err := os.MkdirAll(filepath.Dir(zipPath), 0o700); err != nil {
-		return 0, fmt.Errorf("create export directory: %w", err)
-	}
 	doc, err := s.snapshot(ctx)
 	if err != nil {
 		return 0, err
 	}
-	file, err := os.CreateTemp(filepath.Dir(zipPath), ".sparky-export-*")
-	if err != nil {
-		return 0, err
-	}
-	defer os.Remove(file.Name())
-	defer file.Close()
-	z := zip.NewWriter(file)
-	w, err := z.Create("data.json")
-	if err != nil {
-		return 0, err
-	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(doc); err != nil {
-		return 0, err
-	}
-	if _, err := z.Create("attachments/"); err != nil {
-		return 0, err
-	}
-	if err := z.Close(); err != nil {
-		return 0, err
-	}
-	if err := file.Chmod(0o600); err != nil {
-		return 0, err
-	}
-	if err := file.Close(); err != nil {
-		return 0, err
-	}
-	if err := os.Rename(file.Name(), zipPath); err != nil {
-		return 0, err
-	}
-	info, err := os.Stat(zipPath)
-	if err != nil {
-		return 0, err
-	}
-	return info.Size(), nil
+	return privatedest.Write(ctx, zipPath, func(file *os.File) error {
+		z := zip.NewWriter(file)
+		w, err := z.Create("data.json")
+		if err != nil {
+			return err
+		}
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(doc); err != nil {
+			return err
+		}
+		if _, err := z.Create("attachments/"); err != nil {
+			return err
+		}
+		return z.Close()
+	})
 }
 
 func (s maintenanceService) snapshot(ctx context.Context) (exportDoc, error) {
@@ -184,9 +161,6 @@ func (s maintenanceService) exportMemory(ctx context.Context, id string) (export
 func (s maintenanceService) Backup(ctx context.Context, destPath string) (string, int64, error) {
 	if destPath == "" {
 		return "", 0, invalid("dest_path", "required")
-	}
-	if err := os.MkdirAll(filepath.Dir(destPath), 0o700); err != nil {
-		return "", 0, fmt.Errorf("create backup directory: %w", err)
 	}
 	n, err := s.store.Backup(ctx, destPath)
 	return destPath, n, err
