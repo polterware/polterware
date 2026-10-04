@@ -18,15 +18,15 @@ export function SettingsSection(props: { title: string; description?: string; ch
 
 export function SettingsRow(props: { label: JSX.Element; description?: JSX.Element; for?: string; children?: JSX.Element }) {
   return (
-    <div class="flex items-center justify-between gap-4">
-      <div class="min-w-0 flex-1">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="min-w-40 flex-1">
         <label for={props.for} class="block text-[12.5px] text-[var(--color-text-primary)]">{props.label}</label>
         <Show when={props.description}>
           <p class="m-0 mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{props.description}</p>
         </Show>
       </div>
       <Show when={props.children}>
-        <div class="flex shrink-0 items-center gap-2">{props.children}</div>
+        <div class="flex min-w-0 max-w-full flex-wrap items-center gap-2">{props.children}</div>
       </Show>
     </div>
   );

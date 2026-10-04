@@ -3,7 +3,7 @@ import { Dynamic } from "solid-js/web";
 import {
   Activity, Button, CalendarClock, ChevronLeft, ChevronRight, Clock, DetailPanel, DesignSystemProvider,
   Dialog, DitherIconTile, Folder, HelpCircle, Inbox, MapPin, MenuItem, MenuList, PageEmpty, PageError,
-  PageHeader, PageLoading, PageOffline, Plus, Popover, Search, Settings, StatusChip, Surface, TreeView, type TreeViewNode,
+  PageHeader, PageLoading, PageOffline, Plus, Popover, Search, Settings, StatusChip, Surface, ToastRegion, TreeView, type TreeViewNode,
 } from "@polterware/frontend-design-system";
 import type { MessageShape } from "@bufbuild/protobuf";
 import type { MindSchema } from "@polterware/sparky-contracts";
@@ -273,8 +273,9 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
           </main>
         </div>
       </div>
+      <ToastRegion />
       <Commander open={palette() !== null} mode={palette() ?? "commands"} bridge={props.bridge} commands={commands()} commandSources={commandSources()} live={core.state() === "live"} onClose={() => setPalette(null)} onMemory={openMemory} />
-      <Dialog open={settingsOpen()} title="Settings" onClose={() => setSettingsOpen(false)} size="xl">
+      <Dialog open={settingsOpen()} bodyClass="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4 text-[13px] text-[var(--color-text-secondary)]" title="Settings" onClose={() => setSettingsOpen(false)} size="xl">
         <div class="sparky-settings-layout">
           <nav aria-label="Settings panels"><For each={settingsGroups()}>{group => <><p class="text-xs text-[var(--color-text-muted)]">{group}</p><MenuList>
             <For each={settingsPanels().filter(panel => panel.group === group)}>{panel => <MenuItem selected={panel.id === activeSettings()?.id} aria-current={panel.id === activeSettings()?.id ? "page" : undefined} onClick={() => setSettingsPanel(panel.id)}>{panel.label}</MenuItem>}</For>
@@ -296,7 +297,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
             <p>Enabling notifications does not arm a reminder. Armed reminders appear only after a live schedule.</p>
           </Show>
         </Show>
-        <Show when={onboardingStep() === 2}><p>Connecting an AI coding agent is optional. Configure local MCP access in Settings → Agents when that panel is available.</p>
+        <Show when={onboardingStep() === 2}><p>Connecting an AI coding agent is optional. Configure local MCP access in Settings → Agents → Access.</p>
           <Button onClick={() => { finishOnboarding(); const agents = settingsPanels().find(panel => panel.group.toLowerCase() === "agents"); if (agents) setSettingsPanel(agents.id); setSettingsOpen(true); }}>Open agent settings</Button>
         </Show>
       </Dialog>

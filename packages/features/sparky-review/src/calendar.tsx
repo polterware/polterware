@@ -53,6 +53,8 @@ export function ContributionCalendar(props: { days: readonly ReviewDayJSON[]; we
         <div
           ref={host}
           class="sparky-review-heatmap"
+          role="group"
+          aria-label="Contribution calendar. Use arrow keys to explore days."
           tabIndex={0}
           onKeyDown={onKeyDown}
           onMouseOver={onMouseOver}

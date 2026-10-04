@@ -31,7 +31,7 @@ export function SummaryCard(props: { report: ReviewJSON }) {
   return (
     <Card>
       <div class="sparky-review-summary">
-        <section class="sparky-review-metric" aria-label="Day streak" aria-valuetext={streakAccessibility(streak(), streakGoal())}>
+        <section class="sparky-review-metric" aria-label={streakAccessibility(streak(), streakGoal())}>
           <div class="sparky-review-metric__art">
             <CharacterArt kind="streak" mood={props.report.streakMood} />
             <p class="sparky-review-metric__value">{streak()}</p>
@@ -40,8 +40,7 @@ export function SummaryCard(props: { report: ReviewJSON }) {
           <ProgressRing label="Streak milestone" value={Math.round(milestoneProgress(streak(), streakGoal()) * 100)} size={36} thickness={4} />
           <p class="sparky-review-metric__caption">{streak()}/{streakGoal()} {streakGoal() === 1 ? "day" : "days"}</p>
         </section>
-        <div class="sparky-review-divider" aria-hidden="true" />
-        <section class="sparky-review-metric" aria-label="Completed" aria-valuetext={completedAccessibility(completed(), completedGoal())}>
+        <section class="sparky-review-metric" aria-label={completedAccessibility(completed(), completedGoal())}>
           <div class="sparky-review-metric__art">
             <CharacterArt kind="completed" mood={props.report.completedMood} />
             <p class="sparky-review-metric__value">{completed()}</p>

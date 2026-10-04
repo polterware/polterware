@@ -2,7 +2,7 @@ import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount }
 import { useSparkyShell } from "@polterware/feature-sparky-shell/feature";
 import {
   A11yDialog, Button, CalendarGrid, ChevronLeft, ChevronRight, DatePicker, PageContent, PageError, PageHeader,
-  PageLoading, PageToolbar, parseDate, Popover, SegmentedControl, StatusChip, ToolbarIconButton, prefersReducedMotion,
+  PageLoading, PageToolbar, parseDate, Plus, Popover, SegmentedControl, StatusChip, ToolbarIconButton, prefersReducedMotion,
 } from "@polterware/frontend-design-system";
 import {
   civilFromInstant, dayHours, formatYmd, hourLabel, monthDates, occurrenceDate, pad, rangeTitle, sameMonth, shiftedAnchor,
@@ -237,7 +237,7 @@ function DayColumn(props: {
       data-outside={props.view === "month" && !props.inMonth ? "" : undefined}
     >
       <CalendarGrid.Header>
-        <Button variant="ghost" onClick={props.onOpenDay}>{props.date.slice(8)}</Button>
+        <Button variant="ghost" aria-label={`Open ${props.date} in day view`} onClick={props.onOpenDay}>{props.date.slice(8)}</Button>
       </CalendarGrid.Header>
       <CalendarGrid.AllDay label="All day">
         <For each={visible()}>{item =>
@@ -256,7 +256,7 @@ function DayColumn(props: {
             aria-label={`New all-day memory on ${props.date}`}
             onClick={() => props.onCreate({ date: props.date, time: "00:00", allDay: true })}
           >
-            New all-day Memory
+            Add memory
           </Button>
         </Show>
       </CalendarGrid.AllDay>
@@ -289,7 +289,7 @@ function DayColumn(props: {
                     aria-label={`Add at ${slot.label} on ${props.date}`}
                     onClick={() => props.onCreate({ date: props.date, time: slot.label, allDay: false })}
                   >
-                    Add at {slot.label}
+                    <Plus size={12} aria-hidden="true" />
                   </Button>
                 </Show>
               </div>
@@ -327,7 +327,8 @@ function OccurrencePill(props: {
       event.dataTransfer?.setData("application/x-sparky-occurrence", JSON.stringify(props.occurrence));
     }}
     onClick={props.onOpen}
-    aria-label={props.occurrence.title}
+    aria-label={`${label()}${props.occurrence.allDay ? " · All day" : ""}${props.occurrence.completed ? " · Completed" : props.occurrence.overdue ? " · Overdue" : ""}`}
+    title={label()}
   >
     {label()}
   </CalendarGrid.Occurrence>;

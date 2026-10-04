@@ -1,14 +1,13 @@
 .sparky-review { display: flex; flex-direction: column; min-height: 0; height: 100%; }
 .sparky-review-grid { display: flex; flex-direction: column; gap: 16px; padding: 16px; max-width: 920px; }
-.sparky-review-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.sparky-review-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .sparky-review-metric { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; }
-.sparky-review-metric__art { position: relative; width: 140px; height: 120px; }
-.sparky-review-metric__art img { width: 106px; height: 106px; object-fit: contain; display: block; margin: 0 auto; }
-.sparky-review-metric__value { position: absolute; right: 0; bottom: 8px; font-size: 36px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text-primary); }
+.sparky-review-metric__art { display: flex; align-items: flex-end; gap: 8px; max-inline-size: 100%; min-height: 120px; }
+.sparky-review-metric__art img { width: 106px; height: 106px; object-fit: contain; display: block; flex-shrink: 0; }
+.sparky-review-metric__value { min-inline-size: 0; padding-block-end: 8px; overflow-wrap: anywhere; font-size: clamp(24px, 3vw, 36px); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text-primary); }
 .sparky-review-metric__title { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-primary); }
 .sparky-review-metric__caption { font-size: 12px; color: var(--color-text-secondary); }
-.sparky-review-divider { width: 1px; background: var(--color-border-subtle); }
-.sparky-review-legend { display: flex; flex-wrap: wrap; gap: 10px; }
+.sparky-review-legend { display: flex; flex-wrap: wrap; gap: 8px; }
 .sparky-review-legend__item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-secondary); }
 .sparky-review-legend__swatch { width: 7px; height: 7px; border-radius: 999px; }
 .sparky-review-legend__swatch[data-period="morning"] { background: var(--color-chart-amber); }
@@ -17,7 +16,7 @@
 .sparky-review-legend__swatch[data-period="night"] { background: var(--color-chart-blue); }
 .sparky-review-bars { display: flex; align-items: flex-end; gap: 4px; min-height: 96px; }
 .sparky-review-bar { display: flex; flex: 1; flex-direction: column; align-items: center; gap: 6px; min-width: 0; background: transparent; border: 0; padding: 4px 2px; color: inherit; cursor: pointer; }
-.sparky-review-bar:focus-visible { outline: 2px solid var(--color-border-strong); outline-offset: 2px; }
+.sparky-review-bar:focus-visible { outline: 2px solid var(--color-text-secondary); outline-offset: 2px; }
 .sparky-review-bar__stack { display: flex; flex-direction: column-reverse; justify-content: flex-end; width: 18px; height: 68px; gap: 2px; }
 .sparky-review-bar__seg { width: 18px; min-height: 5px; border-radius: var(--radius-item); }
 .sparky-review-bar__seg[data-period="morning"] { background: var(--color-chart-amber); }
@@ -40,7 +39,7 @@
   outline-offset: 1px;
 }
 .sparky-review-details { min-height: 18px; font-size: 12px; color: var(--color-text-secondary); }
-.sparky-review-scale { display: flex; justify-content: flex-end; align-items: center; gap: 5px; font-size: 11px; color: var(--color-text-secondary); }
+.sparky-review-scale { display: flex; justify-content: flex-end; align-items: center; gap: 4px; font-size: 11px; color: var(--color-text-secondary); }
 .sparky-review-scale__cell { width: 10px; height: 10px; border-radius: var(--radius-item); background: var(--color-heatmap-0); }
 .sparky-review-scale__cell[data-level="1"] { background: var(--color-heatmap-1); }
 .sparky-review-scale__cell[data-level="2"] { background: var(--color-heatmap-2); }
@@ -48,5 +47,6 @@
 .sparky-review-scale__cell[data-level="4"] { background: var(--color-heatmap-4); }
 @media (max-width: 640px) {
   .sparky-review-summary { grid-template-columns: 1fr; }
-  .sparky-review-divider { width: 100%; height: 1px; }
 }
+
+.sparky-review-heatmap:focus-visible { outline: 2px solid var(--color-text-secondary); outline-offset: 2px; border-radius: var(--radius-control); }

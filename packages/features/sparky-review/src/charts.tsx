@@ -39,8 +39,7 @@ export function WeeklyActivityChart(props: { days: readonly ReviewDayJSON[] }) {
               type="button"
               class="sparky-review-bar"
               aria-pressed={current()?.date === day.date}
-              aria-label={weekdayName(day.date ?? "")}
-              aria-valuetext={activityValue(day)}
+              aria-label={`${weekdayName(day.date ?? "")}: ${activityValue(day)}`}
               onClick={() => setSelected(day.date ?? "")}
             >
               <div class="sparky-review-bar__stack">

@@ -122,7 +122,7 @@ export function MemoryCollection(props: MemoryCollectionProps) {
         <FilterChip selected={!status()} onClick={() => setStatus("")}>All</FilterChip>
         <FilterChip selected={pinned()} onClick={() => setPinned(!pinned())}>Pinned</FilterChip>
         <FilterPopover ariaLabel="Filter by tag" triggerLabel="Tags" active={Boolean(tagId())} onClear={() => setTagId("")} groups={[{ id: "tags", label: "Tags", selectionMode: "single", options: store.tags().map(tag => ({ id: tag.id ?? "", label: tag.name ?? "Unnamed tag", checked: tagId() === tag.id, onCheckedChange: checked => setTagId(checked ? tag.id ?? "" : "") })) }]} />
-        <Select aria-label="Sort memories" value={order()} options={[{ value: "due", label: "Due date" }, { value: "title", label: "Title" }, { value: "updated", label: "Recently updated" }]} onChange={setOrder} />
+        <Select class="w-auto min-w-32" aria-label="Sort memories" value={order()} options={[{ value: "due", label: "Due date" }, { value: "title", label: "Title" }, { value: "updated", label: "Recently updated" }]} onChange={setOrder} />
         <SegmentedControl aria-label="Memory layout" value={layout()} onValueChange={details => setLayout(details.value ?? "list")} options={[{ value: "list", label: "List" }, { value: "table", label: "Table" }]} />
       </div></PageToolbar.Leading>
       <PageToolbar.Actions><Button onClick={() => setCreating(true)}>New memory</Button></PageToolbar.Actions>
@@ -157,7 +157,7 @@ export function MemoryCollection(props: MemoryCollectionProps) {
             <Button variant="danger" disabled={busy()} onClick={() => setDeleteIds([...selection()])}>Delete</Button>
           </>}</DataTable.SelectionToolbar>
         </DataTable.Root>
-        <StatusChip tone="ok">Live · {displayRows().length} memories</StatusChip>
+        <StatusChip class="self-start" tone="ok">Live · {displayRows().length} memories</StatusChip>
       </Show>
     </Show>
     <UndoNotice store={store} />

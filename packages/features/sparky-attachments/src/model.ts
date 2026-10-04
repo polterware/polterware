@@ -95,8 +95,8 @@ export function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export const FETCH_TITLES_ON = "Title fetching is on. Sparky will request this URL to read the page title (5 second timeout, no cookies). Private and loopback addresses are refused. Turn this off in Settings (links.fetchTitles).";
-export const FETCH_TITLES_OFF = "Title fetching is off. Sparky will not contact this site. Add a title yourself, or enable links.fetchTitles in Settings.";
+export const FETCH_TITLES_ON = "Title fetching is on in Settings, but automatic fetching is unavailable in this build. Add a title yourself.";
+export const FETCH_TITLES_OFF = "Title fetching is off. Add a title yourself.";
 export const DROP_PATH_REFUSED = "One or more dropped files could not be imported. Sparky only imports existing regular files with a granted path.";
 export const RECORDING_OVERSIZE = "Recording exceeds 100 MB";
 export const MICROPHONE_DENIED = "Microphone permission denied. Grant access in System Settings to record audio.";

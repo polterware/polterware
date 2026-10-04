@@ -73,7 +73,7 @@ export function GeneralPanel() {
   const store = usePanel();
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
-      <SettingsSection title="General" description="App identity and whether the core should stay available after the window closes.">
+      <SettingsSection title="General" description="App details and background preferences.">
         <SettingsRow label="App">
           <span class="text-[12.5px] text-[var(--color-text-secondary)]">
             {store.appInfo()?.name ?? "Sparky"} {store.appInfo()?.version ?? ""}
@@ -83,7 +83,7 @@ export function GeneralPanel() {
           <StatusChip tone="muted" label={store.appInfo()?.updates === "disabled" ? "Disabled" : "Unavailable"} />
         </SettingsRow>
         <SwitchRow
-          label={<span class="flex flex-col"><span>Keep running in background</span><span class="text-[11.5px] text-[var(--color-text-muted)]">Stores app.keepRunningInBackground. Armed reminders still fire after Sparky quits; this does not add a login item.</span></span>}
+          label={<span class="flex flex-col whitespace-normal"><span>Keep running in background</span><span class="whitespace-normal text-[11.5px] text-[var(--color-text-secondary)]">Armed reminders still fire after Sparky quits. This does not enable launch at login.</span></span>}
           checked={store.settings().appKeepRunningInBackground ?? false}
           onCheckedChange={value => void store.set("app.keepRunningInBackground", value)}
         />
@@ -193,8 +193,8 @@ export function MapPanel() {
           disabled={store.saveState() === "queued"}
           onCheckedChange={value => void store.set("map.geocoding", value)}
         />
-        <p class="text-[12px] text-[var(--color-text-muted)]">Typed address text is sent to Nominatim, a third party. Off by default. Main allows the host only while this is on and reloads the renderer when it changes. Save place edits before changing it.</p>
-        <SettingsRow label="Provider" description="pmtiles is for a user-provided or bundled region file. Empty keeps the core default.">
+        <p class="text-[12px] text-[var(--color-text-muted)]">Typed address text is sent to Nominatim, a third party. Off by default. Changing this reloads Sparky. Save place edits first.</p>
+        <SettingsRow label="Provider" description="PMTiles requires a local region file; no region loader is available in this build.">
           <Select
             aria-label="Map provider"
             value={store.settings().mapProvider ?? ""}
@@ -220,8 +220,8 @@ export function SearchPanel() {
   const status = () => searchStatus(store.reindexState(), store.search()?.ftsDocuments);
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
-      <SettingsSection title="Search" description="Full-text search (FTS5) only. There is no search provider and no semantic search.">
-        <SettingsRow label="Index" description="Document count from SearchService.Status.">
+      <SettingsSection title="Search" description="Search matches words in your memories. Semantic search is unavailable.">
+        <SettingsRow label="Index" description="Memories included in the search index.">
           <StatusChip tone={status().tone} label={status().label} />
           <Button size="sm" disabled={store.reindexState() === "progress"} onClick={() => void store.reindex()}>Reindex</Button>
         </SettingsRow>
@@ -251,7 +251,7 @@ export function AgentsAccessPanel() {
   const masked = () => token() ? "•".repeat(Math.min(24, token().length)) : "No token";
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
-      <SettingsSection title="MCP access" description="Loopback MCP only. The token stays in the core token file, not in SQLite.">
+      <SettingsSection title="MCP access" description="Connect an agent on this Mac using MCP. Keep your access token private.">
         <SwitchRow
           label="Enable MCP"
           checked={store.settings().agentsMcpEnabled ?? false}
@@ -260,7 +260,7 @@ export function AgentsAccessPanel() {
         <SettingsRow label="Port">
           <NumberStepper label="MCP port" min={1} max={65535} value={String(store.settings().agentsMcpPort ?? 47600)} onValueChange={details => { if (Number.isFinite(details.valueAsNumber)) void store.set("agents.mcpPort", Math.trunc(details.valueAsNumber)); }} />
         </SettingsRow>
-        <SettingsRow label="Token" description={store.agent()?.tokenPresent ? "Present in the core token file." : "No token file yet."}>
+        <SettingsRow label="Token" description={store.agent()?.tokenPresent ? "An access token is available." : "No access token yet."}>
           <code class="max-w-[16rem] truncate font-mono text-[12px] text-[var(--color-text-secondary)]">{store.revealedToken() ? token() || "No token" : masked()}</code>
           <Button size="sm" variant="ghost" aria-label={store.revealedToken() ? "Hide token" : "Reveal token"} onClick={() => store.setRevealedToken(!store.revealedToken())}><Eye size={14} /></Button>
           <Button size="sm" variant="ghost" disabled={!token()} onClick={() => void copyText("Token", token())}><Copy size={14} />Copy</Button>
@@ -277,7 +277,7 @@ export function AgentsAccessPanel() {
           checked={store.settings().agentsAllowFileAttach ?? false}
           onCheckedChange={value => void store.set("agents.allowFileAttach", value)}
         />
-        <SettingsRow label="Test connection" description="Runs MCP initialize and tools/list on loopback. Reports failure when MCP is off.">
+        <SettingsRow label="Test connection" description="Check whether local MCP access is available.">
           <Button size="sm" disabled={store.mcpTestState() === "queued"} onClick={() => void store.testConnection()}>Test connection</Button>
           <Show when={store.mcpTest()}>
             {result => <StatusChip tone={result().ok ? "ok" : "danger"} label={result().ok ? "Connected" : "Failed"} />}
@@ -288,7 +288,7 @@ export function AgentsAccessPanel() {
         </Show>
         <SaveStatus />
       </SettingsSection>
-      <SettingsSection title="Client snippets" description="Copy-paste configs matching the sparky runtime and plans/sparky-next/04-mcp.md.">
+      <SettingsSection title="Client snippets" description="Copy a configuration into your agent client.">
         <SnippetBlock label="Claude Code (stdio)" value={store.snippets().claudeStdio} />
         <SnippetBlock label="Claude Code (HTTP)" value={store.snippets().claudeHttp} />
         <SnippetBlock label="Cursor (stdio JSON)" value={store.snippets().cursorStdioJson} />
@@ -306,7 +306,7 @@ export function AgentsActivityPanel() {
   onMount(() => { void store.loadActivity(); });
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
-      <SettingsSection title="Agent writes" description="Activity events attributed to MCP clients (actor mcp:<name>).">
+      <SettingsSection title="Agent writes" description="Changes made by connected agents.">
         <Show when={store.activityState() === "queued"}><p class="m-0 text-[12px] text-[var(--color-text-muted)]">Loading activity…</p></Show>
         <Show when={store.activityError()}><p class="m-0 text-[12px] text-[var(--color-danger)]" role="alert">{store.activityError()}</p></Show>
         <Show when={store.activityState() === "live" && store.activity().length === 0}>
@@ -314,7 +314,7 @@ export function AgentsActivityPanel() {
         </Show>
         <Show when={store.activity().length > 0}>
           <DataTable.Root rows={store.activity()} getRowId={row => row.id ?? ""} virtualized={false} estimateRowHeight={44}>
-            <DataTable.Table>
+            <DataTable.Table aria-label="Agent activity">
               <DataTable.Header>
                 <DataTable.ColumnHeader id="actor" sortable={false}>Actor</DataTable.ColumnHeader>
                 <DataTable.ColumnHeader id="time" sortable={false}>Time</DataTable.ColumnHeader>
@@ -343,7 +343,7 @@ export function DataPanel() {
   onMount(() => { void store.loadDoctor(); });
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
-      <SettingsSection title="Export and backup" description="Destinations are chosen with the system save dialog. The core writes the zip or SQLite backup.">
+      <SettingsSection title="Export and backup" description="Choose where to save an export or database backup.">
         <SettingsRow label="Export zip">
           <Button size="sm" disabled={store.exportState() === "queued"} onClick={() => void store.exportZip()}>Export</Button>
         </SettingsRow>
@@ -353,7 +353,7 @@ export function DataPanel() {
         </SettingsRow>
         <Show when={store.backupDetail()}><p class="m-0 text-[12px] text-[var(--color-text-secondary)]">{store.backupDetail()}</p></Show>
       </SettingsSection>
-      <SettingsSection title="Reset" description="Type RESET to confirm. This build has no Reset RPC, so the action does not delete data.">
+      <SettingsSection title="Reset" description="Type RESET to confirm. Data reset is unavailable in this build; your data will not change.">
         <SettingsRow label="Confirmation">
           <Input aria-label="Type RESET to confirm" value={confirmation()} onInput={event => setConfirmation(event.currentTarget.value)} />
           <Button size="sm" variant="danger" disabled={confirmation() !== "RESET"} onClick={() => store.resetLocalData(confirmation())}>Reset local data</Button>
@@ -382,9 +382,9 @@ export function ShortcutsPanel() {
   usePanel();
   return (
     <div class="flex flex-col gap-6">
-      <SettingsSection title="Keyboard" description="Read-only map from 06-ui.md and the shell shortcut handler. Shortcuts are not configurable in v1.">
+      <SettingsSection title="Keyboard" description="Keyboard shortcuts are read-only in this build.">
         <DataTable.Root rows={SHORTCUTS} getRowId={row => row.id} virtualized={false} estimateRowHeight={40}>
-          <DataTable.Table>
+          <DataTable.Table aria-label="Keyboard shortcuts">
             <DataTable.Header>
               <DataTable.ColumnHeader id="group" sortable={false}>Group</DataTable.ColumnHeader>
               <DataTable.ColumnHeader id="action" sortable={false}>Action</DataTable.ColumnHeader>
@@ -410,7 +410,7 @@ export function AdvancedPanel() {
   const store = usePanel();
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
-      <SettingsSection title="Appearance" description="Theme is stored by SettingsService. Reduce transparency is applied by Main to open windows.">
+      <SettingsSection title="Appearance" description="Appearance preferences for Sparky.">
         <SettingsRow label="Theme">
           <Select
             aria-label="Theme"
@@ -420,17 +420,17 @@ export function AdvancedPanel() {
           />
         </SettingsRow>
         <SwitchRow
-          label="Fetch link titles"
+          label="Fetch link titles (unavailable in this build)"
           checked={store.settings().linksFetchTitles ?? false}
           onCheckedChange={value => void store.set("links.fetchTitles", value)}
         />
         <SaveStatus />
       </SettingsSection>
-      <SettingsSection title="Desktop" description="Main reveals local files and applies window appearance preferences.">
+      <SettingsSection title="Desktop" description="Local files and window appearance.">
         <SettingsRow label="Logs" description="Reveal the Sparky log file in Finder."><Button size="sm" disabled={store.advancedState() === "queued"} onClick={() => void store.reveal("log")}>Open logs</Button></SettingsRow>
         <SettingsRow label="Open data folder" description="Reveal the Sparky data directory in Finder."><Button size="sm" disabled={store.advancedState() === "queued"} onClick={() => void store.reveal("data")}>Open data folder</Button></SettingsRow>
         <HonestyLine state={store.advancedState()} idle={store.advancedDetail() || "Live"} error={store.advancedState() === "failed" ? store.advancedDetail() : ""} />
-        <SettingsRow label="Open at login" description="Automatic launch at login is unavailable in this build; it was not observed under ad-hoc signing."><StatusChip tone="muted" label="Unavailable" /></SettingsRow>
+        <SettingsRow label="Open at login" description="Automatic launch at login is unavailable in this build."><StatusChip tone="muted" label="Unavailable" /></SettingsRow>
         <SwitchRow label="Reduce transparency" checked={store.reduceTransparency() === true} disabled={store.reduceTransparency() === undefined || store.appearanceState() === "queued"} onCheckedChange={value => void store.setReduceTransparency(value)} />
         <HonestyLine state={store.appearanceState()} idle="Window preference applied" error={store.appearanceError()} />
       </SettingsSection>

@@ -120,10 +120,10 @@ export function Commander(props: {
       </form>
       <Show when={error()}><p role="alert" class="text-[var(--color-danger)]">{error()}</p></Show>
       <Show when={props.mode !== "quick-add"}>
-        <MenuList>
+        <MenuList class="min-w-0">
           <For each={commands()}>{command => <MenuItem data-command disabled={busy()} onClick={() => void execute(command)}>{command.label}</MenuItem>}</For>
           <For each={hits()}>{hit => <MenuItem data-command disabled={busy()} onClick={() => void activate(hit)}>
-            <span class="flex flex-col"><span>{hit.label}</span><Show when={hit.snippet}><span class="text-xs text-[var(--color-text-muted)]">{hit.snippet}</span></Show></span>
+            <span class="flex min-w-0 flex-col text-start"><span class="truncate" title={hit.label}>{hit.label}</span><Show when={hit.snippet}><span class="line-clamp-2 text-xs text-[var(--color-text-secondary)]">{hit.snippet}</span></Show></span>
           </MenuItem>}</For>
         </MenuList>
         <Show when={searching()}><PageLoading label="Searching memories…" /></Show>

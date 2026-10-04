@@ -213,6 +213,7 @@ function PlaceEditor(props: { memoryId: string }) {
         <div class="flex flex-col gap-1">
           <p class="text-[12px] text-[var(--color-text-muted)]">Enter / exit (stored for later; not armed)</p>
           <SegmentedControl
+            aria-label="Stored place event"
             value={draft().event}
             onValueChange={(details: { value: string | null }) => { if (details.value === "enter" || details.value === "exit") patch({ event: details.value }); }}
             options={[{ value: "enter", label: "Enter" }, { value: "exit", label: "Exit" }]}

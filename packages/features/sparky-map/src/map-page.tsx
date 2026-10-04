@@ -71,15 +71,15 @@ export function MapPage(props: { store?: MapStore }) {
                 <ul class="sparky-map-page__rows">
                   <For each={store.places()}>{place => (
                     <li>
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
                         class={`sparky-map-page__row ${store.selectedId() === place.memoryId ? "is-selected" : ""}`}
                         aria-current={store.selectedId() === place.memoryId ? "true" : undefined}
                         onClick={() => store.select(place.memoryId)}
                       >
                         <span class="sparky-map-page__row-title">{place.title}</span>
                         <span class="sparky-map-page__row-meta">{place.name || `${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}`}</span>
-                      </button>
+                      </Button>
                     </li>
                   )}</For>
                 </ul>

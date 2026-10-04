@@ -189,3 +189,6 @@ export { TreeView, type TreeViewProps, type TreeViewNode } from "./tree-view";
 export { ProgressRing, type ProgressRingProps } from "./progress-ring";
 export { Heatmap, heatmapLevel, type HeatmapProps, type HeatmapDay } from "./heatmap";
 export { CalendarGrid, type CalendarGridProps } from "./calendar-grid";
+
+/* Load after component chrome so keyboard focus remains visible. */
+import "./accessibility.css";

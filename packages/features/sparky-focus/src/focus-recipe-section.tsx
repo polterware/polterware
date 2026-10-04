@@ -39,7 +39,7 @@ export function FocusRecipeSection() {
       </div>
       <Show when={recipe.error}><p role="alert" class="text-[13px] text-[var(--color-text-secondary)]">Focus recipe unavailable.</p></Show>
       <Show when={!recipe.loading && !recipe.error && !recipe()?.recipe}>
-        <p class="text-[13px] text-[var(--color-text-muted)]">No focus recipe. Schedule editing is in a later wave.</p>
+        <p class="text-[13px] text-[var(--color-text-muted)]">No focus recipe. Add one in Schedule.</p>
       </Show>
       <Show when={recipe()?.recipe}>{value => (
         <>
