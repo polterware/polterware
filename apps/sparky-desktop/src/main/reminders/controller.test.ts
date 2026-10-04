@@ -13,7 +13,7 @@ function fixture(background = false) {
   };
   const core: ReminderCore = { plan: vi.fn(async () => []), complete: vi.fn(async () => {}), snooze: vi.fn(async () => {}), ack: vi.fn(async () => {}), heartbeat: vi.fn(async () => {}) };
   const ensureCore = vi.fn(async () => core), quit = vi.fn(), openMemory = vi.fn(), log = vi.fn(), hasWindow = vi.fn(() => !background);
-  const controller = createReminderController({ native, ensureCore, quit, openMemory, hasWindow, background, log });
+  const controller = createReminderController({ native, ensureCore, quit, openMemory, hasWindow, background, log, receipts: { record: vi.fn(), authorize: () => true } });
   const sendAction = (overrides: Partial<NotificationAction> = {}) => action({ event: "action", id: `rem:${memoryId}:1791111600000`, memoryId, occurrenceAt: "2026-10-04T11:00:00.000Z", action: "DONE", token: "opaque", receivedAtMs: Date.now(), ...overrides });
   return { controller, native, core, ensureCore, quit, openMemory, hasWindow, log, sendAction, event: (value: NativeRefresh) => event(value) };
 }

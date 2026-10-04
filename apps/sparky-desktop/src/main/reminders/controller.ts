@@ -8,6 +8,7 @@ interface Options {
   quit(): void;
   background: boolean;
   log: NotifyLog;
+  receipts: { record(plan: readonly import("./types").Reminder[]): void; authorize(event: NotificationAction): boolean };
 }
 export function createReminderController(options: Options) {
   const { native, log } = options;
@@ -47,6 +48,7 @@ export function createReminderController(options: Options) {
       const core = await options.ensureCore();
       const plan = await core.plan(new Date());
       if (closed) return;
+      options.receipts.record(plan);
       const result = await native.apply(plan);
       const after = await native.status();
       await core.heartbeat(after);
@@ -82,7 +84,7 @@ export function createReminderController(options: Options) {
   async function handleAction(event: NotificationAction) {
     if (closed) return;
     try {
-      if (!isOwnedIdentifier(event.id)) throw new Error("Invalid notification action");
+      if (!isOwnedIdentifier(event.id) || !options.receipts.authorize(event)) throw new Error("Invalid notification action");
       if (event.action === "com.apple.UNNotificationDismissActionIdentifier") return;
       // Standalone focus phase has no memory route and no completion action.
       if (!event.memoryId && event.id.startsWith("one:") && event.action === "com.apple.UNNotificationDefaultActionIdentifier") return;
