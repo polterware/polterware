@@ -1,0 +1,25 @@
+# w1-store status
+
+- Result: done
+- Branch / last commit: `sparky/w1-store-b`; implementation `844e63c`; this status commit is `git log -1 --format=%h` on the branch.
+- Acceptance criteria:
+  - Repository contract tests shared with in-memory fakes → **pass**. `tests/repotest` runs against SQLite (`TestRepoSuite`) and a local in-memory fake (`TestMemSuite`). W1-DOMAIN fakes still panic, so the suite uses `tests/repotest` Mem rather than `domains/*/fake`.
+  - `foreign_key_check` clean after random operation fuzz → **pass**. `TestForeignKeyCheckAfterRandomOps`.
+  - Mind deletion cascades children and nulls memory `mind_id` → **pass**. `TestRepoSuite/sqlite/mindCascadeAndRev` (and the mem fake counterpart).
+  - Change events only after commit and never on rollback → **pass**. `TestChangesAfterCommitNeverOnRollback` in `platform/db` and `providers/sqlite`.
+  - Concurrent reader during a write does not block (WAL) → **pass**. `TestWALReaderDuringWrite` (`platform/db`) and `TestWALReaderDoesNotBlock` (`providers/sqlite`).
+- Verification:
+  - Required command: `cd sparky/backend && go vet ./providers/sqlite/... ./platform/... && go test ./providers/sqlite/... ./platform/... -race -count=1` → exit 0.
+  - Extra: `GOWORK=off go test ./tests/repotest/... -race -count=1` → pass.
+  - `git diff --check` → pass. Frozen contracts at `sparky-contracts-v1.1` unchanged.
+- Deviations from the plan (and why):
+  - Integrator extended Owns with `sparky/backend/go.mod`/`go.sum` (`modernc.org/sqlite v1.59.0`, `GOWORK=off go mod tidy`) and `tests/repotest/**`. Request `plans/sparky-next/requests/w1-store-1.md` is satisfied; SQLite work resumed.
+  - Shared suite uses a local `tests/repotest` Mem fake because W1-DOMAIN repository fakes are still skeletons.
+  - Attachment file methods (`ImportFile`/`AbsolutePath`/`RemoveFile`) return `unavailable`; metadata List/Get/Insert/Delete/Reorder are implemented. File bytes stay with W1-ATTACH.
+  - `search.Index` is called on memory writes when injected; FTS query execution remains W1-SEARCH. `DocumentSource` projects title, stripped note, checklist text, tags, and Mind path.
+- Requests filed: `plans/sparky-next/requests/w1-store-1.md` (applied by integrator; no new request).
+- Follow-ups for other WS:
+  - W1-CORE: store API is `sqlite.Open`/`OpenWith`, `Store.Within`, typed repos (`Minds()`, `Memories()`, …), `Changes()`, optional `SetIndex`. Publish happens after successful commit only.
+  - W1-SEARCH: implement `search.Index` against `memory_fts` using the tx in context; W1-STORE already upserts/deletes through the port and can project documents via `Store.Documents()`.
+  - W1-DOMAIN: replace panic fakes with real in-memory repos; the shared suite in `tests/repotest` can then run against them.
+  - W1-ATTACH: replace the unavailable file methods on the sqlite metadata adapter.

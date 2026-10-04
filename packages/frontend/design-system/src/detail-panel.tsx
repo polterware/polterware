@@ -10,7 +10,7 @@ import { DetailPanelLinkedEntities } from "./detail-panel-linked-entities";
 import { DetailPanelMenuItem } from "./detail-panel-menu";
 import { DetailPanelPrimaryAction } from "./detail-panel-primary-action";
 import { DetailPanelProperties, DetailPanelProperty } from "./detail-panel-properties";
-import { createShortcutLabel, matchesShortcut } from "@polterware/frontend-state";
+import { useDesignSystem } from "./provider";
 import "./detail-panel.css";
 
 export const DETAIL_PANEL_DEFAULT_WIDTH = 400;
@@ -101,10 +101,12 @@ export function DetailPanelCollectionHeader(props: { children: JSX.Element; clas
 }
 
 function DetailPanelRoot(props: DetailPanelRootProps) {
+  const designSystem = useDesignSystem();
+  const storageKey = () => props.storageKey ?? designSystem.storageKey("shell.detail.sidebar.width");
   const [detailHost, setDetailHost] = createSignal<HTMLElement>();
   const [headerClass, setHeaderClass] = createSignal("");
   const [collectionHeaderHost, setCollectionHeaderHost] = createSignal<HTMLElement>();
-  const [preferredWidth, setPreferredWidth] = createSignal(readStoredWidth(props));
+  const [preferredWidth, setPreferredWidth] = createSignal(readStoredWidth({ storageKey: storageKey(), legacyStorageKey: props.legacyStorageKey }));
   const [hostWidth, setHostWidth] = createSignal(0);
   const [present, setPresent] = createSignal(props.open && props.available !== false);
   const [gesturing, setGesturing] = createSignal(false);
@@ -116,8 +118,8 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
   const activeEntityId = () => props.activeEntityId ?? null;
   const interaction: PanelInteractionOwner = { enabled: visible, elements: new Set() };
   const expandLabel = () => expanded() ? "Restore details" : "Expand details";
-  const closeShortcut = createShortcutLabel("shell.toggle_detail");
-  const expandShortcut = createShortcutLabel("shell.maximize_detail");
+  const closeShortcut = designSystem.createShortcutLabel("shell.toggle_detail");
+  const expandShortcut = designSystem.createShortcutLabel("shell.maximize_detail");
   let root: HTMLDivElement | undefined;
   let frame: HTMLDivElement | undefined;
   let workspace: HTMLDivElement | undefined;
@@ -225,17 +227,17 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
       return;
     }
     if (event.repeat || !visible()) return;
-    if (matchesShortcut("shell.maximize_detail", event)) {
+    if (designSystem.matchesShortcut("shell.maximize_detail", event)) {
       event.preventDefault(); event.stopPropagation(); toggleExpanded();
-    } else if (matchesShortcut("shell.toggle_detail", event)) {
+    } else if (designSystem.matchesShortcut("shell.toggle_detail", event)) {
       event.preventDefault(); event.stopPropagation(); cancelResize?.();
       close();
     }
   }
   function persistWidth(width: number) {
     setPreferredWidth(width);
-    if (!props.storageKey || isServer) return;
-    try { window.localStorage.setItem(props.storageKey, String(width)); } catch { /* Resizing remains usable without storage. */ }
+    if (!storageKey() || isServer) return;
+    try { window.localStorage.setItem(storageKey()!, String(width)); } catch { /* Resizing remains usable without storage. */ }
   }
   let suppressClick = false;
   let clickReset: number | undefined;
@@ -424,7 +426,7 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
   </DetailPanelContext.Provider>;
 }
 
-function readStoredWidth(props: DetailPanelRootProps) {
+function readStoredWidth(props: Pick<DetailPanelRootProps, "storageKey" | "legacyStorageKey">) {
   if (isServer) return DETAIL_PANEL_DEFAULT_WIDTH;
   try {
     const raw = props.storageKey ? window.localStorage.getItem(props.storageKey) : null;
