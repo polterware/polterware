@@ -1,6 +1,6 @@
 # w1-attach status
 - Result: partial
-- Branch / last commit: `sparky/w1-attach` / pending status commit
+- Branch / last commit: `sparky/w1-attach` / final status commit (see `git log -1`)
 - Acceptance criteria:
   - Traversal attempts and absolute path names cannot affect stored paths; symlinks and non-regular sources are rejected; oversize files are rejected -> **pass** (`go test ./providers/attachments/... -race -count=1`, `TestImportFileSafetyAndCrashShape`)
   - Duplicate hashes are deduplicated, including concurrent calls through one service -> **pass** (`go test ./domains/attachments/... -race -count=1`, `TestImportDeduplicatesHashAndNeverUsesDisplayNameForPath`, `TestConcurrentDuplicateImportsDeduplicate`)
