@@ -101,13 +101,7 @@ func (s *ServiceImpl) ImportFromPath(ctx context.Context, memoryID, sourcePath, 
 	if strings.HasPrefix(file.Mime, "audio/") {
 		kind = KindAudio
 	}
-	limit := int64(MaxFileBytes)
-	if kind == KindPhoto {
-		limit = MaxPhotoBytes
-	}
-	if kind == KindAudio {
-		limit = MaxAudioBytes
-	}
+	limit := ByteLimit(file.Mime)
 	if file.SizeBytes > limit {
 		return Attachment{}, s.cleanup(ctx, file.RelPath, fault.Exhausted("attachment exceeds kind size limit"))
 	}

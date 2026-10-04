@@ -254,7 +254,9 @@ func TestDeleteCannotInvalidateAnImportDedupSnapshot(t *testing.T) {
 	go func() { deleted <- svc.Delete(context.Background(), "original") }()
 	select {
 	case err := <-deleted:
-		t.Errorf("delete crossed dedup critical section: %v", err)
+		close(store.resume)
+		<-imported
+		t.Fatalf("delete crossed dedup critical section: %v", err)
 	case <-time.After(30 * time.Millisecond):
 	}
 	close(store.resume)

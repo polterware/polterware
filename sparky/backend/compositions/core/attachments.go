@@ -18,7 +18,12 @@ import (
 )
 
 var attachmentServices sync.Map
-var attachmentServiceMu sync.Mutex
+
+type attachmentServiceEntry struct {
+	once    sync.Once
+	service attachments.Service
+	err     error
+}
 
 type attachmentMeta struct {
 	store attachments.Store
@@ -100,17 +105,10 @@ func buildAttachmentService(store attachments.Store) (attachments.Service, error
 }
 
 func (a attachmentMeta) service() (attachments.Service, error) {
-	attachmentServiceMu.Lock()
-	defer attachmentServiceMu.Unlock()
-	if cached, ok := attachmentServices.Load(a.store); ok {
-		return cached.(attachments.Service), nil
-	}
-	svc, err := buildAttachmentService(a.store)
-	if err != nil {
-		return nil, err
-	}
-	actual, _ := attachmentServices.LoadOrStore(a.store, svc)
-	return actual.(attachments.Service), nil
+	cached, _ := attachmentServices.LoadOrStore(a.store, &attachmentServiceEntry{})
+	entry := cached.(*attachmentServiceEntry)
+	entry.once.Do(func() { entry.service, entry.err = buildAttachmentService(a.store) })
+	return entry.service, entry.err
 }
 
 func (a attachmentMeta) ImportFromPath(ctx context.Context, memoryID, sourcePath, name string, expectedRev int64) (attachments.Attachment, error) {

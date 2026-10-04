@@ -2,8 +2,10 @@ package attachments_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/polterware/polterware/sparky/backend/compositions/core"
@@ -112,5 +114,47 @@ func TestCoreAttachmentAuditAndRecoveryBeforeImport(t *testing.T) {
 	}
 	if len(page.Events) != 1 || page.Events[0].EntityID != file.ID || page.Events[0].Op != "delete" {
 		t.Fatalf("missing recovery audit: %+v", page.Events)
+	}
+}
+
+func TestCoreConcurrentFirstImportsPreserveEveryFile(t *testing.T) {
+	ctx := context.Background()
+	data := t.TempDir()
+	runtime, err := core.OpenRuntime(ctx, filepath.Join(data, "sparky.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runtime.Close()
+	m, err := runtime.Services.Memories.Create(ctx, actor.UI(), memory.Create{Title: "Concurrent attachments"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const count = 8
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < count; i++ {
+		src := filepath.Join(data, fmt.Sprint(i))
+		if err = os.WriteFile(src, []byte(fmt.Sprint(i)), 0600); err != nil {
+			t.Fatal(err)
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if _, err := runtime.Services.Attachments.ImportFromPath(ctx, m.ID, src, "", m.Rev); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	rows, err := runtime.Services.Attachments.List(ctx, m.ID)
+	if err != nil || len(rows) != count {
+		t.Fatalf("concurrent rows: %d, %v", len(rows), err)
+	}
+	for _, row := range rows {
+		if _, err := runtime.Services.Attachments.OpenInfo(ctx, row.ID); err != nil {
+			t.Fatalf("initialization swept imported file: %v", err)
+		}
 	}
 }
