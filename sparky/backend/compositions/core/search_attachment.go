@@ -6,6 +6,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/search"
+	"github.com/polterware/polterware/sparky/backend/domains/tx"
 	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
 	searchprovider "github.com/polterware/polterware/sparky/backend/providers/search"
 	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
@@ -17,7 +18,39 @@ type searchHandler struct{ s search.Service }
 func WireSearch(store *sqlite.Store) search.Service {
 	idx := searchprovider.NewWithReader(store.Handle().Writer(), store.Handle().Q(context.Background(), false))
 	store.SetIndex(idx)
-	return search.NewService(idx, storeDocuments{store: store})
+	return searchRuntime{
+		Service:      search.NewService(storeSearchIndex{Index: idx, store: store}, storeDocuments{store: store}),
+		transactions: store,
+	}
+}
+
+// Reindex holds the writer transaction from document collection to FTS rebuild.
+type searchRuntime struct {
+	search.Service
+	transactions tx.Manager
+}
+
+func (s searchRuntime) Reindex(ctx context.Context) (int, error) {
+	var n int
+	err := s.transactions.Within(ctx, func(ctx context.Context) error {
+		var err error
+		n, err = s.Service.Reindex(ctx)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// The SQLite adapter joins the collection transaction instead of opening another.
+type storeSearchIndex struct {
+	search.Index
+	store *sqlite.Store
+}
+
+func (i storeSearchIndex) Rebuild(ctx context.Context, docs []search.Document) error {
+	return i.store.Documents().Rebuild(ctx, docs)
 }
 
 type storeDocuments struct{ store *sqlite.Store }
@@ -28,19 +61,29 @@ func (s storeDocuments) ListSearchDocuments(ctx context.Context) ([]search.Docum
 		return nil, err
 	}
 	defer rows.Close()
-	var docs []search.Document
+	var ids []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	var docs []search.Document
+	for _, id := range ids {
 		doc, err := s.store.Documents().Document(ctx, id)
 		if err != nil {
 			return nil, err
 		}
 		docs = append(docs, doc)
 	}
-	return docs, rows.Err()
+	return docs, nil
 }
 
 func searchFilterFromRequest(in *v1.SearchMemoriesRequest) search.Filter {

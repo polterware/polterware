@@ -117,9 +117,6 @@ func (s scheduleRuntime) Set(ctx context.Context, who actor.Actor, in schedule.S
 	if in.MemoryID == "" {
 		return schedule.Schedule{}, invalid("schedule.memory_id", "required")
 	}
-	if _, err := s.memories.Get(ctx, in.MemoryID); err != nil {
-		return schedule.Schedule{}, err
-	}
 	if in.Every < 1 {
 		in.Every = 1
 	}
@@ -132,6 +129,9 @@ func (s scheduleRuntime) Set(ctx context.Context, who actor.Actor, in schedule.S
 	in.FireAt = in.FireAt.UTC().Truncate(time.Millisecond)
 	in.UpdatedAt = s.clock.Now().UTC()
 	err := s.audit.Write(ctx, who, "schedule", in.MemoryID, activity.OpUpdate, "Set schedule", func(ctx context.Context) error {
+		if err := bumpMemoryRevision(ctx, s.memories, in.MemoryID, in.UpdatedAt); err != nil {
+			return err
+		}
 		return s.schedules.Upsert(ctx, in)
 	})
 	if err != nil {
@@ -145,7 +145,10 @@ func (s scheduleRuntime) Clear(ctx context.Context, who actor.Actor, memoryID st
 		return invalid("memory_id", "required")
 	}
 	return s.audit.Write(ctx, who, "schedule", memoryID, activity.OpDelete, "Clear schedule", func(ctx context.Context) error {
-		return s.schedules.Delete(ctx, memoryID)
+		if err := s.schedules.Delete(ctx, memoryID); err != nil {
+			return err
+		}
+		return bumpMemoryRevision(ctx, s.memories, memoryID, s.clock.Now().UTC())
 	})
 }
 
@@ -202,10 +205,6 @@ func (s scheduleRuntime) ReopenOccurrence(ctx context.Context, who actor.Actor, 
 }
 
 func (s scheduleRuntime) SetFocusRecipe(ctx context.Context, who actor.Actor, memoryID string, recipe schedule.FocusRecipe) (schedule.Schedule, error) {
-	row, err := s.schedules.Get(ctx, memoryID)
-	if err != nil {
-		return schedule.Schedule{}, err
-	}
 	if recipe.Enabled {
 		for field, value := range map[string]int{"work_min": recipe.WorkMin, "short_break_min": recipe.ShortBreakMin, "long_break_min": recipe.LongBreakMin} {
 			if value < 1 || value > 60 {
@@ -216,20 +215,42 @@ func (s scheduleRuntime) SetFocusRecipe(ctx context.Context, who actor.Actor, me
 			return schedule.Schedule{}, invalid("cycles", "must be between 1 and 12")
 		}
 	}
-	row.FocusEnabled = recipe.Enabled
-	row.FocusWorkMin = intPtrFrom(recipe.WorkMin)
-	row.FocusShortBreakMin = intPtrFrom(recipe.ShortBreakMin)
-	row.FocusLongBreakMin = intPtrFrom(recipe.LongBreakMin)
-	row.FocusCycles = intPtrFrom(recipe.Cycles)
-	row.FocusAutoContinue = recipe.AutoContinue
-	row.UpdatedAt = s.clock.Now().UTC()
-	err = s.audit.Write(ctx, who, "schedule", memoryID, activity.OpUpdate, "Set focus recipe", func(ctx context.Context) error {
-		return s.schedules.Upsert(ctx, row)
+	var row schedule.Schedule
+	err := s.audit.Write(ctx, who, "schedule", memoryID, activity.OpUpdate, "Set focus recipe", func(ctx context.Context) error {
+		var err error
+		row, err = s.schedules.Get(ctx, memoryID)
+		if err != nil {
+			return err
+		}
+		row.FocusEnabled = recipe.Enabled
+		row.FocusWorkMin = intPtrFrom(recipe.WorkMin)
+		row.FocusShortBreakMin = intPtrFrom(recipe.ShortBreakMin)
+		row.FocusLongBreakMin = intPtrFrom(recipe.LongBreakMin)
+		row.FocusCycles = intPtrFrom(recipe.Cycles)
+		row.FocusAutoContinue = recipe.AutoContinue
+		row.UpdatedAt = s.clock.Now().UTC()
+		if err := s.schedules.Upsert(ctx, row); err != nil {
+			return err
+		}
+		return bumpMemoryRevision(ctx, s.memories, memoryID, row.UpdatedAt)
 	})
 	if err != nil {
 		return schedule.Schedule{}, err
 	}
 	return row, nil
+}
+
+// Schedule and place are part of the memory aggregate guarded by expectedRev.
+// Call only inside the mutation's audit transaction.
+func bumpMemoryRevision(ctx context.Context, repo memory.Repository, id string, at time.Time) error {
+	m, err := repo.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	oldRev := m.Rev
+	m.Rev++
+	m.UpdatedAt = at
+	return repo.Update(ctx, oldRev, m)
 }
 
 func intPtrFrom(n int) *int {

@@ -20,6 +20,25 @@ func (d DocumentSource) Document(ctx context.Context, memoryID string) (search.D
 	return d.store.document(ctx, memoryID)
 }
 
+// Rebuild replaces the index in the caller's transaction. Collection must use
+// that same transaction so a newer memory write cannot be overwritten.
+func (d DocumentSource) Rebuild(ctx context.Context, docs []search.Document) error {
+	return d.store.Within(ctx, func(ctx context.Context) error {
+		if d.store.index == nil {
+			return fmt.Errorf("search index is not configured")
+		}
+		if _, err := d.store.q(ctx, true).ExecContext(ctx, `DELETE FROM memory_fts`); err != nil {
+			return fmt.Errorf("clear search index: %w", err)
+		}
+		for _, doc := range docs {
+			if err := d.store.index.Upsert(ctx, doc); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (s *Store) document(ctx context.Context, memoryID string) (search.Document, error) {
 	q := s.q(ctx, false)
 	var title, note string
@@ -164,26 +183,8 @@ func (s *Store) reindexMindMemories(ctx context.Context, mindID string) error {
 	if s.index == nil {
 		return nil
 	}
-	rows, err := s.q(ctx, false).QueryContext(ctx, `
-		WITH RECURSIVE tree AS (
-			SELECT id FROM minds WHERE id = ?
-			UNION ALL
-			SELECT m.id FROM minds m JOIN tree t ON m.parent_id = t.id
-		)
-		SELECT id FROM memories WHERE mind_id IN (SELECT id FROM tree)`, mindID)
+	ids, err := s.mindMemoryIDs(ctx, mindID)
 	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return err
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
 		return err
 	}
 	for _, id := range ids {
@@ -192,4 +193,27 @@ func (s *Store) reindexMindMemories(ctx context.Context, mindID string) error {
 		}
 	}
 	return nil
+}
+
+func (s *Store) mindMemoryIDs(ctx context.Context, mindID string) ([]string, error) {
+	rows, err := s.q(ctx, false).QueryContext(ctx, `
+		WITH RECURSIVE tree AS (
+			SELECT id FROM minds WHERE id = ?
+			UNION ALL
+			SELECT m.id FROM minds m JOIN tree t ON m.parent_id = t.id
+		)
+		SELECT id FROM memories WHERE mind_id IN (SELECT id FROM tree)`, mindID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }

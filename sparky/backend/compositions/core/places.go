@@ -36,11 +36,11 @@ func (s placeService) Set(ctx context.Context, p place.Place) (place.Place, erro
 	if p.Event != place.EventEnter && p.Event != place.EventExit {
 		return place.Place{}, invalid("place.event", "must be enter or exit")
 	}
-	if _, err := s.memories.Get(ctx, p.MemoryID); err != nil {
-		return place.Place{}, err
-	}
 	p.UpdatedAt = s.clock.Now().UTC()
 	err := s.audit.Write(ctx, caller(ctx), "place", p.MemoryID, activity.OpUpdate, "Set place", func(ctx context.Context) error {
+		if err := bumpMemoryRevision(ctx, s.memories, p.MemoryID, p.UpdatedAt); err != nil {
+			return err
+		}
 		return s.repo.Upsert(ctx, p)
 	})
 	if err != nil {
@@ -54,7 +54,10 @@ func (s placeService) Clear(ctx context.Context, memoryID string) error {
 		return invalid("memory_id", "required")
 	}
 	err := s.audit.Write(ctx, caller(ctx), "place", memoryID, activity.OpDelete, "Clear place", func(ctx context.Context) error {
-		return s.repo.Delete(ctx, memoryID)
+		if err := s.repo.Delete(ctx, memoryID); err != nil {
+			return err
+		}
+		return bumpMemoryRevision(ctx, s.memories, memoryID, s.clock.Now().UTC())
 	})
 	if err != nil && !fault.IsCode(err, fault.CodeNotFound) {
 		return err

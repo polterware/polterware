@@ -8,7 +8,6 @@ import (
 
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/clock"
-	"github.com/polterware/polterware/sparky/backend/domains/fault"
 	"github.com/polterware/polterware/sparky/backend/domains/ids"
 	"github.com/polterware/polterware/sparky/backend/domains/memory"
 	"github.com/polterware/polterware/sparky/backend/domains/reminder"
@@ -84,7 +83,7 @@ func (s reminderService) Ack(ctx context.Context, id, outcome string) error {
 		return invalid("outcome", "must be delivered, opened, or done")
 	}
 	if strings.HasPrefix(id, "one:") {
-		return s.repo.Delete(ctx, strings.TrimPrefix(id, "one:"))
+		return s.deleteOneOff(ctx, strings.TrimPrefix(id, "one:"), "Complete one-off reminder")
 	}
 	memoryID, rest, ok := strings.Cut(strings.TrimPrefix(id, "rem:"), ":")
 	if !ok || !strings.HasPrefix(id, "rem:") {
@@ -153,11 +152,13 @@ func (s reminderService) insertOneOff(ctx context.Context, kind string, memoryID
 
 func (s reminderService) CancelOneOff(ctx context.Context, id string) error {
 	id = strings.TrimPrefix(id, "one:")
-	err := s.repo.Delete(ctx, id)
-	if err != nil && !fault.IsCode(err, fault.CodeNotFound) {
-		return err
-	}
-	return err
+	return s.deleteOneOff(ctx, id, "Cancel one-off reminder")
+}
+
+func (s reminderService) deleteOneOff(ctx context.Context, id, summary string) error {
+	return s.audit.Write(ctx, caller(ctx), "reminder", id, activity.OpDelete, summary, func(ctx context.Context) error {
+		return s.repo.Delete(ctx, id)
+	})
 }
 
 func (s reminderService) Heartbeat(ctx context.Context, hb reminder.Heartbeat) (time.Time, error) {

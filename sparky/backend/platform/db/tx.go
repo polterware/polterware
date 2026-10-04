@@ -44,6 +44,15 @@ func (h *Handle) Within(ctx context.Context, fn func(context.Context) error) err
 	if _, ok := TxFrom(ctx); ok {
 		return fn(ctx)
 	}
+	// Commit releases the SQL connection before we harvest its hook buffer.
+	// Keep the next writer (including rollback) out until publication finishes.
+	buf := bufFor(h.key)
+	select {
+	case buf.writer <- struct{}{}:
+		defer func() { <-buf.writer }()
+	case <-ctx.Done():
+		return fmt.Errorf("begin tx: %w", ctx.Err())
+	}
 	tx, err := h.writer.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -71,4 +80,5 @@ func (h *Handle) flushCommit() {
 
 // AfterCommit is invoked once per committed writer transaction with entity changes.
 // Empty batches are still delivered so callers can distinguish "no-op commit".
+// It runs before the next writer; callbacks must not start writer transactions.
 type AfterCommitFunc func([]changes.Change)

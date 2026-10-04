@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
 	"github.com/polterware/polterware/sparky/backend/domains/mind"
@@ -80,8 +81,26 @@ func (r Minds) Delete(ctx context.Context, expectedRev int64, id string) error {
 		if expectedRev != 0 && current.Rev != expectedRev {
 			return updateConflict("mind", id, current.Rev, current)
 		}
-		_, err = r.q(ctx, true).ExecContext(ctx, `DELETE FROM minds WHERE id=?`, id)
-		return err
+		ids, err := r.mindMemoryIDs(ctx, id)
+		if err != nil {
+			return err
+		}
+		at := formatTime(time.Now().UTC())
+		for _, memoryID := range ids {
+			// Move explicitly so the FK cannot silently preserve an old revision.
+			if _, err := r.q(ctx, true).ExecContext(ctx, `UPDATE memories SET mind_id=NULL, rev=rev+1, updated_at=? WHERE id=?`, at, memoryID); err != nil {
+				return err
+			}
+		}
+		if _, err := r.q(ctx, true).ExecContext(ctx, `DELETE FROM minds WHERE id=?`, id); err != nil {
+			return err
+		}
+		for _, memoryID := range ids {
+			if err := r.syncIndex(ctx, memoryID, false); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 
