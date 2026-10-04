@@ -48,9 +48,29 @@ func Catalog() ([]Tool, error) {
 		case "get_memory":
 			tool.Description = "Get a memory; default: note,checklist,schedule."
 		case "list_occurrences":
-			tool.Description = "Occurrences with completion and overdue flags."
+			tool.Description = "Occurrences, completion, overdue."
 		case "update_mind":
 			tool.Description = "Patch by id/name; null clears parent/color/icon."
+		case "get_review":
+			tool.Description = "Streak, counts, focus minutes."
+		case "delete_mind":
+			tool.Description = "Delete mind tree; memories to Inbox. confirm."
+		case "add_attachments":
+			tool.Description = "Add links or files. files needs allowFileAttach."
+		case "set_memory_status":
+			tool.Description = "Set active or completed. occurrence for one repeat."
+		case "update_memories":
+			tool.Description = "Patch up to 50. null clears. tags replace; add/removeTags."
+		case "create_memories":
+			tool.Description = "Create up to 50 memories; per-item ok or error."
+		case "delete_memories":
+			tool.Description = "Delete memories; confirm true."
+		case "list_tags":
+			tool.Description = "Tags, colors, counts."
+		case "search_memories":
+			tool.Description = "Ranked full-text."
+		case "toggle_check_item":
+			tool.Description = "Toggle checklist item by id or title."
 		}
 		tools = append(tools, tool)
 	}

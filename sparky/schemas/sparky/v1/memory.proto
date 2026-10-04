@@ -161,6 +161,7 @@ message UpdateMemoryResponse {
 
 message DeleteMemoryRequest {
   string id = 1;
+  optional int64 expected_rev = 2;
 }
 
 message DeleteMemoryResponse {}
@@ -197,6 +198,7 @@ message ToggleCheckItemRequest {
   string memory_id = 1;
   string item_id = 2;
   optional bool done = 3;
+  optional int64 expected_rev = 4;
 }
 
 message ToggleCheckItemResponse {

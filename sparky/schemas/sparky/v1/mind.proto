@@ -66,6 +66,7 @@ message UpdateMindResponse {
 
 message DeleteMindRequest {
   string id = 1;
+  optional int64 expected_rev = 2;
 }
 
 message DeleteMindResponse {

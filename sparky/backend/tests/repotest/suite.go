@@ -41,7 +41,7 @@ func testMindCascadeAndRev(t *testing.T, setup func(*testing.T) (Repos, func()))
 	if err := r.Minds.Update(ctx, 99, stale); !fault.IsCode(err, fault.CodeConflict) {
 		t.Fatalf("rev conflict: %v", err)
 	}
-	if err := r.Minds.Delete(ctx, "root"); err != nil {
+	if err := r.Minds.Delete(ctx, 0, "root"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := r.Minds.Get(ctx, "child"); !fault.IsCode(err, fault.CodeNotFound) {

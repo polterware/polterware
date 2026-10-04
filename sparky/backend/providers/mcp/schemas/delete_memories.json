@@ -16,6 +16,9 @@
       },
       "confirm": {
         "const": true
+      },
+      "expectedRev": {
+        "type": "object"
       }
     }
   },

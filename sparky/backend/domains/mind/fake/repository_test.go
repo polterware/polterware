@@ -49,7 +49,7 @@ func TestMindRepositoryContract(t *testing.T) {
 	if e = f.Mem.Insert(ctx, memory.Memory{ID: "survivor", MindID: &parent.ID}); e != nil {
 		t.Fatal(e)
 	}
-	if e = f.Minds.Delete(ctx, parent.ID); e != nil {
+	if e = f.Minds.Delete(ctx, 0, parent.ID); e != nil {
 		t.Fatal(e)
 	}
 	rows, e = f.Minds.List(ctx)
@@ -60,12 +60,12 @@ func TestMindRepositoryContract(t *testing.T) {
 	if e != nil || m.MindID != nil {
 		t.Fatal(m, e)
 	}
-	if e = f.Minds.Delete(ctx, "missing"); !fault.IsCode(e, fault.CodeNotFound) {
+	if e = f.Minds.Delete(ctx, 0, "missing"); !fault.IsCode(e, fault.CodeNotFound) {
 		t.Fatal(e)
 	}
 	c, cancel := context.WithCancel(ctx)
 	cancel()
-	for _, call := range []func() error{func() error { _, e := f.Minds.Get(c, "id"); return e }, func() error { _, e := f.Minds.List(c); return e }, func() error { return f.Minds.Insert(c, parent) }, func() error { return f.Minds.Update(c, 1, parent) }, func() error { return f.Minds.Delete(c, "id") }} {
+	for _, call := range []func() error{func() error { _, e := f.Minds.Get(c, "id"); return e }, func() error { _, e := f.Minds.List(c); return e }, func() error { return f.Minds.Insert(c, parent) }, func() error { return f.Minds.Update(c, 1, parent) }, func() error { return f.Minds.Delete(c, 0, "id") }} {
 		if e := call(); !errors.Is(e, context.Canceled) {
 			t.Fatal(e)
 		}

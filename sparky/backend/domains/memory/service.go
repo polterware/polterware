@@ -260,8 +260,10 @@ func (s *service) Update(ctx context.Context, a actor.Actor, id string, rev int6
 		return s.validate(ctx, *m)
 	})
 }
-func (s *service) Delete(ctx context.Context, a actor.Actor, id string) error {
-	return s.audit.Write(ctx, a, "memory", id, activity.OpDelete, "Delete memory", func(ctx context.Context) error { return s.repo.Delete(ctx, id) })
+func (s *service) Delete(ctx context.Context, a actor.Actor, id string, rev int64) error {
+	return s.audit.Write(ctx, a, "memory", id, activity.OpDelete, "Delete memory", func(ctx context.Context) error {
+		return s.repo.Delete(ctx, rev, id)
+	})
 }
 func (s *service) SetPinned(ctx context.Context, a actor.Actor, id string, rev int64, pinned bool) (Memory, error) {
 	return s.Update(ctx, a, id, rev, Patch{Pinned: &pinned})
@@ -391,8 +393,8 @@ func (s *service) ReplaceChecklist(ctx context.Context, a actor.Actor, id string
 	})
 	return
 }
-func (s *service) ToggleCheckItem(ctx context.Context, a actor.Actor, id, itemID string, done *bool) (out CheckItem, err error) {
-	_, err = s.mutate(ctx, a, id, 0, activity.OpUpdate, "Toggle checklist item", func(ctx context.Context, m *Memory) error {
+func (s *service) ToggleCheckItem(ctx context.Context, a actor.Actor, id, itemID string, rev int64, done *bool) (out CheckItem, err error) {
+	_, err = s.mutate(ctx, a, id, rev, activity.OpUpdate, "Toggle checklist item", func(ctx context.Context, m *Memory) error {
 		item, e := s.repo.GetCheckItem(ctx, itemID)
 		if e != nil {
 			return e
@@ -474,7 +476,7 @@ func (s *service) BulkAction(ctx context.Context, a actor.Actor, in BulkAction) 
 		e := s.audit.Transactions.Within(ctx, func(ctx context.Context) error {
 			switch in.Action {
 			case BulkDelete:
-				return s.Delete(ctx, a, id)
+				return s.Delete(ctx, a, id, 0)
 			case BulkComplete, BulkReopen:
 				status := StatusCompleted
 				if in.Action == BulkReopen {

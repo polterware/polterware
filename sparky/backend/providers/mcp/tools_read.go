@@ -39,6 +39,10 @@ func (s *Server) listMinds(ctx context.Context, req *mcpsdk.CallToolRequest) (*m
 	if err != nil {
 		return fail(err), nil
 	}
+	sess := s.session(req)
+	for _, row := range rows {
+		sess.observeMind(row.ID, row.Rev)
+	}
 	var parent *string
 	if in.Parent != "" {
 		got, err := resolveMind(ctx, s.deps.Minds, in.Parent)

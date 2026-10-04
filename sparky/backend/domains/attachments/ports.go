@@ -15,9 +15,11 @@ type Store interface {
 }
 
 // Service is the attachment use-case port.
+// expectedRev 0 skips the memory revision check. Non-zero is checked in the
+// same transaction as the metadata write.
 type Service interface {
-	ImportFromPath(ctx context.Context, memoryID, sourcePath, name string) (Attachment, error)
-	AddLink(ctx context.Context, memoryID, url, title string) (Attachment, error)
+	ImportFromPath(ctx context.Context, memoryID, sourcePath, name string, expectedRev int64) (Attachment, error)
+	AddLink(ctx context.Context, memoryID, url, title string, expectedRev int64) (Attachment, error)
 	List(ctx context.Context, memoryID string) ([]Attachment, error)
 	Delete(ctx context.Context, id string) error
 	Reorder(ctx context.Context, memoryID string, orderedIDs []string) ([]Attachment, error)

@@ -62,15 +62,19 @@ func (r Memories) Update(ctx context.Context, expectedRev int64, m memory.Memory
 	})
 }
 
-func (r Memories) Delete(ctx context.Context, id string) error {
+func (r Memories) Delete(ctx context.Context, expectedRev int64, id string) error {
 	return r.Within(ctx, func(ctx context.Context) error {
-		if _, err := r.Get(ctx, id); err != nil {
+		current, err := r.Get(ctx, id)
+		if err != nil {
 			return err
+		}
+		if expectedRev != 0 && current.Rev != expectedRev {
+			return updateConflict("memory", id, current.Rev, current)
 		}
 		if err := r.syncIndex(ctx, id, true); err != nil {
 			return err
 		}
-		_, err := r.q(ctx, true).ExecContext(ctx, `DELETE FROM memories WHERE id=?`, id)
+		_, err = r.q(ctx, true).ExecContext(ctx, `DELETE FROM memories WHERE id=?`, id)
 		return err
 	})
 }

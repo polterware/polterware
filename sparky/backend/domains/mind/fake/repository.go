@@ -59,10 +59,14 @@ func (r *Repository) Update(ctx context.Context, rev int64, v mind.Mind) error {
 		return r.Store.Put(ctx, "minds", v.ID, v)
 	})
 }
-func (r *Repository) Delete(ctx context.Context, id string) error {
+func (r *Repository) Delete(ctx context.Context, rev int64, id string) error {
 	return r.Store.Within(ctx, func(ctx context.Context) error {
-		if _, e := r.Get(ctx, id); e != nil {
+		old, e := r.Get(ctx, id)
+		if e != nil {
 			return e
+		}
+		if rev != 0 && old.Rev != rev {
+			return fault.Conflict("mind", id, old.Rev, old)
 		}
 		rows, e := r.List(ctx)
 		if e != nil {

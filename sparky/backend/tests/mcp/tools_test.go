@@ -12,6 +12,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	mindpkg "github.com/polterware/polterware/sparky/backend/domains/mind"
 )
 
 func TestSDKToolsListBudget(t *testing.T) {
@@ -189,6 +190,66 @@ func TestSessionConflictAndBatch(t *testing.T) {
 	row := structured(t, conflict)["results"].([]any)[0].(map[string]any)
 	if row["ok"] != false {
 		t.Fatalf("expected conflict: %#v", row)
+	}
+}
+
+func TestSessionRevisionOnDeleteToggleStatusAndAttachments(t *testing.T) {
+	h := setupMCP(t)
+	created := h.call(t, "create_memories", map[string]any{"items": []map[string]any{{"title": "One", "checklist": []string{"A"}}}})
+	if created.IsError {
+		t.Fatal(textOf(created))
+	}
+	id := structured(t, created)["results"].([]any)[0].(map[string]any)["id"].(string)
+	if h.call(t, "get_memory", map[string]any{"id": id, "include": []string{"checklist"}}).IsError {
+		t.Fatal("get")
+	}
+	title := "UI"
+	if _, err := h.fix.MS.Update(h.fix.Ctx, actor.UI(), id, 1, memory.Patch{Title: &title}); err != nil {
+		t.Fatal(err)
+	}
+	status := h.call(t, "set_memory_status", map[string]any{"id": id, "status": "completed"})
+	if !status.IsError || structured(t, status)["conflict"] != true {
+		t.Fatalf("status: %s %#v", textOf(status), structured(t, status))
+	}
+	items, err := h.fix.Mem.ListCheckItems(h.fix.Ctx, id)
+	if err != nil || len(items) != 1 {
+		t.Fatal(items, err)
+	}
+	toggle := h.call(t, "toggle_check_item", map[string]any{"memoryId": id, "itemId": items[0].ID})
+	if !toggle.IsError || structured(t, toggle)["conflict"] != true {
+		t.Fatalf("toggle: %s %#v", textOf(toggle), structured(t, toggle))
+	}
+	del := h.call(t, "delete_memories", map[string]any{"ids": []string{id}, "confirm": true})
+	if del.IsError {
+		t.Fatal(textOf(del))
+	}
+	row := structured(t, del)["results"].([]any)[0].(map[string]any)
+	if row["ok"] != false || row["conflict"] != true {
+		t.Fatalf("delete: %#v", row)
+	}
+	attach := h.call(t, "add_attachments", map[string]any{"memoryId": id, "links": []map[string]any{{"url": "https://example.com"}}})
+	if !attach.IsError || structured(t, attach)["conflict"] != true {
+		t.Fatalf("attachments: %s %#v", textOf(attach), structured(t, attach))
+	}
+	explicit := h.call(t, "set_memory_status", map[string]any{"id": id, "status": "completed", "expectedRev": 2})
+	if explicit.IsError {
+		t.Fatal(textOf(explicit))
+	}
+	mind := h.call(t, "create_mind", map[string]any{"name": "Work"})
+	if mind.IsError {
+		t.Fatal(textOf(mind))
+	}
+	mindID := structured(t, mind)["id"].(string)
+	if h.call(t, "list_minds", map[string]any{}).IsError {
+		t.Fatal("list minds")
+	}
+	name := "Home"
+	if _, err := h.fix.NS.Update(h.fix.Ctx, actor.UI(), mindID, 1, mindpkg.Patch{Name: &name}); err != nil {
+		t.Fatal(err)
+	}
+	drop := h.call(t, "delete_mind", map[string]any{"id": mindID, "confirm": true})
+	if !drop.IsError || structured(t, drop)["conflict"] != true {
+		t.Fatalf("delete_mind: %s %#v", textOf(drop), structured(t, drop))
 	}
 }
 

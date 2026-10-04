@@ -36,7 +36,7 @@ func TestForeignKeyCheckAfterRandomOps(t *testing.T) {
 				continue
 			}
 			id := minds[rng.Intn(len(minds))]
-			_ = s.Minds().Delete(ctx, id)
+			_ = s.Minds().Delete(ctx, 0, id)
 			next := minds[:0]
 			for _, m := range minds {
 				if _, err := s.Minds().Get(ctx, m); err == nil {
@@ -58,7 +58,7 @@ func TestForeignKeyCheckAfterRandomOps(t *testing.T) {
 				continue
 			}
 			id := memories[rng.Intn(len(memories))]
-			_ = s.Memories().Delete(ctx, id)
+			_ = s.Memories().Delete(ctx, 0, id)
 			next := memories[:0]
 			for _, m := range memories {
 				if _, err := s.Memories().Get(ctx, m); err == nil {

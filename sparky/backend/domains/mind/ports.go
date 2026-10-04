@@ -14,7 +14,8 @@ type Repository interface {
 	Get(ctx context.Context, id string) (Mind, error)
 	Insert(ctx context.Context, m Mind) error
 	Update(ctx context.Context, expectedRev int64, m Mind) error
-	Delete(ctx context.Context, id string) error
+	// Delete succeeds only when expectedRev is 0 or equals the stored rev.
+	Delete(ctx context.Context, expectedRev int64, id string) error
 }
 
 // Service is the mind use-case port. W1-DOMAIN implements it.
@@ -23,6 +24,6 @@ type Service interface {
 	Get(ctx context.Context, id string) (Mind, error)
 	Create(ctx context.Context, actor actor.Actor, in Create) (Mind, error)
 	Update(ctx context.Context, actor actor.Actor, id string, expectedRev int64, patch Patch) (Mind, error)
-	Delete(ctx context.Context, actor actor.Actor, id string) (DeleteResult, error)
+	Delete(ctx context.Context, actor actor.Actor, id string, expectedRev int64) (DeleteResult, error)
 	Reorder(ctx context.Context, actor actor.Actor, parentID *string, orderedIDs []string) ([]Mind, error)
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/search"
 	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
-	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
 	searchprovider "github.com/polterware/polterware/sparky/backend/providers/search"
+	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
 )
 
 type searchHandler struct{ s search.Service }
@@ -91,7 +91,7 @@ func (h attachmentHandler) ImportFromPath(ctx context.Context, r *connect.Reques
 		return nil, unavailable("attachments")
 	}
 	in := r.Msg
-	a, err := h.s.ImportFromPath(ctx, in.MemoryId, in.SourcePath, in.Name)
+	a, err := h.s.ImportFromPath(ctx, in.MemoryId, in.SourcePath, in.Name, in.GetExpectedRev())
 	return response(&v1.ImportAttachmentResponse{Attachment: attachmentProto(a)}, err)
 }
 func (h attachmentHandler) AddLink(ctx context.Context, r *connect.Request[v1.AddLinkRequest]) (*connect.Response[v1.AddLinkResponse], error) {
@@ -99,7 +99,7 @@ func (h attachmentHandler) AddLink(ctx context.Context, r *connect.Request[v1.Ad
 		return nil, unavailable("attachments")
 	}
 	in := r.Msg
-	a, err := h.s.AddLink(ctx, in.MemoryId, in.Url, in.Title)
+	a, err := h.s.AddLink(ctx, in.MemoryId, in.Url, in.Title, in.GetExpectedRev())
 	return response(&v1.AddLinkResponse{Attachment: attachmentProto(a)}, err)
 }
 func (h attachmentHandler) List(ctx context.Context, r *connect.Request[v1.ListAttachmentsRequest]) (*connect.Response[v1.ListAttachmentsResponse], error) {

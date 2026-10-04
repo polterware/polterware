@@ -12,7 +12,7 @@
       },
       "include": {
         "type": "array",
-        "description": "note, checklist, schedule, place, attachments, completions",
+        "description": "note,checklist,schedule,place,attachments,completions",
         "items": {
           "type": "string"
         }

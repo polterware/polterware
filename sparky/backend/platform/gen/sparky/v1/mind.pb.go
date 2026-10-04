@@ -584,6 +584,7 @@ func (x *UpdateMindResponse) GetMind() *Mind {
 type DeleteMindRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ExpectedRev   *int64                 `protobuf:"varint,2,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -623,6 +624,13 @@ func (x *DeleteMindRequest) GetId() string {
 		return x.Id
 	}
 	return ""
+}
+
+func (x *DeleteMindRequest) GetExpectedRev() int64 {
+	if x != nil && x.ExpectedRev != nil {
+		return *x.ExpectedRev
+	}
+	return 0
 }
 
 type DeleteMindResponse struct {
@@ -830,9 +838,11 @@ const file_sparky_v1_mind_proto_rawDesc = "" +
 	"\x05_iconB\r\n" +
 	"\v_sort_order\"9\n" +
 	"\x12UpdateMindResponse\x12#\n" +
-	"\x04mind\x18\x01 \x01(\v2\x0f.sparky.v1.MindR\x04mind\"#\n" +
+	"\x04mind\x18\x01 \x01(\v2\x0f.sparky.v1.MindR\x04mind\"\\\n" +
 	"\x11DeleteMindRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"l\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
+	"\fexpected_rev\x18\x02 \x01(\x03H\x00R\vexpectedRev\x88\x01\x01B\x0f\n" +
+	"\r_expected_rev\"l\n" +
 	"\x12DeleteMindResponse\x12(\n" +
 	"\x10deleted_mind_ids\x18\x01 \x03(\tR\x0edeletedMindIds\x12,\n" +
 	"\x12moved_memory_count\x18\x02 \x01(\x05R\x10movedMemoryCount\"S\n" +
@@ -914,6 +924,7 @@ func file_sparky_v1_mind_proto_init() {
 		return
 	}
 	file_sparky_v1_mind_proto_msgTypes[7].OneofWrappers = []any{}
+	file_sparky_v1_mind_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
