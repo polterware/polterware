@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -61,6 +62,68 @@ type linkIn struct {
 }
 
 func (s *Server) createOne(ctx context.Context, sess *MemorySession, item createItem) (map[string]any, error) {
+	if err := s.validateCreateExtras(item); err != nil {
+		return nil, err
+	}
+	if s.deps.Within == nil {
+		if len(item.Schedule) > 0 || len(item.Place) > 0 || len(item.Links) > 0 {
+			return nil, fault.Unavailable("atomic creation backend is not wired")
+		}
+		return s.createOneInTx(ctx, sess, item)
+	}
+	var row map[string]any
+	// Do not publish revisions from a rolled-back item into the real session.
+	provisional := NewMemorySession(s.deps.Memories, "unknown")
+	provisional.actor = sess.Actor()
+	err := s.deps.Within(ctx, func(ctx context.Context) error {
+		var err error
+		row, err = s.createOneInTx(ctx, provisional, item)
+		if err != nil {
+			return err
+		}
+		got, err := s.deps.Memories.Get(ctx, row["id"].(string), memory.Include{})
+		if err == nil {
+			row["rev"] = got.Memory.Rev
+		}
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	sess.observe(row["id"].(string), row["rev"].(int64))
+	return row, nil
+}
+
+func (s *Server) validateCreateExtras(item createItem) error {
+	if len(item.Schedule) > 0 && string(item.Schedule) != "null" {
+		if s.deps.Schedules == nil {
+			return fault.Unavailable("schedule backend is not wired")
+		}
+		if _, _, err := parseSchedule(item.Schedule, "pending"); err != nil {
+			return err
+		}
+	}
+	if len(item.Place) > 0 && string(item.Place) != "null" {
+		if s.deps.Places == nil {
+			return fault.Unavailable("place backend is not wired")
+		}
+		if _, err := parsePlace(item.Place, "pending"); err != nil {
+			return err
+		}
+	}
+	if len(item.Links) > 0 && s.deps.Attachments == nil {
+		return fault.Unavailable("attachments backend is not wired")
+	}
+	for _, link := range item.Links {
+		u, err := url.ParseRequestURI(link.URL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+			return fmt.Errorf("link must be an absolute HTTP(S) URL")
+		}
+	}
+	return nil
+}
+
+func (s *Server) createOneInTx(ctx context.Context, sess *MemorySession, item createItem) (map[string]any, error) {
 	in := memory.Create{Title: item.Title, Note: item.Note, Pinned: item.Pinned}
 	if item.Mind != "" {
 		id, err := optionalMind(ctx, s.deps.Minds, item.Mind)
@@ -105,7 +168,7 @@ func (s *Server) createOne(ctx context.Context, sess *MemorySession, item create
 		}
 	}
 	if len(item.Place) > 0 && string(item.Place) != "null" {
-		if err := s.setPlace(ctx, created.ID, item.Place); err != nil {
+		if err := s.setPlace(ctx, sess, created.ID, item.Place); err != nil {
 			return nil, err
 		}
 	}
@@ -205,7 +268,7 @@ func (s *Server) updateOne(ctx context.Context, sess *MemorySession, item update
 	if err != nil {
 		return nil, err
 	}
-	if len(item.Checklist) > 0 {
+	if item.Checklist != nil {
 		items, err := parseChecklist(item.Checklist)
 		if err != nil {
 			return nil, err
@@ -216,7 +279,8 @@ func (s *Server) updateOne(ctx context.Context, sess *MemorySession, item update
 		updated.Rev++
 		sess.observe(updated.ID, updated.Rev)
 	}
-	if err := s.applyTagChanges(ctx, sess, item, updated.Rev); err != nil {
+	updated.Rev, err = s.applyTagChanges(ctx, sess, item, updated.Rev)
+	if err != nil {
 		return nil, err
 	}
 	extra := map[string]any{"rev": updated.Rev, "title": updated.Title}
@@ -241,9 +305,11 @@ func (s *Server) updateOne(ctx context.Context, sess *MemorySession, item update
 	if len(item.Place) > 0 {
 		if string(item.Place) == "null" {
 			if s.deps.Places != nil {
-				_ = s.deps.Places.Clear(ctx, item.ID)
+				if err := s.deps.Places.Clear(ctx, sess.Actor(), item.ID); err != nil && !fault.IsCode(err, fault.CodeNotFound) {
+					return nil, err
+				}
 			}
-		} else if err := s.setPlace(ctx, item.ID, item.Place); err != nil {
+		} else if err := s.setPlace(ctx, sess, item.ID, item.Place); err != nil {
 			return nil, err
 		}
 	}
@@ -253,36 +319,45 @@ func (s *Server) updateOne(ctx context.Context, sess *MemorySession, item update
 	return itemOK(item.ID, extra), nil
 }
 
-func (s *Server) applyTagChanges(ctx context.Context, sess *MemorySession, item updateItem, rev int64) error {
-	if s.deps.Tags == nil || (len(item.Tags) == 0 && len(item.AddTags) == 0 && len(item.RemoveTags) == 0) {
-		return nil
+func (s *Server) applyTagChanges(ctx context.Context, sess *MemorySession, item updateItem, rev int64) (int64, error) {
+	if item.Tags == nil && len(item.AddTags) == 0 && len(item.RemoveTags) == 0 {
+		return rev, nil
+	}
+	if s.deps.Tags == nil {
+		return rev, fault.Unavailable("tags backend is not wired")
 	}
 	current, err := s.deps.Memories.Get(ctx, item.ID, memory.Include{Tags: true})
 	if err != nil {
-		return err
+		return rev, err
 	}
 	ids := append([]string{}, current.TagIDs...)
-	if len(item.Tags) > 0 {
+	if item.Tags != nil {
 		ids, err = resolveTags(ctx, s.deps.Tags, item.Tags)
 		if err != nil {
-			return err
+			return rev, err
 		}
 	}
 	if len(item.AddTags) > 0 {
 		add, err := resolveTags(ctx, s.deps.Tags, item.AddTags)
 		if err != nil {
-			return err
+			return rev, err
 		}
 		ids = union(ids, add)
 	}
 	if len(item.RemoveTags) > 0 {
 		remove, err := resolveTags(ctx, s.deps.Tags, item.RemoveTags)
 		if err != nil {
-			return err
+			return rev, err
 		}
 		ids = subtract(ids, remove)
 	}
-	return s.deps.Memories.SetTags(ctx, sess.Actor(), item.ID, rev, ids)
+	if err := s.deps.Memories.SetTags(ctx, sess.Actor(), item.ID, rev, ids); err != nil {
+		return rev, err
+	}
+	// SetTags increments exactly once under its revision check.
+	rev++
+	sess.observe(item.ID, rev)
+	return rev, nil
 }
 
 func (s *Server) setMemoryStatus(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
@@ -328,13 +403,23 @@ func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolReques
 	}
 	sess := s.session(req)
 	itemID := in.ItemID
+	explicit := in.ExpectedRev
 	if itemID == "" {
 		if in.ItemTitle == "" {
 			return fail(fmt.Errorf("itemId or itemTitle is required")), nil
 		}
+		expected := sess.expected(in.MemoryID, explicit)
 		got, err := s.deps.Memories.Get(ctx, in.MemoryID, memory.Include{Checklist: true})
 		if err != nil {
 			return fail(err), nil
+		}
+		// The title lookup is internal, not a snapshot returned to the agent.
+		// Preserve a prior read revision; on the first write, pin this lookup.
+		if explicit == nil {
+			if expected == 0 {
+				expected = got.Memory.Rev
+			}
+			explicit = &expected
 		}
 		for _, item := range got.Checklist {
 			if strings.EqualFold(item.Title, in.ItemTitle) {
@@ -346,11 +431,11 @@ func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolReques
 			return fail(fmt.Errorf("checklist item %q not found", in.ItemTitle)), nil
 		}
 	}
-	item, err := sess.ToggleCheckItem(ctx, in.MemoryID, itemID, in.ExpectedRev, nil)
+	item, rev, err := sess.ToggleWithRevision(ctx, in.MemoryID, itemID, explicit, nil)
 	if err != nil {
 		return fail(err), nil
 	}
-	return ok(item.Title, map[string]any{"id": item.ID, "title": item.Title, "done": item.Done, "memoryId": in.MemoryID}), nil
+	return ok(item.Title, map[string]any{"id": item.ID, "title": item.Title, "done": item.Done, "memoryId": in.MemoryID, "rev": rev}), nil
 }
 
 func (s *Server) deleteMemories(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
@@ -608,7 +693,7 @@ func (s *Server) setSchedule(ctx context.Context, sess *MemorySession, memoryID 
 	return nextOccurrences(times), nil
 }
 
-func (s *Server) setPlace(ctx context.Context, memoryID string, raw json.RawMessage) error {
+func (s *Server) setPlace(ctx context.Context, sess *MemorySession, memoryID string, raw json.RawMessage) error {
 	if s.deps.Places == nil {
 		return fault.Unavailable("place backend is not wired")
 	}
@@ -616,7 +701,7 @@ func (s *Server) setPlace(ctx context.Context, memoryID string, raw json.RawMess
 	if err != nil {
 		return err
 	}
-	_, err = s.deps.Places.Set(ctx, p)
+	_, err = s.deps.Places.Set(ctx, sess.Actor(), p)
 	return err
 }
 

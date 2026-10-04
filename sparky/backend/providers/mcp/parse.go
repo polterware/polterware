@@ -174,6 +174,9 @@ func parseSchedule(raw json.RawMessage, memoryID string) (schedule.Schedule, sch
 		}
 	}
 	if in.Focus != nil {
+		if in.Focus.WorkMin < 1 || in.Focus.WorkMin > 60 || in.Focus.ShortBreakMin < 1 || in.Focus.ShortBreakMin > 60 || in.Focus.LongBreakMin < 1 || in.Focus.LongBreakMin > 60 || in.Focus.Cycles < 1 || in.Focus.Cycles > 12 {
+			return schedule.Schedule{}, schedule.Rule{}, fault.Invalid(fault.Violation{Field: "schedule.focus", Reason: "invalid focus recipe"})
+		}
 		row.FocusEnabled = true
 		row.FocusWorkMin = intPtr(in.Focus.WorkMin)
 		row.FocusShortBreakMin = intPtr(in.Focus.ShortBreakMin)
@@ -216,6 +219,9 @@ func parsePlace(raw json.RawMessage, memoryID string) (place.Place, error) {
 	p := place.Place{MemoryID: memoryID, Name: in.Name, Lat: in.Lat, Lng: in.Lng, RadiusM: in.RadiusM, Event: in.Event, Active: true}
 	if p.RadiusM == 0 {
 		p.RadiusM = place.DefaultRadiusM
+	}
+	if p.Lat < -90 || p.Lat > 90 || p.Lng < -180 || p.Lng > 180 || p.RadiusM < place.MinRadiusM || p.RadiusM > place.MaxRadiusM || (p.Event != "" && p.Event != place.EventEnter && p.Event != place.EventExit) {
+		return place.Place{}, fault.Invalid(fault.Violation{Field: "place", Reason: "invalid coordinates, radius, or event"})
 	}
 	return p, nil
 }

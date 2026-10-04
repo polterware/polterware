@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/polterware/polterware/sparky/backend/compositions/core"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
+	"github.com/polterware/polterware/sparky/backend/domains/memory"
 	"github.com/polterware/polterware/sparky/backend/platform/coreclient"
 	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
 	"github.com/polterware/polterware/sparky/backend/platform/runstate"
@@ -105,5 +108,46 @@ func TestRotateTokenImmediatelyChangesMountedGuard(t *testing.T) {
 			t.Fatalf("file/live token differ: %v", err)
 		}
 		old = next
+	}
+}
+
+func TestCoreMCPPlaceWritesUseSessionActor(t *testing.T) {
+	rt := openCore(t)
+	httpServer := httptest.NewServer(rt.MCP.Handler)
+	defer httpServer.Close()
+	client := sdk.NewClient(&sdk.Implementation{Name: "place-review", Version: "0"}, nil)
+	sess, err := client.Connect(t.Context(), &sdk.StreamableClientTransport{Endpoint: httpServer.URL}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	m, err := rt.Services.Memories.Create(t.Context(), actor.UI(), memory.Create{Title: "Place task"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []any{map[string]any{"lat": -23.55, "lng": -46.63}, nil} {
+		res, err := sess.CallTool(t.Context(), &sdk.CallToolParams{Name: "update_memories", Arguments: map[string]any{"items": []map[string]any{{"id": m.ID, "place": p}}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row := structured(t, res)["results"].([]any)[0].(map[string]any); row["ok"] != true {
+			t.Fatal(row)
+		}
+	}
+	page, err := rt.Services.Activity.List(t.Context(), "", "", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	for _, event := range page.Events {
+		if event.Entity == "place" && event.EntityID == m.ID {
+			count++
+			if event.Actor != "mcp:place-review" {
+				t.Fatalf("place audit actor: %s", event.Actor)
+			}
+		}
+	}
+	if count != 2 {
+		t.Fatalf("place audit writes: %d", count)
 	}
 }

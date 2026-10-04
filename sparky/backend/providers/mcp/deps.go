@@ -35,6 +35,12 @@ type Schedules interface {
 	ListOccurrences(ctx context.Context, from, to time.Time, mindID *string, includeCompleted bool, limit int) ([]schedule.Occurrence, error)
 }
 
+// Places carries the MCP actor without changing the frozen domain service.
+type Places interface {
+	Set(context.Context, actor.Actor, place.Place) (place.Place, error)
+	Clear(context.Context, actor.Actor, string) error
+}
+
 // Deps is the same domain surface the UI uses. Optional ports may be nil.
 type Deps struct {
 	Within      func(context.Context, func(context.Context) error) error
@@ -46,7 +52,7 @@ type Deps struct {
 	Review      review.Service
 	Search      search.Service
 	Attachments attachments.Service
-	Places      place.Service
+	Places      Places
 	Settings    settings.Service
 	Schedules   Schedules
 	GetSchedule func(context.Context, string) (schedule.Schedule, error)

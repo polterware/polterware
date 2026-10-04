@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
+	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
 	"github.com/polterware/polterware/sparky/backend/platform/listen"
@@ -25,6 +26,16 @@ func (h mcpHandler) guard(token string, port int) (func(http.Handler) http.Handl
 		return mcp.NewLiveGuard(h.currentToken, port, mcp.MaxBodyBytes)
 	}
 	return mcp.NewGuard(token, port, mcp.MaxBodyBytes)
+}
+
+// mcpPlaces supplies the session actor to the unchanged Place domain port.
+type mcpPlaces struct{ place.Service }
+
+func (p mcpPlaces) Set(ctx context.Context, who actor.Actor, in place.Place) (place.Place, error) {
+	return p.Service.Set(context.WithValue(ctx, actorKey{}, who), in)
+}
+func (p mcpPlaces) Clear(ctx context.Context, who actor.Actor, id string) error {
+	return p.Service.Clear(context.WithValue(ctx, actorKey{}, who), id)
 }
 
 type mcpSchedules struct{ ScheduleUseCases }
@@ -52,11 +63,17 @@ func bindMCP(services Services, token string, port int, enabled bool, version st
 	deps := mcp.Deps{
 		Version: version, Memories: services.Memories, Minds: services.Minds, Tags: services.Tags,
 		Activity: services.Activity, Review: services.Review, Search: services.Search,
-		Attachments: services.Attachments, Places: services.Places, Settings: services.Settings,
+		Attachments: services.Attachments, Settings: services.Settings,
 	}
 	var currentToken func() (string, error)
 	if agents, ok := services.Agents.(agentService); ok {
 		currentToken = agents.currentToken
+		if agents.audit.Transactions != nil {
+			deps.Within = agents.audit.Transactions.Within
+		}
+	}
+	if services.Places != nil {
+		deps.Places = mcpPlaces{services.Places}
 	}
 	if services.ScheduleReader != nil {
 		deps.GetSchedule = services.ScheduleReader.Get
