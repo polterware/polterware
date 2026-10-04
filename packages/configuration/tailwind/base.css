@@ -29,7 +29,7 @@
   /* Text and icons always use solid neutral paint. */
   --color-text-primary: #ececec;
   --color-text-secondary: #a4a4a4;
-  --color-text-muted: #6f6f6f;
+  --color-text-muted: #8f8f8f;
   --color-text-disabled: #4b4b4b;
 
   /* Primary CTA — pastel cyan; rare special buttons only (not brand green) */
