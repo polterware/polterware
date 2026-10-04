@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "sparky": {
+      "url": "http://127.0.0.1:48001/mcp",
+      "headers": {
+        "Authorization": "Bearer abc"
+      }
+    }
+  }
+}

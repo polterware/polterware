@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "sparky": {
+      "command": "sparky",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

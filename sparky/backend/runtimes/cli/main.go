@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/polterware/polterware/sparky/backend/platform/runstate"
 	"io"
 	"os"
 	"os/signal"
@@ -31,7 +30,9 @@ func run(ctx context.Context, args []string, out, stderr io.Writer) int {
 	}
 	db := fs.String("db", defaultPath, "SQLite database path")
 	fs.Usage = func() {
-		fmt.Fprintln(stderr, "Usage: sparky [-db path] <serve|mcp|status|doctor> [options]")
+		fmt.Fprintln(stderr, "Usage: sparky [-db path] <command> [options]")
+		fmt.Fprintln(stderr, "Commands: serve mcp status doctor add list show done rm mind tag search today agenda review export backup completion")
+		fmt.Fprintln(stderr, "mcp config <claude|cursor|claude-desktop> prints client snippets")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -54,24 +55,58 @@ func run(ctx context.Context, args []string, out, stderr io.Writer) int {
 	case "serve":
 		err = runServe(ctx, path, args[1:], stderr)
 	case "mcp":
-		err = runMCP(ctx, path, args[1:], os.Stdin, out, stderr)
+		if len(args) > 1 && args[1] == "config" {
+			err = runMCPConfig(ctx, path, args[2:], out, stderr)
+		} else {
+			err = runMCP(ctx, path, args[1:], os.Stdin, out, stderr)
+		}
 	case "status":
 		err = runStatus(ctx, path, args[1:], out, stderr)
 	case "doctor":
 		err = runDoctor(ctx, path, args[1:], out, stderr)
+	case "add":
+		err = runAdd(ctx, path, args[1:], out, stderr)
+	case "list":
+		err = runList(ctx, path, args[1:], out, stderr)
+	case "show":
+		err = runShow(ctx, path, args[1:], out, stderr)
+	case "done":
+		err = runDone(ctx, path, args[1:], out, stderr)
+	case "rm":
+		err = runRm(ctx, path, args[1:], out, stderr)
+	case "mind":
+		err = runMind(ctx, path, args[1:], out, stderr)
+	case "tag":
+		err = runTag(ctx, path, args[1:], out, stderr)
+	case "search":
+		err = runSearch(ctx, path, args[1:], out, stderr)
+	case "today":
+		err = runToday(ctx, path, args[1:], out, stderr)
+	case "agenda":
+		err = runAgenda(ctx, path, args[1:], out, stderr)
+	case "review":
+		err = runReview(ctx, path, args[1:], out, stderr)
+	case "export":
+		err = runExport(ctx, path, args[1:], out, stderr)
+	case "backup":
+		err = runBackup(ctx, path, args[1:], out, stderr)
+	case "completion":
+		err = runCompletion(args[1:], out, stderr)
 	default:
 		fmt.Fprintf(stderr, "sparky %s: unknown command %q\n", version, args[0])
-		return 2
+		return ExitUsage
 	}
 	if err != nil {
-		fmt.Fprintf(stderr, "sparky: %v\n", err)
-		var locked runstate.LockedError
-		if errors.As(err, &locked) {
-			return 3
+		if errors.Is(err, flag.ErrHelp) {
+			return ExitOK
 		}
-		return 1
+		code := exitCodeOf(err)
+		if msg := err.Error(); msg != "" {
+			fmt.Fprintf(stderr, "sparky: %s\n", msg)
+		}
+		return code
 	}
-	return 0
+	return ExitOK
 }
 func defaultDB() (string, error) {
 	if data := os.Getenv("SPARKY_DATA_DIR"); data != "" {
