@@ -1,0 +1,12 @@
+# w1-search status
+- Result: partial
+- Branch / last commit: `sparky/w1-search`; implementation `9a5372e`, followed by this status commit
+- Acceptance criteria:
+  - Portuguese/English tokenization, diacritics, prefix, phrase escaping, and operator-safe query construction -> pass (`go test ./providers/search/...`; real SQLite harness matched `cafe reu` to `Café réunion` and returned a title snippet).
+  - Mind, tag, status, and date filters -> pass in the provider (real SQLite harness); date filters are not exposed in the frozen RPC, see request 1.
+  - FTS p95 < 30 ms at 10k memories -> pass (temporary real SQLite harness, 100 queries, p95 25.1 ms).
+  - Consistency after rollback, bulk delete, Mind cascade, and identical `Reindex` rebuild -> fail/incomplete (provider Upsert accepts a caller-owned transaction and Rebuild is atomic, but W1-STORE has not supplied transaction wiring or a document projection; end-to-end consistency was not demonstrated).
+- Deviations from the plan (and why): Search service and provider are implemented, but the SQLite source/wiring and date filter RPC need changes outside Owns and beyond frozen contracts. `polterware format`, `polterware query cards`, `polterware status`, and `polterware handoff` could not run because the `polterware` executable is not available in PATH.
+- Requests filed (plans/sparky-next/requests/...): `plans/sparky-next/requests/w1-search-1.md`
+- Follow-ups for other WS: W1-STORE/core should implement the search document projection and use the shared SQLite transaction for index mutations; contract owner/integrator should apply the requested timestamp fields before date-filter acceptance is claimed.
+- Verify: `cd sparky/backend && go vet ./domains/search/... ./providers/search/... && go test ./domains/search/... ./providers/search/... -race -count=1` (pass); `git diff --check` (pass).
