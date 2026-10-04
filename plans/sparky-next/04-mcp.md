@@ -43,7 +43,7 @@ Read
 | `list_minds` | `parent?` | compact tree `name(id) > children` |
 | `list_tags` | – | name, color, count |
 | `list_memories` | `mind?`, `includeDescendants?`, `tag?`, `status?`, `pinned?`, `dueFrom?`, `dueTo?`, `updatedFrom?`, `updatedTo?`, `hasSchedule?`, `query?` (FTS), `order?`, `limit?`, `cursor?` | summaries |
-| `search_memories` | `query`, `mode?` (`hybrid` default, `fts`, `semantic`), `mind?`, `tag?`, `limit?` | ranked, with `score` and `matchedIn`; falls back to `fts` with a notice if semantic is not configured |
+| `search_memories` | `query`, `mind?`, `tag?`, `limit?` | FTS5 ranked, with `score`, `matchedIn` and highlighted `snippet`; text search only (an agent may rerank the results) |
 | `get_memory` | `id`, `include?` | full entity |
 | `list_occurrences` | `from`, `to`, `mind?`, `includeCompleted?`, `limit?` | "what is on my plate": occurrences with completion state, overdue flagged |
 | `get_review` | `period?` (`week` default, `month`, `year`) | totals, streak, per-day counts, focus minutes |

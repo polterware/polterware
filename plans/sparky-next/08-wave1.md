@@ -19,7 +19,7 @@ patterns at `backend/platform/*`, `backend/compositions/local-core/*`, `backend/
 - `platform/db`: `Open(path)` (WAL, `foreign_keys`, `busy_timeout`, `synchronous=NORMAL`, one writer connection + a small reader
   pool), forward-only `Migrate`, `schema_migrations`.
 - Repositories for minds, memories (+ check items, tags, completions, schedule, place, attachments metadata), tags, focus
-  sessions, activity, settings, embeddings; all mutations within a `Tx` helper that also applies the FTS update through the
+  sessions, activity, settings; all mutations within a `Tx` helper that also applies the FTS update through the
   `search.Index` port when present.
 - `platform/changes`: copy the Polterware idea (pre-update + commit hooks → once per committed transaction emit
   `[]Change{entity,id,op}`), a bounded in-process broadcaster with `seq` numbers and replay of the last 1 000 changes for
@@ -70,7 +70,7 @@ the package `doc.go`.
 loopback listener, Connect handlers for every service in 02 delegating to domain services (error mapping per 02), bearer
 interceptor (constant-time), `ChangeService.Watch` stream, `HealthService`, build id handshake (`coreclient.BuildID`), graceful
 shutdown, log rotation, `doctor` and `status` commands, `ReminderService` handlers (`Plan/Ack/Snooze/ArmOneOff/CancelOneOff/Heartbeat/Status`, planner from W1-RECURRENCE),
-`MaintenanceService` (Export zip, Backup via `VACUUM INTO`). Wire SQLite repos, search index, attachments, embeddings by their
+`MaintenanceService` (Export zip, Backup via `VACUUM INTO`). Wire SQLite repos, search index, attachments by their
 ports (they can be stubbed until their WS merge; use build-time registration so merges don't conflict).
 **Acceptance.** `dist/sparky serve` starts, writes `core.json`, second instance exits 3 with the Polterware-style message;
 integration tests (`tests/integration`) drive every RPC over a real loopback server against a temp DB; unauthenticated calls
@@ -89,18 +89,15 @@ bridge (`sparky mcp`) that finds/starts the core, HTTP at `/mcp` with the securi
 Claude Code client creating, searching and completing memories; Inspector smoke documented.
 **Verify.** `cd sparky/backend && go test ./providers/mcp/... ./tests/mcp/... -race -count=1`.
 
-## W1-SEARCH — FTS5 and semantic search
+## W1-SEARCH — FTS5 search
 
-**Owns.** `sparky/backend/domains/search/**`, `sparky/backend/providers/search/**`, `sparky/backend/providers/embeddings/**`.
+**Owns.** `sparky/backend/domains/search/**`, `sparky/backend/providers/search/**`.
 **Goal.** Implement the search section of [05-search-attachments-map.md](05-search-attachments-map.md).
 **Do.** `search.Index` implementation (FTS5 upsert/delete/rebuild; coordinates with W1-STORE through the port), query builder
-(tokenizer-safe, prefix, bm25 weights, snippets), embedding workers + providers (`openai-compatible` only; no local runtime; HTTP client with
-timeouts/backoff; key received at runtime, never persisted), brute-force vector search with heap top-K, RRF fusion, status
-reporting, `Reindex`, filters applied pre-fusion.
-**Acceptance.** Fixtures in Portuguese/English (diacritics, prefix, phrases, operators escaped); budgets from W0-STORE; with a
-fake embedding provider (deterministic hash embeddings) hybrid ranking tests pass; provider failure degrades to `fts` with
-`modeUsed`; no secret ever appears in logs (test with a canary key).
-**Verify.** `cd sparky/backend && go test ./domains/search/... ./providers/search/... ./providers/embeddings/... -race -count=1`.
+(tokenizer-safe, prefix, bm25 weights, snippets), status reporting, `Reindex`, filters (Mind, tags, status, dates).
+**Acceptance.** Fixtures in Portuguese/English (diacritics, prefix, phrases, operators escaped); budgets from W0-STORE (FTS p95 < 30 ms at 10k);
+index stays consistent after rollback, bulk delete and Mind cascade delete; `Reindex` rebuilds identically.
+**Verify.** `cd sparky/backend && go test ./domains/search/... ./providers/search/... -race -count=1`.
 
 ## W1-ATTACH — attachments store
 

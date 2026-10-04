@@ -29,7 +29,7 @@ Core: Minds (hierarchy), Memories (title, Markdown note, status, pin, priority, 
 recurrence + reminders, Inbox/Today views, MCP.
 Plus: calendar (day/week/month), focus (pomodoro, standalone or tied to a memory), review (stats, streak, contribution
 calendar), attachments (photo, audio, link, file), **free map** (places on memories, no geofence arming), full-text search
-(FTS5), semantic search (opt-in), expanded MCP (tags, attachments, batch writes, occurrences, review), CLI + local API.
+(FTS5 only), expanded MCP (tags, attachments, batch writes, occurrences, review), CLI + local API.
 Out of scope: iPhone, geofence arming, accounts, sync, Cloud, Windows/Linux, App Store.
 
 ## Read first (in this order)
@@ -42,7 +42,7 @@ Out of scope: iPhone, geofence arming, accounts, sync, Cloud, Windows/Linux, App
 | 4 | [02-data-and-contracts.md](02-data-and-contracts.md) | SQL schema, RPC surface, error model |
 | 5 | [03-recurrence-and-reminders.md](03-recurrence-and-reminders.md) | Schedule semantics, test vectors, notifier protocol |
 | 6 | [04-mcp.md](04-mcp.md) | MCP transports, tools, token budgets |
-| 7 | [05-search-attachments-map.md](05-search-attachments-map.md) | FTS5, embeddings, attachments, map |
+| 7 | [05-search-attachments-map.md](05-search-attachments-map.md) | FTS5, attachments, map |
 | 8 | [06-ui.md](06-ui.md) | Brand, shell, screens, design-system work |
 | 9 | [07-wave0.md](07-wave0.md) … [10-wave3-and-verification.md](10-wave3-and-verification.md) | Workstreams per wave |
 | 10 | [11-swift-reference-map.md](11-swift-reference-map.md) | Which Swift file explains what |
@@ -67,7 +67,7 @@ apps/sparky-desktop/        Electron: src/main, src/preload, src/renderer, resou
 apps/sparky-notifier/       Swift login-item helper (SparkyNotifier.app)
 sparky/backend/             Go module github.com/polterware/polterware/sparky/backend
   domains/                  pure domain logic (no I/O imports)
-  providers/                sqlite, mcp, search, attachments, embeddings
+  providers/                sqlite, mcp, search, attachments
   compositions/core/        Connect handlers + wiring
   platform/                 runstate, ids, token, listen, changes, clock
   runtimes/cli/             the `sparky` binary (serve, mcp, status, doctor, CLI verbs)

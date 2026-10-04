@@ -161,11 +161,6 @@ CREATE VIRTUAL TABLE memory_fts USING fts5(
   memory_id UNINDEXED, title, note, checklist, tags, mind,
   tokenize = 'unicode61 remove_diacritics 2', prefix = '2 3'
 );
-CREATE TABLE embeddings (
-  memory_id TEXT PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
-  model TEXT NOT NULL, dims INTEGER NOT NULL, vector BLOB NOT NULL,   -- float32 little-endian, L2-normalized
-  text_hash TEXT NOT NULL, updated_at TEXT NOT NULL
-) STRICT;
 ```
 
 Derived rules enforced by services (not SQL): `status='completed'` ⇒ `completed_at` set; recurring memories complete **per
@@ -188,7 +183,7 @@ W0-CONTRACTS writes the protos. Required services and methods (field lists = the
 | `AttachmentService` | `ImportFromPath`(source path from Main's file dialog/drag), `AddLink`, `List`, `Delete`, `Reorder`, `OpenInfo`(returns absolute path for Main to preview/open) |
 | `FocusService` | `GetDefaults`, `SetDefaults`, `RecordSession`, `ListSessions`(range) |
 | `ReviewService` | `Get`(range, tz) → activity per day/period, streak, totals, contribution days, mood inputs |
-| `SearchService` | `Search`(query, mode `fts`/`semantic`/`hybrid`, filters, limit), `Status`(index + embedding state), `Reindex`, `ConfigureEmbedding`, `TestEmbedding` |
+| `SearchService` | `Search`(query, filters, limit; FTS5 only), `Status`(index state), `Reindex` |
 | `ReminderService` | `Plan`(now, budget, horizon) → items (schedule occurrences **and** pending one-offs), `Ack`(delivered/opened/done), `Snooze`(memory_id, occurrence_at, minutes → creates a `snooze` one-off), `ArmOneOff`(kind `focus_phase`, memory_id?, fire_at, title) / `CancelOneOff`(id), `Heartbeat`(notifier: authorization state, armed count) , `Status` → `{planned, armed, notifierLastSeenAt, permission}` for the UI chip |
 | `ActivityService` | `List`(cursor, actor filter) |
 | `SettingsService` | `Get`, `Set` (typed keys only, see below) |
@@ -203,13 +198,13 @@ W0-CONTRACTS writes the protos. Required services and methods (field lists = the
 Typed settings keys (`SettingsService`): `appearance.theme` (`system|dark|light` — v1 ships dark only; key reserved),
 `notifications.sound`, `notifications.allDayTime` (default `09:00`), `notifications.snoozeMinutes` (default 10),
 `focus.work|shortBreak|longBreak|cycles|autoContinue|sounds|notifications`, `map.online` (bool), `map.provider`,
-`search.semantic.*`, `agents.mcpPort`, `agents.mcpEnabled`, `agents.allowFileAttach`, `app.keepRunningInBackground`.
+`agents.mcpPort`, `agents.mcpEnabled`, `agents.allowFileAttach`, `app.keepRunningInBackground`.
 
 ## Error model
 
 Connect codes: `INVALID_ARGUMENT` (details: list of `{field, reason}`), `NOT_FOUND`, `ALREADY_EXISTS`,
 `FAILED_PRECONDITION` (rev conflict: details carry the current entity; also "mind has cycle", "schedule in the past"),
-`UNAUTHENTICATED`, `RESOURCE_EXHAUSTED` (attachment too large), `UNAVAILABLE` (embedding provider down), `INTERNAL`.
+`UNAUTHENTICATED`, `RESOURCE_EXHAUSTED` (attachment too large), `INTERNAL`.
 MCP maps them to tool errors with a short actionable sentence (see [04-mcp.md](04-mcp.md)).
 
 ## Domain ports (Go)

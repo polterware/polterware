@@ -5,7 +5,7 @@
 | R1 | Notifier cannot run reliably ad-hoc/unsigned, or macOS blocks the helper identity/permission prompt | Medium / **High** (core promise) | W0-NOTIFIER | Try agent vs loginItem; try Developer ID (ask Erick); **Plan B** in 03 (Electron-posted notifications while Sparky runs in the background) and say so in the UI and docs |
 | R2 | macOS pending-notification limit is lower than the planned budget | Medium / Medium | W0-NOTIFIER | Set `Budget` to the measured limit; keep nearest-first global planning; re-plan on wake/delivery |
 | R3 | Official Go MCP SDK lacks something needed (streamable HTTP details, structured output, progress) | Low–Medium / Medium | W0-MCP | Hand-rolled JSON-RPC like Polterware (known to work); isolate behind `providers/mcp` interfaces |
-| R4 | `modernc.org/sqlite` lacks FTS5 or hook APIs, or vector brute-force is too slow | Low / Medium | W0-STORE | `ncruces/go-sqlite3` (WASM) with `sqlite-vec`; ANN index; or tighten limits |
+| R4 | `modernc.org/sqlite` lacks FTS5 or hook APIs | Low / Medium | W0-STORE (passed) | `ncruces/go-sqlite3` (WASM) |
 | R5 | Design-system refactor regresses Polterware | Medium / **High** | W1-DS non-regression | Provider-with-defaults (no behavior change), screenshot diffs, small commits, revert-friendly commits, run Polterware tests every commit |
 | R6 | Map provider terms forbid app use or tiles unreliable | Medium / Low–Medium | W0-MAP | Leaflet + self-hosted/bundled PMTiles; or ship the map as an optional online feature with the disclosure |
 | R7 | Recurrence edge cases (DST, month ends) wrong | Medium / Medium | W1-RECURRENCE vectors + fuzz | Vectors in 03 are normative; compare with Swift for simple cases; add cases when bugs appear |
@@ -14,7 +14,7 @@
 | R10 | Scope is large (full feature parity + new backend features) | High / Medium | Wave gates | Gates make progress shippable per wave; features inside Wave 2 are independent and can slip individually without blocking release (decide with Erick) |
 | R11 | `go 1.27` / `TypeScript 7` / `pnpm 12` toolchains drift between agent machines | Low / Low | verify scripts | Pin in `go.mod`/`package.json` (`packageManager`), CI uses the same versions |
 | R12 | Window closed + core alive confuses users about "is Sparky running?" | Medium / Low | W3-POLISH | Setting + clear status chip + menu item "Quit Sparky completely" that stops the core and notifier registration prompt |
-| R13 | Privacy: embeddings provider or map tiles leak data | Medium / Medium | W2-SEARCH-UI, W2-MAP | Off by default, explicit disclosures, network-isolation tests (no requests while disabled) |
+| R13 | Privacy: map tiles leak the viewport | Medium / Medium | W2-MAP | `map.online` setting, explicit disclosure, network-isolation test (no requests while disabled) |
 
 ## Plan-B switch procedure (reminders)
 

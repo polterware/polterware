@@ -54,7 +54,7 @@ Modeled on the Polterware local core (`backend/runtimes/cli/serve.go`, `backend/
 ## Data flows
 
 **UI write.** Renderer → `window.sparky.memories.update(input)` → Main → Connect → domain service (checks `rev`, validates,
-writes, appends `activity`, updates FTS/embedding queue) → commit hook emits a change → `WatchChanges` stream → Main →
+writes, appends `activity`, updates FTS) → commit hook emits a change → `WatchChanges` stream → Main →
 IPC event → renderer store invalidates and refetches affected entities.
 
 **Agent write (MCP).** MCP client → tool → the **same domain service** (actor `mcp:<clientName>`) → commit → change stream →

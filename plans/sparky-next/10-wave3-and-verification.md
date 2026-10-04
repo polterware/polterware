@@ -26,8 +26,7 @@ file; flaky tests quarantined with an issue note, not skipped silently.
 allowlist/schema validation/protocol handlers/deep-link parser fuzz), core (bearer, Host/Origin, body limits, timeouts, path handling,
 SSRF, SQL parameterization via grep + tests, log secrecy), MCP (token handling, DNS rebinding with a real browser fetch from a
 malicious page, `confirm` semantics, file-attach gate), notifier (identifier handling, action authenticity), supply chain
-(`pnpm audit`, `govulncheck`, lockfile review, no postinstall surprises), secrets at rest (0600 files, embeddings key only in
-Keychain). Use the `claude-security` / `security-review` tooling if available in your environment.
+(`pnpm audit`, `govulncheck`, lockfile review, no postinstall surprises), secrets at rest (0600 files). Use the `claude-security` / `security-review` tooling if available in your environment.
 **Acceptance.** No open High/Critical; every Medium has a fix or a recorded risk acceptance by Erick; DNS-rebinding and CSRF PoCs fail.
 
 ## W3-POLISH — design, motion, accessibility, copy

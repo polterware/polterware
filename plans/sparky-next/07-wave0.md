@@ -103,19 +103,16 @@ risk; a recommendation. Both transports pass the Inspector. Anti-DNS-rebinding c
 
 ---
 
-## W0-STORE — spike S3: SQLite capabilities and vector search cost
+## W0-STORE — spike S3: SQLite capabilities
 
 **Goal.** Verify the database assumptions. **Resolves O3.**
 **Owns.** `spikes/store/**`.
 **Do.** With `modernc.org/sqlite` (same version as `backend/go.mod`): confirm FTS5 + `bm25` + `snippet` + `prefix`; WAL with
 one writer + several readers; `PreUpdate`/`Commit` hooks (copy the idea from `backend/platform/db/sqlite/hooks.go`) emitting
 entity-level change events; load the baseline SQL from W0-CONTRACTS if merged, otherwise the DDL in doc 02. Benchmarks on
-synthetic data: 10k and 50k memories — FTS query p50/p95, `list_memories` with filters, insert throughput, DB size; brute-force
-cosine over 10k/20k/50k × 384/768-dim vectors (single-thread and 4 goroutines) with a heap top-K. Embedding provider probe:
-(Ollama is **not** part of the product: skip any embedding-provider probe.)
-**Acceptance.** Benchmarks table (ns/op and p95) in the status file; pass/fail against budgets (FTS p95 < 30 ms @10k; vector
-top-K < 50 ms @20k×768); statement on any missing capability and the fallback (`ncruces/go-sqlite3` WASM, `sqlite-vec`).
-**Output decision.** O3 and A8 confirmation.
+synthetic data: 10k and 50k memories — FTS query p50/p95, `list_memories` with filters, insert throughput, DB size; (vector and embedding benchmarks are **out of scope**: there is no semantic search).
+**Acceptance.** Benchmarks table (ns/op and p95) in the status file; pass/fail against budgets (FTS p95 < 30 ms @10k; list_memories budgets); statement on any missing capability and the fallback (`ncruces/go-sqlite3` WASM).
+**Output decision.** O3.
 
 ---
 

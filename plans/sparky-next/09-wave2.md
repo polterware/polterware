@@ -141,9 +141,8 @@ failure honestly when MCP is off.
 ## W2-SEARCH-UI — search and filters
 
 **Owns.** `packages/features/sparky-search/**`.
-**Do.** Search page and Commander search source: mode switch (FTS/semantic/hybrid) with the true `modeUsed`, filters (Mind,
-tags, status, dates), highlighted snippets, keyboard navigation, empty/degraded states ("Semantic search is not configured —
-using full-text"), recent searches (local only), saved filter chips.
+**Do.** Search page and Commander search source: filters (Mind,
+tags, status, dates), highlighted snippets, keyboard navigation, empty states, recent searches (local only), saved filter chips.
 **Acceptance.** Results match `SearchService` fixtures; degraded-state copy accurate; handles 10k-memory data under 100 ms of UI work.
 
 ## W2-CLI — `sparky` command line
