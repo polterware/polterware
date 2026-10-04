@@ -139,8 +139,8 @@ func (s *ServiceImpl) ImportFromPath(ctx context.Context, memoryID, sourcePath, 
 }
 
 func (s *ServiceImpl) AddLink(ctx context.Context, memoryID, rawURL, title string, expectedRev int64) (Attachment, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	// Link insertion is serialized by the writer transaction. Avoid taking
+	// the file-import mutex when joining an already-open transaction.
 	u, err := url.ParseRequestURI(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
 		return Attachment{}, fault.Invalid(fault.Violation{Field: "url", Reason: "must be an http or https URL"})

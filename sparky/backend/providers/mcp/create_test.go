@@ -86,3 +86,52 @@ func TestCreateRollsBackMemorySchedulePlaceAndEarlierLinks(t *testing.T) {
 		t.Fatal("committed revision not registered")
 	}
 }
+
+type blockedFileImport struct {
+	attachments.Store
+	store   *fake.Store
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (s blockedFileImport) ImportFile(context.Context, string, string, string) (attachments.ImportedFile, error) {
+	close(s.entered)
+	<-s.release
+	return attachments.ImportedFile{}, fmt.Errorf("injected import failure")
+}
+func (s blockedFileImport) Insert(ctx context.Context, in attachments.Attachment) error {
+	return s.store.Put(ctx, "test_links", in.ID, in)
+}
+
+func TestCompoundLinkWriteDoesNotWaitForFileImportMutex(t *testing.T) {
+	f := testkit.Setup()
+	m, err := f.MS.Create(t.Context(), actor.UI(), memory.Create{Title: "Task"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := blockedFileImport{store: f.Store, entered: make(chan struct{}), release: make(chan struct{})}
+	svc := attachments.NewService(store, f.Audit.IDs, f.Audit.Clock).WithMemoryRev(f.Mem, f.Store)
+	imported := make(chan error, 1)
+	go func() { _, err := svc.ImportFromPath(t.Context(), m.ID, "blocked", "", 1); imported <- err }()
+	<-store.entered
+	written := make(chan error, 1)
+	go func() {
+		written <- f.Store.Within(t.Context(), func(ctx context.Context) error {
+			_, err := svc.AddLink(ctx, m.ID, "https://example.com", "", 1)
+			return err
+		})
+	}()
+	select {
+	case err := <-written:
+		close(store.release)
+		<-imported
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		close(store.release)
+		<-imported
+		<-written
+		t.Fatal("compound write waits for the file-import mutex while holding the writer transaction")
+	}
+}
