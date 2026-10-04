@@ -63,7 +63,7 @@ export function FocusPage(props: { store?: FocusStore }) {
         subtitle={<StatusChip tone={honestyTone(store.loadState())}>{store.loadState() === "live" ? "Live" : store.loadState() === "queued" ? "Queued" : store.loadState() === "failed" ? "Failed" : "Unavailable"}</StatusChip>}
         actions={
           <Show when={!snap().isSessionActive}>
-            <Button ref={element => { recipeAnchor = element; }} variant="secondary" onClick={() => setRecipeOpen(open => !open)}>Recipe</Button>
+            <Button ref={element => { recipeAnchor = element; }} aria-haspopup="dialog" aria-expanded={recipeOpen()} variant="secondary" onClick={() => setRecipeOpen(open => !open)}>Recipe</Button>
           </Show>
         }
       />
@@ -94,11 +94,11 @@ export function FocusPage(props: { store?: FocusStore }) {
             <Show when={snap().isQuickSession}><p class="text-[13px] text-[var(--color-text-muted)]">Quick focus</p></Show>
             <Show when={snap().memoryId}><p class="text-[13px] text-[var(--color-text-muted)]">Memory-bound</p></Show>
             <ProgressRing label={`${phaseLabel(snap().phase)} remaining`} value={Math.round(snap().progress * 100)} size={180} thickness={8} />
-            <p class="text-[28px] font-semibold tabular-nums text-[var(--color-text-primary)]" aria-live="polite">{formatRemaining(snap().remainingMs)}</p>
-            <p class="text-[13px] text-[var(--color-text-secondary)]">{phaseLabel(snap().phase)}</p>
+            <p class="text-[28px] font-semibold tabular-nums text-[var(--color-text-primary)]" role="timer" aria-live="off" aria-label="Time remaining">{formatRemaining(snap().remainingMs)}</p>
+            <p class="text-[13px] text-[var(--color-text-secondary)]" role="status" aria-live="polite" aria-atomic="true">{phaseLabel(snap().phase)}{snap().isSessionActive ? snap().isRunning ? " · Running" : snap().isWaitingForManualStart ? " · Ready" : " · Paused" : ""}</p>
             <div class="flex gap-2" role="list" aria-label="Completed focus cycles">
               <For each={cycles()}>{index => (
-                <span role="listitem" class={`h-2 w-2 rounded-full ${index < filled() ? "bg-[var(--color-brand)]" : "bg-[var(--color-border-subtle)]"}`} aria-label={index < filled() ? `Cycle ${index + 1} complete` : `Cycle ${index + 1} remaining`} />
+                <span role="listitem" class={`h-2 w-2 rounded-full ${index < filled() ? "bg-[var(--color-brand)]" : "bg-[var(--color-surface-selected)]"}`} aria-label={index < filled() ? `Cycle ${index + 1} complete` : `Cycle ${index + 1} remaining`} />
               )}</For>
             </div>
             <div class="flex flex-wrap items-center justify-center gap-2">
