@@ -41,7 +41,12 @@ func New(deps Deps) (*Server, error) {
 		if !ok {
 			return nil, fmt.Errorf("missing handler for %s", tool.Name)
 		}
-		s.sdk.AddTool(&mcpsdk.Tool{Name: tool.Name, Description: tool.Description, InputSchema: tool.InputSchema}, handler)
+		s.sdk.AddTool(&mcpsdk.Tool{Name: tool.Name, Description: tool.Description, InputSchema: tool.InputSchema}, func(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+			if s.deps.WithActor != nil {
+				ctx = s.deps.WithActor(ctx, s.session(req).Actor())
+			}
+			return handler(ctx, req)
+		})
 	}
 	s.addResourcesAndPrompts()
 	s.handler = mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server { return s.sdk }, &mcpsdk.StreamableHTTPOptions{

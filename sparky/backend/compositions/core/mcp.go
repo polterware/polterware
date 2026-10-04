@@ -61,6 +61,9 @@ func bindMCP(services Services, token string, port int, enabled bool, version st
 		return MCP{Port: port, Enabled: enabled}, nil
 	}
 	deps := mcp.Deps{
+		WithActor: func(ctx context.Context, who actor.Actor) context.Context {
+			return context.WithValue(ctx, actorKey{}, who)
+		},
 		Version: version, Memories: services.Memories, Minds: services.Minds, Tags: services.Tags,
 		Activity: services.Activity, Review: services.Review, Search: services.Search,
 		Attachments: services.Attachments, Settings: services.Settings,
