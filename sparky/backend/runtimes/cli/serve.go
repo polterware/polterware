@@ -64,10 +64,6 @@ func runServe(ctx context.Context, dbPath string, args []string, stderr io.Write
 		return fmt.Errorf("open core providers: %w", err)
 	}
 	defer runtime.Close()
-	if runtime.Services.Memories == nil {
-		logger.Warn("core providers are unavailable", "request", "w1-core-1")
-		fmt.Fprintln(stderr, "sparky core: SQLite/domain providers are not wired (request w1-core-1)")
-	}
 	ln, endpoint, err := listen.Open(*address)
 	if err != nil {
 		return err

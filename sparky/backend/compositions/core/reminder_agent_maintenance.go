@@ -20,6 +20,10 @@ func (h reminderHandler) Plan(ctx context.Context, r *connect.Request[v1.PlanRem
 	items, err := h.s.Plan(ctx, schedule.PlanQuery{Now: instant(in.Now), Budget: int(in.Budget), Horizon: in.Horizon.AsDuration()})
 	out := &v1.PlanRemindersResponse{}
 	for _, i := range items {
+		if i.Repeat != nil {
+			// Frozen ReminderItem has no repeat field; never send a native repeat as a one-shot.
+			continue
+		}
 		out.Items = append(out.Items, &v1.ReminderItem{Id: i.ID, MemoryId: i.MemoryID, OccurrenceAt: stamp(i.OccurrenceAt), FireAt: stamp(i.FireAt), Title: i.Title, Body: i.Body, Category: i.Category})
 	}
 	return response(out, err)
@@ -124,7 +128,7 @@ func (h maintenanceHandler) Backup(ctx context.Context, r *connect.Request[v1.Ba
 }
 func (h maintenanceHandler) Doctor(ctx context.Context, _ *connect.Request[v1.DoctorRequest]) (*connect.Response[v1.DoctorResponse], error) {
 	if h.s == nil {
-		return response(&v1.DoctorResponse{Ok: false, Checks: []*v1.DoctorCheck{{Name: "backend", Ok: false, Detail: "SQLite/domain providers are not wired; see request w1-core-1"}}}, nil)
+		return response(&v1.DoctorResponse{Ok: false, Checks: []*v1.DoctorCheck{{Name: "backend", Ok: false, Detail: "maintenance backend is not wired"}}}, nil)
 	}
 	report, err := h.s.Doctor(ctx)
 	out := &v1.DoctorResponse{Ok: report.OK}
