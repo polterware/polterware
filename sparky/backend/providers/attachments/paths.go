@@ -34,7 +34,12 @@ func openDirectory(parent *os.File, name string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.NewFile(uintptr(fd), name), nil
+	dir := os.NewFile(uintptr(fd), name)
+	if err := dir.Chmod(0700); err != nil {
+		dir.Close()
+		return nil, err
+	}
+	return dir, nil
 }
 
 func (s *Store) openMemory(memoryID string, create bool) (*os.File, error) {

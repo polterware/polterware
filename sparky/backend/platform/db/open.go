@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"golang.org/x/sys/unix"
 	"os"
 	"path/filepath"
 	"time"
@@ -52,6 +53,50 @@ func Open(path string) (*Handle, error) {
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("create db dir: %w", err)
+	}
+	// Existing shared directories are refused rather than chmodding an arbitrary
+	// user-selected parent (for example /tmp or the home directory).
+	dir, err := os.Stat(filepath.Dir(path))
+	if err != nil {
+		return nil, fmt.Errorf("inspect db dir: %w", err)
+	}
+	if dir.Mode().Perm()&0077 != 0 {
+		// testing.TempDir and user-owned children may inherit 0755 underneath an
+		// already private ancestor. Only tighten the leaf inside such a private tree.
+		private := false
+		for parent := filepath.Dir(filepath.Dir(path)); parent != filepath.Dir(parent); parent = filepath.Dir(parent) {
+			info, err := os.Stat(parent)
+			if err != nil {
+				return nil, err
+			}
+			if info.Mode().Perm()&0077 == 0 {
+				private = true
+				break
+			}
+		}
+		if !private {
+			return nil, fmt.Errorf("database directory must be private (0700)")
+		}
+		if err := os.Chmod(filepath.Dir(path), 0700); err != nil {
+			return nil, fmt.Errorf("protect db dir: %w", err)
+		}
+	}
+	fd, err := unix.Open(path, unix.O_RDWR|unix.O_CREAT|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("open private database: %w", err)
+	}
+	file := os.NewFile(uintptr(fd), path)
+	var stat unix.Stat_t
+	err = unix.Fstat(fd, &stat)
+	if err == nil && (stat.Mode&unix.S_IFMT != unix.S_IFREG || stat.Nlink != 1) {
+		err = fmt.Errorf("database must be a regular file without links")
+	}
+	if err == nil {
+		err = file.Chmod(0600)
+	}
+	file.Close()
+	if err != nil {
+		return nil, fmt.Errorf("protect database: %w", err)
 	}
 	writerDSN := fmt.Sprintf("file:%s?_pragma=busy_timeout(%d)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)", path, busyTimeoutMS)
 	writer, err := sql.Open(driverName, writerDSN)
