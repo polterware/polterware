@@ -135,7 +135,7 @@ func (h memoryHandler) Delete(ctx context.Context, r *connect.Request[v1.DeleteM
 	if h.services.Memories == nil {
 		return nil, unavailable("memories")
 	}
-	err := h.services.Memories.Delete(ctx, caller(ctx), r.Msg.Id)
+	err := h.services.Memories.Delete(ctx, caller(ctx), r.Msg.Id, r.Msg.GetExpectedRev())
 	return response(&v1.DeleteMemoryResponse{}, err)
 }
 func (h memoryHandler) SetStatus(ctx context.Context, r *connect.Request[v1.SetMemoryStatusRequest]) (*connect.Response[v1.SetMemoryStatusResponse], error) {
@@ -166,7 +166,7 @@ func (h memoryHandler) ToggleCheckItem(ctx context.Context, r *connect.Request[v
 		return nil, unavailable("memories")
 	}
 	in := r.Msg
-	c, err := h.services.Memories.ToggleCheckItem(ctx, caller(ctx), in.MemoryId, in.ItemId, in.Done)
+	c, err := h.services.Memories.ToggleCheckItem(ctx, caller(ctx), in.MemoryId, in.ItemId, in.GetExpectedRev(), in.Done)
 	if err != nil {
 		return nil, err
 	}

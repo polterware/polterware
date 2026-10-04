@@ -1345,6 +1345,7 @@ func (x *UpdateMemoryResponse) GetMemory() *Memory {
 type DeleteMemoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ExpectedRev   *int64                 `protobuf:"varint,2,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1384,6 +1385,13 @@ func (x *DeleteMemoryRequest) GetId() string {
 		return x.Id
 	}
 	return ""
+}
+
+func (x *DeleteMemoryRequest) GetExpectedRev() int64 {
+	if x != nil && x.ExpectedRev != nil {
+		return *x.ExpectedRev
+	}
+	return 0
 }
 
 type DeleteMemoryResponse struct {
@@ -1731,6 +1739,7 @@ type ToggleCheckItemRequest struct {
 	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
 	ItemId        string                 `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
 	Done          *bool                  `protobuf:"varint,3,opt,name=done,proto3,oneof" json:"done,omitempty"`
+	ExpectedRev   *int64                 `protobuf:"varint,4,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1784,6 +1793,13 @@ func (x *ToggleCheckItemRequest) GetDone() bool {
 		return *x.Done
 	}
 	return false
+}
+
+func (x *ToggleCheckItemRequest) GetExpectedRev() int64 {
+	if x != nil && x.ExpectedRev != nil {
+		return *x.ExpectedRev
+	}
+	return 0
 }
 
 type ToggleCheckItemResponse struct {
@@ -2396,9 +2412,11 @@ const file_sparky_v1_memory_proto_rawDesc = "" +
 	"\a_pinnedB\x1d\n" +
 	"\x1b_auto_complete_on_checklist\"A\n" +
 	"\x14UpdateMemoryResponse\x12)\n" +
-	"\x06memory\x18\x01 \x01(\v2\x11.sparky.v1.MemoryR\x06memory\"%\n" +
+	"\x06memory\x18\x01 \x01(\v2\x11.sparky.v1.MemoryR\x06memory\"^\n" +
 	"\x13DeleteMemoryRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x16\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
+	"\fexpected_rev\x18\x02 \x01(\x03H\x00R\vexpectedRev\x88\x01\x01B\x0f\n" +
+	"\r_expected_rev\"\x16\n" +
 	"\x14DeleteMemoryResponse\"\xba\x01\n" +
 	"\x16SetMemoryStatusRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
@@ -2419,12 +2437,14 @@ const file_sparky_v1_memory_proto_rawDesc = "" +
 	"\amind_id\x18\x01 \x01(\tR\x06mindId\x12\x1f\n" +
 	"\vordered_ids\x18\x02 \x03(\tR\n" +
 	"orderedIds\"\x19\n" +
-	"\x17ReorderMemoriesResponse\"p\n" +
+	"\x17ReorderMemoriesResponse\"\xa9\x01\n" +
 	"\x16ToggleCheckItemRequest\x12\x1b\n" +
 	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x17\n" +
 	"\aitem_id\x18\x02 \x01(\tR\x06itemId\x12\x17\n" +
-	"\x04done\x18\x03 \x01(\bH\x00R\x04done\x88\x01\x01B\a\n" +
-	"\x05_done\"n\n" +
+	"\x04done\x18\x03 \x01(\bH\x00R\x04done\x88\x01\x01\x12&\n" +
+	"\fexpected_rev\x18\x04 \x01(\x03H\x01R\vexpectedRev\x88\x01\x01B\a\n" +
+	"\x05_doneB\x0f\n" +
+	"\r_expected_rev\"n\n" +
 	"\x17ToggleCheckItemResponse\x12(\n" +
 	"\x04item\x18\x01 \x01(\v2\x14.sparky.v1.CheckItemR\x04item\x12)\n" +
 	"\x06memory\x18\x02 \x01(\v2\x11.sparky.v1.MemoryR\x06memory\"\xa0\x01\n" +
@@ -2608,6 +2628,7 @@ func file_sparky_v1_memory_proto_init() {
 	file_sparky_v1_memory_proto_msgTypes[5].OneofWrappers = []any{}
 	file_sparky_v1_memory_proto_msgTypes[9].OneofWrappers = []any{}
 	file_sparky_v1_memory_proto_msgTypes[11].OneofWrappers = []any{}
+	file_sparky_v1_memory_proto_msgTypes[13].OneofWrappers = []any{}
 	file_sparky_v1_memory_proto_msgTypes[15].OneofWrappers = []any{}
 	file_sparky_v1_memory_proto_msgTypes[17].OneofWrappers = []any{}
 	file_sparky_v1_memory_proto_msgTypes[21].OneofWrappers = []any{}

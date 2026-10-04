@@ -48,7 +48,7 @@ func (h mindHandler) Delete(ctx context.Context, r *connect.Request[v1.DeleteMin
 	if h.s == nil {
 		return nil, unavailable("minds")
 	}
-	d, err := h.s.Delete(ctx, caller(ctx), r.Msg.Id)
+	d, err := h.s.Delete(ctx, caller(ctx), r.Msg.Id, r.Msg.GetExpectedRev())
 	return response(&v1.DeleteMindResponse{DeletedMindIds: d.DeletedMindIDs, MovedMemoryCount: int32(d.MovedMemoryCount)}, err)
 }
 func (h mindHandler) Reorder(ctx context.Context, r *connect.Request[v1.ReorderMindsRequest]) (*connect.Response[v1.ReorderMindsResponse], error) {

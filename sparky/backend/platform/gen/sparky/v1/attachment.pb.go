@@ -159,6 +159,7 @@ type ImportAttachmentRequest struct {
 	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
 	SourcePath    string                 `protobuf:"bytes,2,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	ExpectedRev   *int64                 `protobuf:"varint,4,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -214,6 +215,13 @@ func (x *ImportAttachmentRequest) GetName() string {
 	return ""
 }
 
+func (x *ImportAttachmentRequest) GetExpectedRev() int64 {
+	if x != nil && x.ExpectedRev != nil {
+		return *x.ExpectedRev
+	}
+	return 0
+}
+
 type ImportAttachmentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Attachment    *Attachment            `protobuf:"bytes,1,opt,name=attachment,proto3" json:"attachment,omitempty"`
@@ -263,6 +271,7 @@ type AddLinkRequest struct {
 	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
 	Url           string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	ExpectedRev   *int64                 `protobuf:"varint,4,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -316,6 +325,13 @@ func (x *AddLinkRequest) GetTitle() string {
 		return x.Title
 	}
 	return ""
+}
+
+func (x *AddLinkRequest) GetExpectedRev() int64 {
+	if x != nil && x.ExpectedRev != nil {
+		return *x.ExpectedRev
+	}
+	return 0
 }
 
 type AddLinkResponse struct {
@@ -775,20 +791,24 @@ const file_sparky_v1_attachment_proto_rawDesc = "" +
 	"\a_sha256B\v\n" +
 	"\t_rel_pathB\x06\n" +
 	"\x04_urlB\b\n" +
-	"\x06_title\"k\n" +
+	"\x06_title\"\xa4\x01\n" +
 	"\x17ImportAttachmentRequest\x12\x1b\n" +
 	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x1f\n" +
 	"\vsource_path\x18\x02 \x01(\tR\n" +
 	"sourcePath\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\"Q\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12&\n" +
+	"\fexpected_rev\x18\x04 \x01(\x03H\x00R\vexpectedRev\x88\x01\x01B\x0f\n" +
+	"\r_expected_rev\"Q\n" +
 	"\x18ImportAttachmentResponse\x125\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2\x15.sparky.v1.AttachmentR\n" +
-	"attachment\"U\n" +
+	"attachment\"\x8e\x01\n" +
 	"\x0eAddLinkRequest\x12\x1b\n" +
 	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n" +
-	"\x05title\x18\x03 \x01(\tR\x05title\"H\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12&\n" +
+	"\fexpected_rev\x18\x04 \x01(\x03H\x00R\vexpectedRev\x88\x01\x01B\x0f\n" +
+	"\r_expected_rev\"H\n" +
 	"\x0fAddLinkResponse\x125\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2\x15.sparky.v1.AttachmentR\n" +
@@ -884,6 +904,8 @@ func file_sparky_v1_attachment_proto_init() {
 		return
 	}
 	file_sparky_v1_attachment_proto_msgTypes[0].OneofWrappers = []any{}
+	file_sparky_v1_attachment_proto_msgTypes[1].OneofWrappers = []any{}
+	file_sparky_v1_attachment_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

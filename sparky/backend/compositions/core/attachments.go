@@ -8,10 +8,10 @@ import (
 
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	attachprovider "github.com/polterware/polterware/sparky/backend/providers/attachments"
-	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
 	"github.com/polterware/polterware/sparky/backend/platform/clock"
 	"github.com/polterware/polterware/sparky/backend/platform/ids"
+	attachprovider "github.com/polterware/polterware/sparky/backend/providers/attachments"
+	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
 )
 
 var attachmentServices sync.Map
@@ -80,7 +80,7 @@ func buildAttachmentService(store attachments.Store) (attachments.Service, error
 		}
 		composite.files = files
 	}
-	return attachments.NewService(composite, ids.Generator{}, clock.Clock{}), nil
+	return attachments.NewService(composite, ids.Generator{}, clock.Clock{}).WithMemoryRev(sqliteMeta.Memories(), sqliteMeta.Store), nil
 }
 
 func (a attachmentMeta) service() (attachments.Service, error) {
@@ -95,20 +95,20 @@ func (a attachmentMeta) service() (attachments.Service, error) {
 	return actual.(attachments.Service), nil
 }
 
-func (a attachmentMeta) ImportFromPath(ctx context.Context, memoryID, sourcePath, name string) (attachments.Attachment, error) {
+func (a attachmentMeta) ImportFromPath(ctx context.Context, memoryID, sourcePath, name string, expectedRev int64) (attachments.Attachment, error) {
 	svc, err := a.service()
 	if err != nil {
 		return attachments.Attachment{}, err
 	}
-	return svc.ImportFromPath(ctx, memoryID, sourcePath, name)
+	return svc.ImportFromPath(ctx, memoryID, sourcePath, name, expectedRev)
 }
 
-func (a attachmentMeta) AddLink(ctx context.Context, memoryID, rawURL, title string) (attachments.Attachment, error) {
+func (a attachmentMeta) AddLink(ctx context.Context, memoryID, rawURL, title string, expectedRev int64) (attachments.Attachment, error) {
 	svc, err := a.service()
 	if err != nil {
 		return attachments.Attachment{}, err
 	}
-	return svc.AddLink(ctx, memoryID, rawURL, title)
+	return svc.AddLink(ctx, memoryID, rawURL, title, expectedRev)
 }
 
 func (a attachmentMeta) List(ctx context.Context, memoryID string) ([]attachments.Attachment, error) {
