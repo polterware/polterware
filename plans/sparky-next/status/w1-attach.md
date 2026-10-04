@@ -1,0 +1,12 @@
+# w1-attach status
+- Result: partial
+- Branch / last commit: `sparky/w1-attach` / pending status commit
+- Acceptance criteria:
+  - Traversal attempts and absolute path names cannot affect stored paths; symlinks and non-regular sources are rejected; oversize files are rejected -> **pass** (`go test ./providers/attachments/... -race -count=1`, `TestImportFileSafetyAndCrashShape`)
+  - Duplicate hashes are deduplicated, including concurrent calls through one service -> **pass** (`go test ./domains/attachments/... -race -count=1`, `TestImportDeduplicatesHashAndNeverUsesDisplayNameForPath`, `TestConcurrentDuplicateImportsDeduplicate`)
+  - SSRF guard rejects loopback, private, link-local and localhost destinations; resolves again when dialing; redirects invoke the guard -> **partial** (`go test ./providers/attachments/... -race -count=1`, `TestSSRFGuardRejectsPrivateDestinations`); explicit DNS-rebinding and redirect tests remain missing
+  - Crash-safe temp-file import and atomic rename -> **pass** (`go test ./providers/attachments/... -race -count=1`, `TestImportFileSafetyAndCrashShape`)
+  - Verify -> **pass** (`cd sparky/backend && go vet ./domains/attachments/... ./providers/attachments/... && go test ./domains/attachments/... ./providers/attachments/... -race -count=1`; `git diff --check`)
+- Deviations from the plan (and why): Title fetch is exposed as an opt-in provider helper but not wired into AddLink because the frozen domain port has no fetch setting. Polterware session commands (`status`, `format`, `query cards`, `handoff`) could not run because `polterware` is unavailable in this environment.
+- Requests filed (plans/sparky-next/requests/...): none
+- Follow-ups for other WS: Add explicit DNS rebinding and redirect-to-private tests before treating SSRF acceptance as complete.
