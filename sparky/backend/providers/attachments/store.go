@@ -53,6 +53,13 @@ func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (do
 		return domain.ImportedFile{}, fmt.Errorf("open source: %w", err)
 	}
 	defer in.Close()
+	openedInfo, err := in.Stat()
+	if err != nil {
+		return domain.ImportedFile{}, fmt.Errorf("stat opened source: %w", err)
+	}
+	if !openedInfo.Mode().IsRegular() || !os.SameFile(info, openedInfo) {
+		return domain.ImportedFile{}, fmt.Errorf("attachment source changed or is not a regular file")
+	}
 	buf := make([]byte, 512)
 	n, readErr := io.ReadFull(in, buf)
 	if readErr != nil && !errors.Is(readErr, io.EOF) && !errors.Is(readErr, io.ErrUnexpectedEOF) {
