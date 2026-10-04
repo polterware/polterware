@@ -30,7 +30,7 @@ export function MapSettingsPanel() {
       />
       <p class="text-[13px] text-[var(--color-text-secondary)]">{TILE_NOTICE}</p>
       <p class="text-[13px] text-[var(--color-text-secondary)]">{PLACE_NOTICE}</p>
-      <p class="text-[13px] text-[var(--color-text-muted)]">Address search is off. Enabling it needs a dedicated setting and a CSP host for Nominatim.</p>
+      <p class="text-[13px] text-[var(--color-text-muted)]">Address search is controlled in Settings → Map. It sends typed address text to Nominatim only when enabled. Changing it reloads Sparky.</p>
       <Show when={mapStore.saveError()}><p role="alert" class="text-[13px] text-[var(--color-text-secondary)]">{mapStore.saveError()}</p></Show>
       <Show when={!mapStore.mapOnline()}>
         <Button variant="secondary" size="sm" disabled={busy()} onClick={() => void toggle(true)}>Use online tiles</Button>

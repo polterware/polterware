@@ -1,13 +1,14 @@
-import { Show, createEffect, createSignal, onCleanup, on, type JSX } from "solid-js";
+import { For, Show, createEffect, createSignal, onCleanup, on, type JSX } from "solid-js";
 import { useSparkyShell } from "@polterware/feature-sparky-shell/feature";
 import {
   Button, Field, Input, PageError, PageLoading, SegmentedControl, Slider, StatusChip,
 } from "@polterware/frontend-design-system";
 import { DEFAULT_MAP_CENTER, MapView } from "@polterware/frontend-map";
+import { searchAddress } from "./geocoding";
 import { browserBridge, type MapBridge } from "./bridge";
 import {
   DEFAULT_RADIUS_M, MAX_RADIUS_M, MIN_RADIUS_M, PLACE_NOTICE, clampRadius, draftFromPlace, errorText, honestyLabel,
-  honestyTone, parseCoordinate, placeFromDraft, revisionString, type Honesty, type MemoryJSON, type PlaceDraft, type PlaceJSON,
+  honestyTone, parseCoordinate, placeFromDraft, revisionString, type Honesty, type MemoryJSON, type PlaceDraft, type PlaceJSON, type SettingsJSON,
 } from "./model";
 import { mapStore } from "./store";
 
@@ -21,6 +22,13 @@ function PlaceEditor(props: { memoryId: string }) {
   const [draft, setDraft] = createSignal<PlaceDraft>(draftFromPlace());
   const [saved, setSaved] = createSignal(false);
   const [rev, setRev] = createSignal("0");
+  const [geocoding, setGeocoding] = createSignal(false);
+  const [address, setAddress] = createSignal("");
+  const [addressHits, setAddressHits] = createSignal<import("@polterware/frontend-map").GeocodeHit[]>([]);
+  const [addressError, setAddressError] = createSignal("");
+  const [addressBusy, setAddressBusy] = createSignal(false);
+  let addressGeneration = 0;
+  onCleanup(() => { addressGeneration += 1; setGeocoding(false); });
   const [online, setOnline] = createSignal(false);
   const [pending, setPending] = createSignal(true);
   const [busy, setBusy] = createSignal("");
@@ -59,13 +67,14 @@ function PlaceEditor(props: { memoryId: string }) {
       const bridge = browserBridge();
       const [memoryResponse, settingsResponse] = await Promise.all([
         bridge.memories.get({ id, include: { place: true } }) as Promise<{ memory?: MemoryJSON }>,
-        bridge.settings.get({}).catch(() => ({ settings: { mapOnline: false } })) as Promise<{ settings?: { mapOnline?: boolean } }>,
+        bridge.settings.get({}).catch(() => ({ settings: { mapOnline: false } })) as Promise<{ settings?: SettingsJSON }>,
       ]);
       const memory = memoryResponse.memory;
       if (!memory) throw new Error("Memory unavailable. It may have been deleted.");
       setRev(revisionString(memory.rev));
       setDraft(draftFromPlace(memory.place));
       setSaved(Boolean(memory.place && Number.isFinite(memory.place.lat)));
+      setGeocoding(settingsResponse.settings?.mapGeocoding === true);
       setOnline(Boolean(settingsResponse.settings?.mapOnline) && mapStore.provider() !== "pmtiles");
       setSaveState("live");
     } catch (error) {
@@ -74,6 +83,30 @@ function PlaceEditor(props: { memoryId: string }) {
     } finally {
       setPending(false);
     }
+  }
+
+  async function findAddress() {
+    if (!geocoding() || addressBusy()) return;
+    const ticket = ++addressGeneration;
+    setAddressBusy(true); setAddressHits([]); setAddressError("");
+    try {
+      const hits = await searchAddress(address(), () => geocoding() && ticket === addressGeneration);
+      if (ticket !== addressGeneration) return;
+      setAddressHits(hits);
+      if (!hits.length) setAddressError("No address results.");
+    } catch (error) {
+      if (ticket === addressGeneration) setAddressError(errorText(error));
+    } finally {
+      if (ticket === addressGeneration) setAddressBusy(false);
+    }
+  }
+
+  async function refreshGeocoding() {
+    try {
+      const result = await browserBridge().settings.get({}) as { settings?: SettingsJSON };
+      setGeocoding(result.settings?.mapGeocoding === true);
+    } catch { setGeocoding(false); }
+    addressGeneration += 1; setAddressBusy(false); setAddressHits([]); setAddressError("");
   }
 
   async function save() {
@@ -107,10 +140,12 @@ function PlaceEditor(props: { memoryId: string }) {
   }
 
   createEffect(on(() => props.memoryId, id => {
+    addressGeneration += 1; setAddressHits([]); setAddressError(""); setAddressBusy(false);
     void load(id);
     let unsubscribe: (() => void) | undefined;
     try {
       unsubscribe = browserBridge().onChange(event => {
+        if (event.resync || event.changes.some(change => change.entity === "settings")) void refreshGeocoding();
         if (saveState() === "queued") return;
         if (event.resync || event.changes.some(change => ["place", "places", "memory", "memories", "settings"].includes(change.entity))) {
           void load(id);
@@ -146,6 +181,15 @@ function PlaceEditor(props: { memoryId: string }) {
         </Show>
         <Show when={!online()}>
           <p class="text-[12px] text-[var(--color-text-muted)]">Tiles are off. Enter coordinates or drop a pin without loading a map.</p>
+        </Show>
+        <Show when={geocoding()}>
+          <Field label="Address" for="place-address">
+            <Input id="place-address" value={address()} onInput={(event: Event) => { addressGeneration += 1; setAddressBusy(false); setAddressHits([]); setAddressError(""); setAddress((event.currentTarget as HTMLInputElement).value); }} />
+          </Field>
+          <p class="text-[12px] text-[var(--color-text-muted)]">Search sends typed address text to Nominatim, a third party. Changing Address search reloads Sparky; unsaved place edits may be lost.</p>
+          <Button variant="secondary" disabled={addressBusy() || !address().trim()} onClick={() => void findAddress()}>{addressBusy() ? "Searching address" : "Search address"}</Button>
+          <For each={addressHits()}>{hit => <Button variant="secondary" onClick={() => { patch({ name: hit.name, lat: String(hit.lat), lng: String(hit.lng) }); setAddressHits([]); }}>Use {hit.name}</Button>}</For>
+          <Show when={addressError()}><p role="alert" class="text-[13px] text-[var(--color-text-secondary)]">{addressError()}</p></Show>
         </Show>
         <Field label="Name" for="place-name">
           <Input id="place-name" value={draft().name} onInput={(event: Event) => patch({ name: (event.currentTarget as HTMLInputElement).value })} placeholder="Optional place name" />

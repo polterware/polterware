@@ -8,6 +8,7 @@ type WireNamespace = Record<string, Rpc>;
 
 /** Structural subset of window.sparky. Feature packages must not declare Window.sparky. */
 export type MapWireBridge = {
+  app: { openDeepLink(url: string): Promise<void> };
   places: WireNamespace;
   memories: WireNamespace;
   settings: WireNamespace;
@@ -19,6 +20,7 @@ export type MapBridge = {
   memories: { get: Rpc; list: Rpc };
   settings: { get: Rpc; set: Rpc };
   onChange: MapWireBridge["onChange"];
+  app: MapWireBridge["app"];
 };
 
 function jsonValue(value: unknown): JsonValue {
@@ -46,6 +48,7 @@ function bind(source: WireNamespace, service: DescService): WireNamespace {
 
 export function createMapBridge(wire: MapWireBridge): MapBridge {
   return {
+    app: wire.app,
     places: bind(wire.places, Contracts.PlaceService) as MapBridge["places"],
     memories: bind(wire.memories, Contracts.MemoryService) as MapBridge["memories"],
     settings: bind(wire.settings, Contracts.SettingsService) as MapBridge["settings"],
