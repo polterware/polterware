@@ -44,6 +44,7 @@ func TestMemoryRepositoryContract(t *testing.T) {
 	b.Pinned = true
 	c := a
 	c.ID = "c"
+	c.Title = "Inbox item"
 	c.MindID = nil
 	c.DueAt = ptr(now.Add(time.Hour))
 	c.Status = memory.StatusCompleted
