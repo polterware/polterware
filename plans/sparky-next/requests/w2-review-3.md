@@ -14,3 +14,5 @@ Until that lands:
 - Passing locale `weekInfo.firstDay === 7` into `weekStartFromSettings` is test-only; production does not guess from the OS locale.
 
 Do not unfreeze contracts without Erick. W2-REVIEW does not edit `settings.proto`.
+
+**Status: applied 2026-10-04 as contract v1.5.**

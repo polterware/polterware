@@ -26,6 +26,10 @@ const (
 	KeyAgentsAllowFileAttach      = "agents.allowFileAttach"
 	KeyAppKeepRunningInBackground = "app.keepRunningInBackground"
 	KeyLinksFetchTitles           = "links.fetchTitles"
+	KeyCalendarWeekStart          = "calendar.weekStart"
+
+	WeekStartMon = "mon"
+	WeekStartSun = "sun"
 
 	DefaultAllDayTime    = "09:00"
 	DefaultSnoozeMinutes = 10
@@ -53,6 +57,7 @@ type Settings struct {
 	AgentsAllowFileAttach      bool
 	AppKeepRunningInBackground bool
 	LinksFetchTitles           bool
+	CalendarWeekStart          string
 }
 
 // Default is the document before any key is stored.
@@ -76,5 +81,6 @@ func Default() Settings {
 		AgentsAllowFileAttach:      false,
 		AppKeepRunningInBackground: true,
 		LinksFetchTitles:           false,
+		CalendarWeekStart:          WeekStartMon,
 	}
 }

@@ -274,15 +274,17 @@ func (x *OccurrenceCompletion) GetCompletedAt() *timestamppb.Timestamp {
 }
 
 type Occurrence struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	OccurrenceAt  *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurrence_at,json=occurrenceAt,proto3" json:"occurrence_at,omitempty"`
-	FireAt        *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fire_at,json=fireAt,proto3" json:"fire_at,omitempty"`
-	Completed     bool                   `protobuf:"varint,5,opt,name=completed,proto3" json:"completed,omitempty"`
-	Overdue       bool                   `protobuf:"varint,6,opt,name=overdue,proto3" json:"overdue,omitempty"`
-	AllDay        bool                   `protobuf:"varint,7,opt,name=all_day,json=allDay,proto3" json:"all_day,omitempty"`
-	MindId        string                 `protobuf:"bytes,8,opt,name=mind_id,json=mindId,proto3" json:"mind_id,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	MemoryId     string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	Title        string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	OccurrenceAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurrence_at,json=occurrenceAt,proto3" json:"occurrence_at,omitempty"`
+	FireAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fire_at,json=fireAt,proto3" json:"fire_at,omitempty"`
+	Completed    bool                   `protobuf:"varint,5,opt,name=completed,proto3" json:"completed,omitempty"`
+	Overdue      bool                   `protobuf:"varint,6,opt,name=overdue,proto3" json:"overdue,omitempty"`
+	AllDay       bool                   `protobuf:"varint,7,opt,name=all_day,json=allDay,proto3" json:"all_day,omitempty"`
+	MindId       string                 `protobuf:"bytes,8,opt,name=mind_id,json=mindId,proto3" json:"mind_id,omitempty"`
+	// IANA time zone of the memory's schedule; civil dates (all-day) use it.
+	Tz            string `protobuf:"bytes,9,opt,name=tz,proto3" json:"tz,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -369,6 +371,13 @@ func (x *Occurrence) GetAllDay() bool {
 func (x *Occurrence) GetMindId() string {
 	if x != nil {
 		return x.MindId
+	}
+	return ""
+}
+
+func (x *Occurrence) GetTz() string {
+	if x != nil {
+		return x.Tz
 	}
 	return ""
 }
@@ -1139,7 +1148,7 @@ const file_sparky_v1_schedule_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tmemory_id\x18\x02 \x01(\tR\bmemoryId\x12?\n" +
 	"\roccurrence_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\foccurrenceAt\x12=\n" +
-	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\"\x9f\x02\n" +
+	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\"\xaf\x02\n" +
 	"\n" +
 	"Occurrence\x12\x1b\n" +
 	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x14\n" +
@@ -1149,7 +1158,8 @@ const file_sparky_v1_schedule_proto_rawDesc = "" +
 	"\tcompleted\x18\x05 \x01(\bR\tcompleted\x12\x18\n" +
 	"\aoverdue\x18\x06 \x01(\bR\aoverdue\x12\x17\n" +
 	"\aall_day\x18\a \x01(\bR\x06allDay\x12\x17\n" +
-	"\amind_id\x18\b \x01(\tR\x06mindId\"E\n" +
+	"\amind_id\x18\b \x01(\tR\x06mindId\x12\x0e\n" +
+	"\x02tz\x18\t \x01(\tR\x02tz\"E\n" +
 	"\x12SetScheduleRequest\x12/\n" +
 	"\bschedule\x18\x01 \x01(\v2\x13.sparky.v1.ScheduleR\bschedule\"F\n" +
 	"\x13SetScheduleResponse\x12/\n" +

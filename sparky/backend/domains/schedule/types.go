@@ -91,6 +91,7 @@ type Occurrence struct {
 	Overdue      bool
 	AllDay       bool
 	MindID       *string
+	TZ           string
 }
 
 // DateComponents matches a native UNCalendarNotificationTrigger.

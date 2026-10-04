@@ -66,7 +66,7 @@ describe("RPC surface", () => {
       "appearance_theme", "notifications_sound", "notifications_all_day_time", "notifications_snooze_minutes",
       "focus_work_min", "focus_short_break_min", "focus_long_break_min", "focus_cycles", "focus_auto_continue",
       "focus_sounds", "focus_notifications", "map_online", "map_provider", "agents_mcp_port",
-      "agents_mcp_enabled", "agents_allow_file_attach", "app_keep_running_in_background", "links_fetch_titles",
+      "agents_mcp_enabled", "agents_allow_file_attach", "app_keep_running_in_background", "links_fetch_titles", "calendar_week_start",
     ]);
   });
 

@@ -14,3 +14,5 @@ Until then the calendar:
 
 - reads `settings.calendarWeekStart` / `weekStart` from the raw `settings.get` JSON (unknown proto fields are kept by the package bridge) and defaults to Monday
 - uses `occurrence.tz` when the wire includes it, otherwise the system time zone for grid placement and slot mapping
+
+**Status: applied 2026-10-04 as contract v1.5.**

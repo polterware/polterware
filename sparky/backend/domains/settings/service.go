@@ -53,6 +53,8 @@ func field(s *Settings, key string) any {
 		return &s.AppKeepRunningInBackground
 	case KeyLinksFetchTitles:
 		return &s.LinksFetchTitles
+	case KeyCalendarWeekStart:
+		return &s.CalendarWeekStart
 	}
 	return nil
 }
@@ -90,6 +92,10 @@ func validate(s Settings, key string) error {
 	case KeyAgentsMCPPort:
 		if s.AgentsMCPPort < 1 || s.AgentsMCPPort > 65535 {
 			return activity.Invalid(key, "must be between 1 and 65535")
+		}
+	case KeyCalendarWeekStart:
+		if s.CalendarWeekStart != WeekStartMon && s.CalendarWeekStart != WeekStartSun {
+			return activity.Invalid(key, "must be mon or sun")
 		}
 	case KeyMapProvider:
 		if s.MapProvider != "" && s.MapProvider != "openfreemap" && s.MapProvider != "pmtiles" {

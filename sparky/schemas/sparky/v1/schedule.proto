@@ -46,6 +46,8 @@ message Occurrence {
   bool overdue = 6;
   bool all_day = 7;
   string mind_id = 8;
+  // IANA time zone of the memory's schedule; civil dates (all-day) use it.
+  string tz = 9;
 }
 
 message SetScheduleRequest {

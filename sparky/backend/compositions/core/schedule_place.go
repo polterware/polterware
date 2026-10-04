@@ -64,7 +64,7 @@ func (h scheduleHandler) ListOccurrences(ctx context.Context, r *connect.Request
 	items, err := h.s.ListOccurrences(ctx, OccurrenceQuery{From: instant(in.From), To: instant(in.To), MindID: stringPtr(in.MindId), IncludeDescendants: in.IncludeDescendants, TagIDs: in.TagIds, IncludeCompleted: in.IncludeCompleted, Limit: int(in.Limit)})
 	out := &v1.ListOccurrencesResponse{}
 	for _, o := range items {
-		out.Occurrences = append(out.Occurrences, &v1.Occurrence{MemoryId: o.MemoryID, Title: o.Title, OccurrenceAt: stamp(o.OccurrenceAt), FireAt: stamp(o.FireAt), Completed: o.Completed, Overdue: o.Overdue, AllDay: o.AllDay, MindId: stringValue(o.MindID)})
+		out.Occurrences = append(out.Occurrences, &v1.Occurrence{MemoryId: o.MemoryID, Title: o.Title, OccurrenceAt: stamp(o.OccurrenceAt), FireAt: stamp(o.FireAt), Completed: o.Completed, Overdue: o.Overdue, AllDay: o.AllDay, MindId: stringValue(o.MindID), Tz: o.TZ})
 	}
 	return response(out, err)
 }

@@ -117,7 +117,7 @@ func ListOccurrences(subjects []PlanSubject, q OccurrenceQuery) ([]Occurrence, e
 			}
 			fire := fireTime(at, subject.Rule, hour, minute)
 			item := Occurrence{MemoryID: subject.MemoryID, Title: subject.Title, OccurrenceAt: at, FireAt: fire,
-				Completed: done, Overdue: !done && fire.Before(q.Now), AllDay: subject.Rule.AllDay, MindID: subject.MindID}
+				Completed: done, Overdue: !done && fire.Before(q.Now), AllDay: subject.Rule.AllDay, MindID: subject.MindID, TZ: subject.Rule.TZ.String()}
 			if len(items) < q.Limit {
 				heap.Push(&items, item)
 			} else {

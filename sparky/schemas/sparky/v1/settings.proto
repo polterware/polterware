@@ -31,6 +31,8 @@ message Settings {
   bool agents_allow_file_attach = 20;
   bool app_keep_running_in_background = 21;
   bool links_fetch_titles = 22;
+  // Week start for calendar and review grids: "mon" (default) or "sun".
+  string calendar_week_start = 23;
 }
 
 message GetSettingsRequest {}

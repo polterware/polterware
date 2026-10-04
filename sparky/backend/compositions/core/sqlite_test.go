@@ -370,3 +370,39 @@ func TestSqliteExportAndBackup(t *testing.T) {
 		t.Fatalf("backup: %v %v", res, err)
 	}
 }
+
+func TestSqliteOccurrenceCarriesZoneAndWeekStartPersists(t *testing.T) {
+	clients, _, _ := sqliteLoopback(t)
+	created, err := clients.Memory.Create(t.Context(), connect.NewRequest(&v1.CreateMemoryRequest{Title: "dinner"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := true
+	_, err = clients.Schedule.Set(t.Context(), connect.NewRequest(&v1.SetScheduleRequest{Schedule: &v1.Schedule{
+		MemoryId: created.Msg.Memory.Id, Active: &active, FireAt: timestamppb.New(time.Date(2026, 10, 12, 23, 0, 0, 0, time.UTC)),
+		Tz: "America/New_York", AllDay: true,
+	}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := clients.Schedule.ListOccurrences(t.Context(), connect.NewRequest(&v1.ListOccurrencesRequest{
+		From: timestamppb.New(time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)), To: timestamppb.New(time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list.Msg.Occurrences) == 0 || list.Msg.Occurrences[0].Tz != "America/New_York" {
+		t.Fatalf("occurrence zone: %v", list.Msg.Occurrences)
+	}
+	got, err := clients.Settings.Get(t.Context(), connect.NewRequest(&v1.GetSettingsRequest{}))
+	if err != nil || got.Msg.Settings.CalendarWeekStart != "mon" {
+		t.Fatalf("default week start: %v / %v", got, err)
+	}
+	set, err := clients.Settings.Set(t.Context(), connect.NewRequest(&v1.SetSettingsRequest{Keys: []string{"calendar.weekStart"}, Settings: &v1.Settings{CalendarWeekStart: "sun"}}))
+	if err != nil || set.Msg.Settings.CalendarWeekStart != "sun" {
+		t.Fatalf("set week start: %v / %v", set, err)
+	}
+	if _, err := clients.Settings.Set(t.Context(), connect.NewRequest(&v1.SetSettingsRequest{Keys: []string{"calendar.weekStart"}, Settings: &v1.Settings{CalendarWeekStart: "tue"}})); err == nil {
+		t.Fatal("invalid week start accepted")
+	}
+}
