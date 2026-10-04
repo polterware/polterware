@@ -31,6 +31,8 @@ export type SparkyBridge = {
     onDeepLink(callback: (link: DeepLink) => void): () => void;
     getDeepLink(): Promise<DeepLink | null>;
     pickFiles(): Promise<string[]>;
+    pathsForDroppedFiles(files: File[]): Promise<string[]>;
+    writeTempFile(bytes: Uint8Array, name: string): Promise<string>;
     saveZip(): Promise<string | null>;
     saveBackup(): Promise<string | null>;
     revealInFinder(attachmentUrl: string): Promise<void>;
@@ -40,4 +42,7 @@ export type SparkyBridge = {
   };
 };
 export const EVENTS = { change: "sparky:change", deepLink: "sparky:deep-link" } as const;
-export const APP_METHODS = ["openDeepLink", "getDeepLink", "pickFiles", "saveZip", "saveBackup", "revealInFinder", "startMicrophone", "getInfo", "requestNotificationAuthorization"] as const;
+export const APP_METHODS = [
+  "openDeepLink", "getDeepLink", "pickFiles", "pathsForDroppedFiles", "writeTempFile",
+  "saveZip", "saveBackup", "revealInFinder", "startMicrophone", "getInfo", "requestNotificationAuthorization",
+] as const;

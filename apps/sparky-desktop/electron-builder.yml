@@ -21,6 +21,10 @@ extraResources:
     to: app-icons
   - from: resources/logo
     to: logo
+  - from: resources/sounds
+    to: sounds
+    filter:
+      - "*.webm"
   - from: native/build/notify.node
     to: native/notify.node
 

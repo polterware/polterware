@@ -23,5 +23,10 @@ describe("window security", () => {
     expect(main).toContain("before-quit");
     expect(main).toContain("stopWatcher");
     expect(main).toContain("if (pendingLink) routeDeepLink(pendingLink.url)");
+    expect(main).toContain("resetTempImportDirectory");
+    expect(main).toContain("pathsForDroppedFiles");
+    expect(main).toContain("writeTempFile");
+    expect(main).toContain("assertTrustedSender");
+    expect(main).toContain("matchSoundPath");
   });
 });

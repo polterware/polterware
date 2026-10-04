@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { RPC_METHODS } from "../shared/channels.js";
 import { APP_METHODS, EVENTS, type SparkyBridge } from "../shared/bridge.js";
 
@@ -12,10 +12,26 @@ function subscribe<T>(channel: string, callback: (event: T) => void): () => void
   ipcRenderer.on(channel, listener);
   return () => ipcRenderer.removeListener(channel, listener);
 }
+function droppedPaths(files: unknown): string[] {
+  const list = typeof FileList !== "undefined" && files instanceof FileList ? [...files]
+    : Array.isArray(files) ? files : null;
+  if (!list) throw new Error("Expected a File list");
+  const paths: string[] = [];
+  for (const file of list) {
+    if (typeof File !== "undefined" && !(file instanceof File)) continue;
+    try {
+      const path = webUtils.getPathForFile(file as File);
+      if (typeof path === "string" && path.length > 0 && path.length <= 4096) paths.push(path);
+    } catch { /* Files without a native path are ignored. */ }
+  }
+  return paths;
+}
 bridge.onChange = (callback: Parameters<SparkyBridge["onChange"]>[0]) => subscribe(EVENTS.change, callback);
 bridge.app = {
   name: "Sparky",
   ...Object.fromEntries(APP_METHODS.map(method => [method, (input?: unknown) => ipcRenderer.invoke(`sparky:app:${method}`, input)])),
+  pathsForDroppedFiles: (files: File[]) => ipcRenderer.invoke("sparky:app:pathsForDroppedFiles", droppedPaths(files)),
+  writeTempFile: (bytes: Uint8Array, name: string) => ipcRenderer.invoke("sparky:app:writeTempFile", { bytes, name }),
   onDeepLink: (callback: Parameters<SparkyBridge["app"]["onDeepLink"]>[0]) => {
     const seen = new Set<string>();
     const deliver = (link: { url: string; route: string }) => {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, shell, systemPreferences } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, net, protocol, session, shell, systemPreferences } from "electron";
 import { dirname, isAbsolute, join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createCoreClients, type CoreClients } from "./core/client.js";
@@ -8,6 +8,8 @@ import { createRpcHandlers, assertTrustedSender, validateAppInput, channel, hand
 import { createWindow, rendererDocument } from "./window.js";
 import { contentSecurityPolicy, isAllowedRendererUrl, parseDeepLink } from "./navigation-policy.js";
 import { attachmentResponse, resolveAttachmentUrl } from "./attachment-protocol.js";
+import { grantImportPaths, resetTempImportDirectory, tempImportDirectory, writeGrantedTempFile } from "./import-paths.js";
+import { matchSoundPath, resolveSoundsRoot, soundResponse } from "./sounds-protocol.js";
 import { APP_METHODS, EVENTS, type DeepLink } from "../shared/bridge.js";
 import { updateStatus } from "./updater.js";
 import { installReminders, runNotifyInspect } from "./reminders/index.js";
@@ -41,6 +43,7 @@ if (hiddenLaunch) app.dock?.hide();
 const dbPath = process.env.SPARKY_CORE_DB || join(app.getPath("appData"), "Sparky", "sparky.db");
 if (!isAbsolute(dbPath)) throw new Error("SPARKY_CORE_DB must be absolute");
 const data = dirname(dbPath);
+const tempImportDir = tempImportDirectory(data);
 let win: BrowserWindow | null = null;
 let clients: CoreClients | undefined;
 let core: CoreHandle | undefined;
@@ -100,6 +103,11 @@ function registerIpc(reminders: { requestAuthorization(): Promise<boolean> }): v
       const paths = result.canceled ? [] : result.filePaths;
       paths.forEach(path => grants.import.add(path)); return paths;
     },
+    pathsForDroppedFiles: input => grantImportPaths(input, grants.import),
+    writeTempFile: input => {
+      const payload = input as { bytes: Uint8Array; name: string };
+      return writeGrantedTempFile(payload.bytes, payload.name, tempImportDir, grants.import);
+    },
     saveZip: () => chooseDestination("export"), saveBackup: () => chooseDestination("backup"),
     revealInFinder: async input => {
       if (typeof input !== "string") throw new Error("Invalid attachment URL");
@@ -143,6 +151,15 @@ function installSessionSecurity(): void {
     ...details.responseHeaders, "Content-Security-Policy": [contentSecurityPolicy(onlineMaps, !app.isPackaged)],
   } }));
   void protocol.handle("sparky-file", request => attachmentResponse(request.url, join(data, "attachments")));
+  if (!process.env.ELECTRON_RENDERER_URL) {
+    const soundsRoot = resolveSoundsRoot(app.getAppPath(), process.resourcesPath, app.isPackaged);
+    session.defaultSession.protocol.handle("file", request => {
+      let pathname = "";
+      try { pathname = decodeURIComponent(new URL(request.url).pathname); } catch { return net.fetch(request, { bypassCustomProtocolHandlers: true }); }
+      if (matchSoundPath(pathname)) return soundResponse(pathname, soundsRoot);
+      return net.fetch(request, { bypassCustomProtocolHandlers: true });
+    });
+  }
 }
 function installMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
@@ -190,13 +207,18 @@ else {
   const startupLink = process.argv.find(arg => arg.startsWith("sparky://"));
   if (startupLink) routeDeepLink(startupLink);
   app.on("window-all-closed", () => app.quit());
-  app.on("before-quit", () => { reminders.close(); stopWatcher?.(); });
+  app.on("before-quit", () => {
+    reminders.close();
+    stopWatcher?.();
+    try { resetTempImportDirectory(tempImportDir); } catch { /* Best-effort temp cleanup on quit. */ }
+  });
   app.on("activate", () => { if (!suppressWindow || win) showWindow(); });
   app.on("ready", (_event, launchInfo) => {
     void (async () => {
       suppressWindow = reminders.prepareLaunch(launchInfo) || hiddenLaunch;
       if (app.isPackaged) app.setAsDefaultProtocolClient("sparky");
       else app.setAsDefaultProtocolClient("sparky", process.execPath, [app.getAppPath()]);
+      try { resetTempImportDirectory(tempImportDir); } catch { /* Recreated on the first granted write. */ }
       registerIpc(reminders); installSessionSecurity(); installMenu();
       try {
         await reconnect();

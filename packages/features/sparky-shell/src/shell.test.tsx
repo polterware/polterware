@@ -101,6 +101,19 @@ describe("Sparky shell behavior", () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     key("j"); await vi.waitFor(() => expect(host.textContent).not.toContain("Local note"));
   });
+  it("routes Start focus and memory-bound focus links to the Focus page", async () => {
+    const onDeepLink = vi.fn((url: URL) => url.searchParams.get("action") === "focus");
+    const { host, onLink } = mount([
+      { id: "focus", routes: [{ path: "/focus", title: "Focus", component: () => <p>Live focus</p> }], onDeepLink },
+    ]);
+    await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
+    onLink("sparky://focus");
+    await vi.waitFor(() => expect(host.textContent).toContain("Live focus"));
+    onLink("sparky://memory/01K6N3QWJ8P9A7B6C5D4E3F2G1?action=focus");
+    await vi.waitFor(() => expect(host.textContent).toContain("Live focus"));
+    expect(onDeepLink).toHaveBeenCalled();
+    await vi.waitFor(() => expect(host.textContent).toContain("Local note"));
+  });
   it("opens memory search results and handles a warm deep link", async () => {
     const { host, onLink } = mount(); await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
     onLink("sparky://calendar?date=2026-10-04"); await vi.waitFor(() => expect(host.textContent).toContain("Calendar is unavailable"));

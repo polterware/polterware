@@ -42,7 +42,22 @@ export function createRpcHandlers(options: {
 export function validateAppInput(method: string, input: unknown): void {
   if (["openDeepLink", "revealInFinder"].includes(method)) {
     if (typeof input !== "string" || input.length > 4096) throw new Error("Invalid app input");
-  } else if (input !== undefined) throw new Error("This app method takes no input");
+    return;
+  }
+  if (method === "pathsForDroppedFiles") {
+    if (!Array.isArray(input) || input.length > 64 || input.some(item => typeof item !== "string" || item.length > 4096)) {
+      throw new Error("Invalid app input");
+    }
+    return;
+  }
+  if (method === "writeTempFile") {
+    if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Invalid app input");
+    const payload = input as { bytes?: unknown; name?: unknown };
+    if (typeof payload.name !== "string" || payload.name.length === 0 || payload.name.length > 255) throw new Error("Invalid app input");
+    if (!(payload.bytes instanceof Uint8Array)) throw new Error("Invalid app input");
+    return;
+  }
+  if (input !== undefined) throw new Error("This app method takes no input");
 }
 
 export async function handleRequestNotificationAuthorization(
