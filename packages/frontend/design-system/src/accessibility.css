@@ -1,0 +1,32 @@
+/* Neutral, opaque keyboard focus paint. Edge-light borders do not provide
+   enough contrast to serve as focus indicators on the shared dark surfaces. */
+:is(button, a, input, textarea, [tabindex]):focus-visible,
+.control-field.control-field:focus-visible,
+.pw-search-bar-input.pw-search-bar-input:focus-visible,
+.pw-checkbox__control[data-focus-visible],
+.pw-switch__control[data-focus-visible],
+.pw-segmented__item[data-focus-visible],
+.pw-tree__row[data-focus],
+.pw-date-picker__day[data-focus] {
+  outline: 2px solid var(--color-text-secondary);
+  outline-offset: 2px;
+}
+
+/* Inset outlines stay visible inside clipped, scrollable collections. */
+.pw-data-table-row:focus-visible {
+  outline: 2px solid var(--color-text-secondary);
+  outline-offset: -2px;
+}
+
+@media (forced-colors: active) {
+  :is(button, a, input, textarea, [tabindex]):focus-visible,
+  .control-field.control-field:focus-visible,
+  .pw-search-bar-input.pw-search-bar-input:focus-visible,
+  .pw-checkbox__control[data-focus-visible],
+  .pw-switch__control[data-focus-visible],
+  .pw-segmented__item[data-focus-visible],
+  .pw-tree__row[data-focus],
+  .pw-date-picker__day[data-focus] {
+    outline-color: Highlight;
+  }
+}
