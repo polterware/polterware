@@ -30,7 +30,7 @@ const samples = {
   list_minds: { parent: "Work" },
   list_tags: {},
   list_memories: { mind: "Work", includeDescendants: true, status: "active", limit: 20, order: "due" },
-  search_memories: { query: "milk", mode: "hybrid", limit: 20 },
+  search_memories: { query: "milk", limit: 20 },
   get_memory: { id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", include: ["note", "checklist", "schedule"] },
   list_occurrences: { from: "2026-10-03T00:00:00.000Z", to: "2026-10-10T00:00:00.000Z", includeCompleted: true },
   get_review: { period: "week" },
@@ -98,6 +98,14 @@ describe("MCP tool schemas", () => {
   it.each(toolNames)("accepts a sample call for %s", (name) => {
     const tool = loadTool(name);
     expect(validate(tool.inputSchema, samples[name])).toEqual([]);
+  });
+
+  it("keeps the search tool on the text-search contract", () => {
+    const tool = loadTool("search_memories");
+    expect(Object.keys(tool.inputSchema.properties)).toEqual(["query", "mind", "tag", "limit"]);
+    expect(Object.keys(tool.outputSchema.properties)).toEqual(["hits", "notice"]);
+    expect(tool.outputSchema.required).toEqual(["hits"]);
+    expect(validate(tool.outputSchema, { hits: [] })).toEqual([]);
   });
 
   it("rejects a create without a title and a delete without confirm", () => {

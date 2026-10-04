@@ -30,28 +30,3 @@ func (*Index) Rebuild(context.Context, []search.Document) error {
 func (*Index) Count(context.Context) (int, error) {
 	panic("search/fake: not implemented")
 }
-
-// Vectors is a repository-port skeleton. Methods panic until W1 replaces them.
-type Vectors struct{}
-
-var _ search.Vectors = (*Vectors)(nil)
-
-func (*Vectors) Upsert(context.Context, search.Vector) error {
-	panic("search/fake: not implemented")
-}
-
-func (*Vectors) Delete(context.Context, string) error {
-	panic("search/fake: not implemented")
-}
-
-func (*Vectors) Search(context.Context, string, []float32, int) ([]search.VectorHit, error) {
-	panic("search/fake: not implemented")
-}
-
-func (*Vectors) Stats(context.Context) (int, error) {
-	panic("search/fake: not implemented")
-}
-
-func (*Vectors) DropModel(context.Context, string) error {
-	panic("search/fake: not implemented")
-}

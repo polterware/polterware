@@ -26,7 +26,7 @@ const expected = {
   AttachmentService: ["ImportFromPath", "AddLink", "List", "Delete", "Reorder", "OpenInfo"],
   FocusService: ["GetDefaults", "SetDefaults", "RecordSession", "ListSessions"],
   ReviewService: ["Get"],
-  SearchService: ["Search", "Status", "Reindex", "ConfigureEmbedding", "TestEmbedding"],
+  SearchService: ["Search", "Status", "Reindex"],
   ReminderService: ["Plan", "Ack", "Snooze", "ArmOneOff", "CancelOneOff", "Heartbeat", "Status"],
   ActivityService: ["List"],
   SettingsService: ["Get", "Set"],
@@ -51,6 +51,25 @@ function rpcs(source) {
 }
 
 describe("RPC surface", () => {
+  it("keeps search and settings fields within the text-search contract", () => {
+    const fields = (file, message) => {
+      const source = readFileSync(new URL(file, protoDir), "utf8");
+      const body = source.match(new RegExp(`message ${message} \\{([\\s\\S]*?)\\}`))[1];
+      return [...body.matchAll(/^\s*(?:repeated )?\w+ (\w+) = \d+;/gm)].map((match) => match[1]);
+    };
+    expect(fields("search.proto", "SearchMemoriesRequest")).toEqual([
+      "query", "mind_id", "include_descendants", "tag_ids", "status", "limit",
+    ]);
+    expect(fields("search.proto", "SearchMemoriesResponse")).toEqual(["hits", "notice"]);
+    expect(fields("search.proto", "SearchStatusResponse")).toEqual(["fts_documents"]);
+    expect(fields("settings.proto", "Settings")).toEqual([
+      "appearance_theme", "notifications_sound", "notifications_all_day_time", "notifications_snooze_minutes",
+      "focus_work_min", "focus_short_break_min", "focus_long_break_min", "focus_cycles", "focus_auto_continue",
+      "focus_sounds", "focus_notifications", "map_online", "map_provider", "agents_mcp_port",
+      "agents_mcp_enabled", "agents_allow_file_attach", "app_keep_running_in_background", "links_fetch_titles",
+    ]);
+  });
+
   it("declares every service method from the data contract", () => {
     const found = {};
     for (const name of readdirSync(protoDir)) {

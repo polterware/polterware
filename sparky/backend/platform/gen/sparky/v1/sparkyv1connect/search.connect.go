@@ -39,12 +39,6 @@ const (
 	SearchServiceStatusProcedure = "/sparky.v1.SearchService/Status"
 	// SearchServiceReindexProcedure is the fully-qualified name of the SearchService's Reindex RPC.
 	SearchServiceReindexProcedure = "/sparky.v1.SearchService/Reindex"
-	// SearchServiceConfigureEmbeddingProcedure is the fully-qualified name of the SearchService's
-	// ConfigureEmbedding RPC.
-	SearchServiceConfigureEmbeddingProcedure = "/sparky.v1.SearchService/ConfigureEmbedding"
-	// SearchServiceTestEmbeddingProcedure is the fully-qualified name of the SearchService's
-	// TestEmbedding RPC.
-	SearchServiceTestEmbeddingProcedure = "/sparky.v1.SearchService/TestEmbedding"
 )
 
 // SearchServiceClient is a client for the sparky.v1.SearchService service.
@@ -52,8 +46,6 @@ type SearchServiceClient interface {
 	Search(context.Context, *connect.Request[v1.SearchMemoriesRequest]) (*connect.Response[v1.SearchMemoriesResponse], error)
 	Status(context.Context, *connect.Request[v1.SearchStatusRequest]) (*connect.Response[v1.SearchStatusResponse], error)
 	Reindex(context.Context, *connect.Request[v1.ReindexRequest]) (*connect.Response[v1.ReindexResponse], error)
-	ConfigureEmbedding(context.Context, *connect.Request[v1.ConfigureEmbeddingRequest]) (*connect.Response[v1.ConfigureEmbeddingResponse], error)
-	TestEmbedding(context.Context, *connect.Request[v1.TestEmbeddingRequest]) (*connect.Response[v1.TestEmbeddingResponse], error)
 }
 
 // NewSearchServiceClient constructs a client for the sparky.v1.SearchService service. By default,
@@ -85,28 +77,14 @@ func NewSearchServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(searchServiceMethods.ByName("Reindex")),
 			connect.WithClientOptions(opts...),
 		),
-		configureEmbedding: connect.NewClient[v1.ConfigureEmbeddingRequest, v1.ConfigureEmbeddingResponse](
-			httpClient,
-			baseURL+SearchServiceConfigureEmbeddingProcedure,
-			connect.WithSchema(searchServiceMethods.ByName("ConfigureEmbedding")),
-			connect.WithClientOptions(opts...),
-		),
-		testEmbedding: connect.NewClient[v1.TestEmbeddingRequest, v1.TestEmbeddingResponse](
-			httpClient,
-			baseURL+SearchServiceTestEmbeddingProcedure,
-			connect.WithSchema(searchServiceMethods.ByName("TestEmbedding")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // searchServiceClient implements SearchServiceClient.
 type searchServiceClient struct {
-	search             *connect.Client[v1.SearchMemoriesRequest, v1.SearchMemoriesResponse]
-	status             *connect.Client[v1.SearchStatusRequest, v1.SearchStatusResponse]
-	reindex            *connect.Client[v1.ReindexRequest, v1.ReindexResponse]
-	configureEmbedding *connect.Client[v1.ConfigureEmbeddingRequest, v1.ConfigureEmbeddingResponse]
-	testEmbedding      *connect.Client[v1.TestEmbeddingRequest, v1.TestEmbeddingResponse]
+	search  *connect.Client[v1.SearchMemoriesRequest, v1.SearchMemoriesResponse]
+	status  *connect.Client[v1.SearchStatusRequest, v1.SearchStatusResponse]
+	reindex *connect.Client[v1.ReindexRequest, v1.ReindexResponse]
 }
 
 // Search calls sparky.v1.SearchService.Search.
@@ -124,23 +102,11 @@ func (c *searchServiceClient) Reindex(ctx context.Context, req *connect.Request[
 	return c.reindex.CallUnary(ctx, req)
 }
 
-// ConfigureEmbedding calls sparky.v1.SearchService.ConfigureEmbedding.
-func (c *searchServiceClient) ConfigureEmbedding(ctx context.Context, req *connect.Request[v1.ConfigureEmbeddingRequest]) (*connect.Response[v1.ConfigureEmbeddingResponse], error) {
-	return c.configureEmbedding.CallUnary(ctx, req)
-}
-
-// TestEmbedding calls sparky.v1.SearchService.TestEmbedding.
-func (c *searchServiceClient) TestEmbedding(ctx context.Context, req *connect.Request[v1.TestEmbeddingRequest]) (*connect.Response[v1.TestEmbeddingResponse], error) {
-	return c.testEmbedding.CallUnary(ctx, req)
-}
-
 // SearchServiceHandler is an implementation of the sparky.v1.SearchService service.
 type SearchServiceHandler interface {
 	Search(context.Context, *connect.Request[v1.SearchMemoriesRequest]) (*connect.Response[v1.SearchMemoriesResponse], error)
 	Status(context.Context, *connect.Request[v1.SearchStatusRequest]) (*connect.Response[v1.SearchStatusResponse], error)
 	Reindex(context.Context, *connect.Request[v1.ReindexRequest]) (*connect.Response[v1.ReindexResponse], error)
-	ConfigureEmbedding(context.Context, *connect.Request[v1.ConfigureEmbeddingRequest]) (*connect.Response[v1.ConfigureEmbeddingResponse], error)
-	TestEmbedding(context.Context, *connect.Request[v1.TestEmbeddingRequest]) (*connect.Response[v1.TestEmbeddingResponse], error)
 }
 
 // NewSearchServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -168,18 +134,6 @@ func NewSearchServiceHandler(svc SearchServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(searchServiceMethods.ByName("Reindex")),
 		connect.WithHandlerOptions(opts...),
 	)
-	searchServiceConfigureEmbeddingHandler := connect.NewUnaryHandler(
-		SearchServiceConfigureEmbeddingProcedure,
-		svc.ConfigureEmbedding,
-		connect.WithSchema(searchServiceMethods.ByName("ConfigureEmbedding")),
-		connect.WithHandlerOptions(opts...),
-	)
-	searchServiceTestEmbeddingHandler := connect.NewUnaryHandler(
-		SearchServiceTestEmbeddingProcedure,
-		svc.TestEmbedding,
-		connect.WithSchema(searchServiceMethods.ByName("TestEmbedding")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/sparky.v1.SearchService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SearchServiceSearchProcedure:
@@ -188,10 +142,6 @@ func NewSearchServiceHandler(svc SearchServiceHandler, opts ...connect.HandlerOp
 			searchServiceStatusHandler.ServeHTTP(w, r)
 		case SearchServiceReindexProcedure:
 			searchServiceReindexHandler.ServeHTTP(w, r)
-		case SearchServiceConfigureEmbeddingProcedure:
-			searchServiceConfigureEmbeddingHandler.ServeHTTP(w, r)
-		case SearchServiceTestEmbeddingProcedure:
-			searchServiceTestEmbeddingHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -211,12 +161,4 @@ func (UnimplementedSearchServiceHandler) Status(context.Context, *connect.Reques
 
 func (UnimplementedSearchServiceHandler) Reindex(context.Context, *connect.Request[v1.ReindexRequest]) (*connect.Response[v1.ReindexResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sparky.v1.SearchService.Reindex is not implemented"))
-}
-
-func (UnimplementedSearchServiceHandler) ConfigureEmbedding(context.Context, *connect.Request[v1.ConfigureEmbeddingRequest]) (*connect.Response[v1.ConfigureEmbeddingResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sparky.v1.SearchService.ConfigureEmbedding is not implemented"))
-}
-
-func (UnimplementedSearchServiceHandler) TestEmbedding(context.Context, *connect.Request[v1.TestEmbeddingRequest]) (*connect.Response[v1.TestEmbeddingResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sparky.v1.SearchService.TestEmbedding is not implemented"))
 }
