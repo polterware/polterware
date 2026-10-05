@@ -13,19 +13,23 @@ beforeEach(() => {
   });
 });
 afterEach(() => { dispose?.(); dispose = undefined; document.body.replaceChildren(); vi.restoreAllMocks(); });
-function mount(extra: SparkyFeature[] = [], options: { offline?: boolean; permission?: string; armed?: number; authorize?: false | (() => Promise<boolean>) } = {}) {
+function mount(extra: SparkyFeature[] = [], options: { offline?: boolean; permission?: string; armed?: number; authorize?: false | (() => Promise<boolean>); holdStatus?: boolean } = {}) {
   let permission = options.permission ?? "authorized";
+  let releaseStatus: ((value: unknown) => void) | undefined;
   const status = vi.fn(async () => {
+    if (options.holdStatus) await new Promise(resolve => { releaseStatus = resolve; });
     if (options.offline) throw new Error("Core disconnected");
     return { permission, armed: options.armed ?? 0, planned: 0, notifierLastSeenAt: new Date().toISOString() };
   });
   const create = vi.fn(async (_input?: unknown) => ({ memory: { id: "new-memory", title: "Buy milk", rev: "1" } }));
+  const listMinds = vi.fn(async () => ({ minds: [] }));
+  const listMemories = vi.fn(async () => ({ total: 0 }));
   const requestNotificationAuthorization = vi.fn(options.authorize === false ? undefined : (options.authorize ?? (async () => { permission = "authorized"; return true; })));
   let onLink!: (link: { url: string; route: string }) => void;
   const unsubscribe = vi.fn();
   const wire = {
-    reminders: { status }, minds: { list: async () => ({ minds: [] }) },
-    memories: { list: async () => ({ total: 0 }), create, get: async () => ({ memory: { id: "new-memory", title: "Buy milk", note: "Local note", rev: "1" } }) },
+    reminders: { status }, minds: { list: listMinds },
+    memories: { list: listMemories, create, get: async () => ({ memory: { id: "new-memory", title: "Buy milk", note: "Local note", rev: "1" } }) },
     tags: { list: async () => ({ tags: [] }) }, search: { search: vi.fn(async () => ({ hits: [{ memoryId: "new-memory", title: "Buy milk", snippet: "Local <b>note</b>" }] })) },
     onChange: () => unsubscribe,
     app: {
@@ -36,7 +40,7 @@ function mount(extra: SparkyFeature[] = [], options: { offline?: boolean; permis
   } as unknown as ShellWireBridge;
   const host = document.createElement("div"); document.body.append(host);
   dispose = render(() => <SparkyShell features={[shellFeature, ...extra]} bridge={createShellBridge(wire)} />, host);
-  return { host, status, create, onLink: (url: string) => onLink({ url, route: "" }), unsubscribe, requestNotificationAuthorization, search: wire.search.search };
+  return { host, status, create, listMinds, listMemories, releaseStatus: () => releaseStatus?.({ permission, armed: options.armed ?? 0, planned: 0, notifierLastSeenAt: new Date().toISOString() }), onLink: (url: string) => onLink({ url, route: "" }), unsubscribe, requestNotificationAuthorization, search: wire.search.search };
 }
 function button(label: string): HTMLButtonElement {
   const found = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(item => item.getAttribute("aria-label") === label || item.textContent?.trim() === label);
@@ -262,4 +266,23 @@ it("renders registered memoryDetail, memoryCollection, and sidebarTree", async (
   expect(host.textContent).not.toContain("Mind is unavailable");
   button("Open memory").click();
   await vi.waitFor(() => expect(host.textContent).toContain("Memory detail mem-1 schedule,place"));
+});
+it("starts independent queries with the reminder probe", async () => {
+  const delayed = mount([], { holdStatus: true });
+  await vi.waitFor(() => expect(delayed.status).toHaveBeenCalled());
+  await vi.waitFor(() => expect(delayed.listMemories).toHaveBeenCalled());
+  await vi.waitFor(() => expect(delayed.listMinds).toHaveBeenCalled());
+  expect(delayed.host.textContent).toContain("Starting Sparky");
+  delayed.releaseStatus();
+  await vi.waitFor(() => expect(delayed.host.textContent).toContain("Today is unavailable"));
+});
+it("skips duplicate Mind reads when a sidebar tree is registered", async () => {
+  const withTree = mount([
+    { id: "minds", routes: [], sidebarTree: { id: "minds-tree", component: () => <p>Registered minds tree</p> } },
+  ], { holdStatus: true });
+  await vi.waitFor(() => expect(withTree.listMemories).toHaveBeenCalled());
+  expect(withTree.listMinds).not.toHaveBeenCalled();
+  withTree.releaseStatus();
+  await vi.waitFor(() => expect(withTree.host.textContent).toContain("Registered minds tree"));
+  expect(withTree.listMinds).not.toHaveBeenCalled();
 });

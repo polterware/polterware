@@ -5,6 +5,12 @@ import type { ReminderStatusResponseSchema } from "@polterware/sparky-contracts"
 import type { ShellBridge } from "./bridge";
 
 export type ReminderStatus = MessageShape<typeof ReminderStatusResponseSchema>;
+export type ConnectionState = "loading" | "live" | "offline";
+
+export function independentQueryKey(state: ConnectionState, revision: number, bridge: unknown): number | false {
+  if (!bridge || state === "offline") return false;
+  return revision;
+}
 export function reminderLabel(status: ReminderStatus | undefined, now = Date.now()): string {
   if (!status) return "Reminders unavailable";
   if (status.permission === "denied") return "Reminders: permission denied";
@@ -16,7 +22,7 @@ export function reminderLabel(status: ReminderStatus | undefined, now = Date.now
   return "Reminders refresh when Sparky runs";
 }
 export function createCoreConnection(bridge: ShellBridge | undefined) {
-  const [state, setState] = createSignal<"loading" | "live" | "offline">("loading");
+  const [state, setState] = createSignal<ConnectionState>("loading");
   const [status, setStatus] = createSignal<ReminderStatus>();
   let pending: Promise<void> | undefined;
   let disposed = false;
