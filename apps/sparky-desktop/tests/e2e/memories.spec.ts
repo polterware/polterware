@@ -44,7 +44,12 @@ test("keyboard create, edit, pin, complete, undo and delete", async ({ sparky, p
   await expect(undo).toBeVisible(); await undo.focus(); await page.keyboard.press("Enter");
   await expect(row).toBeVisible();
   await row.focus(); await page.keyboard.press("Meta+Backspace");
-  await page.getByRole("dialog").getByRole("button", { name: "Delete", exact: true }).focus(); await page.keyboard.press("Enter");
+  const deleteDialog = page.getByRole("dialog", { name: "Delete selected memories?", exact: true });
+  await expect(deleteDialog).toBeVisible();
+  // Wait for the focus trap to activate before choosing a different control.
+  await expect.poll(() => deleteDialog.evaluate(element => element.contains(document.activeElement))).toBe(true);
+  const deleteButton = deleteDialog.getByRole("button", { name: "Delete", exact: true });
+  await deleteButton.focus(); await expect(deleteButton).toBeFocused(); await page.keyboard.press("Enter");
   await expect(page.getByText(/Deletion queued:/)).toBeVisible();
   await page.getByRole("button", { name: "Undo", exact: true }).focus(); await page.keyboard.press("Enter");
   await expect(row).toBeVisible();

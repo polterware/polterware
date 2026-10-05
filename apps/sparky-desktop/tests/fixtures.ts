@@ -1,6 +1,6 @@
 import { test as base, expect, _electron, type ElectronApplication, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
@@ -20,6 +20,8 @@ export const test = base.extend<{ sparky: Sparky; page: Page }>({
       ...(process.env.SPARKY_E2E_LIVE_NOTIFY === "1" ? {} : { SPARKY_NOTIFY_MODULE: resolve("tests/helpers/notify-stub.cjs") }) }), { mode: 0o600 });
     let app: ElectronApplication | undefined;
     let launchedProcess: ReturnType<ElectronApplication["process"]> | undefined;
+    const profiling = process.env.SPARKY_E2E_PROFILE === "1";
+    const startupTrace = join(directory, "startup-trace.json");
     const core = async () => JSON.parse(await readFile(join(dirname(database), "run/core.json"), "utf8")) as CoreState;
     const killCore = async (signal: NodeJS.Signals = "SIGTERM") => {
       try {
@@ -37,7 +39,10 @@ export const test = base.extend<{ sparky: Sparky; page: Page }>({
     };
     try {
       const startedAt = performance.now();
-      app = await _electron.launch({ executablePath, args: [`--user-data-dir=${join(directory, "userdata")}`, `--sparky-e2e-env=${environmentFile}`], env, timeout: 30_000 });
+      const launchedAt = Date.now();
+      app = await _electron.launch({ executablePath, args: [`--user-data-dir=${join(directory, "userdata")}`, `--sparky-e2e-env=${environmentFile}`,
+        ...(profiling ? ["--trace-startup=devtools.timeline,v8,loading,blink.user_timing,disabled-by-default-v8.cpu_profiler", "--trace-startup-duration=5", "--trace-startup-format=json", `--trace-startup-file=${startupTrace}`] : []),
+      ], env, timeout: 30_000 });
       // Playwright disposes the application's channel after a normal last-window exit.
       launchedProcess = app.process();
       await app.context().tracing.start({ screenshots: true, snapshots: true, sources: true });
@@ -49,6 +54,20 @@ export const test = base.extend<{ sparky: Sparky; page: Page }>({
         async skipOnboarding() { await expect(page.getByRole("dialog", { name: "Welcome to Sparky" })).toBeVisible(); await page.getByRole("button", { name: "Skip onboarding", exact: true }).click(); },
         async seed(count) { await page.evaluate(async n => { for (let i = 0; i < n; i++) await window.sparky.memories.create({ title: `Performance memory ${String(i).padStart(5, "0")}`, note: `Benchmark group ${i % 100}` }); }, count); },
       });
+      if (profiling) {
+        const milestones = {
+          mainEntryMs: (await stat(join(directory, "main-started.json"))).mtimeMs - launchedAt,
+          coreStateMs: (await stat(join(dirname(database), "run/core.json"))).mtimeMs - launchedAt,
+          renderer: await page.evaluate(() => ({
+            navigationStartMs: performance.timeOrigin,
+            navigation: performance.getEntriesByType("navigation").map(entry => entry.toJSON()),
+            paints: performance.getEntriesByType("paint").map(entry => entry.toJSON()),
+            resources: performance.getEntriesByType("resource").map(entry => entry.toJSON()),
+          })),
+          launchedAt,
+        };
+        await info.attach("startup-milestones", { body: JSON.stringify(milestones), contentType: "application/json" });
+      }
       if (errors.length) await info.attach("renderer-errors", { body: JSON.stringify(errors), contentType: "application/json" });
     } finally {
       if (app) {
@@ -61,6 +80,7 @@ export const test = base.extend<{ sparky: Sparky; page: Page }>({
         if (timer) clearTimeout(timer);
       }
       // Attach logs only, never core.json or mcp-token (both contain bearer secrets).
+      if (profiling) await readFile(startupTrace).then(body => info.attach("startup-chromium-trace", { body, contentType: "application/json" })).catch(() => {});
       for (const name of ["core.log", "notify.log"]) {
         const path = join(dirname(database), "run", name);
         await readFile(path).then(body => info.attach(name, { body, contentType: "text/plain" })).catch(() => {});

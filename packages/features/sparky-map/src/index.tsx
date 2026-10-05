@@ -1,9 +1,11 @@
 import type { SparkyFeature } from "@polterware/feature-sparky-shell/feature";
+import { lazy } from "solid-js";
 import { browserBridge } from "./bridge";
 import { mapStore } from "./store";
-import { MapPage } from "./map-page";
-import { PlaceCard } from "./place-card";
-import { MapSettingsPanel } from "./settings-panel";
+// Register components eagerly, but load map/editor code only when the shell renders them.
+const MapPage = lazy(() => import("./map-page").then(module => ({ default: module.MapPage })));
+const PlaceCard = lazy(() => import("./place-card").then(module => ({ default: module.PlaceCard })));
+const MapSettingsPanel = lazy(() => import("./settings-panel").then(module => ({ default: module.MapSettingsPanel })));
 
 const feature: SparkyFeature = {
   id: "map",
