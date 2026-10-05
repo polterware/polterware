@@ -1,5 +1,9 @@
 appId: com.polterware.sparky
 productName: Sparky
+electronVersion: 44.4.5
+artifactName: Sparky-${version}-${arch}.${ext}
+publish: null
+afterPack: scripts/sign-mac.cjs
 asar: true
 asarUnpack:
   - out/renderer/**
@@ -12,6 +16,7 @@ files:
   - out/**/*
   - package.json
   - "!**/*.map"
+  - "!**/node_modules/**/{test,tests,__tests__}/**"
 
 extraResources:
   - from: ../../dist
@@ -46,6 +51,8 @@ mac:
   extendInfo:
     NSMicrophoneUsageDescription: "Sparky uses the microphone to record audio attachments."
   identity: null
+  hardenedRuntime: false
+  notarize: false
   category: public.app-category.productivity
   target:
     - dmg
