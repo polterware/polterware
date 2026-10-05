@@ -54,3 +54,4 @@ Thumbs.db
 apps/sparky-desktop/out/
 apps/sparky-desktop/release/
 apps/sparky-desktop/test-results/
+.playwright-mcp/
