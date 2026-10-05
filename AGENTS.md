@@ -31,6 +31,10 @@ The Desktop may execute on the local machine through the local core only. The re
 
 The integration catalog contains exactly GitHub, GitLab, AWS, Google Cloud, Azure, Vercel, Supabase, Terraform, and Docker. Do not add placeholders or app-owned provider-token fields, and never persist provider credentials in SQLite. Raw PTY output is not guaranteed to be sanitized; do not describe it as redacted.
 
+## Sparky (second app)
+
+The monorepo also hosts Sparky, a separate local-first app with its own core (`sparky/backend`), contracts (`sparky/schemas`), desktop (`apps/sparky-desktop`) and feature packages (`packages/features/sparky-*`). Sparky shares `packages/frontend` and the UI law above but not Polterware's product surfaces, store or core: do not mix their data models, and keep the Polterware product boundary above unchanged. Sparky checks run through `bash tooling/verify-sparky.sh`; its renderer talks only through `window.sparky`.
+
 ## Architecture boundaries
 
 - Go local authority: the single `polterware` binary (`backend/runtimes/cli`: TUI, commands, `serve`, `mcp`) and retained domains only.

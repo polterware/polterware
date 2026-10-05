@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "sparky": {
-      "command": "stdio-proxy",
-      "args": ["-url", "http://127.0.0.1:47600/mcp", "-token", "<mcp-token>"]
-    }
-  }
-}

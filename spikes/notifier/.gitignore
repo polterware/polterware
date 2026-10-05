@@ -1,5 +1,0 @@
-.build/
-run/
-dist/
-host/.build/
-electron/node_modules/

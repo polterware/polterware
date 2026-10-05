@@ -1,4 +1,0 @@
-/Users/erickpatrickbarcelos/codes/polterware-total/polterware-wt/w0-native-notify/spikes/native-notify/dist/napi/Sparky.app: replacing existing signature
-Built napi: /Users/erickpatrickbarcelos/codes/polterware-total/polterware-wt/w0-native-notify/spikes/native-notify/dist/napi/Sparky.app
-/Users/erickpatrickbarcelos/codes/polterware-total/polterware-wt/w0-native-notify/spikes/native-notify/dist/swift/Sparky.app: replacing existing signature
-Built swift: /Users/erickpatrickbarcelos/codes/polterware-total/polterware-wt/w0-native-notify/spikes/native-notify/dist/swift/Sparky.app
