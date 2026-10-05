@@ -1,5 +1,5 @@
 import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
-import { A11yDialog, Button, DataTable, Field, FilterChip, FilterPopover, Input, ListChecks, PageEmpty, PageError, PageHeader, PageLoading, PageOffline, PageToolbar, SearchBar, SegmentedControl, Select, StatusChip } from "@polterware/frontend-design-system";
+import { A11yDialog, ActiveFilterBar, Button, CalendarClock, DataTable, Field, FileText, FilterPopover, Input, ListChecks, PageEmpty, PageError, PageLoading, PageOffline, PageToolbar, Plus, SearchBar, Select, StatusChip, TemplateCardGrid, ToolbarIconButton, type ActiveFilterPill, type FilterPopoverGroup, type TemplateCardGridItem } from "@polterware/frontend-design-system";
 import { browserBridge } from "./bridge";
 import { errorText, filterRows, todayGroup, DEFAULT_FILTER, type MemoryRow } from "./model";
 import { MemoryDetailHost } from "./host";
@@ -72,13 +72,29 @@ export function MemoryCollection(props: MemoryCollectionProps) {
     else if (shell) shell.openMemory(id);
     else void browserBridge().app.openDeepLink(`sparky://memory/${encodeURIComponent(id)}`).catch((error: unknown) => setActionError(errorText(error)));
   };
-  async function create() {
-    if (!title().trim() || busy()) return;
+  async function createFrom(input: { title: string; note?: string; checklist?: { id: string; title: string; detail: string; done: boolean; sortOrder: number }[]; dueAt?: string; dueAllDay?: boolean }) {
+    if (busy()) return;
     setBusy(true); setActionError("");
-    try { const memory = await store.create({ title: title().trim(), mindId: props.mindId ?? "" }); setCreating(false); setTitle(""); open(memory.id); }
-    catch (error) { setActionError(errorText(error)); }
+    try {
+      const memory = await store.create({ title: input.title, note: input.note ?? "", mindId: props.mindId ?? "", checklist: input.checklist, dueAt: input.dueAt, dueAllDay: input.dueAllDay ?? false });
+      setCreating(false); setTitle(""); open(memory.id);
+    } catch (error) { setActionError(errorText(error)); }
     finally { setBusy(false); }
   }
+  async function create() {
+    if (!title().trim()) return;
+    await createFrom({ title: title().trim() });
+  }
+  const narrowed = () => Boolean(query() || pinned() || tagId() || status() !== DEFAULT_FILTER.status);
+  const templateItems = (): TemplateCardGridItem[] => [
+    { id: "note", title: "Note", description: "A short note you can fill in.", tone: "knowledge", icon: <FileText size={16} />, onSelect: () => void createFrom({ title: "Note" }) },
+    { id: "checklist", title: "Checklist", description: "A few steps to check off.", tone: "execution", icon: <ListChecks size={16} />, onSelect: () => void createFrom({ title: "Checklist", checklist: [
+      { id: "check-1", title: "First step", detail: "", done: false, sortOrder: 0 },
+      { id: "check-2", title: "Second step", detail: "", done: false, sortOrder: 1 },
+      { id: "check-3", title: "Third step", detail: "", done: false, sortOrder: 2 },
+    ] }) },
+    { id: "reminder", title: "Reminder", description: "Something due today.", tone: "observability", icon: <CalendarClock size={16} />, onSelect: () => void createFrom({ title: "Reminder", dueAt: new Date().toISOString(), dueAllDay: true }) },
+  ];
   async function bulk(action: "complete" | "pin" | "move") {
     setBusy(true); setActionError("");
     try {
@@ -112,28 +128,60 @@ export function MemoryCollection(props: MemoryCollectionProps) {
     else if (id && event.key === " " && element.matches("[data-row-id]")) { event.preventDefault(); event.stopPropagation(); void store.toggle(id, "status"); }
     else if (id && event.key.toLowerCase() === "e" && !event.metaKey && !event.ctrlKey) { event.preventDefault(); event.stopPropagation(); open(id); queueMicrotask(() => document.querySelector<HTMLInputElement>("[data-memory-title]")?.focus()); }
   };
+  const resetFilters = () => { setStatus(DEFAULT_FILTER.status); setPinned(DEFAULT_FILTER.pinned); setTagId(DEFAULT_FILTER.tagId); setOrder(DEFAULT_FILTER.order); setLayout("list"); };
+  const filtersActive = () => status() !== DEFAULT_FILTER.status || pinned() || Boolean(tagId()) || order() !== DEFAULT_FILTER.order || layout() !== "list";
+  const filterGroups = createMemo((): FilterPopoverGroup[] => [
+    { id: "status", label: "Status", selectionMode: "single", options: [
+      { id: "active", label: "Active", checked: status() === "active", onCheckedChange: checked => { if (checked) setStatus("active"); } },
+      { id: "completed", label: "Completed", checked: status() === "completed", onCheckedChange: checked => { if (checked) setStatus("completed"); } },
+      { id: "all", label: "All", checked: status() === "", onCheckedChange: checked => { if (checked) setStatus(""); } },
+    ] },
+    { id: "pinned", label: "Pinned", inline: true, options: [{ id: "pinned", label: "Pinned", checked: pinned(), onCheckedChange: setPinned }] },
+    { id: "tags", label: "Tags", selectionMode: "single", options: store.tags().map(tag => ({ id: tag.id ?? "", label: tag.name ?? "Unnamed tag", checked: tagId() === tag.id, onCheckedChange: checked => setTagId(checked ? tag.id ?? "" : "") })) },
+    { id: "sort", label: "Sort", selectionMode: "single", options: [
+      { id: "due", label: "Due date", checked: order() === "due", onCheckedChange: checked => { if (checked) setOrder("due"); } },
+      { id: "title", label: "Title", checked: order() === "title", onCheckedChange: checked => { if (checked) setOrder("title"); } },
+      { id: "updated", label: "Recently updated", checked: order() === "updated", onCheckedChange: checked => { if (checked) setOrder("updated"); } },
+    ] },
+    { id: "layout", label: "Layout", selectionMode: "single", options: [
+      { id: "list", label: "List", checked: layout() === "list", onCheckedChange: checked => { if (checked) setLayout("list"); } },
+      { id: "table", label: "Table", checked: layout() === "table", onCheckedChange: checked => { if (checked) setLayout("table"); } },
+    ] },
+  ]);
+  const activeFilters = createMemo((): ActiveFilterPill[] => {
+    const pills: ActiveFilterPill[] = [];
+    if (status() === "completed") pills.push({ id: "status", label: "Completed", onRemove: () => setStatus("active") });
+    if (status() === "") pills.push({ id: "status", label: "All", onRemove: () => setStatus("active") });
+    if (pinned()) pills.push({ id: "pinned", label: "Pinned", onRemove: () => setPinned(false) });
+    if (tagId()) pills.push({ id: "tag", label: store.tags().find(tag => tag.id === tagId())?.name ?? "Tag", onRemove: () => setTagId("") });
+    if (order() === "title") pills.push({ id: "order", label: "Title", onRemove: () => setOrder("due") });
+    if (order() === "updated") pills.push({ id: "order", label: "Recently updated", onRemove: () => setOrder("due") });
+    if (layout() === "table") pills.push({ id: "layout", label: "Table", onRemove: () => setLayout("list") });
+    return pills;
+  });
   return <div ref={element => { root = element; }} class="flex h-full min-h-0 flex-col gap-3">
-    <Show when={mode() !== "mind"}><PageHeader title={mode() === "today" ? "Today" : "Inbox"} /></Show>
     <PageToolbar.Root>
-      <PageToolbar.Leading><div class="flex flex-wrap items-center gap-2">
+      <PageToolbar.Leading>
+        <Show when={mode() !== "mind"}>
+          <h1 class="truncate text-[15px] font-semibold tracking-tight text-[var(--color-text-primary)]">{mode() === "today" ? "Today" : "Inbox"}</h1>
+        </Show>
+      </PageToolbar.Leading>
+      <PageToolbar.Actions>
         <SearchBar aria-label="Filter memories" placeholder="Filter memories" value={query()} onInput={setQuery} />
-        <FilterChip selected={status() === "active"} onClick={() => setStatus("active")}>Active</FilterChip>
-        <FilterChip selected={status() === "completed"} onClick={() => setStatus("completed")}>Completed</FilterChip>
-        <FilterChip selected={!status()} onClick={() => setStatus("")}>All</FilterChip>
-        <FilterChip selected={pinned()} onClick={() => setPinned(!pinned())}>Pinned</FilterChip>
-        <FilterPopover ariaLabel="Filter by tag" triggerLabel="Tags" active={Boolean(tagId())} onClear={() => setTagId("")} groups={[{ id: "tags", label: "Tags", selectionMode: "single", options: store.tags().map(tag => ({ id: tag.id ?? "", label: tag.name ?? "Unnamed tag", checked: tagId() === tag.id, onCheckedChange: checked => setTagId(checked ? tag.id ?? "" : "") })) }]} />
-        <Select class="w-auto min-w-32" aria-label="Sort memories" value={order()} options={[{ value: "due", label: "Due date" }, { value: "title", label: "Title" }, { value: "updated", label: "Recently updated" }]} onChange={setOrder} />
-        <SegmentedControl aria-label="Memory layout" value={layout()} onValueChange={details => setLayout(details.value ?? "list")} options={[{ value: "list", label: "List" }, { value: "table", label: "Table" }]} />
-      </div></PageToolbar.Leading>
-      <PageToolbar.Actions><Button onClick={() => setCreating(true)}>New memory</Button></PageToolbar.Actions>
+        <FilterPopover ariaLabel="Filters" active={filtersActive()} onClear={resetFilters} groups={filterGroups()} />
+        <ToolbarIconButton label="New memory" onClick={() => setCreating(true)}><Plus size={14} /></ToolbarIconButton>
+      </PageToolbar.Actions>
     </PageToolbar.Root>
+    <ActiveFilterBar items={activeFilters()} onClear={resetFilters} />
     <Show when={actionError()}><PageError title="Action failed" message={actionError()} /></Show>
     <For each={Object.entries(store.errors()).filter(([, value]) => Boolean(value))}>{([id, message]) => <div role="alert" class="flex items-center gap-2"><p>Memory action failed: {message}</p><Button variant="secondary" onClick={() => open(id)}>Open memory</Button></div>}</For>
     <Show when={mode() === "today" && store.scheduleError()}><p role="status">Scheduled memories unavailable: {store.scheduleError()}. Due memories are shown.</p></Show>
     <Show when={store.loadError()}><PageOffline title="Memories unavailable" message={store.loadError()} onRetry={() => void store.refresh()} /></Show>
     <Show when={store.loading() && !store.rows().length}><PageLoading label="Loading memories" /></Show>
     <Show when={!store.loadError() && (!store.loading() || store.rows().length)}>
-      <Show when={displayRows().length} fallback={<PageEmpty title={query() || pinned() || tagId() ? "No matching memories" : mode() === "today" ? "Nothing due today" : "No memories here"} description={mode() === "inbox" ? "Memories without a Mind appear here." : "Create a memory or change your filters."} action={<Button onClick={() => setCreating(true)}>New memory</Button>} />}>
+      <Show when={displayRows().length} fallback={narrowed()
+        ? <PageEmpty title="No matching memories" description="Create a memory or change your filters." />
+        : <div class="flex h-full min-h-[200px] w-full items-center justify-center p-8"><TemplateCardGrid label="Start from a template" items={templateItems()} /></div>}>
         <DataTable.Root rows={displayRows()} getRowId={row => row.id} selectionMode="multiple" selectedRowIds={selection()} onSelectionChange={setSelection} activeRowId={activeId()} onActiveRowChange={setActiveId} virtualized={props.virtualized !== false} fixedRowHeight={48} overscan={4}>
           <DataTable.Table aria-label="Memories">
             <DataTable.Header><DataTable.SelectionCell /><DataTable.ColumnHeader id="title" sortable={false}>Memory</DataTable.ColumnHeader>

@@ -83,6 +83,20 @@ describe("CalendarGrid", () => {
     const host = mount(() => <CalendarGrid.Root view="day" label="Calendar"><CalendarGrid.Occurrence completed={completed()} disabled>Read</CalendarGrid.Occurrence></CalendarGrid.Root>);
     const button = host.querySelector<HTMLButtonElement>("button")!; expect(button.disabled).toBe(true); setCompleted(true); expect(button.hasAttribute("data-completed")).toBe(true);
   });
+  it("renders one shared time gutter", () => {
+    const host = mount(() => <CalendarGrid.Root view="week" label="Week"><CalendarGrid.Time columns={7}><CalendarGrid.TimeSticky zone="GMT-3"><span>Mon</span></CalendarGrid.TimeSticky><CalendarGrid.TimeBody gutter={<><CalendarGrid.GutterLabel hour={0}>12 AM</CalendarGrid.GutterLabel></>}><div /></CalendarGrid.TimeBody></CalendarGrid.Time></CalendarGrid.Root>);
+    expect(host.querySelectorAll(".pw-calendar__gutter")).toHaveLength(1);
+    expect(host.querySelector(".pw-calendar__zone")!.textContent).toBe("GMT-3");
+    expect(host.querySelector(".pw-calendar__gutter-label")!.textContent).toBe("12 AM");
+  });
+  it("renders year and schedule frames", () => {
+    const year = mount(() => <CalendarGrid.Root view="year" label="2026"><CalendarGrid.Year><CalendarGrid.MiniMonth><span>October</span></CalendarGrid.MiniMonth></CalendarGrid.Year></CalendarGrid.Root>);
+    expect(year.querySelector("section")!.getAttribute("data-view")).toBe("year");
+    expect(year.textContent).toContain("October");
+    const schedule = mount(() => <CalendarGrid.Root view="schedule" label="Schedule"><CalendarGrid.Agenda><span>5 Oct, Mon</span></CalendarGrid.Agenda></CalendarGrid.Root>);
+    expect(schedule.querySelector("section")!.getAttribute("data-view")).toBe("schedule");
+    expect(schedule.textContent).toContain("5 Oct, Mon");
+  });
 });
 describe("EmptyIllustration", () => {
   it("keeps decorative artwork out of keyboard/focus navigation while preserving the empty action", () => {

@@ -46,6 +46,7 @@ const ALPHA_TOKEN_DECLARATIONS = new Map([
 const DESKTOP_WINDOW_ALPHA_HEX = new Set(["#00000000"]);
 const PRESENCE_MOTION_PATHS = new Set([
   "apps/desktop/src/renderer/boot-splash.css",
+  "apps/sparky-desktop/src/renderer/boot-splash.css",
   "packages/frontend/design-system/src/dialog.css",
   "packages/frontend/design-system/src/drawer.css",
   "packages/frontend/design-system/src/dropdown-menu.css",

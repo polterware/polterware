@@ -15,7 +15,6 @@ const sparkyFeatures = [
   "calendar",
   "attachments",
   "focus",
-  "review",
   "map",
   "settings",
   "search",
@@ -61,6 +60,7 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(rootDir, "src/renderer"),
+    server: { port: 5174 },
     plugins: [
       solid({
         include: [

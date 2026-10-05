@@ -157,7 +157,7 @@ export function MindsSidebarTree() {
     >
       <Show when={!minds.loading} fallback={<p class="text-xs text-[var(--color-text-muted)]">Loading Minds…</p>}>
         <Show when={!minds.error} fallback={<p role="status">Minds unavailable</p>}>
-          <Show when={tree().length} fallback={<p class="text-xs text-[var(--color-text-muted)]">No Minds yet.</p>}>
+          <Show when={tree().length}>
             <TreeView
               label="Minds"
               nodes={labeledNodes(tree(), counts() ?? {})}
@@ -169,7 +169,6 @@ export function MindsSidebarTree() {
                 if (id) shell.navigate(`/mind/${encodeURIComponent(id)}`);
               }}
             />
-            <p class="text-xs text-[var(--color-text-muted)]">Drag to nest. Alt+Arrow keys move the selected Mind. Cycles are not offered as drop targets.</p>
           </Show>
         </Show>
       </Show>

@@ -1,4 +1,5 @@
 import { For, type JSX } from "solid-js";
+import { bayerThreshold } from "./dither-bayer";
 import "./dither-icon.css";
 
 export type DitherIconTone =
@@ -109,13 +110,6 @@ export function registerDitherAccents(accents: Readonly<Record<string, string>>)
   };
 }
 
-const BAYER_4X4 = [
-  [0, 8, 2, 10],
-  [12, 4, 14, 6],
-  [3, 11, 1, 9],
-  [15, 7, 13, 5],
-].map((row) => row.map((value) => (value + 0.5) / 16));
-
 const GRID_SIZE = 16;
 
 /**
@@ -127,7 +121,7 @@ const DITHER_CELLS = Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, index) =>
   const y = Math.floor(index / GRID_SIZE);
   // ~44%–58% fill: even texture, slight depth, never sparse black top.
   const density = 0.44 + ((y + 1) / GRID_SIZE) * 0.14;
-  const threshold = BAYER_4X4[y & 3]?.[x & 3] ?? 0.5;
+  const threshold = bayerThreshold(x, y);
   return density >= threshold ? { x, y } : null;
 }).filter((cell): cell is { x: number; y: number } => cell !== null);
 

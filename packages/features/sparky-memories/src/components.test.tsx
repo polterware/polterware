@@ -124,12 +124,12 @@ describe("memory page behavior through a fake preload bridge", () => {
   it("invalidates Inbox membership after moving a memory through the detail Mind picker", async () => {
     const { host, store } = mount(); await open(host);
     store.edit("memory-1", { mindId: "mind-1" }); await store.flush("memory-1");
-    await vi.waitFor(() => expect(host.textContent).toContain("No memories here"));
+    await vi.waitFor(() => expect(host.textContent).toContain("Start from a template"));
     expect(store.record("memory-1")!.mindId).toBe("mind-1");
   });
   it("renders offline recovery and empty collections honestly", async () => {
     const { host, bridge, store } = mount([]);
-    await vi.waitFor(() => expect(host.textContent).toContain("No memories here"));
+    await vi.waitFor(() => expect(host.textContent).toContain("Start from a template"));
     vi.mocked(bridge.memories.list).mockRejectedValueOnce(new Error("Core offline")); await store.refresh();
     expect(host.textContent).toContain("Memories unavailable"); expect(host.textContent).toContain("Retry connection");
     button("Retry connection").click(); await vi.waitFor(() => expect(store.loadError()).toBe(""));
@@ -138,9 +138,12 @@ describe("memory page behavior through a fake preload bridge", () => {
     const { host } = mount();
     await row(host);
     expect(host.textContent).not.toContain("Priority");
-    const layout = document.querySelector('[aria-label="Memory layout"]')!;
-    const inputs = layout.querySelectorAll<HTMLInputElement>("input");
-    inputs[1]!.click();
+    document.querySelector<HTMLButtonElement>('[aria-label="Filters"]')!.click();
+    const layout = () => [...document.querySelectorAll<HTMLButtonElement>("button")].find(element => element.textContent?.includes("Layout"));
+    await vi.waitFor(() => expect(layout()).toBeTruthy());
+    layout()!.click();
+    await vi.waitFor(() => expect([...document.querySelectorAll(".pw-switch-row")].some(element => element.textContent?.includes("Table"))).toBe(true));
+    [...document.querySelectorAll<HTMLElement>(".pw-switch-row")].find(element => element.textContent?.includes("Table"))!.click();
     await vi.waitFor(() => expect(host.textContent).toContain("Priority"));
     expect(host.textContent).toContain("Due");
   });

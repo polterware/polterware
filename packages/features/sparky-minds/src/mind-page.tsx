@@ -6,6 +6,8 @@ import {
   ColorSwatchPicker,
   Dialog,
   Field,
+  Folder,
+  House,
   IconPicker,
   Input,
   PageEmpty,
@@ -14,13 +16,16 @@ import {
   PageLoading,
   parseColor,
   Select,
+  TemplateCardGrid,
+  Zap,
   type PickerIconName,
+  type TemplateCardGridItem,
 } from "@polterware/frontend-design-system";
 import "./minds.css";
 import { useSparkyShell } from "@polterware/feature-sparky-shell";
 import type { Mind } from "@polterware/sparky-contracts";
 import { hexFromPicker, loadDeletePreview, loadMinds, mindsBridge, parentPatch, toMindNode, wireRev } from "./bridge";
-import { MindsSidebarTree, MindMark, pickerIcon } from "./minds-tree";
+import { MindMark, pickerIcon } from "./minds-tree";
 import { bumpMinds, mindsRevision } from "./session";
 import {
   buildMindTree,
@@ -175,6 +180,27 @@ export function MindPage() {
     await refresh();
   };
 
+  const createPreset = async (input: { name: string; color: string; icon: PickerIconName }) => {
+    try {
+      await mindsBridge().minds.create({
+        parentId: "",
+        name: input.name,
+        color: input.color,
+        icon: input.icon,
+        sortOrder: nextSortOrder(nodes(), ""),
+      });
+      setMessage("");
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Mind could not be created.");
+    }
+  };
+  const mindTemplates = (): TemplateCardGridItem[] => [
+    { id: "personal", title: "Personal", description: "Everyday memories in one place.", tone: "knowledge", icon: <House size={16} />, onSelect: () => void createPreset({ name: "Personal", color: "#7EA8F0", icon: "home" }) },
+    { id: "work", title: "Work", description: "Projects and tasks you are building.", tone: "execution", icon: <Folder size={16} />, onSelect: () => void createPreset({ name: "Work", color: "#6CC7A5", icon: "folder" }) },
+    { id: "ideas", title: "Ideas", description: "Loose thoughts to sort later.", tone: "observability", icon: <Zap size={16} />, onSelect: () => void createPreset({ name: "Ideas", color: "#9B8AFB", icon: "energy" }) },
+  ];
+
   const openCreate = (parentId = "") => {
     setCreateParent(parentId);
     setCreateName("");
@@ -189,16 +215,7 @@ export function MindPage() {
         when={!minds.error}
         fallback={<PageError message="Minds are unavailable while the local core is offline." onRetry={() => void refresh()} />}
       >
-        <div class="flex h-full min-h-0">
-          <aside class="sparky-minds-navigation shrink-0 overflow-auto p-3" aria-label="Mind navigation">
-            <div class="mb-3 flex items-center justify-between">
-              <h2 class="text-sm font-semibold">Minds</h2>
-              <Button size="sm" aria-label="Create Mind" onClick={() => openCreate()}>
-                New
-              </Button>
-            </div>
-            <MindsSidebarTree />
-          </aside>
+        <div class="flex h-full min-h-0 flex-col">
           <section aria-label="Mind workspace" class="min-w-0 flex-1 overflow-auto">
             <Show
               when={selected()}
@@ -215,15 +232,10 @@ export function MindPage() {
                   <Show
                     when={tree().length}
                     fallback={
-                      <PageEmpty
-                        title="Create your first Mind"
-                        description="Minds organize memories into a hierarchy."
-                        action={
-                          <Button variant="primary" onClick={() => openCreate()}>
-                            Create Mind
-                          </Button>
-                        }
-                      />
+                      <div class="flex h-full min-h-[200px] w-full flex-col items-center justify-center gap-3 p-8">
+                        <Show when={message()}><p role="alert">{message()}</p></Show>
+                        <TemplateCardGrid label="Start from a template" items={mindTemplates()} />
+                      </div>
                     }
                   >
                     <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 p-4">

@@ -11,6 +11,17 @@
     {
       "name": "polterware-url",
       "url": "http://localhost:5173"
+    },
+    {
+      "name": "sparky",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "dev:sparky"],
+      "port": 5174,
+      "url": "http://localhost:5174"
+    },
+    {
+      "name": "sparky-url",
+      "url": "http://localhost:5174"
     }
   ]
 }

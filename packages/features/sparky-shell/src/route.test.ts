@@ -13,11 +13,13 @@ describe("shell registry and routes", () => {
     ["/calendar", "/calendar/?date=2026-10-04", {}],
     ["/mind/:id", "/mind", null], ["/mind/:id", "/mind/%", null], ["/today", "/today/extra", null],
   ])("matches %s to %s", (pattern, path, expected) => expect(matchPath(pattern, path)).toEqual(expected));
-  it("preserves the six primary navigation destinations and contributions", () => {
+  it("preserves the primary navigation destinations and contributions", () => {
     const feature: SparkyFeature = { id: "minds", routes: [], sidebar: [{ id: "minds", label: "My Minds", path: "/minds", badge: 3 }, { id: "custom", label: "Custom", path: "/custom" }] };
     const items = sidebarItems([feature]);
     expect(items.find(item => item.path === "/minds")?.label).toBe("My Minds");
     expect(items.filter(item => item.path === "/minds")).toHaveLength(1);
+    expect(items.some(item => item.path === "/today")).toBe(false);
+    expect(items.map(item => item.path)).toEqual(["/inbox", "/calendar", "/minds", "/map", "/focus", "/custom"]);
     expect(items.at(-1)?.path).toBe("/custom");
   });
   it("finds a registered command by keywords and executes its callback", async () => {

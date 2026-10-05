@@ -1,13 +1,41 @@
-import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
-import { Button, Field, Input, MenuItem, MenuList, PageEmpty, PageLoading, StatusChip } from "@polterware/frontend-design-system";
-import { CommanderBody, CommanderFrame } from "@polterware/frontend-shell";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show, type Component } from "solid-js";
+import { Dynamic } from "solid-js/web";
+import {
+  A11yDialog, Button, CalendarClock, Clock, FileText, Folder, Inbox, MapPin, Play, Plus, Search, Settings, StatusChip, StickyNote, X, Zap,
+} from "@polterware/frontend-design-system";
 import type { ShellBridge } from "./bridge";
 import type { CommandDef, CommandSourceDef } from "./feature";
 import { createQuickMemory, parseQuickAdd } from "./quick-add";
 import { findCommands } from "./route";
 import { plainSnippet } from "./snippet";
+import "./commander.css";
 
 type CommanderHit = { id: string; label: string; snippet: string; run: () => void | Promise<void> };
+type Icon = Component<{ size?: number; class?: string }>;
+
+const routeIcons: Record<string, Icon> = {
+  "/inbox": Inbox,
+  "/today": CalendarClock,
+  "/calendar": CalendarClock,
+  "/minds": Folder,
+  "/map": MapPin,
+  "/focus": Clock,
+  "/search": Search,
+};
+const commandIcons: Record<string, Icon> = {
+  "quick-add": Plus,
+  settings: Settings,
+  "memories.create": FileText,
+  "focus.start": Play,
+  "search.open": Search,
+  "calendar.open": CalendarClock,
+  "map.open": MapPin,
+};
+
+function iconFor(command: CommandDef): Icon {
+  if (command.id.startsWith("navigate:")) return routeIcons[command.id.slice("navigate:".length)] ?? Folder;
+  return commandIcons[command.id] ?? Zap;
+}
 
 export function Commander(props: {
   open: boolean; mode: "commands" | "quick-add" | "search"; bridge?: ShellBridge;
@@ -24,6 +52,8 @@ export function Commander(props: {
   let input: HTMLInputElement | undefined;
   let dialogBody: HTMLDivElement | undefined;
   const commands = createMemo(() => findCommands(props.commands, query()));
+  const navigation = createMemo(() => commands().filter(command => command.id.startsWith("navigate:")));
+  const actions = createMemo(() => commands().filter(command => !command.id.startsWith("navigate:")));
   const sources = () => props.commandSources ?? [];
   const preview = createMemo(() => {
     try { return { parsed: parseQuickAdd(query()), error: "" }; }
@@ -104,34 +134,79 @@ export function Commander(props: {
       event.preventDefault(); buttons[0]?.click();
     }
   }
-  return <CommanderFrame open={props.open} title={props.mode === "quick-add" ? "New memory" : "Commander"} onClose={props.onClose}
-    description={props.mode === "quick-add" ? 'Try: Buy milk tomorrow 9am #errands @Home' : "Navigate, search memories, or run an action."}>
-    <CommanderBody ref={dialogBody} onKeyDown={onKeyDown}>
-      <form onSubmit={event => { event.preventDefault(); if (props.mode === "quick-add") void add(); }}>
-        <Field label={props.mode === "quick-add" ? "Memory" : "Search or command"} for="sparky-command-input">
-          <Input id="sparky-command-input" autofocus ref={input} value={query()} onInput={event => { setQuery(event.currentTarget.value); setError(""); }} disabled={busy()} />
-        </Field>
-        <Show when={props.mode === "quick-add"}>
-          <div class="flex flex-col gap-3 pt-3">
-            <p aria-live="polite">{preview().parsed ? `Title: ${preview().parsed!.title}${preview().parsed!.dueAt ? ` · Due: ${new Date(preview().parsed!.dueAt!).toLocaleString()}` : ""}` : preview().error}</p>
-            <Show when={!props.live}><StatusChip tone="down" label="Core offline — creation unavailable" /></Show>
-            <Button type="submit" disabled={busy() || !props.live || !preview().parsed}>{busy() ? "Creating…" : "Create memory"}</Button>
-          </div>
-        </Show>
-      </form>
-      <Show when={error()}><p role="alert" class="text-[var(--color-danger)]">{error()}</p></Show>
-      <Show when={props.mode !== "quick-add"}>
-        <MenuList class="min-w-0">
-          <For each={commands()}>{command => <MenuItem data-command disabled={busy()} onClick={() => void execute(command)}>{command.label}</MenuItem>}</For>
-          <For each={hits()}>{hit => <MenuItem data-command disabled={busy()} onClick={() => void activate(hit)}>
-            <span class="flex min-w-0 flex-col text-start"><span class="truncate" title={hit.label}>{hit.label}</span><Show when={hit.snippet}><span class="line-clamp-2 text-xs text-[var(--color-text-secondary)]">{hit.snippet}</span></Show></span>
-          </MenuItem>}</For>
-        </MenuList>
-        <Show when={searching()}><PageLoading label="Searching memories…" /></Show>
-        <Show when={!commands().length && !hits().length && searched() && !searching()}><PageEmpty title="No results" description="Try another search." /></Show>
-        <Show when={!props.live}><StatusChip tone="down" label="Core offline — memory search unavailable" /></Show>
-        <Show when={notice()}><p role="status">{notice()}</p></Show>
-      </Show>
-    </CommanderBody>
-  </CommanderFrame>;
+  return (
+    <A11yDialog open={props.open} title="Commander" chrome="flush" dividers={false} showCloseButton={false} class="sparky-commander" bodyClass="sparky-commander__body" onClose={props.onClose}>
+      <div ref={dialogBody} class="flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
+        <div class="sparky-commander__search">
+          <Search size={16} class="sparky-commander__icon" />
+          <input
+            id="sparky-command-input"
+            ref={input}
+            class="sparky-commander__input"
+            type="text"
+            role="searchbox"
+            placeholder={props.mode === "quick-add" ? "Buy milk tomorrow 9am #errands @Home" : "Search memories or commands…"}
+            aria-label={props.mode === "quick-add" ? "Memory" : "Search or command"}
+            value={query()}
+            autofocus
+            autocomplete="off"
+            spellcheck={false}
+            disabled={busy()}
+            onInput={event => { setQuery(event.currentTarget.value); setError(""); }}
+          />
+          <button type="button" class="sparky-commander__close" aria-label="Close" onClick={() => props.onClose()}>
+            <X size={16} />
+          </button>
+        </div>
+        <div class="sparky-commander__results">
+          <Show when={error()}><p role="alert" class="sparky-commander__status sparky-commander__status--danger">{error()}</p></Show>
+          <Show when={props.mode === "quick-add"}>
+            <form class="flex flex-col gap-3 px-2" onSubmit={event => { event.preventDefault(); void add(); }}>
+              <p aria-live="polite">{preview().parsed ? `Title: ${preview().parsed!.title}${preview().parsed!.dueAt ? ` · Due: ${new Date(preview().parsed!.dueAt!).toLocaleString()}` : ""}` : preview().error}</p>
+              <Show when={!props.live}><StatusChip tone="down" label="Core offline — creation unavailable" /></Show>
+              <Button type="submit" disabled={busy() || !props.live || !preview().parsed}>{busy() ? "Creating…" : "Create memory"}</Button>
+            </form>
+          </Show>
+          <Show when={props.mode !== "quick-add"}>
+            <Show when={navigation().length}>
+              <div class="sparky-commander__group" role="group" aria-label="Navigation">
+                <p class="sparky-commander__heading">Navigation</p>
+                <For each={navigation()}>{command => <CommandRow command={command} disabled={busy()} onClick={() => void execute(command)} />}</For>
+              </div>
+            </Show>
+            <Show when={actions().length}>
+              <div class="sparky-commander__group" role="group" aria-label="Actions">
+                <p class="sparky-commander__heading">Actions</p>
+                <For each={actions()}>{command => <CommandRow command={command} disabled={busy()} onClick={() => void execute(command)} />}</For>
+              </div>
+            </Show>
+            <Show when={hits().length}>
+              <div class="sparky-commander__group" role="group" aria-label="Memories">
+                <p class="sparky-commander__heading">Memories</p>
+                <For each={hits()}>{hit => (
+                  <button type="button" class="sparky-commander__row" data-command disabled={busy()} onClick={() => void activate(hit)}>
+                    <StickyNote size={16} class="sparky-commander__icon" />
+                    <span class="flex min-w-0 flex-1 flex-col text-start"><span class="truncate">{hit.label}</span><Show when={hit.snippet}><span class="line-clamp-2 text-xs text-[var(--color-text-muted)]">{hit.snippet}</span></Show></span>
+                  </button>
+                )}</For>
+              </div>
+            </Show>
+            <Show when={searching()}><p class="sparky-commander__status" role="status">Searching memories…</p></Show>
+            <Show when={!commands().length && !hits().length && searched() && !searching()}><p class="sparky-commander__status" role="status">No matches</p></Show>
+            <Show when={!props.live}><div class="px-2 pt-2"><StatusChip tone="down" label="Core offline — memory search unavailable" /></div></Show>
+            <Show when={notice()}><p class="sparky-commander__status" role="status">{notice()}</p></Show>
+          </Show>
+        </div>
+      </div>
+    </A11yDialog>
+  );
+}
+
+function CommandRow(props: { command: CommandDef; disabled: boolean; onClick: () => void }) {
+  return (
+    <button type="button" class="sparky-commander__row" data-command disabled={props.disabled} onClick={() => props.onClick()}>
+      <Dynamic component={iconFor(props.command)} size={16} class="sparky-commander__icon" />
+      <span class="min-w-0 flex-1 truncate">{props.command.label}</span>
+    </button>
+  );
 }

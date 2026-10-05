@@ -59,7 +59,7 @@ describe("Sparky shell behavior", () => {
     expect(host.querySelector("header")).not.toBeNull();
     expect(host.querySelector('nav[aria-label="Main navigation"]')).not.toBeNull();
     expect(host.querySelector("main")).not.toBeNull();
-    for (const title of ["Inbox", "Today", "Calendar", "Minds", "Map", "Focus", "Review"]) {
+    for (const title of ["Inbox", "Calendar", "Minds", "Map", "Focus"]) {
       button(title).click();
       await vi.waitFor(() => expect(host.textContent).toContain(`${title} is unavailable`));
       expect(host.querySelector('[aria-current="page"]')?.textContent).toContain(title);
@@ -94,9 +94,14 @@ describe("Sparky shell behavior", () => {
   it("creates through Commander and opens global memory detail", async () => {
     const { host, create } = mount(); await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
     key("k"); await vi.waitFor(() => expect(document.querySelector("#sparky-command-input")).not.toBeNull());
-    fill("new memory"); button("New memory").click();
-    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("New memory"));
-    fill("Buy milk tomorrow 9am !!");
+    fill("new memory");
+    [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(item => item.textContent?.trim() === "New memory")!.click();
+    const title = await vi.waitFor(() => {
+      const field = document.querySelector<HTMLInputElement>("#sparky-memory-title");
+      expect(field).not.toBeNull();
+      return field!;
+    });
+    title.value = "Buy milk tomorrow 9am !!"; title.dispatchEvent(new Event("input", { bubbles: true }));
     await vi.waitFor(() => expect(button("Create memory").disabled).toBe(false));
     button("Create memory").click();
     await vi.waitFor(() => expect(create).toHaveBeenCalledOnce());

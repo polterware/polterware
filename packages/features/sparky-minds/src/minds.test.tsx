@@ -174,6 +174,7 @@ describe("Minds feature", () => {
     const { host } = mount();
     await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
     button("Minds").click();
-    await vi.waitFor(() => expect(host.textContent).toContain("Create your first Mind"));
+    await vi.waitFor(() => expect(host.textContent).toContain("Start from a template"));
+    expect(host.textContent).toContain("Personal");
   });
 });

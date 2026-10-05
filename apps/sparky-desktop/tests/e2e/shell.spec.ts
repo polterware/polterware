@@ -6,8 +6,8 @@ test("shell: Enter and Space activate native buttons and Save schedule preserves
     await page.getByRole("button", { name: "Open Commander", exact: true }).press(key);
     await expect(page.getByRole("dialog", { name: "Commander", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
-    await page.locator("header").getByRole("button", { name: "New memory", exact: true }).press(key);
-    await expect(page.getByRole("dialog", { name: "New memory", exact: true })).toBeVisible();
+    await page.locator("[data-floating-window-toggle]").press(key);
+    await expect(page.getByRole("region", { name: "New memory", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
   }
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
@@ -40,8 +40,8 @@ test("shell: keyboard navigation, Commander quick add, real core, and global det
   await page.getByLabel("Search or command", { exact: true }).fill("new memory");
   await page.getByRole("dialog").getByRole("button", { name: "New memory", exact: true }).click();
   const title = `Shell smoke ${Date.now()}`;
-  await page.getByLabel("Memory", { exact: true }).fill(`${title} tomorrow 9am #shell-smoke !!`);
-  await page.getByRole("button", { name: "Create memory", exact: true }).click();
+  await page.getByLabel("Title", { exact: true }).fill(`${title} tomorrow 9am #shell-smoke !!`);
+  await page.getByRole("region", { name: "New memory", exact: true }).getByRole("button", { name: "Create memory", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator("[data-memory-title]")).toHaveValue(title);
   const memories = await page.evaluate(async (query) => {

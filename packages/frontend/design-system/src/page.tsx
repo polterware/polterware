@@ -14,10 +14,13 @@ export function PageHeader(props: {
   breadcrumb?: JSX.Element;
   /** Optional leading mark (e.g. service brand icon) before the title. */
   leading?: JSX.Element;
+  /** Bottom rule. Defaults to on. */
+  divider?: boolean;
 }) {
+  const divider = () => props.divider !== false;
   return (
     <header
-      class="flex min-h-[var(--page-header-height)] shrink-0 items-center gap-3 border-b border-[var(--color-border-subtle)] px-4 py-2"
+      class={`pw-page-header flex min-h-[var(--page-header-height)] shrink-0 items-center gap-3 px-4 py-2 ${divider() ? "border-b border-[var(--color-border-subtle)]" : ""}`}
       style={{
         display: "flex",
         "align-items": "center",
@@ -25,7 +28,7 @@ export function PageHeader(props: {
         "min-height": "52px",
         "flex-shrink": "0",
         padding: "8px 16px",
-        "border-bottom": "1px solid var(--color-border-subtle)",
+        "border-bottom": divider() ? "1px solid var(--color-border-subtle)" : "0",
       }}
     >
       <div class="min-w-0 flex-1" style={{ "min-width": 0, flex: "1 1 auto" }}>

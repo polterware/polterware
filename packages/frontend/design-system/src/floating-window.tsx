@@ -44,6 +44,10 @@ export type FloatingWindowRootProps = {
   children: JSX.Element;
   class?: string;
   "aria-label"?: string;
+  /** Icon shown when the window is the floating bubble. */
+  bubble?: JSX.Element;
+  /** `traffic` keeps the three window dots. `close` is a single card button. */
+  controls?: "traffic" | "close";
 };
 
 export type FloatingWindowHeaderProps = { class?: string };
@@ -86,7 +90,8 @@ function FloatingWindowRoot(props: FloatingWindowRootProps) {
   const targetRect = () => expanded()
     ? { x: 0, y: 0, ...bounds() }
     : resolveFloatingWindowRect(geometry(), bounds(), minimized());
-  const toggleLabel = () => props.open ? "Minimize window" : "Show window";
+  const controls = () => props.controls ?? "traffic";
+  const toggleLabel = () => props.open ? "Minimize window" : (props["aria-label"] ?? "Show window");
   const expandLabel = () => expanded() ? "Restore window" : "Expand window";
 
   let root: HTMLDivElement | undefined;
@@ -439,12 +444,14 @@ function FloatingWindowRoot(props: FloatingWindowRootProps) {
     const subscriptions = [x, y, width, height, openness, contentOpacity, cornerRadius, presence].map((value) => value.on("change", paint));
     const measure = () => {
       if (!root) return;
-      cancelGesture?.();
       const rect = root.getBoundingClientRect();
+      const measured = { width: rect.width, height: rect.height };
+      const previous = untrack(bounds);
+      if (!migrate && Math.abs(previous.width - measured.width) < 1 && Math.abs(previous.height - measured.height) < 1) return;
+      cancelGesture?.();
       // Viewport changes fit the preferred box without writing storage.
       stopMotion();
       firstPaint = false;
-      const measured = { width: rect.width, height: rect.height };
       if (migrate) { migrate = false; setGeometry(readStoredGeometry(props.storageKey, measured)); }
       setBounds(measured);
       paint();
@@ -516,17 +523,22 @@ function FloatingWindowRoot(props: FloatingWindowRootProps) {
             <div ref={frame} id={frameId} class="pw-floating-window__frame"
               inert={!visible() ? true : undefined} aria-hidden={!visible() ? true : undefined}
               data-interactive={visible() ? "true" : undefined}>
-              <header class={`pw-floating-window__header ${headerClass()}`}>
-                <button type="button" class="pw-floating-window__window-control" data-control="close"
-                  aria-label="Close window" title="Close window" onClick={close}><X size={10} aria-hidden /></button>
-                <span class="pw-floating-window__minimize-slot" aria-hidden />
-                <button type="button" class="pw-floating-window__window-control" data-control="expand"
-                  aria-label={expandLabel()} aria-pressed={expanded()} title={expandLabel()} onClick={toggleExpanded}>
-                  <Show when={expanded()} fallback={<ExpandIcon size={10} aria-hidden />}><CollapseIcon size={10} aria-hidden /></Show>
-                </button>
+              <header class={`pw-floating-window__header ${headerClass()}`} data-controls={controls()}>
+                <Show when={controls() === "traffic"}>
+                  <button type="button" class="pw-floating-window__window-control" data-control="close"
+                    aria-label="Close window" title="Close window" onClick={close}><X size={10} aria-hidden /></button>
+                  <span class="pw-floating-window__minimize-slot" aria-hidden />
+                  <button type="button" class="pw-floating-window__window-control" data-control="expand"
+                    aria-label={expandLabel()} aria-pressed={expanded()} title={expandLabel()} onClick={toggleExpanded}>
+                    <Show when={expanded()} fallback={<ExpandIcon size={10} aria-hidden />}><CollapseIcon size={10} aria-hidden /></Show>
+                  </button>
+                </Show>
                 <div class="pw-floating-window__move-handle" role="button" tabIndex={expanded() ? -1 : 0}
                   aria-label="Move window" aria-disabled={expanded()} title="Move window (arrow keys; Shift for larger steps)"
                   onPointerDown={(event) => beginGesture(event)} onKeyDown={(event) => onGeometryKeyDown(event)} />
+                <Show when={controls() === "close"}>
+                  <button type="button" class="pw-floating-window__close" aria-label="Close window" title="Close window" onClick={close}><X size={14} aria-hidden /></button>
+                </Show>
               </header>
               <section ref={setContentHost} class="pw-floating-window__surface" role="region" aria-label={props["aria-label"] ?? "Window"} />
               <Show when={visible() && !expanded()}>
@@ -543,14 +555,14 @@ function FloatingWindowRoot(props: FloatingWindowRootProps) {
                 )}</For>
               </Show>
             </div>
-            <button ref={toggle} type="button" class="pw-floating-window__toggle"
+            <button ref={toggle} type="button" class="pw-floating-window__toggle" hidden={controls() === "close" && props.open}
               data-floating-window-toggle="" data-bubble={minimized() ? "true" : undefined}
               aria-label={toggleLabel()} aria-pressed={visible()} aria-controls={frameId}
               title={toggleLabel()} disabled={!available() || (!props.open && !minimized())}
               onPointerDown={(event) => { if (!props.open) beginGesture(event); else event.stopPropagation(); }}
               onKeyDown={(event) => { if (!props.open) onGeometryKeyDown(event); }}
               onClick={() => { if (!clickSuppressed) { if (props.open) minimize(); else reopen(); } }}>
-              <Show when={props.open} fallback={<SidebarRightIcon size={14} />}><MinusSignIcon size={10} aria-hidden /></Show>
+              <Show when={props.open} fallback={props.bubble ?? <SidebarRightIcon size={14} />}><MinusSignIcon size={10} aria-hidden /></Show>
             </button>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { fromJson } from "@bufbuild/protobuf";
 import { SetScheduleRequestSchema } from "@polterware/sparky-contracts";
 import { createCalendarBridge } from "./bridge";
 import { fakeCalendarBridge } from "./fake-bridge";
-import { visibleRange } from "./grid";
+import { paddedVisibleRange, visibleRange } from "./grid";
 import { createCalendarStore } from "./store";
 
 function threeMonths() {
@@ -25,7 +25,7 @@ function threeMonths() {
 }
 
 describe("calendar store against a fake preload bridge", () => {
-  it("requests only the visible month grid and groups mixed recurring data", async () => {
+  it("groups the visible month and pages across a neighbor window", async () => {
     const fake = fakeCalendarBridge({ occurrences: threeMonths() });
     const store = createCalendarStore(() => createCalendarBridge(fake.wire));
     const query = visibleRange("2026-10-15", "month", "mon", "UTC");
@@ -40,12 +40,19 @@ describe("calendar store against a fake preload bridge", () => {
     expect(store.forDate("2026-10-03").some(item => item.title.startsWith("One-shot") || item.title.startsWith("Recurring"))).toBe(true);
     const first = fake.schedule.listOccurrences.mock.calls.length;
     await store.ensureVisible("2026-10-15", "month", "UTC");
-    expect(fake.schedule.listOccurrences.mock.calls.length).toBe(first);
-    await store.ensureVisible("2026-11-15", "month", "UTC");
     expect(fake.schedule.listOccurrences.mock.calls.length).toBe(first + 1);
+    const october = fake.schedule.listOccurrences.mock.calls.at(-1)?.[0] as { from: string; to: string };
+    const octoberWindow = paddedVisibleRange("2026-10-15", "month", "mon", "UTC");
+    expect(october.from).toBe(octoberWindow.from);
+    expect(october.to).toBe(octoberWindow.to);
+    await store.ensureVisible("2026-10-15", "month", "UTC");
+    expect(fake.schedule.listOccurrences.mock.calls.length).toBe(first + 1);
+    await store.ensureVisible("2026-11-15", "month", "UTC");
+    expect(fake.schedule.listOccurrences.mock.calls.length).toBe(first + 2);
     const november = fake.schedule.listOccurrences.mock.calls.at(-1)?.[0] as { from: string; to: string };
-    expect(november.from).toBe(visibleRange("2026-11-15", "month", "mon", "UTC").from);
-    expect(november.to).toBe(visibleRange("2026-11-15", "month", "mon", "UTC").to);
+    const novemberWindow = paddedVisibleRange("2026-11-15", "month", "mon", "UTC");
+    expect(november.from).toBe(novemberWindow.from);
+    expect(november.to).toBe(novemberWindow.to);
   });
 
   it("quick-creates a one-shot using only the frozen SetScheduleRequest fields", async () => {

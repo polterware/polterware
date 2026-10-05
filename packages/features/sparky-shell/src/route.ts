@@ -8,7 +8,6 @@ export const SHELL_ROUTES = [
   { path: "/minds", title: "Minds", icon: "Folder" },
   { path: "/map", title: "Map", icon: "MapPin" },
   { path: "/focus", title: "Focus", icon: "Clock" },
-  { path: "/review", title: "Review", icon: "Activity" },
   { path: "/search", title: "Search", icon: "Search" },
 ] as const;
 
@@ -39,12 +38,13 @@ export function resolveRoute(features: readonly SparkyFeature[], path: string): 
 }
 export function sidebarItems(features: readonly SparkyFeature[]): SidebarItemDef[] {
   const contributed = features.flatMap(feature => feature.sidebar ?? []);
-  const items: SidebarItemDef[] = SHELL_ROUTES.filter(route => route.path !== "/search").map(route => (
+  const items: SidebarItemDef[] = SHELL_ROUTES.filter(route => route.path !== "/search" && route.path !== "/today").map(route => (
     contributed.find(item => normalizePath(item.path) === route.path) ?? {
       id: route.path.slice(1), label: route.title, path: route.path, icon: route.icon,
     }
   ));
-  return [...items, ...contributed.filter(item => !items.some(existing => normalizePath(existing.path) === normalizePath(item.path)))];
+  return [...items, ...contributed.filter(item => !items.some(existing => normalizePath(existing.path) === normalizePath(item.path)))]
+    .filter(item => normalizePath(item.path) !== "/today");
 }
 export function findCommands(commands: readonly CommandDef[], query: string): CommandDef[] {
   const words = query.trim().toLowerCase().split(/\s+/);

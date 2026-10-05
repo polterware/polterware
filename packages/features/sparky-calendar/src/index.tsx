@@ -10,7 +10,7 @@ const feature: SparkyFeature = {
   commands: [{
     id: "calendar.open",
     label: "Go to Calendar",
-    keywords: ["calendar", "day", "week", "month", "schedule"],
+    keywords: ["calendar", "day", "week", "month", "year", "schedule"],
     run: async () => {
       const wire = Reflect.get(globalThis, "sparky") as { app?: { openDeepLink?: (url: string) => Promise<void> } } | undefined;
       await wire?.app?.openDeepLink?.("sparky://calendar");

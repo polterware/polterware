@@ -72,7 +72,7 @@ describe("calendar page through a fake preload bridge", () => {
   it("uses one grid Tab stop and moves actual focus across week slots without hijacking toolbar arrows", async () => {
     const { host } = mount();
     const slot = await vi.waitFor(() => {
-      const found = host.querySelector<HTMLButtonElement>('button[data-slot-time="09:00"]');
+      const found = host.querySelector<HTMLButtonElement>('[data-pane="current"] button[data-slot-time="09:00"]');
       expect(found).not.toBeNull(); return found!;
     });
     const grid = host.querySelector<HTMLElement>(".sparky-calendar__grid-wrap")!;
@@ -101,7 +101,7 @@ describe("calendar page through a fake preload bridge", () => {
     });
     root.dispatchEvent(new KeyboardEvent("keydown", { key: "m", bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(root.dataset.calendarView).toBe("month"));
-    const columns = host.querySelectorAll<HTMLElement>("[data-day]");
+    const columns = host.querySelectorAll<HTMLElement>('[data-pane="current"] [data-day]');
     const last = columns[columns.length - 1]!;
     const target = last.querySelectorAll<HTMLButtonElement>("button");
     target[target.length - 1]!.focus();
@@ -112,8 +112,8 @@ describe("calendar page through a fake preload bridge", () => {
     root.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true, cancelable: true }));
     root.dispatchEvent(new KeyboardEvent("keydown", { key: "d", bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(root.dataset.calendarView).toBe("day"));
-    await vi.waitFor(() => expect(host.querySelector('[data-occurrence="memory-1"]')).not.toBeNull());
-    const header = host.querySelector<HTMLButtonElement>(`[data-day="${date}"] button`)!;
+    await vi.waitFor(() => expect(host.querySelector('[data-pane="current"] [data-occurrence="memory-1"]')).not.toBeNull());
+    const header = host.querySelector<HTMLButtonElement>(`[data-pane="current"] [data-day="${date}"] button`)!;
     header.focus();
     header.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect((document.activeElement as HTMLElement).dataset.occurrence).toBe("memory-1"));
@@ -123,7 +123,7 @@ describe("calendar page through a fake preload bridge", () => {
     const { host, fake } = mount();
     fake.schedule.set.mockRejectedValueOnce(new Error("Schedule save failed"));
     const slot = await vi.waitFor(() => {
-      const found = host.querySelector<HTMLButtonElement>('button[data-slot-time="09:00"]');
+      const found = host.querySelector<HTMLButtonElement>('[data-pane="current"] button[data-slot-time="09:00"]');
       expect(found).not.toBeNull(); return found!;
     });
     pointerClick(slot);
@@ -134,7 +134,7 @@ describe("calendar page through a fake preload bridge", () => {
   it("creates a memory from an empty slot and opens the detail panel", async () => {
     const { host, fake } = mount();
     const slot = await vi.waitFor(() => {
-      const found = host.querySelector<HTMLButtonElement>("[data-empty-slot]");
+      const found = host.querySelector<HTMLButtonElement>('[data-pane="current"] [data-empty-slot]');
       expect(found).not.toBeNull();
       return found!;
     });
@@ -156,7 +156,7 @@ describe("calendar page through a fake preload bridge", () => {
       }],
     });
     const pill = await vi.waitFor(() => {
-      const found = [...host.querySelectorAll<HTMLButtonElement>("[data-occurrence='memory-1']")].find(item => item.textContent?.includes("Read the brief"));
+      const found = [...host.querySelectorAll<HTMLButtonElement>("[data-pane='current'] [data-occurrence='memory-1']")].find(item => item.textContent?.includes("Read the brief"));
       expect(found).toBeDefined();
       return found!;
     });
@@ -180,7 +180,8 @@ describe("calendar page through a fake preload bridge", () => {
     expect(from).toBeTruthy();
     expect(to).toBeTruthy();
     const calls = fake.schedule.listOccurrences.mock.calls.map(call => call[0] as { from: string; to: string });
-    expect(calls.some(call => call.from === from && call.to === to)).toBe(true);
+    expect(calls.some(call => call.from < from! && call.to > to!)).toBe(true);
+    expect(calls.some(call => call.from === from && call.to === to)).toBe(false);
     root.focus();
     root.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(host.querySelector("[data-focused]")).not.toBeNull());
@@ -200,7 +201,7 @@ describe("calendar page through a fake preload bridge", () => {
     await vi.waitFor(() => expect(store.occurrences().length).toBeGreaterThan(0));
     const occurrence = store.occurrences()[0]!;
     const slot = await vi.waitFor(() => {
-      const found = host.querySelector<HTMLElement>("[data-slot-time='15:00']");
+      const found = host.querySelector<HTMLElement>('[data-pane="current"] [data-slot-time="15:00"]');
       expect(found).not.toBeNull();
       return found!;
     });
@@ -215,4 +216,101 @@ describe("calendar page through a fake preload bridge", () => {
     pointerClick(confirm!);
     await vi.waitFor(() => expect(fake.schedule.set).toHaveBeenCalled());
   });
+
+  it("hides the Live chip while the calendar is healthy", async () => {
+    const { host } = mount();
+    const root = await vi.waitFor(() => {
+      const found = host.querySelector<HTMLElement>("[data-save-state='live']");
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    expect(root.textContent).not.toContain("Live");
+  });
+
+  it("pans to the next period with a right-button drag off a memory", async () => {
+    const { host } = mount();
+    const root = await vi.waitFor(() => {
+      const found = host.querySelector<HTMLElement>("[data-calendar-from]");
+      expect(found?.getAttribute("data-calendar-from")).toBeTruthy();
+      return found!;
+    });
+    const from = root.getAttribute("data-calendar-from");
+    const slot = await vi.waitFor(() => {
+      const found = host.querySelector<HTMLElement>('[data-pane="current"] [data-empty-slot]');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    const menu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 });
+    slot.dispatchEvent(menu);
+    expect(menu.defaultPrevented).toBe(true);
+    rightDrag(slot, 200, 40);
+    await vi.waitFor(() => expect(root.getAttribute("data-calendar-from")).not.toBe(from));
+  });
+
+  it("pans to the next period with a horizontal trackpad gesture", async () => {
+    const { host } = mount();
+    const root = await vi.waitFor(() => {
+      const found = host.querySelector<HTMLElement>("[data-calendar-from]");
+      expect(found?.getAttribute("data-calendar-from")).toBeTruthy();
+      return found!;
+    });
+    const from = root.getAttribute("data-calendar-from");
+    const grid = host.querySelector<HTMLElement>(".sparky-calendar__grid-wrap")!;
+    grid.dispatchEvent(new WheelEvent("wheel", { deltaX: 160, deltaY: 0, bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(root.getAttribute("data-calendar-from")).not.toBe(from));
+  });
+
+  it("does not pan when a right-button drag starts on a memory", async () => {
+    const { host } = mount({
+      occurrences: [{
+        memoryId: "memory-1",
+        title: "Stay put",
+        occurrenceAt: new Date().toISOString(),
+        allDay: true,
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+      }],
+    });
+    const root = await vi.waitFor(() => {
+      const found = host.querySelector<HTMLElement>("[data-calendar-from]");
+      expect(found?.getAttribute("data-calendar-from")).toBeTruthy();
+      return found!;
+    });
+    const pill = await vi.waitFor(() => {
+      const found = host.querySelector<HTMLElement>('[data-pane="current"] [data-occurrence="memory-1"]');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    const from = root.getAttribute("data-calendar-from");
+    rightDrag(pill, 200, 40);
+    await new Promise(resolve => setTimeout(resolve, 120));
+    expect(root.getAttribute("data-calendar-from")).toBe(from);
+  });
+
+  it("uses one time gutter in week view and opens schedule and year", async () => {
+    const { host } = mount();
+    const gutter = await vi.waitFor(() => {
+      const found = host.querySelectorAll("[data-pane='current'] .pw-calendar__gutter");
+      expect(found).toHaveLength(1);
+      return found[0]!;
+    });
+    expect(gutter.textContent).toContain("12 AM");
+    expect(gutter.textContent).not.toContain("00:00");
+    expect(host.querySelector("[data-pane='current']")!.textContent).not.toContain("Add memory");
+    const root = host.querySelector<HTMLElement>("[data-calendar]")!;
+    root.focus();
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "s", bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(root.dataset.calendarView).toBe("schedule"));
+    expect(host.textContent).toContain("Nothing scheduled");
+    root.dispatchEvent(new KeyboardEvent("keydown", { key: "y", bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(root.dataset.calendarView).toBe("year"));
+    expect(host.querySelector("[aria-label='Open January in month view']")).not.toBeNull();
+    expect(host.querySelector("[aria-label='Open December in month view']")).not.toBeNull();
+  });
 });
+
+function rightDrag(element: HTMLElement, fromX: number, toX: number) {
+  const base = { bubbles: true, cancelable: true, pointerId: 7, pointerType: "mouse" as const, button: 2, clientY: 24 };
+  element.dispatchEvent(new PointerEvent("pointerdown", { ...base, buttons: 2, clientX: fromX }));
+  element.dispatchEvent(new PointerEvent("pointermove", { ...base, buttons: 2, clientX: toX }));
+  element.dispatchEvent(new PointerEvent("pointerup", { ...base, buttons: 0, clientX: toX }));
+}

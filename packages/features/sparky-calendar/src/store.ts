@@ -1,6 +1,6 @@
 import { batch, createSignal } from "solid-js";
 import { browserBridge, type CalendarBridge, type OccurrenceJSON } from "./bridge";
-import { occurrenceDate, systemTimeZone, visibleRange, weekStartFromSettings, type CalendarView, type WeekStart } from "./grid";
+import { occurrenceDate, paddedVisibleRange, systemTimeZone, visibleRange, weekStartFromSettings, type CalendarView, type WeekStart } from "./grid";
 import { errorText, isRecurring, moveSeriesAnchor, slotInstant, toOneShotSchedule, type ScheduleJSON, type SlotDraft } from "./mapping";
 
 export type SaveState = "live" | "queued" | "failed" | "unavailable";
@@ -129,10 +129,11 @@ export function createCalendarStore(getBridge: () => CalendarBridge = browserBri
   }
 
   async function ensureVisible(anchor: string, view: CalendarView, timeZone = displayTz()) {
-    const next = visibleRange(anchor, view, weekStart(), timeZone);
-    if (range().from === next.from && range().to === next.to) return next;
-    await loadRange({ from: next.from, to: next.to });
-    return next;
+    const visible = visibleRange(anchor, view, weekStart(), timeZone);
+    const padded = paddedVisibleRange(anchor, view, weekStart(), timeZone);
+    if (range().from === padded.from && range().to === padded.to) return visible;
+    await loadRange(padded);
+    return visible;
   }
 
   async function createFromSlot(draft: SlotDraft, onCreated?: (id: string) => void) {

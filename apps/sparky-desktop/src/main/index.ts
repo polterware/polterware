@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, shell, systemPreferences } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, protocol, session, shell, systemPreferences } from "electron";
 import { dirname, isAbsolute, join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createCoreClients, type CoreClients } from "./core/client.js";
@@ -47,6 +47,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: "sparky-file", privileges: { sta
 app.setName("Sparky");
 const hiddenLaunch = process.argv.includes("--background-replan");
 if (hiddenLaunch) app.dock?.hide();
+applyDevDockIcon();
 const dbPath = process.env.SPARKY_CORE_DB || join(app.getPath("appData"), "Sparky", "sparky.db");
 if (!isAbsolute(dbPath)) throw new Error("SPARKY_CORE_DB must be absolute");
 const data = dirname(dbPath);
@@ -60,6 +61,8 @@ let onlineMaps = false;
 let mapGeocoding = false;
 let logs: AppLog | undefined;
 let suppressWindow = hiddenLaunch;
+let markCoreStartupSettled = () => {};
+const coreStartupSettled = new Promise<void>(resolve => { markCoreStartupSettled = resolve; });
 const grants = { import: new Set<string>(), export: new Set<string>(), backup: new Set<string>() };
 function getClients(): CoreClients {
   if (!clients) throw new Error("Core offline");
@@ -75,14 +78,25 @@ function userDataDirectory(): string {
 function emit(event: string, value: unknown): void {
   if (win && !win.isDestroyed()) win.webContents.send(event, value);
 }
+// Packaged builds take the icon from the bundle; the dev Electron binary needs it set explicitly,
+// and after every dock.show() because showing the dock restores the default icon.
+function applyDevDockIcon(): void {
+  if (app.isPackaged) return;
+  const icon = nativeImage.createFromPath(join(app.getAppPath(), "resources/app-icons/dock.png"));
+  if (icon.isEmpty()) return;
+  for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.setIcon(icon);
+  app.dock?.setIcon(icon);
+}
 function showWindow(): void {
   app.dock?.show();
+  applyDevDockIcon();
   if (!win || win.isDestroyed()) {
     win = createWindow({ reduceTransparency: readReduceTransparency(userDataDirectory()) });
     win.on("closed", () => { win = null; });
   }
   if (win.isMinimized()) win.restore();
   win.show(); win.focus();
+  applyDevDockIcon();
 }
 function routeDeepLink(raw: string): void {
   const link = parseDeepLink(raw);
@@ -125,7 +139,7 @@ async function refreshMapPolicy(): Promise<void> {
   if ((previousOnline !== onlineMaps || previousGeocoding !== mapGeocoding) && win && !win.isDestroyed()) win.webContents.reload();
 }
 function registerIpc(reminders: { requestAuthorization(): Promise<boolean> }): void {
-  const handlers = createRpcHandlers({ getClients, authorizePath: (purpose, path) => grants[purpose].has(path),
+  const handlers = createRpcHandlers({ getClients, whenReady: coreStartupSettled, authorizePath: (purpose, path) => grants[purpose].has(path),
     settingsChanged: () => { void refreshMapPolicy(); } });
   const appHandlers: Record<typeof APP_METHODS[number], (input: unknown) => unknown> = {
     openDeepLink: input => { if (typeof input !== "string" || !parseDeepLink(input)) throw new Error("Invalid deep link"); routeDeepLink(input); },
@@ -265,7 +279,7 @@ else {
   });
   const startupLink = process.argv.find(arg => arg.startsWith("sparky://"));
   if (startupLink) routeDeepLink(startupLink);
-  app.on("window-all-closed", () => app.quit());
+  app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
   app.on("before-quit", () => {
     reminders.close();
     stopWatcher?.();
@@ -277,10 +291,18 @@ else {
       const clock = createStartupClock({ enabled: startupTimingEnabled() });
       clock.mark("electron-ready");
       suppressWindow = reminders.prepareLaunch(launchInfo) || hiddenLaunch;
+      applyDevDockIcon();
       if (app.isPackaged) app.setAsDefaultProtocolClient("sparky");
       else app.setAsDefaultProtocolClient("sparky", process.execPath, [app.getAppPath()]);
       try { resetTempImportDirectory(tempImportDir); } catch { /* Recreated on the first granted write. */ }
       registerIpc(reminders); installSessionSecurity(); installMenu();
+      // Open the window before the core is up so the boot splash paints at once; RPC calls wait on coreStartupSettled.
+      let windowShown = false;
+      if (!suppressWindow || pendingLink) {
+        clock.mark("window-show");
+        showWindow();
+        windowShown = true;
+      }
       try {
         logs = createAppLog(app.getPath("logs"));
         applyReduceTransparency(readReduceTransparency(userDataDirectory()));
@@ -291,14 +313,15 @@ else {
           if (event.resync || event.changes.some(change => change.entity === "settings" || change.entity === "setting")) void refreshMapPolicy();
         } });
       } catch { console.error("Sparky core offline; inspect the core log"); }
+      finally { markCoreStartupSettled(); }
       reminders.start();
-      if (suppressWindow && !pendingLink) {
-        if (startupTimingEnabled()) console.log(clock.format());
-        return;
+      if (!windowShown && (!suppressWindow || pendingLink)) {
+        clock.mark("window-show");
+        showWindow();
+        windowShown = true;
       }
-      clock.mark("window-show");
       if (startupTimingEnabled()) console.log(clock.format());
-      showWindow();
+      if (!windowShown) return;
       if (process.env.SPARKY_NOTIFY_E2E === "1") {
         setTimeout(() => { void reminders.requestAuthorization().catch(() => {}); }, 1500);
       }

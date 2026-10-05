@@ -52,7 +52,7 @@ export function parseQuickAdd(input: string, now = new Date()): QuickAdd {
 }
 
 /** Resolve metadata before creating the memory, then submit one Create payload. */
-export async function createQuickMemory(bridge: ShellBridge, parsed: QuickAdd) {
+export async function createQuickMemory(bridge: ShellBridge, parsed: QuickAdd, note = "") {
   let mindId: string | undefined;
   if (parsed.mind) {
     const { minds = [] } = await bridge.minds.list({});
@@ -71,7 +71,7 @@ export async function createQuickMemory(bridge: ShellBridge, parsed: QuickAdd) {
     }
   }
   const input = toJson(CreateMemoryRequestSchema, fromJson(CreateMemoryRequestSchema, {
-    title: parsed.title, tagIds, dueAllDay: parsed.dueAllDay,
+    title: parsed.title, tagIds, dueAllDay: parsed.dueAllDay, ...(note ? { note } : {}),
     ...(mindId ? { mindId } : {}),
     ...(parsed.priority ? { priority: parsed.priority } : {}),
     ...(parsed.dueAt ? { dueAt: parsed.dueAt } : {}),

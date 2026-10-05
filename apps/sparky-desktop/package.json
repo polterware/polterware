@@ -15,7 +15,7 @@
     "dist:mac": "pnpm --dir ../.. build:sparky-core && pnpm build && electron-builder --mac --publish never",
     "deps:electron": "node -e \"const pkg = require('./package.json'); console.log(pkg.devDependencies.electron);\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run src/main src/preload",
+    "test": "vitest run src/main src/preload src/renderer",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -28,7 +28,6 @@
     "@polterware/feature-sparky-map": "workspace:*",
     "@polterware/feature-sparky-memories": "workspace:*",
     "@polterware/feature-sparky-minds": "workspace:*",
-    "@polterware/feature-sparky-review": "workspace:*",
     "@polterware/feature-sparky-schedule": "workspace:*",
     "@polterware/feature-sparky-search": "workspace:*",
     "@polterware/feature-sparky-settings": "workspace:*",

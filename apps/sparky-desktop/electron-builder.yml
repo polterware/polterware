@@ -46,7 +46,7 @@ protocols:
       - sparky
 
 mac:
-  icon: resources/icon.icns
+  icon: resources/icon.icon
   minimumSystemVersion: "15.0"
   extendInfo:
     NSMicrophoneUsageDescription: "Sparky uses the microphone to record audio attachments."

@@ -1,4 +1,2 @@
-.sparky-minds-navigation { inline-size: 192px; }
 .sparky-mind-tile { inline-size: 100%; block-size: auto; white-space: normal; text-align: start; padding: 0; }
 .sparky-mind-tile > .card-panel { inline-size: 100%; }
-@media (max-width: 960px) { .sparky-minds-navigation { inline-size: 144px; } }

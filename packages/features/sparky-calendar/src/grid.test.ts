@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   addMonths,
+  agendaHeading,
+  clockLabel,
   dayHours,
+  formatGmtOffset,
   monthDates,
   occurrenceDate,
+  placeTimed,
   rangeTitle,
   shiftedAnchor,
   startOfWeek,
+  timeLabel,
   visibleRange,
   wallClockToUtc,
   weekDates,
@@ -37,10 +42,13 @@ describe("week and month layout", () => {
     expect(monday[41]).toBe("2026-11-08");
   });
 
-  it("shifts anchors by day, week, and month without leaving the civil calendar", () => {
+  it("shifts anchors by day, week, month, schedule, and year without leaving the civil calendar", () => {
     expect(shiftedAnchor("2026-10-04", "day", 1)).toBe("2026-10-05");
     expect(shiftedAnchor("2026-10-04", "week", -1)).toBe("2026-09-27");
     expect(shiftedAnchor("2026-01-31", "month", 1)).toBe("2026-02-28");
+    expect(shiftedAnchor("2026-10-05", "schedule", 1)).toBe("2026-10-19");
+    expect(shiftedAnchor("2026-10-05", "year", 1)).toBe("2027-10-05");
+    expect(shiftedAnchor("2028-02-29", "year", 1)).toBe("2029-02-28");
     expect(addMonths("2026-10-31", 1)).toBe("2026-11-30");
   });
 
@@ -78,6 +86,42 @@ describe("visible range stays on the painted cells", () => {
     expect(range.from).toBe("2026-09-28T00:00:00.000Z");
     expect(range.to).toBe("2026-11-09T00:00:00.000Z");
     expect(range.dates).toHaveLength(42);
+  });
+
+  it("requests the civil year and a six-week schedule window", () => {
+    const year = visibleRange("2026-10-05", "year", "mon", "UTC");
+    expect(year.from).toBe("2026-01-01T00:00:00.000Z");
+    expect(year.to).toBe("2027-01-01T00:00:00.000Z");
+    expect(year.dates).toHaveLength(365);
+    expect(rangeTitle("2026-10-05", "year", "mon")).toEqual({ leading: "2026", trailing: "" });
+    const schedule = visibleRange("2026-10-05", "schedule", "mon", "UTC");
+    expect(schedule.dates).toHaveLength(42);
+    expect(schedule.from).toBe("2026-10-05T00:00:00.000Z");
+    expect(schedule.to).toBe("2026-11-16T00:00:00.000Z");
+    expect(rangeTitle("2026-10-05", "schedule", "mon")).toEqual({ leading: "October 5 – November 15", trailing: "2026" });
+  });
+});
+
+describe("clock labels and timed placement", () => {
+  it("formats 12-hour labels, agenda headings, and GMT offsets", () => {
+    expect(clockLabel(0)).toBe("12 AM");
+    expect(clockLabel(13)).toBe("1 PM");
+    expect(timeLabel(8, 5)).toBe("8:05 AM");
+    expect(agendaHeading("2026-10-05")).toBe("5 Oct, Mon");
+    expect(formatGmtOffset("GMT-03:00")).toBe("GMT-3");
+    expect(formatGmtOffset("GMT+5:30")).toBe("GMT+5:30");
+    expect(formatGmtOffset("GMT−3")).toBe("GMT-3");
+  });
+
+  it("packs overlapping events side by side and reuses a column after a gap", () => {
+    expect(placeTimed([{ start: 0, end: 10 }, { start: 0, end: 10 }])).toEqual([
+      { index: 0, column: 0, columns: 2 },
+      { index: 1, column: 1, columns: 2 },
+    ]);
+    expect(placeTimed([{ start: 0, end: 10 }, { start: 10, end: 20 }])).toEqual([
+      { index: 0, column: 0, columns: 1 },
+      { index: 1, column: 0, columns: 1 },
+    ]);
   });
 });
 

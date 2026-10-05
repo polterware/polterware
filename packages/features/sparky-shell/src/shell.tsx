@@ -1,36 +1,41 @@
 import { createEffect, createMemo, createResource, createSignal, ErrorBoundary, For, onCleanup, onMount, Show, type Component } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import {
-  Activity, Button, CalendarClock, ChevronLeft, ChevronRight, Clock, DetailPanel, DesignSystemProvider,
+  Button, CalendarClock, Clock, DetailPanel, DesignSystemProvider,
   Dialog, DitherIconTile, Folder, HelpCircle, Inbox, MapPin, MenuItem, MenuList, PageEmpty, PageError,
-  PageHeader, PageLoading, PageOffline, Plus, Popover, Search, Settings, StatusChip, ToastRegion, TreeView, type TreeViewNode,
+  FloatingWindow, PageHeader, PageLoading, PageOffline, Plus, Popover, Search, Settings, StatusChip, ToastRegion, TreeView, pushToast, type TreeViewNode,
 } from "@polterware/frontend-design-system";
-import { MainFrame, MainSurfaceFrame, ShellRoot, SidebarFrame, TitleBarFrame } from "@polterware/frontend-shell";
+import { MainFrame, MainSurfaceFrame, ShellRoot, SidebarFrame } from "@polterware/frontend-shell";
 import type { MessageShape } from "@bufbuild/protobuf";
 import type { MindSchema } from "@polterware/sparky-contracts";
 import type { ShellBridge } from "./bridge";
 import type { SparkyFeature } from "./feature";
 import { ShellContext, type MemoryDetailRenderer } from "./context";
 import { Commander } from "./commander";
+import { MemoryComposer } from "./memory-composer";
 import { createCoreConnection, independentQueryKey, reminderLabel } from "./connection";
 import { DEFAULT_PATH, deepLinkPath, normalizePath, pushRoute, resolveRoute, SHELL_ROUTES, sidebarItems, type RouteHistory } from "./route";
 import { isCollectionTarget, isEditing, memoryShortcut, shellShortcut, type MemoryShortcut } from "./shortcuts";
 import "./shell.css";
 
-const icons: Record<string, Component<{ size?: number }>> = { Activity, CalendarClock, Clock, Folder, Inbox, MapPin, Search, Settings };
+const icons: Record<string, Component<{ size?: number }>> = { CalendarClock, Clock, Folder, Inbox, MapPin, Search, Settings };
+const titlebarIconClass = "control-field control-field-sm inline-flex w-[var(--control-height-sm)] shrink-0 cursor-pointer items-center justify-center !rounded-full !p-0 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)] focus-visible:outline-none";
 export function mindTree(minds: MessageShape<typeof MindSchema>[], parentId = "", ancestors = new Set<string>()): TreeViewNode[] {
   return minds.filter(mind => (mind.parentId ?? "") === parentId && mind.id && !ancestors.has(mind.id)).map(mind => ({
     id: mind.id!, label: mind.name ?? "Untitled Mind", children: mindTree(minds, mind.id!, new Set([...ancestors, mind.id!])),
   }));
 }
 
-export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?: ShellBridge }) {
+export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?: ShellBridge; onReady?: () => void }) {
   const core = createCoreConnection(props.bridge);
+  createEffect(() => { if (core.state() !== "loading") props.onReady?.(); });
   const [history, setHistory] = createSignal<RouteHistory>({ entries: [DEFAULT_PATH], index: 0 });
   const path = () => history().entries[history().index] ?? DEFAULT_PATH;
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [settingsPanel, setSettingsPanel] = createSignal("");
   const [palette, setPalette] = createSignal<"commands" | "quick-add" | "search" | null>(null);
+  const [composerOpen, setComposerOpen] = createSignal(false);
+  const [composerExpanded, setComposerExpanded] = createSignal(false);
   const [selectedMemoryId, setSelectedMemoryId] = createSignal<string | null>(null);
   const [expanded, setExpanded] = createSignal(false);
   const [detailRenderer, setDetailRenderer] = createSignal<MemoryDetailRenderer>();
@@ -114,7 +119,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     ...SHELL_ROUTES.map(item => ({ id: `navigate:${item.path}`, label: `Go to ${item.title}`, keywords: ["navigate"], run: () => navigate(item.path) })),
     ...props.features.flatMap(feature => feature.routes).filter(item => !SHELL_ROUTES.some(defaultRoute => defaultRoute.path === item.path) && !item.path.includes(":"))
       .map(item => ({ id: `navigate:${item.path}`, label: `Go to ${item.title}`, run: () => navigate(item.path) })),
-    { id: "quick-add", label: "New memory", keywords: ["add", "create"], run: () => setPalette("quick-add") },
+    { id: "quick-add", label: "New memory", keywords: ["add", "create"], run: () => { setPalette(null); setComposerOpen(true); } },
     { id: "settings", label: "Open Settings", run: () => setSettingsOpen(true) },
     ...props.features.flatMap(feature => feature.commands ?? []),
   ]);
@@ -173,7 +178,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
       event.preventDefault();
       switch (shortcut) {
         case "commander": setPalette(current => current === "commands" ? null : "commands"); break;
-        case "quick-add": setPalette("quick-add"); break;
+        case "quick-add": setPalette(null); setComposerOpen(true); break;
         case "settings": setSettingsOpen(true); break;
         case "back": moveHistory(-1); break;
         case "forward": moveHistory(1); break;
@@ -184,7 +189,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
           break;
         }
         default: {
-          const target = ["/inbox", "/today", "/calendar", "/map", "/focus", "/review"][Number(shortcut.slice(-1)) - 1];
+          const target = ["/inbox", "/today", "/calendar", "/map", "/focus"][Number(shortcut.slice(-1)) - 1];
           if (target) navigate(target);
         }
       }
@@ -193,6 +198,16 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     onCleanup(() => { clearInterval(timer); offChange?.(); offLink?.(); document.removeEventListener("keydown", onKey); });
   });
   createEffect(() => { if (core.state() === "offline") closeDetail(); });
+  let reminderToast = "";
+  createEffect(() => {
+    if (onboardingOpen() || core.state() !== "live") return;
+    const message = reminderLabel(core.status());
+    const problem = message === "Reminders unavailable" || message.startsWith("Reminders: permission") || message === "Reminders: refresh pending";
+    if (!problem) { reminderToast = ""; return; }
+    if (message === reminderToast) return;
+    reminderToast = message;
+    pushToast(message);
+  });
   const title = () => route()?.route.title ?? SHELL_ROUTES.find(item => item.path === normalizePath(path()))?.title ?? "Mind";
   const boundary = (error: Error, reset: () => void) => <PageError title="This feature failed" message={error.message} onRetry={reset} />;
   return <ShellContext.Provider value={context}>
@@ -200,28 +215,16 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
       matchesShortcut={(id, event) => id === "shell.toggle_detail" && shellShortcut(event, false) === "close-detail"}
       createShortcutLabel={id => () => id === "shell.toggle_detail" ? "⌘J" : ""}>
       <ShellRoot glass={false} class="sparky-shell">
-        <TitleBarFrame class="sparky-titlebar" aria-label="Sparky">
-          <div class="sparky-titlebar-controls">
-            <Button variant="icon" aria-label="Go back" disabled={history().index === 0} onClick={() => moveHistory(-1)}><ChevronLeft size={14} /></Button>
-            <Button variant="icon" aria-label="Go forward" disabled={history().index === history().entries.length - 1} onClick={() => moveHistory(1)}><ChevronRight size={14} /></Button>
-            <span class="sparky-brand">Sparky</span>
-          </div>
-          <div class="sparky-titlebar-controls">
-            <Button variant="icon" aria-label="Open Commander" onClick={() => setPalette("commands")}><Search size={14} /></Button>
-            <Button variant="icon" aria-label="New memory" onClick={() => setPalette("quick-add")}><Plus size={14} /></Button>
-            <StatusChip tone={core.state() === "live" ? "muted" : core.state() === "loading" ? "syncing" : "down"}
-              label={core.state() === "live" ? reminderLabel(core.status()) : core.state() === "loading" ? "Connecting…" : "Core offline"} />
-            <Button ref={helpAnchor} variant="icon" aria-label="Help" aria-expanded={helpMenuOpen()} aria-haspopup="dialog" onClick={() => setHelpMenuOpen(open => !open)}><HelpCircle size={14} /></Button>
-            <Popover open={helpMenuOpen()} onClose={() => setHelpMenuOpen(false)} title="Help" anchorRef={() => helpAnchor} placement="bottom-end" width={240}>
-              <MenuList>
-                <MenuItem onClick={() => { setHelpMenuOpen(false); setHelpOpen(true); }}>Keyboard shortcuts</MenuItem>
-                <MenuItem onClick={() => { setHelpMenuOpen(false); setOnboardingStep(0); setOnboardingOpen(true); }}>Show onboarding</MenuItem>
-              </MenuList>
-            </Popover>
-          </div>
-        </TitleBarFrame>
+        <FloatingWindow.Root open={composerOpen()} minimized expanded={composerExpanded()} controls="close"
+          aria-label="New memory" storageKey="sparky.memory.composer" bubble={<Plus size={16} />}
+          onOpenChange={next => { setComposerOpen(next); if (!next) setComposerExpanded(false); }}
+          onMinimizedChange={() => {}} onExpandedChange={setComposerExpanded}>
+        <FloatingWindow.Workspace>
         <div class="sparky-workspace">
           <SidebarFrame class="sparky-sidebar" aria-label="Sidebar">
+            <MenuList>
+              <MenuItem aria-label="Open Commander" onClick={() => setPalette("commands")}><Search size={15} /><span class="flex-1">Search</span></MenuItem>
+            </MenuList>
             <nav aria-label="Main navigation">
               <MenuList><For each={items()}>{item => <MenuItem aria-label={item.label} aria-current={normalizePath(path()) === normalizePath(item.path) ? "page" : undefined}
                 selected={normalizePath(path()) === normalizePath(item.path)} onClick={() => navigate(item.path)}>
@@ -239,7 +242,16 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
                 </Show>
               </Show>
             }>{treeDef => <Dynamic component={treeDef().component} />}</Show>
-            <div class="sparky-sidebar-footer"><Button variant="ghost" class="w-full justify-start" onClick={() => setSettingsOpen(true)}><Settings size={15} />Settings</Button></div>
+            <div class="sparky-sidebar-footer">
+              <Button variant="ghost" class="min-w-0 flex-1 justify-start" onClick={() => setSettingsOpen(true)}><Settings size={15} />Settings</Button>
+              <button type="button" ref={helpAnchor} class={titlebarIconClass} aria-label="Help" aria-expanded={helpMenuOpen()} aria-haspopup="dialog" onClick={() => setHelpMenuOpen(open => !open)}><HelpCircle size={14} /></button>
+              <Popover open={helpMenuOpen()} onClose={() => setHelpMenuOpen(false)} title="Help" anchorRef={() => helpAnchor} placement="top-end" width={240}>
+                <MenuList>
+                  <MenuItem onClick={() => { setHelpMenuOpen(false); setHelpOpen(true); }}>Keyboard shortcuts</MenuItem>
+                  <MenuItem onClick={() => { setHelpMenuOpen(false); setOnboardingStep(0); setOnboardingOpen(true); }}>Show onboarding</MenuItem>
+                </MenuList>
+              </Popover>
+            </div>
           </SidebarFrame>
           <MainFrame as="main" glass={false} class="sparky-main" ref={main} tabIndex={-1} aria-label={title()}>
             <MainSurfaceFrame as="div">
@@ -275,6 +287,11 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
             </MainSurfaceFrame>
           </MainFrame>
         </div>
+        </FloatingWindow.Workspace>
+        <FloatingWindow.Content>
+          <MemoryComposer open={composerOpen()} bridge={props.bridge} live={core.state() === "live"} onCreated={openMemory} onClose={() => setComposerOpen(false)} />
+        </FloatingWindow.Content>
+        </FloatingWindow.Root>
       </ShellRoot>
       <ToastRegion />
       <Commander open={palette() !== null} mode={palette() ?? "commands"} bridge={props.bridge} commands={commands()} commandSources={commandSources()} live={core.state() === "live"} onClose={() => setPalette(null)} onMemory={openMemory} />
@@ -306,7 +323,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
       </Dialog>
       <Dialog open={helpOpen()} title="Sparky shortcuts" onClose={() => setHelpOpen(false)}>
         <p>⌘K Commander · ⌘N New memory · ⌘, Settings · ⌘[ Back · ⌘] Forward · ⌘J Close details</p>
-        <p>⌘1 Inbox · ⌘2 Today · ⌘3 Calendar · ⌘4 Map · ⌘5 Focus · ⌘6 Review · / Search</p>
+        <p>⌘1 Inbox · ⌘2 Today · ⌘3 Calendar · ⌘4 Map · ⌘5 Focus · / Search</p>
         <p>In memory collections: Enter opens the selection, Space toggles completion, E edits the title, P pins, and ⌘⌫ asks to delete.</p>
       </Dialog>
     </DesignSystemProvider>

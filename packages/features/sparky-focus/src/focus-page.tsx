@@ -1,11 +1,24 @@
 import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import {
-  Button, Card, FilterChipGroup, PageContent, PageEmpty, PageError, PageHeader, PageLoading, PageOffline,
-  PageToolbar, Popover, ProgressRing, StatusChip,
+  Button, Card, FilterChipGroup, PageError, PageLoading, PageOffline, Play, ProgressRing, StatusChip,
 } from "@polterware/frontend-design-system";
 import { useSparkyShell } from "@polterware/feature-sparky-shell/feature";
 import { formatRemaining, phaseLabel, WORK_PRESETS, type FocusRecipe } from "./timer";
 import { focusStore, type FocusStore } from "./store";
+import "./focus-page.css";
+
+const DIAL_MAX = 60;
+const DIAL_SIZE = 240;
+const DIAL_THICKNESS = 16;
+
+function minutesFromPoint(clientX: number, clientY: number, host: HTMLElement): number {
+  const rect = host.getBoundingClientRect();
+  const dx = clientX - (rect.left + rect.width / 2);
+  const dy = clientY - (rect.top + rect.height / 2);
+  const clockwise = (Math.atan2(dy, dx) + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
+  const minutes = Math.round((clockwise / (Math.PI * 2)) * DIAL_MAX);
+  return Math.min(DIAL_MAX, Math.max(1, minutes || DIAL_MAX));
+}
 
 function honestyTone(state: string): "ok" | "syncing" | "danger" | "muted" {
   if (state === "live") return "ok";
@@ -17,8 +30,6 @@ function honestyTone(state: string): "ok" | "syncing" | "danger" | "muted" {
 export function FocusPage(props: { store?: FocusStore }) {
   const store = props.store ?? focusStore;
   const shell = useSparkyShell();
-  const [recipeOpen, setRecipeOpen] = createSignal(false);
-  let recipeAnchor: HTMLButtonElement | undefined;
   const snap = () => store.snapshot();
   const recipe = createMemo(() => snap().recipe ?? store.quickRecipe());
 
@@ -49,6 +60,40 @@ export function FocusPage(props: { store?: FocusStore }) {
     const next: FocusRecipe = { ...recipe(), workMin: Number(minutes) };
     store.setQuickRecipe(next);
   };
+  const [dragging, setDragging] = createSignal(false);
+  let clock: HTMLDivElement | undefined;
+  const dial = () => !snap().isSessionActive;
+  const shownMs = () => dial() ? recipe().workMin * 60_000 : snap().remainingMs;
+  const knobStyle = () => {
+    const angle = (recipe().workMin / DIAL_MAX) * Math.PI * 2 - Math.PI / 2;
+    const radius = (DIAL_SIZE - DIAL_THICKNESS) / 2;
+    return {
+      left: `${DIAL_SIZE / 2 + Math.cos(angle) * radius}px`,
+      top: `${DIAL_SIZE / 2 + Math.sin(angle) * radius}px`,
+    };
+  };
+  const dragFrom = (event: PointerEvent) => { if (clock) applyWork(minutesFromPoint(event.clientX, event.clientY, clock)); };
+  const onDialDown = (event: PointerEvent) => {
+    if (!dial() || event.button !== 0 || !clock) return;
+    event.preventDefault();
+    setDragging(true);
+    clock.setPointerCapture(event.pointerId);
+    dragFrom(event);
+  };
+  const onDialMove = (event: PointerEvent) => { if (dragging()) dragFrom(event); };
+  const onDialUp = (event: PointerEvent) => {
+    if (!dragging()) return;
+    setDragging(false);
+    if (clock?.hasPointerCapture(event.pointerId)) clock.releasePointerCapture(event.pointerId);
+  };
+  const onDialKey = (event: KeyboardEvent) => {
+    const step = event.key === "ArrowUp" || event.key === "ArrowRight" ? 1 : event.key === "ArrowDown" || event.key === "ArrowLeft" ? -1 : 0;
+    if (event.key === "Home") { event.preventDefault(); applyWork(1); return; }
+    if (event.key === "End") { event.preventDefault(); applyWork(DIAL_MAX); return; }
+    if (!step) return;
+    event.preventDefault();
+    applyWork(Math.min(DIAL_MAX, Math.max(1, recipe().workMin + step)));
+  };
 
   const title = () => {
     if (!snap().isSessionActive) return "Focus";
@@ -58,75 +103,68 @@ export function FocusPage(props: { store?: FocusStore }) {
 
   return (
     <div data-focus-page class="flex h-full min-h-0 flex-col">
-      <PageHeader
-        title={title()}
-        subtitle={<StatusChip tone={honestyTone(store.loadState())}>{store.loadState() === "live" ? "Live" : store.loadState() === "queued" ? "Queued" : store.loadState() === "failed" ? "Failed" : "Unavailable"}</StatusChip>}
-        actions={
-          <Show when={!snap().isSessionActive}>
-            <Button ref={element => { recipeAnchor = element; }} aria-haspopup="dialog" aria-expanded={recipeOpen()} variant="secondary" onClick={() => setRecipeOpen(open => !open)}>Recipe</Button>
+      <Show when={store.loadState() === "queued"}><PageLoading label="Loading focus" /></Show>
+      <Show when={store.loadState() === "unavailable"}>
+        <PageOffline title="Focus unavailable" message={store.loadError() || "The local core is unreachable."} onRetry={() => void store.reload()} />
+      </Show>
+      <Show when={store.loadState() === "failed"}>
+        <PageError title="Focus failed" message={store.loadError()} onRetry={() => void store.reload()} />
+      </Show>
+      <Show when={store.loadState() === "live"}>
+        <div class="sparky-focus-stage">
+          <h1 class="sparky-focus-title">{title()}</h1>
+          <Show when={store.interrupted()}>
+            <p role="status" class="max-w-md text-center text-[13px] text-[var(--color-text-secondary)]">{store.interrupted()!.message} {store.interrupted()!.recorded ? "The interrupted phase was recorded as stopped." : "The interrupted phase could not be recorded."}</p>
           </Show>
-        }
-      />
-      <Popover open={recipeOpen()} onClose={() => setRecipeOpen(false)} title="Quick focus recipe" anchorRef={() => recipeAnchor} width={320}>
-        <div class="flex flex-col gap-3 p-2">
-          <FilterChipGroup aria-label="Work duration" value={String(recipe().workMin)} onChange={value => applyWork(Number(value))} items={WORK_PRESETS.map(minutes => ({ id: String(minutes), label: `${minutes} min` }))} />
-          <p class="text-[13px] text-[var(--color-text-muted)]">{recipe().workMin}/{recipe().shortBreakMin} · long break {recipe().longBreakMin} min after {recipe().cycles} sessions · {recipe().autoContinue ? "auto-continue on" : "auto-continue off"}</p>
-        </div>
-      </Popover>
-      <PageToolbar.Root>
-        <PageToolbar.Leading>
-          <StatusChip tone={honestyTone(store.reminderState())}>{store.reminderDetail()}</StatusChip>
-        </PageToolbar.Leading>
-      </PageToolbar.Root>
-      <PageContent>
-        <Show when={store.loadState() === "queued"}><PageLoading label="Loading focus" /></Show>
-        <Show when={store.loadState() === "unavailable"}>
-          <PageOffline title="Focus unavailable" message={store.loadError() || "The local core is unreachable."} onRetry={() => void store.reload()} />
-        </Show>
-        <Show when={store.loadState() === "failed"}>
-          <PageError title="Focus failed" message={store.loadError()} onRetry={() => void store.reload()} />
-        </Show>
-        <Show when={store.loadState() === "live"}>
-          <div class="mx-auto flex w-full max-w-xl flex-col items-center gap-6 px-4 py-8">
-            <Show when={store.interrupted()}>
-              <p role="status" class="w-full text-center text-[13px] text-[var(--color-text-secondary)]">{store.interrupted()!.message} {store.interrupted()!.recorded ? "The interrupted phase was recorded as stopped." : "The interrupted phase could not be recorded."}</p>
+          <Show when={snap().isQuickSession}><p class="text-[13px] text-[var(--color-text-muted)]">Quick focus</p></Show>
+          <Show when={snap().memoryId}><p class="text-[13px] text-[var(--color-text-muted)]">Memory-bound</p></Show>
+          <div class="sparky-focus-clock" ref={clock} data-dragging={dragging() ? "" : undefined}
+            onPointerDown={onDialDown} onPointerMove={onDialMove} onPointerUp={onDialUp} onPointerCancel={onDialUp}>
+            <ProgressRing label={dial() ? "Work duration" : `${phaseLabel(snap().phase)} remaining`} value={dial() ? Math.round(recipe().workMin / DIAL_MAX * 100) : Math.round(snap().progress * 100)} size={DIAL_SIZE} thickness={DIAL_THICKNESS} />
+            <p class="sparky-focus-time" role="timer" aria-live="off" aria-label="Time remaining">{formatRemaining(shownMs())}</p>
+            <Show when={dial()}>
+              <button type="button" class="sparky-focus-knob" style={knobStyle()} role="slider" aria-label="Work duration" aria-valuemin={1} aria-valuemax={DIAL_MAX} aria-valuenow={recipe().workMin} aria-valuetext={`${recipe().workMin} minutes`} onKeyDown={onDialKey} />
             </Show>
-            <Show when={snap().isQuickSession}><p class="text-[13px] text-[var(--color-text-muted)]">Quick focus</p></Show>
-            <Show when={snap().memoryId}><p class="text-[13px] text-[var(--color-text-muted)]">Memory-bound</p></Show>
-            <ProgressRing label={`${phaseLabel(snap().phase)} remaining`} value={Math.round(snap().progress * 100)} size={180} thickness={8} />
-            <p class="text-[28px] font-semibold tabular-nums text-[var(--color-text-primary)]" role="timer" aria-live="off" aria-label="Time remaining">{formatRemaining(snap().remainingMs)}</p>
-            <p class="text-[13px] text-[var(--color-text-secondary)]" role="status" aria-live="polite" aria-atomic="true">{phaseLabel(snap().phase)}{snap().isSessionActive ? snap().isRunning ? " · Running" : snap().isWaitingForManualStart ? " · Ready" : " · Paused" : ""}</p>
+          </div>
+          <Show when={snap().isSessionActive}>
+            <p class="text-[13px] text-[var(--color-text-secondary)]" role="status" aria-live="polite" aria-atomic="true">{snap().isRunning ? "Running" : snap().isWaitingForManualStart ? "Ready" : "Paused"}</p>
             <div class="flex gap-2" role="list" aria-label="Completed focus cycles">
               <For each={cycles()}>{index => (
                 <span role="listitem" class={`h-2 w-2 rounded-full ${index < filled() ? "bg-[var(--color-brand)]" : "bg-[var(--color-surface-selected)]"}`} aria-label={index < filled() ? `Cycle ${index + 1} complete` : `Cycle ${index + 1} remaining`} />
               )}</For>
             </div>
-            <div class="flex flex-wrap items-center justify-center gap-2">
-              <Button variant={primary().kind === "pause" ? "secondary" : "primary"} onClick={() => primary().action()}>{primary().label}</Button>
-              <Show when={snap().isSessionActive}>
-                <Button variant="secondary" onClick={() => store.skip()}>Skip</Button>
-                <Button variant="danger" onClick={() => store.reset()}>Reset</Button>
-              </Show>
-            </div>
-            <Show when={store.recordState() !== "live"}>
-              <StatusChip tone={honestyTone(store.recordState())}>{store.recordState() === "queued" ? "Recording session" : store.recordState() === "failed" ? "Session record failed" : "Session record unavailable"}</StatusChip>
+          </Show>
+          <div class="flex flex-wrap items-center justify-center gap-2">
+            <Button class="sparky-focus-start !rounded-full" variant={primary().kind === "pause" ? "secondary" : "primary"} onClick={() => primary().action()}>
+              {primary().label}
+              <Show when={primary().kind === "start"}><Play size={14} /></Show>
+            </Button>
+            <Show when={snap().isSessionActive}>
+              <Button variant="secondary" onClick={() => store.skip()}>Skip</Button>
+              <Button variant="danger" onClick={() => store.reset()}>Reset</Button>
             </Show>
-            <section class="w-full" aria-label="Today's sessions">
-              <h2 class="mb-2 text-[13px] font-medium text-[var(--color-text-secondary)]">Today</h2>
-              <Show when={store.sessions().length} fallback={<PageEmpty title="No sessions yet" description="Completed and stopped phases from today appear here and in Review." />}>
-                <div class="flex flex-col gap-2">
-                  <For each={store.sessions()}>{session => (
-                    <Card>
-                      <p class="text-[13px] text-[var(--color-text-primary)]">{phaseLabel((session.phase as "work" | "short_break" | "long_break") ?? "idle")} · {session.state === "completed" ? "Completed" : "Stopped"}</p>
-                      <p class="text-[12px] text-[var(--color-text-muted)]">{session.elapsedS ?? 0}s of {session.plannedS ?? 0}s{session.endedAt ? ` · ${new Date(session.endedAt).toLocaleTimeString()}` : ""}</p>
-                    </Card>
-                  )}</For>
-                </div>
-              </Show>
-            </section>
           </div>
+          <Show when={!snap().isSessionActive}>
+            <FilterChipGroup aria-label="Work duration" value={String(recipe().workMin)} onChange={value => applyWork(Number(value))} items={WORK_PRESETS.map(minutes => ({ id: String(minutes), label: `${minutes} min` }))} />
+          </Show>
+          <Show when={store.recordState() !== "live"}>
+            <StatusChip tone={honestyTone(store.recordState())}>{store.recordState() === "queued" ? "Recording session" : store.recordState() === "failed" ? "Session record failed" : "Session record unavailable"}</StatusChip>
+          </Show>
+        </div>
+        <Show when={store.sessions().length}>
+          <section class="mx-auto w-full max-w-xl px-6 pb-8" aria-label="Today's sessions">
+            <h2 class="mb-2 text-[13px] font-medium text-[var(--color-text-secondary)]">Today</h2>
+            <div class="flex flex-col gap-2">
+              <For each={store.sessions()}>{session => (
+                <Card>
+                  <p class="text-[13px] text-[var(--color-text-primary)]">{phaseLabel((session.phase as "work" | "short_break" | "long_break") ?? "idle")} · {session.state === "completed" ? "Completed" : "Stopped"}</p>
+                  <p class="text-[12px] text-[var(--color-text-muted)]">{session.elapsedS ?? 0}s of {session.plannedS ?? 0}s{session.endedAt ? ` · ${new Date(session.endedAt).toLocaleTimeString()}` : ""}</p>
+                </Card>
+              )}</For>
+            </div>
+          </section>
         </Show>
-      </PageContent>
+      </Show>
     </div>
   );
 }

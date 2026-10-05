@@ -10,6 +10,8 @@ export function assertTrustedSender(event: { sender: unknown; senderFrame: unkno
 }
 export function createRpcHandlers(options: {
   getClients: () => CoreClients;
+  /** Resolves once the core startup attempt has settled; RPC calls wait for it so an early window can issue them. */
+  whenReady?: Promise<unknown>;
   authorizePath: (purpose: "import" | "export" | "backup", path: string) => boolean;
   settingsChanged?: (settings: unknown) => void;
 }) {
@@ -31,6 +33,7 @@ export function createRpcHandlers(options: {
             const path = String(fields[methodName === "export" ? "zipPath" : "destPath"]);
             if (!options.authorizePath(purpose, path)) throw new Error("Choose a destination with the save dialog first");
           }
+          await options.whenReady;
           const client = options.getClients()[namespace as keyof typeof services] as unknown as Record<string, (input: Message, options: { timeoutMs: number }) => Promise<Message>>;
           const output = await client[methodName]!(input, { timeoutMs: 30_000 });
           if (namespace === "settings" && methodName === "set") options.settingsChanged?.(output);

@@ -1,24 +1,92 @@
-import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount, type JSX } from "solid-js";
 import { useSparkyShell } from "@polterware/feature-sparky-shell/feature";
 import {
-  A11yDialog, Button, CalendarGrid, ChevronLeft, ChevronRight, DatePicker, PageContent, PageError, PageHeader,
-  PageLoading, PageToolbar, parseDate, Plus, Popover, SegmentedControl, StatusChip, ToolbarIconButton, prefersReducedMotion,
+  A11yDialog, Button, CalendarGrid, ChevronLeft, ChevronRight, PageContent, PageEmpty, PageError, PageHeader,
+  PageLoading, PageToolbar, Plus, Popover, StatusChip, Tabs, prefersReducedMotion,
 } from "@polterware/frontend-design-system";
 import {
-  civilFromInstant, dayHours, formatYmd, hourLabel, monthDates, occurrenceDate, pad, rangeTitle, sameMonth, shiftedAnchor,
-  systemTimeZone, visibleRange, weekDates, weekdayLabels, type CalendarView,
+  agendaHeading, civilFromInstant, clockLabel, formatYmd, gmtLabel, monthDates, monthName, periodDates,
+  placeTimed, rangeTitle, sameMonth, shiftedAnchor, standardHours, systemTimeZone, timeLabel, visibleRange,
+  weekdayLabels, weekdayName, yearMonthAnchors, type CalendarView, type WeekStart,
 } from "./grid";
 import type { SlotDraft } from "./mapping";
 import { calendarStore, type CalendarOccurrence, type CalendarStore } from "./store";
 import "./calendar.css";
 
 const VIEWS: { value: CalendarView; label: string }[] = [
+  { value: "schedule", label: "Schedule" },
   { value: "day", label: "Day" },
   { value: "week", label: "Week" },
   { value: "month", label: "Month" },
+  { value: "year", label: "Year" },
 ];
-const MONTH_VISIBLE = 1;
+const MONTH_VISIBLE = 3;
 const ALL_DAY_VISIBLE = 3;
+const HOUR_HEIGHT = 64;
+const HOUR_COUNT = 24;
+
+function isCalendarView(id: string): id is CalendarView {
+  return id === "schedule" || id === "day" || id === "week" || id === "month" || id === "year";
+}
+
+function dayNumber(date: string): string {
+  return String(Number(date.slice(8)));
+}
+
+function inkFor(fill: string): string {
+  const match = /^#([0-9a-f]{6})$/i.exec(fill.trim());
+  if (!match) return "var(--color-text-primary)";
+  const value = Number.parseInt(match[1]!, 16);
+  const channel = (shift: number) => (value >> shift) & 255;
+  const luminance = (0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0)) / 255;
+  return luminance > 0.62 ? "var(--color-dither-icon-mark)" : "var(--color-text-primary)";
+}
+
+function paint(occurrence: CalendarOccurrence): { fill: string; ink: string } {
+  if (occurrence.overdue) return { fill: "var(--color-danger)", ink: "var(--color-status-danger-foreground)" };
+  const fill = occurrence.color || "var(--color-brand)";
+  return { fill, ink: fill.startsWith("var(") ? "var(--color-dither-icon-mark)" : inkFor(fill) };
+}
+
+function eventBox(occurrence: CalendarOccurrence): { top: number; height: number; end: number } {
+  const wall = civilFromInstant(occurrence.occurrenceAt, occurrence.tz);
+  const total = HOUR_COUNT * HOUR_HEIGHT;
+  const top = Math.min((wall.hour + wall.minute / 60) * HOUR_HEIGHT, total - 28);
+  const height = Math.min(HOUR_HEIGHT, total - top);
+  return { top, height, end: top + height };
+}
+
+function scrollParent(element: HTMLElement): HTMLElement | null {
+  let node = element.parentElement;
+  while (node) {
+    const overflow = getComputedStyle(node).overflowY;
+    if (overflow === "auto" || overflow === "scroll") return node;
+    node = node.parentElement;
+  }
+  return null;
+}
+
+function revealNow(pane: HTMLElement) {
+  const line = pane.querySelector<HTMLElement>("[data-now-line]");
+  if (!line) return;
+  const scroller = pane.scrollHeight > pane.clientHeight + 1 ? pane : scrollParent(line) ?? pane;
+  const delta = line.getBoundingClientRect().top - scroller.getBoundingClientRect().top - scroller.clientHeight / 3;
+  scroller.scrollTop += delta;
+}
+const PANES = [-1, 0, 1] as const;
+const PAN_SLOP = 2;
+const PAN_THRESHOLD = 0.18;
+const PAN_FLICK = 0.6;
+
+function panDirection(offset: number, velocity: number, width: number): -1 | 0 | 1 {
+  const distance = Math.abs(offset);
+  if (distance < PAN_SLOP) return 0;
+  const threshold = width > 0 ? width * PAN_THRESHOLD : 8;
+  const flicked = Math.abs(velocity) > PAN_FLICK && distance >= 8;
+  if (!flicked && distance < threshold) return 0;
+  if (flicked) return velocity < 0 ? 1 : -1;
+  return offset < 0 ? 1 : -1;
+}
 
 function todayYmd(timeZone = systemTimeZone()): string {
   const wall = civilFromInstant(new Date().toISOString(), timeZone);
@@ -55,16 +123,30 @@ export function CalendarPage(props: { store?: CalendarStore }) {
   const [overflow, setOverflow] = createSignal<{ date: string; items: CalendarOccurrence[] }>();
   const [pendingMove, setPendingMove] = createSignal<{ occurrence: CalendarOccurrence; draft: SlotDraft }>();
   const [now, setNow] = createSignal(new Date());
+  const [panX, setPanX] = createSignal(0);
+  const [settling, setSettling] = createSignal(false);
+  const [panning, setPanning] = createSignal(false);
   let root: HTMLDivElement | undefined;
+  let viewport: HTMLDivElement | undefined;
+  let track: HTMLDivElement | undefined;
+  let drag: { pointerId: number; startX: number; startY: number; origin: number; lastX: number; lastTime: number; velocity: number; moved: boolean } | undefined;
+  let settleToken = 0;
+  let wheelOffset = 0;
+  let wheelVelocity = 0;
+  let wheelLast = 0;
+  let wheelTimer = 0;
+  let settleTimer = 0;
   const title = createMemo(() => rangeTitle(anchor(), view(), store.weekStart()));
-  const dates = createMemo(() => view() === "day" ? [anchor()] : view() === "week" ? weekDates(anchor(), store.weekStart()) : monthDates(anchor(), store.weekStart()));
-  const hours = createMemo(() => view() === "day" ? dayHours(anchor(), store.displayTz()) : Array.from({ length: 24 }, (_, hour) => ({ hour, fold: 0, label: hourLabel(hour), startUtc: "" })));
+  const dates = createMemo(() => periodDates(anchor(), view(), store.weekStart()));
+  const paneWidth = () => viewport?.clientWidth ?? 0;
 
   onMount(() => {
     const disconnect = store.connect();
     const timer = setInterval(() => setNow(new Date()), 60_000);
     void store.loadSettings().then(() => store.ensureVisible(anchor(), view(), store.displayTz()));
-    onCleanup(() => { disconnect(); clearInterval(timer); });
+    const wheel = (event: WheelEvent) => onWheel(event);
+    viewport?.addEventListener("wheel", wheel, { passive: false });
+    onCleanup(() => { disconnect(); clearInterval(timer); viewport?.removeEventListener("wheel", wheel); window.clearTimeout(wheelTimer); window.clearTimeout(settleTimer); });
   });
   createEffect(() => {
     const next = visibleRange(anchor(), view(), store.weekStart(), store.displayTz());
@@ -72,15 +154,30 @@ export function CalendarPage(props: { store?: CalendarStore }) {
     root?.setAttribute("data-calendar-from", next.from);
     root?.setAttribute("data-calendar-to", next.to);
   });
+  let scrolledFor = "";
+  createEffect(() => {
+    const current = view();
+    const key = `${current}:${anchor()}:${store.displayTz()}`;
+    if (current !== "day" && current !== "week") return;
+    if (scrolledFor === key) return;
+    queueMicrotask(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (scrolledFor === key) return;
+      const pane = root?.querySelector<HTMLElement>("[data-pane='current'] .sparky-calendar__pane-scroll");
+      if (!pane || pane.clientHeight === 0) return;
+      scrolledFor = key;
+      revealNow(pane);
+    })));
+  });
 
-  const gridButtons = () => [...(root?.querySelectorAll<HTMLButtonElement>(".sparky-calendar__grid-wrap button:not(:disabled)") ?? [])];
+  const gridButtons = () => [...(root?.querySelectorAll<HTMLButtonElement>(".sparky-calendar__pane[data-pane='current'] button:not(:disabled)") ?? [])];
+  const allGridButtons = () => [...(root?.querySelectorAll<HTMLButtonElement>(".sparky-calendar__grid-wrap button") ?? [])];
   const dayButtons = (date: string) => gridButtons().filter(button => button.closest<HTMLElement>("[data-day]")?.dataset.day === date);
   function syncFocus() {
     const position = focusPosition();
     const buttons = gridButtons();
     const day = dayButtons(position.date);
     const active = day[Math.min(position.index, day.length - 1)] ?? buttons[0];
-    for (const button of buttons) button.tabIndex = button === active ? 0 : -1;
+    for (const button of allGridButtons()) button.tabIndex = button === active ? 0 : -1;
     if (focusAfterRender && active) {
       focusAfterRender = false;
       active.focus();
@@ -104,12 +201,127 @@ export function CalendarPage(props: { store?: CalendarStore }) {
     setShift(true);
     requestAnimationFrame(() => setShift(false));
   }
-  function go(next: string, nextView = view()) {
+  function go(next: string, nextView = view(), shiftView = true) {
     setAnchor(next);
     setFocused(next);
     setFocusPosition({ date: next, index: 0 });
     setView(nextView);
-    bump();
+    if (shiftView) bump();
+  }
+  function finishSettle(token: number, direction: -1 | 0 | 1) {
+    if (token !== settleToken) return;
+    settleToken += 1;
+    setSettling(false);
+    setPanX(0);
+    if (direction !== 0) go(shiftedAnchor(anchor(), view(), direction), view(), false);
+  }
+  function settle(direction: -1 | 0 | 1) {
+    const width = paneWidth();
+    const token = ++settleToken;
+    if (direction === 0 && panX() === 0) {
+      setSettling(false);
+      return;
+    }
+    if (width === 0 || prefersReducedMotion()) {
+      finishSettle(token, direction);
+      return;
+    }
+    setSettling(true);
+    const target = direction === 0 ? 0 : direction > 0 ? -width : width;
+    requestAnimationFrame(() => {
+      if (token !== settleToken) return;
+      setPanX(target);
+    });
+    const node = track;
+    const onEnd = (event: TransitionEvent) => {
+      if (event.target !== node || event.propertyName !== "transform") return;
+      node?.removeEventListener("transitionend", onEnd);
+      finishSettle(token, direction);
+    };
+    node?.addEventListener("transitionend", onEnd);
+    window.clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(() => {
+      node?.removeEventListener("transitionend", onEnd);
+      finishSettle(token, direction);
+    }, 240);
+  }
+  function beginPointerPan(event: PointerEvent) {
+    if (event.button !== 2) return;
+    const target = event.target;
+    if (!(target instanceof Element) || target.closest("[data-occurrence]")) return;
+    event.preventDefault();
+    settleToken += 1;
+    setSettling(false);
+    if (event.currentTarget instanceof HTMLElement) {
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* jsdom has no capture. */ }
+    }
+    drag = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: panX(),
+      lastX: event.clientX,
+      lastTime: performance.now(),
+      velocity: 0,
+      moved: false,
+    };
+  }
+  function movePointerPan(event: PointerEvent) {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved) {
+      if (Math.hypot(dx, dy) < PAN_SLOP) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        drag = undefined;
+        return;
+      }
+      drag.moved = true;
+      setPanning(true);
+    }
+    event.preventDefault();
+    const now = performance.now();
+    drag.velocity = (event.clientX - drag.lastX) / Math.max(now - drag.lastTime, 1);
+    drag.lastX = event.clientX;
+    drag.lastTime = now;
+    const width = paneWidth();
+    const next = drag.origin + dx;
+    setPanX(width > 0 ? Math.max(-width, Math.min(width, next)) : next);
+  }
+  function endPointerPan(event: PointerEvent) {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const current = drag;
+    drag = undefined;
+    setPanning(false);
+    if (!current.moved) return;
+    settle(panDirection(panX(), current.velocity, paneWidth()));
+  }
+  function onWheel(event: WheelEvent) {
+    if (drag || event.ctrlKey || event.metaKey) return;
+    const line = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? Math.max(paneWidth(), 1) : 1;
+    const deltaX = event.deltaX * line;
+    const deltaY = event.deltaY * line;
+    if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    event.preventDefault();
+    settleToken += 1;
+    setSettling(false);
+    const now = performance.now();
+    wheelVelocity = -deltaX / Math.max(now - wheelLast, 1);
+    wheelLast = now;
+    wheelOffset += deltaX;
+    const width = paneWidth();
+    const next = -wheelOffset;
+    setPanX(width > 0 ? Math.max(-width, Math.min(width, next)) : next);
+    setPanning(true);
+    window.clearTimeout(wheelTimer);
+    wheelTimer = window.setTimeout(() => {
+      const offset = panX();
+      const velocity = wheelVelocity;
+      wheelOffset = 0;
+      wheelVelocity = 0;
+      setPanning(false);
+      settle(panDirection(offset, velocity, paneWidth()));
+    }, 80);
   }
   async function create(draft: SlotDraft) {
     try {
@@ -146,6 +358,38 @@ export function CalendarPage(props: { store?: CalendarStore }) {
     const key = event.key;
     if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(key)) {
       if (!inGrid || !(target instanceof HTMLButtonElement)) return;
+      if (view() === "year" && target.classList.contains("pw-calendar__mini-day")) {
+        event.preventDefault();
+        const buttons = [...(root?.querySelectorAll<HTMLButtonElement>(".sparky-calendar__pane[data-pane='current'] .pw-calendar__mini-day") ?? [])];
+        const index = buttons.indexOf(target);
+        const delta = key === "ArrowRight" ? 1 : key === "ArrowLeft" ? -1 : key === "ArrowDown" ? 7 : key === "ArrowUp" ? -7 : key === "Home" ? -index : buttons.length - 1 - index;
+        const next = buttons[index + delta];
+        if (next) {
+          const date = next.closest<HTMLElement>("[data-day]")?.dataset.day ?? focused();
+          setFocused(date);
+          focusAfterRender = true;
+          setFocusPosition({ date, index: Math.max(0, dayButtons(date).indexOf(next)) });
+          return;
+        }
+        if (delta !== 0) go(shiftedAnchor(anchor(), "year", delta > 0 ? 1 : -1), "year");
+        return;
+      }
+      if (view() === "schedule" && target.classList.contains("pw-calendar__agenda-item")) {
+        event.preventDefault();
+        const buttons = gridButtons().filter(button => button.classList.contains("pw-calendar__agenda-item"));
+        const index = buttons.indexOf(target);
+        const delta = key === "ArrowDown" || key === "ArrowRight" ? 1 : key === "ArrowUp" || key === "ArrowLeft" ? -1 : key === "Home" ? -index : buttons.length - 1 - index;
+        const next = buttons[index + delta];
+        if (next) {
+          const date = next.closest<HTMLElement>("[data-day]")?.dataset.day ?? focused();
+          setFocused(date);
+          focusAfterRender = true;
+          setFocusPosition({ date, index: Math.max(0, dayButtons(date).indexOf(next)) });
+          return;
+        }
+        if (delta !== 0) go(shiftedAnchor(anchor(), "schedule", delta > 0 ? 1 : -1), "schedule");
+        return;
+      }
       const date = target.closest<HTMLElement>("[data-day]")?.dataset.day;
       if (!date) return;
       event.preventDefault();
@@ -153,10 +397,11 @@ export function CalendarPage(props: { store?: CalendarStore }) {
       const index = day.indexOf(target);
       let nextDate = date;
       let nextIndex = index;
+      const timed = view() === "day" || view() === "week";
       if (key === "Home" || key === "End") nextIndex = key === "Home" ? 0 : day.length - 1;
       else if (view() === "month" && (key === "ArrowUp" || key === "ArrowDown")) {
         nextDate = shiftedAnchor(date, "day", key === "ArrowDown" ? 7 : -7);
-      } else if (view() !== "month" && (key === "ArrowLeft" || key === "ArrowRight")) {
+      } else if (timed && (key === "ArrowLeft" || key === "ArrowRight")) {
         nextDate = shiftedAnchor(date, "day", key === "ArrowRight" ? 1 : -1);
         const time = target.closest<HTMLElement>("[data-slot-time]")?.dataset.slotTime;
         const destination = dayButtons(nextDate);
@@ -174,66 +419,78 @@ export function CalendarPage(props: { store?: CalendarStore }) {
       focusAfterRender = true;
       setFocusPosition({ date: nextDate, index: nextIndex });
       queueMicrotask(syncFocus);
-    } else if (key === "t" || key === "d" || key === "w" || key === "m") {
+    } else if (key === "t" || key === "d" || key === "w" || key === "m" || key === "y" || key === "s") {
       event.preventDefault();
       focusAfterRender = Boolean(inGrid);
-      go(key === "t" ? todayYmd(store.displayTz()) : focused(), key === "d" ? "day" : key === "w" ? "week" : key === "m" ? "month" : view());
+      const nextView = key === "d" ? "day" : key === "w" ? "week" : key === "m" ? "month" : key === "y" ? "year" : key === "s" ? "schedule" : view();
+      go(key === "t" ? todayYmd(store.displayTz()) : focused(), nextView);
     }
   }
 
-  return <div ref={root} class="sparky-calendar" data-calendar data-calendar-view={view()} tabindex="-1" onKeyDown={keyboard}>
+  return <div ref={root} class="sparky-calendar" data-calendar data-calendar-view={view()} data-save-state={store.saveState()} tabindex="-1" onKeyDown={keyboard}>
     <PageHeader
       title={`${title().leading} ${title().trailing}`.trim()}
-      subtitle={<span data-save-state={store.saveState()}><StatusChip tone={tone(store.saveState())}>{stateLabel(store.saveState())}</StatusChip></span>}
+      subtitle={<Show when={store.saveState() !== "live"}><StatusChip tone={tone(store.saveState())}>{stateLabel(store.saveState())}</StatusChip></Show>}
     />
     <PageToolbar.Root>
-      <PageToolbar.Leading>
-        <SegmentedControl aria-label="Calendar view" value={view()} options={VIEWS} onValueChange={details => { if (details.value) go(anchor(), details.value as CalendarView); }} />
-      </PageToolbar.Leading>
+      <PageToolbar.Tabs>
+        <Tabs aria-label="Calendar view" items={VIEWS.map(item => ({ id: item.value, label: item.label }))} value={view()} onChange={id => { if (isCalendarView(id)) go(anchor(), id); }} />
+      </PageToolbar.Tabs>
       <PageToolbar.Actions>
-        <ToolbarIconButton label="Previous" onClick={() => go(shiftedAnchor(anchor(), view(), -1))}><ChevronLeft size={14} /></ToolbarIconButton>
-        <Button variant="secondary" onClick={() => go(todayYmd(store.displayTz()))}>Today</Button>
-        <ToolbarIconButton label="Next" onClick={() => go(shiftedAnchor(anchor(), view(), 1))}><ChevronRight size={14} /></ToolbarIconButton>
-        <DatePicker label="Jump to date" value={anchor() ? [parseDate(anchor())] : []} onValueChange={details => {
-          const next = details.value[0]?.toString();
-          if (next) go(next);
-        }} />
+        <div class="sparky-calendar__nav">
+          <Button variant="ghost" size="icon" class="sparky-calendar__nav-button" aria-label="Previous" onClick={() => go(shiftedAnchor(anchor(), view(), -1))}><ChevronLeft size={14} /></Button>
+          <Button variant="ghost" size="sm" class="sparky-calendar__today" onClick={() => go(todayYmd(store.displayTz()))}>Today</Button>
+          <Button variant="ghost" size="icon" class="sparky-calendar__nav-button" aria-label="Next" onClick={() => go(shiftedAnchor(anchor(), view(), 1))}><ChevronRight size={14} /></Button>
+        </div>
       </PageToolbar.Actions>
     </PageToolbar.Root>
-    <PageContent>
+    <PageContent class="sparky-calendar__content">
       <Show when={store.pending() && !store.occurrences().length}><PageLoading label="Loading calendar" /></Show>
       <Show when={store.loadError()}><PageError title="Calendar unavailable" message={store.loadError()} onRetry={() => void store.refresh()} /></Show>
       <Show when={store.actionError()}><p role="alert">{store.actionError()}</p></Show>
       <Show when={!store.loadError()}>
-        <div class="sparky-calendar__grid-wrap" onFocusIn={focusGrid} data-shift={shift() ? "" : undefined}>
-          <CalendarGrid.Root view={view()} label={`${title().leading} ${title().trailing}`.trim()}>
-            <Show when={view() !== "day"}>
-              <CalendarGrid.Days>
-                <For each={weekdayLabels(store.weekStart())}>{label => <CalendarGrid.Header>{label}</CalendarGrid.Header>}</For>
-              </CalendarGrid.Days>
-            </Show>
-            <CalendarGrid.Days>
-              <For each={dates()}>{date =>
-                <DayColumn
-                  date={date}
-                  view={view()}
-                  today={todayYmd(store.displayTz())}
-                  focused={focused() === date}
-                  inMonth={sameMonth(date, anchor())}
-                  hours={hours()}
-                  now={now()}
-                  displayTz={store.displayTz()}
-                  allDay={store.allDayOn(date)}
-                  timed={store.timedOn(date)}
-                  onOpen={id => shell.openMemory(id)}
-                  onCreate={create}
-                  onDrop={drop}
-                  onOpenDay={() => go(date, "day")}
-                  onOverflow={items => setOverflow({ date, items })}
-                />
-              }</For>
-            </CalendarGrid.Days>
-          </CalendarGrid.Root>
+        <div
+          ref={viewport}
+          class="sparky-calendar__grid-wrap"
+          onFocusIn={focusGrid}
+          data-shift={shift() && !panning() ? "" : undefined}
+          data-panning={panning() ? "" : undefined}
+          onPointerDown={beginPointerPan}
+          onPointerMove={movePointerPan}
+          onPointerUp={endPointerPan}
+          onPointerCancel={endPointerPan}
+          onContextMenu={event => event.preventDefault()}
+          onAuxClick={event => event.preventDefault()}
+        >
+          <div
+            ref={track}
+            class="sparky-calendar__track"
+            style={{
+              transform: `translate3d(calc(-33.333333% + ${panX()}px), 0, 0)`,
+              transition: settling() ? "transform var(--spring-moderate-duration) var(--spring-moderate-ease)" : "none",
+            }}
+          >
+            <For each={PANES}>{offset =>
+              <PeriodPane
+                anchor={shiftedAnchor(anchor(), view(), offset)}
+                view={view()}
+                current={offset === 0}
+                weekStart={store.weekStart()}
+                today={todayYmd(store.displayTz())}
+                focused={focused()}
+                now={now()}
+                displayTz={store.displayTz()}
+                allDay={store.allDayOn}
+                timed={store.timedOn}
+                onOpen={id => shell.openMemory(id)}
+                onCreate={create}
+                onDrop={drop}
+                onOpenDay={date => go(date, "day")}
+                onOpenMonth={date => go(date, "month")}
+                onOverflow={(date, items) => setOverflow({ date, items })}
+              />
+            }</For>
+          </div>
         </div>
       </Show>
     </PageContent>
@@ -241,7 +498,7 @@ export function CalendarPage(props: { store?: CalendarStore }) {
       open={Boolean(overflow())}
       onClose={() => setOverflow(undefined)}
       title="More occurrences"
-      anchorRef={() => root?.querySelector(`[data-day="${overflow()?.date ?? ""}"] [aria-label$="more occurrences"]`) as HTMLElement | undefined}
+      anchorRef={() => root?.querySelector(`[data-pane="current"] [data-day="${overflow()?.date ?? ""}"] [aria-label$="more occurrences"]`) as HTMLElement | undefined}
       width={280}
     >
       <div class="sparky-calendar__overflow-list">
@@ -262,121 +519,386 @@ export function CalendarPage(props: { store?: CalendarStore }) {
   </div>;
 }
 
-function DayColumn(props: {
-  date: string;
+function PeriodPane(props: {
+  anchor: string;
   view: CalendarView;
+  current: boolean;
+  weekStart: WeekStart;
   today: string;
-  focused: boolean;
-  inMonth: boolean;
-  hours: { hour: number; fold: number; label: string; startUtc: string }[];
+  focused: string;
   now: Date;
   displayTz: string;
-  allDay: CalendarOccurrence[];
+  allDay: (date: string) => CalendarOccurrence[];
+  timed: (date: string) => CalendarOccurrence[];
+  onOpen: (id: string) => void;
+  onCreate: (draft: SlotDraft) => void;
+  onDrop: (occurrence: CalendarOccurrence, draft: SlotDraft) => void;
+  onOpenDay: (date: string) => void;
+  onOpenMonth: (date: string) => void;
+  onOverflow: (date: string, items: CalendarOccurrence[]) => void;
+}) {
+  const dates = createMemo(() => periodDates(props.anchor, props.view === "year" || props.view === "schedule" ? "week" : props.view, props.weekStart));
+  const label = createMemo(() => {
+    const heading = rangeTitle(props.anchor, props.view, props.weekStart);
+    return `${heading.leading} ${heading.trailing}`.trim();
+  });
+  const hours = createMemo(() => standardHours());
+  const timeDates = createMemo(() => props.view === "day" ? [props.anchor] : dates());
+  return <div class="sparky-calendar__pane" data-pane={props.current ? "current" : "neighbor"} inert={!props.current} aria-hidden={props.current ? undefined : true}>
+    <div class="sparky-calendar__pane-scroll">
+      <CalendarGrid.Root view={props.view} label={label()} hourHeight={HOUR_HEIGHT} gutterWidth={64}>
+        <Show when={props.view === "schedule"}>
+          <ScheduleList
+            dates={periodDates(props.anchor, "schedule", props.weekStart)}
+            today={props.today}
+            focused={props.current ? props.focused : ""}
+            allDay={props.allDay}
+            timed={props.timed}
+            onOpen={props.onOpen}
+          />
+        </Show>
+        <Show when={props.view === "year"}>
+          <YearGrid
+            anchor={props.anchor}
+            weekStart={props.weekStart}
+            today={props.today}
+            focused={props.current ? props.focused : ""}
+            onOpenDay={props.onOpenDay}
+            onOpenMonth={props.onOpenMonth}
+          />
+        </Show>
+        <Show when={props.view === "month"}>
+          <MonthGrid
+            anchor={props.anchor}
+            weekStart={props.weekStart}
+            today={props.today}
+            focused={props.current ? props.focused : ""}
+            allDay={props.allDay}
+            timed={props.timed}
+            onOpen={props.onOpen}
+            onOpenDay={props.onOpenDay}
+            onOverflow={props.onOverflow}
+          />
+        </Show>
+        <Show when={props.view === "day" || props.view === "week"}>
+          <TimeGrid
+            dates={timeDates()}
+            hours={hours()}
+            weekStart={props.weekStart}
+            today={props.today}
+            focused={props.current ? props.focused : ""}
+            now={props.now}
+            displayTz={props.displayTz}
+            allDay={props.allDay}
+            timed={props.timed}
+            onOpen={props.onOpen}
+            onCreate={props.onCreate}
+            onDrop={props.onDrop}
+            onOpenDay={props.onOpenDay}
+            onOverflow={props.onOverflow}
+          />
+        </Show>
+      </CalendarGrid.Root>
+    </div>
+  </div>;
+}
+
+function TimeGrid(props: {
+  dates: string[];
+  hours: { hour: number; label: string }[];
+  weekStart: WeekStart;
+  today: string;
+  focused: string;
+  now: Date;
+  displayTz: string;
+  allDay: (date: string) => CalendarOccurrence[];
+  timed: (date: string) => CalendarOccurrence[];
+  onOpen: (id: string) => void;
+  onCreate: (draft: SlotDraft) => void;
+  onDrop: (occurrence: CalendarOccurrence, draft: SlotDraft) => void;
+  onOpenDay: (date: string) => void;
+  onOverflow: (date: string, items: CalendarOccurrence[]) => void;
+}) {
+  const nowParts = () => civilFromInstant(props.now.toISOString(), props.displayTz);
+  return <CalendarGrid.Time columns={props.dates.length}>
+    <CalendarGrid.TimeSticky zone={gmtLabel(props.displayTz, props.now)}>
+      <For each={props.dates}>{date => {
+        const items = () => props.allDay(date);
+        const visible = () => items().slice(0, ALL_DAY_VISIBLE);
+        const extra = () => items().slice(visible().length);
+        return <div class="pw-calendar__head-day" data-day={date} data-focused={props.focused === date ? "" : undefined}>
+          <Button
+            variant="ghost"
+            class="pw-calendar__day-heading"
+            data-today={date === props.today ? "" : undefined}
+            aria-label={`Open ${dateLabel(date)} in day view`}
+            onClick={() => props.onOpenDay(date)}
+          >
+            <span class="pw-calendar__weekday">{weekdayName(date, props.weekStart)}</span>
+            <span class="pw-calendar__date-num" data-today={date === props.today ? "" : undefined}>{dayNumber(date)}</span>
+          </Button>
+          <Show when={visible().length || extra().length}>
+            <div class="pw-calendar__all-day" aria-label="All day">
+              <For each={visible()}>{item =>
+                <OccurrencePill variant="banner" occurrence={item} draggable onOpen={() => props.onOpen(item.memoryId)} />
+              }</For>
+              <Show when={extra().length}>
+                <CalendarGrid.Overflow count={extra().length} onClick={() => props.onOverflow(date, extra())} />
+              </Show>
+            </div>
+          </Show>
+        </div>;
+      }}</For>
+    </CalendarGrid.TimeSticky>
+    <CalendarGrid.TimeBody gutter={
+      <For each={props.hours}>{(slot, index) => <CalendarGrid.GutterLabel hour={index()}>{clockLabel(slot.hour)}</CalendarGrid.GutterLabel>}</For>
+    }>
+      <For each={props.dates}>{date =>
+        <TimeColumn
+          date={date}
+          hours={props.hours}
+          today={date === props.today}
+          nowTop={(nowParts().hour + nowParts().minute / 60) * HOUR_HEIGHT}
+          timed={props.timed(date)}
+          onOpen={props.onOpen}
+          onCreate={props.onCreate}
+          onDrop={props.onDrop}
+        />
+      }</For>
+    </CalendarGrid.TimeBody>
+  </CalendarGrid.Time>;
+}
+
+function TimeColumn(props: {
+  date: string;
+  hours: { hour: number; label: string }[];
+  today: boolean;
+  nowTop: number;
   timed: CalendarOccurrence[];
   onOpen: (id: string) => void;
   onCreate: (draft: SlotDraft) => void;
   onDrop: (occurrence: CalendarOccurrence, draft: SlotDraft) => void;
-  onOpenDay: () => void;
-  onOverflow: (items: CalendarOccurrence[]) => void;
 }) {
-  const visibleLimit = () => props.view === "month" ? MONTH_VISIBLE : ALL_DAY_VISIBLE;
-  const visible = () => props.view === "month" ? [...props.allDay, ...props.timed].slice(0, visibleLimit()) : props.allDay.slice(0, visibleLimit());
-  const extra = () => {
-    const all = props.view === "month" ? [...props.allDay, ...props.timed] : props.allDay;
-    return all.slice(visible().length);
-  };
-  const nowParts = () => civilFromInstant(props.now.toISOString(), props.displayTz);
-  return <CalendarGrid.Day label={dateLabel(props.date)} today={props.date === props.today}>
-    <div
-      class="sparky-calendar__day"
-      data-day={props.date}
-      data-focused={props.focused ? "" : undefined}
-      data-outside={props.view === "month" && !props.inMonth ? "" : undefined}
-    >
-      <CalendarGrid.Header>
-        <Button variant="ghost" aria-label={`Open ${dateLabel(props.date)} in day view`} onClick={props.onOpenDay}>{props.date.slice(8)}</Button>
-      </CalendarGrid.Header>
-      <CalendarGrid.AllDay label="All day">
-        <For each={visible()}>{item =>
-          <OccurrencePill occurrence={item} draggable={props.view !== "month"} onOpen={() => props.onOpen(item.memoryId)} onDrop={draft => props.onDrop(item, draft)} />
-        }</For>
-        <Show when={extra().length}>
-          <CalendarGrid.Overflow count={extra().length} onClick={() => props.onOverflow(extra())} />
-        </Show>
-        <Show when={!props.allDay.length || props.view !== "month"}>
-          <Button
-            variant="ghost"
-            size="sm"
-            data-empty-slot
-            data-detail-opener
-            data-slot-date={props.date}
-            data-slot-all-day="true"
-            aria-label={`New all-day memory on ${dateLabel(props.date)}`}
-            onClick={() => props.onCreate({ date: props.date, time: "00:00", allDay: true })}
+  const placed = createMemo(() => {
+    const boxes = props.timed.map(eventBox);
+    const columns = placeTimed(boxes.map(box => ({ start: box.top, end: box.end })));
+    return props.timed.map((item, index) => ({ item, box: boxes[index]!, place: columns[index]! }));
+  });
+  return <div class="pw-calendar__column" data-day={props.date} data-today={props.today ? "" : undefined}>
+    <For each={props.hours}>{slot =>
+      <Button
+        variant="ghost"
+        class="pw-calendar__slot"
+        data-empty-slot
+        data-detail-opener
+        data-slot-date={props.date}
+        data-slot-time={slot.label}
+        aria-label={`Add at ${slot.label} on ${dateLabel(props.date)}`}
+        onClick={() => props.onCreate({ date: props.date, time: slot.label, allDay: false })}
+        onDragOver={event => event.preventDefault()}
+        onDrop={event => {
+          const payload = event.dataTransfer?.getData("application/x-sparky-occurrence");
+          if (!payload) return;
+          const occurrence = JSON.parse(payload) as CalendarOccurrence;
+          props.onDrop(occurrence, { date: props.date, time: slot.label, allDay: false, tz: occurrence.tz });
+        }}
+      >
+        <Plus size={12} aria-hidden="true" />
+      </Button>
+    }</For>
+    <For each={placed()}>{entry =>
+      <OccurrencePill
+        variant="block"
+        occurrence={entry.item}
+        draggable
+        style={{
+          top: `${entry.box.top}px`,
+          height: `${Math.max(entry.box.height - 2, 28)}px`,
+          left: `calc(${entry.place.column} * (100% - 4px) / ${entry.place.columns} + 2px)`,
+          width: `calc((100% - 4px) / ${entry.place.columns})`,
+        }}
+        onOpen={() => props.onOpen(entry.item.memoryId)}
+      />
+    }</For>
+    <Show when={props.today}>
+      <div class="pw-calendar__now" data-now-line style={{ top: `${props.nowTop}px` }}><span class="pw-calendar__now-dot"></span></div>
+    </Show>
+  </div>;
+}
+
+function MonthGrid(props: {
+  anchor: string;
+  weekStart: WeekStart;
+  today: string;
+  focused: string;
+  allDay: (date: string) => CalendarOccurrence[];
+  timed: (date: string) => CalendarOccurrence[];
+  onOpen: (id: string) => void;
+  onOpenDay: (date: string) => void;
+  onOverflow: (date: string, items: CalendarOccurrence[]) => void;
+}) {
+  const dates = createMemo(() => monthDates(props.anchor, props.weekStart));
+  return <>
+    <CalendarGrid.Days class="pw-calendar__weekdays">
+      <For each={weekdayLabels(props.weekStart)}>{name => <CalendarGrid.Header>{name}</CalendarGrid.Header>}</For>
+    </CalendarGrid.Days>
+    <CalendarGrid.Days>
+      <For each={dates()}>{date => {
+        const items = () => [...props.allDay(date), ...props.timed(date)];
+        const visible = () => items().slice(0, MONTH_VISIBLE);
+        const extra = () => items().slice(visible().length);
+        return <CalendarGrid.Day label={dateLabel(date)} today={date === props.today}>
+          <div
+            class="pw-calendar__month-day"
+            data-day={date}
+            data-focused={props.focused === date ? "" : undefined}
+            data-outside={sameMonth(date, props.anchor) ? undefined : ""}
           >
-            Add memory
-          </Button>
-        </Show>
-      </CalendarGrid.AllDay>
-      <Show when={props.view !== "month"}>
-        <div class="sparky-calendar__slots" style={{ position: "relative" }}>
-          <For each={props.hours}>{slot => {
-            const items = () => props.timed.filter(item => civilFromInstant(item.occurrenceAt, item.tz).hour === slot.hour);
-            return <CalendarGrid.HourRow label={slot.label}>
-              <div
-                data-slot-date={props.date}
-                data-slot-time={slot.label}
-                onDragOver={event => event.preventDefault()}
-                onDrop={event => {
-                  const payload = event.dataTransfer?.getData("application/x-sparky-occurrence");
-                  if (!payload) return;
-                  const occurrence = JSON.parse(payload) as CalendarOccurrence;
-                  props.onDrop(occurrence, { date: props.date, time: slot.label, allDay: false, tz: occurrence.tz });
-                }}
+            <div class="pw-calendar__month-head">
+              <Button
+                variant="ghost"
+                class="pw-calendar__date-num"
+                data-today={date === props.today ? "" : undefined}
+                aria-label={`Open ${dateLabel(date)} in day view`}
+                onClick={() => props.onOpenDay(date)}
               >
-                <For each={items()}>{item =>
-                  <OccurrencePill occurrence={item} draggable onOpen={() => props.onOpen(item.memoryId)} onDrop={draft => props.onDrop(item, draft)} />
-                }</For>
-                <Show when={!items().length}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    data-empty-slot
-                    data-detail-opener
-                    data-slot-date={props.date}
-                    data-slot-time={slot.label}
-                    aria-label={`Add at ${slot.label} on ${dateLabel(props.date)}`}
-                    onClick={() => props.onCreate({ date: props.date, time: slot.label, allDay: false })}
-                  >
-                    <Plus size={12} aria-hidden="true" />
-                  </Button>
-                </Show>
-              </div>
-            </CalendarGrid.HourRow>;
-          }}</For>
-          <Show when={props.date === props.today && nowParts().year}>
-            <div class="sparky-calendar__now" data-now-line style={{ top: `${(nowParts().hour + nowParts().minute / 60) * 56}px` }} />
-          </Show>
+                {dayNumber(date)}
+              </Button>
+            </div>
+            <div class="pw-calendar__month-events">
+              <For each={visible()}>{item =>
+                <OccurrencePill variant="chip" occurrence={item} onOpen={() => props.onOpen(item.memoryId)} />
+              }</For>
+              <Show when={extra().length}>
+                <CalendarGrid.Overflow count={extra().length} onClick={() => props.onOverflow(date, extra())} />
+              </Show>
+            </div>
+          </div>
+        </CalendarGrid.Day>;
+      }}</For>
+    </CalendarGrid.Days>
+  </>;
+}
+
+function YearGrid(props: {
+  anchor: string;
+  weekStart: WeekStart;
+  today: string;
+  focused: string;
+  onOpenDay: (date: string) => void;
+  onOpenMonth: (date: string) => void;
+}) {
+  const months = createMemo(() => yearMonthAnchors(props.anchor));
+  const currentMonth = () => props.today.slice(0, 7);
+  return <CalendarGrid.Year>
+    <For each={months()}>{month =>
+      <CalendarGrid.MiniMonth>
+        <Button
+          variant="ghost"
+          class="pw-calendar__mini-name"
+          data-current={month.slice(0, 7) === currentMonth() ? "" : undefined}
+          aria-label={`Open ${monthName(month)} in month view`}
+          onClick={() => props.onOpenMonth(month)}
+        >
+          {monthName(month)}
+        </Button>
+        <div class="pw-calendar__mini-weekdays" aria-hidden="true">
+          <For each={weekdayLabels(props.weekStart)}>{name => <span>{name.slice(0, 1)}</span>}</For>
         </div>
-      </Show>
-    </div>
-  </CalendarGrid.Day>;
+        <div class="pw-calendar__mini-days">
+          <For each={monthDates(month, props.weekStart)}>{date =>
+            <div data-day={date} data-focused={props.focused === date ? "" : undefined}>
+              <Button
+                variant="ghost"
+                class="pw-calendar__mini-day"
+                data-today={date === props.today ? "" : undefined}
+                data-outside={sameMonth(date, month) ? undefined : ""}
+                aria-label={`Open ${dateLabel(date)} in day view`}
+                onClick={() => props.onOpenDay(date)}
+              >
+                {dayNumber(date)}
+              </Button>
+            </div>
+          }</For>
+        </div>
+      </CalendarGrid.MiniMonth>
+    }</For>
+  </CalendarGrid.Year>;
+}
+
+function ScheduleList(props: {
+  dates: string[];
+  today: string;
+  focused: string;
+  allDay: (date: string) => CalendarOccurrence[];
+  timed: (date: string) => CalendarOccurrence[];
+  onOpen: (id: string) => void;
+}) {
+  const days = createMemo(() => props.dates.flatMap(date => {
+    const items = [...props.allDay(date), ...props.timed(date)].sort((left, right) => {
+      if (left.allDay !== right.allDay) return left.allDay ? -1 : 1;
+      return left.occurrenceAt.localeCompare(right.occurrenceAt);
+    });
+    if (!items.length && date !== props.today) return [];
+    return [{ date, items }];
+  }));
+  const hasItems = createMemo(() => days().some(day => day.items.length > 0));
+  return <Show when={days().length} fallback={<PageEmpty title="Nothing scheduled" />}>
+    <CalendarGrid.Agenda>
+      <For each={days()}>{day =>
+        <section class="pw-calendar__agenda-day" data-day={day.date} data-focused={props.focused === day.date ? "" : undefined}>
+          <h3 class="pw-calendar__agenda-date" data-today={day.date === props.today ? "" : undefined}>{agendaHeading(day.date)}</h3>
+          <Show when={day.date === props.today}><div class="pw-calendar__agenda-now" data-now-line></div></Show>
+          <For each={day.items}>{item =>
+            <OccurrencePill variant="agenda" occurrence={item} onOpen={() => props.onOpen(item.memoryId)} />
+          }</For>
+          <Show when={!hasItems()}><p class="pw-calendar__agenda-empty">Nothing scheduled</p></Show>
+        </section>
+      }</For>
+    </CalendarGrid.Agenda>
+  </Show>;
+}
+
+function occurrenceText(occurrence: CalendarOccurrence): string {
+  if (occurrence.allDay) return occurrence.title;
+  const wall = civilFromInstant(occurrence.occurrenceAt, occurrence.tz);
+  return `${timeLabel(wall.hour, wall.minute)} ${occurrence.title}`;
 }
 
 function OccurrencePill(props: {
   occurrence: CalendarOccurrence;
+  variant?: "banner" | "block" | "chip" | "agenda";
   draggable?: boolean;
+  style?: JSX.CSSProperties;
   onOpen: () => void;
-  onDrop?: (draft: SlotDraft) => void;
 }) {
-  const label = () => {
-    if (props.occurrence.allDay) return props.occurrence.title;
-    const wall = civilFromInstant(props.occurrence.occurrenceAt, props.occurrence.tz);
-    return `${pad(wall.hour)}:${pad(wall.minute)} ${props.occurrence.title}`;
+  const variant = () => props.variant ?? "banner";
+  const colors = () => paint(props.occurrence);
+  const wall = () => civilFromInstant(props.occurrence.occurrenceAt, props.occurrence.tz);
+  const when = () => props.occurrence.allDay ? "All day" : timeLabel(wall().hour, wall().minute);
+  const label = () => `${occurrenceText(props.occurrence)}${props.occurrence.allDay ? " · All day" : ""}${props.occurrence.completed ? " · Completed" : props.occurrence.overdue ? " · Overdue" : ""}`;
+  const body = () => {
+    if (variant() === "block") return <>
+      <span class="pw-calendar__block-title">{props.occurrence.title}</span>
+      <span class="pw-calendar__block-time">{when()}</span>
+    </>;
+    if (variant() === "chip") return <>
+      <span class="pw-calendar__dot" style={{ background: props.occurrence.color || "var(--color-brand)" }}></span>
+      <span class="pw-calendar__chip-label">{occurrenceText(props.occurrence)}</span>
+    </>;
+    if (variant() === "agenda") return <>
+      <span class="pw-calendar__dot" style={{ background: props.occurrence.color || "var(--color-brand)" }}></span>
+      <span class="pw-calendar__agenda-time">{when()}</span>
+      <span class="pw-calendar__agenda-title">{props.occurrence.title}</span>
+    </>;
+    return <>{props.occurrence.title}</>;
   };
   return <CalendarGrid.Occurrence
-    class="sparky-calendar__pill"
-    style={{ "--occurrence-accent": props.occurrence.color || "var(--color-brand)" } as Record<string, string>}
+    class={variant() === "block" ? "pw-calendar__block" : variant() === "chip" ? "pw-calendar__chip" : variant() === "agenda" ? "pw-calendar__agenda-item" : "pw-calendar__banner"}
+    style={{
+      ...(variant() === "block" || variant() === "banner" ? { background: colors().fill, color: colors().ink } : {}),
+      ...props.style,
+    }}
     data-occurrence={props.occurrence.memoryId}
     data-detail-opener
     data-occurrence-at={props.occurrence.occurrenceAt}
@@ -387,9 +909,9 @@ function OccurrencePill(props: {
       event.dataTransfer?.setData("application/x-sparky-occurrence", JSON.stringify(props.occurrence));
     }}
     onClick={props.onOpen}
-    aria-label={`${label()}${props.occurrence.allDay ? " · All day" : ""}${props.occurrence.completed ? " · Completed" : props.occurrence.overdue ? " · Overdue" : ""}`}
-    title={label()}
+    aria-label={label()}
+    title={occurrenceText(props.occurrence)}
   >
-    {label()}
+    {body()}
   </CalendarGrid.Occurrence>;
 }

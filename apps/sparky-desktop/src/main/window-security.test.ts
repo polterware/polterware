@@ -14,9 +14,9 @@ describe("window security", () => {
     expect(source).toContain("configureWindowSecurity(win)");
     expect(source).toContain("setVibrancy(null)");
   });
-  it("quits after the last window closes without stopping the detached core", () => {
+  it("keeps running on macOS after the last window closes and never stops the detached core", () => {
     const main = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
-    expect(main).toContain('app.on("window-all-closed", () => app.quit())');
+    expect(main).toContain('app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); })');
     expect(main).not.toContain("stopCore");
     expect(main).not.toContain("process.kill(core");
     expect(main).toContain('process.argv.includes("--background-replan")');
