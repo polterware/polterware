@@ -46,21 +46,33 @@ describe("DataTable", () => {
     document.body.append(host);
     const previousScrollTo = HTMLElement.prototype.scrollTo;
     HTMLElement.prototype.scrollTo = scrollTo;
-    const rows = Array.from({ length: 1000 }, (_, index) => ({ id: String(index) }));
-    const dispose = render(() => <DataTable.Root rows={rows} virtualized estimateRowHeight={40}>
+    const [rows, setRows] = createSignal(Array.from({ length: 1000 }, (_, index) => ({ id: String(index), label: `Row ${index}` })));
+    const dispose = render(() => <DataTable.Root rows={rows()} virtualized estimateRowHeight={40}>
       <DataTable.Table aria-label="Virtualized fixture">
-        <DataTable.Body>{row => <DataTable.Row row={row} rowId={row.id}><DataTable.Cell>{row.id}</DataTable.Cell></DataTable.Row>}</DataTable.Body>
+        <DataTable.Body>{row => <DataTable.Row row={row} rowId={row.id} onActivate={() => {}}><DataTable.Cell>{row.label}</DataTable.Cell></DataTable.Row>}</DataTable.Body>
       </DataTable.Table>
     </DataTable.Root>, host);
     try {
       await vi.waitFor(() => expect(host.querySelector('[data-row-id="0"]')).not.toBeNull());
       expect(host.querySelectorAll("[data-row-id]").length).toBeLessThan(30);
       const scroll = host.querySelector<HTMLElement>(".pw-data-table-scroll")!;
+      const retained = host.querySelector<HTMLTableRowElement>('[data-row-id="12"]')!;
+      retained.focus();
+      scroll.scrollTop = 400;
+      scroll.dispatchEvent(new Event("scroll"));
+      await vi.waitFor(() => expect(host.querySelector('[data-row-id="20"]')).not.toBeNull());
+      expect(host.querySelector('[data-row-id="12"]')).toBe(retained);
+      expect(document.activeElement).toBe(retained);
+      setRows(previous => [...previous, { id: "1000", label: "Row 1000" }]);
+      expect(host.querySelector('[data-row-id="12"]')).toBe(retained);
+      expect(document.activeElement).toBe(retained);
       scroll.scrollTop = 20000;
       scroll.dispatchEvent(new Event("scroll"));
       await vi.waitFor(() => expect(host.querySelector('[data-row-id="500"]')).not.toBeNull());
       expect(host.querySelector('[data-row-id="0"]')).toBeNull();
       expect(host.querySelectorAll("[data-row-id]").length).toBeLessThan(30);
+      setRows(previous => previous.map(row => row.id === "500" ? { ...row, label: "Refreshed row" } : row));
+      await vi.waitFor(() => expect(host.querySelector('[data-row-id="500"]')?.textContent).toBe("Refreshed row"));
     } finally {
       dispose(); host.remove(); size.mockRestore(); width.mockRestore();
       HTMLElement.prototype.scrollTo = previousScrollTo;
@@ -80,12 +92,40 @@ describe("DataTable", () => {
       "Cell",
       "PrimaryCell",
       "SelectionCell",
+      "Checkbox",
       "SelectionToolbar",
       "Empty",
       "Footer",
     ]);
     for (const component of Object.values(DataTable)) expect(component).toBeDefined();
     expect(DataTableSelectionToolbarHost).toBeDefined();
+  });
+
+  it("keeps dense checkbox changes separate from row activation and selection", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const [checked, setChecked] = createSignal(false);
+    const activate = vi.fn();
+    const change = vi.fn((value: boolean) => setChecked(value));
+    const dispose = render(() => <DataTable.Root rows={[{ id: "a" }]} selectionMode="multiple">
+      <DataTable.Table><DataTable.Body>{row => <DataTable.Row row={row} onActivate={activate}>
+        <DataTable.SelectionCell rowId={row.id} />
+        <DataTable.Cell><DataTable.Checkbox checked={checked()} onCheckedChange={change} aria-label="Complete Alpha" /></DataTable.Cell>
+      </DataTable.Row>}</DataTable.Body></DataTable.Table>
+    </DataTable.Root>, host);
+    try {
+      const input = host.querySelector<HTMLInputElement>('[aria-label="Complete Alpha"]')!;
+      expect(input.type).toBe("checkbox");
+      input.focus();
+      input.click();
+      expect(change).toHaveBeenCalledWith(true);
+      expect(input.checked).toBe(true);
+      expect(document.activeElement).toBe(input);
+      expect(activate).not.toHaveBeenCalled();
+      expect(host.querySelector('[data-row-id]')?.getAttribute("aria-selected")).toBe("false");
+      setChecked(false);
+      expect(input.checked).toBe(false);
+    } finally { dispose(); host.remove(); }
   });
 
   it("cycles source, ascending, descending, and source order", () => {
