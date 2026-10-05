@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  RESULT_WINDOW, buildSearchRequest, EMPTY_FILTERS, indexHonesty, parseSnippet, rememberRecent, windowHits, writeJson,
+  RESULT_WINDOW, SEARCH_QUERY_MAX_LENGTH, buildSearchRequest, EMPTY_FILTERS, indexHonesty, parseSnippet, rememberRecent, routeSearchQuery, windowHits, writeJson,
 } from "./model";
 
 describe("FTS5 snippet markers", () => {
@@ -60,5 +60,15 @@ describe("local-only recent searches", () => {
   it("stores recents and swallows quota errors", () => {
     expect(rememberRecent(["eggs"], "milk")).toEqual(["milk", "eggs"]);
     expect(() => writeJson({ setItem: () => { throw new Error("quota"); } }, "sparky.search.recent", ["milk"])).not.toThrow();
+  });
+});
+
+describe("deep-link search query", () => {
+  it("trims and rejects empty or over-long q values", () => {
+    expect(routeSearchQuery("  packaging  ")).toBe("packaging");
+    expect(routeSearchQuery("   ")).toBeUndefined();
+    expect(routeSearchQuery(null)).toBeUndefined();
+    expect(routeSearchQuery("x".repeat(SEARCH_QUERY_MAX_LENGTH))).toHaveLength(SEARCH_QUERY_MAX_LENGTH);
+    expect(routeSearchQuery("x".repeat(SEARCH_QUERY_MAX_LENGTH + 1))).toBeUndefined();
   });
 });

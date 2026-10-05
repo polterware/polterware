@@ -2,7 +2,7 @@ import { batch, createSignal } from "solid-js";
 import { browserBridge } from "./bridge";
 import {
   DEBOUNCE_MS, EMPTY_FILTERS, RECENT_KEY, SAVED_KEY, RESULT_WINDOW, buildSearchRequest, errorText, filtersActive,
-  honestyLabel, indexHonesty, isUnavailable, readJson, rememberRecent, windowHits, writeJson,
+  honestyLabel, indexHonesty, isUnavailable, readJson, rememberRecent, routeSearchQuery, windowHits, writeJson,
   type Honesty, type SavedFilter, type SearchBridge, type SearchFilters, type SearchHitJSON, type MindJSON, type TagJSON,
 } from "./model";
 
@@ -105,6 +105,12 @@ export function createSearchStore(
     honesty: () => indexHonesty(ftsDocuments(), notice(), loadState() === "live" ? searchState() : loadState()),
     statusLabel: () => honestyLabel(loadState() === "live" ? searchState() : loadState()),
     setQuery(value: string) { setQueryValue(value); schedule(); },
+    applyRouteQuery(raw: string | null | undefined) {
+      const next = routeSearchQuery(raw);
+      if (next === undefined || next === query()) return;
+      setQueryValue(next);
+      schedule();
+    },
     setFilters(patch: Partial<SearchFilters>) {
       setFiltersValue(current => ({ ...current, ...patch }));
       if (query().trim()) schedule();

@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { useSparkyShell } from "@polterware/feature-sparky-shell/feature";
 import {
   ActiveFilterBar, Button, DataTable, DatePicker, Field, FilterChip, FilterChipGroup, FilterPopover, Input,
@@ -42,6 +42,9 @@ export function SearchPage(props: { store?: SearchStore }) {
   const [name, setName] = createSignal("");
   let root: HTMLDivElement | undefined;
   onMount(() => onCleanup(store.connect()));
+  createEffect(() => {
+    store.applyRouteQuery(shell.searchParams().get("q"));
+  });
   const honesty = createMemo(() => store.honesty());
   const activeFilters = createMemo(() => {
     const filters = store.filters();

@@ -28,18 +28,23 @@ function mount(options: { empty?: boolean; fail?: "search" | "unavailable"; ftsD
   });
   const store = createSearchStore(() => fake.bridge, { debounceMs: 5, now: () => new Date(2026, 9, 4, 15, 0, 0) });
   const extra: SparkyFeature = { ...searchFeature, routes: [{ path: "/search", title: "Search", component: () => <SearchPage store={store} /> }] };
+  let onLink: ((link: { url: string; route: string }) => void) | undefined;
   const wire = {
     ...fake.bridge,
     memories: { list: async () => ({ memories: [], total: 0 }), get: async () => ({}) },
     reminders: { status: async () => ({ planned: 0, armed: 0, permission: "authorized" }) },
     search: fake.bridge.search,
-    app: { onDeepLink: () => () => {}, getDeepLink: async () => null, requestNotificationAuthorization: async () => true, openDeepLink: async (url: string) => { onLink?.({ url, route: "" }); } },
+    app: {
+      onDeepLink: (callback: (link: { url: string; route: string }) => void) => { onLink = callback; return () => {}; },
+      getDeepLink: async () => null,
+      requestNotificationAuthorization: async () => true,
+      openDeepLink: async (url: string) => { onLink?.({ url, route: "" }); },
+    },
   };
-  let onLink: ((link: { url: string; route: string }) => void) | undefined;
   const host = document.createElement("div");
   document.body.append(host);
   dispose = render(() => <SparkyShell features={[shellFeature, extra]} bridge={createShellBridge(wire as unknown as ShellWireBridge)} />, host);
-  return { host, store, fake };
+  return { host, store, fake, onLink: (url: string) => onLink?.({ url, route: "" }) };
 }
 
 async function openSearch(host: HTMLElement) {
@@ -98,6 +103,18 @@ describe("Search route", () => {
     await store.flush();
     await vi.waitFor(() => expect(document.body.textContent).toContain("No results"));
     expect(document.body.textContent).toContain("Index rebuilding");
+  });
+
+  it("applies a trimmed FTS query from sparky://search?q= and executes search", async () => {
+    const { host, store, fake, onLink } = mount();
+    await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
+    onLink("sparky://search?q=%20packaging%20");
+    await vi.waitFor(() => expect(document.querySelector("[data-search-page]")).not.toBeNull());
+    await vi.waitFor(() => expect(store.query()).toBe("packaging"));
+    const box = document.querySelector<HTMLInputElement>('[aria-label="Search memories"]');
+    expect(box?.value).toBe("packaging");
+    await store.flush();
+    await vi.waitFor(() => expect(fake.bridge.search.search).toHaveBeenCalledWith(expect.objectContaining({ query: "packaging" })));
   });
 
   it("renders untrusted snippet markup as text", () => {
