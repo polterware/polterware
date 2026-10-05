@@ -2,7 +2,7 @@ import { createMemo, createSignal, For, Show } from "solid-js";
 import { Popover, Button, MenuItem, MenuList } from "@polterware/frontend-design-system";
 import type { ProjectSwitcherItem } from "./types";
 import { PROJECT_SWITCHER_FIXTURES } from "./fixtures";
-import { PopoverSearchHeader } from "./popover-search";
+import { PopoverSearchHeader } from "@polterware/frontend-shell";
 
 export function ProjectSwitcher(props: {
   open: boolean;

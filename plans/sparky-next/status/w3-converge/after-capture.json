@@ -1,0 +1,37 @@
+[
+  {
+    "name": "polterware",
+    "width": 800,
+    "file": "sparky-next/status/w3-converge/after-polterware-800.png"
+  },
+  {
+    "name": "sparky",
+    "width": 800,
+    "file": "sparky-next/status/w3-converge/after-sparky-800.png"
+  },
+  {
+    "name": "polterware",
+    "width": 1280,
+    "file": "sparky-next/status/w3-converge/after-polterware-1280.png"
+  },
+  {
+    "name": "sparky",
+    "width": 1280,
+    "file": "sparky-next/status/w3-converge/after-sparky-1280.png"
+  },
+  {
+    "name": "polterware",
+    "width": 1920,
+    "file": "sparky-next/status/w3-converge/after-polterware-1920.png"
+  },
+  {
+    "name": "sparky",
+    "width": 1920,
+    "file": "sparky-next/status/w3-converge/after-sparky-1920.png"
+  },
+  {
+    "name": "sparky-commander",
+    "width": 1280,
+    "file": "sparky-next/status/w3-converge/after-sparky-commander-1280.png"
+  }
+]

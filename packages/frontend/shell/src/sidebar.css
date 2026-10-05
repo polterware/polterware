@@ -1,19 +1,5 @@
 /* Sidebar nav items — quiet hover/active transitions (DESIGN.md) */
 
-.pw-shell-main-frame {
-  padding: 0 8px 8px 0;
-  background: var(--color-shell-glass);
-}
-
-html[data-shell-chrome="solid"] .pw-shell-main-frame {
-  background: var(--color-app-background);
-}
-
-.pw-resizable-sidebar-layout:has(> .pw-resizable-sidebar[data-collapsed]) .pw-shell-main-frame {
-  padding-left: 8px;
-}
-
-/* Positioned: the rows' offset space for the gliding hover pill and active marker. */
 .pw-sidebar-nav {
   position: relative;
   display: flex;
@@ -78,8 +64,6 @@ html[data-shell-chrome="solid"] .pw-shell-main-frame {
   color: var(--color-text-primary);
 }
 
-/* Selected must stay legible on hover — never drop to a darker/fainter fill.
- * Avoid filter on the row so icon paint stays solid. */
 .pw-sidebar-item--active:hover {
   background: var(--color-surface-hover);
   color: var(--color-text-primary);
@@ -90,11 +74,6 @@ html[data-shell-chrome="solid"] .pw-shell-main-frame {
   color: var(--color-text-primary);
 }
 
-/*
- * Nav rows carry no fills: the list's one hover pill and one active marker
- * (fluid-hover.tsx) paint them and glide between rows. The footer Settings row keeps
- * its own fills above, so the active marker fades out there instead of travelling.
- */
 .pw-sidebar-item--nav,
 .pw-sidebar-item--nav:hover,
 .pw-sidebar-item--nav:active,
@@ -138,7 +117,6 @@ html[data-shell-chrome="solid"] .pw-shell-main-frame {
   justify-content: center;
   width: 14px;
   height: 14px;
-  /* Match the adjacent label exactly; Hugeicons strokes inherit currentColor. */
   color: currentColor;
 }
 
@@ -155,7 +133,6 @@ html[data-shell-chrome="solid"] .pw-shell-main-frame {
   font-variant-numeric: tabular-nums;
 }
 
-/* Urgent counts are filled with the urgency colour, like a StatusChip. */
 .pw-sidebar-item-count[data-tone="danger"] {
   border-color: transparent;
   background: var(--color-status-danger-background);
