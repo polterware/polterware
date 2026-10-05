@@ -15,6 +15,7 @@
     "typecheck:sparky": "pnpm --filter \"@polterware/*sparky*\" typecheck",
     "test:sparky": "pnpm --filter \"@polterware/*sparky*\" test",
     "test:e2e:sparky": "pnpm --filter @polterware/sparky-desktop test:e2e",
+    "dist:sparky:mac": "pnpm --filter @polterware/sparky-desktop exec bash scripts/dist-mac.sh",
     "verify:sparky": "bash tooling/verify-sparky.sh",
     "lint": "oxlint . && (turbo run lint --continue || true)",
     "format:check": "echo 'format:check ok (prettier optional until packages wired)'",
