@@ -1,5 +1,6 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
-import { Button, Dialog, Field, Input, MenuItem, MenuList, PageEmpty, PageLoading, StatusChip } from "@polterware/frontend-design-system";
+import { Button, Field, Input, MenuItem, MenuList, PageEmpty, PageLoading, StatusChip } from "@polterware/frontend-design-system";
+import { CommanderBody, CommanderFrame } from "@polterware/frontend-shell";
 import type { ShellBridge } from "./bridge";
 import type { CommandDef, CommandSourceDef } from "./feature";
 import { createQuickMemory, parseQuickAdd } from "./quick-add";
@@ -103,9 +104,9 @@ export function Commander(props: {
       event.preventDefault(); buttons[0]?.click();
     }
   }
-  return <Dialog open={props.open} title={props.mode === "quick-add" ? "New memory" : "Commander"} onClose={props.onClose}
+  return <CommanderFrame open={props.open} title={props.mode === "quick-add" ? "New memory" : "Commander"} onClose={props.onClose}
     description={props.mode === "quick-add" ? 'Try: Buy milk tomorrow 9am #errands @Home' : "Navigate, search memories, or run an action."}>
-    <div ref={dialogBody} onKeyDown={onKeyDown} class="flex min-h-0 flex-col gap-3">
+    <CommanderBody ref={dialogBody} onKeyDown={onKeyDown}>
       <form onSubmit={event => { event.preventDefault(); if (props.mode === "quick-add") void add(); }}>
         <Field label={props.mode === "quick-add" ? "Memory" : "Search or command"} for="sparky-command-input">
           <Input id="sparky-command-input" autofocus ref={input} value={query()} onInput={event => { setQuery(event.currentTarget.value); setError(""); }} disabled={busy()} />
@@ -131,6 +132,6 @@ export function Commander(props: {
         <Show when={!props.live}><StatusChip tone="down" label="Core offline — memory search unavailable" /></Show>
         <Show when={notice()}><p role="status">{notice()}</p></Show>
       </Show>
-    </div>
-  </Dialog>;
+    </CommanderBody>
+  </CommanderFrame>;
 }

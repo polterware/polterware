@@ -3,8 +3,9 @@ import { Dynamic } from "solid-js/web";
 import {
   Activity, Button, CalendarClock, ChevronLeft, ChevronRight, Clock, DetailPanel, DesignSystemProvider,
   Dialog, DitherIconTile, Folder, HelpCircle, Inbox, MapPin, MenuItem, MenuList, PageEmpty, PageError,
-  PageHeader, PageLoading, PageOffline, Plus, Popover, Search, Settings, StatusChip, Surface, ToastRegion, TreeView, type TreeViewNode,
+  PageHeader, PageLoading, PageOffline, Plus, Popover, Search, Settings, StatusChip, ToastRegion, TreeView, type TreeViewNode,
 } from "@polterware/frontend-design-system";
+import { MainFrame, MainSurfaceFrame, ShellRoot, SidebarFrame, TitleBarFrame } from "@polterware/frontend-shell";
 import type { MessageShape } from "@bufbuild/protobuf";
 import type { MindSchema } from "@polterware/sparky-contracts";
 import type { ShellBridge } from "./bridge";
@@ -198,8 +199,8 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     <DesignSystemProvider storagePrefix="sparky" expandDetail={() => { if (selectedMemoryId()) setExpanded(true); }}
       matchesShortcut={(id, event) => id === "shell.toggle_detail" && shellShortcut(event, false) === "close-detail"}
       createShortcutLabel={id => () => id === "shell.toggle_detail" ? "⌘J" : ""}>
-      <div class="sparky-shell">
-        <header class="sparky-titlebar" aria-label="Sparky">
+      <ShellRoot glass={false} class="sparky-shell">
+        <TitleBarFrame class="sparky-titlebar" aria-label="Sparky">
           <div class="sparky-titlebar-controls">
             <Button variant="icon" aria-label="Go back" disabled={history().index === 0} onClick={() => moveHistory(-1)}><ChevronLeft size={14} /></Button>
             <Button variant="icon" aria-label="Go forward" disabled={history().index === history().entries.length - 1} onClick={() => moveHistory(1)}><ChevronRight size={14} /></Button>
@@ -218,9 +219,9 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
               </MenuList>
             </Popover>
           </div>
-        </header>
+        </TitleBarFrame>
         <div class="sparky-workspace">
-          <aside class="sparky-sidebar" aria-label="Sidebar">
+          <SidebarFrame class="sparky-sidebar" aria-label="Sidebar">
             <nav aria-label="Main navigation">
               <MenuList><For each={items()}>{item => <MenuItem aria-label={item.label} aria-current={normalizePath(path()) === normalizePath(item.path) ? "page" : undefined}
                 selected={normalizePath(path()) === normalizePath(item.path)} onClick={() => navigate(item.path)}>
@@ -239,9 +240,9 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
               </Show>
             }>{treeDef => <Dynamic component={treeDef().component} />}</Show>
             <div class="sparky-sidebar-footer"><Button variant="ghost" class="w-full justify-start" onClick={() => setSettingsOpen(true)}><Settings size={15} />Settings</Button></div>
-          </aside>
-          <main ref={main} tabIndex={-1} aria-label={title()} class="sparky-main">
-            <Surface class="flex min-h-0 flex-1 flex-col">
+          </SidebarFrame>
+          <MainFrame as="main" glass={false} class="sparky-main" ref={main} tabIndex={-1} aria-label={title()}>
+            <MainSurfaceFrame as="div">
               <Show when={core.state() !== "loading"} fallback={<PageLoading label="Starting Sparky…" />}>
                 <Show when={core.state() === "live"} fallback={<PageOffline title="Core offline" message="Sparky cannot reach the local core. Retry to reconnect." onRetry={() => void core.refresh()} />}>
                   <DetailPanel.Root open={!!selectedMemoryId()} expanded={expanded()} activeEntityId={selectedMemoryId()} onOpenChange={open => { if (!open) closeDetail(); }} onExpandedChange={setExpanded} aria-label="Memory details">
@@ -271,10 +272,10 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
                   </DetailPanel.Root>
                 </Show>
               </Show>
-            </Surface>
-          </main>
+            </MainSurfaceFrame>
+          </MainFrame>
         </div>
-      </div>
+      </ShellRoot>
       <ToastRegion />
       <Commander open={palette() !== null} mode={palette() ?? "commands"} bridge={props.bridge} commands={commands()} commandSources={commandSources()} live={core.state() === "live"} onClose={() => setPalette(null)} onMemory={openMemory} />
       <Dialog open={settingsOpen()} bodyClass="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4 text-[13px] text-[var(--color-text-secondary)]" title="Settings" onClose={() => setSettingsOpen(false)} size="xl">

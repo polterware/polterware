@@ -10,8 +10,8 @@ import {
   type WorkspaceContext,
 } from "./context-switchers";
 import { CoreStatusMenu, type CoreStatusMenuProps } from "./core-status-menu";
+import { TitleBarFrame } from "@polterware/frontend-shell";
 import type { EnvironmentItem, ProjectSwitcherItem } from "./types";
-import "./title-bar.css";
 
 export type TitleBarProps = {
   canGoBack: boolean;
@@ -32,8 +32,7 @@ export function TitleBar(props: TitleBarProps) {
   const commanderShortcut = createShortcutLabel("shell.toggle_commander");
 
   return (
-    <>
-      <header class="window-title-bar" role="banner">
+    <TitleBarFrame>
         <div class="flex shrink-0 items-center [-webkit-app-region:no-drag]">
           <button
             type="button"
@@ -80,8 +79,7 @@ export function TitleBar(props: TitleBarProps) {
           </button>
           <Show when={props.coreStatus}>{(coreStatus) => <CoreStatusMenu {...coreStatus()} />}</Show>
         </div>
-      </header>
-    </>
+    </TitleBarFrame>
   );
 }
 
