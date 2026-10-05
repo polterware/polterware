@@ -88,3 +88,16 @@ describe("empty filters", () => {
     expect(store.emptyQuery()).toBe(true);
   });
 });
+
+describe("route query", () => {
+  it("applies a trimmed route q and ignores over-long values", async () => {
+    const { fake, store } = mount();
+    store.connect();
+    store.applyRouteQuery("  milk  ");
+    await store.flush();
+    expect(store.query()).toBe("milk");
+    expect(fake.bridge.search.search).toHaveBeenCalledWith(expect.objectContaining({ query: "milk" }));
+    store.applyRouteQuery("x".repeat(513));
+    expect(store.query()).toBe("milk");
+  });
+});

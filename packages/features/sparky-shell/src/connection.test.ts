@@ -3,8 +3,14 @@ import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { ReminderStatusResponseSchema } from "@polterware/sparky-contracts";
 import { expect, it, vi } from "vitest";
-import { createCoreConnection, reminderLabel } from "./connection";
+import { createCoreConnection, independentQueryKey, reminderLabel } from "./connection";
 import type { ShellBridge } from "./bridge";
+it("lets independent queries start during loading without a live reminder probe", () => {
+  expect(independentQueryKey("loading", 0, {})).toBe(0);
+  expect(independentQueryKey("live", 2, {})).toBe(2);
+  expect(independentQueryKey("offline", 0, {})).toBe(false);
+  expect(independentQueryKey("loading", 0, undefined)).toBe(false);
+});
 it("shows offline and recovers from a rejected core call", async () => {
   const status = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue(create(ReminderStatusResponseSchema, { permission: "authorized" }));
   let dispose!: () => void;

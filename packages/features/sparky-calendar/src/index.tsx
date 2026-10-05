@@ -1,5 +1,7 @@
 import type { SparkyFeature } from "@polterware/feature-sparky-shell/feature";
-import { CalendarPage } from "./calendar-page";
+import { lazy } from "solid-js";
+
+const CalendarPage = lazy(() => import("./calendar-page").then(module => ({ default: module.CalendarPage })));
 
 const feature: SparkyFeature = {
   id: "calendar",

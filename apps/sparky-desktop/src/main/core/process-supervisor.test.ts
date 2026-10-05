@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, chmodSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildId, isNewerBuild, readCoreState, resolveBinary } from "./process-supervisor.js";
+import { buildId, isNewerBuild, nextCorePollDelay, readCoreState, resolveBinary } from "./process-supervisor.js";
 describe("supervisor runstate", () => {
   it("validates database identity, token, permissions and loopback endpoint", () => {
     const temp = mkdtempSync(join(tmpdir(), "sparky-state-"));
@@ -44,6 +44,8 @@ describe("supervisor runstate", () => {
     expect(source).toContain("health.build");
     expect(source).toContain("health.dbPath");
     expect(source).toContain("SPARKY_CORE_BIN");
+    expect(source).toContain("nextCorePollDelay");
+    expect(source).toContain("CORE_READY_TIMEOUT_MS");
     const previous = process.env.SPARKY_CORE_BIN;
     delete process.env.SPARKY_CORE_BIN;
     try {
@@ -53,5 +55,15 @@ describe("supervisor runstate", () => {
       if (previous === undefined) delete process.env.SPARKY_CORE_BIN;
       else process.env.SPARKY_CORE_BIN = previous;
     }
+  });
+});
+
+describe("spawned core poll timing", () => {
+  it("uses 25-50 ms backoff for a new child and keeps 200 ms for an existing daemon", () => {
+    expect(nextCorePollDelay({ spawnedChild: false, spawnedAttempt: 0 })).toBe(200);
+    expect(nextCorePollDelay({ spawnedChild: false, spawnedAttempt: 8 })).toBe(200);
+    expect(nextCorePollDelay({ spawnedChild: true, spawnedAttempt: 0 })).toBe(25);
+    expect(nextCorePollDelay({ spawnedChild: true, spawnedAttempt: 1 })).toBe(50);
+    expect(nextCorePollDelay({ spawnedChild: true, spawnedAttempt: 9 })).toBe(50);
   });
 });

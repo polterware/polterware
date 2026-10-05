@@ -1,5 +1,7 @@
 import type { SparkyFeature } from "@polterware/feature-sparky-shell/feature";
-import { ReviewPage } from "./review-page";
+import { lazy } from "solid-js";
+
+const ReviewPage = lazy(() => import("./review-page").then(module => ({ default: module.ReviewPage })));
 
 const feature: SparkyFeature = {
   id: "review",

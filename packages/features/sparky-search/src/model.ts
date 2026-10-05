@@ -48,6 +48,7 @@ export const RECENT_LIMIT = 8;
 export const DEBOUNCE_MS = 180;
 export const RECENT_KEY = "sparky.search.recent";
 export const SAVED_KEY = "sparky.search.saved";
+export const SEARCH_QUERY_MAX_LENGTH = 512;
 export const SNIPPET_OPEN = "<b>";
 export const SNIPPET_CLOSE = "</b>";
 
@@ -195,6 +196,11 @@ export function rememberRecent(items: readonly string[], query: string, limit = 
   const next = query.trim();
   if (!next) return [...items];
   return [next, ...items.filter(item => item !== next)].slice(0, limit);
+}
+export function routeSearchQuery(raw: string | null | undefined): string | undefined {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed || trimmed.length > SEARCH_QUERY_MAX_LENGTH) return undefined;
+  return trimmed;
 }
 export function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
