@@ -1,0 +1,29 @@
+# w2-review status
+- Result: partial
+- Branch / last commit: `sparky/w2-review` / `b4241d3` (`sparky(w2-review): add Review e2e spec and integrator requests`; this status is committed separately).
+- Acceptance criteria:
+  - Numbers match `ReviewService` fixtures and the Swift thresholds → **pass**. Evidence: `pnpm --filter @polterware/feature-sparky-review test` (`src/model.test.ts`: "pins streak mood for %s", "pins completed mood for %s", "pins Swift streak/completion milestone", "pins Swift heatmap intensity %s onto heatmapLevel", "documents TestSwiftPeriodsAndStreak totals"; `src/store.test.ts`: "loads ReviewService.Get with a timezone-correct week window and does not invent totals"; `src/review-page.test.tsx`: "renders core streak, completions, heatmap, and chart tables" shows core `streak=4`, `completedTotal=12`, `focusMinutes=2`, moods `hopeful`). 68 tests passed. UI never recomputes streak/mood/totals; it renders `ReviewService.Get`.
+  - Heatmap keyboard/hover details → **pass**. Evidence: `src/review-page.test.tsx` "moves heatmap focus with the keyboard and updates the details"; hover sets the same details via `mouseover` on `Heatmap` cells. Accessible tables: "Weekly activity as a table", "Focus minutes as a table", "Contribution calendar as a table".
+  - Timezone / week start → **pass** for timezone and Monday weeks; **partial** for `settings.get` week start. Evidence: `src/model.test.ts` "buckets the civil day in America/Sao_Paulo, not UTC", "uses a Monday-start week in UTC, matching MCP get_review", "uses a Sunday-start week when week start is Sunday"; `src/store.test.ts` always calls `settings.get`. Frozen Settings has no week-start field (request 3); production defaults to Monday.
+  - Chart colors from tokens only → **pass**. Evidence: `pnpm design:lint` (`ui opacity check OK`); charts use `--color-chart-*` and `--color-heatmap-*` only.
+  - First-run empty state → **pass**. Evidence: `src/review-page.test.tsx` "shows the first-run empty state when the core returns zeros".
+  - Character mood art → **partial**. Summary card loads `/characters/me-{streak,completed}-{mood}.png` from `apps/sparky-desktop/resources/characters/` and falls back to "Character art unavailable". Serving is outside Owns (request 1).
+- Verification (2026-10-04):
+  - `pnpm --filter @polterware/feature-sparky-review test`: PASS, 4 files / 68 tests.
+  - `pnpm --filter @polterware/feature-sparky-review typecheck`: PASS.
+  - `pnpm design:lint`: PASS.
+  - `pnpm typecheck` (whole repo): PASS, including `@polterware/sparky-desktop`.
+  - `git diff --check`: PASS.
+  - `bash tooling/check-ts-boundaries.sh`: PASS.
+  - Playwright spec `apps/sparky-desktop/tests/e2e/review.spec.ts` written, not run (`SPARKY_E2E_EXECUTABLE` unset; W3-E2E owns the packaged runner). Browser not run.
+  - `pnpm-lock.yaml` not committed.
+- Deviations from the plan (and why):
+  - Week start is Monday after `settings.get` because `Settings` (contracts v1.4) has no calendar field. Locale Sunday is test-only.
+  - Character images 404 until Electron serves `/characters/`; numbers and mood strings from the core still render.
+  - Heatmap keyboard is a roving highlight on the DS `Heatmap` (cells stay non-tabbable per W1-DS); arrow keys + hover update the details region.
+- Requests filed (plans/sparky-next/requests/...): `w2-review-1.md`, `w2-review-2.md`, `w2-review-3.md`
+- Follow-ups for other WS:
+  - W1-ELECTRON / W1-ASSETS / W2-SHELL: serve `resources/characters` at `/characters/` (request 1).
+  - W0-SCAFFOLD: regenerate `pnpm-lock.yaml` for the Review importer (request 2).
+  - W2-SETTINGS / contracts (Erick): `calendar_week_start` (request 3).
+  - W3-E2E: run `apps/sparky-desktop/tests/e2e/review.spec.ts` with `SPARKY_E2E_EXECUTABLE`.

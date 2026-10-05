@@ -1,11 +1,8 @@
 import {
   Index,
   Show,
-  createEffect,
   createMemo,
   createSignal,
-  onCleanup,
-  onMount,
   type JSX,
 } from "solid-js";
 import {
@@ -25,11 +22,11 @@ import {
   capabilityEnabled,
   type PlatformContext,
 } from "@polterware/frontend-platform";
+import { SidebarItem, SidebarNavFrame, SidebarSection } from "@polterware/frontend-shell";
 import type { NavItem } from "./route";
 import { HelpMenu } from "./help-menu";
 import { HelpTopicDialog } from "./help-topic-dialog";
 import type { HelpTopicId } from "./help-topics";
-import "./sidebar.css";
 
 /**
  * Sidebar glyphs — Hugeicons outline set tuned for operator IA.
@@ -87,7 +84,7 @@ export function SidebarNav(props: {
   };
 
   return (
-    <nav ref={nav} class="pw-sidebar-nav" aria-label="Primary" {...hover.handlers}>
+    <SidebarNavFrame ref={nav} aria-label="Primary" {...hover.handlers}>
       {/* The active marker glides between destinations; the hover pill rides above it and a
           fresh entry grows from the active route. */}
       <FluidHoverHighlight
@@ -99,8 +96,7 @@ export function SidebarNav(props: {
       <FluidHoverHighlight hover={hover} class="pw-sidebar-hover" from={activeRect()} />
       <Index each={groups()}>
         {(group, groupIndex) => (
-          <div class="pw-sidebar-group">
-            <p class="pw-sidebar-group-label">{group()[0]}</p>
+          <SidebarSection label={group()[0]}>
             <Index each={group()[1]}>
               {(item, index) => (
                 <SidebarNavItem
@@ -113,10 +109,10 @@ export function SidebarNav(props: {
                 />
               )}
             </Index>
-          </div>
+          </SidebarSection>
         )}
       </Index>
-    </nav>
+    </SidebarNavFrame>
   );
 }
 
@@ -128,39 +124,31 @@ function SidebarNavItem(props: {
   count?: SidebarCount;
   onSelect: () => void;
 }) {
-  let element: HTMLButtonElement | undefined;
-  onMount(() => {
-    const row = element;
-    if (!row) return;
-    createEffect(() => onCleanup(props.hover.registerItem(props.index, row)));
-  });
   const renderIcon = () => icons[props.item.id] ?? icons.atlas!;
   return (
-    <button
-      ref={element}
-      type="button"
-      aria-current={props.active ? "page" : undefined}
-      classList={{
-        "pw-sidebar-item": true,
-        "pw-sidebar-item--nav": true,
-        "pw-sidebar-item--active": props.active,
-      }}
+    <SidebarItem
+      nav
+      active={props.active}
+      hover={props.hover}
+      index={props.index}
       onClick={() => props.onSelect()}
+      icon={renderIcon()({ size: 14 })}
+      trailing={
+        <Show when={props.count?.count}>
+          {(count) => (
+            <Badge
+              class="pw-sidebar-item-count"
+              tone={props.count?.tone ?? "muted"}
+              aria-label={props.count?.label ?? `${count()} items`}
+            >
+              {count()}
+            </Badge>
+          )}
+        </Show>
+      }
     >
-      <span class="pw-sidebar-item-icon">{renderIcon()({ size: 14 })}</span>
-      <span class="pw-sidebar-item-label">{props.item.label}</span>
-      <Show when={props.count?.count}>
-        {(count) => (
-          <Badge
-            class="pw-sidebar-item-count"
-            tone={props.count?.tone ?? "muted"}
-            aria-label={props.count?.label ?? `${count()} items`}
-          >
-            {count()}
-          </Badge>
-        )}
-      </Show>
-    </button>
+      {props.item.label}
+    </SidebarItem>
   );
 }
 
@@ -174,19 +162,14 @@ export function SidebarSettingsItem(props: {
   return (
     <>
       <div class="flex items-center gap-1">
-        <button
-          type="button"
-          aria-current={props.active ? "page" : undefined}
-          classList={{
-            "pw-sidebar-item": true,
-            "pw-sidebar-item--active": Boolean(props.active),
-            "pw-sidebar-item--footer": true,
-          }}
+        <SidebarItem
+          footer
+          active={Boolean(props.active)}
           onClick={() => props.onSelect()}
+          icon={icons.settings!({ size: 14 })}
         >
-          <span class="pw-sidebar-item-icon">{icons.settings!({ size: 14 })}</span>
-          <span class="pw-sidebar-item-label">Settings</span>
-        </button>
+          Settings
+        </SidebarItem>
         <HelpMenu onSelectTopic={setActiveTopicId} onOpenCliReference={props.onOpenCliReference} />
       </div>
       <HelpTopicDialog topicId={activeTopicId()} onClose={() => setActiveTopicId(null)} />

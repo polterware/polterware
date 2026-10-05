@@ -1,0 +1,30 @@
+{
+  "name": "toggle_check_item",
+  "description": "Toggle a checklist item by id or title.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "memoryId"
+    ],
+    "properties": {
+      "memoryId": {
+        "type": "string"
+      },
+      "itemId": {
+        "type": "string"
+      },
+      "itemTitle": {
+        "type": "string"
+      },
+      "occurrence": {
+        "type": "string"
+      },
+      "expectedRev": {
+        "type": "integer"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object"
+  }
+}

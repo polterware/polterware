@@ -1,9 +1,0 @@
-/* Header / shell popover search — same idea as Commander: borderless field, no focus ring.
- * Divider lives on the wrapper (border-b), full panel width. */
-.pw-popover-search-input,
-.pw-popover-search-input:focus,
-.pw-popover-search-input:focus-visible {
-  border: 0;
-  outline: none;
-  box-shadow: none;
-}

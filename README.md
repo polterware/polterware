@@ -40,6 +40,7 @@ Run `polterware` with no arguments in a terminal for the status TUI. Run `polter
 - `packages/features` — product surfaces
 - `packages/frontend` — shared design system, canvas, and state
 - `backend` — Go runtime (single `polterware` binary: CLI, TUI, `serve`, `mcp`)
+- `apps/sparky-desktop`, `packages/features/sparky-*`, `sparky/` — Sparky, the second app (see below)
 - `schemas` — Protobuf contracts and generated Go/TypeScript messages
 - `DESIGN.md` — visual and interaction contract
 - `docs/future.md` — planned work, not implemented
@@ -66,6 +67,19 @@ cd schemas && buf lint
 cd ../backend && go vet ./...
 git diff --check
 ```
+
+## Sparky
+
+Sparky is a local-first memory and reminder app that lives in this monorepo next to Polterware. It reuses the Polterware design system and has its own Go core (`sparky/backend`: SQLite with FTS5, Connect RPC, an MCP server for agents, and the `sparky` CLI), an Electron + Solid desktop (`apps/sparky-desktop`), a native macOS reminders module, and feature packages under `packages/features/sparky-*`. Contracts live in `sparky/schemas`.
+
+```bash
+pnpm install
+pnpm dev:sparky          # desktop + local core
+bash tooling/verify-sparky.sh
+pnpm dist:sparky:mac     # ad-hoc signed dmg/zip under apps/sparky-desktop/release
+```
+
+Sparky releases use tags `sparky-v<version>`; the release workflow creates a draft. Builds are ad-hoc signed, so macOS asks for confirmation on first open and updates are manual.
 
 ## Open source and Cloud
 

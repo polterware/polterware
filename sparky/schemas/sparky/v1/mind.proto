@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package sparky.v1;
+
+option go_package = "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1;sparkyv1";
+
+import "google/protobuf/timestamp.proto";
+
+// Mind is one node in the mind tree. Empty parent_id is a root.
+message Mind {
+  string id = 1;
+  string parent_id = 2;
+  string name = 3;
+  string color = 4;
+  string icon = 5;
+  int32 sort_order = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  int64 rev = 9;
+}
+
+message ListMindsRequest {}
+
+message ListMindsResponse {
+  repeated Mind minds = 1;
+}
+
+message GetMindRequest {
+  string id = 1;
+}
+
+message GetMindResponse {
+  Mind mind = 1;
+}
+
+message CreateMindRequest {
+  string parent_id = 1;
+  string name = 2;
+  string color = 3;
+  string icon = 4;
+  int32 sort_order = 5;
+}
+
+message CreateMindResponse {
+  Mind mind = 1;
+}
+
+// UpdateMindRequest applies patch fields that are set.
+// clear_parent, clear_color, and clear_icon write NULL when true.
+message UpdateMindRequest {
+  string id = 1;
+  optional int64 expected_rev = 2;
+  optional string name = 3;
+  optional string parent_id = 4;
+  bool clear_parent = 5;
+  optional string color = 6;
+  bool clear_color = 7;
+  optional string icon = 8;
+  bool clear_icon = 9;
+  optional int32 sort_order = 10;
+}
+
+message UpdateMindResponse {
+  Mind mind = 1;
+}
+
+message DeleteMindRequest {
+  string id = 1;
+  optional int64 expected_rev = 2;
+}
+
+message DeleteMindResponse {
+  repeated string deleted_mind_ids = 1;
+  int32 moved_memory_count = 2;
+}
+
+message ReorderMindsRequest {
+  string parent_id = 1;
+  repeated string ordered_ids = 2;
+}
+
+message ReorderMindsResponse {
+  repeated Mind minds = 1;
+}
+
+service MindService {
+  rpc List(ListMindsRequest) returns (ListMindsResponse);
+  rpc Get(GetMindRequest) returns (GetMindResponse);
+  rpc Create(CreateMindRequest) returns (CreateMindResponse);
+  rpc Update(UpdateMindRequest) returns (UpdateMindResponse);
+  rpc Delete(DeleteMindRequest) returns (DeleteMindResponse);
+  rpc Reorder(ReorderMindsRequest) returns (ReorderMindsResponse);
+}

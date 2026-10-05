@@ -6,8 +6,8 @@ import {
   PageError,
   PageSkeleton,
 } from "@polterware/frontend-design-system";
+import { MainSurfaceFrame } from "@polterware/frontend-shell";
 import { createDetailPanelSelector, detailPanelStore } from "@polterware/frontend-state";
-import "./main-surface.css";
 
 /**
  * Large rounded content host — canonical `surface-panel` (edge-light rim).
@@ -21,9 +21,7 @@ export function MainSurface(props: { children: JSX.Element; class?: string }) {
   const collectionStatus = createDetailPanelSelector((state) => state.collectionStatus);
 
   return (
-    <main
-      class={`pw-main-surface surface-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${props.class ?? ""}`}
-    >
+    <MainSurfaceFrame class={props.class}>
       <DetailPanel.Root
         open={open()}
         expanded={expanded()}
@@ -68,6 +66,6 @@ export function MainSurface(props: { children: JSX.Element; class?: string }) {
           </DetailPanel.Content>
         </Show>
       </DetailPanel.Root>
-    </main>
+    </MainSurfaceFrame>
   );
 }

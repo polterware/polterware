@@ -1,0 +1,31 @@
+{
+  "name": "get_current_time",
+  "description": "Now, IANA zone, weekday, and ISO week.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "now",
+      "tz",
+      "weekday",
+      "isoWeek"
+    ],
+    "properties": {
+      "now": {
+        "type": "string"
+      },
+      "tz": {
+        "type": "string"
+      },
+      "weekday": {
+        "type": "string"
+      },
+      "isoWeek": {
+        "type": "integer"
+      }
+    }
+  }
+}

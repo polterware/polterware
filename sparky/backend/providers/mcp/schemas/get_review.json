@@ -1,0 +1,16 @@
+{
+  "name": "get_review",
+  "description": "Totals, streak, daily counts, and focus minutes. No timer.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "period": {
+        "type": "string",
+        "description": "week|month|year"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object"
+  }
+}

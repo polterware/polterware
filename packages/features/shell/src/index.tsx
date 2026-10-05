@@ -2,6 +2,7 @@ import type { JSX } from "solid-js";
 import { createMemo, createSignal } from "solid-js";
 import { ResizableSidebar, ToastRegion } from "@polterware/frontend-design-system";
 import type { PlatformContext } from "@polterware/frontend-platform";
+import { MainFrame, ShellRoot } from "@polterware/frontend-shell";
 import type { ClientRoute, NavItem, ShellStatus } from "./route";
 import { isNavSectionId } from "./route";
 import { SidebarNav, SidebarSettingsItem, type SidebarCount } from "./sidebar";
@@ -164,7 +165,7 @@ export function Shell(props: {
   }
 
   return (
-    <div class="pw-shell-root flex h-full flex-col text-[var(--color-text-primary)]">
+    <ShellRoot>
       <TitleBar
         canGoBack={Boolean(props.canGoBack)}
         canGoForward={Boolean(props.canGoForward)}
@@ -210,13 +211,13 @@ export function Shell(props: {
             </div>
           }
         >
-          <div class="pw-shell-main-frame flex h-full min-w-0 flex-1 flex-col">
+          <MainFrame>
             <MainSurface>{props.children}</MainSurface>
-          </div>
+          </MainFrame>
         </ResizableSidebar>
       </div>
 
       <ToastRegion />
-    </div>
+    </ShellRoot>
   );
 }

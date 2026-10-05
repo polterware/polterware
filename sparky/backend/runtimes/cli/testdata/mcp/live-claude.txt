@@ -1,0 +1,5 @@
+# Claude Code (stdio)
+claude mcp add sparky -- sparky mcp
+
+# Claude Code (HTTP)
+claude mcp add --transport http sparky http://127.0.0.1:PORT/mcp --header "Authorization: Bearer TOKEN"

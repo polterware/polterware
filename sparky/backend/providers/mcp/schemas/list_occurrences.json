@@ -1,0 +1,39 @@
+{
+  "name": "list_occurrences",
+  "description": "Occurrences from..to with completion and overdue flags.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "from",
+      "to"
+    ],
+    "properties": {
+      "from": {
+        "type": "string"
+      },
+      "to": {
+        "type": "string"
+      },
+      "mind": {
+        "type": "string"
+      },
+      "includeCompleted": {
+        "type": "boolean"
+      },
+      "limit": {
+        "type": "integer"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "occurrences"
+    ],
+    "properties": {
+      "occurrences": {
+        "type": "array"
+      }
+    }
+  }
+}

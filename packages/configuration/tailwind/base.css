@@ -29,7 +29,7 @@
   /* Text and icons always use solid neutral paint. */
   --color-text-primary: #ececec;
   --color-text-secondary: #a4a4a4;
-  --color-text-muted: #6f6f6f;
+  --color-text-muted: #8f8f8f;
   --color-text-disabled: #4b4b4b;
 
   /* Primary CTA — pastel cyan; rare special buttons only (not brand green) */
@@ -52,6 +52,12 @@
   --color-chart-violet: #9c8fce;
   --color-chart-gray: #6f6f6f;
   --color-chart-axis: var(--color-text-muted);
+  /* Opaque contribution ramp; independent of the app accent override. */
+  --color-heatmap-0: #1e1e1e;
+  --color-heatmap-1: #164b3a;
+  --color-heatmap-2: #167451;
+  --color-heatmap-3: #159f6d;
+  --color-heatmap-4: #01dd96;
   --color-chart-grid: var(--color-border-default);
 
   /* Dither identity tiles — two light colors + dark marks (never black gaps / text-primary). */
@@ -81,6 +87,12 @@
   --color-chart-violet: #9c8fce;
   --color-chart-gray: #6f6f6f;
   --color-chart-axis: var(--color-text-muted);
+  /* Opaque contribution ramp; independent of the app accent override. */
+  --color-heatmap-0: #1e1e1e;
+  --color-heatmap-1: #164b3a;
+  --color-heatmap-2: #167451;
+  --color-heatmap-3: #159f6d;
+  --color-heatmap-4: #01dd96;
   --color-chart-grid: var(--color-border-default);
   --chart-bloom-blur: 6;
   --chart-bloom-strength-rest: 0.12;
@@ -164,6 +176,11 @@
   --color-status-info-foreground: #26364f;
   --color-status-muted-background: var(--color-surface-selected);
   --color-status-muted-foreground: var(--color-text-secondary);
+  --color-heatmap-0: #1e1e1e;
+  --color-heatmap-1: #164b3a;
+  --color-heatmap-2: #167451;
+  --color-heatmap-3: #159f6d;
+  --color-heatmap-4: #01dd96;
   /* Tokenized edge light — real border + top highlight (see DESIGN.md Materials).
    * Structural fills remain opaque; these low-alpha highlights describe edges.
    * field   = inputs/selects

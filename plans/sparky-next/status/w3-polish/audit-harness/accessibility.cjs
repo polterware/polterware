@@ -1,0 +1,50 @@
+async (page) => {
+ const evidence = [];
+ const goto = async query => { await page.goto('http://127.0.0.1:5178/?'+query); await page.locator('.sparky-titlebar').waitFor(); await page.waitForTimeout(350); };
+ const inspectFocus = () => page.evaluate(() => { const el = document.activeElement; const css = getComputedStyle(el); return {tag:el.tagName, name:el.getAttribute('aria-label') || (el.labels?.length ? Array.from(el.labels).map(label=>label.textContent?.trim()).join(' ') : '') || el.textContent?.trim().slice(0,100), outline:css.outlineStyle, width:css.outlineWidth, color:css.outlineColor}; });
+ await page.setViewportSize({width:800,height:560});
+ await goto('route=today');
+ await page.getByRole('button',{name:'Open Commander'}).focus(); await page.keyboard.press('Enter');
+ evidence.push({screen:'Commander keyboard trigger',opened:await page.getByRole('dialog').count()});
+ if(!await page.getByRole('dialog').count()) await page.getByRole('button',{name:'Open Commander'}).click();
+ await page.getByRole('textbox',{name:'Search or command'}).waitFor(); await page.waitForTimeout(500);
+ const initial = await inspectFocus();
+ let escaped = false;
+ for(let i=0;i<14;i++) { await page.keyboard.press('Tab'); if(!await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))) escaped = true; }
+ await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+ evidence.push({screen:'Commander',initial,trapPassed:!escaped,restored:await inspectFocus()});
+ await goto('route=today'); await page.getByRole('button',{name:'Settings',exact:true}).focus(); await page.keyboard.press('Enter');
+ evidence.push({screen:'Settings keyboard trigger',opened:await page.getByRole('dialog').count()});
+ if(!await page.getByRole('dialog').count()) await page.getByRole('button',{name:'Settings',exact:true}).click();
+ await page.getByRole('dialog',{name:'Settings'}).waitFor();
+ escaped = false;
+ for(let i=0;i<24;i++) { await page.keyboard.press('Tab'); if(!await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))) escaped = true; }
+ await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+ evidence.push({screen:'Settings',trapPassed:!escaped,restored:await inspectFocus()});
+ await goto('route=search'); await page.getByRole('searchbox',{name:'Search memories'}).focus(); await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab');
+ evidence.push({screen:'Search',focus:await inspectFocus()}); await page.screenshot({path:'plans/sparky-next/status/w3-polish/after-keyboard-search-800.png'});
+ await goto('route=focus'); await page.getByRole('button',{name:'Start',exact:true}).click(); await page.waitForTimeout(100);
+ evidence.push({screen:'Focus',timer:await page.getByRole('timer').getAttribute('aria-live'),phase:await page.locator('[role="status"][aria-atomic="true"]').textContent()});
+ await page.screenshot({path:'plans/sparky-next/status/w3-polish/after-focus-running-800.png'});
+ await page.getByRole('button',{name:'Pause',exact:true}).click();
+ evidence.push({screen:'Focus paused',phase:await page.locator('[role="status"][aria-atomic="true"]').textContent()});
+ await goto('route=memory/memory-4'); await page.getByRole('textbox',{name:'Title',exact:true}).waitFor(); await page.screenshot({path:'plans/sparky-next/status/w3-polish/after-long-title-detail-800.png'});
+ await goto('route=inbox&preview=list'); await page.getByRole('table',{name:'Memories'}).waitFor(); await page.waitForTimeout(300); await page.screenshot({path:'plans/sparky-next/status/w3-polish/after-list-component-preview-800.png'});
+ evidence.push({screen:'Non-virtualized list preview',rows:await page.locator('tbody tr').count()});
+ await goto('route=today&preview=map-settings'); await page.getByRole('button',{name:'Settings',exact:true}).click(); await page.getByRole('navigation',{name:'Settings panels'}).getByRole('button',{name:'Map',exact:true}).click(); await page.getByRole('button',{name:'Map provider'}).waitFor(); await page.screenshot({path:'plans/sparky-next/status/w3-polish/after-settings-map-component-preview-800.png'});
+ evidence.push({screen:'Map settings component preview',provider:await page.getByRole('button',{name:'Map provider'}).textContent(),address:await page.getByRole('checkbox',{name:'Address search'}).count()});
+ await goto('route=today&solid=true');
+ evidence.push({screen:'Reduced transparency',shell:await page.locator('.sparky-titlebar').evaluate(el=>getComputedStyle(el).backgroundColor)});
+ await page.screenshot({path:'plans/sparky-next/status/w3-polish/after-solid-shell-800.png'});
+ await page.emulateMedia({reducedMotion:'reduce'}); await goto('route=calendar');
+ evidence.push({screen:'OS reduced motion',calendar:await page.locator('.sparky-calendar__grid-wrap').evaluate(el=>({transition:getComputedStyle(el).transitionDuration,transform:getComputedStyle(el).transform}))});
+ await page.screenshot({path:'plans/sparky-next/status/w3-polish/after-reduced-motion-calendar-800.png'});
+ await page.emulateMedia({reducedMotion:'no-preference',colorScheme:'light'}); await goto('route=today');
+ evidence.push({screen:'OS light preference',background:await page.locator('.sparky-shell').evaluate(el=>getComputedStyle(el).backgroundColor)});
+ await page.screenshot({path:'plans/sparky-next/status/w3-polish/after-light-preference-800.png'});
+ await page.emulateMedia({colorScheme:'dark'}); await goto('route=map'); await page.evaluate(()=>document.documentElement.dir='rtl');
+ await page.screenshot({path:'plans/sparky-next/status/w3-polish/after-rtl-map-800.png'});
+ evidence.push({screen:'RTL',bodyOverflow:await page.evaluate(()=>document.body.scrollWidth>innerWidth)});
+ await page.evaluate(()=>document.documentElement.dir='ltr');
+ return evidence;
+}

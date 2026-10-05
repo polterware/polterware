@@ -1,0 +1,13 @@
+@import "../../../packages/configuration/tailwind/base.css";
+@source "./**/*.{ts,tsx}";
+.gallery { max-width: 1120px; margin: 0 auto; padding: 32px; display: grid; gap: 32px; }
+.gallery__header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; }
+.gallery__header h1 { font-size: 22px; font-weight: 600; color: var(--color-text-primary); }
+.gallery__header p { font-size: 12px; color: var(--color-text-muted); margin-top: 8px; }
+.gallery__entry { display: grid; gap: 12px; }
+.gallery__entry h2 { font-size: 14px; color: var(--color-text-primary); }
+.gallery__examples { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.gallery__wide { width: 100%; }
+.gallery__panel { height: 320px; }
+body { margin: 0; background: var(--color-app-background); color: var(--color-text-secondary); font-family: var(--font-sans); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }

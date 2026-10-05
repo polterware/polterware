@@ -1,0 +1,110 @@
+{
+  "name": "update_memories",
+  "description": "Patch up to 50. null clears. tags replace; addTags/removeTags adjust.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "items"
+    ],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "expectedRev": {
+              "type": "integer"
+            },
+            "title": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "note": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "mind": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "addTags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "removeTags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "due": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "pinned": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "checklist": {
+              "type": "array",
+              "description": "String or {title,detail?}"
+            },
+            "schedule": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "at,tz?,repeat{freq,every?,weekdays?,until?|count?},focus?"
+            },
+            "place": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "description": "lat,lng,name?,radiusM?,event?"
+            },
+            "links": {
+              "type": "array",
+              "description": "{url,title?}"
+            }
+          }
+        }
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "results"
+    ],
+    "properties": {
+      "results": {
+        "type": "array"
+      }
+    }
+  }
+}

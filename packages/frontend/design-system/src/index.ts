@@ -173,3 +173,22 @@ export * from "./hugeicons";
 export { FloatingWindow } from "./floating-window";
 export type { FloatingWindowRootProps, FloatingWindowHeaderProps } from "./floating-window";
 export type { FloatingWindowDock, FloatingWindowGeometry } from "./floating-window-geometry";
+
+export { DesignSystemProvider, useDesignSystem, type DesignSystemProviderProps, type DesignSystemShortcut } from "./provider";
+export { registerDitherAccents } from "./dither-icon";
+export { EmptyIllustration } from "./feedback";
+export { Checkbox, type CheckboxProps } from "./checkbox";
+export { SegmentedControl, type SegmentedControlProps, type SegmentOption } from "./segmented-control";
+export { NumberStepper, type NumberStepperProps } from "./number-stepper";
+export { Slider, type SliderProps } from "./slider";
+export { DatePicker, parseDate, type DatePickerProps, type DateValue } from "./date-picker";
+export { TimePicker, parseTime, type TimePickerProps } from "./time-picker";
+export { ColorSwatchPicker, parseColor, type ColorSwatchPickerProps, type ColorSwatchOption } from "./color-swatch-picker";
+export { IconPicker, PICKER_ICONS, type IconPickerProps, type PickerIconName } from "./icon-picker";
+export { TreeView, type TreeViewProps, type TreeViewNode } from "./tree-view";
+export { ProgressRing, type ProgressRingProps } from "./progress-ring";
+export { Heatmap, heatmapLevel, type HeatmapProps, type HeatmapDay } from "./heatmap";
+export { CalendarGrid, type CalendarGridProps } from "./calendar-grid";
+
+/* Load after component chrome so keyboard focus remains visible. */
+import "./accessibility.css";

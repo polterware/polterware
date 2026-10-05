@@ -1,0 +1,71 @@
+{
+  "name": "list_memories",
+  "description": "Memory summaries by mind, tag, status, due, text, schedule.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "mind": {
+        "type": "string"
+      },
+      "includeDescendants": {
+        "type": "boolean"
+      },
+      "tag": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string",
+        "description": "active|completed"
+      },
+      "pinned": {
+        "type": "boolean"
+      },
+      "dueFrom": {
+        "type": "string"
+      },
+      "dueTo": {
+        "type": "string"
+      },
+      "updatedFrom": {
+        "type": "string"
+      },
+      "updatedTo": {
+        "type": "string"
+      },
+      "hasSchedule": {
+        "type": "boolean"
+      },
+      "query": {
+        "type": "string"
+      },
+      "order": {
+        "type": "string",
+        "description": "updated|due|manual|created"
+      },
+      "limit": {
+        "type": "integer"
+      },
+      "cursor": {
+        "type": "string"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "memories",
+      "total"
+    ],
+    "properties": {
+      "memories": {
+        "type": "array"
+      },
+      "total": {
+        "type": "integer"
+      },
+      "nextCursor": {
+        "type": "string"
+      }
+    }
+  }
+}

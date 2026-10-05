@@ -10,7 +10,7 @@ import {
 } from "@polterware/frontend-design-system";
 import type { EnvironmentItem, EnvironmentKind, ProjectSwitcherItem } from "./types";
 import { ENVIRONMENT_FIXTURES, PROJECT_SWITCHER_FIXTURES } from "./fixtures";
-import { PopoverSearchField } from "./popover-search";
+import { PopoverSearchField } from "@polterware/frontend-shell";
 
 export type WorkspaceContext = {
   projectId: string;

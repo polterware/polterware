@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, X } from "./hugeicons";
 import { DitherIconTile, type DitherIconTone } from "./dither-icon";
-import { detailPanelStore } from "@polterware/frontend-state";
+import { useDesignSystem } from "./provider";
 import {
   For,
   Show,
@@ -50,6 +50,9 @@ export type DataTableRootProps<T = any> = {
   activateFirstRow?: boolean;
   virtualized?: boolean;
   estimateRowHeight?: number;
+  /** Fixed outer row pitch, including the table row gap. */
+  fixedRowHeight?: number;
+  overscan?: number;
   gutters?: boolean;
   children: JSX.Element;
   class?: string;
@@ -112,6 +115,8 @@ type DataTableContextValue<T> = {
   someVisibleSelected: Accessor<boolean>;
   virtualized: Accessor<boolean>;
   estimateRowHeight: Accessor<number>;
+  fixedRowHeight: Accessor<number | undefined>;
+  overscan: Accessor<number>;
   scrollElement: Accessor<HTMLDivElement | null>;
   setScrollElement: (element: HTMLDivElement) => void;
   columnCount: Accessor<number>;
@@ -120,7 +125,7 @@ type DataTableContextValue<T> = {
 const DataTableContext = createContext<DataTableContextValue<never>>();
 const DataTableSelectionToolbarHostContext = createContext<Accessor<HTMLElement | undefined>>();
 /** The table's one row highlight; interactive rows join it by their position in the body. */
-const DataTableHoverContext = createContext<FluidHover>();
+const DataTableHoverContext = createContext<{ hover: FluidHover; enabled: Accessor<boolean> }>();
 const DataTableRowIndexContext = createContext<Accessor<number>>();
 
 function bridgeDataTableContext<From, To>(
@@ -321,13 +326,16 @@ function DataTableRoot<T = any>(props: DataTableRootProps<T>) {
   const [columnVersion, setColumnVersion] = createSignal(0);
   const columns = new Map<string, RegisteredColumn<T>>();
 
-  const sourceRows = createMemo<readonly IndexedRow<T>[]>(() =>
-    props.rows.map((row, sourceIndex) => ({
-      row,
-      sourceIndex,
-      id: props.getRowId?.(row, sourceIndex) ?? defaultRowId(row, sourceIndex),
-    })),
-  );
+  const sourceRows = createMemo<readonly IndexedRow<T>[]>((previous) => {
+    const byId = new Map(previous?.map(entry => [entry.id, entry]));
+    return props.rows.map((row, sourceIndex) => {
+      const id = props.getRowId?.(row, sourceIndex) ?? defaultRowId(row, sourceIndex);
+      const existing = byId.get(id);
+      return existing?.row === row && existing.sourceIndex === sourceIndex
+        ? existing
+        : { row, sourceIndex, id };
+    });
+  });
   const sort = (): DataTableSortState =>
     props.sort !== undefined ? props.sort : internalSort();
   const selectionMode = (): DataTableSelectionMode =>
@@ -443,7 +451,9 @@ function DataTableRoot<T = any>(props: DataTableRootProps<T>) {
     allVisibleSelected,
     someVisibleSelected,
     virtualized: () => Boolean(props.virtualized),
-    estimateRowHeight: () => props.estimateRowHeight ?? 38,
+    estimateRowHeight: () => props.fixedRowHeight ?? props.estimateRowHeight ?? 38,
+    fixedRowHeight: () => props.fixedRowHeight,
+    overscan: () => props.overscan ?? 8,
     scrollElement,
     setScrollElement,
     columnCount: () => columnCount() + (selectionMode() === "none" ? 0 : 1),
@@ -489,6 +499,8 @@ function DataTableTable(props: {
 }) {
   const context = useDataTable("Table");
   let scroll: HTMLDivElement | undefined;
+  const [pointerInside, setPointerInside] = createSignal(false);
+  const [focusInside, setFocusInside] = createSignal(false);
   // Empty gaps do not activate rows or collapse the floating detail card.
   const hover = createFluidHover(() => scroll, { gapClick: false });
   const entryAt = (index: number | null) =>
@@ -512,7 +524,7 @@ function DataTableTable(props: {
   };
 
   return (
-    <DataTableHoverContext.Provider value={hover}>
+    <DataTableHoverContext.Provider value={{ hover, enabled: () => pointerInside() || focusInside() }}>
       <div
         ref={(element) => {
           scroll = element;
@@ -520,6 +532,8 @@ function DataTableTable(props: {
         }}
         class="pw-data-table-scroll"
         data-virtualized={context.virtualized() ? "true" : undefined}
+        data-fixed-row-height={context.fixedRowHeight() !== undefined ? "true" : undefined}
+        style={{ "--table-row-pitch": `${context.estimateRowHeight()}px` }}
       >
         <FluidHoverHighlight hover={hover} class={hoverClass()} />
         {/* The active row's marker travels between rows; a re-sort that moves it snaps. */}
@@ -532,11 +546,14 @@ function DataTableTable(props: {
         <table
           class={`pw-data-table ${props.class ?? ""}`}
           aria-label={props["aria-label"]}
-          onPointerEnter={hover.handlers.onPointerEnter}
+          onPointerEnter={event => { setPointerInside(true); hover.handlers.onPointerEnter(event); }}
           onPointerMove={hover.handlers.onPointerMove}
-          onPointerLeave={hover.handlers.onPointerLeave}
-          onFocusIn={hover.handlers.onFocusIn}
-          onFocusOut={hover.handlers.onFocusOut}
+          onPointerLeave={() => { setPointerInside(false); hover.handlers.onPointerLeave(); }}
+          onFocusIn={event => { setFocusInside(true); hover.handlers.onFocusIn(event); }}
+          onFocusOut={event => {
+            setFocusInside(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget));
+            hover.handlers.onFocusOut(event);
+          }}
         >
           {props.children}
         </table>
@@ -616,15 +633,28 @@ function DataTableBody<T = any>(props: {
   class?: string;
 }) {
   const context = useDataTable<T>("Body");
+  const [mounted, setMounted] = createSignal(false);
+  onMount(() => setMounted(true));
   const virtualizer = createVirtualizer<HTMLDivElement, HTMLTableRowElement>({
     get count() {
       return context.rows().length;
     },
-    getScrollElement: context.scrollElement,
+    // Solid refs run while template nodes still belong to an inert document.
+    // Attach after mount so Virtualizer captures the real window and observers.
+    getScrollElement: () => mounted() ? context.scrollElement() : null,
     estimateSize: context.estimateRowHeight,
-    overscan: 8,
+    get overscan() { return context.overscan(); },
+    get getItemKey() {
+      const rows = context.rows();
+      return (index: number) => rows[index]!.id;
+    },
   });
   const virtualItems = () => virtualizer.getVirtualItems();
+  // Key the DOM by source entry, not the adapter's mutable measurement objects.
+  // A range update must not recreate overlapping rows or their focused controls.
+  const rowsById = createMemo(() => new Map(context.rows().map(entry => [entry.id, entry])));
+  const rowIndices = createMemo(() => new Map(context.rows().map((entry, index) => [entry.id, index])));
+  const virtualRowIds = createMemo(() => virtualItems().map(item => context.rows()[item.index]!.id));
   const topSpacer = () => virtualItems()[0]?.start ?? 0;
   const bottomSpacer = () => {
     const last = virtualItems().at(-1);
@@ -652,15 +682,10 @@ function DataTableBody<T = any>(props: {
               <td colspan={context.columnCount()} style={{ height: `${topSpacer()}px` }} />
             </tr>
           </Show>
-          <For each={virtualItems()}>
-            {(virtualRow) => {
-              const entry = () => context.rows()[virtualRow.index];
-              return (
-                <Show when={entry()}>
-                  {(current) => renderEntry(current(), () => virtualRow.index)}
-                </Show>
-              );
-            }}
+          <For each={virtualRowIds()}>
+            {id => <Show keyed when={rowsById().get(id)}>
+              {entry => renderEntry(entry, () => rowIndices().get(id)!)}
+            </Show>}
           </For>
           <Show when={bottomSpacer() > 0}>
             <tr aria-hidden="true" class="pw-data-table-spacer">
@@ -706,6 +731,7 @@ function DataTableRow<T = any>(props: {
   class?: string;
 }) {
   const context = useDataTable("Row");
+  const designSystem = useDesignSystem();
   const rowId = () => props.rowId ?? defaultRowId(props.row, props.index ?? 0);
   const selected = () => context.selectedRowIds().has(rowId());
   const active = () => context.activeEnabled() && context.activeRowId() === rowId();
@@ -715,15 +741,17 @@ function DataTableRow<T = any>(props: {
     props.onActivate?.(props.row);
   };
   // Only rows a click can land on join the highlight.
-  const hover = useContext(DataTableHoverContext);
+  const highlight = useContext(DataTableHoverContext);
   const bodyIndex = useContext(DataTableRowIndexContext);
   let rowElement: HTMLTableRowElement | undefined;
   onMount(() => {
     const element = rowElement;
-    if (!hover || !bodyIndex || !element) return;
+    if (!highlight || !bodyIndex || !element) return;
     createEffect(() => {
-      if (!interactive()) return;
-      onCleanup(hover.registerItem(bodyIndex(), element));
+      // Geometry is only needed for a visible hover/focus/active marker. A scroll
+      // with no marker must not attach row observers or force layout reads.
+      if (!interactive() || (!highlight.enabled() && !active())) return;
+      onCleanup(highlight.hover.registerItem(bodyIndex(), element));
     });
   });
 
@@ -749,7 +777,7 @@ function DataTableRow<T = any>(props: {
       onDblClick={(event) => {
         if (!interactive() || isDataTableInteractiveTarget(event.target, event.currentTarget)) return;
         activate();
-        detailPanelStore.getState().expand();
+        designSystem.expandDetail();
       }}
       onKeyDown={(event) => {
         if (!interactive() || event.target !== event.currentTarget) return;
@@ -802,14 +830,16 @@ export type DataTablePrimaryCellProps = {
 );
 
 function DataTablePrimaryCell(props: DataTablePrimaryCellProps) {
-  const leading = () =>
-    props.icon ? (
+  // JSX slots can be getters that construct components. Resolve them once per
+  // change, so checking presence and rendering do not construct the icon twice.
+  const leading = createMemo(() => {
+    const icon = props.icon;
+    return icon ? (
       <DitherIconTile size={24} tone={props.iconTone} brand={props.iconBrand}>
-        {props.icon}
+        {icon}
       </DitherIconTile>
-    ) : (
-      props.leading
-    );
+    ) : props.leading;
+  });
   return (
     <td class={`pw-data-table-cell pw-data-table-primary-cell ${props.class ?? ""}`}>
       <div class="pw-data-table-primary">
@@ -879,6 +909,24 @@ function DataTableSelectionCell(props: {
       </Show>
     </Show>
   );
+}
+
+/** Native binary checkbox for dense rows; no per-row form state machine. */
+function DataTableCheckbox(props: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  "aria-label": string;
+  disabled?: boolean;
+}) {
+  return <input
+    type="checkbox"
+    class="pw-data-table-selection-input pw-data-table-checkbox"
+    checked={props.checked}
+    disabled={props.disabled}
+    aria-label={props["aria-label"]}
+    onClick={event => event.stopPropagation()}
+    onChange={event => props.onCheckedChange(event.currentTarget.checked)}
+  />;
 }
 
 function DataTableSelectionToolbar<T = any>(
@@ -976,6 +1024,7 @@ export const DataTable = {
   Cell: DataTableCell,
   PrimaryCell: DataTablePrimaryCell,
   SelectionCell: DataTableSelectionCell,
+  Checkbox: DataTableCheckbox,
   SelectionToolbar: DataTableSelectionToolbar,
   Empty: DataTableEmpty,
   Footer: DataTableFooter,
