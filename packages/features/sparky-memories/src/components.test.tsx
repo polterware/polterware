@@ -23,6 +23,32 @@ async function row(host: HTMLElement, id = "memory-1") { await vi.waitFor(() => 
 async function open(host: HTMLElement) { press(await row(host), "Enter"); await vi.waitFor(() => expect(document.querySelector("[data-memory-title]")).not.toBeNull()); }
 
 describe("memory page behavior through a fake preload bridge", () => {
+  it("refreshes virtualized row labels after a detail title save and closure", async () => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(480);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
+    const previous = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = () => {};
+    cleanups.push(() => { HTMLElement.prototype.scrollTo = previous; });
+    const { host, store, data, bridge, emit } = mount([memoryFixture()], 30, true);
+    await open(host);
+    const title = document.querySelector<HTMLInputElement>("[data-memory-title]")!;
+    input(title, "Acknowledged title");
+    await store.flush("memory-1");
+    expect(data.get("memory-1")!.title).toBe("Acknowledged title");
+    expect(store.state("memory-1")).toBe("live");
+    // The same entity remains in the virtual range while the stream refreshes it.
+    emit();
+    await vi.waitFor(() => expect(bridge.memories.list).toHaveBeenCalledTimes(2));
+    document.querySelector<HTMLButtonElement>('[aria-label="Close details"]')!.click();
+    await vi.waitFor(() => {
+      const savedRow = host.querySelector('[data-row-id="memory-1"]')!;
+      expect(savedRow.getAttribute("aria-label")).toBe("Acknowledged title");
+      expect(savedRow.textContent).toContain("Acknowledged title");
+      expect(savedRow.querySelector('[aria-label="Pin Acknowledged title"]')).not.toBeNull();
+      expect(savedRow.querySelector('[aria-label="Complete Acknowledged title"]')).not.toBeNull();
+    });
+  });
+
   it("renders a nonempty virtualized subset after asynchronous fake-bridge loading", async () => {
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(480);
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
