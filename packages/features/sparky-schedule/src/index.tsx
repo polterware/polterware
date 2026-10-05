@@ -1,5 +1,7 @@
 import type { SparkyFeature } from "@polterware/feature-sparky-shell/feature";
-import { ScheduleCard } from "./schedule-card";
+import { lazy } from "solid-js";
+
+const ScheduleCard = lazy(() => import("./schedule-card").then(module => ({ default: module.ScheduleCard })));
 
 const feature: SparkyFeature = {
   id: "schedule",

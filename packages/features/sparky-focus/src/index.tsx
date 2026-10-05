@@ -1,6 +1,5 @@
 import type { SparkyFeature } from "@polterware/feature-sparky-shell/feature";
-import { FocusPage } from "./focus-page";
-import { FocusRecipeSection } from "./focus-recipe-section";
+import { lazy } from "solid-js";
 import { focusStore } from "./store";
 
 function memoryIdFromFocusLink(url: URL): string | null {
@@ -8,6 +7,9 @@ function memoryIdFromFocusLink(url: URL): string | null {
   const id = url.pathname.replace(/^\//, "");
   return id || null;
 }
+
+const FocusPage = lazy(() => import("./focus-page").then(module => ({ default: module.FocusPage })));
+const FocusRecipeSection = lazy(() => import("./focus-recipe-section").then(module => ({ default: module.FocusRecipeSection })));
 
 const feature: SparkyFeature = {
   id: "focus",

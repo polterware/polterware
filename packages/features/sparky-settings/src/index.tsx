@@ -1,17 +1,17 @@
 import type { SparkyFeature } from "@polterware/feature-sparky-shell/feature";
-import {
-  AdvancedPanel,
-  AgentsAccessPanel,
-  AgentsActivityPanel,
-  CalendarPanel,
-  DataPanel,
-  FocusPanel,
-  GeneralPanel,
-  MapPanel,
-  NotificationsPanel,
-  SearchPanel,
-  ShortcutsPanel,
-} from "./panels";
+import { lazy } from "solid-js";
+
+const GeneralPanel = lazy(() => import("./panels").then(module => ({ default: module.GeneralPanel })));
+const NotificationsPanel = lazy(() => import("./panels").then(module => ({ default: module.NotificationsPanel })));
+const FocusPanel = lazy(() => import("./panels").then(module => ({ default: module.FocusPanel })));
+const CalendarPanel = lazy(() => import("./panels").then(module => ({ default: module.CalendarPanel })));
+const MapPanel = lazy(() => import("./panels").then(module => ({ default: module.MapPanel })));
+const SearchPanel = lazy(() => import("./panels").then(module => ({ default: module.SearchPanel })));
+const AgentsAccessPanel = lazy(() => import("./panels").then(module => ({ default: module.AgentsAccessPanel })));
+const AgentsActivityPanel = lazy(() => import("./panels").then(module => ({ default: module.AgentsActivityPanel })));
+const DataPanel = lazy(() => import("./panels").then(module => ({ default: module.DataPanel })));
+const ShortcutsPanel = lazy(() => import("./panels").then(module => ({ default: module.ShortcutsPanel })));
+const AdvancedPanel = lazy(() => import("./panels").then(module => ({ default: module.AdvancedPanel })));
 
 const feature: SparkyFeature = {
   id: "settings",
