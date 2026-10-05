@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join } from "node:path";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createCoreClients, type CoreClients } from "./core/client.js";
 import { ensureCore, resolveBinary, type CoreHandle } from "./core/process-supervisor.js";
+import { createStartupClock, startupTimingEnabled, type StartupClock } from "./core/startup-timing.js";
 import { startChangeWatcher } from "./core/change-watcher.js";
 import { createRpcHandlers, assertTrustedSender, validateAppInput, channel, handleRequestNotificationAuthorization } from "./ipc.js";
 import { publicIpcError } from "./ipc-error.js";
@@ -92,13 +93,19 @@ function routeDeepLink(raw: string): void {
   if (win!.webContents.isLoading()) win!.webContents.once("did-finish-load", () => emit(EVENTS.deepLink, link));
   else emit(EVENTS.deepLink, link);
 }
-async function reconnect(): Promise<boolean> {
+async function attachCore(): Promise<boolean> {
+  const next = await ensureCore({ dbPath, binary: resolveBinary(app.getAppPath(), process.resourcesPath, app.isPackaged) });
+  const changed = next.pid !== core?.pid || next.token !== core?.token || next.endpoint !== core?.endpoint;
+  core = next;
+  clients = createCoreClients(next.endpoint, next.token);
+  return changed;
+}
+async function reconnect(clock?: StartupClock): Promise<boolean> {
   try {
-    const next = await ensureCore({ dbPath, binary: resolveBinary(app.getAppPath(), process.resourcesPath, app.isPackaged) });
-    const changed = next.pid !== core?.pid || next.token !== core?.token || next.endpoint !== core?.endpoint;
-    core = next;
-    clients = createCoreClients(next.endpoint, next.token);
+    const changed = await attachCore();
+    clock?.mark("core-attach");
     await refreshMapPolicy();
+    clock?.mark("policy-rpc");
     getLogs().write("core.ready", { changed });
     return changed;
   } catch (error) {
@@ -267,6 +274,8 @@ else {
   app.on("activate", () => { if (!suppressWindow || win) showWindow(); });
   app.on("ready", (_event, launchInfo) => {
     void (async () => {
+      const clock = createStartupClock({ enabled: startupTimingEnabled() });
+      clock.mark("electron-ready");
       suppressWindow = reminders.prepareLaunch(launchInfo) || hiddenLaunch;
       if (app.isPackaged) app.setAsDefaultProtocolClient("sparky");
       else app.setAsDefaultProtocolClient("sparky", process.execPath, [app.getAppPath()]);
@@ -275,7 +284,7 @@ else {
       try {
         logs = createAppLog(app.getPath("logs"));
         applyReduceTransparency(readReduceTransparency(userDataDirectory()));
-        await reconnect();
+        await reconnect(clock);
         stopWatcher = startChangeWatcher({ getClients, reconnect, emit: event => {
           emit(EVENTS.change, event);
           reminders.onChanges({ snapshot: event.resync, changes: event.changes });
@@ -283,7 +292,12 @@ else {
         } });
       } catch { console.error("Sparky core offline; inspect the core log"); }
       reminders.start();
-      if (suppressWindow && !pendingLink) return;
+      if (suppressWindow && !pendingLink) {
+        if (startupTimingEnabled()) console.log(clock.format());
+        return;
+      }
+      clock.mark("window-show");
+      if (startupTimingEnabled()) console.log(clock.format());
       showWindow();
       if (process.env.SPARKY_NOTIFY_E2E === "1") {
         setTimeout(() => { void reminders.requestAuthorization().catch(() => {}); }, 1500);

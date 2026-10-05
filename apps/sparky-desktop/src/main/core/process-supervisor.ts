@@ -34,6 +34,18 @@ export function resolveBinary(appPath: string, resourcesPath: string, packaged: 
   if (!existsSync(binary)) throw new Error("Sparky core binary is missing; run pnpm build:sparky-core");
   return binary;
 }
+export const CORE_READY_TIMEOUT_MS = 12_000;
+export const EXISTING_CORE_POLL_MS = 200;
+export const SPAWNED_CORE_POLL_MIN_MS = 25;
+export const SPAWNED_CORE_POLL_MAX_MS = 50;
+
+/** Fast bounded backoff for a child this supervisor spawned; keep the 200 ms floor for an existing daemon. */
+export function nextCorePollDelay(options: { spawnedChild: boolean; spawnedAttempt: number }): number {
+  if (!options.spawnedChild) return EXISTING_CORE_POLL_MS;
+  const step = options.spawnedAttempt <= 0 ? SPAWNED_CORE_POLL_MIN_MS : SPAWNED_CORE_POLL_MIN_MS * 2;
+  return Math.min(Math.max(step, SPAWNED_CORE_POLL_MIN_MS), SPAWNED_CORE_POLL_MAX_MS);
+}
+
 export async function ensureCore(options: { dbPath: string; binary: string }): Promise<CoreHandle> {
   const endpoint = process.env.SPARKY_CORE_ENDPOINT?.trim();
   const token = process.env.SPARKY_CORE_TOKEN?.trim();
@@ -45,7 +57,9 @@ export async function ensureCore(options: { dbPath: string; binary: string }): P
   }
   const localBuild = buildId(options.binary);
   let spawned = false;
-  for (let attempt = 0; attempt < 60; attempt++) {
+  let spawnedAttempt = 0;
+  const deadline = Date.now() + CORE_READY_TIMEOUT_MS;
+  while (Date.now() < deadline) {
     const state = readCoreState(options.dbPath);
     if (state) {
       try {
@@ -60,13 +74,17 @@ export async function ensureCore(options: { dbPath: string; binary: string }): P
           }
           if (readCoreState(options.dbPath)) throw new Error("Older core did not exit");
           spawned = false;
+          spawnedAttempt = 0;
         } else return state;
       } catch { /* A daemon may still be starting. Never kill an unverified process. */ }
     } else if (!spawned) {
       await spawnCore(options.dbPath, options.binary);
       spawned = true;
+      spawnedAttempt = 0;
     }
-    await delay(200);
+    const waitMs = nextCorePollDelay({ spawnedChild: spawned, spawnedAttempt });
+    if (spawned) spawnedAttempt += 1;
+    await delay(waitMs);
   }
   throw new Error("Core unavailable; inspect Sparky/run/core.log");
 }
