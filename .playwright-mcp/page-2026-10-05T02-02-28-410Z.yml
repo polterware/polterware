@@ -1,0 +1,35 @@
+- generic [ref=f16e3]:
+  - banner [ref=f16e4]:
+    - generic [ref=f16e5]:
+      - button "Go back" [ref=f16e6] [cursor=pointer]
+      - button "Go forward" [ref=f16e9] [cursor=pointer]
+    - generic [ref=f16e13]:
+      - 'button "Switch project: Polter" [ref=f16e14]':
+        - generic [ref=f16e15]: Polter
+      - generic [ref=f16e16]: /
+      - 'button "Switch environment: main" [ref=f16e17]':
+        - status [ref=f16e18]: PRODUCTION
+    - button "Search or run a command" [ref=f16e20] [cursor=pointer]
+  - generic [ref=f16e25]:
+    - complementary "Project navigation" [ref=f16e26]:
+      - generic [ref=f16e29]:
+        - navigation "Primary" [ref=f16e31]:
+          - generic [ref=f16e32]:
+            - paragraph [ref=f16e33]: PROJECT
+            - button "Inbox 4" [ref=f16e34] [cursor=pointer]:
+              - generic [ref=f16e39]: Inbox
+              - generic [ref=f16e40]: "4"
+            - button "Work" [ref=f16e41] [cursor=pointer]
+            - button "Atlas" [ref=f16e49] [cursor=pointer]
+            - button "Truth" [ref=f16e58] [cursor=pointer]
+            - button "Activity" [ref=f16e65] [cursor=pointer]
+        - generic [ref=f16e73]:
+          - button "Settings" [ref=f16e74] [cursor=pointer]
+          - button "Help and about" [ref=f16e80] [cursor=pointer]
+    - separator "Resize Project navigation" [ref=f16e85]
+    - main [ref=f16e88]:
+      - generic [ref=f16e92]:
+        - heading "Inbox" [level=1] [ref=f16e96]
+        - generic [ref=f16e97]:
+          - paragraph [ref=f16e98]: No selection
+          - paragraph [ref=f16e99]: Select an item to see its details.
