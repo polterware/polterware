@@ -80,7 +80,7 @@ export default defineConfig({
     ],
     resolve: {
       dedupe: ["solid-js", "solid-js/web", "solid-js/store"],
-      conditions: ["solid", "browser", "development", "import", "module", "default"],
+      conditions: ["solid", "browser", "development|production", "import", "module", "default"],
       alias: {
         "@": resolve(rootDir, "src/renderer"),
         "@polterware/sparky-contracts": resolve(
