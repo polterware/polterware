@@ -1,7 +1,5 @@
 import { test, expect } from "../fixtures";
 
-// Product gap: plans/sparky-next/requests/w3-e2e-3.md
-test.fixme(process.env.SPARKY_E2E_RECHECK_GAPS !== "1", "w3-e2e-3: SDK writes succeed but virtualized rows never render. Set SPARKY_E2E_RECHECK_GAPS=1 after the fix.");
 import { driver } from "../helpers/driver";
 
 for (const transport of ["stdio", "http"] as const) {

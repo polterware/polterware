@@ -1,6 +1,8 @@
 appId: com.polterware.sparky
 productName: Sparky
 asar: true
+asarUnpack:
+  - out/renderer/**
 
 directories:
   buildResources: resources

@@ -12,7 +12,7 @@ test("focus: start, pause, skip, reset, and Commander Start focus", async ({ spa
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await expect(page.getByRole("button", { name: "Resume", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Skip", exact: true }).click();
-  await expect(page.getByText("Short break", { exact: false })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Short break", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Reset", exact: true }).click();
   await expect(page.getByRole("button", { name: "Start", exact: true })).toBeVisible();
   await page.keyboard.press("Meta+k");

@@ -13,10 +13,16 @@ export async function rendererFileResponse(raw: string, root: string): Promise<R
   try {
     const url = new URL(raw);
     if (url.protocol !== "file:" || url.host || !isAbsolute(root)) throw new Error("Invalid renderer asset");
-    const base = await realpath(root);
-    const path = fileURLToPath(url);
-    const rel = relative(base, path);
+    // Only the shipped renderer subtree is unpacked; URLs retain their ASAR origin.
+    // Never open virtual ASAR directories or fall back to arbitrary file reads.
+    const archiveSuffix = `${sep}app.asar${sep}out${sep}renderer`;
+    const archived = root.endsWith(archiveSuffix);
+    const physicalRoot = archived ? root.slice(0, -archiveSuffix.length) + `${sep}app.asar.unpacked${sep}out${sep}renderer` : root;
+    const base = await realpath(physicalRoot);
+    if (archived && base !== physicalRoot) throw new Error("Symlinked renderer root");
+    const rel = relative(archived ? root : base, fileURLToPath(url));
     if (!rel || isAbsolute(rel) || rel === ".." || rel.startsWith(`..${sep}`)) throw new Error("Invalid renderer asset");
+    const path = resolve(base, rel);
     const type = types[extname(path)];
     if (!type) throw new Error("Unsupported renderer asset");
     if (process.platform !== "darwin" && process.platform !== "linux") throw new Error("Secure asset open unavailable");
