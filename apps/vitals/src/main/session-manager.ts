@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { BrowserWindow } from "electron";
 import type {
   ConnectPayload,
+  ConnectionMetricsMode,
   ConnectionStateEvent,
   HostKeyPrompt,
   MetricsEvent,
@@ -9,6 +10,7 @@ import type {
   ShellExitEvent,
 } from "../shared/bridge.js";
 import { IPC_EVENTS } from "../shared/channels.js";
+import { AgentSession } from "./agent-session.js";
 import {
   deleteServer,
   getServerById,
@@ -18,6 +20,8 @@ import {
 } from "./storage.js";
 import { SshSession, type SessionAuth } from "./ssh-session.js";
 
+type MetricsSession = AgentSession | SshSession;
+
 interface ManagedSession {
   id: string;
   label: string;
@@ -25,7 +29,8 @@ interface ManagedSession {
   port: number;
   username: string;
   auth: SessionAuth;
-  ssh: SshSession;
+  ssh: MetricsSession;
+  mode: ConnectionMetricsMode;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   pendingFingerprint: string | null;
   allowReconnect: boolean;
@@ -73,6 +78,20 @@ export class SessionManager {
 
     const label = payload.label || payload.host || `${payload.username}@${payload.host}`;
 
+    const managed: ManagedSession = {
+      id: sessionId,
+      label,
+      host: payload.host,
+      port: payload.port,
+      username: payload.username,
+      auth,
+      ssh: null as unknown as MetricsSession,
+      mode: "agent",
+      reconnectTimer: null,
+      pendingFingerprint: null,
+      allowReconnect: true,
+    };
+
     const sendState = (status: ConnectionStateEvent["status"], message?: string) => {
       this.emit(IPC_EVENTS.connection.state, {
         sessionId,
@@ -80,74 +99,96 @@ export class SessionManager {
         message,
         label,
         host: payload.host,
+        mode: managed.mode,
       } satisfies ConnectionStateEvent);
     };
 
-    const ssh = new SshSession({
+    const onMetrics = (snapshot: MetricsEvent["snapshot"], collectedAt: number) => {
+      this.emit(IPC_EVENTS.metrics.snapshot, {
+        sessionId,
+        snapshot,
+        collectedAt,
+      } satisfies MetricsEvent);
+    };
+
+    const onStatus = (status: string, message?: string) => {
+      const mapped =
+        status === "connected"
+          ? "connected"
+          : status === "connecting"
+            ? "connecting"
+            : status === "disconnected"
+              ? "disconnected"
+              : status === "error"
+                ? "error"
+                : "connecting";
+      sendState(mapped as ConnectionStateEvent["status"], message);
+
+      const current = this.sessions.get(sessionId);
+      if (mapped === "disconnected" && current && current.allowReconnect && !current.reconnectTimer) {
+        sendState("reconnecting", "Reconnecting in 3s…");
+        current.reconnectTimer = setTimeout(() => {
+          current.reconnectTimer = null;
+          if (!this.sessions.has(sessionId)) return;
+          current.ssh.resetClient();
+          sendState("reconnecting");
+          current.ssh.connect();
+        }, 3000);
+      }
+    };
+
+    const onHostKeyPrompt = (fingerprint: string) => {
+      const current = this.sessions.get(sessionId);
+      if (current) current.pendingFingerprint = fingerprint;
+      this.emit(IPC_EVENTS.hostKey.prompt, {
+        sessionId,
+        host: payload.host,
+        port: payload.port,
+        fingerprint,
+      } satisfies HostKeyPrompt);
+    };
+
+    const startFallback = (reason: string) => {
+      const current = this.sessions.get(sessionId);
+      if (!current || current.mode === "fallback") return;
+      current.mode = "fallback";
+      try {
+        current.ssh.dispose();
+      } catch {
+        /* ignore */
+      }
+      const fallback = new SshSession({
+        sessionId,
+        host: payload.host,
+        port: payload.port,
+        username: payload.username,
+        auth,
+        onMetrics,
+        onStatus,
+        onHostKeyPrompt,
+      });
+      current.ssh = fallback;
+      sendState("connecting", `Agent unavailable; using script fallback (${reason})`);
+      fallback.connect();
+    };
+
+    const agent = new AgentSession({
       sessionId,
       host: payload.host,
       port: payload.port,
       username: payload.username,
       auth,
-      onMetrics: (snapshot, collectedAt) => {
-        this.emit(IPC_EVENTS.metrics.snapshot, {
-          sessionId,
-          snapshot,
-          collectedAt,
-        } satisfies MetricsEvent);
-      },
-      onStatus: (status, message) => {
-        const mapped =
-          status === "connected"
-            ? "connected"
-            : status === "connecting"
-              ? "connecting"
-              : status === "disconnected"
-                ? "disconnected"
-                : status === "error"
-                  ? "error"
-                  : "connecting";
-        sendState(mapped as ConnectionStateEvent["status"], message);
-
-        const managed = this.sessions.get(sessionId);
-        if (mapped === "disconnected" && managed && managed.allowReconnect && !managed.reconnectTimer) {
-          sendState("reconnecting", "Reconnecting in 3s…");
-          managed.reconnectTimer = setTimeout(() => {
-            managed.reconnectTimer = null;
-            if (!this.sessions.has(sessionId)) return;
-            managed.ssh.resetClient();
-            sendState("reconnecting");
-            managed.ssh.connect();
-          }, 3000);
-        }
-      },
-      onHostKeyPrompt: (fingerprint) => {
-        const managed = this.sessions.get(sessionId);
-        if (managed) managed.pendingFingerprint = fingerprint;
-        this.emit(IPC_EVENTS.hostKey.prompt, {
-          sessionId,
-          host: payload.host,
-          port: payload.port,
-          fingerprint,
-        } satisfies HostKeyPrompt);
-      },
+      onMetrics,
+      onStatus,
+      onHostKeyPrompt,
+      onFallback: startFallback,
     });
 
-    this.sessions.set(sessionId, {
-      id: sessionId,
-      label,
-      host: payload.host,
-      port: payload.port,
-      username: payload.username,
-      auth,
-      ssh,
-      reconnectTimer: null,
-      pendingFingerprint: null,
-      allowReconnect: true,
-    });
+    managed.ssh = agent;
+    this.sessions.set(sessionId, managed);
 
     sendState("connecting");
-    ssh.connect();
+    agent.connect();
 
     if (payload.save) {
       upsertServer(
@@ -182,6 +223,7 @@ export class SessionManager {
       status: "disconnected",
       label: managed.label,
       host: managed.host,
+      mode: managed.mode,
     } satisfies ConnectionStateEvent);
   }
 

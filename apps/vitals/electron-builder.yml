@@ -17,6 +17,8 @@ files:
 extraResources:
   - from: resources/app-icons
     to: app-icons
+  - from: resources/agent
+    to: agent
 
 mac:
   icon: resources/icon.icon

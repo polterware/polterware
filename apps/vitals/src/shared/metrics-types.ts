@@ -27,6 +27,19 @@ export interface NetworkInterface {
   txBytesPerSec: number
 }
 
+export interface DiskIoStats {
+  device: string
+  readBytesPerSec: number
+  writeBytesPerSec: number
+  utilPercent: number
+}
+
+export interface PressureStats {
+  cpu: number
+  memory: number
+  io: number
+}
+
 export interface ProcessRow {
   pid: number
   user: string
@@ -58,8 +71,15 @@ export interface MetricsSnapshot {
   uptimeSeconds: number
   memory: MemoryStats
   disks: DiskPartition[]
+  /** All retained interfaces (agent) or non-loopback (script fallback). */
   network: NetworkInterface[]
   processes: ProcessRow[]
   thermals: ThermalZone[]
   gpus: GpuStats[]
+  /** Present when collected by the Go agent. */
+  diskIo?: DiskIoStats[]
+  /** Present when /proc/pressure is available on the agent path. */
+  pressure?: PressureStats
+  /** Agent wall-clock sample time (ms since Unix epoch). */
+  serverTimestamp?: number
 }
