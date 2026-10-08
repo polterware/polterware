@@ -251,19 +251,26 @@ export function App() {
                 </div>
               )}
             </Show>
-            <For each={tabs().filter((tab) => terminalSessions().includes(tab.sessionId))}>
-              {(tab) => (
-                <div
-                  class="vitals-terminal-pane"
-                  hidden={!(view() === "terminal" && tab.sessionId === activeId())}
-                >
-                  <TerminalView
-                    sessionId={tab.sessionId}
-                    connected={tab.status === "connected"}
-                    visible={view() === "terminal" && tab.sessionId === activeId()}
-                  />
-                </div>
-              )}
+            {/* Keyed by sessionId string: tab objects are replaced on every metrics event,
+                and a For over objects would remount the terminal (closing its shell) each time. */}
+            <For each={terminalSessions()}>
+              {(sessionId) => {
+                const tab = () => tabs().find((candidate) => candidate.sessionId === sessionId);
+                return (
+                  <Show when={tab()}>
+                    <div
+                      class="vitals-terminal-pane"
+                      hidden={!(view() === "terminal" && sessionId === activeId())}
+                    >
+                      <TerminalView
+                        sessionId={sessionId}
+                        connected={tab()?.status === "connected"}
+                        visible={view() === "terminal" && sessionId === activeId()}
+                      />
+                    </div>
+                  </Show>
+                );
+              }}
             </For>
             <Show
               when={active() && view() === "metrics"}
