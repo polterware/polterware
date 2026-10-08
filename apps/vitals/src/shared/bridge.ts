@@ -77,6 +77,11 @@ export interface ShellResizePayload {
   rows: number;
 }
 
+export interface ShellAckPayload {
+  sessionId: string;
+  bytes: number;
+}
+
 export interface ShellDataEvent {
   sessionId: string;
   data: string;
@@ -91,6 +96,7 @@ export interface VitalsBridge {
   shellWrite(payload: ShellWritePayload): Promise<void>;
   shellResize(payload: ShellResizePayload): Promise<void>;
   shellClose(sessionId: string): Promise<void>;
+  shellAck(payload: ShellAckPayload): Promise<void>;
   onShellData(cb: (ev: ShellDataEvent) => void): () => void;
   onShellExit(cb: (ev: ShellExitEvent) => void): () => void;
   connect(payload: ConnectPayload): Promise<{ sessionId: string }>;

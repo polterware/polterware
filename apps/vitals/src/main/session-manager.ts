@@ -16,6 +16,14 @@ import {
   listServersPublic,
   upsertServer,
 } from "./storage.js";
+import {
+  ShellInputError,
+  ShellSession,
+  assertAckBytes,
+  assertDimensions,
+  assertSessionId,
+  assertShellData,
+} from "./shell-session.js";
 import { SshSession, type SessionAuth } from "./ssh-session.js";
 
 interface ManagedSession {
@@ -26,6 +34,7 @@ interface ManagedSession {
   username: string;
   auth: SessionAuth;
   ssh: SshSession;
+  shell: ShellSession | null;
   reconnectTimer: ReturnType<typeof setTimeout> | null;
   pendingFingerprint: string | null;
   allowReconnect: boolean;
@@ -141,6 +150,7 @@ export class SessionManager {
       username: payload.username,
       auth,
       ssh,
+      shell: null,
       reconnectTimer: null,
       pendingFingerprint: null,
       allowReconnect: true,
@@ -175,6 +185,7 @@ export class SessionManager {
     if (!managed) return;
     managed.allowReconnect = false;
     if (managed.reconnectTimer) clearTimeout(managed.reconnectTimer);
+    managed.shell?.dispose();
     managed.ssh.dispose();
     this.sessions.delete(sessionId);
     this.emit(IPC_EVENTS.connection.state, {
@@ -199,26 +210,58 @@ export class SessionManager {
   }
 
   async shellOpen(sessionId: string, cols: number, rows: number): Promise<void> {
-    const managed = this.sessions.get(sessionId);
-    if (!managed) throw new Error("Session not found");
-    await managed.ssh.openShell(
-      cols,
-      rows,
-      (data) => this.emit(IPC_EVENTS.shell.data, { sessionId, data } satisfies ShellDataEvent),
-      () => this.emit(IPC_EVENTS.shell.exit, { sessionId } satisfies ShellExitEvent),
-    );
+    const id = assertSessionId(sessionId);
+    const dims = assertDimensions(cols, rows);
+    const shell = this.ensureShell(this.requireSession(id));
+    await shell.open(dims.cols, dims.rows);
   }
 
   shellWrite(sessionId: string, data: string): void {
-    this.sessions.get(sessionId)?.ssh.writeShell(data);
+    const id = assertSessionId(sessionId);
+    const text = assertShellData(data);
+    this.requireSession(id).shell?.write(text);
   }
 
   shellResize(sessionId: string, cols: number, rows: number): void {
-    this.sessions.get(sessionId)?.ssh.resizeShell(cols, rows);
+    const id = assertSessionId(sessionId);
+    const dims = assertDimensions(cols, rows);
+    this.requireSession(id).shell?.resize(dims.cols, dims.rows);
+  }
+
+  shellAck(sessionId: string, bytes: number): void {
+    const id = assertSessionId(sessionId);
+    const count = assertAckBytes(bytes);
+    this.requireSession(id).shell?.ack(count);
   }
 
   shellClose(sessionId: string): void {
-    this.sessions.get(sessionId)?.ssh.closeShell();
+    const id = assertSessionId(sessionId);
+    this.requireSession(id).shell?.close();
+  }
+
+  private requireSession(sessionId: string): ManagedSession {
+    const managed = this.sessions.get(sessionId);
+    if (!managed) throw new ShellInputError("Session not found");
+    return managed;
+  }
+
+  private ensureShell(managed: ManagedSession): ShellSession {
+    if (!managed.shell) {
+      const sessionId = managed.id;
+      managed.shell = new ShellSession({
+        host: managed.host,
+        port: managed.port,
+        username: managed.username,
+        auth: managed.auth,
+        onData: (data) => {
+          this.emit(IPC_EVENTS.shell.data, { sessionId, data } satisfies ShellDataEvent);
+        },
+        onExit: () => {
+          this.emit(IPC_EVENTS.shell.exit, { sessionId } satisfies ShellExitEvent);
+        },
+      });
+    }
+    return managed.shell;
   }
 
   async killProcess(sessionId: string, pid: number, signal: "TERM" | "KILL"): Promise<void> {

@@ -1,13 +1,8 @@
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import type {
-  ConnectPayload,
-  KillProcessPayload,
-  ShellOpenPayload,
-  ShellResizePayload,
-  ShellWritePayload,
-} from "../shared/bridge.js";
+import type { ConnectPayload, KillProcessPayload } from "../shared/bridge.js";
 import { IPC_CHANNELS } from "../shared/channels.js";
 import type { SessionManager } from "./session-manager.js";
+import { assertSessionId, parseShellAck, parseShellOpen, parseShellResize, parseShellWrite } from "./shell-session.js";
 import { readTheme, writeTheme } from "./theme.js";
 
 type IpcHandle = (event: IpcMainInvokeEvent, payload?: unknown) => unknown | Promise<unknown>;
@@ -25,6 +20,7 @@ export type VitalsSessionService = Pick<
   | "shellWrite"
   | "shellResize"
   | "shellClose"
+  | "shellAck"
 >;
 
 export function createVitalsIpcHandlers(deps: {
@@ -52,19 +48,23 @@ export function createVitalsIpcHandlers(deps: {
       return sessions.killProcess(p.sessionId, p.pid, p.signal ?? "TERM");
     },
     [c.shell.open]: (_e, payload) => {
-      const p = payload as ShellOpenPayload;
+      const p = parseShellOpen(payload);
       return sessions.shellOpen(p.sessionId, p.cols, p.rows);
     },
     [c.shell.write]: (_e, payload) => {
-      const p = payload as ShellWritePayload;
+      const p = parseShellWrite(payload);
       sessions.shellWrite(p.sessionId, p.data);
     },
     [c.shell.resize]: (_e, payload) => {
-      const p = payload as ShellResizePayload;
+      const p = parseShellResize(payload);
       sessions.shellResize(p.sessionId, p.cols, p.rows);
     },
     [c.shell.close]: (_e, sessionId) => {
-      sessions.shellClose(sessionId as string);
+      sessions.shellClose(assertSessionId(sessionId));
+    },
+    [c.shell.ack]: (_e, payload) => {
+      const p = parseShellAck(payload);
+      sessions.shellAck(p.sessionId, p.bytes);
     },
     [c.theme.get]: () => readTheme(),
     [c.theme.set]: (_e, theme) => {
