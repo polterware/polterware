@@ -1,5 +1,11 @@
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import type { ConnectPayload, KillProcessPayload } from "../shared/bridge.js";
+import type {
+  ConnectPayload,
+  KillProcessPayload,
+  ShellOpenPayload,
+  ShellResizePayload,
+  ShellWritePayload,
+} from "../shared/bridge.js";
 import { IPC_CHANNELS } from "../shared/channels.js";
 import type { SessionManager } from "./session-manager.js";
 import { readTheme, writeTheme } from "./theme.js";
@@ -15,6 +21,10 @@ export type VitalsSessionService = Pick<
   | "acceptHostKey"
   | "rejectHostKey"
   | "killProcess"
+  | "shellOpen"
+  | "shellWrite"
+  | "shellResize"
+  | "shellClose"
 >;
 
 export function createVitalsIpcHandlers(deps: {
@@ -40,6 +50,21 @@ export function createVitalsIpcHandlers(deps: {
     [c.session.killProcess]: (_e, payload) => {
       const p = payload as KillProcessPayload;
       return sessions.killProcess(p.sessionId, p.pid, p.signal ?? "TERM");
+    },
+    [c.shell.open]: (_e, payload) => {
+      const p = payload as ShellOpenPayload;
+      return sessions.shellOpen(p.sessionId, p.cols, p.rows);
+    },
+    [c.shell.write]: (_e, payload) => {
+      const p = payload as ShellWritePayload;
+      sessions.shellWrite(p.sessionId, p.data);
+    },
+    [c.shell.resize]: (_e, payload) => {
+      const p = payload as ShellResizePayload;
+      sessions.shellResize(p.sessionId, p.cols, p.rows);
+    },
+    [c.shell.close]: (_e, sessionId) => {
+      sessions.shellClose(sessionId as string);
     },
     [c.theme.get]: () => readTheme(),
     [c.theme.set]: (_e, theme) => {

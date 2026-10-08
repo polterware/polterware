@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { BrowserWindow } from "electron";
-import type { ConnectPayload, ConnectionStateEvent, HostKeyPrompt, MetricsEvent } from "../shared/bridge.js";
+import type {
+  ConnectPayload,
+  ConnectionStateEvent,
+  HostKeyPrompt,
+  MetricsEvent,
+  ShellDataEvent,
+  ShellExitEvent,
+} from "../shared/bridge.js";
 import { IPC_EVENTS } from "../shared/channels.js";
 import {
   deleteServer,
@@ -189,6 +196,29 @@ export class SessionManager {
 
   rejectHostKey(sessionId: string): void {
     this.disconnect(sessionId);
+  }
+
+  async shellOpen(sessionId: string, cols: number, rows: number): Promise<void> {
+    const managed = this.sessions.get(sessionId);
+    if (!managed) throw new Error("Session not found");
+    await managed.ssh.openShell(
+      cols,
+      rows,
+      (data) => this.emit(IPC_EVENTS.shell.data, { sessionId, data } satisfies ShellDataEvent),
+      () => this.emit(IPC_EVENTS.shell.exit, { sessionId } satisfies ShellExitEvent),
+    );
+  }
+
+  shellWrite(sessionId: string, data: string): void {
+    this.sessions.get(sessionId)?.ssh.writeShell(data);
+  }
+
+  shellResize(sessionId: string, cols: number, rows: number): void {
+    this.sessions.get(sessionId)?.ssh.resizeShell(cols, rows);
+  }
+
+  shellClose(sessionId: string): void {
+    this.sessions.get(sessionId)?.ssh.closeShell();
   }
 
   async killProcess(sessionId: string, pid: number, signal: "TERM" | "KILL"): Promise<void> {

@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@polterware/frontend-design-system": "workspace:*",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
     "solid-js": "^1.9.15",
     "ssh2": "^1.16.0",
     "uplot": "^1.6.31"

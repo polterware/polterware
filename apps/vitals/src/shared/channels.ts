@@ -1,5 +1,11 @@
-// Frozen vitals-v1 IPC allowlist.
+// Vitals IPC allowlist.
 export const IPC_CHANNELS = {
+  shell: {
+    open: "vitals:shell-open",
+    write: "vitals:shell-write",
+    resize: "vitals:shell-resize",
+    close: "vitals:shell-close",
+  },
   session: {
     connect: "vitals:connect",
     disconnect: "vitals:disconnect",
@@ -16,6 +22,10 @@ export const IPC_CHANNELS = {
 } as const;
 
 export const IPC_EVENTS = {
+  shell: {
+    data: "vitals:shell-data",
+    exit: "vitals:shell-exit",
+  },
   connection: {
     state: "vitals:connection-state",
   },

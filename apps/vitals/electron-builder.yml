@@ -1,0 +1,30 @@
+appId: com.polterware.vitals
+productName: Vitals
+electronVersion: 44.4.5
+artifactName: Vitals-${version}-${arch}.${ext}
+publish: null
+asar: true
+
+directories:
+  buildResources: resources
+  output: release/${version}
+
+files:
+  - out/**/*
+  - package.json
+  - "!**/*.map"
+
+extraResources:
+  - from: resources/app-icons
+    to: app-icons
+
+mac:
+  icon: resources/icon.icon
+  minimumSystemVersion: "15.0"
+  identity: null
+  hardenedRuntime: false
+  notarize: false
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip

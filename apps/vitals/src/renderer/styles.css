@@ -178,3 +178,18 @@ body,
   justify-content: flex-end;
   gap: 8px;
 }
+
+.vitals-view-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.vitals-terminal-pane {
+  height: calc(100% - 48px);
+  min-height: 240px;
+}
+
+.vitals-terminal-pane[hidden] {
+  display: none;
+}

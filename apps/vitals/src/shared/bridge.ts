@@ -60,7 +60,39 @@ export interface KillProcessPayload {
   signal?: "TERM" | "KILL";
 }
 
+export interface ShellOpenPayload {
+  sessionId: string;
+  cols: number;
+  rows: number;
+}
+
+export interface ShellWritePayload {
+  sessionId: string;
+  data: string;
+}
+
+export interface ShellResizePayload {
+  sessionId: string;
+  cols: number;
+  rows: number;
+}
+
+export interface ShellDataEvent {
+  sessionId: string;
+  data: string;
+}
+
+export interface ShellExitEvent {
+  sessionId: string;
+}
+
 export interface VitalsBridge {
+  shellOpen(payload: ShellOpenPayload): Promise<void>;
+  shellWrite(payload: ShellWritePayload): Promise<void>;
+  shellResize(payload: ShellResizePayload): Promise<void>;
+  shellClose(sessionId: string): Promise<void>;
+  onShellData(cb: (ev: ShellDataEvent) => void): () => void;
+  onShellExit(cb: (ev: ShellExitEvent) => void): () => void;
   connect(payload: ConnectPayload): Promise<{ sessionId: string }>;
   disconnect(sessionId: string): Promise<void>;
   listServers(): Promise<SavedServerPublic[]>;

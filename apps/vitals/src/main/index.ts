@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { join } from "node:path";
+import { app, BrowserWindow, ipcMain, nativeImage } from "electron";
 import { electronApp, optimizer } from "@electron-toolkit/utils";
 import { createWindow } from "./window.js";
 import { SessionManager } from "./session-manager.js";
@@ -6,8 +7,16 @@ import { registerVitalsIpcHandlers } from "./ipc.js";
 
 const sessionManager = new SessionManager();
 
+// Packaged builds take the icon from the bundle; the dev Electron binary needs it set explicitly.
+function applyDevDockIcon(): void {
+  if (app.isPackaged) return;
+  const icon = nativeImage.createFromPath(join(app.getAppPath(), "resources/app-icons/dock.png"));
+  if (!icon.isEmpty()) app.dock?.setIcon(icon);
+}
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId("com.polterware.vitals");
+  applyDevDockIcon();
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);
   });

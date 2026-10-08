@@ -6,6 +6,8 @@ import type {
   HostKeyPrompt,
   KillProcessPayload,
   MetricsEvent,
+  ShellDataEvent,
+  ShellExitEvent,
   VitalsBridge,
 } from "../shared/bridge.js";
 
@@ -26,6 +28,12 @@ const api: VitalsBridge = {
   acceptHostKey: (sessionId: string) => ipcRenderer.invoke(c.session.hostKeyAccept, sessionId),
   rejectHostKey: (sessionId: string) => ipcRenderer.invoke(c.session.hostKeyReject, sessionId),
   killProcess: (payload: KillProcessPayload) => ipcRenderer.invoke(c.session.killProcess, payload),
+  shellOpen: (payload) => ipcRenderer.invoke(c.shell.open, payload),
+  shellWrite: (payload) => ipcRenderer.invoke(c.shell.write, payload),
+  shellResize: (payload) => ipcRenderer.invoke(c.shell.resize, payload),
+  shellClose: (sessionId) => ipcRenderer.invoke(c.shell.close, sessionId),
+  onShellData: (cb) => subscribe<ShellDataEvent>(e.shell.data, cb),
+  onShellExit: (cb) => subscribe<ShellExitEvent>(e.shell.exit, cb),
   getTheme: () => ipcRenderer.invoke(c.theme.get),
   setTheme: (theme) => ipcRenderer.invoke(c.theme.set, theme),
   onConnectionState: (cb) => subscribe<ConnectionStateEvent>(e.connection.state, cb),
