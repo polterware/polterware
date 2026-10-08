@@ -33,12 +33,16 @@ export type ConnectionStatus =
   | "disconnected"
   | "error";
 
+export type ConnectionMetricsMode = "agent" | "fallback";
+
 export interface ConnectionStateEvent {
   sessionId: string;
   status: ConnectionStatus;
   message?: string;
   label: string;
   host: string;
+  /** How metrics are collected once a live session exists. */
+  mode?: ConnectionMetricsMode;
 }
 
 export interface HostKeyPrompt {
