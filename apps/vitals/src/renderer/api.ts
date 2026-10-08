@@ -135,11 +135,17 @@ export interface ShellExitEvent {
   sessionId: string;
 }
 
+export interface ShellAckPayload {
+  sessionId: string;
+  bytes: number;
+}
+
 export interface VitalsApi {
   shellOpen(payload: { sessionId: string; cols: number; rows: number }): Promise<void>;
   shellWrite(payload: { sessionId: string; data: string }): Promise<void>;
   shellResize(payload: { sessionId: string; cols: number; rows: number }): Promise<void>;
   shellClose(sessionId: string): Promise<void>;
+  shellAck(payload: ShellAckPayload): Promise<void>;
   onShellData(cb: (ev: ShellDataEvent) => void): () => void;
   onShellExit(cb: (ev: ShellExitEvent) => void): () => void;
   connect(payload: ConnectPayload): Promise<{ sessionId: string }>;

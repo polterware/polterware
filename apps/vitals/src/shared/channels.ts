@@ -5,6 +5,7 @@ export const IPC_CHANNELS = {
     write: "vitals:shell-write",
     resize: "vitals:shell-resize",
     close: "vitals:shell-close",
+    ack: "vitals:shell-ack",
   },
   session: {
     connect: "vitals:connect",

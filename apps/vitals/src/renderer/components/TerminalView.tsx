@@ -1,7 +1,30 @@
 import { FitAddon } from "@xterm/addon-fit";
-import { Terminal } from "@xterm/xterm";
+import { Terminal, type ITheme } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { createEffect, onCleanup, onMount } from "solid-js";
+
+const encoder = new TextEncoder();
+
+function tokenColor(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function terminalTheme(): ITheme {
+  const background = tokenColor("--color-app-background");
+  const foreground = tokenColor("--color-text-primary");
+  return {
+    background,
+    foreground,
+    cursor: foreground,
+    cursorAccent: background,
+    selectionBackground: tokenColor("--color-surface-selected"),
+    selectionForeground: foreground,
+  };
+}
+
+function dimensionsOk(cols: number, rows: number): boolean {
+  return Number.isInteger(cols) && Number.isInteger(rows) && cols >= 1 && cols <= 500 && rows >= 1 && rows <= 500;
+}
 
 export function TerminalView(props: { sessionId: string; connected: boolean; visible: boolean }) {
   let host: HTMLDivElement | undefined;
@@ -17,13 +40,14 @@ export function TerminalView(props: { sessionId: string; connected: boolean; vis
     } catch {
       return;
     }
-    if (opened) {
-      void window.vitals.shellResize({ sessionId: props.sessionId, cols: terminal.cols, rows: terminal.rows });
-    }
+    if (!opened || !dimensionsOk(terminal.cols, terminal.rows)) return;
+    void window.vitals
+      .shellResize({ sessionId: props.sessionId, cols: terminal.cols, rows: terminal.rows })
+      .catch(() => {});
   };
 
   const openShell = () => {
-    if (opened || !terminal) return;
+    if (opened || !terminal || !dimensionsOk(terminal.cols, terminal.rows)) return;
     opened = true;
     void window.vitals
       .shellOpen({ sessionId: props.sessionId, cols: terminal.cols, rows: terminal.rows })
@@ -40,7 +64,8 @@ export function TerminalView(props: { sessionId: string; connected: boolean; vis
       cursorBlink: true,
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       fontSize: 13,
-      theme: { background: "#111111", foreground: "#e8e8e8" },
+      allowTransparency: false,
+      theme: terminalTheme(),
     });
     fit = new FitAddon();
     terminal.loadAddon(fit);
@@ -51,7 +76,10 @@ export function TerminalView(props: { sessionId: string; connected: boolean; vis
     });
 
     const offData = window.vitals.onShellData((ev) => {
-      if (ev.sessionId === sessionId) terminal?.write(ev.data);
+      if (ev.sessionId !== sessionId || !terminal) return;
+      opened = true;
+      terminal.write(ev.data);
+      void window.vitals.shellAck({ sessionId, bytes: encoder.encode(ev.data).byteLength }).catch(() => {});
     });
     const offExit = window.vitals.onShellExit((ev) => {
       if (ev.sessionId !== sessionId) return;
@@ -80,10 +108,11 @@ export function TerminalView(props: { sessionId: string; connected: boolean; vis
     });
   });
 
-  // Reconnect drops the SSH channel: allow the next visible/connected pass to reopen it.
-  createEffect(() => {
-    if (!props.connected) opened = false;
-  });
-
-  return <div ref={host} class="vitals-terminal" style={{ height: "100%", width: "100%" }} />;
+  return (
+    <div
+      ref={host}
+      class="vitals-terminal"
+      style={{ height: "100%", width: "100%", "background-color": "var(--color-app-background)" }}
+    />
+  );
 }

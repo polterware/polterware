@@ -32,6 +32,7 @@ const api: VitalsBridge = {
   shellWrite: (payload) => ipcRenderer.invoke(c.shell.write, payload),
   shellResize: (payload) => ipcRenderer.invoke(c.shell.resize, payload),
   shellClose: (sessionId) => ipcRenderer.invoke(c.shell.close, sessionId),
+  shellAck: (payload) => ipcRenderer.invoke(c.shell.ack, payload),
   onShellData: (cb) => subscribe<ShellDataEvent>(e.shell.data, cb),
   onShellExit: (cb) => subscribe<ShellExitEvent>(e.shell.exit, cb),
   getTheme: () => ipcRenderer.invoke(c.theme.get),

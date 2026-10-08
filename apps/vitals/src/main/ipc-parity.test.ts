@@ -29,6 +29,7 @@ describe("IPC channel parity", () => {
       shellWrite: vi.fn(),
       shellResize: vi.fn(),
       shellClose: vi.fn(),
+      shellAck: vi.fn(),
     };
     const handlers = createVitalsIpcHandlers({ sessions }) as Record<string, unknown>;
     const missing = channels.filter((channel) => typeof handlers[channel] !== "function");
@@ -48,6 +49,7 @@ describe("IPC channel parity", () => {
       shellWrite: vi.fn(),
       shellResize: vi.fn(),
       shellClose: vi.fn(),
+      shellAck: vi.fn(),
     };
     const handlers = Object.keys(createVitalsIpcHandlers({ sessions }));
     expect(handlers.filter((channel) => !channels.includes(channel))).toEqual([]);
@@ -67,6 +69,7 @@ describe("IPC channel parity", () => {
       shellWrite: vi.fn(),
       shellResize: vi.fn(),
       shellClose: vi.fn(),
+      shellAck: vi.fn(),
     };
     registerVitalsIpcHandlers({ sessions }, { handle });
     const registered = handle.mock.calls.map(([channel]) => channel as string);
