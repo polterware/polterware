@@ -16,6 +16,7 @@ import {
   type ConnectionStateEvent,
   type HostKeyPrompt,
   type MetricsSnapshot,
+  type NetworkInterface,
   type SavedServerPublic,
   type SessionHistory,
 } from "./api";
@@ -30,14 +31,30 @@ interface TabState {
   host: string;
   status: ConnectionStateEvent["status"];
   message?: string;
+  mode?: ConnectionStateEvent["mode"];
   snapshot: MetricsSnapshot | null;
   history: SessionHistory;
 }
 
-const emptyHistory = (): SessionHistory => ({ rx: [], tx: [], cpu: [] });
+const emptyHistory = (): SessionHistory => ({ cpu: [], interfaces: {} });
 
 function appendSample(values: number[], next: number): number[] {
   return [...values, next].slice(-120);
+}
+
+function appendInterfaceHistory(
+  previous: SessionHistory["interfaces"],
+  network: NetworkInterface[],
+): SessionHistory["interfaces"] {
+  const next: SessionHistory["interfaces"] = {};
+  for (const iface of network) {
+    const prior = previous[iface.name];
+    next[iface.name] = {
+      rx: appendSample(prior?.rx ?? [], iface.rxBytesPerSec),
+      tx: appendSample(prior?.tx ?? [], iface.txBytesPerSec),
+    };
+  }
+  return next;
 }
 
 export function App() {
@@ -86,6 +103,7 @@ export function App() {
               host: event.host,
               status: event.status,
               message: event.message,
+              mode: event.mode,
               snapshot: null,
               history: emptyHistory(),
             },
@@ -94,7 +112,14 @@ export function App() {
         const next = current.slice();
         const tab = current[index];
         if (!tab) return current;
-        next[index] = { ...tab, status: event.status, message: event.message, label: event.label, host: event.host };
+        next[index] = {
+          ...tab,
+          status: event.status,
+          message: event.message,
+          label: event.label,
+          host: event.host,
+          mode: event.mode ?? tab.mode,
+        };
         return next;
       });
       setActiveId((id) => id ?? event.sessionId);
@@ -104,15 +129,12 @@ export function App() {
       setTabs((current) =>
         current.map((tab) => {
           if (tab.sessionId !== event.sessionId) return tab;
-          const rx = event.snapshot.network[0]?.rxBytesPerSec ?? 0;
-          const tx = event.snapshot.network[0]?.txBytesPerSec ?? 0;
           return {
             ...tab,
             snapshot: event.snapshot,
             history: {
-              rx: appendSample(tab.history.rx, rx),
-              tx: appendSample(tab.history.tx, tx),
               cpu: appendSample(tab.history.cpu, event.snapshot.cpuTotalPercent),
+              interfaces: appendInterfaceHistory(tab.history.interfaces, event.snapshot.network ?? []),
             },
           };
         }),
@@ -251,6 +273,7 @@ export function App() {
                 snapshot={active()!.snapshot}
                 history={active()!.history}
                 status={active()!.status}
+                mode={active()!.mode}
                 message={active()!.message}
                 onKill={(pid) => setKillTarget({ sessionId: active()!.sessionId, pid })}
               />

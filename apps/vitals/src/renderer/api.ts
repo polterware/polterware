@@ -33,12 +33,16 @@ export type ConnectionStatus =
   | "disconnected"
   | "error";
 
+export type ConnectionMetricsMode = "agent" | "fallback";
+
 export interface ConnectionStateEvent {
   sessionId: string;
   status: ConnectionStatus;
   message?: string;
   label: string;
   host: string;
+  /** How metrics are collected once a live session exists. */
+  mode?: ConnectionMetricsMode;
 }
 
 export interface HostKeyPrompt {
@@ -77,6 +81,19 @@ export interface NetworkInterface {
   txBytesPerSec: number;
 }
 
+export interface DiskIoStats {
+  device: string;
+  readBytesPerSec: number;
+  writeBytesPerSec: number;
+  utilPercent: number;
+}
+
+export interface PressureStats {
+  cpu: number;
+  memory: number;
+  io: number;
+}
+
 export interface ProcessRow {
   pid: number;
   user: string;
@@ -112,6 +129,12 @@ export interface MetricsSnapshot {
   processes: ProcessRow[];
   thermals: ThermalZone[];
   gpus: GpuStats[];
+  /** Present when collected by the Go agent. */
+  diskIo?: DiskIoStats[];
+  /** Present when /proc/pressure is available on the agent path. */
+  pressure?: PressureStats;
+  /** Agent wall-clock sample time (ms since Unix epoch). */
+  serverTimestamp?: number;
 }
 
 export interface MetricsEvent {
@@ -162,10 +185,15 @@ export interface VitalsApi {
   onHostKeyPrompt(cb: (ev: HostKeyPrompt) => void): () => void;
 }
 
-export interface SessionHistory {
+export interface InterfaceHistory {
   rx: number[];
   tx: number[];
+}
+
+export interface SessionHistory {
   cpu: number[];
+  /** Receive/transmit samples keyed by interface name. */
+  interfaces: Record<string, InterfaceHistory>;
 }
 
 export function connectionPresentation(status: ConnectionStatus): { label: string; tone: StatusTone } {

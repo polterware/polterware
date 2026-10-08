@@ -1,3 +1,7 @@
+export function formatPercent(value: number, digits = 1): string {
+  return `${value.toFixed(digits)}%`;
+}
+
 export function formatBytesPerSec(bps: number): string {
   if (bps < 1024) return `${bps.toFixed(0)} B/s`;
   if (bps < 1024 * 1024) return `${(bps / 1024).toFixed(1)} KB/s`;
