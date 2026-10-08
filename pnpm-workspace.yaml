@@ -9,6 +9,7 @@ packages:
 allowBuilds:
   better-sqlite3: true
   cpu-features: true
+  ssh2: true
   electron: true
   electron-winstaller: true
   esbuild: true

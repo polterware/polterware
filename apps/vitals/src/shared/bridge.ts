@@ -1,0 +1,82 @@
+import type { MetricsSnapshot } from "./metrics-types.js";
+
+export type AuthMode = "password" | "privateKey";
+
+export interface SavedServerPublic {
+  id: string;
+  label: string;
+  host: string;
+  port: number;
+  username: string;
+  authMode: AuthMode;
+  privateKeyPath?: string;
+}
+
+export interface ConnectPayload {
+  serverId?: string;
+  label?: string;
+  host: string;
+  port: number;
+  username: string;
+  authMode: AuthMode;
+  password?: string;
+  privateKeyPath?: string;
+  privateKeyPassphrase?: string;
+  save?: boolean;
+}
+
+export type ConnectionStatus =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "reconnecting"
+  | "disconnected"
+  | "error";
+
+export interface ConnectionStateEvent {
+  sessionId: string;
+  status: ConnectionStatus;
+  message?: string;
+  label: string;
+  host: string;
+}
+
+export interface HostKeyPrompt {
+  sessionId: string;
+  host: string;
+  port: number;
+  fingerprint: string;
+}
+
+export interface MetricsEvent {
+  sessionId: string;
+  snapshot: MetricsSnapshot;
+  collectedAt: number;
+}
+
+export interface KillProcessPayload {
+  sessionId: string;
+  pid: number;
+  signal?: "TERM" | "KILL";
+}
+
+export interface VitalsBridge {
+  connect(payload: ConnectPayload): Promise<{ sessionId: string }>;
+  disconnect(sessionId: string): Promise<void>;
+  listServers(): Promise<SavedServerPublic[]>;
+  deleteServer(id: string): Promise<void>;
+  acceptHostKey(sessionId: string): Promise<void>;
+  rejectHostKey(sessionId: string): Promise<void>;
+  killProcess(payload: KillProcessPayload): Promise<void>;
+  getTheme(): Promise<"dark" | "light">;
+  setTheme(theme: "dark" | "light"): Promise<void>;
+  onConnectionState(cb: (ev: ConnectionStateEvent) => void): () => void;
+  onMetrics(cb: (ev: MetricsEvent) => void): () => void;
+  onHostKeyPrompt(cb: (ev: HostKeyPrompt) => void): () => void;
+}
+
+declare global {
+  interface Window {
+    vitals: VitalsBridge;
+  }
+}
