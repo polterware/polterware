@@ -1,4 +1,4 @@
-import { Client, type ConnectConfig } from "ssh2";
+import { Client, type ClientChannel, type ConnectConfig } from "ssh2";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { buildSnapshot, type DeltaState } from "../shared/parsers/build-snapshot.js";
@@ -29,6 +29,7 @@ function fingerprintSha256(key: Buffer): string {
 
 export class SshSession {
   private client = new Client();
+  private shell: ClientChannel | null = null;
   private interval: ReturnType<typeof setInterval> | null = null;
   private delta: DeltaState | null = null;
   private disposed = false;
@@ -49,6 +50,8 @@ export class SshSession {
       port: this.config.port,
       username: this.config.username,
       readyTimeout: 20000,
+      keepaliveInterval: 10000,
+      keepaliveCountMax: 3,
       hostVerifier: (key: Buffer) => {
         const fp = fingerprintSha256(key);
         const verdict = verifyFingerprint(this.config.host, this.config.port, fp);
@@ -73,12 +76,19 @@ export class SshSession {
       }
     }
 
-    this.client
+    // Handlers are bound to this client instance: events from a client that
+    // resetClient() already replaced must not drive the new connection.
+    const client = this.client;
+    const isCurrent = () => client === this.client;
+
+    client
       .on("ready", () => {
+        if (!isCurrent()) return;
         this.config.onStatus("connected");
         this.startPolling();
       })
       .on("error", (err) => {
+        if (!isCurrent()) return;
         if (err.message.includes("Host verification failed")) {
           this.config.onStatus("connecting", "Waiting for host key approval");
           return;
@@ -86,6 +96,7 @@ export class SshSession {
         this.config.onStatus("error", err.message);
       })
       .on("close", () => {
+        if (!isCurrent()) return;
         this.stopPolling();
         if (!this.disposed) {
           this.config.onStatus("disconnected");
@@ -164,16 +175,60 @@ export class SshSession {
     });
   }
 
+  openShell(
+    cols: number,
+    rows: number,
+    onData: (data: string) => void,
+    onClose: () => void,
+  ): Promise<void> {
+    this.closeShell();
+    return new Promise((resolve, reject) => {
+      this.client.shell({ term: "xterm-256color", cols, rows }, (err, stream) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        this.shell = stream;
+        stream.on("data", (d: Buffer) => onData(d.toString("utf8")));
+        stream.stderr.on("data", (d: Buffer) => onData(d.toString("utf8")));
+        stream.on("close", () => {
+          if (this.shell === stream) this.shell = null;
+          onClose();
+        });
+        resolve();
+      });
+    });
+  }
+
+  writeShell(data: string): void {
+    this.shell?.write(data);
+  }
+
+  resizeShell(cols: number, rows: number): void {
+    this.shell?.setWindow(rows, cols, 0, 0);
+  }
+
+  closeShell(): void {
+    const s = this.shell;
+    this.shell = null;
+    s?.close();
+  }
+
   dispose(): void {
     this.disposed = true;
     this.stopPolling();
+    this.closeShell();
     this.client.end();
   }
 
   resetClient(): void {
     this.stopPolling();
-    this.client.end();
+    this.shell = null;
+    const old = this.client;
     this.client = new Client();
+    old.removeAllListeners();
+    old.on("error", () => {});
+    old.end();
     this.delta = null;
   }
 }

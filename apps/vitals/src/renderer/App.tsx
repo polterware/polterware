@@ -22,6 +22,7 @@ import {
 import { ConnectionForm } from "./components/ConnectionForm";
 import { HostKeyModal } from "./components/HostKeyModal";
 import { MetricsDashboard } from "./components/MetricsDashboard";
+import { TerminalView } from "./components/TerminalView";
 
 interface TabState {
   sessionId: string;
@@ -45,6 +46,8 @@ export function App() {
   const [tabs, setTabs] = createSignal<TabState[]>([]);
   const [activeId, setActiveId] = createSignal<string | null>(null);
   const [hostKey, setHostKey] = createSignal<HostKeyPrompt | null>(null);
+  const [view, setView] = createSignal<"metrics" | "terminal">("metrics");
+  const [terminalSessions, setTerminalSessions] = createSignal<string[]>([]);
   const [killTarget, setKillTarget] = createSignal<{ sessionId: string; pid: number } | null>(null);
   const active = createMemo(() => tabs().find((tab) => tab.sessionId === activeId()) ?? null);
 
@@ -60,6 +63,7 @@ export function App() {
   onMount(() => {
     if (!window.vitals) return;
     void window.vitals.getTheme().then(setTheme);
+    refreshSaved();
     const seenStatus = new Map<string, ConnectionStateEvent["status"]>();
 
     const offState = window.vitals.onConnectionState((event) => {
@@ -202,19 +206,54 @@ export function App() {
             </div>
           </Surface>
           <main class="vitals-main">
+            <Show when={active()}>
+              {(session) => (
+                <div class="vitals-view-switch">
+                  <Button
+                    variant={view() === "metrics" ? "secondary" : "ghost"}
+                    onClick={() => setView("metrics")}
+                  >
+                    Metrics
+                  </Button>
+                  <Button
+                    variant={view() === "terminal" ? "secondary" : "ghost"}
+                    onClick={() => {
+                      setView("terminal");
+                      setTerminalSessions((ids) =>
+                        ids.includes(session().sessionId) ? ids : [...ids, session().sessionId],
+                      );
+                    }}
+                  >
+                    Terminal
+                  </Button>
+                </div>
+              )}
+            </Show>
+            <For each={tabs().filter((tab) => terminalSessions().includes(tab.sessionId))}>
+              {(tab) => (
+                <div
+                  class="vitals-terminal-pane"
+                  hidden={!(view() === "terminal" && tab.sessionId === activeId())}
+                >
+                  <TerminalView
+                    sessionId={tab.sessionId}
+                    connected={tab.status === "connected"}
+                    visible={view() === "terminal" && tab.sessionId === activeId()}
+                  />
+                </div>
+              )}
+            </For>
             <Show
-              when={active()}
+              when={active() && view() === "metrics"}
               fallback={<PageEmpty title="No host connected" description="Connect to a Linux host to see live metrics." />}
             >
-              {(session) => (
-                <MetricsDashboard
-                  snapshot={session().snapshot}
-                  history={session().history}
-                  status={session().status}
-                  message={session().message}
-                  onKill={(pid) => setKillTarget({ sessionId: session().sessionId, pid })}
-                />
-              )}
+              <MetricsDashboard
+                snapshot={active()!.snapshot}
+                history={active()!.history}
+                status={active()!.status}
+                message={active()!.message}
+                onKill={(pid) => setKillTarget({ sessionId: active()!.sessionId, pid })}
+              />
             </Show>
           </main>
         </div>

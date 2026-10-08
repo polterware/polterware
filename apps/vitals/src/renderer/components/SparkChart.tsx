@@ -70,7 +70,7 @@ export function SparkChart(props: { series: number[]; label: string; strokeToken
     const series = plot.series[1];
     if (series) {
       series.label = label;
-      series.stroke = stroke;
+      series.stroke = () => stroke; // uPlot normalizes stroke to a function
     }
     plot.setData(next);
   });
