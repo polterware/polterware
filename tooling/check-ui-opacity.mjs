@@ -8,6 +8,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE_ROOTS = [
   "apps/desktop/src",
   "apps/sparky-desktop/src",
+  "apps/vitals/src",
   "packages/configuration",
   "packages/features",
   "packages/frontend",
