@@ -180,7 +180,7 @@ export function SearchPage(props: { store?: SearchStore }) {
             <PageEmpty title="No results" description="Try another query or clear your filters." />
           </Show>
           <Show when={store.visibleHits().length}>
-            <DataTable.Root rows={store.visibleHits()} getRowId={row => row.memoryId ?? ""} activeRowId={store.activeId() ?? undefined} onActiveRowChange={id => store.setActiveId(id)} estimateRowHeight={56}>
+            <DataTable.Root rows={store.visibleHits()} getRowId={row => row.memoryId ?? ""} activeRowId={store.activeId() ?? undefined} onActiveRowChange={id => store.setActiveId(id)} estimateRowHeight={56} columnWidthsKey="search">
               <DataTable.Table aria-label="Search results">
                 <DataTable.Header>
                   <DataTable.ColumnHeader id="title" sortable={false}>Memory</DataTable.ColumnHeader>
@@ -190,7 +190,7 @@ export function SearchPage(props: { store?: SearchStore }) {
                 <DataTable.Body>{(row: SearchHitJSON) => (
                   <DataTable.Row row={row} rowId={row.memoryId ?? ""} aria-label={hitLabel(row)} onActivate={() => open(row.memoryId ?? null)}>
                     <DataTable.PrimaryCell leading={<SearchIcon size={16} />} title={row.title || "Untitled memory"} />
-                    <DataTable.Cell><HighlightedSnippet snippet={row.snippet} class="text-[13px] text-[var(--color-text-secondary)]" /></DataTable.Cell>
+                    <DataTable.Cell wrap><HighlightedSnippet snippet={row.snippet} class="text-[13px] text-[var(--color-text-secondary)]" /></DataTable.Cell>
                     <DataTable.Cell>{matchedInLabel(row.matchedIn)}</DataTable.Cell>
                   </DataTable.Row>
                 )}</DataTable.Body>

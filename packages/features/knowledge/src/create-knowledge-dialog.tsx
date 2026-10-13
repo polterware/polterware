@@ -92,11 +92,10 @@ export function CreateKnowledgeDialog(props: {
       open={props.open}
       title={copy().title}
       size="lg"
-      dividers={false}
       onClose={close}
       footer={
         <>
-          <Button size="sm" variant="ghost" class="mr-auto" onClick={close}>
+          <Button size="sm" variant="ghost" onClick={close}>
             Cancel
           </Button>
           <Button size="sm" variant="primary" disabled={!canSubmit()} onClick={submit}>

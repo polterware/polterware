@@ -243,7 +243,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
               </Show>
             }>{treeDef => <Dynamic component={treeDef().component} />}</Show>
             <div class="sparky-sidebar-footer">
-              <Button variant="ghost" class="min-w-0 flex-1 justify-start" onClick={() => setSettingsOpen(true)}><Settings size={15} />Settings</Button>
+              <Button variant="ghost" class="min-w-0 flex-1 justify-start !rounded-[var(--radius-item)]" onClick={() => setSettingsOpen(true)}><Settings size={15} />Settings</Button>
               <button type="button" ref={helpAnchor} class={titlebarIconClass} aria-label="Help" aria-expanded={helpMenuOpen()} aria-haspopup="dialog" onClick={() => setHelpMenuOpen(open => !open)}><HelpCircle size={14} /></button>
               <Popover open={helpMenuOpen()} onClose={() => setHelpMenuOpen(false)} title="Help" anchorRef={() => helpAnchor} placement="top-end" width={240}>
                 <MenuList>
@@ -295,7 +295,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
       </ShellRoot>
       <ToastRegion />
       <Commander open={palette() !== null} mode={palette() ?? "commands"} bridge={props.bridge} commands={commands()} commandSources={commandSources()} live={core.state() === "live"} onClose={() => setPalette(null)} onMemory={openMemory} />
-      <Dialog open={settingsOpen()} bodyClass="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4 text-[13px] text-[var(--color-text-secondary)]" title="Settings" onClose={() => setSettingsOpen(false)} size="xl">
+      <Dialog open={settingsOpen()} bodyClass="flex min-h-0 flex-1 flex-col overflow-hidden px-7 py-4 text-[13px] text-[var(--color-text-secondary)]" title="Settings" onClose={() => setSettingsOpen(false)} size="xl">
         <div class="sparky-settings-layout">
           <nav aria-label="Settings panels"><For each={settingsGroups()}>{group => <><p class="text-xs text-[var(--color-text-muted)]">{group}</p><MenuList>
             <For each={settingsPanels().filter(panel => panel.group === group)}>{panel => <MenuItem selected={panel.id === activeSettings()?.id} aria-current={panel.id === activeSettings()?.id ? "page" : undefined} onClick={() => setSettingsPanel(panel.id)}>{panel.label}</MenuItem>}</For>

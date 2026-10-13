@@ -1,0 +1,22 @@
+.vitals-web {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--color-app-background);
+}
+
+.vitals-web-app {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* No window controls in the browser, so the tab strip needs no traffic-light inset. */
+.vitals-web-app {
+  --titlebar-traffic-inset: 12px;
+}
+
+.vitals-web-app .vitals-titlebar-divider {
+  display: none;
+}

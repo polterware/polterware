@@ -43,6 +43,7 @@
 
 .pw-data-table-column-header,
 .pw-data-table-selection-header {
+  position: relative;
   padding: 4px 12px;
   color: var(--color-text-muted);
   font-size: 11px;
@@ -97,9 +98,10 @@
 }
 
 /*
- * Layers, bottom to top: each row's opaque surface (a cell `::before` at z-index -1), the
- * table's one hover highlight, the active row's travelling marker, then cell content
- * (positioned cells paint after both highlights). Rows carry no hover fill of their own.
+ * Layers, bottom to top: each row's surface (a cell `::before` at z-index -1, unfilled unless the
+ * row is selected, so rows sit flat on their container), the table's one hover highlight, the
+ * active row's travelling marker, then cell content (positioned cells paint after both
+ * highlights). Rows carry no hover fill of their own.
  */
 .pw-data-table-cell,
 .pw-data-table-selection-cell {
@@ -116,7 +118,7 @@
   z-index: -1;
   inset: 0;
   border-radius: inherit;
-  background: var(--color-surface);
+  background: transparent;
   content: "";
   pointer-events: none;
   transition: background-color var(--duration-fast) var(--ease-standard);
@@ -242,7 +244,6 @@
   overflow: hidden;
   color: var(--color-text-primary);
   font-weight: 500;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -417,4 +418,84 @@
 
 .pw-data-table-checkbox:disabled {
   cursor: not-allowed;
+}
+
+/*
+ * Resizable columns. Natural widths freeze after the first rows paint, so the layout turns fixed
+ * and live data never reflows a column; the last resizable column absorbs the remainder.
+ */
+.pw-data-table-scroll[data-column-layout="fixed"] .pw-data-table {
+  table-layout: fixed;
+}
+
+.pw-data-table-scroll[data-column-layout="fixed"] .pw-data-table-column-header,
+.pw-data-table-scroll[data-column-layout="fixed"] .pw-data-table-selection-header {
+  box-sizing: border-box;
+}
+
+.pw-data-table-scroll[data-column-layout="fixed"] .pw-data-table-sort-trigger,
+.pw-data-table-scroll[data-column-layout="fixed"] .pw-data-table-column-label {
+  max-width: 100%;
+}
+
+.pw-data-table-column-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* The divider on a header's right edge: an 8px target around a 1px line. */
+.pw-data-table-column-resizer {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.pw-data-table-column-resizer::before {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 3.5px;
+  width: 1px;
+  background: var(--color-border-strong);
+  content: "";
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.pw-data-table-column-resizer:hover::before,
+.pw-data-table-column-resizer:focus-visible::before,
+.pw-data-table-column-resizer:active::before {
+  background: var(--color-text-muted);
+}
+
+.pw-data-table-column-resizer:focus-visible {
+  outline: none;
+}
+
+:root[data-column-resizing],
+:root[data-column-resizing] * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+/* Truncating cell content: clipped, no ellipsis; `.pw-inline-fade` fades the cut edge. */
+.pw-data-table-cell-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.pw-data-table-cell-content {
+  display: contents;
+}
+
+.pw-data-table-overflow-tooltip {
+  max-width: min(480px, calc(100vw - 32px));
+  overflow-wrap: anywhere;
 }

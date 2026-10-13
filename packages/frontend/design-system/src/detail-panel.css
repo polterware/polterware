@@ -357,7 +357,7 @@
 
 /*
  * Nested DataTables sit on surface-raised section cells. Default table cells
- * paint surface (#0f0f0f), which reads as dark chips. Match overview lists:
+ * paint surface (#161616), which reads as dark chips. Match overview lists:
  * transparent base; the table's gliding hover highlight paints hover and focus.
  */
 .pw-detail-panel__section .pw-data-table-scroll {

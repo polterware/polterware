@@ -28,7 +28,7 @@ bash tooling/check-no-scenic.sh
 bash tooling/check-domain-imports.sh
 bash tooling/check-ts-boundaries.sh
 bash tooling/check-legacy.sh
-node -e "const p=require('./apps/desktop/package.json'); const d={...p.dependencies,...p.devDependencies}; if(d.react||d['react-dom']) process.exit(1)"
-test ! -d apps/desktop/src/renderer-solid
+node -e "const p=require('./apps/lore-desktop/package.json'); const d={...p.dependencies,...p.devDependencies}; if(d.react||d['react-dom']) process.exit(1)"
+test ! -d apps/lore-desktop/src/renderer-solid
 
 echo "verify-sparky OK"

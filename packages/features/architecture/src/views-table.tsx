@@ -36,6 +36,7 @@ export function ViewsTable(props: {
           <DataTable.Root
             rows={props.views}
             getRowId={(view) => view.id}
+            columnWidthsKey="atlas-views"
             activeRowId={props.activeRowId}
             activateFirstRow
             onActiveRowChange={(id) => {

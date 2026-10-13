@@ -111,14 +111,14 @@ export function ConfigureComponentDialog(props: {
       size="md"
       onClose={() => props.onClose()}
       footer={
-        <div class="flex justify-end gap-2">
+        <>
           <Button type="button" variant="ghost" size="sm" onClick={() => props.onClose()}>
             Cancel
           </Button>
           <Button type="button" variant="secondary" size="sm" onClick={() => submit()}>
             Place on canvas
           </Button>
-        </div>
+        </>
       }
     >
       <Show when={props.def}>

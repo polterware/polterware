@@ -157,8 +157,14 @@ export function SelectionCheck(props: { checked: boolean; size?: number; class?:
   let paths: SVGGeometryElement[] = [];
 
   const paint = () => {
-    const offset = String(1 - progress.get());
-    for (const path of paths) path.style.strokeDashoffset = offset;
+    const value = progress.get();
+    const offset = String(1 - value);
+    // Round caps still paint at a zero-length dash: hide the erased check, or it shows a dot.
+    const visibility = value <= 0.001 ? "hidden" : "";
+    for (const path of paths) {
+      path.style.strokeDashoffset = offset;
+      path.style.visibility = visibility;
+    }
   };
 
   onMount(() => {

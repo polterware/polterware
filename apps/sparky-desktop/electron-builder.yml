@@ -3,7 +3,7 @@ productName: Sparky
 electronVersion: 44.4.5
 artifactName: Sparky-${version}-${arch}.${ext}
 publish: null
-afterPack: scripts/sign-mac.cjs
+afterPack: ../../tooling/release/sign-mac.cjs
 asar: true
 asarUnpack:
   - out/renderer/**

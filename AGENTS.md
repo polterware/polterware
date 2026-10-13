@@ -21,11 +21,11 @@ Polterware's category is **Project Context & Change Intelligence for AI Coding**
 
 ## Current product boundary
 
-Polterware's first version is a local SQLite-backed Desktop with project surfaces Inbox, Work, Atlas, Truth, and Activity. Settings is fixed in the sidebar footer and holds Agents and Integrations. Inbox is the default route.
+Polterware is the umbrella for the local-first apps Lore (this product, `apps/lore-desktop`), Sparky, and Vitals. Lore's first version is a local SQLite-backed Desktop with project surfaces Inbox, Work, Atlas, Truth, and Activity. Settings is fixed in the sidebar footer and holds Agents and Integrations. Inbox is the default route.
 
-The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. One local core process (`polterware serve`) per database is the only process that opens SQLite (it is a detached daemon guarded by a lock, with a build handshake); Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes through `window.polterware` only.
+The Desktop supports multiple local projects and environments. It has no hosted or shared workspace model. One local core process (`polterware serve`) per database is the only process that opens SQLite (it is a detached daemon guarded by a lock, with a build handshake); Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes through `window.lore` only.
 
-The Desktop may execute on the local machine through the local core only. The renderer never spawns shells or touches Node APIs; it talks through `window.polterware`.
+The Desktop may execute on the local machine through the local core only. The renderer never spawns shells or touches Node APIs; it talks through `window.lore`.
 
 - Integrations: detect CLI binaries, start provider authentication commands in a core-owned PTY, optionally open provider documentation through Main `openExternal`, and probe connection status. Credentials stay in the OS/CLI credential store. **KEEP** as evidence/Connect path (not a provider console). Residual `terminals.*` IPC and `providers/terminal` exist only for that Connect auth PTY path.
 
@@ -38,11 +38,11 @@ The monorepo also hosts Sparky, a separate local-first app with its own core (`s
 ## Architecture boundaries
 
 - Go local authority: the single `polterware` binary (`backend/runtimes/cli`: TUI, commands, `serve`, `mcp`) and retained domains only.
-- Desktop: `apps/desktop` with thin Electron Main, typed preload bridge, and Solid renderer.
+- Desktop: Lore, `apps/lore-desktop`, with thin Electron Main, typed preload bridge, and Solid renderer.
 - Features: `packages/features/<feature>`.
 - Shared frontend: `packages/frontend`.
 - Contracts: `schemas` to generated Go code in `backend/platform/gen` and TypeScript in `packages/contracts`.
-- Renderer access: `window.polterware` only; no raw Electron or Node.js.
+- Renderer access: `window.lore` only; no raw Electron or Node.js.
 - The core uses a technical bearer session token without an account directory.
 - There is one clean SQLite baseline and no compatibility requirement for earlier databases.
 
