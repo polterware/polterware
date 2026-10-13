@@ -1,8 +1,8 @@
 import { render } from "solid-js/web";
 import "@fontsource-variable/inter/opsz.css";
-import { DesignSystemProvider } from "@polterware/frontend-design-system";
 import "./styles.css";
 import { App } from "./App";
+import { VitalsDesignSystemProvider } from "./design-system";
 import { connectDemoSession, installVitalsMock } from "../web/mock-bridge";
 
 const root = document.getElementById("root");
@@ -13,9 +13,9 @@ if (usingMock) installVitalsMock();
 
 render(
   () => (
-    <DesignSystemProvider storagePrefix="vitals">
+    <VitalsDesignSystemProvider storagePrefix="vitals">
       <App />
-    </DesignSystemProvider>
+    </VitalsDesignSystemProvider>
   ),
   root,
 );

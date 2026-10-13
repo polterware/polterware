@@ -1,7 +1,8 @@
-import { DesignSystemProvider, StatusChip } from "@polterware/frontend-design-system";
+import { StatusChip } from "@polterware/frontend-design-system";
 import "@fontsource-variable/inter/opsz.css";
 import { render } from "solid-js/web";
 import { App } from "../renderer/App";
+import { VitalsDesignSystemProvider } from "../renderer/design-system";
 import "../renderer/styles.css";
 import "./mock.css";
 import { connectDemoSession, installVitalsMock } from "./mock-bridge";
@@ -13,7 +14,7 @@ if (!root) throw new Error("root missing");
 
 render(
   () => (
-    <DesignSystemProvider storagePrefix="vitals-web">
+    <VitalsDesignSystemProvider storagePrefix="vitals-web">
       <div class="vitals-web">
         <div class="vitals-web-banner">
           <StatusChip tone="warn">Mock</StatusChip>
@@ -23,7 +24,7 @@ render(
           <App />
         </div>
       </div>
-    </DesignSystemProvider>
+    </VitalsDesignSystemProvider>
   ),
   root,
 );

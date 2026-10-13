@@ -138,13 +138,6 @@ html[data-shell-chrome="solid"] .vitals-topbar {
   color: var(--color-text-primary);
 }
 
-.vitals-layout {
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  flex: 1;
-  min-height: 0;
-}
-
 .vitals-sidebar-frame {
   height: 100%;
   min-height: 0;
@@ -171,6 +164,18 @@ html[data-shell-chrome="solid"] .vitals-topbar {
 .vitals-main-frame {
   height: 100%;
   min-height: 0;
+}
+
+/* With the sidebar collapsed, the tab strip becomes the window drag region and clears the traffic lights. */
+.pw-resizable-sidebar-layout:has(> .pw-resizable-sidebar[data-collapsed]) .vitals-tabs {
+  align-items: center;
+  min-height: var(--titlebar-height, 44px);
+  padding-left: 72px;
+  -webkit-app-region: drag;
+}
+
+.pw-resizable-sidebar-layout:has(> .pw-resizable-sidebar[data-collapsed]) .vitals-tab-row {
+  -webkit-app-region: no-drag;
 }
 
 main.vitals-main {

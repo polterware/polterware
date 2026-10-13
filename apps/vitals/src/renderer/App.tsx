@@ -5,12 +5,13 @@ import {
   PageEmpty,
   PageError,
   PageToolbar,
+  ResizableSidebar,
   Tabs,
   ToastRegion,
   X,
   pushToast,
 } from "@polterware/frontend-design-system";
-import { MainFrame, MainSurfaceFrame, SidebarFrame } from "@polterware/frontend-shell";
+import { MainFrame, MainSurfaceFrame } from "@polterware/frontend-shell";
 import { ErrorBoundary, For, Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import {
   type ConnectPayload,
@@ -182,19 +183,27 @@ export function App() {
       )}
     >
       <div class="vitals-shell">
-        <div class="vitals-layout">
-          <SidebarFrame class="vitals-sidebar-frame" aria-label="Connection">
+        <ResizableSidebar
+          class="pw-shell-sidebar vitals-sidebar-frame"
+          defaultWidth={320}
+          minWidth={260}
+          maxWidth={420}
+          collapseThreshold={140}
+          storageKey="vitals.shell.sidebar.sizes"
+          ariaLabel="Connection"
+          sidebar={
             <div class="vitals-sidebar">
-            <ConnectionForm
-              saved={saved()}
-              onConnect={connect}
-              onDeleteSaved={(id) => {
-                void window.vitals.deleteServer(id).then(refreshSaved);
-              }}
-              onRefreshSaved={refreshSaved}
-            />
+              <ConnectionForm
+                saved={saved()}
+                onConnect={connect}
+                onDeleteSaved={(id) => {
+                  void window.vitals.deleteServer(id).then(refreshSaved);
+                }}
+                onRefreshSaved={refreshSaved}
+              />
             </div>
-          </SidebarFrame>
+          }
+        >
           <MainFrame class="vitals-main-frame">
             <div class="vitals-tabs">
               <For each={tabs()}>
@@ -281,7 +290,7 @@ export function App() {
             </Show>
           </MainSurfaceFrame>
           </MainFrame>
-        </div>
+        </ResizableSidebar>
 
         <Show when={hostKey()}>
           {(prompt) => (
