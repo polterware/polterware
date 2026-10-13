@@ -2,21 +2,19 @@ import {
   A11yDialog,
   Button,
   ControlButton,
-  DitherIconTile,
-  EmptyIllustration,
-  PageEmpty,
   PageError,
   PageToolbar,
   Plus,
-  ResizableSidebar,
-  Server,
+  Separator,
+  Settings,
+  Tooltip,
   Tabs,
   ToastRegion,
   X,
   pushToast,
 } from "@polterware/frontend-design-system";
 import { MainFrame, MainSurfaceFrame } from "@polterware/frontend-shell";
-import { ErrorBoundary, For, Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { ErrorBoundary, For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import {
   type ConnectPayload,
   type ConnectionStateEvent,
@@ -26,10 +24,17 @@ import {
   type SavedServerPublic,
   type SessionHistory,
 } from "./api";
-import { ConnectionForm, savedConnectPayload } from "./components/ConnectionForm";
+import { ConnectionDialog, type ConnectionDialogControls, savedConnectPayload } from "./components/ConnectionDialog";
+import { HostHome, serverKey } from "./components/HostHome";
 import { HostKeyModal } from "./components/HostKeyModal";
 import { MetricsDashboard } from "./components/MetricsDashboard";
 import { TerminalView } from "./components/TerminalView";
+import { smoothValue } from "../shared/smoothing";
+
+import { DEFAULT_SETTINGS, type VitalsSettings } from "../shared/settings";
+import { SettingsDialog } from "./components/SettingsDialog";
+import { createCardLayoutState } from "./components/card-layout-state";
+import { CardLayoutMenu } from "./components/CardLayoutMenu";
 
 interface TabState {
   sessionId: string;
@@ -42,28 +47,51 @@ interface TabState {
   history: SessionHistory;
 }
 
-const emptyHistory = (): SessionHistory => ({ cpu: [], interfaces: {} });
+const emptyHistory = (): SessionHistory => ({ cpu: [], cpuDisplay: null, lastCollectedAt: null, interfaces: {} });
 
-function appendSample(values: number[], next: number): number[] {
-  return [...values, next].slice(-120);
+function appendSample(values: number[], next: number, limit: number): number[] {
+  return [...values, next].slice(-limit);
 }
 
 function appendInterfaceHistory(
   previous: SessionHistory["interfaces"],
   network: NetworkInterface[],
+  limit: number,
 ): SessionHistory["interfaces"] {
   const next: SessionHistory["interfaces"] = {};
   for (const iface of network) {
     const prior = previous[iface.name];
     next[iface.name] = {
-      rx: appendSample(prior?.rx ?? [], iface.rxBytesPerSec),
-      tx: appendSample(prior?.tx ?? [], iface.txBytesPerSec),
+      rx: appendSample(prior?.rx ?? [], iface.rxBytesPerSec, limit),
+      tx: appendSample(prior?.tx ?? [], iface.txBytesPerSec, limit),
     };
   }
   return next;
 }
 
+const RECENTS_KEY = "vitals.recents";
+
+function readRecents(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(RECENTS_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((key): key is string => typeof key === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRecents(keys: string[]) {
+  try {
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(keys));
+  } catch {
+    // Recents are a convenience; the list still works for this session.
+  }
+}
+
 export function App() {
+  const [settings, setSettings] = createSignal<VitalsSettings>({ ...DEFAULT_SETTINGS });
+  const [settingsOpen, setSettingsOpen] = createSignal(false);
+  const cardLayout = createCardLayoutState();
   const [saved, setSaved] = createSignal<SavedServerPublic[]>([]);
   const [tabs, setTabs] = createSignal<TabState[]>([]);
   const [activeId, setActiveId] = createSignal<string | null>(null);
@@ -72,8 +100,9 @@ export function App() {
   const [terminalSessions, setTerminalSessions] = createSignal<string[]>([]);
   const [killTarget, setKillTarget] = createSignal<{ sessionId: string; pid: number } | null>(null);
   const active = createMemo(() => tabs().find((tab) => tab.sessionId === activeId()) ?? null);
+  const [recentKeys, setRecentKeys] = createSignal<string[]>(readRecents());
   const closedSessions = new Set<string>();
-  let openNewConnection: (() => void) | undefined;
+  let dialog: ConnectionDialogControls | undefined;
 
   const refreshSaved = () => {
     if (!window.vitals) return;
@@ -83,7 +112,11 @@ export function App() {
   onMount(() => {
     if (!window.vitals) return;
     refreshSaved();
+    void window.vitals.getSettings().then(setSettings).catch(() => pushToast("Failed to load settings.", "danger"));
+    const offSettings = window.vitals.onSettingsChanged(setSettings);
+    onCleanup(offSettings);
     const seenStatus = new Map<string, ConnectionStateEvent["status"]>();
+    const seenTabs = new Set<string>();
 
     const offState = window.vitals.onConnectionState((event) => {
       if (closedSessions.has(event.sessionId)) return;
@@ -125,19 +158,27 @@ export function App() {
         };
         return next;
       });
-      setActiveId((id) => id ?? event.sessionId);
+      // A new session comes from a connect the user just made, so it takes focus.
+      if (!seenTabs.has(event.sessionId)) {
+        seenTabs.add(event.sessionId);
+        setActiveId(event.sessionId);
+      }
     });
 
     const offMetrics = window.vitals.onMetrics((event) => {
       setTabs((current) =>
         current.map((tab) => {
           if (tab.sessionId !== event.sessionId) return tab;
+          const prior = tab.history;
+          const dtSec = prior.lastCollectedAt === null ? 0 : (event.collectedAt - prior.lastCollectedAt) / 1000;
           return {
             ...tab,
             snapshot: event.snapshot,
             history: {
-              cpu: appendSample(tab.history.cpu, event.snapshot.cpuTotalPercent),
-              interfaces: appendInterfaceHistory(tab.history.interfaces, event.snapshot.network ?? []),
+              cpu: appendSample(tab.history.cpu, event.snapshot.cpuTotalPercent, settings().historyWindowMinutes * 60),
+              cpuDisplay: smoothValue(prior.cpuDisplay, event.snapshot.cpuTotalPercent, dtSec),
+              lastCollectedAt: event.collectedAt,
+              interfaces: appendInterfaceHistory(tab.history.interfaces, event.snapshot.network ?? [], settings().historyWindowMinutes * 60),
             },
           };
         }),
@@ -152,10 +193,29 @@ export function App() {
     });
   });
 
+  const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
+  const applyTheme = () => {
+    const preference = settings().theme;
+    const resolved = preference === "system" ? (colorScheme.matches ? "dark" : "light") : preference;
+    document.documentElement.dataset.theme = resolved;
+    document.documentElement.style.colorScheme = resolved;
+  };
+  createEffect(applyTheme);
+  colorScheme.addEventListener("change", applyTheme);
+  onCleanup(() => colorScheme.removeEventListener("change", applyTheme));
+
   // Kept in memory only, so a failed session can be retried with the same input.
   const payloads = new Map<string, ConnectPayload>();
 
+  const rememberRecent = (payload: ConnectPayload) => {
+    const key = serverKey(payload);
+    const next = [key, ...recentKeys().filter((candidate) => candidate !== key)].slice(0, 16);
+    setRecentKeys(next);
+    writeRecents(next);
+  };
+
   const connect = (payload: ConnectPayload) => {
+    rememberRecent(payload);
     void window.vitals.connect(payload).then(({ sessionId }) => {
       payloads.set(sessionId, payload);
     }).catch((error: unknown) => {
@@ -180,14 +240,13 @@ export function App() {
     const payload = payloads.get(sessionId);
     closeTab(sessionId);
     if (payload) connect(payload);
-    else openNewConnection?.();
+    else dialog?.openNew();
   };
 
-  const confirmKill = async () => {
-    const target = killTarget();
+  const confirmKill = async (target = killTarget()) => {
     if (!target) return;
     try {
-      await window.vitals.killProcess({ sessionId: target.sessionId, pid: target.pid, signal: "TERM" });
+      await window.vitals.killProcess({ sessionId: target.sessionId, pid: target.pid, signal: settings().defaultKillSignal });
       setKillTarget(null);
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "Failed to stop the process", "danger");
@@ -201,50 +260,47 @@ export function App() {
       )}
     >
       <div class="vitals-shell">
-        <ResizableSidebar
-          class="pw-shell-sidebar vitals-sidebar-frame"
-          defaultWidth={320}
-          minWidth={260}
-          maxWidth={420}
-          collapseThreshold={140}
-          storageKey="vitals.shell.sidebar.sizes"
-          ariaLabel="Connection"
-          sidebar={
-            <div class="vitals-sidebar">
-              <ConnectionForm
-                saved={saved()}
-                onConnect={connect}
-                onDeleteSaved={(id) => {
-                  void window.vitals.deleteServer(id).then(refreshSaved);
-                }}
-                onRefreshSaved={refreshSaved}
-                bindOpenNew={(open) => {
-                  openNewConnection = open;
-                }}
-              />
+        <MainFrame class="vitals-main-frame">
+          <div class="vitals-tabs">
+            <Separator orientation="vertical" class="vitals-titlebar-divider" />
+            <For each={tabs()}>
+              {(tab) => (
+                <div class="vitals-tab-row" data-active={tab.sessionId === activeId() ? "true" : "false"}>
+                  <Button
+                    variant="ghost"
+                    class="vitals-tab"
+                    data-active={tab.sessionId === activeId() ? "true" : "false"}
+                    onClick={() => setActiveId(tab.sessionId)}
+                  >
+                    {tab.label}
+                  </Button>
+                  <button type="button" class="vitals-tab-close" aria-label={`Close ${tab.label}`} onClick={() => closeTab(tab.sessionId)}>
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+            </For>
+            <button
+              type="button"
+              class="vitals-tab-new"
+              aria-label="New connection"
+              data-active={activeId() === null ? "true" : "false"}
+              onClick={() => setActiveId(null)}
+            >
+              <Plus size={14} />
+            </button>
+            <div class="vitals-settings-button">
+              <Tooltip.Root>
+                <Tooltip.Trigger asChild={(triggerProps) => (
+                  <button {...triggerProps()} type="button" class="vitals-settings-card" aria-label="Settings"
+                    data-active={settingsOpen() ? "true" : "false"} onClick={() => setSettingsOpen(true)}>
+                    <Settings size={12} />
+                  </button>
+                )} />
+                <Tooltip.Content>Settings</Tooltip.Content>
+              </Tooltip.Root>
             </div>
-          }
-        >
-          <MainFrame class="vitals-main-frame">
-            <div class="vitals-tabs">
-              <For each={tabs()}>
-                {(tab) => (
-                  <div class="vitals-tab-row" data-active={tab.sessionId === activeId() ? "true" : "false"}>
-                    <Button
-                      variant="ghost"
-                      class="vitals-tab"
-                      data-active={tab.sessionId === activeId() ? "true" : "false"}
-                      onClick={() => setActiveId(tab.sessionId)}
-                    >
-                      {tab.label}
-                    </Button>
-                    <button type="button" class="vitals-tab-close" aria-label={`Close ${tab.label}`} onClick={() => closeTab(tab.sessionId)}>
-                      <X size={12} />
-                    </button>
-                  </div>
-                )}
-              </For>
-            </div>
+          </div>
           <MainSurfaceFrame class="vitals-main">
             <div class="vitals-surface-head">
               <Show when={active()}>
@@ -269,6 +325,11 @@ export function App() {
                       }}
                     />
                   </PageToolbar.Tabs>
+                  <Show when={view() === "metrics"}>
+                    <PageToolbar.Actions>
+                      <CardLayoutMenu layout={cardLayout} />
+                    </PageToolbar.Actions>
+                  </Show>
                 </PageToolbar.Root>
               )}
             </Show>
@@ -297,42 +358,15 @@ export function App() {
             <Show
               when={active()}
               fallback={
-                <PageEmpty
-                  illustration={
-                    <EmptyIllustration class="vitals-empty-illustration">
-                      <DitherIconTile size={28} tone="infrastructure">
-                        <Server size={16} />
-                      </DitherIconTile>
-                    </EmptyIllustration>
-                  }
-                  action={
-                    <div class="vitals-empty-actions">
-                      <Show when={saved().length > 0}>
-                        <div class="vitals-empty-recents">
-                          <p class="vitals-empty-recents-label">Recents</p>
-                          <For each={saved().slice(0, 4)}>
-                            {(server) => (
-                              <Button
-                                variant="ghost"
-                                class="vitals-empty-recent"
-                                onClick={() => connect(savedConnectPayload(server))}
-                              >
-                                <Server size={14} />
-                                <span class="vitals-empty-recent-label">{server.label}</span>
-                                <span class="vitals-empty-recent-host">
-                                  {server.username}@{server.host}
-                                </span>
-                              </Button>
-                            )}
-                          </For>
-                        </div>
-                      </Show>
-                      <ControlButton tone="brand" onClick={() => openNewConnection?.()}>
-                        <Plus size={14} />
-                        Connect a host
-                      </ControlButton>
-                    </div>
-                  }
+                <HostHome
+                  saved={saved()}
+                  recentKeys={recentKeys()}
+                  onOpen={(server) => connect(savedConnectPayload(server))}
+                  onEdit={(server) => dialog?.openEdit(server)}
+                  onRemove={(server) => {
+                    void window.vitals.deleteServer(server.id).then(refreshSaved);
+                  }}
+                  onNew={() => dialog?.openNew()}
                 />
               }
             >
@@ -344,15 +378,34 @@ export function App() {
                 mode={active()!.mode}
                 message={active()!.message}
                 label={active()!.label}
-                onKill={(pid) => setKillTarget({ sessionId: active()!.sessionId, pid })}
+                networkUnit={settings().networkUnit}
+                historyLimit={settings().historyWindowMinutes * 60}
+                layout={cardLayout}
+                onKill={(pid) => {
+                  const target = { sessionId: active()!.sessionId, pid };
+                  if (settings().confirmBeforeKill) setKillTarget(target);
+                  else void confirmKill(target);
+                }}
                 onRetry={() => retryTab(active()!.sessionId)}
                 onClose={() => closeTab(active()!.sessionId)}
               />
               </Show>
             </Show>
           </MainSurfaceFrame>
-          </MainFrame>
-        </ResizableSidebar>
+        </MainFrame>
+
+        <SettingsDialog open={settingsOpen()} settings={settings()} onClose={() => setSettingsOpen(false)}
+          onChange={(patch) => { void window.vitals.updateSettings(patch).then(setSettings).catch(() => pushToast("Failed to save settings.", "danger")); }}
+          onResetLayout={() => cardLayout.reset()}
+          onClearRecents={() => { setRecentKeys([]); writeRecents([]); }} />
+
+        <ConnectionDialog
+          onConnect={connect}
+          onRefreshSaved={refreshSaved}
+          bind={(controls) => {
+            dialog = controls;
+          }}
+        />
 
         <Show when={hostKey()}>
           {(prompt) => (
@@ -376,7 +429,7 @@ export function App() {
           open={killTarget() !== null}
           size="sm"
           title={killTarget() ? `Kill process ${killTarget()?.pid}?` : "Kill process"}
-          description="This sends SIGTERM on the remote host."
+          description={"This sends SIG" + settings().defaultKillSignal + " on the remote host."}
           onClose={() => setKillTarget(null)}
           footer={
             <div class="vitals-actions">

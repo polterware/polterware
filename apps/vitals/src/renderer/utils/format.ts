@@ -22,3 +22,12 @@ export function formatUptime(sec: number): string {
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
 }
+
+export function formatNetworkRate(bytesPerSec: number, unit: "bytes" | "bits"): string {
+  if (unit === "bytes") return formatBytesPerSec(bytesPerSec);
+  const bits = bytesPerSec * 8;
+  if (bits < 1000) return bits.toFixed(0) + " bit/s";
+  if (bits < 1e6) return (bits / 1000).toFixed(1) + " Kbit/s";
+  if (bits < 1e9) return (bits / 1e6).toFixed(2) + " Mbit/s";
+  return (bits / 1e9).toFixed(2) + " Gbit/s";
+}

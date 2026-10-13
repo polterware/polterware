@@ -9,6 +9,7 @@ export const GAP = 12;
 const STORAGE_KEY = "vitals.cardOrder";
 /** Anchor cells are in row units, so the key changes with ROW_H. */
 const ANCHORS_KEY = "vitals.cardAnchors.v3";
+const HIDDEN_KEY = "vitals.cardHidden";
 
 export type Cell = { x: number; y: number };
 export type Rect = Cell & { w: number; h: number };
@@ -80,6 +81,73 @@ export function packOrder(ids: readonly CardId[], cols: number, anchors: Anchors
   return out;
 }
 
+/** Empty cells that have a card somewhere below them in the same column: the holes a layout shows. */
+function holesIn(placed: readonly Rect[], cols: number): number {
+  let holes = 0;
+  for (let x = 0; x < cols; x++) {
+    const filled = placed.filter((rect) => x >= rect.x && x < rect.x + rect.w);
+    const bottom = Math.max(0, ...filled.map((rect) => rect.y + rect.h));
+    const covered = filled.reduce((sum, rect) => sum + rect.h, 0);
+    holes += bottom - covered;
+  }
+  return holes;
+}
+
+/**
+ * The flow order that packs `ids` best on `cols` columns: the lowest grid, then the fewest holes.
+ * Orders are tried closest to `ids` first and only a strictly better one replaces the best, so a
+ * tie keeps the given order. Packing is incremental, so a branch already taller than the best is cut.
+ */
+export function autoArrange(ids: readonly CardId[], cols: number): CardId[] {
+  const area = ids.reduce((sum, id) => {
+    const { w, h } = sizeOf(id, cols);
+    return sum + w * h;
+  }, 0);
+  const floor = Math.ceil(area / cols);
+  let best = null as { order: CardId[]; bottom: number; holes: number } | null;
+  const used = new Array<boolean>(ids.length).fill(false);
+  const order: CardId[] = [];
+  const placed: Rect[] = [];
+  const firstFree = (w: number, h: number): Rect => {
+    for (let y = 0; ; y++) {
+      for (let x = 0; x + w <= cols; x++) {
+        const candidate = { x, y, w, h };
+        if (!placed.some((other) => overlaps(other, candidate))) return candidate;
+      }
+    }
+  };
+  const visit = (bottom: number): boolean => {
+    if (best && bottom > best.bottom) return false;
+    if (order.length === ids.length) {
+      const holes = holesIn(placed, cols);
+      if (!best || bottom < best.bottom || holes < best.holes) best = { order: [...order], bottom, holes };
+      // Nothing beats the area floor with no holes.
+      return best.bottom === floor && best.holes === 0;
+    }
+    // Cards of the same size lay out the same, so only the first unused one of each size is tried.
+    const tried = new Set<string>();
+    for (let index = 0; index < ids.length; index++) {
+      if (used[index]) continue;
+      const id = ids[index];
+      const { w, h } = sizeOf(id, cols);
+      if (tried.has(`${w}x${h}`)) continue;
+      tried.add(`${w}x${h}`);
+      const rect = firstFree(w, h);
+      used[index] = true;
+      order.push(id);
+      placed.push(rect);
+      const done = visit(Math.max(bottom, rect.y + rect.h));
+      placed.pop();
+      order.pop();
+      used[index] = false;
+      if (done) return true;
+    }
+    return false;
+  };
+  visit(0);
+  return best ? best.order : [...ids];
+}
+
 /**
  * Where `id` would sit if dropped with its top-left on `cell`: the cell clamped so the card fits
  * the columns, or null when another card already covers any part of that spot.
@@ -94,13 +162,15 @@ export function freeSpot(rects: ReadonlyMap<CardId, Rect>, id: CardId, cols: num
 }
 
 /**
- * Free cells of the grid while `id` is held, down to the bottom of the packed cards. A cell is one
- * small card, so each free cell is a whole drop spot. The held card's own cells count as free: it
- * can be dropped back there.
+ * Free cells of the grid while `id` is held, down to the bottom of the other cards plus the held
+ * card's height, so there is always room to drop it below everything and grow the grid. A cell is
+ * one small card, so each free cell is a whole drop spot. The held card's own cells count as free:
+ * it can be dropped back there.
  */
 export function freeCells(rects: ReadonlyMap<CardId, Rect>, id: CardId, cols: number): Cell[] {
   let bottom = 0;
-  for (const rect of rects.values()) bottom = Math.max(bottom, rect.y + rect.h);
+  for (const [other, rect] of rects) if (other !== id) bottom = Math.max(bottom, rect.y + rect.h);
+  bottom += sizeOf(id, cols).h;
   const cells: Cell[] = [];
   for (let y = 0; y < bottom; y++) {
     for (let x = 0; x < cols; x++) {
@@ -111,11 +181,39 @@ export function freeCells(rects: ReadonlyMap<CardId, Rect>, id: CardId, cols: nu
   return cells;
 }
 
-/** Anchors without `id`, for when a card goes back to flowing with the sequence. */
-export function withoutAnchor(anchors: Anchors, id: CardId): Anchors {
-  if (!anchors[id]) return anchors;
-  const next = { ...anchors };
-  delete next[id];
+/**
+ * Puts `id` with its top-left on `cell` and pushes every card it would cover straight down,
+ * cascading, so a drop above or below a card of any size makes room by growing the grid downward.
+ * Returns anchors pinning every card in `rects` where it now sits; `anchors` of cards that are not
+ * in `rects` (hidden ones) are kept.
+ */
+export function placeWithPush(
+  rects: ReadonlyMap<CardId, Rect>,
+  id: CardId,
+  cols: number,
+  cell: Cell,
+  anchors: Anchors = {},
+): Anchors {
+  const { w, h } = sizeOf(id, cols);
+  const held: Rect = { x: Math.max(0, Math.min(cell.x, cols - w)), y: Math.max(0, cell.y), w, h };
+  const others = [...rects]
+    .filter(([other]) => other !== id)
+    .map(([other, rect]): [CardId, Rect] => [other, { ...rect }])
+    .sort(([, a], [, b]) => a.y - b.y || a.x - b.x);
+  const placed: Rect[] = [held];
+  const next: Anchors = { ...anchors, [id]: { x: held.x, y: held.y } };
+  for (const [other, rect] of others) {
+    for (let moved = true; moved; ) {
+      moved = false;
+      for (const fixed of placed) {
+        if (!overlaps(fixed, rect)) continue;
+        rect.y = fixed.y + fixed.h;
+        moved = true;
+      }
+    }
+    placed.push(rect);
+    next[other] = { x: rect.x, y: rect.y };
+  }
   return next;
 }
 
@@ -148,15 +246,6 @@ export function gridMetrics(grid: HTMLElement, cols: number): { left: number; to
   return { left: rect.left + padL, top: rect.top + padT, cellW: (content - GAP * (cols - 1)) / cols };
 }
 
-/** Moves `id` so it sits at `toIndex` of the returned list. */
-export function moveId<T>(ids: readonly T[], id: T, toIndex: number): T[] {
-  const from = ids.indexOf(id);
-  if (from < 0) return [...ids];
-  const next = ids.filter((candidate) => candidate !== id);
-  next.splice(Math.max(0, Math.min(toIndex, next.length)), 0, id);
-  return next;
-}
-
 export type DropSide = "top" | "bottom" | "left" | "right";
 
 /** Which side of `box` the point falls on: the axis where it sits furthest from the center wins. */
@@ -165,48 +254,6 @@ export function dropSide(box: { left: number; top: number; width: number; height
   const v = (py - (box.top + box.height / 2)) / (box.height / 2 || 1);
   if (Math.abs(u) > Math.abs(v)) return u < 0 ? "left" : "right";
   return v < 0 ? "top" : "bottom";
-}
-
-/**
- * Next full order after dropping `id` on `side` of `target`. Left/top insert before the target
- * (it shifts right/down); right/bottom insert after it. For top/bottom, nearby insertion points are
- * tried until the packed layout really puts the card above/below the target, falling back to the
- * plain before/after insertion when the packing cannot. Hidden cards keep their slots in `order`.
- */
-export function resolveDrop(
-  order: readonly CardId[],
-  visible: readonly CardId[],
-  cols: number,
-  id: CardId,
-  target: CardId,
-  side: DropSide,
-  anchors: Anchors = {},
-): CardId[] {
-  const rest = visible.filter((other) => other !== id);
-  const at = rest.indexOf(target);
-  if (at < 0) return [...order];
-  const after = side === "right" || side === "bottom";
-  let index = after ? at + 1 : at;
-  if (side === "top" || side === "bottom") {
-    const candidates: number[] = [];
-    if (after) for (let i = at + 1; i <= rest.length; i++) candidates.push(i);
-    else for (let i = at; i >= 0; i--) candidates.push(i);
-    for (const candidate of candidates) {
-      const sequence = [...rest];
-      sequence.splice(candidate, 0, id);
-      const packed = packOrder(sequence, cols, withoutAnchor(anchors, id));
-      const moved = packed.get(id);
-      const anchor = packed.get(target);
-      if (!moved || !anchor) continue;
-      if (after ? moved.y >= anchor.y + anchor.h : moved.y + moved.h <= anchor.y) {
-        index = candidate;
-        break;
-      }
-    }
-  }
-  const full = order.filter((other) => other !== id);
-  const toIndex = index < rest.length ? full.indexOf(rest[index]) : rest.length ? full.indexOf(rest[rest.length - 1]) + 1 : full.length;
-  return moveId(order, id, toIndex);
 }
 
 /** Keeps known ids in saved order and appends any card the saved list does not know yet. */
@@ -272,5 +319,28 @@ export function saveAnchors(anchors: Anchors): void {
     localStorage.setItem(ANCHORS_KEY, JSON.stringify(anchors));
   } catch {
     // Persistence is a convenience; the layout still works for this session.
+  }
+}
+
+/** Keeps known card ids, once each. */
+export function normalizeHidden(saved: unknown): CardId[] {
+  if (!Array.isArray(saved)) return [];
+  return CARD_IDS.filter((id) => saved.includes(id));
+}
+
+export function loadHidden(): CardId[] {
+  try {
+    const raw = localStorage.getItem(HIDDEN_KEY);
+    return normalizeHidden(raw ? JSON.parse(raw) : null);
+  } catch {
+    return [];
+  }
+}
+
+export function saveHidden(hidden: readonly CardId[]): void {
+  try {
+    localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden));
+  } catch {
+    // Persistence is a convenience; the choice still holds for this session.
   }
 }

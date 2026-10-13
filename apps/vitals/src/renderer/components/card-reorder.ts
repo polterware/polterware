@@ -8,15 +8,15 @@ import {
   dropSide,
   freeSpot,
   gridMetrics,
-  moveId,
+  placeWithPush,
   rectBox,
-  resolveDrop,
-  withoutAnchor,
+  sizeOf,
   type Anchors,
   type Cell,
   type DropSide,
   type Rect,
 } from "./card-layout";
+import type { Layout } from "./card-layout-state";
 
 /** Pointer travel before a press on a header becomes a drag. */
 const DEAD_ZONE = 4;
@@ -36,20 +36,29 @@ export type CardReorder = {
   liftedId: () => CardId | null;
   onHeaderPointerDown: (id: CardId, event: PointerEvent) => void;
   onGripKeyDown: (id: CardId, event: KeyboardEvent) => void;
+  /** Applies a whole new layout, gliding every card that moves. */
+  arrange: (next: Layout) => void;
 };
 
 /** Viewport box a floating card is pinned to while it is in the top layer. */
 type Box = { left: number; top: number; width: number; height: number };
 type Entry = { element: HTMLElement; motion: DragMotion; floating: Box | null };
-/** A side of a card to drop on, a free cell to anchor to, or the end of the sequence. */
-type Target = { card: CardId; side: DropSide } | { cell: Cell } | "end";
-type Layout = { order: CardId[]; anchors: Anchors };
+/** A side of a card to drop on, or a free cell to anchor to. */
+type Target = { card: CardId; side: DropSide } | { cell: Cell };
 
 const targetKey = (target: Target | null): string | null => {
-  if (target === null || target === "end") return target;
+  if (target === null) return null;
   if ("cell" in target) return `cell:${target.cell.x},${target.cell.y}`;
   return `${target.card}:${target.side}`;
 };
+
+/** Top of the scroller's visible content: below a sticky header, so the edge zone never sits under it. */
+function contentTop(scroller: HTMLElement): number {
+  const top = scroller.getBoundingClientRect().top;
+  const head = scroller.firstElementChild;
+  if (!(head instanceof HTMLElement) || getComputedStyle(head).position !== "sticky") return top;
+  return Math.max(top, head.getBoundingClientRect().bottom);
+}
 
 function scrollParent(element: HTMLElement): HTMLElement {
   for (let node = element.parentElement; node; node = node.parentElement) {
@@ -60,18 +69,16 @@ function scrollParent(element: HTMLElement): HTMLElement {
 }
 
 /**
- * Home-screen style reordering. Cards live in one sequence and their cells are derived from it.
- * Resting the pointer on a side of a card drops the dragged card on that side: top/left push the
- * target down/right, bottom/right let it move up/left (when the packing allows). The displaced
- * cards glide to their new cells (FLIP). Resting the card over a free cell anchors it there, so
- * gaps in the grid are drop targets too.
+ * Home-screen style reordering on a cell grid, the same for every card size. Resting the pointer on
+ * a side of a card places the dragged card on that side (top takes the card's spot); whatever it
+ * would cover is pushed down, so the grid grows downward. Resting the card over a free cell,
+ * including below every card, anchors it there. The displaced cards glide to their new cells (FLIP).
  */
 export function createCardReorder(options: {
   grid: () => HTMLElement | undefined;
   cols: () => number;
   rects: () => Map<CardId, Rect>;
   order: () => CardId[];
-  visible: () => CardId[];
   setOrder: (next: CardId[]) => void;
   anchors: () => Anchors;
   setAnchors: (next: Anchors) => void;
@@ -148,12 +155,17 @@ export function createCardReorder(options: {
   const insertAt = (id: CardId, target: Target): Layout => {
     const order = options.order();
     const anchors = options.anchors();
-    if (target === "end") return { order: moveId(order, id, order.length), anchors: withoutAnchor(anchors, id) };
     if ("cell" in target) return { order, anchors: { ...anchors, [id]: target.cell } };
-    return {
-      order: resolveDrop(order, options.visible(), options.cols(), id, target.card, target.side, anchors),
-      anchors: withoutAnchor(anchors, id),
-    };
+    // Beside, above or below a card: take that spot and push whatever is in the way down.
+    const rect = options.rects().get(target.card);
+    if (!rect) return { order, anchors };
+    const { w } = sizeOf(id, options.cols());
+    const cell =
+      target.side === "top" ? { x: rect.x, y: rect.y }
+      : target.side === "bottom" ? { x: rect.x, y: rect.y + rect.h }
+      : target.side === "left" ? { x: rect.x - w, y: rect.y }
+      : { x: rect.x + rect.w, y: rect.y };
+    return { order, anchors: placeWithPush(options.rects(), id, options.cols(), cell, anchors) };
   };
   const currentLayout = (): Layout => ({ order: options.order(), anchors: options.anchors() });
   const sameLayout = (a: Layout, b: Layout) => {
@@ -193,6 +205,9 @@ export function createCardReorder(options: {
     let shiftY = 0;
     let active = false;
     let edgeFrame = 0;
+    /** An edge scrolls only once the pointer has been out of its zone, so grabbing a card near it stays put. */
+    let armedTop = false;
+    let armedBottom = false;
     let dwellTimer = 0;
     let pending: string | null = null;
     /**
@@ -219,19 +234,20 @@ export function createCardReorder(options: {
       const px = x - left;
       const py = y - top;
       const rects = options.rects();
-      let bottom = 0;
+      // The held card's own cells count as free space: a wide or tall card moved by less than its
+      // size keeps the pointer over its old spot, which must still resolve to a free cell.
       for (const [other, rect] of rects) {
+        if (other === id) continue;
         const box = rectBox(rect, cellW);
-        bottom = Math.max(bottom, box.top + box.height);
         if (px < box.left || px > box.left + box.width || py < box.top || py > box.top + box.height) continue;
-        return { target: other !== id ? { card: other, side: dropSide(box, px, py) } : null, over: other };
+        return { target: { card: other, side: dropSide(box, px, py) }, over: other };
       }
-      if (py > bottom + GAP) return { target: "end", over: null };
       const drawn = entry.element.getBoundingClientRect();
       const cell = {
         x: Math.floor((drawn.left - left + cellW / 2) / (cellW + GAP)),
         y: Math.floor((drawn.top - top + ROW_H / 2) / (ROW_H + GAP)),
       };
+      // Below every card is free too, so dropping there anchors the card and grows the grid.
       const spot = cell.x >= 0 && cell.x < cols && cell.y >= 0 ? freeSpot(rects, id, cols, cell) : null;
       return { target: spot ? { cell: spot } : null, over: null };
     };
@@ -239,7 +255,7 @@ export function createCardReorder(options: {
     const commit = (target: Target) => {
       dwellTimer = 0;
       pending = null;
-      blocked = target === "end" || "cell" in target ? null : { card: target.card, key: `${target.card}:${target.side}` };
+      blocked = "cell" in target ? null : { card: target.card, key: `${target.card}:${target.side}` };
       const next = insertAt(id, target);
       if (sameLayout(next, currentLayout())) return;
       const shift = apply(next, id);
@@ -266,8 +282,11 @@ export function createCardReorder(options: {
     const pump = () => {
       edgeFrame = 0;
       if (!active) return;
-      const bounds = scroller.getBoundingClientRect();
-      const direction = y < bounds.top + EDGE ? -1 : y > bounds.bottom - EDGE ? 1 : 0;
+      const top = contentTop(scroller);
+      const bottom = scroller.getBoundingClientRect().bottom;
+      if (y >= top + EDGE) armedTop = true;
+      if (y <= bottom - EDGE) armedBottom = true;
+      const direction = armedTop && y < top + EDGE ? -1 : armedBottom && y > bottom - EDGE ? 1 : 0;
       if (direction === 0) return;
       scroller.scrollTop += direction * EDGE_STEP;
       follow();
@@ -342,28 +361,34 @@ export function createCardReorder(options: {
     const rects = options.rects();
     const rect = rects.get(id);
     if (!rect) return;
-    const visible = options.visible();
-    let card: CardId | null = null;
-    let side: DropSide;
-    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-      side = event.key === "ArrowLeft" ? "left" : "right";
-      card = visible[visible.indexOf(id) + (side === "left" ? -1 : 1)] ?? null;
-    } else if (event.key === "ArrowUp") {
-      side = "top";
-      card = cellAt(rects, { x: rect.x, y: rect.y - 1 });
-    } else if (event.key === "ArrowDown") {
-      side = "bottom";
-      card = cellAt(rects, { x: rect.x, y: rect.y + rect.h });
-    } else {
-      return;
-    }
+    const steps: Record<string, { side: DropSide; probe: Cell; step: Cell }> = {
+      ArrowLeft: { side: "left", probe: { x: rect.x - 1, y: rect.y }, step: { x: rect.x - 1, y: rect.y } },
+      ArrowRight: { side: "right", probe: { x: rect.x + rect.w, y: rect.y }, step: { x: rect.x + 1, y: rect.y } },
+      ArrowUp: { side: "top", probe: { x: rect.x, y: rect.y - 1 }, step: { x: rect.x, y: rect.y - 1 } },
+      ArrowDown: { side: "bottom", probe: { x: rect.x, y: rect.y + rect.h }, step: { x: rect.x, y: rect.y + 1 } },
+    };
+    const move = steps[event.key];
+    if (!move) return;
     event.preventDefault();
-    if (!card) return;
-    const next = insertAt(id, { card, side });
+    const cols = options.cols();
+    // Next to a card, step over it; otherwise slide one cell into free space.
+    const card = cellAt(rects, move.probe);
+    let target: Target | null = card ? { card, side: move.side } : null;
+    if (!target && move.step.x >= 0 && move.step.x + rect.w <= cols && move.step.y >= 0) {
+      const spot = freeSpot(rects, id, cols, move.step);
+      if (spot) target = { cell: spot };
+    }
+    if (!target) return;
+    const next = insertAt(id, target);
     if (sameLayout(next, currentLayout())) return;
     apply(next, null);
     entries.get(id)?.element.scrollIntoView({ block: "nearest" });
   };
 
-  return { register, draggingId, liftedId, onHeaderPointerDown, onGripKeyDown };
+  const arrange = (next: Layout) => {
+    if (sameLayout(next, currentLayout())) return;
+    apply(next, null);
+  };
+
+  return { register, draggingId, liftedId, onHeaderPointerDown, onGripKeyDown, arrange };
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildSnapshot } from './build-snapshot'
+import { SECTION_MARKER, SectionFrameBuffer } from './sections'
 import { parseDf } from './df'
 import { parseLoadavg } from './loadavg'
 import { parseMeminfo } from './meminfo'
@@ -167,5 +168,45 @@ describe('buildSnapshot', () => {
     const second = buildSnapshot(bundle2, first.state, t0 + 1000)
     expect(second.snapshot.cpuTotalPercent).toBeGreaterThan(0)
     expect(second.snapshot.network[0].rxBytesPerSec).toBe(5000)
+  })
+})
+
+describe('SectionFrameBuffer', () => {
+  it('yields complete samples and keeps a partial one', () => {
+    const buf = new SectionFrameBuffer()
+    const end = `${SECTION_MARKER} end\n`
+    expect(buf.push(`${SECTION_MARKER} stat\ncpu 1`)).toEqual([])
+    expect(buf.push(` 2\n${end}${SECTION_MARKER} stat\ncpu 3\n${end}${SECTION_MARKER} st`)).toEqual([
+      `${SECTION_MARKER} stat\ncpu 1 2\n`,
+      `${SECTION_MARKER} stat\ncpu 3\n`
+    ])
+    expect(buf.push(`at\n${end}`)).toEqual([`${SECTION_MARKER} stat\n`])
+  })
+})
+
+describe('buildSnapshot streaming', () => {
+  it('keeps slow sections that a sample omits', () => {
+    const first = buildSnapshot(SAMPLE_BUNDLE, null, 1000)
+    const fastOnly = `${SECTION_MARKER} stat\n${SAMPLE_STAT_2}\n${SECTION_MARKER} uptime\n${SAMPLE_UPTIME}\n`
+    const second = buildSnapshot(fastOnly, first.state, 2000)
+    expect(second.snapshot.gpus).toEqual(first.snapshot.gpus)
+    expect(second.snapshot.processes).toEqual(first.snapshot.processes)
+    expect(second.snapshot.disks).toEqual(first.snapshot.disks)
+  })
+
+  it('uses the host uptime as the rate clock', () => {
+    const first = buildSnapshot(SAMPLE_BUNDLE, null, 1000)
+    const later = SAMPLE_BUNDLE.replace(SAMPLE_NET, SAMPLE_NET_2).replace(
+      SAMPLE_UPTIME,
+      SAMPLE_UPTIME.replace('123456.78', '123458.78')
+    )
+    // Arrived 500ms later over SSH, but the host says 2s passed.
+    const second = buildSnapshot(later, first.state, 1500)
+    expect(second.snapshot.network[0].rxBytesPerSec).toBeCloseTo(2500, 6)
+  })
+
+  it('flags hosts without /proc/stat', () => {
+    expect(buildSnapshot(`${SECTION_MARKER} stat\n`, null, 1000).supported).toBe(false)
+    expect(buildSnapshot(SAMPLE_BUNDLE, null, 1000).supported).toBe(true)
   })
 })

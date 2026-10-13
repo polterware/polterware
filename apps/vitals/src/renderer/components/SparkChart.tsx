@@ -13,6 +13,19 @@ function compactTick(value: number): string {
   return String(Number(value.toFixed(1)));
 }
 
+/** Fits the value axis to its longest tick label, so short labels do not leave a gutter on the left. */
+function fitAxisSize(self: uPlot, values: string[] | null, axisIdx: number, cycleNum: number): number {
+  const axis = self.axes[axisIdx] as uPlot.Axis & { _size?: number; font?: [string, number] };
+  if (cycleNum > 1 && axis._size !== undefined) return axis._size;
+  const longest = (values ?? []).reduce((widest, value) => (value.length > widest.length ? value : widest), "");
+  let size = (axis.gap ?? 0) + (axis.ticks?.show === false ? 0 : axis.ticks?.size ?? 0);
+  if (longest && axis.font) {
+    self.ctx.font = axis.font[0];
+    size += self.ctx.measureText(longest).width / devicePixelRatio;
+  }
+  return Math.ceil(size);
+}
+
 function tokenColor(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
@@ -50,7 +63,9 @@ export function SparkChart(props: { series: number[]; label: string; strokeToken
           {
             stroke: tokenColor("--color-chart-axis"),
             grid: { show: true, stroke: tokenColor("--color-chart-grid") },
-            size: 46,
+            size: fitAxisSize,
+            gap: 6,
+            ticks: { show: false },
             values: (_, splits) => splits.map(compactTick),
           },
         ],

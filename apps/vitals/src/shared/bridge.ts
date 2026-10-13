@@ -1,5 +1,9 @@
 import type { MetricsSnapshot } from "./metrics-types.js";
 
+import type { VitalsSettings } from "./settings.js";
+
+export interface KnownHost { key: string; fingerprint: string; }
+
 export type AuthMode = "password" | "privateKey";
 
 export interface SavedServerPublic {
@@ -110,6 +114,11 @@ export interface VitalsBridge {
   acceptHostKey(sessionId: string): Promise<void>;
   rejectHostKey(sessionId: string): Promise<void>;
   killProcess(payload: KillProcessPayload): Promise<void>;
+  getSettings(): Promise<VitalsSettings>;
+  updateSettings(patch: Partial<VitalsSettings>): Promise<VitalsSettings>;
+  onSettingsChanged(cb: (settings: VitalsSettings) => void): () => void;
+  listKnownHosts(): Promise<KnownHost[]>;
+  removeKnownHost(key: string): Promise<void>;
   getTheme(): Promise<"dark" | "light">;
   setTheme(theme: "dark" | "light"): Promise<void>;
   onConnectionState(cb: (ev: ConnectionStateEvent) => void): () => void;

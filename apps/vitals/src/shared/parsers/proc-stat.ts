@@ -37,17 +37,10 @@ export function parseProcStat(text: string): ProcStatSample[] {
   return samples
 }
 
+// guest and guestNice are already counted inside user and nice (proc(5)),
+// so adding them again would double count time spent running VMs.
 function busyTicks(s: ProcStatSample): number {
-  return (
-    s.user +
-    s.nice +
-    s.system +
-    s.irq +
-    s.softirq +
-    s.steal +
-    s.guest +
-    s.guestNice
-  )
+  return s.user + s.nice + s.system + s.irq + s.softirq + s.steal
 }
 
 function totalTicks(s: ProcStatSample): number {

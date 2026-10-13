@@ -28,6 +28,8 @@ import {
 } from "./shell-session.js";
 import { SshSession, type SessionAuth } from "./ssh-session.js";
 
+import { getSettings } from "./settings.js";
+
 type MetricsSession = AgentSession | SshSession;
 
 interface ManagedSession {
@@ -135,15 +137,19 @@ export class SessionManager {
       sendState(mapped as ConnectionStateEvent["status"], message);
 
       const current = this.sessions.get(sessionId);
-      if (mapped === "disconnected" && current && current.allowReconnect && !current.reconnectTimer) {
-        sendState("reconnecting", "Reconnecting in 3s…");
+      if (mapped === "disconnected" && current && current.allowReconnect && getSettings().autoReconnect && !current.reconnectTimer) {
+        const delay = getSettings().reconnectDelaySeconds;
+        sendState("reconnecting", "Reconnecting in " + delay + "s…");
         current.reconnectTimer = setTimeout(() => {
           current.reconnectTimer = null;
-          if (!this.sessions.has(sessionId)) return;
+          if (!this.sessions.has(sessionId) || !getSettings().autoReconnect) {
+            sendState("disconnected");
+            return;
+          }
           current.ssh.resetClient();
           sendState("reconnecting");
           current.ssh.connect();
-        }, 3000);
+        }, delay * 1000);
       }
     };
 

@@ -163,27 +163,7 @@ export interface ShellAckPayload {
   bytes: number;
 }
 
-export interface VitalsApi {
-  shellOpen(payload: { sessionId: string; cols: number; rows: number }): Promise<void>;
-  shellWrite(payload: { sessionId: string; data: string }): Promise<void>;
-  shellResize(payload: { sessionId: string; cols: number; rows: number }): Promise<void>;
-  shellClose(sessionId: string): Promise<void>;
-  shellAck(payload: ShellAckPayload): Promise<void>;
-  onShellData(cb: (ev: ShellDataEvent) => void): () => void;
-  onShellExit(cb: (ev: ShellExitEvent) => void): () => void;
-  connect(payload: ConnectPayload): Promise<{ sessionId: string }>;
-  disconnect(sessionId: string): Promise<void>;
-  listServers(): Promise<SavedServerPublic[]>;
-  deleteServer(id: string): Promise<void>;
-  acceptHostKey(sessionId: string): Promise<void>;
-  rejectHostKey(sessionId: string): Promise<void>;
-  killProcess(payload: KillProcessPayload): Promise<void>;
-  getTheme(): Promise<"dark" | "light">;
-  setTheme(theme: "dark" | "light"): Promise<void>;
-  onConnectionState(cb: (ev: ConnectionStateEvent) => void): () => void;
-  onMetrics(cb: (ev: MetricsEvent) => void): () => void;
-  onHostKeyPrompt(cb: (ev: HostKeyPrompt) => void): () => void;
-}
+export type VitalsApi = import("../shared/bridge").VitalsBridge;
 
 export interface InterfaceHistory {
   rx: number[];
@@ -191,7 +171,11 @@ export interface InterfaceHistory {
 }
 
 export interface SessionHistory {
+  /** Raw CPU samples for the chart. */
   cpu: number[];
+  /** Smoothed CPU for the large readout; null before the first sample. */
+  cpuDisplay: number | null;
+  lastCollectedAt: number | null;
   /** Receive/transmit samples keyed by interface name. */
   interfaces: Record<string, InterfaceHistory>;
 }

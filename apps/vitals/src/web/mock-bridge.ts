@@ -16,6 +16,8 @@ import type {
   VitalsApi,
 } from "../renderer/api";
 
+import { normalizeSettings, type VitalsSettings } from "../shared/settings";
+
 const DEMO_SERVER: SavedServerPublic = {
   id: "prod-edge",
   label: "prod-edge",
@@ -26,7 +28,6 @@ const DEMO_SERVER: SavedServerPublic = {
   privateKeyPath: "/Users/ops/.ssh/id_ed25519",
 };
 
-const THEME_KEY = "vitals-web-theme";
 const REVIEW_HOST = "review.example";
 const DOWN_HOST = "down.example";
 const HOST_KEY = "SHA256:bW9jay1yZXZpZXctaG9zdC1rZXk=";
@@ -398,7 +399,26 @@ export function installVitalsMock(): void {
     });
   };
 
+  const settingsChanged = hub<VitalsSettings>();
+  const readSettings = () => {
+    try {
+      const raw = localStorage.getItem("vitals-web-settings");
+      return normalizeSettings(raw ? JSON.parse(raw) : { theme: localStorage.getItem("vitals-web-theme") });
+    }
+    catch { return normalizeSettings(null); }
+  };
+  const knownHosts = new Map<string, string>();
   const api: VitalsApi = {
+    async getSettings() { return readSettings(); },
+    async updateSettings(patch) {
+      const settings = normalizeSettings({ ...readSettings(), ...patch });
+      localStorage.setItem("vitals-web-settings", JSON.stringify(settings));
+      settingsChanged.emit(settings);
+      return settings;
+    },
+    onSettingsChanged: settingsChanged.on,
+    async listKnownHosts() { return [...knownHosts].map(([key, fingerprint]) => ({ key, fingerprint })); },
+    async removeKnownHost(key) { knownHosts.delete(key); },
     async connect(payload) {
       const sessionId = crypto.randomUUID();
       const session: MockSession = {
@@ -423,7 +443,7 @@ export function installVitalsMock(): void {
           emitState(session);
           return;
         }
-        if (session.host === REVIEW_HOST) {
+        if (session.host === REVIEW_HOST && knownHosts.get(session.host + ":" + session.port) !== HOST_KEY) {
           hostKeys.emit({
             sessionId,
             host: session.host,
@@ -458,6 +478,7 @@ export function installVitalsMock(): void {
     async acceptHostKey(sessionId) {
       const session = sessions.get(sessionId);
       if (!session) return;
+      knownHosts.set(session.host + ":" + session.port, HOST_KEY);
       goLive(session);
     },
     async rejectHostKey(sessionId) {
@@ -476,10 +497,11 @@ export function installVitalsMock(): void {
       publish(session);
     },
     async getTheme() {
-      return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark";
+      const theme = readSettings().theme;
+      return theme === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : theme;
     },
     async setTheme(theme) {
-      localStorage.setItem(THEME_KEY, theme);
+      await api.updateSettings({ theme });
     },
     onConnectionState: connection.on,
     onMetrics: metrics.on,

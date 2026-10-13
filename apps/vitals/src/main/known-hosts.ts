@@ -53,3 +53,17 @@ export function verifyFingerprint(
   if (known === fingerprint) return "ok";
   return "mismatch";
 }
+
+export function listKnownHosts(): import("../shared/bridge.js").KnownHost[] {
+  const data: unknown = load();
+  if (!data || typeof data !== "object" || Array.isArray(data)) return [];
+  return Object.entries(data).flatMap(([key, entry]) =>
+    entry && typeof entry === "object" && typeof entry.fingerprint === "string"
+      ? [{ key, fingerprint: entry.fingerprint }] : []);
+}
+
+export function removeKnownHost(key: string): void {
+  if (typeof key !== "string") throw new Error("Invalid known host key");
+  const data = Object.fromEntries(listKnownHosts().filter((entry) => entry.key !== key).map((entry) => [entry.key, { fingerprint: entry.fingerprint }]));
+  save(data);
+}

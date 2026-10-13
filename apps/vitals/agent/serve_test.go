@@ -34,7 +34,7 @@ func (f *fakeCollector) sampleFast() fastRaw {
 }
 
 func (f *fakeCollector) sampleProcs(uint64) ([]metrics.ProcessSample, error) {
-	return []metrics.ProcessSample{{PID: 42, User: "www", Command: "nginx", Ticks: 100, RSSBytes: 4096}}, nil
+	return []metrics.ProcessSample{{PID: 42, User: "www", Command: "nginx", CPUNs: 1_000_000_000, RSSBytes: 4096}}, nil
 }
 
 func (f *fakeCollector) sampleDisks() ([]diskMsg, error) {

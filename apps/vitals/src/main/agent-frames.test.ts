@@ -11,10 +11,16 @@ import {
   ProtocolVersionError,
 } from "./agent-frames.js";
 import {
+  agentBinaryFileName,
+  agentExecCommand,
   mapUnameArch,
+  mapUnameTarget,
+  mapWindowsTarget,
   remoteAgentCachePath,
   resolveLocalAgentBinary,
   UnsupportedArchError,
+  windowsAgentPath,
+  windowsSftpPath,
 } from "./agent-installer.js";
 
 describe("mapUnameArch", () => {
@@ -39,10 +45,48 @@ describe("mapUnameArch", () => {
   });
 });
 
+describe("mapUnameTarget / mapWindowsTarget", () => {
+  it("maps Linux and macOS uname -sm output", () => {
+    expect(mapUnameTarget("Linux x86_64\n")).toEqual({ os: "linux", arch: "amd64" });
+    expect(mapUnameTarget("Linux aarch64")).toEqual({ os: "linux", arch: "arm64" });
+    expect(mapUnameTarget("Darwin arm64")).toEqual({ os: "darwin", arch: "arm64" });
+    expect(mapUnameTarget("Darwin x86_64")).toEqual({ os: "darwin", arch: "amd64" });
+  });
+
+  it("rejects other systems", () => {
+    expect(() => mapUnameTarget("FreeBSD amd64")).toThrow(UnsupportedArchError);
+    expect(() => mapUnameTarget("Linux riscv64")).toThrow(UnsupportedArchError);
+  });
+
+  it("maps PROCESSOR_ARCHITECTURE", () => {
+    expect(mapWindowsTarget("AMD64\r\n")).toEqual({ os: "windows", arch: "amd64" });
+    expect(mapWindowsTarget("ARM64")).toEqual({ os: "windows", arch: "arm64" });
+    expect(() => mapWindowsTarget("x86")).toThrow(UnsupportedArchError);
+  });
+});
+
+describe("agent binary and command", () => {
+  it("names binaries per os and arch", () => {
+    expect(agentBinaryFileName({ os: "darwin", arch: "arm64" })).toBe("vitals-agent-darwin-arm64");
+    expect(agentBinaryFileName({ os: "windows", arch: "amd64" })).toBe("vitals-agent-windows-amd64.exe");
+  });
+
+  it("builds Windows cache and SFTP paths", () => {
+    const native = windowsAgentPath("C:\\Users\\op\\AppData\\Local\\", "abcdef0123456789");
+    expect(native).toBe("C:\\Users\\op\\AppData\\Local\\Vitals\\agent-abcdef012345.exe");
+    expect(windowsSftpPath(native)).toBe("/C:/Users/op/AppData/Local/Vitals/agent-abcdef012345.exe");
+  });
+
+  it("quotes the exec command", () => {
+    expect(agentExecCommand("linux", "/home/o p/.cache/vitals/agent-x")).toBe("'/home/o p/.cache/vitals/agent-x'");
+    expect(agentExecCommand("windows", "C:\\a b\\agent.exe")).toBe('cmd /c "C:\\a b\\agent.exe"');
+  });
+});
+
 describe("resolveLocalAgentBinary", () => {
   it("uses resources/agent in development", () => {
     expect(
-      resolveLocalAgentBinary("amd64", {
+      resolveLocalAgentBinary({ os: "linux", arch: "amd64" }, {
         appPath: "/app/vitals",
         resourcesPath: "/app/vitals/resources",
         packaged: false,
@@ -52,7 +96,7 @@ describe("resolveLocalAgentBinary", () => {
 
   it("uses process.resourcesPath/agent when packaged", () => {
     expect(
-      resolveLocalAgentBinary("arm64", {
+      resolveLocalAgentBinary({ os: "linux", arch: "arm64" }, {
         appPath: "/app/vitals",
         resourcesPath: "/Contents/Resources",
         packaged: true,

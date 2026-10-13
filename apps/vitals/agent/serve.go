@@ -73,7 +73,7 @@ type rateState struct {
 
 	haveProc  bool
 	lastProc  time.Duration
-	prevTicks map[int]uint64
+	prevCPUNs map[int]uint64
 
 	haveDisks bool
 	lastDisks time.Duration
@@ -293,8 +293,8 @@ func emit(c collector, st *rateState, h *hub, warn func(string, string, time.Dur
 			warn("proc", err.Error(), raw.Mono)
 		} else {
 			elapsed := elapsedSince(st.haveProc, st.lastProc, raw.Mono)
-			rows, next := metrics.RankProcesses(procs, st.prevTicks, elapsed, userHZ, st.mem.TotalKb*1024, processTop)
-			st.prevTicks = next
+			rows, next := metrics.RankProcesses(procs, st.prevCPUNs, elapsed, st.mem.TotalKb*1024, processTop)
+			st.prevCPUNs = next
 			out := make([]procMsg, len(rows))
 			for i, row := range rows {
 				out[i] = procMsg{

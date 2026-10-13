@@ -215,12 +215,12 @@ func TestProcessDeltas(t *testing.T) {
 		t.Fatalf("uid %d %v", uid, err)
 	}
 
-	const hz = 100.0
+	const tickNs = 10_000_000 // USER_HZ 100
 	const page = 4096
-	base := first.Ticks()
+	base := first.Ticks() * tickNs
 	samples := []ProcessSample{{
 		PID: first.PID, User: "www", Command: first.Command,
-		Ticks: rewound.Ticks(), RSSBytes: rewound.RSSPages * page,
+		CPUNs: rewound.Ticks() * tickNs, RSSBytes: rewound.RSSPages * page,
 	}}
 
 	tests := []struct {
@@ -230,7 +230,7 @@ func TestProcessDeltas(t *testing.T) {
 		cpu     float64
 	}{
 		{name: "first sight", prev: nil, elapsed: 1, cpu: 0},
-		{name: "delta", prev: map[int]uint64{42: 2500}, elapsed: 1, cpu: 500},
+		{name: "delta", prev: map[int]uint64{42: 2500 * tickNs}, elapsed: 1, cpu: 500},
 		{name: "counter reset", prev: map[int]uint64{42: base}, elapsed: 1, cpu: 150},
 	}
 	for _, tt := range tests {
@@ -240,15 +240,15 @@ func TestProcessDeltas(t *testing.T) {
 			if tt.name == "delta" {
 				in = []ProcessSample{{
 					PID: 42, User: "www", Command: "nginx worker",
-					Ticks: first.Ticks(), RSSBytes: first.RSSPages * page,
+					CPUNs: first.Ticks() * tickNs, RSSBytes: first.RSSPages * page,
 				}}
 			}
-			rows, next := RankProcesses(in, tt.prev, tt.elapsed, hz, 8000000*1024, 25)
+			rows, next := RankProcesses(in, tt.prev, tt.elapsed, 8000000*1024, 25)
 			if len(rows) != 1 {
 				t.Fatalf("rows %d", len(rows))
 			}
 			near(t, rows[0].CPUPercent, tt.cpu)
-			if next[42] != in[0].Ticks {
+			if next[42] != in[0].CPUNs {
 				t.Fatalf("baseline %d", next[42])
 			}
 			if tt.name == "delta" {
@@ -259,13 +259,13 @@ func TestProcessDeltas(t *testing.T) {
 
 	many := make([]ProcessSample, 30)
 	for i := range many {
-		many[i] = ProcessSample{PID: i + 2, User: "u", Command: "c", Ticks: uint64(100 + i)}
+		many[i] = ProcessSample{PID: i + 2, User: "u", Command: "c", CPUNs: uint64(100+i) * tickNs}
 	}
 	prev := map[int]uint64{}
 	for i := range many {
-		prev[many[i].PID] = 100
+		prev[many[i].PID] = 100 * tickNs
 	}
-	rows, next := RankProcesses(many, prev, 1, hz, 1, 25)
+	rows, next := RankProcesses(many, prev, 1, 1, 25)
 	if len(rows) != 25 || len(next) != 30 {
 		t.Fatalf("top %d baseline %d", len(rows), len(next))
 	}

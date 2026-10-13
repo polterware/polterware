@@ -6,10 +6,8 @@ import (
 )
 
 const (
-	agentVersion    = "1.0.0"
+	agentVersion    = "1.1.0"
 	protocolVersion = 1
-	// Linux USER_HZ. CGO is disabled, so sysconf(_SC_CLK_TCK) is not available.
-	userHZ = 100.0
 )
 
 type helloMsg struct {

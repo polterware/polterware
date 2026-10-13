@@ -3,7 +3,9 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { canOpenExternalUrl, isAllowedRendererUrl } from "./navigation-policy.js";
 
-const OPAQUE_FILL = "#070707";
+const OPAQUE_FILL = "#131313";
+/** Fully clear native fill so the under-window frost shows; the CSS glass wash keeps it dark. */
+const CLEAR_FILL = "#00000000";
 let reduceTransparencyPref = false;
 
 export function rendererDocument(): string {
@@ -12,10 +14,15 @@ export function rendererDocument(): string {
     : pathToFileURL(join(__dirname, "../renderer/index.html")).href;
 }
 
+/** Only macOS has vibrancy; everywhere else the renderer paints solid chrome. */
+function solidChrome(reduceTransparency: boolean): boolean {
+  return reduceTransparency || process.platform !== "darwin";
+}
+
 function rendererLoadUrl(
   reduceTransparency: boolean,
 ): { kind: "url"; value: string } | { kind: "file"; path: string; search: string } {
-  const flag = reduceTransparency ? "1" : "0";
+  const flag = solidChrome(reduceTransparency) ? "1" : "0";
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
     const url = new URL(process.env.ELECTRON_RENDERER_URL);
     url.searchParams.set("reduceTransparency", flag);
@@ -35,11 +42,12 @@ export function applyDarwinWindowChrome(window: BrowserWindow, reduceTransparenc
     window.setBackgroundColor(OPAQUE_FILL);
     return;
   }
+  window.setBackgroundColor(CLEAR_FILL);
   window.setVibrancy("under-window");
 }
 
 function applyRendererChrome(window: BrowserWindow, reduceTransparency: boolean): void {
-  const mode = reduceTransparency ? "solid" : "vibrancy";
+  const mode = solidChrome(reduceTransparency) ? "solid" : "vibrancy";
   void window.webContents
     .executeJavaScript(`document.documentElement.dataset.shellChrome=${JSON.stringify(mode)}`)
     .catch(() => undefined);
@@ -65,10 +73,13 @@ export function createWindow(options: { reduceTransparency?: boolean } = {}): Br
     title: "Vitals",
     show: false,
     titleBarStyle: "hidden",
-    ...(reduceTransparency ? { backgroundColor: OPAQUE_FILL } : {}),
+    backgroundColor: useVibrancy ? CLEAR_FILL : OPAQUE_FILL,
     ...(process.platform === "darwin"
       ? {
+          transparent: true,
           visualEffectState: "active" as const,
+          // Sits the 12px buttons 1px above center on the 44px tab strip, which reads level with its 24px controls.
+          trafficLightPosition: { x: 14, y: 15 },
           ...(useVibrancy ? { vibrancy: "under-window" as const } : {}),
         }
       : {}),

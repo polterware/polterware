@@ -22,3 +22,12 @@
   min-height: 0;
   overflow: hidden;
 }
+
+/* No window controls in the browser, so the tab strip needs no traffic-light inset. */
+.vitals-web-app {
+  --titlebar-traffic-inset: 12px;
+}
+
+.vitals-web-app .vitals-titlebar-divider {
+  display: none;
+}

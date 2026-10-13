@@ -12,6 +12,24 @@ body,
   -webkit-font-smoothing: antialiased;
 }
 
+/* macOS vibrancy: clear the page so the frosted window shows through the shell glass wash.
+ * !important — Electron can lock the first opaque WebContents background. */
+html[data-shell-chrome="vibrancy"],
+html[data-shell-chrome="vibrancy"] body,
+html[data-shell-chrome="vibrancy"] #root {
+  background: transparent !important;
+}
+
+/* One accent across Vitals: the pastel cyan primary drives brand buttons, success, and healthy meters.
+ * Warning and danger stay amber and red because they carry status. */
+:root {
+  --color-brand: var(--color-primary);
+  --color-success: var(--color-primary);
+  --color-status-success-background: var(--color-primary);
+  /* Fixed dark ink so brand buttons stay legible on cyan in both themes. */
+  --color-status-success-foreground: #0f2726;
+}
+
 .vitals-shell {
   display: flex;
   flex-direction: column;
@@ -65,13 +83,33 @@ html[data-shell-chrome="solid"] .vitals-topbar {
   background-color: var(--color-text-muted);
 }
 
+/* The tab strip is the window title bar: it drags the window and clears the traffic lights. */
 .vitals-tabs {
   display: flex;
   flex-shrink: 0;
+  align-items: center;
   gap: 8px;
   min-width: 0;
+  min-height: var(--titlebar-height, 44px);
   overflow-x: auto;
-  padding: 6px 0;
+  /* The frame already pads 8px, so subtract it to keep the traffic-light inset measured from the window edge. */
+  padding: 0 4px 0 calc(var(--titlebar-traffic-inset, 78px) - 8px);
+  -webkit-app-region: drag;
+}
+
+/* Sits 20px past the traffic lights (x 14 to 66) and splits them from the tabs. */
+.vitals-tabs > .vitals-titlebar-divider {
+  flex-shrink: 0;
+  align-self: center;
+  height: 16px;
+  margin-right: 4px;
+  margin-left: 8px;
+  background-color: var(--color-border-strong);
+}
+
+.vitals-tab-row,
+.vitals-tab-new {
+  -webkit-app-region: no-drag;
 }
 
 .vitals-tab-row {
@@ -138,44 +176,31 @@ html[data-shell-chrome="solid"] .vitals-topbar {
   color: var(--color-text-primary);
 }
 
-.vitals-sidebar-frame {
-  height: 100%;
-  min-height: 0;
-}
-
-.vitals-sidebar {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-  padding: calc(var(--titlebar-height, 44px) + 12px) 12px 12px;
-  position: relative;
-}
-
-.vitals-sidebar::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: var(--titlebar-height, 44px);
-  -webkit-app-region: drag;
-}
-
-.vitals-main-frame {
-  height: 100%;
-  min-height: 0;
-}
-
-/* With the sidebar collapsed, the tab strip becomes the window drag region and clears the traffic lights. */
-.pw-resizable-sidebar-layout:has(> .pw-resizable-sidebar[data-collapsed]) .vitals-tabs {
+.vitals-tab-new {
+  appearance: none;
+  display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
-  min-height: var(--titlebar-height, 44px);
-  padding-left: 72px;
-  -webkit-app-region: drag;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
 }
 
-.pw-resizable-sidebar-layout:has(> .pw-resizable-sidebar[data-collapsed]) .vitals-tab-row {
-  -webkit-app-region: no-drag;
+.vitals-tab-new:hover,
+.vitals-tab-new[data-active="true"] {
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
+}
+
+/* No sidebar on the left, so the surface gets the same gutter the shell frame gives it on the right. */
+.pw-shell-main-frame.vitals-main-frame {
+  padding-left: 8px;
 }
 
 main.vitals-main {
@@ -183,6 +208,8 @@ main.vitals-main {
   height: 100%;
   min-height: 0;
   overflow: auto;
+  /* Cards shifting during a drag must not move the scroll. */
+  overflow-anchor: none;
 }
 
 .vitals-surface-head {
@@ -193,105 +220,25 @@ main.vitals-main {
 }
 
 .vitals-form,
-.vitals-stack,
-.vitals-saved {
+.vitals-stack {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.vitals-saved {
-  flex: 1;
-  min-height: 0;
+/* Keep each label tight to its control and give the fields room between each other. */
+.vitals-form {
+  gap: 14px;
 }
 
-.vitals-saved-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-.vitals-connect {
-  width: 100%;
-  flex-shrink: 0;
-  margin-top: auto;
+.vitals-form .pw-field {
+  gap: 6px;
 }
 
 .vitals-chips {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.vitals-saved-list {
-  position: relative;
-}
-
-.vitals-saved .pw-sidebar-group-label {
-  text-transform: none;
-  letter-spacing: normal;
-}
-
-.vitals-saved-row {
-  width: 100%;
-}
-
-.vitals-saved-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.vitals-saved-name svg {
-  flex-shrink: 0;
-}
-
-.vitals-saved-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vitals-saved-row [data-scope="menu"][data-part="root"] {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-}
-
-.vitals-saved-more {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-item);
-  background: transparent;
-  color: var(--color-text-muted);
-  visibility: hidden;
-}
-
-.vitals-saved-row:hover .vitals-saved-more,
-.vitals-saved-row:focus-within .vitals-saved-more,
-.vitals-saved-more[data-state="open"] {
-  visibility: visible;
-}
-
-.vitals-saved-more:hover,
-.vitals-saved-more[data-state="open"] {
-  color: var(--color-text-primary);
 }
 
 .vitals-metrics {
@@ -580,7 +527,7 @@ main.vitals-main {
   display: block;
   height: 100%;
   border-radius: var(--radius-control);
-  background: var(--color-chart-green);
+  background: var(--color-chart-cyan);
 }
 
 .vitals-bar > span[data-level="warn"] {
@@ -638,49 +585,118 @@ main.vitals-main {
   transform: scale(2);
 }
 
-.vitals-empty-actions {
+.vitals-home {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  width: 280px;
+  gap: 20px;
+  width: 320px;
   margin-top: 12px;
 }
 
-.vitals-empty-recents {
+.vitals-home-connect.pw-control-button {
+  align-self: stretch;
+  justify-content: flex-start;
+  gap: 10px;
+  height: 48px;
+  padding: 0 20px 0 10px;
+  border-radius: var(--radius-card);
+}
+
+.vitals-home-section {
   display: flex;
   flex-direction: column;
   align-self: stretch;
   gap: 2px;
 }
 
-.vitals-empty-recents-label {
+.vitals-home-section-label {
   padding: 0 8px 4px;
   font-size: 12px;
   text-align: left;
   color: var(--color-text-muted);
 }
 
-.vitals-empty-recent {
-  justify-content: flex-start;
-  gap: 8px;
-  width: 100%;
+.vitals-home-row {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.vitals-empty-recent-label {
+/* The row's hover fill spans the actions trigger, which sits inside the open button. */
+.vitals-home-open {
+  flex: 1;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding-right: 36px;
+}
+
+.vitals-home-row:hover .vitals-home-open:not(:disabled)::before,
+.vitals-home-row:has([data-state="open"]) .vitals-home-open::before {
+  background-color: var(--color-surface-hover);
+}
+
+.vitals-home-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--color-text-primary);
 }
 
-.vitals-empty-recent-host {
+.vitals-home-host {
   overflow: hidden;
   margin-left: auto;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+.vitals-home-more {
+  position: absolute;
+  right: 4px;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: var(--color-text-muted);
+  visibility: hidden;
+}
+
+.vitals-home-row:hover .vitals-home-more,
+.vitals-home-row:focus-within .vitals-home-more,
+.vitals-home-more[data-state="open"] {
+  visibility: visible;
+}
+
+.vitals-home-more:hover,
+.vitals-home-more[data-state="open"] {
+  color: var(--color-text-primary);
+}
+
+/* Card pill, same chrome as the settings entry in the tab strip. */
+.vitals-layout-trigger {
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background-color: var(--color-surface-subtle);
+  box-shadow: 0 1px 2px var(--color-shadow-subtle);
+  color: var(--color-text-secondary);
+}
+
+.vitals-layout-trigger:hover,
+.vitals-layout-trigger[data-state="open"] {
+  background-color: var(--color-surface-selected);
+  color: var(--color-text-primary);
 }
 
 .vitals-error-actions {
@@ -725,4 +741,80 @@ main.vitals-main {
   height: var(--control-height-sm);
   padding-inline: 0.5rem;
   font-size: 12px;
+}
+
+.vitals-settings-button {
+  margin-left: auto;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+}
+
+/* Same card chrome as a tab pill, so the settings entry reads as part of the strip. */
+.vitals-settings-card {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background: var(--color-surface-subtle);
+  box-shadow: 0 1px 2px var(--color-shadow-subtle);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-control) var(--ease-standard), color var(--duration-control) var(--ease-standard);
+}
+
+.vitals-settings-card:hover,
+.vitals-settings-card[data-active="true"] {
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
+}
+
+.vitals-settings-card:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* App-scoped dark canvas: a lifted gray between the shared near-black and the surface,
+ * so the shell, its glass wash, and the Settings dialog read as one tone. */
+:root:not([data-theme="light"]) {
+  --color-app-background: #131313;
+  --color-shell-background: #131313;
+  --color-sidebar-background: #131313;
+  --color-shell-glass: rgb(19 19 19 / 0.7);
+  /* Surface ladder lifted toward surface-selected (#232323), which stays as the top step. */
+  --color-surface: #161616;
+  --color-surface-subtle: #191919;
+  --color-surface-raised: #1b1b1b;
+  --color-surface-hover: #1d1d1d;
+  --color-surface-active: #202020;
+}
+
+/* App-scoped light palette: shared controls continue to consume semantic tokens. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-app-background: Canvas;
+  --color-shell-background: Canvas;
+  --color-sidebar-background: Canvas;
+  --color-shell-glass: Canvas;
+  --color-surface: color-mix(in srgb, Canvas 98%, CanvasText);
+  --color-surface-subtle: color-mix(in srgb, Canvas 96%, CanvasText);
+  --color-surface-raised: Canvas;
+  --color-surface-hover: color-mix(in srgb, Canvas 92%, CanvasText);
+  --color-surface-active: color-mix(in srgb, Canvas 88%, CanvasText);
+  --color-surface-selected: color-mix(in srgb, Canvas 85%, CanvasText);
+  --color-text-primary: CanvasText;
+  --color-text-secondary: color-mix(in srgb, CanvasText 72%, Canvas);
+  --color-text-muted: color-mix(in srgb, CanvasText 60%, Canvas);
+  --color-text-disabled: color-mix(in srgb, CanvasText 35%, Canvas);
+  --color-border-subtle: color-mix(in srgb, CanvasText 8%, transparent);
+  --color-border-default: color-mix(in srgb, CanvasText 14%, transparent);
+  --color-border-strong: color-mix(in srgb, CanvasText 22%, transparent);
+  --edge-light-field-highlight: var(--color-border-default);
+  --edge-light-field-rim: var(--color-border-subtle);
+  --edge-light-surface-highlight: var(--color-border-default);
+  --edge-light-surface-rim: var(--color-border-subtle);
 }

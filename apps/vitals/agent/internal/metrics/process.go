@@ -17,11 +17,13 @@ type PIDStat struct {
 
 func (s PIDStat) Ticks() uint64 { return s.UTime + s.STime }
 
+// ProcessSample carries cumulative CPU time in nanoseconds so every host
+// (Linux ticks, macOS mach time, Windows 100ns units) converts once.
 type ProcessSample struct {
 	PID      int
 	User     string
 	Command  string
-	Ticks    uint64
+	CPUNs    uint64
 	RSSBytes uint64
 }
 
@@ -77,14 +79,15 @@ func ParseStatusUID(text string) (int, error) {
 	return 0, errors.New("uid missing")
 }
 
-// ProcessCPUPercent converts a tick delta into a percentage of one core.
-// prev == nil means the pid was first seen (no rate yet). A decrease is a
-// reset and uses curr as the delta. Multi-threaded tasks may exceed 100.
-func ProcessCPUPercent(prev *uint64, curr uint64, elapsedSec, hz float64) float64 {
-	if prev == nil || elapsedSec <= 0 || hz <= 0 {
+// ProcessCPUPercent converts a CPU-time delta in nanoseconds into a
+// percentage of one core. prev == nil means the pid was first seen (no rate
+// yet). A decrease is a reset and uses curr as the delta. Multi-threaded
+// tasks may exceed 100.
+func ProcessCPUPercent(prev *uint64, currNs uint64, elapsedSec float64) float64 {
+	if prev == nil || elapsedSec <= 0 {
 		return 0
 	}
-	return float64(deltaCounter(*prev, curr)) / hz / elapsedSec * 100
+	return float64(deltaCounter(*prev, currNs)) / 1e9 / elapsedSec * 100
 }
 
 func MemPercent(rssBytes, totalBytes uint64) float64 {
@@ -94,13 +97,13 @@ func MemPercent(rssBytes, totalBytes uint64) float64 {
 	return float64(rssBytes) / float64(totalBytes) * 100
 }
 
-// RankProcesses returns the top limit tasks by CPU and the next tick baseline
-// for every pid in samples (not only the ones emitted).
-func RankProcesses(samples []ProcessSample, prev map[int]uint64, elapsedSec, hz float64, memTotalBytes uint64, limit int) ([]ProcessRow, map[int]uint64) {
+// RankProcesses returns the top limit tasks by CPU and the next CPU-time
+// baseline for every pid in samples (not only the ones emitted).
+func RankProcesses(samples []ProcessSample, prev map[int]uint64, elapsedSec float64, memTotalBytes uint64, limit int) ([]ProcessRow, map[int]uint64) {
 	next := make(map[int]uint64, len(samples))
 	rows := make([]ProcessRow, 0, len(samples))
 	for _, s := range samples {
-		next[s.PID] = s.Ticks
+		next[s.PID] = s.CPUNs
 		var prevTicks *uint64
 		if prev != nil {
 			if v, ok := prev[s.PID]; ok {
@@ -115,7 +118,7 @@ func RankProcesses(samples []ProcessSample, prev map[int]uint64, elapsedSec, hz 
 		rows = append(rows, ProcessRow{
 			PID:        s.PID,
 			User:       s.User,
-			CPUPercent: ProcessCPUPercent(prevTicks, s.Ticks, elapsedSec, hz),
+			CPUPercent: ProcessCPUPercent(prevTicks, s.CPUNs, elapsedSec),
 			MemPercent: MemPercent(s.RSSBytes, memTotalBytes),
 			Command:    cmd,
 		})

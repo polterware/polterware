@@ -1,22 +1,11 @@
-import { app } from "electron";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
-
-function themePath(): string {
-  return join(app.getPath("userData"), "theme.json");
-}
+import { nativeTheme } from "electron";
+import { getSettings, updateSettings } from "./settings.js";
 
 export function readTheme(): "dark" | "light" {
-  try {
-    const raw = readFileSync(themePath(), "utf8");
-    const parsed = JSON.parse(raw) as { theme?: string };
-    return parsed.theme === "light" ? "light" : "dark";
-  } catch {
-    return "dark";
-  }
+  const theme = getSettings().theme;
+  return theme === "system" ? (nativeTheme.shouldUseDarkColors ? "dark" : "light") : theme;
 }
 
 export function writeTheme(theme: "dark" | "light"): void {
-  mkdirSync(app.getPath("userData"), { recursive: true });
-  writeFileSync(themePath(), JSON.stringify({ theme }), "utf8");
+  updateSettings({ theme });
 }

@@ -45,7 +45,7 @@ export class AgentSession {
   private streamEpoch = 0;
   private disposed = false;
   private hostKeyApproved = false;
-  private remotePath: string | null = null;
+  private agentCommand: string | null = null;
   private lineBuf = new NdjsonLineBuffer();
   private slow: SlowMetricsCache = emptySlowCache();
   private awaitingHello = false;
@@ -135,7 +135,7 @@ export class AgentSession {
         packaged: app.isPackaged,
       });
       if (!isCurrent() || this.disposed) return;
-      this.remotePath = installed.remotePath;
+      this.agentCommand = installed.command;
       this.startAgentStream(isCurrent);
     } catch (e) {
       if (!isCurrent() || this.disposed || this.fellBack) return;
@@ -153,13 +153,13 @@ export class AgentSession {
   }
 
   private startAgentStream(isCurrent: () => boolean): void {
-    if (!this.remotePath || this.disposed || !isCurrent()) return;
+    if (!this.agentCommand || this.disposed || !isCurrent()) return;
     this.stopAgentStream();
     this.lineBuf.reset();
     this.awaitingHello = true;
     const epoch = ++this.streamEpoch;
 
-    this.client.exec(this.remotePath, (err, stream) => {
+    this.client.exec(this.agentCommand, (err, stream) => {
       if (!isCurrent() || this.disposed || epoch !== this.streamEpoch) {
         stream?.close();
         return;
@@ -380,7 +380,7 @@ export class AgentSession {
     old.removeAllListeners();
     old.on("error", () => {});
     old.end();
-    this.remotePath = null;
+    this.agentCommand = null;
     this.agentReady = false;
     this.slow = emptySlowCache();
     this.lineBuf.reset();

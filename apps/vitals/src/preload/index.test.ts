@@ -27,6 +27,14 @@ describe("sandbox bridge", () => {
   });
 
   it("uses fixed channels for invoke", async () => {
+    await bridge.getSettings();
+    expect(mock.invoke).toHaveBeenCalledWith(IPC_CHANNELS.settings.get);
+    await bridge.updateSettings({ defaultKillSignal: "KILL" });
+    expect(mock.invoke).toHaveBeenCalledWith(IPC_CHANNELS.settings.update, { defaultKillSignal: "KILL" });
+    await bridge.listKnownHosts();
+    expect(mock.invoke).toHaveBeenCalledWith(IPC_CHANNELS.knownHosts.list);
+    await bridge.removeKnownHost("host:22");
+    expect(mock.invoke).toHaveBeenCalledWith(IPC_CHANNELS.knownHosts.remove, "host:22");
     await bridge.listServers();
     expect(mock.invoke).toHaveBeenCalledWith(IPC_CHANNELS.session.listServers);
     await bridge.connect({
@@ -41,6 +49,17 @@ describe("sandbox bridge", () => {
       username: "u",
       authMode: "password",
     });
+  });
+
+  it("subscribes to settings without exposing Electron events", () => {
+    const callback = vi.fn();
+    const unsubscribe = bridge.onSettingsChanged(callback);
+    const [channel, listener] = mock.on.mock.calls.at(-1)!;
+    expect(channel).toBe(IPC_EVENTS.settings.changed);
+    listener({ sender: "secret" }, { theme: "system" });
+    expect(callback).toHaveBeenCalledWith({ theme: "system" });
+    unsubscribe();
+    expect(mock.remove).toHaveBeenCalledWith(channel, listener);
   });
 
   it("subscribes to events and unsubscribes exactly its listener", () => {

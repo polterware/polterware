@@ -4,6 +4,7 @@ import { electronApp, optimizer } from "@electron-toolkit/utils";
 import { createWindow } from "./window.js";
 import { SessionManager } from "./session-manager.js";
 import { registerVitalsIpcHandlers } from "./ipc.js";
+import { getSettings } from "./settings.js";
 
 const sessionManager = new SessionManager();
 
@@ -23,7 +24,7 @@ app.whenReady().then(() => {
 
   registerVitalsIpcHandlers({ sessions: sessionManager }, ipcMain);
 
-  const win = createWindow();
+  const win = createWindow({ reduceTransparency: getSettings().reduceTransparency });
   sessionManager.setWindow(win);
 
   app.on("activate", () => {

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -17,6 +16,12 @@ import (
 	"time"
 
 	"github.com/polterware/polterware/apps/vitals/agent/internal/metrics"
+)
+
+// Linux USER_HZ. CGO is disabled, so sysconf(_SC_CLK_TCK) is not available.
+const (
+	userHZ = 100
+	tickNs = 1_000_000_000 / userHZ
 )
 
 // host reads the stable /proc files once and rereads them with pread.
@@ -53,7 +58,6 @@ func runAgent(ctx context.Context, in io.Reader, out io.Writer) error {
 }
 
 func newHost() *host {
-	_, gpuErr := exec.LookPath("nvidia-smi")
 	page := os.Getpagesize()
 	if page <= 0 {
 		page = 4096
@@ -61,7 +65,7 @@ func newHost() *host {
 	return &host{
 		start:  time.Now(),
 		page:   uint64(page),
-		gpu:    gpuErr == nil,
+		gpu:    hasNvidiaSMI(),
 		passwd: loadPasswd(),
 		phys:   map[string]bool{},
 	}
@@ -206,7 +210,7 @@ func (h *host) sampleProcs(_ uint64) ([]metrics.ProcessSample, error) {
 		}
 		out = append(out, metrics.ProcessSample{
 			PID: st.PID, User: user, Command: st.Command,
-			Ticks: st.Ticks(), RSSBytes: st.RSSPages * h.page,
+			CPUNs: st.Ticks() * tickNs, RSSBytes: st.RSSPages * h.page,
 		})
 	}
 	return out, nil
@@ -256,27 +260,7 @@ func (h *host) sampleThermals() ([]thermalMsg, error) {
 	return out, nil
 }
 
-func (h *host) sampleGPUs() ([]gpuMsg, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "nvidia-smi",
-		"--query-gpu=index,name,temperature.gpu,utilization.gpu,memory.used,memory.total",
-		"--format=csv,noheader,nounits")
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-	gpus := metrics.ParseNvidiaSMI(string(out))
-	msgs := make([]gpuMsg, len(gpus))
-	for i, g := range gpus {
-		msgs[i] = gpuMsg{
-			Index: g.Index, Name: g.Name, TemperatureC: g.TemperatureC,
-			UtilizationPercent: g.UtilizationPercent,
-			MemoryUsedMb:       g.MemoryUsedMb, MemoryTotalMb: g.MemoryTotalMb,
-		}
-	}
-	return msgs, nil
-}
+func (h *host) sampleGPUs() ([]gpuMsg, error) { return sampleNvidiaSMI() }
 
 func (h *host) kill(pid int, sig string) error {
 	owner, err := readOwner(pid)

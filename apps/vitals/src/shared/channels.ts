@@ -16,6 +16,8 @@ export const IPC_CHANNELS = {
     hostKeyReject: "vitals:host-key-reject",
     killProcess: "vitals:kill-process",
   },
+  settings: { get: "vitals:get-settings", update: "vitals:update-settings" },
+  knownHosts: { list: "vitals:list-known-hosts", remove: "vitals:remove-known-host" },
   theme: {
     get: "vitals:get-theme",
     set: "vitals:set-theme",
@@ -23,6 +25,7 @@ export const IPC_CHANNELS = {
 } as const;
 
 export const IPC_EVENTS = {
+  settings: { changed: "vitals:settings-changed" },
   shell: {
     data: "vitals:shell-data",
     exit: "vitals:shell-exit",

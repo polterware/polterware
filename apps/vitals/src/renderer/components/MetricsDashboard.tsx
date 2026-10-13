@@ -1,16 +1,15 @@
 import { Activity, ControlButton, Cpu, DataTable, DitherIconTile, EmptyIllustration, Gauge, HardDrive, ListOrdered, MemoryStick, Network, PageEmpty, RefreshCw, Server, StatusChip, Zap } from "@polterware/frontend-design-system";
 import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { connectionPresentation, type ConnectionMetricsMode, type ConnectionStatus, type DiskIoStats, type DiskPartition, type MetricsSnapshot, type NetworkInterface, type SessionHistory } from "../api";
-import { formatBytesPerSec, formatKb, formatPercent, formatUptime } from "../utils/format";
+import { formatBytesPerSec, formatNetworkRate, formatKb, formatPercent, formatUptime } from "../utils/format";
 import { MetricCard } from "./MetricCard";
-import { CARD_IDS, type CardId } from "./card-order";
-import { GAP, ROW_H, colsFor, freeCells, loadAnchors, loadOrder, packOrder, saveAnchors, saveOrder, type Anchors } from "./card-layout";
+import { CARD_IDS, CARD_TITLES, type CardId } from "./card-order";
+import { GAP, ROW_H, colsFor, freeCells, packOrder } from "./card-layout";
+import type { CardLayoutState } from "./card-layout-state";
 import { createCardReorder } from "./card-reorder";
 import { EchoRing } from "./EchoRing";
 import { ProcessTable } from "./ProcessTable";
 import { SparkChart } from "./SparkChart";
-
-const HISTORY = 60;
 
 function loadLevel(percent: number): "ok" | "warn" | "hot" {
   if (percent >= 85) return "hot";
@@ -87,6 +86,9 @@ export function MetricsDashboard(props: {
   mode?: ConnectionMetricsMode;
   message?: string;
   label?: string;
+  networkUnit: "bytes" | "bits";
+  historyLimit: number;
+  layout: CardLayoutState;
   onKill: (pid: number) => void;
   onRetry: () => void;
   onClose: () => void;
@@ -95,10 +97,7 @@ export function MetricsDashboard(props: {
   const waiting = () => props.snapshot === null && (props.status === "connecting" || props.status === "connected" || props.status === "reconnecting");
   const showHead = () => !waiting() && (props.mode === "fallback" || Boolean(props.message && props.status !== "connected"));
   const [pickedIface, setPickedIface] = createSignal<string | undefined>();
-  const [order, setOrder] = createSignal<CardId[]>(loadOrder());
-  createEffect(() => saveOrder(order()));
-  const [anchors, setAnchors] = createSignal<Anchors>(loadAnchors());
-  createEffect(() => saveAnchors(anchors()));
+  const { order, setOrder, anchors, setAnchors } = props.layout;
   const [grid, setGrid] = createSignal<HTMLElement>();
   const [cols, setCols] = createSignal(2);
   createEffect(() => {
@@ -125,10 +124,14 @@ export function MetricsDashboard(props: {
     return true;
   };
   // DOM order stays fixed; placement is purely grid coordinates, so moving a card never re-parents it.
-  const present = createMemo(() => CARD_IDS.filter(available));
-  const visible = createMemo(() => order().filter(available));
+  const shown = (id: CardId) => available(id) && !props.layout.isHidden(id);
+  const present = createMemo(() => CARD_IDS.filter(shown));
+  const visible = createMemo(() => order().filter(shown));
   const rects = createMemo(() => packOrder(visible(), cols(), anchors()));
-  const reorder = createCardReorder({ grid, cols, rects, order, visible, setOrder, anchors, setAnchors });
+  const reorder = createCardReorder({ grid, cols, rects, order, setOrder, anchors, setAnchors });
+  createEffect(() => props.layout.publish({ available: CARD_IDS.filter(available), cols: cols() }));
+  props.layout.bindArrange(reorder.arrange);
+  onCleanup(() => props.layout.bindArrange(null));
   /** Empty spots shown under the grid while a card is held, so free cells read as drop targets. */
   const dropSlots = createMemo(() => {
     const held = reorder.draggingId();
@@ -215,9 +218,9 @@ export function MetricsDashboard(props: {
               switch (id) {
                 case "cpu":
                   return (
-                    <MetricCard id="cpu" title="CPU" icon={Cpu} reorder={reorder} rect={rects().get("cpu")}>
+                    <MetricCard id="cpu" title={CARD_TITLES.cpu} icon={Cpu} reorder={reorder} rect={rects().get("cpu")}>
                       <div class="vitals-stat-block">
-                        <div class="vitals-stat">{formatPercent(snapshot().cpuTotalPercent)}</div>
+                        <div class="vitals-stat">{formatPercent(props.history.cpuDisplay ?? snapshot().cpuTotalPercent)}</div>
                         <div class="vitals-sub">
                           Load {snapshot().load1.toFixed(2)} / {snapshot().load5.toFixed(2)} / {snapshot().load15.toFixed(2)}
                         </div>
@@ -237,12 +240,12 @@ export function MetricsDashboard(props: {
                           </For>
                         </div>
                       </Show>
-                      <SparkChart series={props.history.cpu.slice(-HISTORY)} label="CPU %" />
+                      <SparkChart series={props.history.cpu.slice(-props.historyLimit)} label="CPU %" />
                     </MetricCard>
                   );
                 case "memory":
                   return (
-                    <MetricCard id="memory" title="Memory" icon={MemoryStick} reorder={reorder} rect={rects().get("memory")}>
+                    <MetricCard id="memory" title={CARD_TITLES.memory} icon={MemoryStick} reorder={reorder} rect={rects().get("memory")}>
                       <div class="vitals-stat-block">
                         <div class="vitals-stat">{formatPercent(memPct())}</div>
                         <div class="vitals-sub">
@@ -267,7 +270,7 @@ export function MetricsDashboard(props: {
                   );
                 case "network":
                   return (
-                    <MetricCard id="network" title="Network" icon={Network} reorder={reorder} rect={rects().get("network")}>
+                    <MetricCard id="network" title={CARD_TITLES.network} icon={Network} reorder={reorder} rect={rects().get("network")}>
                       <div class="vitals-stack vitals-network">
                         <div class="vitals-ifaces">
                           <For each={snapshot().network}>
@@ -280,8 +283,8 @@ export function MetricsDashboard(props: {
                                 onClick={() => setPickedIface(iface.name)}
                               >
                                 <span>{iface.name}</span>
-                                <span>Down {formatBytesPerSec(iface.rxBytesPerSec)}</span>
-                                <span>Up {formatBytesPerSec(iface.txBytesPerSec)}</span>
+                                <span>Down {formatNetworkRate(iface.rxBytesPerSec, props.networkUnit)}</span>
+                                <span>Up {formatNetworkRate(iface.txBytesPerSec, props.networkUnit)}</span>
                               </button>
                             )}
                           </For>
@@ -290,19 +293,19 @@ export function MetricsDashboard(props: {
                           {(name) => (
                             <>
                               <div class="vitals-chart-group">
-                                <div class="vitals-sub">Down {name()}</div>
+                                <div class="vitals-sub">Down {name()} ({props.networkUnit === "bits" ? "bit/s" : "B/s"})</div>
                                 <SparkChart
                                   height={80}
-                                  series={ifaceSeries(name()).rx.slice(-HISTORY)}
+                                  series={ifaceSeries(name()).rx.slice(-props.historyLimit).map((value) => props.networkUnit === "bits" ? value * 8 : value)}
                                   label={`Receive ${name()}`}
-                                  strokeToken="--color-chart-green"
+                                  strokeToken="--color-chart-cyan"
                                 />
                               </div>
                               <div class="vitals-chart-group">
-                                <div class="vitals-sub">Up {name()}</div>
+                                <div class="vitals-sub">Up {name()} ({props.networkUnit === "bits" ? "bit/s" : "B/s"})</div>
                                 <SparkChart
                                   height={80}
-                                  series={ifaceSeries(name()).tx.slice(-HISTORY)}
+                                  series={ifaceSeries(name()).tx.slice(-props.historyLimit).map((value) => props.networkUnit === "bits" ? value * 8 : value)}
                                   label={`Transmit ${name()}`}
                                   strokeToken="--color-chart-blue"
                                 />
@@ -315,7 +318,7 @@ export function MetricsDashboard(props: {
                   );
                 case "diskio":
                   return (
-                    <MetricCard id="diskio" title="Disk I/O" icon={Activity} reorder={reorder} rect={rects().get("diskio")}>
+                    <MetricCard id="diskio" title={CARD_TITLES.diskio} icon={Activity} reorder={reorder} rect={rects().get("diskio")}>
                       <DataTable.Root rows={snapshot().diskIo ?? []} getRowId={(row) => row.device} virtualized={false} estimateRowHeight={36}>
                         <DataTable.Table aria-label="Disk I/O">
                           <DataTable.Header>
@@ -348,7 +351,7 @@ export function MetricsDashboard(props: {
                   );
                 case "pressure":
                   return (
-                    <MetricCard id="pressure" title="Pressure" icon={Gauge} reorder={reorder} rect={rects().get("pressure")}>
+                    <MetricCard id="pressure" title={CARD_TITLES.pressure} icon={Gauge} reorder={reorder} rect={rects().get("pressure")}>
                       <Show when={snapshot().pressure} fallback={<p class="vitals-sub">No pressure data reported.</p>}>
                         {(pressure) => {
                           const tiles = () => [
@@ -387,7 +390,7 @@ export function MetricsDashboard(props: {
                   );
                 case "disk":
                   return (
-                    <MetricCard id="disk" title="Disk" icon={HardDrive} reorder={reorder} rect={rects().get("disk")}>
+                    <MetricCard id="disk" title={CARD_TITLES.disk} icon={HardDrive} reorder={reorder} rect={rects().get("disk")}>
                       <DataTable.Root rows={snapshot().disks} getRowId={(row) => row.mountPoint} virtualized={false} estimateRowHeight={36}>
                         <DataTable.Table aria-label="Disks">
                           <DataTable.Header>
@@ -420,7 +423,7 @@ export function MetricsDashboard(props: {
                   );
                 case "thermal":
                   return (
-                    <MetricCard id="thermal" title="Temperature / GPU" icon={Zap} reorder={reorder} rect={rects().get("thermal")}>
+                    <MetricCard id="thermal" title={CARD_TITLES.thermal} icon={Zap} reorder={reorder} rect={rects().get("thermal")}>
                       <Show when={sensorTiles(snapshot()).length > 0} fallback={<p class="vitals-sub">No sensors reported.</p>}>
                         <div class="vitals-sensors">
                           <For each={sensorTiles(snapshot())}>{(tile) => <SensorTileView tile={tile} />}</For>
@@ -430,7 +433,7 @@ export function MetricsDashboard(props: {
                   );
                 case "processes":
                   return (
-                    <MetricCard id="processes" title="Processes" icon={ListOrdered} reorder={reorder} rect={rects().get("processes")}>
+                    <MetricCard id="processes" title={CARD_TITLES.processes} icon={ListOrdered} reorder={reorder} rect={rects().get("processes")}>
                       <ProcessTable rows={snapshot().processes} onKill={props.onKill} />
                     </MetricCard>
                   );

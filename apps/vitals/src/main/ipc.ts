@@ -3,7 +3,10 @@ import type { ConnectPayload, KillProcessPayload } from "../shared/bridge.js";
 import { IPC_CHANNELS } from "../shared/channels.js";
 import type { SessionManager } from "./session-manager.js";
 import { assertSessionId, parseShellAck, parseShellOpen, parseShellResize, parseShellWrite } from "./shell-session.js";
+import { getSettings, updateSettings } from "./settings.js";
+import { listKnownHosts, removeKnownHost } from "./known-hosts.js";
 import { readTheme, writeTheme } from "./theme.js";
+import { applyReduceTransparency } from "./window.js";
 
 type IpcHandle = (event: IpcMainInvokeEvent, payload?: unknown) => unknown | Promise<unknown>;
 
@@ -45,7 +48,7 @@ export function createVitalsIpcHandlers(deps: {
     },
     [c.session.killProcess]: (_e, payload) => {
       const p = payload as KillProcessPayload;
-      return sessions.killProcess(p.sessionId, p.pid, p.signal ?? "TERM");
+      return sessions.killProcess(p.sessionId, p.pid, p.signal ?? getSettings().defaultKillSignal);
     },
     [c.shell.open]: (_e, payload) => {
       const p = parseShellOpen(payload);
@@ -66,6 +69,15 @@ export function createVitalsIpcHandlers(deps: {
       const p = parseShellAck(payload);
       sessions.shellAck(p.sessionId, p.bytes);
     },
+    [c.settings.get]: () => getSettings(),
+    [c.settings.update]: (_e, patch) => {
+      const before = getSettings().reduceTransparency;
+      const settings = updateSettings(patch);
+      if (settings.reduceTransparency !== before) applyReduceTransparency(settings.reduceTransparency);
+      return settings;
+    },
+    [c.knownHosts.list]: () => listKnownHosts(),
+    [c.knownHosts.remove]: (_e, key) => removeKnownHost(key as string),
     [c.theme.get]: () => readTheme(),
     [c.theme.set]: (_e, theme) => {
       writeTheme(theme as "dark" | "light");
