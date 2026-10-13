@@ -8,6 +8,7 @@
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
+    "dev:web": "vite --config vite.web.config.ts",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "deps:electron": "node -e \"const pkg = require('./package.json'); console.log(pkg.devDependencies.electron);\"",
@@ -16,6 +17,7 @@
   },
   "dependencies": {
     "@polterware/frontend-design-system": "workspace:*",
+    "@polterware/frontend-shell": "workspace:*",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
     "solid-js": "^1.9.15",

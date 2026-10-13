@@ -24,6 +24,7 @@
   },
   "include": [
     "src/**/*",
-    "electron.vite.config.ts"
+    "electron.vite.config.ts",
+    "vite.web.config.ts"
   ]
 }

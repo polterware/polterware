@@ -1,17 +1,18 @@
 import {
   A11yDialog,
-  Activity,
   Button,
+  ControlButton,
   PageEmpty,
   PageError,
-  StatusChip,
-  Surface,
+  PageToolbar,
+  Tabs,
   ToastRegion,
+  X,
   pushToast,
 } from "@polterware/frontend-design-system";
-import { ErrorBoundary, For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { MainFrame, MainSurfaceFrame, SidebarFrame } from "@polterware/frontend-shell";
+import { ErrorBoundary, For, Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import {
-  connectionPresentation,
   type ConnectPayload,
   type ConnectionStateEvent,
   type HostKeyPrompt,
@@ -58,7 +59,6 @@ function appendInterfaceHistory(
 }
 
 export function App() {
-  const [theme, setTheme] = createSignal<"dark" | "light">("dark");
   const [saved, setSaved] = createSignal<SavedServerPublic[]>([]);
   const [tabs, setTabs] = createSignal<TabState[]>([]);
   const [activeId, setActiveId] = createSignal<string | null>(null);
@@ -67,10 +67,7 @@ export function App() {
   const [terminalSessions, setTerminalSessions] = createSignal<string[]>([]);
   const [killTarget, setKillTarget] = createSignal<{ sessionId: string; pid: number } | null>(null);
   const active = createMemo(() => tabs().find((tab) => tab.sessionId === activeId()) ?? null);
-
-  createEffect(() => {
-    document.documentElement.dataset.theme = theme();
-  });
+  const closedSessions = new Set<string>();
 
   const refreshSaved = () => {
     if (!window.vitals) return;
@@ -79,11 +76,11 @@ export function App() {
 
   onMount(() => {
     if (!window.vitals) return;
-    void window.vitals.getTheme().then(setTheme);
     refreshSaved();
     const seenStatus = new Map<string, ConnectionStateEvent["status"]>();
 
     const offState = window.vitals.onConnectionState((event) => {
+      if (closedSessions.has(event.sessionId)) return;
       const previous = seenStatus.get(event.sessionId);
       seenStatus.set(event.sessionId, event.status);
       if ((event.status === "error" || event.status === "disconnected") && previous !== event.status) {
@@ -155,10 +152,16 @@ export function App() {
     });
   };
 
-  const toggleTheme = () => {
-    const next = theme() === "dark" ? "light" : "dark";
-    setTheme(next);
-    void window.vitals.setTheme(next);
+  const closeTab = (sessionId: string) => {
+    closedSessions.add(sessionId);
+    const current = tabs();
+    const index = current.findIndex((tab) => tab.sessionId === sessionId);
+    const remaining = current.filter((tab) => tab.sessionId !== sessionId);
+    const neighbor = remaining[index] ?? remaining[index - 1] ?? null;
+    setTabs(remaining);
+    setTerminalSessions((ids) => ids.filter((id) => id !== sessionId));
+    setActiveId((id) => (id === sessionId ? neighbor?.sessionId ?? null : id));
+    void window.vitals.disconnect(sessionId);
   };
 
   const confirmKill = async () => {
@@ -179,43 +182,8 @@ export function App() {
       )}
     >
       <div class="vitals-shell">
-        <header class="vitals-topbar">
-          <span class="vitals-brand">
-            <Activity size={16} />
-            Vitals
-          </span>
-          <div class="vitals-tabs">
-            <For each={tabs()}>
-              {(tab) => {
-                const presentation = connectionPresentation(tab.status);
-                return (
-                  <Button
-                    variant="ghost"
-                    class="vitals-tab"
-                    data-active={tab.sessionId === activeId() ? "true" : "false"}
-                    onClick={() => setActiveId(tab.sessionId)}
-                  >
-                    <StatusChip tone={presentation.tone}>{presentation.label}</StatusChip>
-                    {tab.label}
-                  </Button>
-                );
-              }}
-            </For>
-          </div>
-          <Button variant="secondary" onClick={toggleTheme}>
-            {theme() === "dark" ? "Light" : "Dark"}
-          </Button>
-          <Show when={active()}>
-            {(session) => (
-              <Button variant="secondary" onClick={() => void window.vitals.disconnect(session().sessionId)}>
-                Disconnect
-              </Button>
-            )}
-          </Show>
-        </header>
-
         <div class="vitals-layout">
-          <Surface>
+          <SidebarFrame class="vitals-sidebar-frame" aria-label="Connection">
             <div class="vitals-sidebar">
             <ConnectionForm
               saved={saved()}
@@ -226,31 +194,55 @@ export function App() {
               onRefreshSaved={refreshSaved}
             />
             </div>
-          </Surface>
-          <main class="vitals-main">
-            <Show when={active()}>
+          </SidebarFrame>
+          <MainFrame class="vitals-main-frame">
+            <div class="vitals-tabs">
+              <For each={tabs()}>
+                {(tab) => (
+                  <div class="vitals-tab-row" data-active={tab.sessionId === activeId() ? "true" : "false"}>
+                    <Button
+                      variant="ghost"
+                      class="vitals-tab"
+                      data-active={tab.sessionId === activeId() ? "true" : "false"}
+                      onClick={() => setActiveId(tab.sessionId)}
+                    >
+                      {tab.label}
+                    </Button>
+                    <button type="button" class="vitals-tab-close" aria-label={`Close ${tab.label}`} onClick={() => closeTab(tab.sessionId)}>
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+              </For>
+            </div>
+          <MainSurfaceFrame class="vitals-main">
+            <div class="vitals-surface-head">
+              <Show when={active()}>
               {(session) => (
-                <div class="vitals-view-switch">
-                  <Button
-                    variant={view() === "metrics" ? "secondary" : "ghost"}
-                    onClick={() => setView("metrics")}
-                  >
-                    Metrics
-                  </Button>
-                  <Button
-                    variant={view() === "terminal" ? "secondary" : "ghost"}
-                    onClick={() => {
-                      setView("terminal");
-                      setTerminalSessions((ids) =>
-                        ids.includes(session().sessionId) ? ids : [...ids, session().sessionId],
-                      );
-                    }}
-                  >
-                    Terminal
-                  </Button>
-                </div>
+                <PageToolbar.Root>
+                  <PageToolbar.Tabs>
+                    <Tabs
+                      aria-label="Session view"
+                      items={[
+                        { id: "metrics", label: "Metrics" },
+                        { id: "terminal", label: "Terminal" },
+                      ]}
+                      value={view()}
+                      onChange={(id) => {
+                        if (id === "terminal") {
+                          setView("terminal");
+                          const sessionId = session().sessionId;
+                          setTerminalSessions((ids) => (ids.includes(sessionId) ? ids : [...ids, sessionId]));
+                          return;
+                        }
+                        setView("metrics");
+                      }}
+                    />
+                  </PageToolbar.Tabs>
+                </PageToolbar.Root>
               )}
             </Show>
+            </div>
             {/* Keyed by sessionId string: tab objects are replaced on every metrics event,
                 and a For over objects would remount the terminal (closing its shell) each time. */}
             <For each={terminalSessions()}>
@@ -273,9 +265,10 @@ export function App() {
               }}
             </For>
             <Show
-              when={active() && view() === "metrics"}
+              when={active()}
               fallback={<PageEmpty title="No host connected" description="Connect to a Linux host to see live metrics." />}
             >
+              <Show when={view() === "metrics"}>
               <MetricsDashboard
                 snapshot={active()!.snapshot}
                 history={active()!.history}
@@ -284,8 +277,10 @@ export function App() {
                 message={active()!.message}
                 onKill={(pid) => setKillTarget({ sessionId: active()!.sessionId, pid })}
               />
+              </Show>
             </Show>
-          </main>
+          </MainSurfaceFrame>
+          </MainFrame>
         </div>
 
         <Show when={hostKey()}>
@@ -314,12 +309,12 @@ export function App() {
           onClose={() => setKillTarget(null)}
           footer={
             <div class="vitals-actions">
-              <Button variant="secondary" onClick={() => setKillTarget(null)}>
+              <ControlButton tone="secondary" onClick={() => setKillTarget(null)}>
                 Cancel
-              </Button>
-              <Button variant="danger" onClick={() => void confirmKill()}>
+              </ControlButton>
+              <ControlButton tone="danger" onClick={() => void confirmKill()}>
                 Kill
-              </Button>
+              </ControlButton>
             </div>
           }
         >

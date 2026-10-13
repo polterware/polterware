@@ -1,4 +1,4 @@
-import { Button, DataTable } from "@polterware/frontend-design-system";
+import { ControlButton, DataTable, Delete } from "@polterware/frontend-design-system";
 import type { ProcessRow } from "../api";
 
 export function ProcessTable(props: { rows: ProcessRow[]; onKill: (pid: number) => void }) {
@@ -27,7 +27,7 @@ export function ProcessTable(props: { rows: ProcessRow[]; onKill: (pid: number) 
           <DataTable.ColumnHeader<ProcessRow> id="command" sortBy={(row) => row.command}>
             Command
           </DataTable.ColumnHeader>
-          <DataTable.ColumnHeader<ProcessRow> id="actions" width="72px" align="right" sortable={false}>
+          <DataTable.ColumnHeader<ProcessRow> id="actions" width="120px" align="right" sortable={false}>
             <span class="sr-only">Actions</span>
           </DataTable.ColumnHeader>
         </DataTable.Header>
@@ -40,9 +40,10 @@ export function ProcessTable(props: { rows: ProcessRow[]; onKill: (pid: number) 
               <DataTable.Cell>{row.memPercent.toFixed(1)}</DataTable.Cell>
               <DataTable.Cell>{row.command}</DataTable.Cell>
               <DataTable.Cell align="right">
-                <Button variant="danger" size="sm" onClick={() => props.onKill(row.pid)}>
+                <ControlButton tone="danger" onClick={() => props.onKill(row.pid)}>
+                  <Delete size={14} />
                   Kill
-                </Button>
+                </ControlButton>
               </DataTable.Cell>
             </DataTable.Row>
           )}
