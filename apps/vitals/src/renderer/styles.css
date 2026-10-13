@@ -179,6 +179,7 @@ html[data-shell-chrome="solid"] .vitals-topbar {
 }
 
 main.vitals-main {
+  position: relative;
   height: 100%;
   min-height: 0;
   overflow: auto;
@@ -301,6 +302,13 @@ main.vitals-main {
   padding: 12px;
 }
 
+/* Free cells while a card is held: quiet card-shaped wells that read as places the card can go. */
+.vitals-drop-slot {
+  border-radius: var(--radius-card);
+  background: var(--color-surface-subtle);
+  pointer-events: none;
+}
+
 .vitals-section {
   position: relative;
   display: flex;
@@ -374,11 +382,98 @@ main.vitals-main {
   color: var(--color-text-primary);
 }
 
+/* Blocks spread over the card's full height; a lone list or grid stretches and spreads its rows. */
 .vitals-card-body {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
   min-height: 0;
   overflow: auto;
+}
+
+.vitals-card-body > .vitals-stack:only-child {
+  flex: 1;
+  justify-content: space-between;
+}
+
+.vitals-card-body > .vitals-sensors:only-child {
+  flex: 1;
+  align-content: space-between;
+}
+
+/* Overall usage bar under a headline number. */
+.vitals-stat-bar {
+  margin-top: 4px;
+}
+
+/* A headline number with its caption directly under it. */
+.vitals-stat-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vitals-network {
+  gap: 12px;
+}
+
+/* A chart with its caption directly above it. */
+.vitals-chart-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Temperature / GPU: one tile per reading, filling the card in an even grid. */
+.vitals-sensors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 12px 10px;
+}
+
+.vitals-sensor {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.vitals-sensors-pair {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vitals-sensor-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.vitals-sensor-unit {
+  margin-left: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.vitals-sensor-label {
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vitals-sensor .vitals-bar {
+  height: 4px;
+  margin-top: 2px;
 }
 
 .vitals-card-title {
@@ -395,6 +490,7 @@ main.vitals-main {
 
 .vitals-stat {
   font-size: 28px;
+  line-height: 1.1;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
@@ -431,30 +527,46 @@ main.vitals-main {
   gap: 4px;
 }
 
+/* Interface rows double as the picker for the charts below. */
 .vitals-iface {
+  appearance: none;
   display: grid;
-  grid-template-columns: minmax(72px, 1fr) auto auto;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 12px;
+  width: 100%;
+  white-space: nowrap;
   align-items: center;
   padding: 4px 8px;
+  border: 0;
   border-radius: var(--radius-control);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
 }
 
-.vitals-iface[data-active="true"] {
-  background: var(--color-surface-selected);
+.vitals-iface > :first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vitals-iface:hover {
+  background: var(--color-surface-hover);
   color: var(--color-text-primary);
 }
 
-.vitals-pressure {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  font-size: 12px;
-  color: var(--color-text-secondary);
+.vitals-iface:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: -2px;
+}
+
+.vitals-iface[data-active="true"] {
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
 }
 
 .vitals-bar {
@@ -480,8 +592,7 @@ main.vitals-main {
 }
 
 .vitals-chart {
-  height: 140px;
-  margin-top: 8px;
+  flex-shrink: 0;
 }
 
 .vitals-fingerprint {
@@ -581,4 +692,37 @@ main.vitals-main {
 .vitals-status-head {
   justify-content: flex-start;
   padding: 12px 12px 0;
+}
+
+.vitals-connecting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 32px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.vitals-connecting-echo {
+  --echo-dot: 3px;
+  --echo-peak: var(--color-text-muted);
+  --echo-dot-rest: var(--color-surface-selected);
+  margin-bottom: 12px;
+}
+
+.vitals-connecting-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+/* Row action sized like a small control so process rows stay compact. */
+.control-field.vitals-kill {
+  height: var(--control-height-sm);
+  padding-inline: 0.5rem;
+  font-size: 12px;
 }

@@ -2,16 +2,26 @@ import { createEffect, onCleanup, onMount } from "solid-js";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
 
-const CHART_HEIGHT = 120;
+const DEFAULT_HEIGHT = 96;
+
+/** Short axis ticks (1.2K, 3.4M) so large byte rates fit the narrow axis instead of truncating. */
+function compactTick(value: number): string {
+  const abs = Math.abs(value);
+  for (const [unit, size] of [["G", 1e9], ["M", 1e6], ["K", 1e3]] as const) {
+    if (abs >= size) return `${Number((value / size).toFixed(1))}${unit}`;
+  }
+  return String(Number(value.toFixed(1)));
+}
 
 function tokenColor(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-export function SparkChart(props: { series: number[]; label: string; strokeToken?: string }) {
+export function SparkChart(props: { series: number[]; label: string; strokeToken?: string; height?: number }) {
   let host: HTMLDivElement | undefined;
   let plot: uPlot | undefined;
 
+  const height = () => props.height ?? DEFAULT_HEIGHT;
   const strokeToken = () => props.strokeToken ?? "--color-chart-red";
 
   function aligned(): uPlot.AlignedData {
@@ -26,7 +36,7 @@ export function SparkChart(props: { series: number[]; label: string; strokeToken
     plot = new uPlot(
       {
         width,
-        height: CHART_HEIGHT,
+        height: height(),
         series: [
           {},
           {
@@ -40,7 +50,8 @@ export function SparkChart(props: { series: number[]; label: string; strokeToken
           {
             stroke: tokenColor("--color-chart-axis"),
             grid: { show: true, stroke: tokenColor("--color-chart-grid") },
-            size: 40,
+            size: 46,
+            values: (_, splits) => splits.map(compactTick),
           },
         ],
         legend: { show: false },
@@ -52,7 +63,7 @@ export function SparkChart(props: { series: number[]; label: string; strokeToken
 
     const observer = new ResizeObserver(() => {
       if (!plot || !host) return;
-      plot.setSize({ width: host.clientWidth || 280, height: CHART_HEIGHT });
+      plot.setSize({ width: host.clientWidth || 280, height: height() });
     });
     observer.observe(element);
     onCleanup(() => {
@@ -75,5 +86,5 @@ export function SparkChart(props: { series: number[]; label: string; strokeToken
     plot.setData(next);
   });
 
-  return <div class="vitals-chart" ref={host} role="img" aria-label={props.label} />;
+  return <div class="vitals-chart" ref={host} style={{ height: `${height()}px` }} role="img" aria-label={props.label} />;
 }

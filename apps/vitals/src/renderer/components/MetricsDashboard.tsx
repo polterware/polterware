@@ -1,11 +1,12 @@
-import { Activity, ControlButton, Cpu, DataTable, DitherIconTile, EmptyIllustration, Gauge, HardDrive, ListOrdered, MemoryStick, Network, PageEmpty, RefreshCw, Select, Server, Skeleton, StatusChip, Zap, type StatusTone } from "@polterware/frontend-design-system";
+import { Activity, ControlButton, Cpu, DataTable, DitherIconTile, EmptyIllustration, Gauge, HardDrive, ListOrdered, MemoryStick, Network, PageEmpty, RefreshCw, Server, StatusChip, Zap } from "@polterware/frontend-design-system";
 import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { connectionPresentation, type ConnectionMetricsMode, type ConnectionStatus, type DiskIoStats, type DiskPartition, type MetricsSnapshot, type NetworkInterface, type SessionHistory } from "../api";
 import { formatBytesPerSec, formatKb, formatPercent, formatUptime } from "../utils/format";
 import { MetricCard } from "./MetricCard";
 import { CARD_IDS, type CardId } from "./card-order";
-import { GAP, ROW_H, colsFor, loadOrder, packOrder, saveOrder } from "./card-layout";
+import { GAP, ROW_H, colsFor, freeCells, loadAnchors, loadOrder, packOrder, saveAnchors, saveOrder, type Anchors } from "./card-layout";
 import { createCardReorder } from "./card-reorder";
+import { EchoRing } from "./EchoRing";
 import { ProcessTable } from "./ProcessTable";
 import { SparkChart } from "./SparkChart";
 
@@ -17,16 +18,65 @@ function loadLevel(percent: number): "ok" | "warn" | "hot" {
   return "ok";
 }
 
-function pressureLevel(value: number): "ok" | "warn" | "hot" {
-  if (value >= 50) return "hot";
-  if (value >= 10) return "warn";
+function tempLevel(celsius: number): "ok" | "warn" | "hot" {
+  if (celsius >= 80) return "hot";
+  if (celsius >= 65) return "warn";
   return "ok";
 }
 
-function pressureTone(value: number): StatusTone {
-  const level = pressureLevel(value);
-  if (level === "hot") return "danger";
-  if (level === "warn") return "warn";
+type SensorTile = { label: string; title?: string; value: string; unit?: string; percent?: number; level?: "ok" | "warn" | "hot" };
+
+/** "154.4 MB" → value and unit, so tiles can set the unit in smaller type. */
+function splitUnit(text: string): { value: string; unit: string } {
+  const at = text.lastIndexOf(" ");
+  return at < 0 ? { value: text, unit: "" } : { value: text.slice(0, at), unit: text.slice(at + 1) };
+}
+
+/** One reading: big value, quiet label, and an optional 0–100 bar. */
+function SensorTileView(props: { tile: SensorTile }) {
+  return (
+    <div class="vitals-sensor" title={props.tile.title}>
+      <span class="vitals-sensor-value">
+        {props.tile.value}
+        <Show when={props.tile.unit}>
+          <span class="vitals-sensor-unit">{props.tile.unit}</span>
+        </Show>
+      </span>
+      <span class="vitals-sensor-label">{props.tile.label}</span>
+      <Show when={props.tile.percent !== undefined}>
+        <div class="vitals-bar" aria-hidden="true">
+          <span data-level={props.tile.level} style={{ width: `${Math.min(100, Math.max(0, props.tile.percent ?? 0))}%` }} />
+        </div>
+      </Show>
+    </div>
+  );
+}
+
+/** Temperature zones, then each GPU as temperature, utilization and VRAM tiles; bars read 0–100. */
+function sensorTiles(snapshot: MetricsSnapshot): SensorTile[] {
+  const tiles: SensorTile[] = snapshot.thermals.map((zone) => ({
+    label: zone.id,
+    title: zone.id,
+    value: zone.celsius.toFixed(1),
+    unit: "°C",
+    percent: zone.celsius,
+    level: tempLevel(zone.celsius),
+  }));
+  for (const gpu of snapshot.gpus) {
+    const title = `GPU ${gpu.index} ${gpu.name}`;
+    const vram = gpu.memoryTotalMb > 0 ? (gpu.memoryUsedMb / gpu.memoryTotalMb) * 100 : 0;
+    tiles.push(
+      { label: `GPU ${gpu.index} temp`, title, value: String(gpu.temperatureC), unit: "°C", percent: gpu.temperatureC, level: tempLevel(gpu.temperatureC) },
+      { label: `GPU ${gpu.index} util`, title, value: String(gpu.utilizationPercent), unit: "%", percent: gpu.utilizationPercent, level: loadLevel(gpu.utilizationPercent) },
+      { label: `GPU ${gpu.index} VRAM`, title: `${title}: ${gpu.memoryUsedMb}/${gpu.memoryTotalMb} MB`, value: vram.toFixed(0), unit: "%", percent: vram, level: loadLevel(vram) },
+    );
+  }
+  return tiles;
+}
+
+function pressureLevel(value: number): "ok" | "warn" | "hot" {
+  if (value >= 50) return "hot";
+  if (value >= 10) return "warn";
   return "ok";
 }
 
@@ -36,16 +86,19 @@ export function MetricsDashboard(props: {
   status: ConnectionStatus;
   mode?: ConnectionMetricsMode;
   message?: string;
+  label?: string;
   onKill: (pid: number) => void;
   onRetry: () => void;
   onClose: () => void;
 }) {
   const failed = () => props.status === "error" || props.status === "disconnected";
   const waiting = () => props.snapshot === null && (props.status === "connecting" || props.status === "connected" || props.status === "reconnecting");
-  const showHead = () => props.mode === "fallback" || Boolean(props.message && props.status !== "connected");
+  const showHead = () => !waiting() && (props.mode === "fallback" || Boolean(props.message && props.status !== "connected"));
   const [pickedIface, setPickedIface] = createSignal<string | undefined>();
   const [order, setOrder] = createSignal<CardId[]>(loadOrder());
   createEffect(() => saveOrder(order()));
+  const [anchors, setAnchors] = createSignal<Anchors>(loadAnchors());
+  createEffect(() => saveAnchors(anchors()));
   const [grid, setGrid] = createSignal<HTMLElement>();
   const [cols, setCols] = createSignal(2);
   createEffect(() => {
@@ -74,12 +127,22 @@ export function MetricsDashboard(props: {
   // DOM order stays fixed; placement is purely grid coordinates, so moving a card never re-parents it.
   const present = createMemo(() => CARD_IDS.filter(available));
   const visible = createMemo(() => order().filter(available));
-  const rects = createMemo(() => packOrder(visible(), cols()));
-  const reorder = createCardReorder({ grid, cols, rects, order, visible, setOrder });
+  const rects = createMemo(() => packOrder(visible(), cols(), anchors()));
+  const reorder = createCardReorder({ grid, cols, rects, order, visible, setOrder, anchors, setAnchors });
+  /** Empty spots shown under the grid while a card is held, so free cells read as drop targets. */
+  const dropSlots = createMemo(() => {
+    const held = reorder.draggingId();
+    return held ? freeCells(rects(), held, cols()) : [];
+  });
   const memPct = () => {
     const memory = props.snapshot?.memory;
     if (!memory || memory.totalKb <= 0) return 0;
     return (memory.usedKb / memory.totalKb) * 100;
+  };
+  const swapPct = () => {
+    const memory = props.snapshot?.memory;
+    if (!memory || memory.swapTotalKb <= 0) return 0;
+    return (memory.swapUsedKb / memory.swapTotalKb) * 100;
   };
   const selectedIface = (network: NetworkInterface[]) => {
     const picked = pickedIface();
@@ -137,18 +200,12 @@ export function MetricsDashboard(props: {
       <Show
         when={!waiting()}
         fallback={
-          <div class="vitals-metrics" style={gridStyle()} aria-busy="true">
-            <section class="vitals-section card-panel" style={{ "grid-row": "span 3" }}>
-              <Skeleton label="Loading metrics" style={{ display: "block", height: "16px", width: "72px" }} />
-              <Skeleton style={{ display: "block", height: "32px", width: "96px", "margin-top": "8px" }} />
-            </section>
-            <section class="vitals-section card-panel" style={{ "grid-row": "span 3" }}>
-              <Skeleton style={{ display: "block", height: "16px", width: "88px" }} />
-              <Skeleton style={{ display: "block", height: "32px", width: "96px", "margin-top": "8px" }} />
-            </section>
-            <section class="vitals-section card-panel" style={{ "grid-column": "1 / -1", "grid-row": "span 4" }}>
-              <Skeleton style={{ display: "block", height: "120px", width: "100%" }} />
-            </section>
+          <div class="vitals-connecting" role="status" aria-live="polite">
+            <EchoRing class="vitals-connecting-echo" label={connectionPresentation(props.status).label} />
+            <p class="vitals-connecting-title">
+              {props.status === "reconnecting" ? "Reconnecting to" : "Connecting to"} {props.label ?? "host"}
+            </p>
+            <p class="vitals-sub">{props.message || "Waiting for the first metrics..."}</p>
           </div>
         }
       >
@@ -159,9 +216,11 @@ export function MetricsDashboard(props: {
                 case "cpu":
                   return (
                     <MetricCard id="cpu" title="CPU" icon={Cpu} reorder={reorder} rect={rects().get("cpu")}>
-                      <div class="vitals-stat">{formatPercent(snapshot().cpuTotalPercent)}</div>
-                      <div class="vitals-sub">
-                        Load {snapshot().load1.toFixed(2)} / {snapshot().load5.toFixed(2)} / {snapshot().load15.toFixed(2)}
+                      <div class="vitals-stat-block">
+                        <div class="vitals-stat">{formatPercent(snapshot().cpuTotalPercent)}</div>
+                        <div class="vitals-sub">
+                          Load {snapshot().load1.toFixed(2)} / {snapshot().load5.toFixed(2)} / {snapshot().load15.toFixed(2)}
+                        </div>
                       </div>
                       <Show when={(snapshot().cpuCores?.length ?? 0) > 0}>
                         <div class="vitals-cores">
@@ -184,54 +243,70 @@ export function MetricsDashboard(props: {
                 case "memory":
                   return (
                     <MetricCard id="memory" title="Memory" icon={MemoryStick} reorder={reorder} rect={rects().get("memory")}>
-                      <div class="vitals-stat">{formatPercent(memPct())}</div>
-                      <div class="vitals-sub">
-                        {formatKb(snapshot().memory.usedKb)} / {formatKb(snapshot().memory.totalKb)}
+                      <div class="vitals-stat-block">
+                        <div class="vitals-stat">{formatPercent(memPct())}</div>
+                        <div class="vitals-sub">
+                          {formatKb(snapshot().memory.usedKb)} / {formatKb(snapshot().memory.totalKb)}
+                        </div>
+                        <div class="vitals-bar vitals-stat-bar" aria-hidden="true">
+                          <span data-level={loadLevel(memPct())} style={{ width: `${Math.min(100, Math.max(0, memPct()))}%` }} />
+                        </div>
                       </div>
-                      <div class="vitals-sub">
-                        Swap: {formatKb(snapshot().memory.swapUsedKb)} / {formatKb(snapshot().memory.swapTotalKb)}
+                      <div class="vitals-sensors vitals-sensors-pair">
+                        <SensorTileView
+                          tile={{
+                            ...splitUnit(formatKb(snapshot().memory.swapUsedKb)),
+                            label: `Swap of ${formatKb(snapshot().memory.swapTotalKb)}`,
+                            percent: swapPct(),
+                            level: loadLevel(swapPct()),
+                          }}
+                        />
+                        <SensorTileView tile={{ value: formatUptime(snapshot().uptimeSeconds), label: "Uptime" }} />
                       </div>
-                      <div class="vitals-sub">Uptime: {formatUptime(snapshot().uptimeSeconds)}</div>
                     </MetricCard>
                   );
                 case "network":
                   return (
                     <MetricCard id="network" title="Network" icon={Network} reorder={reorder} rect={rects().get("network")}>
-                      <div class="vitals-stack">
-                        <Show when={snapshot().network.length > 1}>
-                          <Select
-                            aria-label="Network interface"
-                            options={snapshot().network.map((iface) => ({ value: iface.name, label: iface.name }))}
-                            value={selectedIface(snapshot().network)}
-                            onChange={setPickedIface}
-                          />
-                        </Show>
+                      <div class="vitals-stack vitals-network">
                         <div class="vitals-ifaces">
                           <For each={snapshot().network}>
                             {(iface) => (
-                              <div class="vitals-iface" data-active={iface.name === selectedIface(snapshot().network) ? "true" : "false"}>
+                              <button
+                                type="button"
+                                class="vitals-iface"
+                                aria-pressed={iface.name === selectedIface(snapshot().network)}
+                                data-active={iface.name === selectedIface(snapshot().network) ? "true" : "false"}
+                                onClick={() => setPickedIface(iface.name)}
+                              >
                                 <span>{iface.name}</span>
                                 <span>Down {formatBytesPerSec(iface.rxBytesPerSec)}</span>
                                 <span>Up {formatBytesPerSec(iface.txBytesPerSec)}</span>
-                              </div>
+                              </button>
                             )}
                           </For>
                         </div>
                         <Show when={selectedIface(snapshot().network)}>
                           {(name) => (
                             <>
-                              <div class="vitals-sub">Down {name()}</div>
-                              <SparkChart
-                                series={ifaceSeries(name()).rx.slice(-HISTORY)}
-                                label={`Receive ${name()}`}
-                                strokeToken="--color-chart-green"
-                              />
-                              <div class="vitals-sub">Up {name()}</div>
-                              <SparkChart
-                                series={ifaceSeries(name()).tx.slice(-HISTORY)}
-                                label={`Transmit ${name()}`}
-                                strokeToken="--color-chart-blue"
-                              />
+                              <div class="vitals-chart-group">
+                                <div class="vitals-sub">Down {name()}</div>
+                                <SparkChart
+                                  height={80}
+                                  series={ifaceSeries(name()).rx.slice(-HISTORY)}
+                                  label={`Receive ${name()}`}
+                                  strokeToken="--color-chart-green"
+                                />
+                              </div>
+                              <div class="vitals-chart-group">
+                                <div class="vitals-sub">Up {name()}</div>
+                                <SparkChart
+                                  height={80}
+                                  series={ifaceSeries(name()).tx.slice(-HISTORY)}
+                                  label={`Transmit ${name()}`}
+                                  strokeToken="--color-chart-blue"
+                                />
+                              </div>
                             </>
                           )}
                         </Show>
@@ -274,32 +349,39 @@ export function MetricsDashboard(props: {
                 case "pressure":
                   return (
                     <MetricCard id="pressure" title="Pressure" icon={Gauge} reorder={reorder} rect={rects().get("pressure")}>
-                      <Show when={snapshot().pressure}>
-                        {(pressure) => (
-                          <div class="vitals-stack">
-                            <div class="vitals-pressure">
-                              <span>CPU</span>
-                              <div class="vitals-bar" aria-hidden="true">
-                                <span data-level={pressureLevel(pressure().cpu)} style={{ width: `${Math.min(100, Math.max(0, pressure().cpu))}%` }} />
+                      <Show when={snapshot().pressure} fallback={<p class="vitals-sub">No pressure data reported.</p>}>
+                        {(pressure) => {
+                          const tiles = () => [
+                            { label: "CPU", value: pressure().cpu },
+                            { label: "Memory", value: pressure().memory },
+                            { label: "I/O", value: pressure().io },
+                          ];
+                          const peak = () => tiles().reduce((top, tile) => (tile.value > top.value ? tile : top));
+                          return (
+                            <>
+                              <div class="vitals-stat-block">
+                                <div class="vitals-stat">{formatPercent(peak().value)}</div>
+                                <div class="vitals-sub">Highest stall: {peak().label}</div>
                               </div>
-                              <StatusChip tone={pressureTone(pressure().cpu)}>{formatPercent(pressure().cpu)}</StatusChip>
-                            </div>
-                            <div class="vitals-pressure">
-                              <span>Memory</span>
-                              <div class="vitals-bar" aria-hidden="true">
-                                <span data-level={pressureLevel(pressure().memory)} style={{ width: `${Math.min(100, Math.max(0, pressure().memory))}%` }} />
+                              <div class="vitals-sensors">
+                                <For each={tiles()}>
+                                  {(tile) => (
+                                    <SensorTileView
+                                      tile={{
+                                        value: tile.value.toFixed(1),
+                                        unit: "%",
+                                        label: tile.label,
+                                        title: `${tile.label}: share of time tasks stalled`,
+                                        percent: tile.value,
+                                        level: pressureLevel(tile.value),
+                                      }}
+                                    />
+                                  )}
+                                </For>
                               </div>
-                              <StatusChip tone={pressureTone(pressure().memory)}>{formatPercent(pressure().memory)}</StatusChip>
-                            </div>
-                            <div class="vitals-pressure">
-                              <span>I/O</span>
-                              <div class="vitals-bar" aria-hidden="true">
-                                <span data-level={pressureLevel(pressure().io)} style={{ width: `${Math.min(100, Math.max(0, pressure().io))}%` }} />
-                              </div>
-                              <StatusChip tone={pressureTone(pressure().io)}>{formatPercent(pressure().io)}</StatusChip>
-                            </div>
-                          </div>
-                        )}
+                            </>
+                          );
+                        }}
                       </Show>
                     </MetricCard>
                   );
@@ -339,22 +421,11 @@ export function MetricsDashboard(props: {
                 case "thermal":
                   return (
                     <MetricCard id="thermal" title="Temperature / GPU" icon={Zap} reorder={reorder} rect={rects().get("thermal")}>
-                      <div class="vitals-stack">
-                        <For each={snapshot().thermals}>
-                          {(zone) => (
-                            <p class="vitals-sub">
-                              {zone.id}: {zone.celsius.toFixed(1)} °C
-                            </p>
-                          )}
-                        </For>
-                        <For each={snapshot().gpus}>
-                          {(gpu) => (
-                            <p class="vitals-sub">
-                              GPU {gpu.index} {gpu.name}: {gpu.temperatureC} °C, {gpu.utilizationPercent}% util, {gpu.memoryUsedMb}/{gpu.memoryTotalMb} MB
-                            </p>
-                          )}
-                        </For>
-                      </div>
+                      <Show when={sensorTiles(snapshot()).length > 0} fallback={<p class="vitals-sub">No sensors reported.</p>}>
+                        <div class="vitals-sensors">
+                          <For each={sensorTiles(snapshot())}>{(tile) => <SensorTileView tile={tile} />}</For>
+                        </div>
+                      </Show>
                     </MetricCard>
                   );
                 case "processes":
@@ -367,6 +438,15 @@ export function MetricsDashboard(props: {
             };
             return (
               <div ref={setGrid} class="vitals-metrics" style={gridStyle()}>
+                <For each={dropSlots()}>
+                  {(slot) => (
+                    <div
+                      class="vitals-drop-slot"
+                      aria-hidden="true"
+                      style={{ "grid-column": `${slot.x + 1}`, "grid-row": `${slot.y + 1}` }}
+                    />
+                  )}
+                </For>
                 <For each={present()}>{(id) => card(id)}</For>
               </div>
             );

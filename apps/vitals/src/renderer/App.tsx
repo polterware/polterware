@@ -343,6 +343,7 @@ export function App() {
                 status={active()!.status}
                 mode={active()!.mode}
                 message={active()!.message}
+                label={active()!.label}
                 onKill={(pid) => setKillTarget({ sessionId: active()!.sessionId, pid })}
                 onRetry={() => retryTab(active()!.sessionId)}
                 onClose={() => closeTab(active()!.sessionId)}

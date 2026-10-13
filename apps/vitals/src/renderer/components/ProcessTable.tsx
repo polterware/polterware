@@ -8,7 +8,7 @@ export function ProcessTable(props: { rows: ProcessRow[]; onKill: (pid: number) 
       getRowId={(row) => String(row.pid)}
       defaultSort={{ columnId: "cpu", direction: "descending" }}
       virtualized={false}
-      estimateRowHeight={40}
+      estimateRowHeight={34}
     >
       <DataTable.Table aria-label="Processes">
         <DataTable.Header>
@@ -40,8 +40,8 @@ export function ProcessTable(props: { rows: ProcessRow[]; onKill: (pid: number) 
               <DataTable.Cell>{row.memPercent.toFixed(1)}</DataTable.Cell>
               <DataTable.Cell>{row.command}</DataTable.Cell>
               <DataTable.Cell align="right">
-                <ControlButton tone="danger" onClick={() => props.onKill(row.pid)}>
-                  <Delete size={14} />
+                <ControlButton tone="danger" class="vitals-kill" onClick={() => props.onKill(row.pid)}>
+                  <Delete size={13} />
                   Kill
                 </ControlButton>
               </DataTable.Cell>

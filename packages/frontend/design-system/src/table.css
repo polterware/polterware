@@ -97,9 +97,10 @@
 }
 
 /*
- * Layers, bottom to top: each row's opaque surface (a cell `::before` at z-index -1), the
- * table's one hover highlight, the active row's travelling marker, then cell content
- * (positioned cells paint after both highlights). Rows carry no hover fill of their own.
+ * Layers, bottom to top: each row's surface (a cell `::before` at z-index -1, unfilled unless the
+ * row is selected, so rows sit flat on their container), the table's one hover highlight, the
+ * active row's travelling marker, then cell content (positioned cells paint after both
+ * highlights). Rows carry no hover fill of their own.
  */
 .pw-data-table-cell,
 .pw-data-table-selection-cell {
@@ -116,7 +117,7 @@
   z-index: -1;
   inset: 0;
   border-radius: inherit;
-  background: var(--color-surface);
+  background: transparent;
   content: "";
   pointer-events: none;
   transition: background-color var(--duration-fast) var(--ease-standard);

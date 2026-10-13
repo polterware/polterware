@@ -2,25 +2,29 @@ import { CARD_IDS, type CardId } from "./card-order";
 
 /** Minimum cell width; the column count is however many of these fit the container. */
 export const CELL_MIN_W = 260;
-/** Fixed row unit; every card height is a multiple of it. */
-export const ROW_H = 64;
+/** One row is one small card; every card is a whole number of rows, so cards stack in step. */
+export const ROW_H = 192;
 export const GAP = 12;
 
 const STORAGE_KEY = "vitals.cardOrder";
+/** Anchor cells are in row units, so the key changes with ROW_H. */
+const ANCHORS_KEY = "vitals.cardAnchors.v3";
 
 export type Cell = { x: number; y: number };
 export type Rect = Cell & { w: number; h: number };
+/** Cells a card was dropped on directly; anchored cards keep that spot instead of flowing. */
+export type Anchors = Partial<Record<CardId, Cell>>;
 
 /** Card sizes in cells; width is clamped to the column count at render time. */
 const SIZES: Record<CardId, { w: number; h: number }> = {
-  cpu: { w: 1, h: 6 },
-  memory: { w: 1, h: 3 },
-  network: { w: 1, h: 9 },
-  diskio: { w: 2, h: 4 },
-  pressure: { w: 1, h: 3 },
-  disk: { w: 2, h: 4 },
-  thermal: { w: 1, h: 3 },
-  processes: { w: 2, h: 8 },
+  cpu: { w: 1, h: 2 },
+  memory: { w: 1, h: 1 },
+  network: { w: 1, h: 2 },
+  diskio: { w: 2, h: 1 },
+  pressure: { w: 1, h: 1 },
+  disk: { w: 2, h: 1 },
+  thermal: { w: 1, h: 1 },
+  processes: { w: 2, h: 2 },
 };
 
 export function colsFor(contentWidth: number): number {
@@ -35,13 +39,30 @@ export function sizeOf(id: CardId, cols: number): { w: number; h: number } {
 const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 /**
- * Packs cards in sequence order: each one takes the first free spot scanning left to right,
- * then top to bottom. Position is derived from order alone, like icons on a home screen.
+ * Packs cards in sequence order: anchored cards take their cell first (clamped to the column
+ * count, and only while it is still free), then every other card takes the first free spot
+ * scanning left to right, then top to bottom, like icons on a home screen.
  */
-export function packOrder(ids: readonly CardId[], cols: number): Map<CardId, Rect> {
+export function packOrder(ids: readonly CardId[], cols: number, anchors: Anchors = {}): Map<CardId, Rect> {
   const placed: Rect[] = [];
   const out = new Map<CardId, Rect>();
+  const flowing: CardId[] = [];
   for (const id of ids) {
+    const anchor = anchors[id];
+    if (!anchor) {
+      flowing.push(id);
+      continue;
+    }
+    const { w, h } = sizeOf(id, cols);
+    const rect = { x: Math.max(0, Math.min(anchor.x, cols - w)), y: Math.max(0, anchor.y), w, h };
+    if (placed.some((other) => overlaps(other, rect))) {
+      flowing.push(id);
+      continue;
+    }
+    placed.push(rect);
+    out.set(id, rect);
+  }
+  for (const id of flowing) {
     const { w, h } = sizeOf(id, cols);
     let rect: Rect | undefined;
     for (let y = 0; !rect; y++) {
@@ -57,6 +78,45 @@ export function packOrder(ids: readonly CardId[], cols: number): Map<CardId, Rec
     out.set(id, rect);
   }
   return out;
+}
+
+/**
+ * Where `id` would sit if dropped with its top-left on `cell`: the cell clamped so the card fits
+ * the columns, or null when another card already covers any part of that spot.
+ */
+export function freeSpot(rects: ReadonlyMap<CardId, Rect>, id: CardId, cols: number, cell: Cell): Cell | null {
+  const { w, h } = sizeOf(id, cols);
+  const rect = { x: Math.max(0, Math.min(cell.x, cols - w)), y: Math.max(0, cell.y), w, h };
+  for (const [other, placed] of rects) {
+    if (other !== id && overlaps(placed, rect)) return null;
+  }
+  return { x: rect.x, y: rect.y };
+}
+
+/**
+ * Free cells of the grid while `id` is held, down to the bottom of the packed cards. A cell is one
+ * small card, so each free cell is a whole drop spot. The held card's own cells count as free: it
+ * can be dropped back there.
+ */
+export function freeCells(rects: ReadonlyMap<CardId, Rect>, id: CardId, cols: number): Cell[] {
+  let bottom = 0;
+  for (const rect of rects.values()) bottom = Math.max(bottom, rect.y + rect.h);
+  const cells: Cell[] = [];
+  for (let y = 0; y < bottom; y++) {
+    for (let x = 0; x < cols; x++) {
+      const owner = cellAt(rects, { x, y });
+      if (owner === null || owner === id) cells.push({ x, y });
+    }
+  }
+  return cells;
+}
+
+/** Anchors without `id`, for when a card goes back to flowing with the sequence. */
+export function withoutAnchor(anchors: Anchors, id: CardId): Anchors {
+  if (!anchors[id]) return anchors;
+  const next = { ...anchors };
+  delete next[id];
+  return next;
 }
 
 /** Card whose cells include `cell`, if any. */
@@ -120,6 +180,7 @@ export function resolveDrop(
   id: CardId,
   target: CardId,
   side: DropSide,
+  anchors: Anchors = {},
 ): CardId[] {
   const rest = visible.filter((other) => other !== id);
   const at = rest.indexOf(target);
@@ -133,7 +194,7 @@ export function resolveDrop(
     for (const candidate of candidates) {
       const sequence = [...rest];
       sequence.splice(candidate, 0, id);
-      const packed = packOrder(sequence, cols);
+      const packed = packOrder(sequence, cols, withoutAnchor(anchors, id));
       const moved = packed.get(id);
       const anchor = packed.get(target);
       if (!moved || !anchor) continue;
@@ -179,5 +240,37 @@ export function saveOrder(order: readonly CardId[]): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
   } catch {
     // Persistence is a convenience; the order still works for this session.
+  }
+}
+
+/** Keeps anchors of known cards whose cell is a pair of non-negative integers. */
+export function normalizeAnchors(saved: unknown): Anchors {
+  const anchors: Anchors = {};
+  if (!saved || typeof saved !== "object") return anchors;
+  const known = new Set<string>(CARD_IDS);
+  for (const [id, cell] of Object.entries(saved as Record<string, unknown>)) {
+    if (!known.has(id) || !cell || typeof cell !== "object") continue;
+    const { x, y } = cell as Record<string, unknown>;
+    if (Number.isInteger(x) && Number.isInteger(y) && (x as number) >= 0 && (y as number) >= 0) {
+      anchors[id as CardId] = { x: x as number, y: y as number };
+    }
+  }
+  return anchors;
+}
+
+export function loadAnchors(): Anchors {
+  try {
+    const raw = localStorage.getItem(ANCHORS_KEY);
+    return normalizeAnchors(raw ? JSON.parse(raw) : null);
+  } catch {
+    return {};
+  }
+}
+
+export function saveAnchors(anchors: Anchors): void {
+  try {
+    localStorage.setItem(ANCHORS_KEY, JSON.stringify(anchors));
+  } catch {
+    // Persistence is a convenience; the layout still works for this session.
   }
 }
