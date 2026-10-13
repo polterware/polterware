@@ -100,6 +100,8 @@ import {
   SquareArrowRight02Icon as SquareChevronRightDefinition,
   ComputerTerminal01Icon as SquareTerminalDefinition,
   StickyNote as StickyNoteDefinition,
+  Sun as SunDefinition,
+  Moon as MoonDefinition,
   StopIcon as StopDefinition,
   Terminal as TerminalDefinition,
   ThumbsDownIcon as ThumbsDownIconDefinition,
@@ -121,6 +123,7 @@ import {
   QuoteDownIcon as QuoteDownIconDefinition,
   MinusSignIcon as MinusSignIconDefinition,
   SidebarRightIcon as SidebarRightIconDefinition,
+  DragDropVerticalIcon as DragDropVerticalIconDefinition,
 } from "@hugeicons/core-free-icons";
 
 type HugeIconNodeAttributes = Readonly<Record<string, string | number>>;
@@ -321,6 +324,8 @@ const iconDefinitions = {
   SquareChevronRight: SquareChevronRightDefinition,
   SquareTerminal: SquareTerminalDefinition,
   StickyNote: StickyNoteDefinition,
+  Sun: SunDefinition,
+  Moon: MoonDefinition,
   Stop: StopDefinition,
   Terminal: TerminalDefinition,
   ThumbsDownIcon: ThumbsDownIconDefinition,
@@ -342,6 +347,7 @@ const iconDefinitions = {
   QuoteDownIcon: QuoteDownIconDefinition,
   MinusSignIcon: MinusSignIconDefinition,
   SidebarRightIcon: SidebarRightIconDefinition,
+  DragDropVerticalIcon: DragDropVerticalIconDefinition,
 } satisfies Record<string, HugeIconDefinition>;
 
 type PolterIconName = keyof typeof iconDefinitions;
@@ -455,6 +461,8 @@ export const {
   SquareChevronRight,
   SquareTerminal,
   StickyNote,
+  Sun,
+  Moon,
   Stop,
   Terminal,
   ThumbsDownIcon,
@@ -476,6 +484,7 @@ export const {
   QuoteDownIcon,
   MinusSignIcon,
   SidebarRightIcon,
+  DragDropVerticalIcon,
 } = iconComponents;
 
 export const PlusIcon = Plus;

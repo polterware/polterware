@@ -7,6 +7,8 @@ if (typeof document !== "undefined") installSpringCssProperties();
 
 export { Button } from "./button";
 export type { ButtonProps, ButtonVariant, ButtonSize } from "./button";
+export { ControlButton } from "./control-button";
+export type { ControlButtonProps, ControlButtonTone } from "./control-button";
 export { Badge } from "./badge";
 export { FloatingCountBadge } from "./floating-count-badge";
 export type {

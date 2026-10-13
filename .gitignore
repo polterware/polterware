@@ -9,10 +9,10 @@ build/
 coverage/
 .turbo/
 *.tsbuildinfo
-apps/desktop/dist/
-apps/desktop/dist-electron/
-apps/desktop/out/
-apps/desktop/release/
+apps/lore-desktop/dist/
+apps/lore-desktop/dist-electron/
+apps/lore-desktop/out/
+apps/lore-desktop/release/
 packages/*/dist/
 
 # Environment files

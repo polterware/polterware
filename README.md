@@ -17,7 +17,7 @@ A local SQLite-backed Desktop (Electron + Solid) over a single Go binary, `polte
 
 Agents talk to Polterware in the Polter format (markdown that writes Work cards, Atlas nodes, and decisions) through the CLI or MCP (`polter.apply`, `polter.query`, `polter.format`, plus context, drift, and AgentRun tools). Every write carries a summary and rationale and lands in one change history.
 
-One local core process (`polterware serve`) per database is the only process that opens SQLite. Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes only through `window.polterware`. Provider credentials stay in the OS or CLI credential store and are never persisted in SQLite.
+One local core process (`polterware serve`) per database is the only process that opens SQLite. Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes only through `window.lore`. Provider credentials stay in the OS or CLI credential store and are never persisted in SQLite.
 
 Only the local deployment mode exists. Cloud, Jev, and other unshipped direction are listed in [docs/future.md](docs/future.md).
 
@@ -36,7 +36,7 @@ Run `polterware` with no arguments in a terminal for the status TUI. Run `polter
 
 ## Repository
 
-- `apps/desktop` — Electron Main, preload bridge, and Solid renderer
+- `apps/lore-desktop` — Electron Main, preload bridge, and Solid renderer
 - `packages/features` — product surfaces
 - `packages/frontend` — shared design system, canvas, and state
 - `backend` — Go runtime (single `polterware` binary: CLI, TUI, `serve`, `mcp`)

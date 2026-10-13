@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE_ROOTS = [
-  "apps/desktop/src",
+  "apps/lore-desktop/src",
   "apps/sparky-desktop/src",
   "apps/vitals/src",
   "packages/configuration",
@@ -31,7 +31,7 @@ const DETAIL_PANEL_PATH =
   "packages/frontend/design-system/src/detail-panel.css";
 const SHARED_MATERIALS_PATH =
   "packages/frontend/design-system/src/materials.css";
-const DESKTOP_WINDOW_PATH = "apps/desktop/src/main/window.ts";
+const DESKTOP_WINDOW_PATH = "apps/lore-desktop/src/main/window.ts";
 const CANVAS_HOST_PATH =
   "packages/features/architecture/src/canvas/architecture-canvas-host.tsx";
 const ALPHA_TOKEN_DECLARATIONS = new Map([
@@ -46,7 +46,7 @@ const ALPHA_TOKEN_DECLARATIONS = new Map([
 ]);
 const DESKTOP_WINDOW_ALPHA_HEX = new Set(["#00000000"]);
 const PRESENCE_MOTION_PATHS = new Set([
-  "apps/desktop/src/renderer/boot-splash.css",
+  "apps/lore-desktop/src/renderer/boot-splash.css",
   "apps/sparky-desktop/src/renderer/boot-splash.css",
   "packages/frontend/design-system/src/dialog.css",
   "packages/frontend/design-system/src/drawer.css",

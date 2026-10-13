@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 /* Scan monorepo UI sources (base.css lives under packages/configuration/tailwind) */
-@source "../../../apps/desktop/src/**/*.{html,ts,tsx}";
+@source "../../../apps/lore-desktop/src/**/*.{html,ts,tsx}";
 @source "../../../packages/features/**/*.{ts,tsx}";
 @source "../../../packages/frontend/**/*.{ts,tsx}";
 
