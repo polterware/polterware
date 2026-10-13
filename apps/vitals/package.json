@@ -11,6 +11,7 @@
     "dev:web": "vite --config vite.web.config.ts",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "dist:mac": "bash ../../tooling/release/dist-mac.sh vitals",
     "deps:electron": "node -e \"const pkg = require('./package.json'); console.log(pkg.devDependencies.electron);\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run src/main src/preload src/shared"
@@ -31,6 +32,7 @@
     "@types/node": "^24.13.6",
     "@types/ssh2": "^1.15.6",
     "electron": "44.4.5",
+    "electron-builder": "^26.15.3",
     "electron-log": "^5.4.4",
     "electron-vite": "^5.0.0",
     "tailwindcss": "^4.3.3",

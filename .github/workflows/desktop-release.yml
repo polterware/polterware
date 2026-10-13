@@ -1,0 +1,122 @@
+name: Desktop release
+
+# Shared by lore-release.yml, sparky-release.yml and vitals-release.yml. Builds
+# the ad-hoc signed macOS arm64 DMG and ZIP for one app from its <app>-v<version>
+# tag and attaches them to a draft GitHub release. It never publishes: a person
+# reviews and publishes the draft. Versions with a suffix (0.1.0-alpha.1) are
+# marked as pre-releases.
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: lore, sparky or vitals
+        required: true
+        type: string
+      tag:
+        description: Existing <app>-v<version> tag
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    if: github.repository == 'polterware/polterware'
+    outputs:
+      product: ${{ steps.meta.outputs.product }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Validate tag
+        env:
+          APP: ${{ inputs.app }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$APP" =~ ^(lore|sparky|vitals)$ ]] || { echo "Unknown app: $APP" >&2; exit 1; }
+          [[ "$RELEASE_TAG" =~ ^${APP}-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "Invalid tag for $APP: $RELEASE_TAG" >&2; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - name: Read release metadata
+        id: meta
+        env:
+          APP: ${{ inputs.app }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          meta() { node tooling/release/apps.cjs "$APP" "$1"; }
+          {
+            echo "product=$(meta product)"
+            echo "desktop=$(meta desktop)"
+            echo "go-mod=$(meta goMod)"
+            echo "go-sum=$(dirname "$(meta goMod)")/go.sum"
+            echo "version=${RELEASE_TAG#"$APP"-v}"
+          } >> "$GITHUB_OUTPUT"
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ steps.meta.outputs.go-mod }}
+          cache-dependency-path: ${{ steps.meta.outputs.go-sum }}
+      - run: pnpm install --frozen-lockfile
+      - name: Build and verify arm64 ad-hoc artifacts (never publish from builder)
+        env:
+          APP: ${{ inputs.app }}
+          DESKTOP: ${{ steps.meta.outputs.desktop }}
+          RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          bash tooling/release/dist-mac.sh "$APP"
+          cat "$DESKTOP/release/$RELEASE_VERSION/gatekeeper.txt" >> "$GITHUB_STEP_SUMMARY"
+          cat "$DESKTOP/release/$RELEASE_VERSION/build-report.json" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app }}-mac-arm64
+          if-no-files-found: error
+          path: |
+            ${{ steps.meta.outputs.desktop }}/release/*/*.dmg
+            ${{ steps.meta.outputs.desktop }}/release/*/*.zip
+            ${{ steps.meta.outputs.desktop }}/release/*/SHA256SUMS
+            ${{ steps.meta.outputs.desktop }}/release/*/bundle-verification.txt
+            ${{ steps.meta.outputs.desktop }}/release/*/gatekeeper.txt
+            ${{ steps.meta.outputs.desktop }}/release/*/build-report.json
+
+  draft:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.app }}-mac-arm64
+          path: artifacts
+      - name: Attach artifacts to a draft in the same repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: polterware/polterware
+          RELEASE_TAG: ${{ inputs.tag }}
+          PRODUCT: ${{ needs.build.outputs.product }}
+          VERSION: ${{ needs.build.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --json isDraft > release.json; then
+            [[ "$(jq -r .isDraft release.json)" == true ]] || { echo 'Refusing to modify a published release.' >&2; exit 1; }
+          else
+            prerelease=()
+            [[ "$VERSION" == *-* ]] && prerelease=(--prerelease)
+            cat > release-notes.txt <<NOTES
+          $PRODUCT $VERSION for macOS on Apple Silicon (arm64). Ad-hoc signed; not notarized.
+          Gatekeeper rejection is expected. First run: right-click the extracted $PRODUCT.app and choose Open, or remove quarantine from that trusted app with xattr -dr com.apple.quarantine /path/to/$PRODUCT.app.
+          Updates are manual: quit $PRODUCT, replace the app with the app from the new ZIP, then reopen. Auto-update is unavailable.
+          NOTES
+            gh release create "$RELEASE_TAG" --verify-tag --draft "${prerelease[@]}" --title "$PRODUCT $VERSION" --notes-file release-notes.txt
+          fi
+          mapfile -t assets < <(find artifacts -type f \( -name '*.dmg' -o -name '*.zip' -o -name SHA256SUMS \))
+          [[ "${#assets[@]}" == 3 ]] || { echo 'Expected exactly DMG, ZIP and SHA256SUMS.' >&2; exit 1; }
+          gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber

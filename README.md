@@ -76,10 +76,13 @@ Sparky is a local-first memory and reminder app that lives in this monorepo next
 pnpm install
 pnpm dev:sparky          # desktop + local core
 bash tooling/verify-sparky.sh
-pnpm dist:sparky:mac     # ad-hoc signed dmg/zip under apps/sparky-desktop/release
 ```
 
-Sparky releases use tags `sparky-v<version>`; the release workflow creates a draft. Builds are ad-hoc signed, so macOS asks for confirmation on first open and updates are manual.
+## Desktop releases
+
+Lore, Sparky, and Vitals release the same way. `bash tooling/release/dist-mac.sh lore|sparky|vitals` (or `pnpm dist:lore:mac`, `dist:sparky:mac`, `dist:vitals:mac`) builds an ad-hoc signed macOS arm64 DMG and ZIP under the app's `release/<version>` with `SHA256SUMS`, a bundle verification, and a build report.
+
+Pushing a tag `<app>-v<version>` (for example `vitals-v0.1.0-alpha.1`) runs that app's release workflow, which attaches the artifacts to a draft GitHub release; a version with a suffix is marked as a pre-release. Nothing is published automatically. Builds are not notarized, so macOS asks for confirmation on first open, and updates are manual: there is no auto-update feed.
 
 ## Open source and Cloud
 

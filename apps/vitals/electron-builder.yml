@@ -3,6 +3,7 @@ productName: Vitals
 electronVersion: 44.4.5
 artifactName: Vitals-${version}-${arch}.${ext}
 publish: null
+afterPack: ../../tooling/release/sign-mac.cjs
 asar: true
 
 directories:

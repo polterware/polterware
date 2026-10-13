@@ -1,4 +1,4 @@
-name: Sparky draft release
+name: Sparky release
 
 on:
   push:
@@ -12,84 +12,15 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: sparky-release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  build:
-    runs-on: macos-15
-    if: github.repository == 'polterware/polterware'
-    steps:
-      - name: Validate tag
-        env:
-          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: |
-          [[ "$RELEASE_TAG" =~ ^sparky-v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || exit 1
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag || github.ref_name }}
-          persist-credentials: false
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: sparky/backend/go.mod
-          cache-dependency-path: sparky/backend/go.sum
-      - run: pnpm install --frozen-lockfile
-      - name: Build and verify arm64 ad-hoc artifacts (never publish from builder)
-        env:
-          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: |
-          export SPARKY_RELEASE_VERSION="${RELEASE_TAG#sparky-v}"
-          pnpm --filter @polterware/sparky-desktop exec bash scripts/dist-mac.sh
-          cat "apps/sparky-desktop/release/$SPARKY_RELEASE_VERSION/gatekeeper.txt" >> "$GITHUB_STEP_SUMMARY"
-          cat "apps/sparky-desktop/release/$SPARKY_RELEASE_VERSION/build-report.json" >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: sparky-mac-arm64
-          if-no-files-found: error
-          path: |
-            apps/sparky-desktop/release/*/*.dmg
-            apps/sparky-desktop/release/*/*.zip
-            apps/sparky-desktop/release/*/SHA256SUMS
-            apps/sparky-desktop/release/*/bundle-verification.txt
-            apps/sparky-desktop/release/*/gatekeeper.txt
-            apps/sparky-desktop/release/*/build-report.json
-
-  draft:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: sparky-mac-arm64
-          path: artifacts
-      - name: Attach artifacts to a draft in the same repository
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: polterware/polterware
-          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if gh release view "$RELEASE_TAG" --json isDraft > release.json; then
-            [[ "$(jq -r .isDraft release.json)" == true ]] || { echo 'Refusing to modify a published release.' >&2; exit 1; }
-          else
-            cat > release-notes.txt <<'NOTES'
-          Sparky for macOS 15+, Apple Silicon (arm64). Ad-hoc signed; not notarized.
-          Gatekeeper rejection is expected. First run: right-click the extracted Sparky.app and choose Open, or remove quarantine from that trusted app with xattr -dr com.apple.quarantine /path/to/Sparky.app.
-          Updates are manual: quit Sparky, replace the app with the app from the new ZIP, then reopen. Data in ~/Library/Application Support/Sparky is kept. Auto-update and login items are unavailable in v1.
-          NOTES
-            gh release create "$RELEASE_TAG" --verify-tag --draft --title "Sparky ${RELEASE_TAG#sparky-v}" --notes-file release-notes.txt
-          fi
-          mapfile -t assets < <(find artifacts -type f \( -name '*.dmg' -o -name '*.zip' -o -name SHA256SUMS \))
-          [[ "${#assets[@]}" == 3 ]] || { echo 'Expected exactly DMG, ZIP and SHA256SUMS.' >&2; exit 1; }
-          gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+  release:
+    uses: ./.github/workflows/desktop-release.yml
+    with:
+      app: sparky
+      tag: ${{ inputs.tag || github.ref_name }}

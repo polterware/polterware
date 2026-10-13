@@ -11,8 +11,7 @@
     "dev": "pnpm --dir ../.. build:cli && electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "dist": "pnpm --dir ../.. build:cli && pnpm build && electron-builder --mac --publish never",
-    "dist:mac": "pnpm --dir ../.. build:cli && pnpm build && electron-builder --mac --publish never",
+    "dist:mac": "bash ../../tooling/release/dist-mac.sh lore",
     "deps:electron": "node -e \"const pkg = require('./package.json'); console.log(pkg.devDependencies.electron);\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run --passWithNoTests",
@@ -33,7 +32,6 @@
     "@polterware/frontend-platform": "workspace:*",
     "@polterware/frontend-state": "workspace:*",
     "@tanstack/solid-virtual": "3.13.40",
-    "electron-updater": "^6.8.9",
     "solid-js": "^1.9.15"
   },
   "devDependencies": {

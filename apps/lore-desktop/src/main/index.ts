@@ -13,7 +13,6 @@ import {
   toggleCommanderWindow,
   applyMainWindowAppearance,
 } from "./window.js";
-import { setupAutoUpdater } from "./updater.js";
 import { registerLoreIpcHandlers } from "./ipc.js";
 import { createCoreClients, waitForHealth, type CoreClients } from "./core/client.js";
 import { createCoreDomainControllers } from "./core/controllers/domain.js";
@@ -293,8 +292,6 @@ async function bootstrap() {
     },
     log: coreLog,
   });
-
-  setupAutoUpdater();
 
   let quitConfirmed = false;
   app.on("before-quit", (event) => {
