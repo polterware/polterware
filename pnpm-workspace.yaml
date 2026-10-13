@@ -14,3 +14,8 @@ allowBuilds:
   electron-winstaller: true
   esbuild: true
   msw: false
+
+# @electron/rebuild resolves node-abi 4.28, which predates Electron 44 and fails
+# the native rebuild (cpu-features via ssh2) during packaging.
+overrides:
+  node-abi: ^4.37.0
