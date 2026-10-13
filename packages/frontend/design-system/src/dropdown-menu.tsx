@@ -115,7 +115,7 @@ export function MenuSurface(props: { children: JSX.Element; class?: string }) {
         motion.ref(element);
       }}
       class={cn(
-        "pw-dropdown-surface pw-menu-rows menu-panel p-1.5 text-[12px] text-[var(--color-text-primary)] outline-none",
+        "pw-dropdown-surface pw-menu-rows menu-panel flex flex-col gap-1 p-1.5 text-[12px] text-[var(--color-text-primary)] outline-none",
         props.class,
       )}
       {...rows.hover.handlers}
