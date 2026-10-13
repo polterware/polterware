@@ -250,7 +250,8 @@ export function App() {
 
   /** A failed or disconnected tab has nothing left to lose, so it closes without asking. */
   const requestCloseTab = (tab: TabState) => {
-    if (tab.status === "error" || tab.status === "disconnected") closeTab(tab.sessionId);
+    const idle = tab.status === "error" || tab.status === "disconnected";
+    if (idle || !settings().confirmBeforeCloseSession) closeTab(tab.sessionId);
     else setCloseTarget(tab);
   };
 

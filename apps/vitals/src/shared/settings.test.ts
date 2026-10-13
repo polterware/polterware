@@ -10,7 +10,7 @@ describe("settings normalization", () => {
   });
   it("accepts all preferences and rejects unsafe delays", () => {
     const settings = { theme: "dark", reduceTransparency: true, networkUnit: "bits", historyWindowMinutes: 10, confirmBeforeKill: false,
-      defaultKillSignal: "KILL", autoReconnect: false, reconnectDelaySeconds: 5 };
+      confirmBeforeCloseSession: false, defaultKillSignal: "KILL", autoReconnect: false, reconnectDelaySeconds: 5 };
     expect(normalizeSettings(settings)).toEqual(settings);
     for (const delay of [NaN, Infinity, -1, 0, 301, "3"]) {
       expect(normalizeSettings({ reconnectDelaySeconds: delay }).reconnectDelaySeconds).toBe(3);

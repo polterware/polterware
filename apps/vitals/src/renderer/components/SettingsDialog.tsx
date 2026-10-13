@@ -41,6 +41,7 @@ const SEARCH_ENTRIES: SearchEntry[] = [
   { section: "monitoring", group: "Charts", label: "History window", description: "How much history the charts keep.", keywords: "samples minutes graph" },
   { section: "monitoring", group: "Processes", label: "Confirm before kill", keywords: "process signal prompt" },
   { section: "monitoring", group: "Processes", label: "Default kill signal", description: "TERM or KILL.", keywords: "sigterm sigkill process" },
+  { section: "connections", group: "Sessions", label: "Confirm before closing a session", keywords: "tab close disconnect prompt" },
   { section: "connections", group: "Reconnect", label: "Auto-reconnect", keywords: "ssh drop retry" },
   { section: "connections", group: "Reconnect", label: "Reconnect delay", keywords: "seconds retry wait" },
   { section: "connections", group: "Known hosts", label: "Known hosts", description: "Trusted host key fingerprints.", keywords: "ssh fingerprint key trust remove" },
@@ -241,6 +242,12 @@ export function SettingsDialog(props: {
               </Show>
 
               <Show when={section() === "connections"}>
+                <SettingsSection title="Sessions">
+                  <SettingsRow label="Confirm before closing a session" description="Ask before closing a connected tab.">
+                    <Switch aria-label="Confirm before closing a session" checked={props.settings.confirmBeforeCloseSession}
+                      onCheckedChange={(confirmBeforeCloseSession) => props.onChange({ confirmBeforeCloseSession })} />
+                  </SettingsRow>
+                </SettingsSection>
                 <SettingsSection title="Reconnect">
                   <SettingsRow label="Auto-reconnect" description="Retry when an SSH session drops.">
                     <Switch aria-label="Auto-reconnect" checked={props.settings.autoReconnect}
