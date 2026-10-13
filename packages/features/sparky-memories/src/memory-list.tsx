@@ -182,12 +182,12 @@ export function MemoryCollection(props: MemoryCollectionProps) {
       <Show when={displayRows().length} fallback={narrowed()
         ? <PageEmpty title="No matching memories" description="Create a memory or change your filters." />
         : <div class="flex h-full min-h-[200px] w-full items-center justify-center p-8"><TemplateCardGrid label="Start from a template" items={templateItems()} /></div>}>
-        <DataTable.Root rows={displayRows()} getRowId={row => row.id} selectionMode="multiple" selectedRowIds={selection()} onSelectionChange={setSelection} activeRowId={activeId()} onActiveRowChange={setActiveId} virtualized={props.virtualized !== false} fixedRowHeight={48} overscan={4}>
+        <DataTable.Root rows={displayRows()} getRowId={row => row.id} selectionMode="multiple" selectedRowIds={selection()} onSelectionChange={setSelection} activeRowId={activeId()} onActiveRowChange={setActiveId} virtualized={props.virtualized !== false} fixedRowHeight={48} overscan={4} columnWidthsKey="memories">
           <DataTable.Table aria-label="Memories">
             <DataTable.Header><DataTable.SelectionCell /><DataTable.ColumnHeader id="title" sortable={false}>Memory</DataTable.ColumnHeader>
               <DataTable.ColumnHeader id="group" width="160px" sortable={false}>{mode() === "today" ? "When" : "Section"}</DataTable.ColumnHeader>
               <Show when={layout() === "table"}><DataTable.ColumnHeader id="due" sortable={false}>Due</DataTable.ColumnHeader><DataTable.ColumnHeader id="priority" sortable={false}>Priority</DataTable.ColumnHeader></Show>
-              <DataTable.ColumnHeader id="actions" width="144px" sortable={false}>Actions</DataTable.ColumnHeader>
+              <DataTable.ColumnHeader id="actions" width="144px" sortable={false} resizable={false}>Actions</DataTable.ColumnHeader>
             </DataTable.Header>
             <DataTable.Body>{(row: MemoryRow) => <DataTable.Row row={row} rowId={row.id} aria-label={row.title} onActivate={() => open(row.id)}>
               <DataTable.SelectionCell rowId={row.id} label={`Select ${row.title}`} />

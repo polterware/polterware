@@ -134,8 +134,8 @@ export function SettingsDialog(props: {
 
   return (
     <A11yDialog open={props.open} title="Settings" size="xl" chrome="flush"
-      dividers={false} bodyClass="p-0" showCloseButton={false} onClose={props.onClose}
-      class="!rounded-[calc(var(--control-height-md)/2+0.875rem)] !bg-[var(--color-app-background)]">
+      bodyClass="p-0" showCloseButton={false} onClose={props.onClose}
+      class="!rounded-[var(--radius-dialog)] !bg-[var(--color-app-background)]">
       <div class="flex min-h-0 flex-1 p-2">
         <nav aria-label="Settings sections" class="flex w-52 shrink-0 flex-col gap-1 p-2">
           <Input size="sm" type="search" class="mb-2 !rounded-full" placeholder="Search settings" aria-label="Search settings"
@@ -166,10 +166,10 @@ export function SettingsDialog(props: {
           }}</For>
         </nav>
 
-        <div class="surface-panel relative !rounded-[calc(var(--control-height-md)/2+0.375rem)] flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div class="surface-panel relative !rounded-[calc(var(--radius-dialog)-0.5rem)] flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <button type="button" aria-label="Close" onClick={props.onClose}
-            class="control-field control-field-md absolute top-1.5 right-1.5 z-10 inline-flex w-[var(--control-height-md)] shrink-0 cursor-pointer items-center justify-center !rounded-full p-0 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none">
-            <X size={14} aria-hidden />
+            class="absolute top-5 right-5 z-10 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]">
+            <X size={16} aria-hidden />
           </button>
           <div class="flex min-h-0 flex-1 flex-col overflow-auto px-8 pt-6 pb-8">
             <h2 class="m-0 mb-6 pr-10 text-[16px] font-semibold text-[var(--color-text-primary)]">
@@ -268,7 +268,7 @@ export function SettingsDialog(props: {
                       <DataTable.Header>
                         <DataTable.ColumnHeader<KnownHost> id="host">Host</DataTable.ColumnHeader>
                         <DataTable.ColumnHeader<KnownHost> id="fingerprint">Fingerprint</DataTable.ColumnHeader>
-                        <DataTable.ColumnHeader<KnownHost> id="actions" sortable={false}><span class="sr-only">Actions</span></DataTable.ColumnHeader>
+                        <DataTable.ColumnHeader<KnownHost> id="actions" sortable={false} resizable={false}><span class="sr-only">Actions</span></DataTable.ColumnHeader>
                       </DataTable.Header>
                       <DataTable.Empty>No known hosts yet.</DataTable.Empty>
                       <DataTable.Body<KnownHost>>{(row) => (

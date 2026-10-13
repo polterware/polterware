@@ -135,7 +135,7 @@ export function Commander(props: {
     }
   }
   return (
-    <A11yDialog open={props.open} title="Commander" chrome="flush" dividers={false} showCloseButton={false} class="sparky-commander" bodyClass="sparky-commander__body" onClose={props.onClose}>
+    <A11yDialog open={props.open} title="Commander" chrome="flush" showCloseButton={false} class="sparky-commander" bodyClass="sparky-commander__body" onClose={props.onClose}>
       <div ref={dialogBody} class="flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
         <div class="sparky-commander__search">
           <Search size={16} class="sparky-commander__icon" />

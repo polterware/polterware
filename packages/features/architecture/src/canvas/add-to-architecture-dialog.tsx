@@ -165,7 +165,6 @@ export function AddToArchitectureDialog(props: {
       open={props.open}
       title="Add to architecture"
       chrome="flush"
-      dividers={false}
       onClose={() => props.onClose()}
       size="lg"
     >

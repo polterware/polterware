@@ -553,16 +553,6 @@ main.vitals-main {
   word-break: break-all;
 }
 
-.vitals-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.vitals-dialog-cancel {
-  margin-right: auto;
-}
-
 .vitals-terminal-pane {
   box-sizing: border-box;
   height: calc(100% - 48px);
@@ -736,11 +726,16 @@ main.vitals-main {
   color: var(--color-text-secondary);
 }
 
-/* Row action sized like a small control so process rows stay compact. */
-.control-field.vitals-kill {
-  height: var(--control-height-sm);
-  padding-inline: 0.5rem;
-  font-size: 12px;
+/* Layout-transparent host for the process table's delegated context menu. */
+.vitals-process-table {
+  display: contents;
+}
+
+/* Rows only open a context menu (no click activation), so they hover on the shared cell surface layer;
+   the row a menu acts on keeps that fill while the menu is open. */
+.vitals-process-table .pw-data-table-row:hover > .pw-data-table-cell::before,
+.vitals-process-row--menu > .pw-data-table-cell::before {
+  background: var(--color-surface-hover);
 }
 
 .vitals-settings-button {
@@ -778,21 +773,6 @@ main.vitals-main {
   outline-offset: 2px;
 }
 
-/* App-scoped dark canvas: a lifted gray between the shared near-black and the surface,
- * so the shell, its glass wash, and the Settings dialog read as one tone. */
-:root:not([data-theme="light"]) {
-  --color-app-background: #131313;
-  --color-shell-background: #131313;
-  --color-sidebar-background: #131313;
-  --color-shell-glass: rgb(19 19 19 / 0.7);
-  /* Surface ladder lifted toward surface-selected (#232323), which stays as the top step. */
-  --color-surface: #161616;
-  --color-surface-subtle: #191919;
-  --color-surface-raised: #1b1b1b;
-  --color-surface-hover: #1d1d1d;
-  --color-surface-active: #202020;
-}
-
 /* App-scoped light palette: shared controls continue to consume semantic tokens. */
 :root[data-theme="light"] {
   color-scheme: light;
@@ -817,4 +797,9 @@ main.vitals-main {
   --edge-light-field-rim: var(--color-border-subtle);
   --edge-light-surface-highlight: var(--color-border-default);
   --edge-light-surface-rim: var(--color-border-subtle);
+}
+
+/* Card visibility menu: room for "Temperature / GPU" beside its switch. */
+.vitals-card-menu {
+  min-width: 260px;
 }

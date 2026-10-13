@@ -1,4 +1,4 @@
-import { Activity, ControlButton, Cpu, DataTable, DitherIconTile, EmptyIllustration, Gauge, HardDrive, ListOrdered, MemoryStick, Network, PageEmpty, RefreshCw, Server, StatusChip, Zap } from "@polterware/frontend-design-system";
+import { Activity, ArrowDataTransferVertical, ControlButton, Cpu, DataTable, DitherIconTile, EmptyIllustration, Gauge, HardDrive, ListOrdered, MemoryStick, PageEmpty, RefreshCw, Server, StatusChip, Zap } from "@polterware/frontend-design-system";
 import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { connectionPresentation, type ConnectionMetricsMode, type ConnectionStatus, type DiskIoStats, type DiskPartition, type MetricsSnapshot, type NetworkInterface, type SessionHistory } from "../api";
 import { formatBytesPerSec, formatNetworkRate, formatKb, formatPercent, formatUptime } from "../utils/format";
@@ -270,7 +270,7 @@ export function MetricsDashboard(props: {
                   );
                 case "network":
                   return (
-                    <MetricCard id="network" title={CARD_TITLES.network} icon={Network} reorder={reorder} rect={rects().get("network")}>
+                    <MetricCard id="network" title={CARD_TITLES.network} icon={ArrowDataTransferVertical} reorder={reorder} rect={rects().get("network")}>
                       <div class="vitals-stack vitals-network">
                         <div class="vitals-ifaces">
                           <For each={snapshot().network}>
@@ -319,7 +319,7 @@ export function MetricsDashboard(props: {
                 case "diskio":
                   return (
                     <MetricCard id="diskio" title={CARD_TITLES.diskio} icon={Activity} reorder={reorder} rect={rects().get("diskio")}>
-                      <DataTable.Root rows={snapshot().diskIo ?? []} getRowId={(row) => row.device} virtualized={false} estimateRowHeight={36}>
+                      <DataTable.Root rows={snapshot().diskIo ?? []} getRowId={(row) => row.device} virtualized={false} estimateRowHeight={36} columnWidthsKey="disk-io">
                         <DataTable.Table aria-label="Disk I/O">
                           <DataTable.Header>
                             <DataTable.ColumnHeader<DiskIoStats> id="device" sortBy={(row) => row.device}>
@@ -391,7 +391,7 @@ export function MetricsDashboard(props: {
                 case "disk":
                   return (
                     <MetricCard id="disk" title={CARD_TITLES.disk} icon={HardDrive} reorder={reorder} rect={rects().get("disk")}>
-                      <DataTable.Root rows={snapshot().disks} getRowId={(row) => row.mountPoint} virtualized={false} estimateRowHeight={36}>
+                      <DataTable.Root rows={snapshot().disks} getRowId={(row) => row.mountPoint} virtualized={false} estimateRowHeight={36} columnWidthsKey="disks">
                         <DataTable.Table aria-label="Disks">
                           <DataTable.Header>
                             <DataTable.ColumnHeader<DiskPartition> id="mount" sortBy={(row) => row.mountPoint}>

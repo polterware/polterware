@@ -108,7 +108,7 @@ export type CreateMainWindowOptions = {
 function applyDarwinWindowChrome(window: BrowserWindow, reduceTransparency: boolean): void {
   if (reduceTransparency) {
     window.setVibrancy(null);
-    window.setBackgroundColor("#070707");
+    window.setBackgroundColor("#131313");
     return;
   }
   // Fully clear native fill so under-window frost is visible; CSS glass wash keeps it dark.
@@ -140,7 +140,7 @@ export function createMainWindow(options: CreateMainWindowOptions = {}): Browser
     title: "Lore",
     titleBarStyle: "hidden",
     // Clear native fill when vibrant; CSS --color-*-glass keeps the quiet dark cast.
-    backgroundColor: useVibrancy ? "#00000000" : "#070707",
+    backgroundColor: useVibrancy ? "#00000000" : "#131313",
     show: false,
     ...getAppIconWindowOptions(),
     webPreferences: {
@@ -237,7 +237,7 @@ export function createCommanderWindow(): BrowserWindow {
     skipTaskbar: true,
     transparent: false,
     hasShadow: true,
-    backgroundColor: "#0f0f0f",
+    backgroundColor: "#161616",
     ...getAppIconWindowOptions(),
     webPreferences: {
       preload: join(__dirname, "../preload/index.cjs"),

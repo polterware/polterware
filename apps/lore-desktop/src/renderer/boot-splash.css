@@ -17,7 +17,7 @@
 }
 
 html[data-shell-chrome="solid"] #boot-splash {
-  background: var(--color-app-background, #070707);
+  background: var(--color-app-background, #131313);
 }
 
 html.commander-surface #boot-splash {

@@ -896,6 +896,7 @@ export function KnowledgeView(props: {
                 <DataTable.Root
                   rows={cards()}
                   getRowId={(item) => item.slug}
+                  columnWidthsKey="specs"
                   activeRowId={
                     activeTarget()?.scopeId === "knowledge:specs"
                     && activeTarget()?.entityKind === "card"

@@ -113,7 +113,7 @@ export function NewFeatureFlow(props: {
       case "intent":
         return (
           <>
-            <Button size="sm" variant="ghost" class="mr-auto" onClick={() => props.onClose()}>
+            <Button size="sm" variant="ghost" onClick={() => props.onClose()}>
               Cancel
             </Button>
             <Button
@@ -129,7 +129,7 @@ export function NewFeatureFlow(props: {
       case "shape":
         return (
           <>
-            <Button size="sm" variant="ghost" class="mr-auto" onClick={() => props.onClose()}>
+            <Button size="sm" variant="ghost" onClick={() => props.onClose()}>
               Save as proposed
             </Button>
             <Button size="sm" variant="primary" onClick={() => props.onStepChange("contract")}>
@@ -140,7 +140,7 @@ export function NewFeatureFlow(props: {
       case "contract":
         return (
           <>
-            <Button size="sm" variant="ghost" class="mr-auto" onClick={() => props.onStepChange("shape")}>
+            <Button size="sm" variant="ghost" onClick={() => props.onStepChange("shape")}>
               Back
             </Button>
             <Show
@@ -165,7 +165,7 @@ export function NewFeatureFlow(props: {
       case "plan":
         return (
           <>
-            <Button size="sm" variant="ghost" class="mr-auto" onClick={() => props.onStepChange("contract")}>
+            <Button size="sm" variant="ghost" onClick={() => props.onStepChange("contract")}>
               Back
             </Button>
             <Show
@@ -220,7 +220,6 @@ export function NewFeatureFlow(props: {
       open={props.open}
       title="New feature"
       size="lg"
-      dividers={false}
       onClose={() => props.onClose()}
       footer={footer()}
     >

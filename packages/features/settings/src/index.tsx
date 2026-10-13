@@ -203,7 +203,6 @@ export function SettingsView(props: {
         title="Project settings"
         size="xl"
         chrome="flush"
-        dividers={false}
         bodyClass="p-0"
         showCloseButton={false}
         class="!bg-[var(--color-app-background)]"

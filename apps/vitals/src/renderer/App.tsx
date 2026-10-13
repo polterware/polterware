@@ -204,6 +204,17 @@ export function App() {
   colorScheme.addEventListener("change", applyTheme);
   onCleanup(() => colorScheme.removeEventListener("change", applyTheme));
 
+  // Cmd+, (Ctrl+, off macOS) opens Settings, the platform's preferences chord.
+  const isMac = navigator.userAgent.includes("Mac");
+  const onSettingsShortcut = (event: KeyboardEvent) => {
+    if (event.key !== "," || event.altKey || event.shiftKey) return;
+    if (isMac ? !event.metaKey || event.ctrlKey : !event.ctrlKey || event.metaKey) return;
+    event.preventDefault();
+    setSettingsOpen(true);
+  };
+  window.addEventListener("keydown", onSettingsShortcut, true);
+  onCleanup(() => window.removeEventListener("keydown", onSettingsShortcut, true));
+
   // Kept in memory only, so a failed session can be retried with the same input.
   const payloads = new Map<string, ConnectPayload>();
 
@@ -432,14 +443,14 @@ export function App() {
           description={"This sends SIG" + settings().defaultKillSignal + " on the remote host."}
           onClose={() => setKillTarget(null)}
           footer={
-            <div class="vitals-actions">
+            <>
               <ControlButton tone="secondary" onClick={() => setKillTarget(null)}>
                 Cancel
               </ControlButton>
               <ControlButton tone="danger" onClick={() => void confirmKill()}>
                 Kill
               </ControlButton>
-            </div>
+            </>
           }
         >
           <p class="vitals-sub">The process stops only if the remote user is allowed to signal it.</p>

@@ -97,12 +97,11 @@ export function ConnectionDialog(props: {
     <A11yDialog
       open={open()}
       size="sm"
-      dividers={false}
       title={editingId() ? "Edit server" : "Connect"}
       onClose={close}
       footer={
         <>
-          <ControlButton class="vitals-dialog-cancel" tone="secondary" onClick={close}>
+          <ControlButton tone="secondary" onClick={close}>
             Cancel
           </ControlButton>
           <ControlButton tone="brand" disabled={!canSubmit()} onClick={submit}>

@@ -18,7 +18,6 @@ export function CommandPalette(props: {
       onClose={props.onClose}
       title="Command palette"
       chrome="flush"
-      dividers={false}
       showCloseButton={false}
       class="commander-panel"
       bodyClass="px-0 pb-3"

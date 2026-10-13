@@ -41,6 +41,8 @@ export type TooltipRootProps = {
   open?: boolean;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Positions against this rect instead of the trigger (a tooltip shared by many targets). */
+  getAnchorRect?: () => { x: number; y: number; width: number; height: number } | null;
 };
 
 export type TooltipGroupProps = {
@@ -143,6 +145,7 @@ function TooltipRoot(props: TooltipRootProps) {
         placement: props.placement ?? "top",
         gutter: props.gutter ?? 6,
         flip: true,
+        getAnchorRect: props.getAnchorRect,
       }}
     >
       {props.children}

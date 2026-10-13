@@ -16,7 +16,7 @@
 }
 
 .pw-dropdown-presence {
-  z-index: var(--z-dropdown, 40);
+  z-index: var(--z-dropdown, 105);
   animation: pw-dropdown-presence var(--duration-fast, 120ms) forwards;
 }
 

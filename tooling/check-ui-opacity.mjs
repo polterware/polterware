@@ -139,7 +139,7 @@ function isAllowed(relativePath, ruleId, match, excerpt) {
   if (
     relativePath === SHARED_MATERIALS_PATH
     && (ruleId === "transparent-gradient" || ruleId === "transparent-color-mix")
-    && /--material-fade-edge-(?:bottom|top|toolbar-trail)/.test(excerpt)
+    && /--material-fade-edge-(?:bottom|top|toolbar-trail|mask|inline-mask)/.test(excerpt)
   ) {
     return true;
   }

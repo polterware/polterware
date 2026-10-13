@@ -25,7 +25,7 @@ export function CardLayoutMenu(props: { layout: CardLayoutState }) {
       <DropdownMenuTrigger class="vitals-layout-trigger" aria-label="Layout" title="Layout">
         <LayoutDashboard size={12} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent class="min-w-52">
+      <DropdownMenuContent class="vitals-card-menu">
         <For each={CARD_IDS}>
           {(id) => (
             <DropdownMenuItem

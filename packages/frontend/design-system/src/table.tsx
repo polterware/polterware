@@ -14,10 +14,11 @@ import {
   type Accessor,
   type JSX,
 } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal, isServer } from "solid-js/web";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import { createFluidHover, FluidHoverHighlight, type FluidHover } from "./fluid-hover";
 import { spring } from "./springs";
+import { Tooltip } from "./tooltip";
 import "./table.css";
 
 export type DataTableSortDirection = "ascending" | "descending";
@@ -54,6 +55,10 @@ export type DataTableRootProps<T = any> = {
   fixedRowHeight?: number;
   overscan?: number;
   gutters?: boolean;
+  /** Header dividers resize columns, and cells truncate with a fade. Off for wrapping reference tables. */
+  resizableColumns?: boolean;
+  /** Persists resized column widths under the design system's storage prefix. */
+  columnWidthsKey?: string;
   children: JSX.Element;
   class?: string;
 };
@@ -79,6 +84,10 @@ export type DataTableColumnHeaderProps<T = any> = {
   sortBy?: (row: T) => DataTableSortValue;
   compare?: (left: T, right: T) => number;
   width?: string;
+  /** Actions and icon-only columns keep their width and have no divider. */
+  resizable?: boolean;
+  minWidth?: number;
+  maxWidth?: number;
   align?: "left" | "center" | "right";
   class?: string;
 };
@@ -94,6 +103,11 @@ type RegisteredColumn<T> = {
   sortable: boolean;
   sortBy: (row: T) => DataTableSortValue;
   compare?: (left: T, right: T) => number;
+  resizable: boolean;
+  /** An explicit `width` is a design choice; the initial distribution leaves it alone. */
+  fixedWidth: boolean;
+  minWidth: number;
+  maxWidth: number;
 };
 
 type DataTableContextValue<T> = {
@@ -120,7 +134,77 @@ type DataTableContextValue<T> = {
   scrollElement: Accessor<HTMLDivElement | null>;
   setScrollElement: (element: HTMLDivElement) => void;
   columnCount: Accessor<number>;
+  resizableColumns: Accessor<boolean>;
+  columnsFrozen: Accessor<boolean>;
+  columnWidths: Accessor<Readonly<Record<string, number>>>;
+  flexColumnId: Accessor<string | undefined>;
+  registerHeader: (id: string, element: HTMLTableCellElement) => VoidFunction;
+  setColumnWidth: (id: string, width: number) => void;
+  resetColumnWidth: (id: string) => void;
+  persistColumnWidths: () => void;
 };
+
+const DATA_TABLE_MIN_COLUMN_WIDTH = 48;
+const DATA_TABLE_MAX_COLUMN_WIDTH = 360;
+/** Room the flexible column keeps when the others outgrow the viewport. */
+const DATA_TABLE_FLEX_COLUMN_MIN_WIDTH = 96;
+const DATA_TABLE_SELECTION_COLUMN_WIDTH = 40;
+/** Long content does not freeze a column wider than this; the divider widens it further. */
+const DATA_TABLE_MAX_NATURAL_COLUMN_WIDTH = 320;
+const DATA_TABLE_OVERFLOW_TOOLTIP_DELAY = 400;
+
+export function clampDataTableColumnWidth(
+  width: number,
+  limits: { minWidth: number; maxWidth: number },
+): number {
+  return Math.round(Math.min(limits.maxWidth, Math.max(limits.minWidth, width)));
+}
+
+/**
+ * Initial column widths: content widths, with the viewport's spare room shared in proportion
+ * among the columns that have no explicit width (the flexible one weighs double). The flexible column keeps its share implicitly
+ * (it gets no width), so it is left out of the result.
+ */
+export function distributeDataTableColumnWidths(
+  natural: Readonly<Record<string, number>>,
+  options: {
+    available: number;
+    flexColumnId: string | undefined;
+    columns: ReadonlyMap<string, { resizable: boolean; fixedWidth: boolean; minWidth: number; maxWidth: number }>;
+  },
+): Record<string, number> {
+  const total = Object.values(natural).reduce((sum, width) => sum + width, 0);
+  // The flexible column usually holds the main value, so it takes a double share.
+  const weight = (id: string): number => {
+    if (id === options.flexColumnId) return 2;
+    const column = options.columns.get(id);
+    return column?.resizable && !column.fixedWidth ? 1 : 0;
+  };
+  const weightedTotal = Object.entries(natural).reduce((sum, [id, width]) => sum + width * weight(id), 0);
+  const spare = Math.max(0, options.available - total);
+  const widths: Record<string, number> = {};
+  for (const [id, width] of Object.entries(natural)) {
+    if (id === options.flexColumnId) continue;
+    const column = options.columns.get(id);
+    const grown = weightedTotal > 0 ? width + (spare * width * weight(id)) / weightedTotal : width;
+    widths[id] = column?.resizable ? clampDataTableColumnWidth(grown, column) : Math.round(grown);
+  }
+  return widths;
+}
+
+export function readDataTableColumnWidths(key: string | undefined): Record<string, number> {
+  if (!key || isServer) return {};
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(key) ?? "{}");
+    if (!parsed || typeof parsed !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, number] =>
+        typeof entry[1] === "number" && Number.isFinite(entry[1]) && entry[1] > 0),
+    );
+  } catch {
+    return {};
+  }
+}
 
 const DataTableContext = createContext<DataTableContextValue<never>>();
 const DataTableSelectionToolbarHostContext = createContext<Accessor<HTMLElement | undefined>>();
@@ -325,6 +409,23 @@ function DataTableRoot<T = any>(props: DataTableRootProps<T>) {
   const [columnCount, setColumnCount] = createSignal(0);
   const [columnVersion, setColumnVersion] = createSignal(0);
   const columns = new Map<string, RegisteredColumn<T>>();
+  const designSystem = useDesignSystem();
+  const resizableColumns = () => props.resizableColumns !== false;
+  const [columnsFrozen, setColumnsFrozen] = createSignal(false);
+  const [columnWidths, setColumnWidths] = createSignal<Readonly<Record<string, number>>>({});
+  const naturalWidths: Record<string, number> = {};
+  // Only widths someone set persist; the rest re-measure, so better natural sizing still applies.
+  const resizedColumns = new Set<string>();
+  const headers = new Map<string, HTMLTableCellElement>();
+  const widthsKey = () =>
+    props.columnWidthsKey ? designSystem.storageKey(`table.${props.columnWidthsKey}.columns`) : undefined;
+  // The last resizable column has no width of its own: it absorbs what the others leave.
+  const flexColumnId = createMemo(() => {
+    columnVersion();
+    let last: string | undefined;
+    for (const column of columns.values()) if (column.resizable) last = column.id;
+    return last;
+  });
 
   const sourceRows = createMemo<readonly IndexedRow<T>[]>((previous) => {
     const byId = new Map(previous?.map(entry => [entry.id, entry]));
@@ -404,6 +505,59 @@ function DataTableRoot<T = any>(props: DataTableRootProps<T>) {
       [...visibleIds()].some((id) => selectedRowIds().has(id)),
   );
 
+  // Freeze the column widths once rows have painted, so live data never reflows columns.
+  const freezeColumns = (): boolean => {
+    const table = headers.values().next().value?.closest("table");
+    const scroller = scrollElement();
+    if (!table || !scroller) return false;
+    // Measure at content width: a full-width table spreads its leftover space into every column.
+    const previousWidth = table.style.width;
+    table.style.width = "max-content";
+    const natural: Record<string, number> = {};
+    let hidden = false;
+    for (const [id, element] of headers) {
+      const width = element.offsetWidth;
+      if (width === 0) hidden = true;
+      natural[id] = Math.min(width, DATA_TABLE_MAX_NATURAL_COLUMN_WIDTH);
+    }
+    table.style.width = previousWidth;
+    if (hidden) return false;
+    const measured = distributeDataTableColumnWidths(natural, {
+      available: scroller.clientWidth - (selectionMode() === "none" ? 0 : DATA_TABLE_SELECTION_COLUMN_WIDTH),
+      flexColumnId: flexColumnId(),
+      columns,
+    });
+    Object.assign(naturalWidths, measured);
+    const stored = readDataTableColumnWidths(widthsKey());
+    for (const [id, width] of Object.entries(stored)) {
+      const column = columns.get(id);
+      if (!(id in measured) || !column?.resizable) continue;
+      measured[id] = clampDataTableColumnWidth(width, column);
+      resizedColumns.add(id);
+    }
+    setColumnWidths(measured);
+    setColumnsFrozen(true);
+    return true;
+  };
+  createEffect(() => {
+    if (!resizableColumns() || columnsFrozen() || orderedRows().length === 0) return;
+    const scroller = scrollElement();
+    if (!scroller) return;
+    let observer: ResizeObserver | undefined;
+    const frame = requestAnimationFrame(() => {
+      if (freezeColumns() || typeof ResizeObserver === "undefined") return;
+      // A hidden table measures zero; freeze once it gets a size.
+      observer = new ResizeObserver(() => {
+        if (freezeColumns()) observer?.disconnect();
+      });
+      observer.observe(scroller);
+    });
+    onCleanup(() => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+    });
+  });
+
   const context: DataTableContextValue<T> = {
     rows: orderedRows,
     registerColumn: (column) => {
@@ -457,6 +611,36 @@ function DataTableRoot<T = any>(props: DataTableRootProps<T>) {
     scrollElement,
     setScrollElement,
     columnCount: () => columnCount() + (selectionMode() === "none" ? 0 : 1),
+    resizableColumns,
+    columnsFrozen,
+    columnWidths,
+    flexColumnId,
+    registerHeader: (id, element) => {
+      headers.set(id, element);
+      return () => {
+        if (headers.get(id) === element) headers.delete(id);
+      };
+    },
+    setColumnWidth: (id, width) => {
+      const column = columns.get(id);
+      resizedColumns.add(id);
+      setColumnWidths((current) => ({ ...current, [id]: column ? clampDataTableColumnWidth(width, column) : Math.round(width) }));
+    },
+    resetColumnWidth: (id) => {
+      const natural = naturalWidths[id];
+      if (natural === undefined) return;
+      resizedColumns.delete(id);
+      setColumnWidths((current) => ({ ...current, [id]: natural }));
+      context.persistColumnWidths();
+    },
+    persistColumnWidths: () => {
+      const key = widthsKey();
+      if (!key || isServer) return;
+      const resizable = Object.fromEntries(
+        Object.entries(columnWidths()).filter(([id]) => resizedColumns.has(id) && columns.get(id)?.resizable),
+      );
+      try { window.localStorage.setItem(key, JSON.stringify(resizable)); } catch { /* Resizing remains usable without storage. */ }
+    },
   };
 
   return (
@@ -522,6 +706,46 @@ function DataTableTable(props: {
     const index = activeIndex();
     return index === null ? null : (hover.rects()[index] ?? null);
   };
+  const tableMinWidth = () => {
+    if (!context.columnsFrozen()) return undefined;
+    const fixed = Object.entries(context.columnWidths())
+      .reduce((sum, [id, width]) => (id === context.flexColumnId() ? sum : sum + width), 0);
+    const selection = context.selectable() ? DATA_TABLE_SELECTION_COLUMN_WIDTH : 0;
+    return `${fixed + selection + DATA_TABLE_FLEX_COLUMN_MIN_WIDTH}px`;
+  };
+
+  // One tooltip per table shows the full text of whichever truncated cell the pointer rests on.
+  const [overflow, setOverflow] = createSignal<{ text: string; rect: DOMRect } | null>(null);
+  // Live tables re-render rows, so a cell is tracked by row and column, not by element.
+  let overflowKey: string | null = null;
+  let overflowTimer: ReturnType<typeof setTimeout> | undefined;
+  const closeOverflow = () => {
+    if (overflowTimer !== undefined) clearTimeout(overflowTimer);
+    overflowTimer = undefined;
+    overflowKey = null;
+    setOverflow(null);
+  };
+  const fadeTargetAt = (target: EventTarget | Element | null) =>
+    target instanceof Element ? target.closest<HTMLElement>(".pw-inline-fade") : null;
+  const overflowKeyOf = (target: HTMLElement) =>
+    `${target.closest("tr")?.dataset.rowId ?? ""}:${target.closest<HTMLTableCellElement>("td, th")?.cellIndex ?? ""}`;
+  const trackOverflow = (event: PointerEvent) => {
+    const target = fadeTargetAt(event.target);
+    const key = target ? overflowKeyOf(target) : null;
+    if (key === overflowKey) return;
+    closeOverflow();
+    if (!target || target.scrollWidth <= target.clientWidth) return;
+    overflowKey = key;
+    const { clientX, clientY } = event;
+    overflowTimer = setTimeout(() => {
+      overflowTimer = undefined;
+      const live = target.isConnected ? target : fadeTargetAt(document.elementFromPoint(clientX, clientY));
+      const text = live && live.scrollWidth > live.clientWidth ? live.textContent?.trim() : undefined;
+      if (text) setOverflow({ text, rect: live!.getBoundingClientRect() });
+      else overflowKey = null;
+    }, DATA_TABLE_OVERFLOW_TOOLTIP_DELAY);
+  };
+  onCleanup(closeOverflow);
 
   return (
     <DataTableHoverContext.Provider value={{ hover, enabled: () => pointerInside() || focusInside() }}>
@@ -533,7 +757,9 @@ function DataTableTable(props: {
         class="pw-data-table-scroll"
         data-virtualized={context.virtualized() ? "true" : undefined}
         data-fixed-row-height={context.fixedRowHeight() !== undefined ? "true" : undefined}
+        data-column-layout={context.columnsFrozen() ? "fixed" : undefined}
         style={{ "--table-row-pitch": `${context.estimateRowHeight()}px` }}
+        onScroll={closeOverflow}
       >
         <FluidHoverHighlight hover={hover} class={hoverClass()} />
         {/* The active row's marker travels between rows; a re-sort that moves it snaps. */}
@@ -546,9 +772,12 @@ function DataTableTable(props: {
         <table
           class={`pw-data-table ${props.class ?? ""}`}
           aria-label={props["aria-label"]}
+          style={{ "min-width": tableMinWidth() }}
           onPointerEnter={event => { setPointerInside(true); hover.handlers.onPointerEnter(event); }}
           onPointerMove={hover.handlers.onPointerMove}
-          onPointerLeave={() => { setPointerInside(false); hover.handlers.onPointerLeave(); }}
+          onPointerOver={trackOverflow}
+          onPointerDown={closeOverflow}
+          onPointerLeave={() => { setPointerInside(false); hover.handlers.onPointerLeave(); closeOverflow(); }}
           onFocusIn={event => { setFocusInside(true); hover.handlers.onFocusIn(event); }}
           onFocusOut={event => {
             setFocusInside(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget));
@@ -558,6 +787,14 @@ function DataTableTable(props: {
           {props.children}
         </table>
       </div>
+      <Tooltip.Root
+        open={overflow() !== null}
+        onOpenChange={(open) => { if (!open) closeOverflow(); }}
+        openDelay={0}
+        getAnchorRect={() => overflow()?.rect ?? null}
+      >
+        <Tooltip.Content class="pw-data-table-overflow-tooltip">{overflow()?.text}</Tooltip.Content>
+      </Tooltip.Root>
     </DataTableHoverContext.Provider>
   );
 }
@@ -581,13 +818,27 @@ function DataTableColumnHeader<T = any>(props: DataTableColumnHeaderProps<T>) {
     }
     return undefined;
   };
+  const resizable = () => context.resizableColumns() && props.resizable !== false;
   const dispose = context.registerColumn({
     id: props.id,
     sortable: sortable(),
     sortBy,
     compare: props.compare,
+    resizable: resizable(),
+    fixedWidth: props.width !== undefined,
+    minWidth: props.minWidth ?? DATA_TABLE_MIN_COLUMN_WIDTH,
+    maxWidth: props.maxWidth ?? DATA_TABLE_MAX_COLUMN_WIDTH,
   });
   onCleanup(dispose);
+  const width = () => {
+    if (!context.columnsFrozen()) return props.width;
+    if (context.flexColumnId() === props.id) return undefined;
+    const frozen = context.columnWidths()[props.id];
+    return frozen === undefined ? props.width : `${frozen}px`;
+  };
+  const showResizer = () =>
+    resizable() && context.columnsFrozen() && context.flexColumnId() !== props.id;
+  const label = () => (typeof props.children === "string" ? props.children : props.id);
 
   const state = () =>
     context.sort()?.columnId === props.id ? context.sort()?.direction : undefined;
@@ -596,8 +847,10 @@ function DataTableColumnHeader<T = any>(props: DataTableColumnHeaderProps<T>) {
 
   return (
     <th
+      ref={(element) => onCleanup(context.registerHeader(props.id, element))}
       class={`pw-data-table-column-header ${alignClass()} ${props.class ?? ""}`}
-      style={{ width: props.width }}
+      style={{ width: width() }}
+      data-truncate={resizable() ? "true" : undefined}
       aria-sort={sortable() ? ariaSort() : undefined}
       scope="col"
     >
@@ -612,7 +865,7 @@ function DataTableColumnHeader<T = any>(props: DataTableColumnHeaderProps<T>) {
           onClick={() => context.cycleSort(props.id)}
           aria-label={`Sort by ${String(props.children)}`}
         >
-          <span>{props.children}</span>
+          <span class="pw-data-table-column-text">{props.children}</span>
           <Show when={state()}>
             {(direction) =>
               direction() === "ascending" ? (
@@ -624,7 +877,103 @@ function DataTableColumnHeader<T = any>(props: DataTableColumnHeaderProps<T>) {
           </Show>
         </button>
       </Show>
+      <Show when={showResizer()}>
+        <DataTableColumnResizer
+          id={props.id}
+          label={label()}
+          minWidth={props.minWidth ?? DATA_TABLE_MIN_COLUMN_WIDTH}
+          maxWidth={props.maxWidth ?? DATA_TABLE_MAX_COLUMN_WIDTH}
+        />
+      </Show>
     </th>
+  );
+}
+
+/** The header divider: drag, arrow keys (16px; Shift 64px), Home/End for the limits, double-click to reset. */
+function DataTableColumnResizer(props: { id: string; label: string; minWidth: number; maxWidth: number }) {
+  const context = useDataTable("ColumnHeader");
+  const width = () => context.columnWidths()[props.id] ?? 0;
+  let cancelResize: VoidFunction | undefined;
+  onCleanup(() => cancelResize?.());
+
+  const beginResize = (event: PointerEvent) => {
+    if (event.button !== 0 || cancelResize) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const handle = event.currentTarget as HTMLElement;
+    const pointerId = event.pointerId;
+    const startX = event.clientX;
+    const start = width();
+    let moved = false;
+    handle.focus({ preventScroll: true });
+    handle.setPointerCapture(pointerId);
+    const move = (next: PointerEvent) => {
+      if (next.pointerId !== pointerId) return;
+      const dx = next.clientX - startX;
+      if (!moved && Math.abs(dx) < 3) return;
+      if (!moved) document.documentElement.dataset.columnResizing = "";
+      moved = true;
+      context.setColumnWidth(props.id, start + dx);
+    };
+    const finish = (commit: boolean) => {
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", up);
+      handle.removeEventListener("pointercancel", cancel);
+      handle.removeEventListener("lostpointercapture", cancel);
+      handle.removeEventListener("keydown", escape);
+      cancelResize = undefined;
+      delete document.documentElement.dataset.columnResizing;
+      if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
+      if (!moved) return;
+      if (commit) context.persistColumnWidths();
+      else context.setColumnWidth(props.id, start);
+    };
+    const up = (next: PointerEvent) => { if (next.pointerId === pointerId) finish(true); };
+    const cancel = () => finish(false);
+    const escape = (next: KeyboardEvent) => {
+      if (next.key !== "Escape") return;
+      next.preventDefault();
+      next.stopPropagation();
+      finish(false);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", up);
+    handle.addEventListener("pointercancel", cancel);
+    handle.addEventListener("lostpointercapture", cancel);
+    handle.addEventListener("keydown", escape);
+    cancelResize = cancel;
+  };
+
+  const resizeByKey = (event: KeyboardEvent) => {
+    if (cancelResize || event.altKey || event.ctrlKey || event.metaKey) return;
+    const step = event.shiftKey ? 64 : 16;
+    const next = event.key === "ArrowLeft" ? width() - step
+      : event.key === "ArrowRight" ? width() + step
+        : event.key === "Home" ? 0
+          : event.key === "End" ? Number.POSITIVE_INFINITY
+          : undefined;
+    if (next === undefined) return;
+    event.preventDefault();
+    event.stopPropagation();
+    context.setColumnWidth(props.id, next);
+    context.persistColumnWidths();
+  };
+
+  return (
+    <div
+      class="pw-data-table-column-resizer"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${props.label}`}
+      aria-valuenow={width()}
+      aria-valuemin={props.minWidth}
+      aria-valuemax={props.maxWidth}
+      tabIndex={0}
+      onPointerDown={beginResize}
+      onKeyDown={resizeByKey}
+      onClick={(event) => event.stopPropagation()}
+      onDblClick={() => context.resetColumnWidth(props.id)}
+    />
   );
 }
 
@@ -797,15 +1146,28 @@ function DataTableCell(props: {
   class?: string;
   align?: "left" | "center" | "right";
   colspan?: number;
+  /** Multi-line content keeps wrapping instead of truncating with a fade. */
+  wrap?: boolean;
   onClick?: JSX.EventHandlerUnion<HTMLTableCellElement, MouseEvent>;
 }) {
+  // A cell truncates when its column resizes; the header at the same index says so.
+  const [truncate, setTruncate] = createSignal(false);
+  let cell: HTMLTableCellElement | undefined;
+  onMount(() => {
+    if (!cell || props.wrap || (props.colspan ?? 1) > 1) return;
+    const header = cell.closest("table")?.tHead?.rows[0]?.cells[cell.cellIndex];
+    setTruncate(header?.dataset.truncate === "true");
+  });
   return (
     <td
+      ref={cell}
       class={`pw-data-table-cell pw-data-table-align-${props.align ?? "left"} ${props.class ?? ""}`}
       colspan={props.colspan}
       onClick={props.onClick}
     >
-      {props.children}
+      <span class={truncate() ? "pw-data-table-cell-text pw-inline-fade" : "pw-data-table-cell-content"}>
+        {props.children}
+      </span>
     </td>
   );
 }
@@ -848,7 +1210,7 @@ function DataTablePrimaryCell(props: DataTablePrimaryCellProps) {
             {leading()}
           </span>
         </Show>
-        <span class="pw-data-table-primary-title">{props.title}</span>
+        <span class="pw-data-table-primary-title pw-inline-fade">{props.title}</span>
         <Show when={props.trailing}>
           <span class="pw-data-table-primary-trailing">{props.trailing}</span>
         </Show>

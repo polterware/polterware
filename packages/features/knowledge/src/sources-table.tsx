@@ -10,6 +10,7 @@ export function SourcesTable(props: {
     <DataTable.Root
       rows={props.rows}
       getRowId={(item) => item.id}
+      columnWidthsKey="knowledge-sources"
       activeRowId={props.activeRowId ?? null}
       activateFirstRow
       onActiveRowChange={(id) => id && props.onActivate(id)}

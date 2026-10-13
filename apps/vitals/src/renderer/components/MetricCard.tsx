@@ -50,7 +50,7 @@ export function MetricCard(props: {
           </button>
         </div>
       </header>
-      <div class="vitals-card-body">{props.children}</div>
+      <div class="vitals-card-body pw-scroll-fade">{props.children}</div>
     </section>
   );
 }

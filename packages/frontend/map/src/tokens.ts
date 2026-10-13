@@ -7,7 +7,7 @@ export type MapTokenColors = {
 
 const FALLBACK: MapTokenColors = {
   brand: "#01dd96",
-  canvas: "#070707",
+  canvas: "#131313",
   text: "#ececec",
   muted: "#6f6f6f",
 };

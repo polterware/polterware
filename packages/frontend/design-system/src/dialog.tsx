@@ -43,11 +43,6 @@ export type A11yDialogProps = {
    */
   chrome?: "default" | "flush";
   /**
-   * When true (default false for flush, true for default), draw border-b/t
-   * between header/body/footer. Prefer spacing-only separation in catalogs.
-   */
-  dividers?: boolean;
-  /**
    * When false, Escape, outside click, and the close (X) control are disabled.
    * Defaults to true.
    */
@@ -66,12 +61,13 @@ export type A11yDialogProps = {
  * Product dialog: Ark Dialog + Polter surface.
  *
  * Default frame = `md` (medium form). Pass `xl` for dense catalogs.
- * Catalogs: `chrome="flush"`, `dividers={false}` — space separates regions, not lines.
+ * Regions never draw dividers — space separates header, body and footer.
+ * Footer: pass buttons as a fragment; the first (dismiss, e.g. Cancel) sits left,
+ * the primary/destructive action last on the right.
  */
 export function A11yDialog(props: A11yDialogProps) {
   const ownPortal = createPanelPortalOwnership(() => props.open);
   const flush = () => props.chrome === "flush";
-  const dividers = () => props.dividers ?? !flush();
   const dismissible = () => props.dismissible !== false;
   const showCloseButton = () => props.showCloseButton !== false;
   const frameSize = (): DialogSize => props.size ?? "md";
@@ -113,7 +109,7 @@ export function A11yDialog(props: A11yDialogProps) {
                 </Show>
                 <Show when={dismissible() && showCloseButton()}>
                   <ArkDialog.CloseTrigger
-                    class="absolute top-2.5 right-3 z-10 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
+                    class="absolute top-4 right-4 z-10 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]"
                     aria-label="Close"
                   >
                     <X size={16} aria-hidden />
@@ -122,17 +118,13 @@ export function A11yDialog(props: A11yDialogProps) {
               </>
             }
           >
-            <header
-              class={`flex shrink-0 items-start justify-between gap-3 px-5 py-4 ${
-                dividers() ? "border-b border-[var(--color-border-subtle)]" : ""
-              }`}
-            >
+            <header class="flex shrink-0 items-start justify-between gap-3 px-7 pt-6 pb-2">
               <div class="min-w-0 flex-1">
                 <div class="flex min-w-0 items-center gap-2.5">
                   <Show when={props.titleLeading}>
                     <div class="shrink-0">{props.titleLeading}</div>
                   </Show>
-                  <ArkDialog.Title class="m-0 min-w-0 text-[15px] font-semibold text-[var(--color-text-primary)]">
+                  <ArkDialog.Title class="m-0 min-w-0 text-[16px] font-semibold text-[var(--color-text-primary)]">
                     {props.title}
                   </ArkDialog.Title>
                 </div>
@@ -144,7 +136,7 @@ export function A11yDialog(props: A11yDialogProps) {
               </div>
               <Show when={dismissible() && showCloseButton()}>
                 <ArkDialog.CloseTrigger
-                  class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-control)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]"
+                  class="-mt-1 -mr-2 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[var(--color-text-muted)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]"
                   aria-label="Close"
                 >
                   <X size={16} aria-hidden />
@@ -156,18 +148,14 @@ export function A11yDialog(props: A11yDialogProps) {
           <div
             class={[
               "flex min-h-0 flex-1 flex-col overflow-auto text-[13px] text-[var(--color-text-secondary)]",
-              props.bodyClass ?? (flush() ? "px-5 pt-4 pb-3" : "px-5 py-4"),
+              props.bodyClass ?? (flush() ? "px-7 pt-6 pb-4" : "px-7 py-4"),
             ].join(" ")}
           >
             {props.children}
           </div>
 
           <Show when={props.footer}>
-            <footer
-              class={`flex shrink-0 justify-end gap-2 px-5 py-3 ${
-                dividers() ? "border-t border-[var(--color-border-subtle)]" : ""
-              }`}
-            >
+            <footer class="pw-dialog-footer flex shrink-0 items-center justify-end gap-2 px-7 pt-3 pb-6">
               {props.footer}
             </footer>
           </Show>
