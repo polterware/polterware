@@ -34,6 +34,16 @@ polterware setup claude           # install the Claude Code plugin (or: setup co
 
 Run `polterware` with no arguments in a terminal for the status TUI. Run `polterware --help` for every command.
 
+## Install
+
+The desktop apps ship as alpha builds for macOS on Apple Silicon. Install, or update an installed copy, with:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/polterware/polterware/main/scripts/install-desktop.sh | bash
+```
+
+That installs Vitals; add `APP=lore` or `APP=sparky` before `bash` for the other apps. Run the same command again to update.
+
 ## Repository
 
 - `apps/lore-desktop` — Electron Main, preload bridge, and Solid renderer

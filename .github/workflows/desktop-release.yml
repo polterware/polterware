@@ -99,6 +99,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: polterware/polterware
+          APP: ${{ inputs.app }}
           RELEASE_TAG: ${{ inputs.tag }}
           PRODUCT: ${{ needs.build.outputs.product }}
           VERSION: ${{ needs.build.outputs.version }}
@@ -113,7 +114,7 @@ jobs:
             cat > release-notes.txt <<NOTES
           $PRODUCT $VERSION for macOS on Apple Silicon (arm64). Ad-hoc signed; not notarized.
           Gatekeeper rejection is expected. First run: right-click the extracted $PRODUCT.app and choose Open, or remove quarantine from that trusted app with xattr -dr com.apple.quarantine /path/to/$PRODUCT.app.
-          Updates are manual: quit $PRODUCT, replace the app with the app from the new ZIP, then reopen. Auto-update is unavailable.
+          Install or update from a terminal (run it again to update): curl -fsSL https://raw.githubusercontent.com/polterware/polterware/main/scripts/install-desktop.sh | APP=$APP bash
           NOTES
             gh release create "$RELEASE_TAG" --verify-tag --draft "${prerelease[@]}" --title "$PRODUCT $VERSION" --notes-file release-notes.txt
           fi
