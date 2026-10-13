@@ -23,7 +23,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-15
+    # .icon (Icon Composer) app icons need actool from Xcode 26.
+    runs-on: macos-26
     if: github.repository == 'polterware/polterware'
     outputs:
       product: ${{ steps.meta.outputs.product }}
