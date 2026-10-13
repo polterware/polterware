@@ -1,6 +1,6 @@
-import { Activity, Cpu, DataTable, Gauge, HardDrive, ListOrdered, MemoryStick, Network, Select, Skeleton, StatusChip, Zap, type StatusTone } from "@polterware/frontend-design-system";
+import { Activity, ControlButton, Cpu, DataTable, DitherIconTile, EmptyIllustration, Gauge, HardDrive, ListOrdered, MemoryStick, Network, PageEmpty, RefreshCw, Select, Server, Skeleton, StatusChip, Zap, type StatusTone } from "@polterware/frontend-design-system";
 import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
-import type { ConnectionMetricsMode, ConnectionStatus, DiskIoStats, DiskPartition, MetricsSnapshot, NetworkInterface, SessionHistory } from "../api";
+import { connectionPresentation, type ConnectionMetricsMode, type ConnectionStatus, type DiskIoStats, type DiskPartition, type MetricsSnapshot, type NetworkInterface, type SessionHistory } from "../api";
 import { formatBytesPerSec, formatKb, formatPercent, formatUptime } from "../utils/format";
 import { MetricCard } from "./MetricCard";
 import { CARD_IDS, type CardId } from "./card-order";
@@ -37,7 +37,10 @@ export function MetricsDashboard(props: {
   mode?: ConnectionMetricsMode;
   message?: string;
   onKill: (pid: number) => void;
+  onRetry: () => void;
+  onClose: () => void;
 }) {
+  const failed = () => props.status === "error" || props.status === "disconnected";
   const waiting = () => props.snapshot === null && (props.status === "connecting" || props.status === "connected" || props.status === "reconnecting");
   const showHead = () => props.mode === "fallback" || Boolean(props.message && props.status !== "connected");
   const [pickedIface, setPickedIface] = createSignal<string | undefined>();
@@ -89,13 +92,43 @@ export function MetricsDashboard(props: {
   };
 
   return (
+    <Show
+      when={!(failed() && props.snapshot === null)}
+      fallback={
+        <PageEmpty
+          title={props.status === "disconnected" ? "Disconnected" : "Connection failed"}
+          description={props.message || "The host could not be reached."}
+          illustration={
+            <EmptyIllustration class="vitals-empty-illustration">
+              <DitherIconTile size={28} dimmed>
+                <Server size={16} />
+              </DitherIconTile>
+            </EmptyIllustration>
+          }
+          action={
+            <div class="vitals-error-actions">
+              <ControlButton tone="secondary" onClick={() => props.onClose()}>
+                Close
+              </ControlButton>
+              <ControlButton tone="brand" onClick={() => props.onRetry()}>
+                <RefreshCw size={14} />
+                Retry
+              </ControlButton>
+            </div>
+          }
+        />
+      }
+    >
     <div class="vitals-stack">
       <Show when={showHead()}>
-        <div class="vitals-card-head">
+        <div class="vitals-card-head vitals-status-head">
           <Show when={props.mode === "fallback"}>
             <StatusChip tone="warn">Script fallback</StatusChip>
           </Show>
           <Show when={props.message && props.status !== "connected"}>
+            <StatusChip tone={connectionPresentation(props.status).tone}>
+              {connectionPresentation(props.status).label}
+            </StatusChip>
             <p class="vitals-sub">{props.message}</p>
           </Show>
         </div>
@@ -341,5 +374,6 @@ export function MetricsDashboard(props: {
         </Show>
       </Show>
     </div>
+    </Show>
   );
 }

@@ -14,11 +14,24 @@ import {
   Pencil,
   Plus,
   Select,
+  Server,
   SwitchRow,
 } from "@polterware/frontend-design-system";
 import { SidebarSection } from "@polterware/frontend-shell";
 import { createEffect, createSignal, Index, onCleanup, onMount, Show } from "solid-js";
 import type { AuthMode, ConnectPayload, SavedServerPublic } from "../api";
+
+export function savedConnectPayload(server: SavedServerPublic): ConnectPayload {
+  return {
+    serverId: server.id,
+    label: server.label,
+    host: server.host,
+    port: server.port,
+    username: server.username,
+    authMode: server.authMode,
+    privateKeyPath: server.privateKeyPath,
+  };
+}
 
 function SavedServerRow(props: {
   server: SavedServerPublic;
@@ -37,7 +50,8 @@ function SavedServerRow(props: {
   return (
     <div ref={row} class="pw-sidebar-item pw-sidebar-item--nav vitals-saved-row">
       <button type="button" class="vitals-saved-name" onClick={() => props.onOpen()}>
-        {props.server.label}
+        <Server size={14} aria-hidden />
+        <span class="vitals-saved-label">{props.server.label}</span>
       </button>
       <DropdownMenu positioning={{ placement: "bottom-end" }}>
         <DropdownMenuTrigger class="vitals-saved-more" aria-label={`Actions for ${props.server.label}`}>
@@ -63,6 +77,7 @@ export function ConnectionForm(props: {
   onConnect: (payload: ConnectPayload) => void;
   onDeleteSaved: (id: string) => void;
   onRefreshSaved: () => void;
+  bindOpenNew?: (open: () => void) => void;
 }) {
   const [open, setOpen] = createSignal(false);
   const [editingId, setEditingId] = createSignal<string | null>(null);
@@ -79,6 +94,7 @@ export function ConnectionForm(props: {
   const savedHover = createFluidHover(() => savedList, { gapClick: { maxDistance: 8 } });
 
   onMount(() => props.onRefreshSaved());
+  props.bindOpenNew?.(() => openNew());
 
   const canSubmit = () => host().trim().length > 0 && username().trim().length > 0;
 
@@ -137,15 +153,7 @@ export function ConnectionForm(props: {
   };
 
   const loadSaved = (server: SavedServerPublic) => {
-    props.onConnect({
-      serverId: server.id,
-      label: server.label,
-      host: server.host,
-      port: server.port,
-      username: server.username,
-      authMode: server.authMode,
-      privateKeyPath: server.privateKeyPath,
-    });
+    props.onConnect(savedConnectPayload(server));
   };
 
   return (
@@ -179,11 +187,12 @@ export function ConnectionForm(props: {
       <A11yDialog
         open={open()}
         size="sm"
+        dividers={false}
         title={editingId() ? "Edit server" : "Connect"}
         onClose={close}
         footer={
           <>
-            <ControlButton tone="secondary" onClick={close}>
+            <ControlButton class="vitals-dialog-cancel" tone="secondary" onClick={close}>
               Cancel
             </ControlButton>
             <ControlButton tone="brand" disabled={!canSubmit()} onClick={submit}>

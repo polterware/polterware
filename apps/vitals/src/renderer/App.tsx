@@ -2,10 +2,14 @@ import {
   A11yDialog,
   Button,
   ControlButton,
+  DitherIconTile,
+  EmptyIllustration,
   PageEmpty,
   PageError,
   PageToolbar,
+  Plus,
   ResizableSidebar,
+  Server,
   Tabs,
   ToastRegion,
   X,
@@ -22,7 +26,7 @@ import {
   type SavedServerPublic,
   type SessionHistory,
 } from "./api";
-import { ConnectionForm } from "./components/ConnectionForm";
+import { ConnectionForm, savedConnectPayload } from "./components/ConnectionForm";
 import { HostKeyModal } from "./components/HostKeyModal";
 import { MetricsDashboard } from "./components/MetricsDashboard";
 import { TerminalView } from "./components/TerminalView";
@@ -69,6 +73,7 @@ export function App() {
   const [killTarget, setKillTarget] = createSignal<{ sessionId: string; pid: number } | null>(null);
   const active = createMemo(() => tabs().find((tab) => tab.sessionId === activeId()) ?? null);
   const closedSessions = new Set<string>();
+  let openNewConnection: (() => void) | undefined;
 
   const refreshSaved = () => {
     if (!window.vitals) return;
@@ -147,8 +152,13 @@ export function App() {
     });
   });
 
+  // Kept in memory only, so a failed session can be retried with the same input.
+  const payloads = new Map<string, ConnectPayload>();
+
   const connect = (payload: ConnectPayload) => {
-    void window.vitals.connect(payload).catch((error: unknown) => {
+    void window.vitals.connect(payload).then(({ sessionId }) => {
+      payloads.set(sessionId, payload);
+    }).catch((error: unknown) => {
       pushToast(error instanceof Error ? error.message : "Connect failed", "danger");
     });
   };
@@ -162,7 +172,15 @@ export function App() {
     setTabs(remaining);
     setTerminalSessions((ids) => ids.filter((id) => id !== sessionId));
     setActiveId((id) => (id === sessionId ? neighbor?.sessionId ?? null : id));
+    payloads.delete(sessionId);
     void window.vitals.disconnect(sessionId);
+  };
+
+  const retryTab = (sessionId: string) => {
+    const payload = payloads.get(sessionId);
+    closeTab(sessionId);
+    if (payload) connect(payload);
+    else openNewConnection?.();
   };
 
   const confirmKill = async () => {
@@ -200,6 +218,9 @@ export function App() {
                   void window.vitals.deleteServer(id).then(refreshSaved);
                 }}
                 onRefreshSaved={refreshSaved}
+                bindOpenNew={(open) => {
+                  openNewConnection = open;
+                }}
               />
             </div>
           }
@@ -275,7 +296,45 @@ export function App() {
             </For>
             <Show
               when={active()}
-              fallback={<PageEmpty title="No host connected" description="Connect to a Linux host to see live metrics." />}
+              fallback={
+                <PageEmpty
+                  illustration={
+                    <EmptyIllustration class="vitals-empty-illustration">
+                      <DitherIconTile size={28} tone="infrastructure">
+                        <Server size={16} />
+                      </DitherIconTile>
+                    </EmptyIllustration>
+                  }
+                  action={
+                    <div class="vitals-empty-actions">
+                      <Show when={saved().length > 0}>
+                        <div class="vitals-empty-recents">
+                          <p class="vitals-empty-recents-label">Recents</p>
+                          <For each={saved().slice(0, 4)}>
+                            {(server) => (
+                              <Button
+                                variant="ghost"
+                                class="vitals-empty-recent"
+                                onClick={() => connect(savedConnectPayload(server))}
+                              >
+                                <Server size={14} />
+                                <span class="vitals-empty-recent-label">{server.label}</span>
+                                <span class="vitals-empty-recent-host">
+                                  {server.username}@{server.host}
+                                </span>
+                              </Button>
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                      <ControlButton tone="brand" onClick={() => openNewConnection?.()}>
+                        <Plus size={14} />
+                        Connect a host
+                      </ControlButton>
+                    </div>
+                  }
+                />
+              }
             >
               <Show when={view() === "metrics"}>
               <MetricsDashboard
@@ -285,6 +344,8 @@ export function App() {
                 mode={active()!.mode}
                 message={active()!.message}
                 onKill={(pid) => setKillTarget({ sessionId: active()!.sessionId, pid })}
+                onRetry={() => retryTab(active()!.sessionId)}
+                onClose={() => closeTab(active()!.sessionId)}
               />
               </Show>
             </Show>
