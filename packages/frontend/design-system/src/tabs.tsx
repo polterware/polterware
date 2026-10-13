@@ -98,7 +98,6 @@ function TabTrigger(props: {
           ref={props.ref}
           value={props.item.id}
           disabled={props.item.disabled}
-          id={`tab-${props.item.id}`}
           classList={classList()}
         >
           {label}
@@ -107,6 +106,7 @@ function TabTrigger(props: {
     >
       {(tooltip) => (
         <Tooltip.Root
+          triggerId={`tab-${props.item.id}`}
           placement="bottom-start"
           disabled={props.item.disabled}
           openDelay={TAB_TOOLTIP_OPEN_DELAY}
@@ -118,8 +118,7 @@ function TabTrigger(props: {
                 ref={props.ref}
                 value={props.item.id}
                 disabled={props.item.disabled}
-                id={`tab-${props.item.id}`}
-                classList={classList()}
+                      classList={classList()}
               >
                 {label}
               </ArkTabs.Trigger>
@@ -167,6 +166,7 @@ export function Tabs(props: {
 
   return (
     <ArkTabs.Root
+      ids={{ trigger: (value) => `tab-${value}` }}
       value={props.value}
       onValueChange={(details) => {
         if (details.value) props.onChange(details.value);

@@ -2,7 +2,9 @@
 @import "tailwindcss";
 
 /* Scan monorepo UI sources (base.css lives under packages/configuration/tailwind) */
-@source "../../../apps/desktop/src/**/*.{html,ts,tsx}";
+@source "../../../apps/lore-desktop/src/**/*.{html,ts,tsx}";
+@source "../../../apps/sparky-desktop/src/**/*.{html,ts,tsx}";
+@source "../../../apps/vitals/src/**/*.{html,ts,tsx}";
 @source "../../../packages/features/**/*.{ts,tsx}";
 @source "../../../packages/frontend/**/*.{ts,tsx}";
 
@@ -10,15 +12,15 @@
   --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  /* Surfaces — neutral gray ladder (no cool/blue cast), no pure black as sole depth */
-  --color-app-background: #070707;
-  --color-shell-background: #090909;
-  --color-sidebar-background: #090909;
-  --color-surface: #0f0f0f;
-  --color-surface-subtle: #121212;
-  --color-surface-raised: #151515;
-  --color-surface-hover: #191919;
-  --color-surface-active: #1e1e1e;
+  /* Surfaces — lifted neutral gray ladder shared by Lore, Sparky and Vitals (no cool/blue cast) */
+  --color-app-background: #131313;
+  --color-shell-background: #131313;
+  --color-sidebar-background: #131313;
+  --color-surface: #161616;
+  --color-surface-subtle: #191919;
+  --color-surface-raised: #1b1b1b;
+  --color-surface-hover: #1d1d1d;
+  --color-surface-active: #202020;
   --color-surface-selected: #232323;
 
   /* Border hierarchy may use alpha; structural fills stay opaque. */
@@ -78,7 +80,7 @@
   --color-status-info-foreground: #26364f;
   --color-status-muted-background: var(--color-surface-selected);
   --color-status-muted-foreground: var(--color-text-secondary);
-  --radius-window: 18px;
+  --radius-window: 24px;
   --color-chart-cyan: #8eccc9;
   --color-chart-blue: #7e9fd8;
   --color-chart-green: #5bbf93;
@@ -112,11 +114,13 @@
   --color-accent: var(--color-info);
   --color-success-legacy: var(--color-success);
 
-  --radius-control: 7px;
+  --radius-control: 10px;
   --radius-item: 10px;
-  --radius-card: 10px;
-  --radius-surface: 14px;
-  --radius-window: 18px;
+  --radius-card: 16px;
+  --radius-surface: 22px;
+  --radius-menu: 16px;
+  --radius-dialog: 30px;
+  --radius-window: 24px;
 
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
@@ -135,7 +139,7 @@
 
   --z-base: 0;
   --z-sticky: 10;
-  --z-dropdown: 40;
+  --z-dropdown: 105;
   --z-toast: 50;
   --z-dialog: 100;
   --z-tooltip: 110;
@@ -144,7 +148,7 @@
 :root {
   color-scheme: dark;
   /* macOS vibrancy chrome — one wash for title bar, sidebar, and gutters. */
-  --color-shell-glass: rgb(7 7 7 / 0.45);
+  --color-shell-glass: rgb(19 19 19 / 0.7);
   --color-sidebar-glass: var(--color-shell-glass);
   --foreground: var(--color-text-primary);
   --primary: var(--color-text-primary);
@@ -165,7 +169,7 @@
    * Tailwind v4 may tree-shake theme variables without utility consumers.
    */
   --color-primary: #8eccc9;
-  --color-surface-active: #1e1e1e;
+  --color-surface-active: #202020;
   --color-status-success-background: #3d8f74;
   --color-status-success-foreground: #071c16;
   --color-status-warning-background: var(--color-warning);
@@ -191,9 +195,17 @@
   --edge-light-surface-highlight: rgb(255 255 255 / 0.055);
   --edge-light-surface-rim: rgb(255 255 255 / 0.04);
 
+  --radius-control: 10px;
+  --radius-item: 10px;
+  --radius-card: 16px;
+  --radius-surface: 22px;
+  --radius-menu: 16px;
+  --radius-dialog: 30px;
+  --radius-window: 24px;
+
   --z-base: 0;
   --z-sticky: 10;
-  --z-dropdown: 40;
+  --z-dropdown: 105;
   --z-toast: 50;
   --z-dialog: 100;
   --z-tooltip: 110;
@@ -225,6 +237,18 @@ pre,
 .pw-selectable {
   user-select: text;
   -webkit-user-select: text;
+}
+
+/* Native number spinners clash with control chrome; arrow keys still step the value. */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* Edge light utilities (also in design-system materials.css; mirrored so shell tokens always exist) */
@@ -349,7 +373,7 @@ pre,
 .menu-panel {
   border: 1px solid var(--edge-light-surface-rim);
   border-top-color: var(--edge-light-surface-highlight);
-  border-radius: var(--radius-surface);
+  border-radius: var(--radius-menu);
   background: var(--color-surface);
   overflow: hidden;
   box-shadow:

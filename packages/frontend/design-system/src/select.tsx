@@ -14,6 +14,9 @@ function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
+/** A caller width (`w-48`, `!w-40`, `sm:w-56`) must win over the full-width default. */
+const HAS_WIDTH = /(^|\s)(\S+:)?!?w-/;
+
 /**
  * Product select — Ark Menu behavior with the shared control-field trigger and
  * menu-panel surface. Use a searchable design-system picker for large datasets.
@@ -71,6 +74,7 @@ export function Select(props: SelectProps) {
   return (
     <DropdownMenu
       open={open()}
+      triggerId={props.id}
       onOpenChange={(next) => {
         clearAcknowledge();
         setOpen(next);
@@ -78,11 +82,11 @@ export function Select(props: SelectProps) {
     >
       <DropdownMenuTrigger
         disabled={props.disabled}
-        id={props.id}
         title={props.title}
         aria-label={props["aria-label"]}
         class={cn(
-          "control-field w-full min-w-0 justify-between gap-2 text-[var(--color-text-primary)] focus-visible:outline-none",
+          "control-field min-w-0 justify-between gap-2 text-[var(--color-text-primary)] focus-visible:outline-none",
+          !HAS_WIDTH.test(props.class ?? "") && "w-full",
           size() === "md" ? "control-field-md" : "control-field-sm",
           props.disabled ? "cursor-not-allowed" : "cursor-pointer",
           props.class,
@@ -105,8 +109,9 @@ export function Select(props: SelectProps) {
           aria-hidden
         />
       </DropdownMenuTrigger>
+      {/* At least the trigger's width, wider when an option's label needs it. */}
       <DropdownMenuContent
-        class="w-[var(--reference-width)] max-w-[calc(100vw-24px)] px-1"
+        class="min-w-[var(--reference-width)] max-w-[calc(100vw-24px)] px-1"
       >
         <Index each={props.options}>
           {(option) => (
@@ -119,7 +124,7 @@ export function Select(props: SelectProps) {
                 disabled={option().disabled}
                 selected={option().value === value()}
                 closeOnSelect={false}
-                class="justify-between"
+                class={cn("justify-between", size() === "md" && "text-[13px]")}
                 onSelect={() => select(option().value)}
               >
                 <span class="min-w-0 truncate">{option().label}</span>

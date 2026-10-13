@@ -26,6 +26,9 @@ The reference implementation already in the repo is the Switch:
 tokens in `packages/frontend/design-system/src/springs.ts`. Read both before
 writing new motion; they show the house style end to end.
 
+The framework-agnostic version of this craft lives in the global `fluid-motion` skill; this
+one adds the Polterware stack and rules and wins on any conflict.
+
 ## Priority: the fluid result comes first
 
 The goal is motion that feels fluid and beautiful, the way fluid-functionalism does.

@@ -14,6 +14,79 @@
 }
 
 /**
+ * Scroll fade: masks a scroller's top and bottom edge only while content continues past it.
+ * A mask, not a painted trail, so it fits any fill (cards, lifted cards, light theme).
+ * Scroll-driven: without overflow the timeline is inactive and both edges stay 0px.
+ * Tables inside an opted-in host scroll in their own viewport, so they fade too.
+ */
+@property --scroll-fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --scroll-fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.pw-scroll-fade,
+.pw-scroll-fade .pw-data-table-scroll {
+  --scroll-fade-size: 24px;
+  --material-fade-edge-mask: linear-gradient(to bottom, transparent 0, #000 var(--scroll-fade-top), #000 calc(100% - var(--scroll-fade-bottom)), transparent 100%);
+  mask-image: var(--material-fade-edge-mask);
+  animation: pw-scroll-fade-top linear both, pw-scroll-fade-bottom linear both;
+  animation-timeline: scroll(self), scroll(self);
+  animation-range: 0 var(--scroll-fade-size), calc(100% - var(--scroll-fade-size)) 100%;
+}
+
+@keyframes pw-scroll-fade-top {
+  from { --scroll-fade-top: 0px; }
+  to { --scroll-fade-top: var(--scroll-fade-size); }
+}
+
+@keyframes pw-scroll-fade-bottom {
+  from { --scroll-fade-bottom: var(--scroll-fade-size); }
+  to { --scroll-fade-bottom: 0px; }
+}
+
+/**
+ * Inline fade: masks the end of a clipped single line only when text continues past it
+ * (truncated table cells). Same scroll-timeline technique, on the inline axis: without
+ * overflow the timeline is inactive and the edge stays 0px.
+ */
+@property --inline-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.pw-inline-fade {
+  --inline-fade-size: 24px;
+  --material-fade-edge-inline-mask: linear-gradient(to right, #000 calc(100% - var(--inline-fade-end)), transparent 100%);
+  mask-image: var(--material-fade-edge-inline-mask);
+  animation: pw-inline-fade-end linear both;
+  animation-timeline: scroll(self inline);
+  /* Clipped cells never scroll, so any overflow keeps the full fade. */
+  animation-range: 0 100%;
+}
+
+@keyframes pw-inline-fade-end {
+  from { --inline-fade-end: var(--inline-fade-size); }
+  to { --inline-fade-end: 0px; }
+}
+
+/* base.css collapses animation durations under reduced motion; scroll timelines need auto. */
+@media (prefers-reduced-motion: reduce) {
+  .pw-scroll-fade,
+  .pw-scroll-fade .pw-data-table-scroll,
+  .pw-inline-fade {
+    animation-duration: auto !important;
+  }
+}
+
+/**
  * Full edge-light border for large host surfaces (MainSurface, elevated quiet panels).
  * The real border keeps the rim visible without painting inside the surface.
  */
@@ -112,7 +185,7 @@
 .menu-panel {
   border: 1px solid var(--edge-light-surface-rim);
   border-top-color: var(--edge-light-surface-highlight);
-  border-radius: var(--radius-surface);
+  border-radius: var(--radius-menu);
   background: var(--color-surface);
   overflow: hidden;
   box-shadow:
@@ -125,11 +198,11 @@
  * Zag copies Content z-index onto Positioner as --z-index.
  */
 .pw-dropdown-positioner {
-  z-index: var(--z-dropdown, 40);
+  z-index: var(--z-dropdown, 105);
 }
 
 .pw-dropdown-panel {
-  z-index: var(--z-dropdown, 40);
+  z-index: var(--z-dropdown, 105);
 }
 
 /** Nested product card — same as base.css .card-panel (design-system Card). */

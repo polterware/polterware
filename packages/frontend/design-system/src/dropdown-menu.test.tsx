@@ -27,6 +27,22 @@ describe("DropdownMenu", () => {
     expect(source).toContain("positioning={props.positioning}");
   });
 
+  it("routes a custom trigger id through Root ids so Zag keeps its anchor", () => {
+    const source = readFileSync(repoPath("packages/frontend/design-system/src/dropdown-menu.tsx"), "utf8");
+    const select = readFileSync(repoPath("packages/frontend/design-system/src/select.tsx"), "utf8");
+    expect(source).toContain("ids={props.triggerId ? { trigger: props.triggerId } : undefined}");
+    // An `id` on the trigger overrides Zag's id: no anchor, menu at top-left behind dialogs.
+    expect(source).not.toMatch(/\sid=\{props\.id\}/);
+    expect(select).toContain("triggerId={props.id}");
+    expect(select).not.toMatch(/\sid=\{props\.id\}/);
+  });
+
+  it("restores aria-controls so a dialog's focus trap accepts the portalled menu", () => {
+    const source = readFileSync(repoPath("packages/frontend/design-system/src/dropdown-menu.tsx"), "utf8");
+    expect(source).toContain("menu().open ? menu().getContentProps().id : undefined");
+    expect(source).toContain("aria-controls={controls()}");
+  });
+
   it("springs the surface from its resolved anchor side", () => {
     const motion = readFileSync(repoPath("packages/frontend/design-system/src/popup-motion.ts"), "utf8");
     const source = readFileSync(repoPath("packages/frontend/design-system/src/dropdown-menu.tsx"), "utf8");

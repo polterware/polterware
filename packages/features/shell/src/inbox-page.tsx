@@ -220,7 +220,7 @@ export function InboxPage(props: {
             </Show>
           }
         >
-          <DataTable.Root rows={rows()} getRowId={(item) => item.id} class="pw-inbox-table">
+          <DataTable.Root rows={rows()} getRowId={(item) => item.id} columnWidthsKey="inbox" class="pw-inbox-table">
             <DataTable.Table aria-label="Inbox items">
               <DataTable.Header>
                 <DataTable.ColumnHeader<WorkspaceInboxItem> id="title" width="38%">Item</DataTable.ColumnHeader>
@@ -228,7 +228,7 @@ export function InboxPage(props: {
                 <DataTable.ColumnHeader<WorkspaceInboxItem> id="status" sortBy={statusLabel}>Status</DataTable.ColumnHeader>
                 <DataTable.ColumnHeader<WorkspaceInboxItem> id="where">Context</DataTable.ColumnHeader>
                 <DataTable.ColumnHeader<WorkspaceInboxItem> id="source">Source</DataTable.ColumnHeader>
-                <DataTable.ColumnHeader<WorkspaceInboxItem> id="actions" width="44px" align="right" sortable={false}><span class="sr-only">Actions</span></DataTable.ColumnHeader>
+                <DataTable.ColumnHeader<WorkspaceInboxItem> id="actions" width="44px" align="right" sortable={false} resizable={false}><span class="sr-only">Actions</span></DataTable.ColumnHeader>
               </DataTable.Header>
               <DataTable.Body<WorkspaceInboxItem>>
                 {(item) => <Row item={item} />}
@@ -245,7 +245,7 @@ export function InboxPage(props: {
         size="sm"
         onClose={() => setDeciding(null)}
         footer={
-          <div class="flex justify-end gap-2">
+          <>
             <Button variant="ghost" onClick={() => setDeciding(null)}>
               Cancel
             </Button>
@@ -259,7 +259,7 @@ export function InboxPage(props: {
             >
               {pending() !== "" ? "Saving…" : "Record decision"}
             </Button>
-          </div>
+          </>
         }
       >
         <Show

@@ -63,7 +63,7 @@ export function Drawer(props: DrawerProps) {
               </Show>
             </div>
             <ArkDrawer.CloseTrigger
-              class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[var(--radius-control)] text-[18px] leading-none text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] outline-none"
+              class="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-[18px] leading-none text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] outline-none"
               aria-label="Close"
             >
               ×

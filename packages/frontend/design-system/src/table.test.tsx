@@ -22,6 +22,7 @@ import {
   isDataTableActivationKey,
   isDataTableInteractiveTarget,
   pruneDataTableSelection,
+  readDataTableColumnWidths,
   shouldRenderDataTableEmpty,
   sortDataTableRows,
   type DataTableSortState,
@@ -574,6 +575,35 @@ describe("DataTable", () => {
     row.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
     expect(detailPanelStore.getState().expanded).toBe(true);
 
+    dispose();
+    host.remove();
+  });
+});
+
+describe("DataTable column widths", () => {
+  it("reads only positive finite stored widths", () => {
+    window.localStorage.setItem("test.table.columns", JSON.stringify({ user: 120, bad: "x", zero: 0, nan: null }));
+    expect(readDataTableColumnWidths("test.table.columns")).toEqual({ user: 120 });
+    window.localStorage.setItem("test.table.columns", "{not json");
+    expect(readDataTableColumnWidths("test.table.columns")).toEqual({});
+    expect(readDataTableColumnWidths(undefined)).toEqual({});
+    window.localStorage.removeItem("test.table.columns");
+  });
+
+  it("keeps the auto layout and wraps cells in reference tables", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const dispose = render(() => (
+      <DataTable.Root rows={[{ id: "a", label: "Alpha" }]} getRowId={row => row.id} resizableColumns={false}>
+        <DataTable.Table>
+          <DataTable.Header><DataTable.ColumnHeader id="label">Label</DataTable.ColumnHeader></DataTable.Header>
+          <DataTable.Body>{row => <DataTable.Row row={row} rowId={row.id}><DataTable.Cell>{row.label}</DataTable.Cell></DataTable.Row>}</DataTable.Body>
+        </DataTable.Table>
+      </DataTable.Root>
+    ), host);
+    expect(host.querySelector("th")?.dataset.truncate).toBeUndefined();
+    expect(host.querySelector(".pw-data-table-column-resizer")).toBeNull();
+    expect(host.querySelector(".pw-inline-fade")).toBeNull();
     dispose();
     host.remove();
   });
