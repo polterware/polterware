@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { StringDecoder } from "node:string_decoder";
 import { Client, type ClientChannel, type ConnectConfig } from "ssh2";
+import { applySshAuth, type SshAuth } from "./ssh-auth.js";
 
 // Shell SSH is a separate client from metrics collection. Assumptions:
 // - The metrics session has already stored the host key; this client only accepts "ok".
@@ -31,11 +31,7 @@ export class ShellInputError extends Error {
   }
 }
 
-export interface ShellAuth {
-  password?: string;
-  privateKeyPath?: string;
-  privateKeyPassphrase?: string;
-}
+export type ShellAuth = SshAuth;
 
 export interface ShellSessionOptions {
   host: string;
@@ -445,14 +441,7 @@ export class ShellSession {
         return verifyFingerprint(this.options.host, this.options.port, fingerprint) === "ok";
       },
     };
-    if (this.options.auth.password) config.password = this.options.auth.password;
-    if (this.options.auth.privateKeyPath) {
-      config.privateKey = readFileSync(this.options.auth.privateKeyPath, "utf8");
-      if (this.options.auth.privateKeyPassphrase) {
-        config.passphrase = this.options.auth.privateKeyPassphrase;
-      }
-    }
-    return config;
+    return applySshAuth(config, this.options.auth);
   }
 
   private openPty(notice: boolean): Promise<void> {

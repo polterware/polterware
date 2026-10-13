@@ -1,5 +1,4 @@
 import { Client, type ClientChannel, type ConnectConfig } from "ssh2";
-import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { StringDecoder } from "node:string_decoder";
 import { buildSnapshot, type DeltaState } from "../shared/parsers/build-snapshot.js";
@@ -7,14 +6,11 @@ import { SectionFrameBuffer } from "../shared/parsers/sections.js";
 import type { MetricsSnapshot } from "../shared/metrics-types.js";
 import { verifyFingerprint, setKnownFingerprint } from "./known-hosts.js";
 import { buildRemoteMetricsCommand } from "./remote-script.js";
+import { applySshAuth, type SshAuth } from "./ssh-auth.js";
 
 const RESTART_DELAY_MS = 2000;
 
-export interface SessionAuth {
-  password?: string;
-  privateKeyPath?: string;
-  privateKeyPassphrase?: string;
-}
+export type SessionAuth = SshAuth;
 
 export interface SessionConfig {
   sessionId: string;
@@ -25,6 +21,19 @@ export interface SessionConfig {
   onMetrics: (snapshot: MetricsSnapshot, collectedAt: number) => void;
   onStatus: (status: string, message?: string) => void;
   onHostKeyPrompt: (fingerprint: string) => void;
+}
+
+/** A pid reaches a remote shell command, so it must be a plain positive integer. */
+export function assertPid(pid: unknown): number {
+  if (typeof pid !== "number" || !Number.isSafeInteger(pid) || pid <= 0) {
+    throw new Error("Invalid pid");
+  }
+  return pid;
+}
+
+export function assertKillSignal(signal: unknown): "TERM" | "KILL" {
+  if (signal !== "TERM" && signal !== "KILL") throw new Error("Invalid signal");
+  return signal;
 }
 
 function fingerprintSha256(key: Buffer): string {
@@ -44,13 +53,13 @@ export class SshSession {
   private errored = false;
   private ready = false;
   private remoteCommand = buildRemoteMetricsCommand();
-  private hostKeyApproved = false;
+  private approvedFingerprint: string | null = null;
 
   constructor(private config: SessionConfig) {}
 
   approveHostKey(fingerprint: string): void {
     setKnownFingerprint(this.config.host, this.config.port, fingerprint);
-    this.hostKeyApproved = true;
+    this.approvedFingerprint = fingerprint;
   }
 
   connect(): void {
@@ -70,21 +79,13 @@ export class SshSession {
           return false;
         }
         if (verdict === "ok") return true;
-        if (this.hostKeyApproved) return true;
+        if (fp === this.approvedFingerprint) return true;
         this.config.onHostKeyPrompt(fp);
         return false;
       },
     };
 
-    if (this.config.auth.password) {
-      connectConfig.password = this.config.auth.password;
-    }
-    if (this.config.auth.privateKeyPath) {
-      connectConfig.privateKey = readFileSync(this.config.auth.privateKeyPath, "utf8");
-      if (this.config.auth.privateKeyPassphrase) {
-        connectConfig.passphrase = this.config.auth.privateKeyPassphrase;
-      }
-    }
+    applySshAuth(connectConfig, this.config.auth);
 
     // Handlers are bound to this client instance: events from a client that
     // resetClient() already replaced must not drive the new connection.
@@ -204,7 +205,8 @@ export class SshSession {
   }
 
   killProcess(pid: number, signal: "TERM" | "KILL"): Promise<void> {
-    const cmd = signal === "KILL" ? `kill -9 ${pid}` : `kill ${pid}`;
+    const target = assertPid(pid);
+    const cmd = assertKillSignal(signal) === "KILL" ? `kill -9 ${target}` : `kill ${target}`;
     return new Promise((resolve, reject) => {
       this.client.exec(cmd, (err, stream) => {
         if (err) {

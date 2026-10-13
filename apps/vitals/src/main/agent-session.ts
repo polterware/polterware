@@ -1,6 +1,5 @@
 import { Client, type ClientChannel, type ConnectConfig } from "ssh2";
 import { createHash, randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { app } from "electron";
 import type { AgentFrame, KillResultFrame } from "../shared/agent-protocol.js";
 import { installAgent } from "./agent-installer.js";
@@ -13,6 +12,7 @@ import {
   type SlowMetricsCache,
 } from "./agent-frames.js";
 import { setKnownFingerprint, verifyFingerprint } from "./known-hosts.js";
+import { applySshAuth } from "./ssh-auth.js";
 import type { SessionConfig } from "./ssh-session.js";
 
 export type { SessionConfig };
@@ -44,7 +44,7 @@ export class AgentSession {
   private agentStream: ClientChannel | null = null;
   private streamEpoch = 0;
   private disposed = false;
-  private hostKeyApproved = false;
+  private approvedFingerprint: string | null = null;
   private agentCommand: string | null = null;
   private lineBuf = new NdjsonLineBuffer();
   private slow: SlowMetricsCache = emptySlowCache();
@@ -62,7 +62,7 @@ export class AgentSession {
 
   approveHostKey(fingerprint: string): void {
     setKnownFingerprint(this.config.host, this.config.port, fingerprint);
-    this.hostKeyApproved = true;
+    this.approvedFingerprint = fingerprint;
   }
 
   connect(): void {
@@ -83,21 +83,13 @@ export class AgentSession {
           return false;
         }
         if (verdict === "ok") return true;
-        if (this.hostKeyApproved) return true;
+        if (fp === this.approvedFingerprint) return true;
         this.config.onHostKeyPrompt(fp);
         return false;
       },
     };
 
-    if (this.config.auth.password) {
-      connectConfig.password = this.config.auth.password;
-    }
-    if (this.config.auth.privateKeyPath) {
-      connectConfig.privateKey = readFileSync(this.config.auth.privateKeyPath, "utf8");
-      if (this.config.auth.privateKeyPassphrase) {
-        connectConfig.passphrase = this.config.auth.privateKeyPassphrase;
-      }
-    }
+    applySshAuth(connectConfig, this.config.auth);
 
     const client = this.client;
     const isCurrent = () => client === this.client;

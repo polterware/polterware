@@ -1,5 +1,5 @@
 import { A11yDialog, ControlButton, Field, Input, Select, SwitchRow } from "@polterware/frontend-design-system";
-import { createSignal, Show } from "solid-js";
+import { createSignal, Match, Show, Switch } from "solid-js";
 import type { AuthMode, ConnectPayload, SavedServerPublic } from "../api";
 
 export function savedConnectPayload(server: SavedServerPublic): ConnectPayload {
@@ -138,36 +138,35 @@ export function ConnectionDialog(props: {
             options={[
               { value: "password", label: "Password" },
               { value: "privateKey", label: "Private key" },
+              { value: "agent", label: "SSH agent" },
             ]}
           />
         </Field>
-        <Show
-          when={authMode() === "password"}
-          fallback={
-            <>
-              <Field label="Private key path" for="vitals-key">
-                <Input
-                  id="vitals-key"
-                  value={privateKeyPath()}
-                  placeholder="/Users/you/.ssh/id_ed25519"
-                  onInput={(event) => setPrivateKeyPath(event.currentTarget.value)}
-                />
-              </Field>
-              <Field label="Passphrase (optional)" for="vitals-passphrase">
-                <Input
-                  id="vitals-passphrase"
-                  type="password"
-                  value={passphrase()}
-                  onInput={(event) => setPassphrase(event.currentTarget.value)}
-                />
-              </Field>
-            </>
-          }
-        >
-          <Field label="Password" for="vitals-password">
-            <Input id="vitals-password" type="password" value={password()} onInput={(event) => setPassword(event.currentTarget.value)} />
-          </Field>
-        </Show>
+        <Switch>
+          <Match when={authMode() === "password"}>
+            <Field label="Password" for="vitals-password">
+              <Input id="vitals-password" type="password" value={password()} onInput={(event) => setPassword(event.currentTarget.value)} />
+            </Field>
+          </Match>
+          <Match when={authMode() === "privateKey"}>
+            <Field label="Private key path" for="vitals-key">
+              <Input
+                id="vitals-key"
+                value={privateKeyPath()}
+                placeholder="/Users/you/.ssh/id_ed25519"
+                onInput={(event) => setPrivateKeyPath(event.currentTarget.value)}
+              />
+            </Field>
+            <Field label="Passphrase (optional)" for="vitals-passphrase">
+              <Input
+                id="vitals-passphrase"
+                type="password"
+                value={passphrase()}
+                onInput={(event) => setPassphrase(event.currentTarget.value)}
+              />
+            </Field>
+          </Match>
+        </Switch>
         <Show when={!editingId()}>
           <SwitchRow
             checked={save()}

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { Client, SFTPWrapper } from "ssh2";
@@ -159,6 +159,64 @@ function sftpMkdir(sftp: SFTPWrapper, path: string): Promise<void> {
   });
 }
 
+function sftpUnlink(sftp: SFTPWrapper, path: string): Promise<void> {
+  return new Promise((resolve) => {
+    // A missing file is fine: callers only need the path to be free.
+    sftp.unlink(path, () => resolve());
+  });
+}
+
+function sftpRename(sftp: SFTPWrapper, from: string, to: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    sftp.rename(from, to, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
+/** Atomic replace via posix-rename when the server has it; plain rename needs a free target. */
+async function sftpReplace(sftp: SFTPWrapper, from: string, to: string): Promise<void> {
+  try {
+    await new Promise<void>((resolve, reject) => {
+      sftp.ext_openssh_rename(from, to, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    return;
+  } catch {
+    // Unsupported extension (Windows OpenSSH and others): fall back below.
+  }
+  await sftpUnlink(sftp, to);
+  await sftpRename(sftp, from, to);
+}
+
+/** Parse the first 64-char hex digest from sha256sum, shasum or certutil output. */
+export function parseSha256Output(text: string): string | null {
+  for (const line of text.split(/\r?\n/)) {
+    const first = line.trim().split(/\s+/)[0] ?? "";
+    if (/^[0-9a-f]{64}$/i.test(first)) return first.toLowerCase();
+    // Older certutil prints the digest as space-separated byte pairs.
+    const joined = line.replace(/\s+/g, "");
+    if (/^[0-9a-f]{64}$/i.test(joined)) return joined.toLowerCase();
+  }
+  return null;
+}
+
+export function remoteSha256Command(os: AgentOS, remotePath: string): string {
+  if (os === "windows") return `cmd /c certutil -hashfile "${remotePath}" SHA256`;
+  const p = shellQuote(remotePath);
+  return `sha256sum ${p} 2>/dev/null || shasum -a 256 ${p} 2>/dev/null`;
+}
+
+/** Null when the host has no hash tool; the caller then re-uploads. */
+async function remoteSha256(client: Client, os: AgentOS, remotePath: string): Promise<string | null> {
+  const result = await execCapture(client, remoteSha256Command(os, remotePath));
+  if (result.code !== 0) return null;
+  return parseSha256Output(result.stdout);
+}
+
 function sftpChmod(sftp: SFTPWrapper, path: string, mode: number): Promise<void> {
   return new Promise((resolve, reject) => {
     sftp.chmod(path, mode, (err) => {
@@ -202,9 +260,11 @@ function firstLine(text: string): string {
 
 /**
  * Detect the remote OS and arch and ensure the matching bundled agent is
- * cached on the host: ~/.cache/vitals/agent-<sha12> (mode 0700) on Linux and
- * macOS, %LOCALAPPDATA%\Vitals\agent-<sha12>.exe on Windows. Skips the
- * upload when the size matches.
+ * cached on the host: ~/.cache/vitals/agent-<sha12> (mode 0700, in a 0700
+ * directory) on Linux and macOS, %LOCALAPPDATA%\Vitals\agent-<sha12>.exe on
+ * Windows. A cached binary is reused only when its SHA-256 matches; otherwise
+ * it is uploaded to a temporary name and renamed into place, so a partial or
+ * tampered file is never executed.
  */
 export async function installAgent(
   client: Client,
@@ -234,7 +294,8 @@ export async function installAgent(
     if (!home) {
       throw new Error("Could not resolve remote HOME");
     }
-    await execCapture(client, `mkdir -p ${shellQuote(`${home}/.cache/vitals`)}`);
+    const dir = shellQuote(`${home}/.cache/vitals`);
+    await execCapture(client, `mkdir -p ${dir} && chmod 700 ${dir}`);
     remotePath = remoteAgentCachePath(home, sha256);
     sftpPath = remotePath;
   }
@@ -244,14 +305,21 @@ export async function installAgent(
   try {
     if (sftpDir) await sftpMkdir(sftp, sftpDir);
 
+    // The size check only skips the hash exec when the file obviously differs.
     const existing = await sftpStat(sftp, sftpPath);
-    let uploaded = false;
-    if (!existing || existing.size !== size) {
-      await sftpFastPut(sftp, localPath, sftpPath);
-      uploaded = true;
+    const cached = existing?.size === size && (await remoteSha256(client, target.os, remotePath)) === sha256;
+    if (!cached) {
+      const tmpPath = `${sftpPath}.${randomBytes(4).toString("hex")}.tmp`;
+      try {
+        await sftpFastPut(sftp, localPath, tmpPath);
+        if (target.os !== "windows") await sftpChmod(sftp, tmpPath, 0o700);
+        await sftpReplace(sftp, tmpPath, sftpPath);
+      } catch (err) {
+        await sftpUnlink(sftp, tmpPath);
+        throw err;
+      }
     }
-    if (target.os !== "windows") await sftpChmod(sftp, sftpPath, 0o700);
-    return { remotePath, command, target, sha256, uploaded };
+    return { remotePath, command, target, sha256, uploaded: !cached };
   } finally {
     sftp.end();
   }

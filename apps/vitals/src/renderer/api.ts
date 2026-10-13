@@ -1,6 +1,6 @@
 import type { StatusTone } from "@polterware/frontend-design-system";
 
-export type AuthMode = "password" | "privateKey";
+export type AuthMode = "password" | "privateKey" | "agent";
 
 export interface SavedServerPublic {
   id: string;

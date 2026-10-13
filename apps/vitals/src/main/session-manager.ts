@@ -26,7 +26,8 @@ import {
   assertSessionId,
   assertShellData,
 } from "./shell-session.js";
-import { SshSession, type SessionAuth } from "./ssh-session.js";
+import { resolveAgentSocket } from "./ssh-auth.js";
+import { assertKillSignal, assertPid, SshSession, type SessionAuth } from "./ssh-session.js";
 
 import { getSettings } from "./settings.js";
 
@@ -90,17 +91,25 @@ export class SessionManager {
       privateKeyPath: payload.privateKeyPath,
       privateKeyPassphrase: payload.privateKeyPassphrase,
     };
+    let authMode = payload.authMode;
 
     if (payload.serverId) {
       const pub = getServerById(payload.serverId);
       const secrets = getServerSecrets(payload.serverId);
       if (pub && secrets) {
+        authMode = pub.authMode;
         auth = {
           password: secrets.password,
           privateKeyPath: pub.privateKeyPath,
           privateKeyPassphrase: secrets.privateKeyPassphrase,
         };
       }
+    }
+
+    if (authMode === "agent") {
+      const agent = resolveAgentSocket();
+      if (!agent) throw new Error("No SSH agent found: SSH_AUTH_SOCK is not set");
+      auth = { agent };
     }
 
     const label = payload.label || payload.host || `${payload.username}@${payload.host}`;
@@ -231,7 +240,7 @@ export class SessionManager {
           port: payload.port,
           username: payload.username,
           authMode: payload.authMode,
-          privateKeyPath: payload.privateKeyPath,
+          privateKeyPath: payload.authMode === "privateKey" ? payload.privateKeyPath : undefined,
         },
         {
           password: payload.password,
@@ -329,8 +338,10 @@ export class SessionManager {
   }
 
   async killProcess(sessionId: string, pid: number, signal: "TERM" | "KILL"): Promise<void> {
+    const target = assertPid(pid);
+    const sig = assertKillSignal(signal);
     const managed = this.sessions.get(sessionId);
     if (!managed) throw new Error("Session not found");
-    await managed.ssh.killProcess(pid, signal);
+    await managed.ssh.killProcess(target, sig);
   }
 }

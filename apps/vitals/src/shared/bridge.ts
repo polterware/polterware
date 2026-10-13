@@ -4,7 +4,7 @@ import type { VitalsSettings } from "./settings.js";
 
 export interface KnownHost { key: string; fingerprint: string; }
 
-export type AuthMode = "password" | "privateKey";
+export type AuthMode = "password" | "privateKey" | "agent";
 
 export interface SavedServerPublic {
   id: string;
