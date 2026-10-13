@@ -413,7 +413,7 @@ export function MetricsDashboard(props: {
                                 <DataTable.Cell>{disk.mountPoint}</DataTable.Cell>
                                 <DataTable.Cell>{formatKb(disk.usedKb)}</DataTable.Cell>
                                 <DataTable.Cell>{formatKb(disk.sizeKb)}</DataTable.Cell>
-                                <DataTable.Cell>{disk.usePercent}%</DataTable.Cell>
+                                <DataTable.Cell>{formatPercent(disk.usePercent, 0)}</DataTable.Cell>
                               </DataTable.Row>
                             )}
                           </DataTable.Body>

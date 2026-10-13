@@ -51,8 +51,23 @@ export class SessionManager {
   private sessions = new Map<string, ManagedSession>();
   private window: BrowserWindow | null = null;
 
+  /**
+   * Sessions belong to the renderer that opened them: a reload or a closed
+   * window loses its tabs, so its SSH sessions and remote agents end too.
+   */
   setWindow(win: BrowserWindow): void {
     this.window = win;
+    win.webContents.on("did-start-navigation", (details) => {
+      if (details.isMainFrame && !details.isSameDocument) this.disconnectAll();
+    });
+    win.on("closed", () => {
+      if (this.window === win) this.window = null;
+      this.disconnectAll();
+    });
+  }
+
+  disconnectAll(): void {
+    for (const sessionId of [...this.sessions.keys()]) this.disconnect(sessionId);
   }
 
   listServers() {
@@ -64,7 +79,8 @@ export class SessionManager {
   }
 
   private emit(channel: string, payload: unknown): void {
-    this.window?.webContents.send(channel, payload);
+    if (!this.window || this.window.isDestroyed()) return;
+    this.window.webContents.send(channel, payload);
   }
 
   connect(payload: ConnectPayload): { sessionId: string } {

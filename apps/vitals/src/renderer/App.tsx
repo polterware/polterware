@@ -99,6 +99,7 @@ export function App() {
   const [view, setView] = createSignal<"metrics" | "terminal">("metrics");
   const [terminalSessions, setTerminalSessions] = createSignal<string[]>([]);
   const [killTarget, setKillTarget] = createSignal<{ sessionId: string; pid: number } | null>(null);
+  const [closeTarget, setCloseTarget] = createSignal<TabState | null>(null);
   const active = createMemo(() => tabs().find((tab) => tab.sessionId === activeId()) ?? null);
   const [recentKeys, setRecentKeys] = createSignal<string[]>(readRecents());
   const closedSessions = new Set<string>();
@@ -247,6 +248,18 @@ export function App() {
     void window.vitals.disconnect(sessionId);
   };
 
+  /** A failed or disconnected tab has nothing left to lose, so it closes without asking. */
+  const requestCloseTab = (tab: TabState) => {
+    if (tab.status === "error" || tab.status === "disconnected") closeTab(tab.sessionId);
+    else setCloseTarget(tab);
+  };
+
+  const confirmCloseTab = () => {
+    const target = closeTarget();
+    setCloseTarget(null);
+    if (target) closeTab(target.sessionId);
+  };
+
   const retryTab = (sessionId: string) => {
     const payload = payloads.get(sessionId);
     closeTab(sessionId);
@@ -285,7 +298,7 @@ export function App() {
                   >
                     {tab.label}
                   </Button>
-                  <button type="button" class="vitals-tab-close" aria-label={`Close ${tab.label}`} onClick={() => closeTab(tab.sessionId)}>
+                  <button type="button" class="vitals-tab-close" aria-label={`Close ${tab.label}`} onClick={() => requestCloseTab(tab)}>
                     <X size={12} />
                   </button>
                 </div>
@@ -454,6 +467,26 @@ export function App() {
           }
         >
           <p class="vitals-sub">The process stops only if the remote user is allowed to signal it.</p>
+        </A11yDialog>
+
+        <A11yDialog
+          open={closeTarget() !== null}
+          size="sm"
+          title={`Close ${closeTarget()?.label ?? "session"}?`}
+          description="This ends the SSH session and stops the metrics agent on the remote host."
+          onClose={() => setCloseTarget(null)}
+          footer={
+            <>
+              <ControlButton tone="secondary" onClick={() => setCloseTarget(null)}>
+                Cancel
+              </ControlButton>
+              <ControlButton tone="danger" onClick={confirmCloseTab}>
+                Close session
+              </ControlButton>
+            </>
+          }
+        >
+          <p class="vitals-sub">Metric history and any open terminal for this tab are discarded.</p>
         </A11yDialog>
         <ToastRegion />
       </div>
