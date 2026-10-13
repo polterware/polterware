@@ -435,7 +435,7 @@ function FloatingWindowRoot(props: FloatingWindowRootProps) {
 
   onMount(() => {
     if (!root || !dragLayer) return;
-    radius = Number.parseFloat(getComputedStyle(root).getPropertyValue("--radius-window")) || 18;
+    radius = Number.parseFloat(getComputedStyle(root).getPropertyValue("--radius-window")) || 24;
     drag = createDragMotion(dragLayer);
     const unregisterInteraction = registerPanelInteraction(interaction);
     if (frame) interaction.elements.add(frame);

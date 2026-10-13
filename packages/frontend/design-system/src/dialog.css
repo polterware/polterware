@@ -12,6 +12,11 @@
  * - xl — dense catalogs (Add to Architecture)
  */
 
+/* Every dialog shares the generous Settings radius; inner panels subtract their inset. */
+.pw-dialog-content.surface-panel-float {
+  border-radius: var(--radius-dialog);
+}
+
 /* Base = md (safe default). Catalog is opt-in via data-size="xl". */
 .pw-dialog-content {
   width: min(36rem, calc(100vw - 2.5rem));
@@ -51,6 +56,11 @@
   height: min(78vh, 760px);
   max-height: min(92vh, 900px);
   min-height: min(78vh, 760px);
+}
+
+/* Dismiss action (first child) sits left; the primary/destructive action stays right. */
+.pw-dialog-footer > :first-child:not(:only-child) {
+  margin-inline-end: auto;
 }
 
 @keyframes pw-dialog-overlay-in {

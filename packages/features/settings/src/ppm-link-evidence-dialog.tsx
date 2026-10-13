@@ -64,7 +64,7 @@ export function PpmLinkEvidenceDialog(props: {
                 <DataTable.ColumnHeader id="kind" sortBy={(row) => row.kind}>
                   Kind
                 </DataTable.ColumnHeader>
-                <DataTable.ColumnHeader id="action">Action</DataTable.ColumnHeader>
+                <DataTable.ColumnHeader id="action" resizable={false}>Action</DataTable.ColumnHeader>
               </DataTable.Header>
               <DataTable.Body>
                 {(row) => (

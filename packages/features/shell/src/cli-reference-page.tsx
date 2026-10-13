@@ -106,6 +106,7 @@ function ReferenceTable<T>(props: {
       rows={props.rows}
       getRowId={(row) => props.rowId(row)}
       gutters={false}
+      resizableColumns={false}
       class="flex-none"
     >
       <DataTable.Table aria-label={props.label} class="min-w-0!">

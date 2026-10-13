@@ -1,10 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { repoPath } from "../test/repo-path";
 import { Tabs, TabPanel } from "./tabs";
 
 describe("Tabs", () => {
   it("exports Tabs and TabPanel components", () => {
     expect(Tabs).toBeDefined();
     expect(TabPanel).toBeDefined();
+  });
+
+  it("names tab triggers through Root ids instead of overriding the DOM id", () => {
+    const source = readFileSync(repoPath("packages/frontend/design-system/src/tabs.tsx"), "utf8");
+    expect(source).toContain("ids={{ trigger: (value) => `tab-${value}` }}");
+    expect(source).toContain("triggerId={`tab-${props.item.id}`}");
+    expect(source).not.toContain("id={`tab-${props.item.id}`}");
   });
 
   it("accepts items and value for segmented pill usage", () => {

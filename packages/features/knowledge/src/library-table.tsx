@@ -26,6 +26,7 @@ export function LibraryTable(props: {
     <DataTable.Root
       rows={props.rows}
       getRowId={(item) => item.id}
+      columnWidthsKey="knowledge-library"
       activeRowId={props.activeRowId ?? null}
       activateFirstRow
       onActiveRowChange={(id) => {

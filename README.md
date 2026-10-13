@@ -17,7 +17,7 @@ A local SQLite-backed Desktop (Electron + Solid) over a single Go binary, `polte
 
 Agents talk to Polterware in the Polter format (markdown that writes Work cards, Atlas nodes, and decisions) through the CLI or MCP (`polter.apply`, `polter.query`, `polter.format`, plus context, drift, and AgentRun tools). Every write carries a summary and rationale and lands in one change history.
 
-One local core process (`polterware serve`) per database is the only process that opens SQLite. Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes only through `window.polterware`. Provider credentials stay in the OS or CLI credential store and are never persisted in SQLite.
+One local core process (`polterware serve`) per database is the only process that opens SQLite. Electron Main, the CLI, the TUI, and the MCP bridge attach to it or start it. The renderer reads and writes only through `window.lore`. Provider credentials stay in the OS or CLI credential store and are never persisted in SQLite.
 
 Only the local deployment mode exists. Cloud, Jev, and other unshipped direction are listed in [docs/future.md](docs/future.md).
 
@@ -34,9 +34,19 @@ polterware setup claude           # install the Claude Code plugin (or: setup co
 
 Run `polterware` with no arguments in a terminal for the status TUI. Run `polterware --help` for every command.
 
+## Install
+
+The desktop apps ship as alpha builds for macOS on Apple Silicon. Install, or update an installed copy, with:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/polterware/polterware/main/scripts/install-desktop.sh | bash
+```
+
+That installs Vitals; add `APP=lore` or `APP=sparky` before `bash` for the other apps. Run the same command again to update.
+
 ## Repository
 
-- `apps/desktop` — Electron Main, preload bridge, and Solid renderer
+- `apps/lore-desktop` — Electron Main, preload bridge, and Solid renderer
 - `packages/features` — product surfaces
 - `packages/frontend` — shared design system, canvas, and state
 - `backend` — Go runtime (single `polterware` binary: CLI, TUI, `serve`, `mcp`)
@@ -76,10 +86,13 @@ Sparky is a local-first memory and reminder app that lives in this monorepo next
 pnpm install
 pnpm dev:sparky          # desktop + local core
 bash tooling/verify-sparky.sh
-pnpm dist:sparky:mac     # ad-hoc signed dmg/zip under apps/sparky-desktop/release
 ```
 
-Sparky releases use tags `sparky-v<version>`; the release workflow creates a draft. Builds are ad-hoc signed, so macOS asks for confirmation on first open and updates are manual.
+## Desktop releases
+
+Lore, Sparky, and Vitals release the same way. `bash tooling/release/dist-mac.sh lore|sparky|vitals` (or `pnpm dist:lore:mac`, `dist:sparky:mac`, `dist:vitals:mac`) builds an ad-hoc signed macOS arm64 DMG and ZIP under the app's `release/<version>` with `SHA256SUMS`, a bundle verification, and a build report.
+
+Pushing a tag `<app>-v<version>` (for example `vitals-v0.1.0-alpha.1`) runs that app's release workflow, which attaches the artifacts to a draft GitHub release; a version with a suffix is marked as a pre-release. Nothing is published automatically. Builds are not notarized, so macOS asks for confirmation on first open, and updates are manual: there is no auto-update feed.
 
 ## Open source and Cloud
 

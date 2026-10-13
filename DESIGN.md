@@ -46,13 +46,19 @@ The title bar contains history controls, one ghost project switcher, one environ
 | Domain identity | `DitherIconTile` |
 | Loading placeholder | `Skeleton` / `PageSkeleton` (via `PageLoading`) |
 
+Menu rows (dropdown and context menus) lead with a 14px Hugeicons icon before the label whenever a fitting icon exists; checkable rows (switches, checkmarks) and pure value lists may omit it. A menu does not mix rows with and without icons in the same group.
+
 Product features must not reproduce focus management, Escape behavior, outside dismissal, portals, positioning, or presence when the shared Ark-backed primitive owns it.
+
+Dialogs in every Polterware app (Lore, Sparky, Vitals) never draw dividers: spacing alone separates header, body, and footer. Footer actions are passed as a fragment of buttons, never wrapped: the dismiss action (Cancel, Reject, Skip) comes first and sits on the left; the primary or destructive action comes last on the right. A lone footer action stays on the right. The shared dialog owns its spacing: 28px side inset on every region, 24px above the 16px title and below the footer; features do not re-pad the body.
 
 ## Collections and details
 
 Operational collections use `DataTable`, sortable data columns, a narrow unsortable final actions column when row commands are needed, and one explicit Hugeicons domain icon in the primary cell. Long descriptions and secondary metadata belong in the detail panel.
 
-Static reference tables (for example the CLI reference options, commands, and keys) also use `DataTable`, with `sortable={false}` columns, no row activation, no primary-cell icon, and wrapping description cells. The operational-collection rules above do not apply to them.
+`DataTable` columns are resizable in every app. Once the first rows paint, each column starts at its content width (capped at 320px) plus a proportional share of the spare viewport width; columns with an explicit `width` keep it and the last resizable column weighs double. The widths then freeze and the table switches to a fixed layout so live data never reflows columns. The last resizable column absorbs the remaining width. Each other resizable column header has a divider on its right edge: an 8px target around a 1px line. Widths stay between 48px and 360px; a column can override them with `minWidth`/`maxWidth`. Its pointer and keyboard contract is the DetailPanel divider's: arrows move 16px (64px with Shift), Home and End jump to the limits, double-click resets, and Escape cancels a drag. Only widths someone set persist, through `columnWidthsKey`. Cell text in resizable columns is clipped without an ellipsis. A shared `.pw-inline-fade` mask fades the right edge only when the text overflows, and one tooltip per table shows the full value. Actions, icon-only and selection columns pass `resizable={false}` and keep their width, and multi-line cells pass `wrap`.
+
+Static reference tables (for example the CLI reference options, commands, and keys) also use `DataTable`, with `sortable={false}` columns, `resizableColumns={false}`, no row activation, no primary-cell icon, and wrapping description cells. The operational-collection rules above do not apply to them.
 
 Entity detail uses the single lateral `DetailPanel` hosted by `MainSurface`, inside the central surface on its right side. `DetailPanel.CollectionHeader` mounts collection controls in a full-width upper band: `PageToolbar.Root` and `ActiveFilterBar` join it automatically inside the panel and render normally outside it. Toolbar padding is `8px 8px 4px`; wrapping controls and active filters determine the header's natural height. A separate workspace below contains the collection, sidebar and divider. Opening, closing, resizing or expanding details never changes the header width or disables its controls. The opaque, rounded panel reserves a column beside the collection; closing returns that width. The default lateral width is 400px, with a 320px minimum and 720px maximum, fitted to the available workspace. Its 8px divider supports direct pointer resize, cancellation, keyboard arrows (16px; Shift 64px), Home/End limits and double-click reset. A separate numeric sidebar-width key stores the preference; temporary host changes never rewrite it. Only old numeric widths migrate from the original key; floating geometry stays intact. Collection toolbars order search, filters and auxiliary actions before creation actions, with the primary creation action last; visual and keyboard focus order match.
 
@@ -76,13 +82,23 @@ Structural fills are opaque shared neutral tokens. Text and labeled icons use op
 
 Exception — macOS Desktop window chrome only: the main window title bar and sidebar may use shared `--color-shell-glass` / `--color-sidebar-glass` washes so frosted Electron vibrancy shows through while keeping the quiet dark cast. Commander (in-app palette and global overlay) uses the same opaque `surface-panel-float` material as other product dialogs. All other product surfaces, text, dialogs, and cards stay opaque. Settings Advanced → Reduce transparency disables main-window vibrancy / frost and restores opaque title bar and sidebar. Do not extend this exception to Commander, other in-app dialogs, cards, or other platforms.
 
-Use only these radius roles:
+Lore, Sparky, and Vitals share one lifted dark neutral ladder from `base.css`: canvas, shell, and sidebar `#131313`, surfaces stepping from `#161616` to `#232323`. Apps do not override the dark ladder; only Vitals adds a light palette.
 
-- controls: `--radius-control`
-- menu rows: `--radius-item`
-- nested cards: `--radius-card`
-- host surfaces: `--radius-surface`
-- pills, avatars, and dots: `rounded-full`
+Use only these radius roles, from tightest to most generous:
+
+- controls: `--radius-control` (10px)
+- menu rows: `--radius-item` (10px)
+- menus: `--radius-menu` (16px)
+- nested cards: `--radius-card` (16px)
+- host surfaces and large popovers: `--radius-surface` (22px)
+- floating windows: `--radius-window` (24px)
+- dialogs: `--radius-dialog` (30px), applied by the shared dialog to every app's dialogs
+- pills, avatars, switches, and dots: `rounded-full`
+- flat buttons (ghost and icon variants, dialog and drawer close buttons): `rounded-full`, so their hover fill is a pill or a circle; textured buttons keep `--radius-control`. A ghost button that sits in a list of rows (for example a sidebar entry) takes the row's `--radius-item`.
+
+Nested radii stay concentric: an inner panel's radius is the outer radius minus the inset between them (for example `calc(var(--radius-dialog) - 0.5rem)` inside an `p-2` dialog).
+
+Cards whose content can scroll put `.pw-scroll-fade` on the scroller (tables inside it fade too): a shared mask fades the top edge under the header and the bottom edge only while content continues past them. It is a mask on opaque content, not translucent chrome.
 
 Use `control-field`, `.surface-panel`, `.surface-panel-float`, `.menu-panel`, and `Card` for shared edge-light chrome. Do not hand-roll border, background, and radius recipes.
 
@@ -90,6 +106,6 @@ Use `control-field`, `.surface-panel`, `.surface-panel-float`, `.menu-panel`, an
 
 Every screen must communicate whether an action is live, queued, completed, failed, unavailable, preview-only, or based on seeded demonstration data. Integration connect sessions report their actual core-owned state. A bounded inventory sync must not imply a complete provider graph, and no local action may imply a remote deployment or Cloud operation.
 
-Motion may fade opacity only in transitions: presence keyframes in the shared popup, dialog, drawer, and toast CSS; boot splash and root cross-fade (`apps/desktop/src/renderer/boot-splash.css`, `apps/sparky-desktop/src/renderer/boot-splash.css`); markdown editor dock visibility (`markdown-editor.css`); template card enter keyframes (`template-card.css`); and Motion values in shared design-system motion primitives (the fluid hover highlight and gliding indicators). Resting surfaces stay opaque.
+Motion may fade opacity only in transitions: presence keyframes in the shared popup, dialog, drawer, and toast CSS; boot splash and root cross-fade (`apps/lore-desktop/src/renderer/boot-splash.css`, `apps/sparky-desktop/src/renderer/boot-splash.css`); markdown editor dock visibility (`markdown-editor.css`); template card enter keyframes (`template-card.css`); and Motion values in shared design-system motion primitives (the fluid hover highlight and gliding indicators). Resting surfaces stay opaque.
 
 Run `pnpm design:lint` after UI changes. `tooling/check-ui-opacity.mjs` is the enforcement source; update this document before broadening its allowlist.

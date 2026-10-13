@@ -116,7 +116,7 @@ export function IntegrationsView(props: {
                 />
               }
             >
-              <DataTable.Root rows={props.integrations ?? []} getRowId={(item) => item.id}>
+              <DataTable.Root rows={props.integrations ?? []} getRowId={(item) => item.id} columnWidthsKey="integrations">
                 <DataTable.Table aria-label="Connected integrations">
                   <DataTable.Header>
                     <DataTable.ColumnHeader<WorkspaceIntegration> id="name">Integration</DataTable.ColumnHeader>
@@ -170,7 +170,7 @@ export function IntegrationsView(props: {
               />
             </div>
             <Show when={catalog().length > 0} fallback={<IntegrationsCatalogFilterEmpty />}>
-              <DataTable.Root rows={catalog()} getRowId={(item) => item.id}>
+              <DataTable.Root rows={catalog()} getRowId={(item) => item.id} columnWidthsKey="integrations-catalog">
                 <DataTable.Table aria-label="CLI integration catalog">
                   <DataTable.Header>
                     <DataTable.ColumnHeader<WorkspaceCatalogProvider> id="name">Provider</DataTable.ColumnHeader>

@@ -317,7 +317,7 @@ export function AgentsActivityPanel() {
           <PageEmpty title="No agent writes" description="MCP clients have not changed anything yet." />
         </Show>
         <Show when={store.activity().length > 0}>
-          <DataTable.Root rows={store.activity()} getRowId={row => row.id ?? ""} virtualized={false} estimateRowHeight={44}>
+          <DataTable.Root rows={store.activity()} getRowId={row => row.id ?? ""} virtualized={false} estimateRowHeight={44} columnWidthsKey="activity">
             <DataTable.Table aria-label="Agent activity">
               <DataTable.Header>
                 <DataTable.ColumnHeader id="actor" sortable={false}>Actor</DataTable.ColumnHeader>
@@ -387,7 +387,7 @@ export function ShortcutsPanel() {
   return (
     <div class="flex flex-col gap-6">
       <SettingsSection title="Keyboard" description="Keyboard shortcuts are read-only in this build.">
-        <DataTable.Root rows={SHORTCUTS} getRowId={row => row.id} virtualized={false} estimateRowHeight={40}>
+        <DataTable.Root rows={SHORTCUTS} getRowId={row => row.id} virtualized={false} estimateRowHeight={40} resizableColumns={false}>
           <DataTable.Table aria-label="Keyboard shortcuts">
             <DataTable.Header>
               <DataTable.ColumnHeader id="group" sortable={false}>Group</DataTable.ColumnHeader>

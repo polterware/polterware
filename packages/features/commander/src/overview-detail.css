@@ -28,8 +28,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.25rem 0.35rem;
-  border-radius: var(--radius-control);
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
   color: var(--color-text-primary);
   font-size: 13px;
   font-weight: 500;
@@ -40,8 +40,8 @@
 }
 
 .commander-detail__open {
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-control);
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
   font-size: 12px;
   color: var(--color-text-secondary);
 }

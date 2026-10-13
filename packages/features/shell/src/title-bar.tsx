@@ -1,6 +1,7 @@
 import {
   ChevronLeft,
   ChevronRight,
+  ControlButton,
   Search,
 } from "@polterware/frontend-design-system";
 import { createShortcutLabel } from "@polterware/frontend-state";
@@ -68,23 +69,20 @@ export function TitleBar(props: TitleBarProps) {
         <div class="min-w-3 flex-1" aria-hidden />
 
         <div class="flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]">
-          <button
-            type="button"
+          <ControlButton
+            icon
+            tone="secondary"
             aria-label="Search or run a command"
             title={`Commander (${commanderShortcut()})`}
             onClick={() => props.onOpenCommander?.()}
-            class={headerIconControlClass}
           >
             <Search size={14} />
-          </button>
+          </ControlButton>
           <Show when={props.coreStatus}>{(coreStatus) => <CoreStatusMenu {...coreStatus()} />}</Show>
         </div>
     </TitleBarFrame>
   );
 }
-
-const headerIconControlClass =
-  "control-field control-field-md inline-flex w-[var(--control-height-md)] shrink-0 cursor-pointer items-center justify-center !rounded-full p-0 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] focus-visible:outline-none";
 
 function navButtonStyle(disabled: boolean) {
   return {

@@ -11,8 +11,7 @@
     "build:native": "bash native/scripts/build.sh",
     "build": "pnpm build:native && electron-vite build",
     "preview": "electron-vite preview",
-    "dist": "pnpm --dir ../.. build:sparky-core && pnpm build && electron-builder --mac --publish never",
-    "dist:mac": "pnpm --dir ../.. build:sparky-core && pnpm build && electron-builder --mac --publish never",
+    "dist:mac": "bash ../../tooling/release/dist-mac.sh sparky",
     "deps:electron": "node -e \"const pkg = require('./package.json'); console.log(pkg.devDependencies.electron);\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run src/main src/preload src/renderer",
@@ -34,7 +33,6 @@
     "@polterware/feature-sparky-shell": "workspace:*",
     "@polterware/frontend-design-system": "workspace:*",
     "@polterware/sparky-contracts": "workspace:*",
-    "electron-updater": "^6.8.9",
     "solid-js": "^1.9.15"
   },
   "devDependencies": {

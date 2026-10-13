@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { canOpenExternalUrl, isAllowedRendererUrl } from "./navigation-policy.js";
 
-const OPAQUE_FILL = "#070707";
+const OPAQUE_FILL = "#131313";
 let reduceTransparencyPref = false;
 
 export function rendererDocument(): string {

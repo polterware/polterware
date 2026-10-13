@@ -8,7 +8,7 @@
  */
 
 .pw-popover-positioner {
-  z-index: var(--z-dropdown, 40);
+  z-index: var(--z-dropdown, 105);
 }
 
 @keyframes pw-popover-presence {
@@ -22,13 +22,13 @@
 }
 
 .pw-popover-presence {
-  z-index: var(--z-dropdown, 40);
+  z-index: var(--z-dropdown, 105);
   animation: pw-popover-presence var(--duration-fast, 120ms) forwards;
 }
 
 /* Enter/exit is a spring in JS (popup-motion.ts); origin follows the resolved side. */
 .pw-popover-surface {
-  z-index: var(--z-dropdown, 40);
+  z-index: var(--z-dropdown, 105);
   transform-origin: var(--transform-origin, var(--pw-popover-origin, top left));
   will-change: transform;
 }
