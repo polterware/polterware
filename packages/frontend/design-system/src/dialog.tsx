@@ -55,6 +55,11 @@ export type A11yDialogProps = {
   showCloseButton?: boolean;
   /** Extra classes on the body wrapper (overrides default padding when provided). */
   bodyClass?: string;
+  /**
+   * When false, opening focuses the dialog itself instead of its first field, so a
+   * search box does not grab the caret. Tab still moves into the content. Defaults to true.
+   */
+  autoFocusField?: boolean;
 };
 
 /**
@@ -71,6 +76,7 @@ export function A11yDialog(props: A11yDialogProps) {
   const dismissible = () => props.dismissible !== false;
   const showCloseButton = () => props.showCloseButton !== false;
   const frameSize = (): DialogSize => props.size ?? "md";
+  let contentEl: HTMLElement | undefined;
 
   return (
     <ArkDialog.Root
@@ -82,6 +88,7 @@ export function A11yDialog(props: A11yDialogProps) {
       unmountOnExit
       closeOnEscape={dismissible()}
       closeOnInteractOutside={dismissible()}
+      initialFocusEl={props.autoFocusField === false ? () => contentEl ?? null : undefined}
     >
       <Portal>
         <ArkDialog.Backdrop ref={ownPortal}
@@ -91,7 +98,7 @@ export function A11yDialog(props: A11yDialogProps) {
           ].join(" ")}
         />
         <ArkDialog.Positioner class="fixed inset-0 z-[var(--z-dialog,100)] flex items-center justify-center p-4 sm:p-8 pointer-events-none">
-          <ArkDialog.Content ref={ownPortal}
+          <ArkDialog.Content ref={(element) => { contentEl = element; ownPortal(element); }}
             data-size={frameSize()}
             class={[
               /* Size comes from dialog.css .pw-dialog-content[data-size]. */

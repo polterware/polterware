@@ -29,6 +29,12 @@ export type DropdownMenuProps = {
   /** Uncontrolled initial open */
   defaultOpen?: boolean;
   positioning?: MenuRootProps["positioning"];
+  /**
+   * DOM id for the trigger (e.g. a `<label for>` target). Zag finds its anchor by this
+   * id, so it must go through Root `ids`; overriding the trigger's `id` attribute loses
+   * the anchor and the menu opens at the top-left corner, below dialogs.
+   */
+  triggerId?: string;
 };
 
 export function DropdownMenu(props: DropdownMenuProps) {
@@ -38,6 +44,7 @@ export function DropdownMenu(props: DropdownMenuProps) {
       defaultOpen={props.defaultOpen}
       onOpenChange={(details) => props.onOpenChange?.(details.open)}
       positioning={props.positioning}
+      ids={props.triggerId ? { trigger: props.triggerId } : undefined}
       lazyMount
       unmountOnExit
     >
@@ -50,18 +57,22 @@ export function DropdownMenuTrigger(props: {
   children: JSX.Element;
   class?: string;
   disabled?: boolean;
-  id?: string;
   title?: string;
   "aria-label"?: string;
 }) {
+  const menu = useMenuContext();
+  // Ark 5.39 overrides Zag's aria-controls with `unmounted && null`, i.e. "false" while the
+  // content is mounted. A dialog's focus trap follows aria-controls to accept the portalled
+  // menu; without it the trap pulls focus back and the menu closes on first hover.
+  const controls = () => (menu().open ? menu().getContentProps().id : undefined);
   return (
     <ArkMenu.Trigger
       class={cn(
         "inline-flex cursor-pointer items-center outline-none",
         props.class,
       )}
+      aria-controls={controls()}
       disabled={props.disabled}
-      id={props.id}
       title={props.title}
       aria-label={props["aria-label"]}
     >

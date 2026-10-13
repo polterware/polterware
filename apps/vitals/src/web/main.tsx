@@ -1,4 +1,3 @@
-import { StatusChip } from "@polterware/frontend-design-system";
 import "@fontsource-variable/inter/opsz.css";
 import { render } from "solid-js/web";
 import { App } from "../renderer/App";
@@ -16,10 +15,6 @@ render(
   () => (
     <VitalsDesignSystemProvider storagePrefix="vitals-web">
       <div class="vitals-web">
-        <div class="vitals-web-banner">
-          <StatusChip tone="warn">Mock</StatusChip>
-          <span>Sample hosts and metrics. Nothing leaves this browser.</span>
-        </div>
         <div class="vitals-web-app">
           <App />
         </div>

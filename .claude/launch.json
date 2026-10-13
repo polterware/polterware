@@ -22,6 +22,13 @@
     {
       "name": "sparky-url",
       "url": "http://localhost:5174"
+    },
+    {
+      "name": "vitals-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@polterware/vitals", "run", "dev:web"],
+      "port": 5176,
+      "url": "http://127.0.0.1:5176"
     }
   ]
 }

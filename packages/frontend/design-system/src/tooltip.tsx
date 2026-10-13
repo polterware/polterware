@@ -43,6 +43,8 @@ export type TooltipRootProps = {
   onOpenChange?: (open: boolean) => void;
   /** Positions against this rect instead of the trigger (a tooltip shared by many targets). */
   getAnchorRect?: () => { x: number; y: number; width: number; height: number } | null;
+  /** Trigger DOM id, when the trigger also belongs to another Ark part (e.g. a tab). */
+  triggerId?: string;
 };
 
 export type TooltipGroupProps = {
@@ -133,6 +135,7 @@ function TooltipRoot(props: TooltipRootProps) {
       disabled={props.disabled}
       open={props.open}
       defaultOpen={props.defaultOpen}
+      ids={props.triggerId ? { trigger: props.triggerId } : undefined}
       onOpenChange={(details) => {
         if (group && details.open !== isOpenInGroup) {
           isOpenInGroup = details.open;

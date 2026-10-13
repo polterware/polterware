@@ -134,7 +134,7 @@ export function SettingsDialog(props: {
 
   return (
     <A11yDialog open={props.open} title="Settings" size="xl" chrome="flush"
-      bodyClass="p-0" showCloseButton={false} onClose={props.onClose}
+      bodyClass="p-0" showCloseButton={false} autoFocusField={false} onClose={props.onClose}
       class="!rounded-[var(--radius-dialog)] !bg-[var(--color-app-background)]">
       <div class="flex min-h-0 flex-1 p-2">
         <nav aria-label="Settings sections" class="flex w-52 shrink-0 flex-col gap-1 p-2">

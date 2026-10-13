@@ -3,6 +3,8 @@
 
 /* Scan monorepo UI sources (base.css lives under packages/configuration/tailwind) */
 @source "../../../apps/lore-desktop/src/**/*.{html,ts,tsx}";
+@source "../../../apps/sparky-desktop/src/**/*.{html,ts,tsx}";
+@source "../../../apps/vitals/src/**/*.{html,ts,tsx}";
 @source "../../../packages/features/**/*.{ts,tsx}";
 @source "../../../packages/frontend/**/*.{ts,tsx}";
 

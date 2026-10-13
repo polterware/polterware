@@ -6,17 +6,6 @@
   background: var(--color-app-background);
 }
 
-.vitals-web-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 6px 16px;
-  background: var(--color-shell-background);
-  color: var(--color-text-secondary);
-  font-size: 12px;
-}
-
 .vitals-web-app {
   flex: 1;
   min-height: 0;
