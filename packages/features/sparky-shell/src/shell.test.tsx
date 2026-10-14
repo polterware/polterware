@@ -21,16 +21,16 @@ function mount(extra: SparkyFeature[] = [], options: { offline?: boolean; permis
     if (options.offline) throw new Error("Core disconnected");
     return { permission, armed: options.armed ?? 0, planned: 0, notifierLastSeenAt: new Date().toISOString() };
   });
-  const create = vi.fn(async (_input?: unknown) => ({ memory: { id: "new-memory", title: "Buy milk", rev: "1" } }));
-  const listMinds = vi.fn(async () => ({ minds: [] }));
-  const listMemories = vi.fn(async () => ({ total: 0 }));
+  const create = vi.fn(async (_input?: unknown) => ({ note: { id: "new-note", title: "Buy milk", rev: "1" } }));
+  const listSpaces = vi.fn(async () => ({ spaces: [] }));
+  const listNotes = vi.fn(async () => ({ total: 0 }));
   const requestNotificationAuthorization = vi.fn(options.authorize === false ? undefined : (options.authorize ?? (async () => { permission = "authorized"; return true; })));
   let onLink!: (link: { url: string; route: string }) => void;
   const unsubscribe = vi.fn();
   const wire = {
-    reminders: { status }, minds: { list: listMinds },
-    memories: { list: listMemories, create, get: async () => ({ memory: { id: "new-memory", title: "Buy milk", note: "Local note", rev: "1" } }) },
-    tags: { list: async () => ({ tags: [] }) }, search: { search: vi.fn(async () => ({ hits: [{ memoryId: "new-memory", title: "Buy milk", snippet: "Local <b>note</b>" }] })) },
+    reminders: { status }, spaces: { list: listSpaces },
+    notes: { list: listNotes, create, get: async () => ({ note: { id: "new-note", title: "Buy milk", content: "Local note", rev: "1" } }) },
+    tags: { list: async () => ({ tags: [] }) }, search: { search: vi.fn(async () => ({ hits: [{ noteId: "new-note", title: "Buy milk", snippet: "Local <b>note</b>" }] })) },
     onChange: () => unsubscribe,
     app: {
       onDeepLink: (callback: typeof onLink) => { onLink = callback; return unsubscribe; },
@@ -40,7 +40,7 @@ function mount(extra: SparkyFeature[] = [], options: { offline?: boolean; permis
   } as unknown as ShellWireBridge;
   const host = document.createElement("div"); document.body.append(host);
   dispose = render(() => <SparkyShell features={[shellFeature, ...extra]} bridge={createShellBridge(wire)} />, host);
-  return { host, status, create, listMinds, listMemories, releaseStatus: () => releaseStatus?.({ permission, armed: options.armed ?? 0, planned: 0, notifierLastSeenAt: new Date().toISOString() }), onLink: (url: string) => onLink({ url, route: "" }), unsubscribe, requestNotificationAuthorization, search: wire.search.search };
+  return { host, status, create, listSpaces, listNotes, releaseStatus: () => releaseStatus?.({ permission, armed: options.armed ?? 0, planned: 0, notifierLastSeenAt: new Date().toISOString() }), onLink: (url: string) => onLink({ url, route: "" }), unsubscribe, requestNotificationAuthorization, search: wire.search.search };
 }
 function button(label: string): HTMLButtonElement {
   const found = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(item => item.getAttribute("aria-label") === label || item.textContent?.trim() === label);
@@ -59,7 +59,7 @@ describe("Sparky shell behavior", () => {
     expect(host.querySelector("header")).not.toBeNull();
     expect(host.querySelector('nav[aria-label="Main navigation"]')).not.toBeNull();
     expect(host.querySelector("main")).not.toBeNull();
-    for (const title of ["Inbox", "Calendar", "Minds", "Map", "Focus"]) {
+    for (const title of ["Inbox", "Calendar", "Spaces", "Map", "Focus"]) {
       button(title).click();
       await vi.waitFor(() => expect(host.textContent).toContain(`${title} is unavailable`));
       expect(host.querySelector('[aria-current="page"]')?.textContent).toContain(title);
@@ -91,26 +91,26 @@ describe("Sparky shell behavior", () => {
     key("]"); await vi.waitFor(() => expect(host.textContent).toContain("Inbox is unavailable"));
     key(","); await vi.waitFor(() => expect(document.body.textContent).toContain("Settings unavailable"));
   });
-  it("creates through Commander and opens global memory detail", async () => {
+  it("creates through Commander and opens global note detail", async () => {
     const { host, create } = mount(); await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
     key("k"); await vi.waitFor(() => expect(document.querySelector("#sparky-command-input")).not.toBeNull());
-    fill("new memory");
-    [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(item => item.textContent?.trim() === "New memory")!.click();
+    fill("new note");
+    [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(item => item.textContent?.trim() === "New note")!.click();
     const title = await vi.waitFor(() => {
-      const field = document.querySelector<HTMLInputElement>("#sparky-memory-title");
+      const field = document.querySelector<HTMLInputElement>("#sparky-note-title");
       expect(field).not.toBeNull();
       return field!;
     });
     title.value = "Buy milk tomorrow 9am !!"; title.dispatchEvent(new Event("input", { bubbles: true }));
-    await vi.waitFor(() => expect(button("Create memory").disabled).toBe(false));
-    button("Create memory").click();
+    await vi.waitFor(() => expect(button("Create note").disabled).toBe(false));
+    button("Create note").click();
     await vi.waitFor(() => expect(create).toHaveBeenCalledOnce());
     expect(create.mock.calls[0]?.[0]).toMatchObject({ title: "Buy milk", priority: 2 });
     await vi.waitFor(() => expect(host.textContent).toContain("Local note"));
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     key("j"); await vi.waitFor(() => expect(host.textContent).not.toContain("Local note"));
   });
-  it("routes Start focus and memory-bound focus links to the Focus page", async () => {
+  it("routes Start focus and note-bound focus links to the Focus page", async () => {
     const onDeepLink = vi.fn((url: URL) => url.searchParams.get("action") === "focus");
     const { host, onLink } = mount([
       { id: "focus", routes: [{ path: "/focus", title: "Focus", component: () => <p>Live focus</p> }], onDeepLink },
@@ -118,12 +118,12 @@ describe("Sparky shell behavior", () => {
     await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
     onLink("sparky://focus");
     await vi.waitFor(() => expect(host.textContent).toContain("Live focus"));
-    onLink("sparky://memory/01K6N3QWJ8P9A7B6C5D4E3F2G1?action=focus");
+    onLink("sparky://note/01K6N3QWJ8P9A7B6C5D4E3F2G1?action=focus");
     await vi.waitFor(() => expect(host.textContent).toContain("Live focus"));
     expect(onDeepLink).toHaveBeenCalled();
     await vi.waitFor(() => expect(host.textContent).toContain("Local note"));
   });
-  it("opens memory search results and handles a warm deep link", async () => {
+  it("opens note search results and handles a warm deep link", async () => {
     const { host, onLink } = mount(); await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
     onLink("sparky://calendar?date=2026-10-04"); await vi.waitFor(() => expect(host.textContent).toContain("Calendar is unavailable"));
     key("k"); await vi.waitFor(() => expect(document.querySelector("#sparky-command-input")).not.toBeNull());
@@ -132,9 +132,9 @@ describe("Sparky shell behavior", () => {
     button("Buy milkLocal note").click(); await vi.waitFor(() => expect(host.textContent).toContain("Local note"));
   });
   it("exposes detail sections and parameterized routes without feature imports", async () => {
-    const Detail = () => { const shell = useSparkyShell(); return <DetailPanel.Body><DetailPanel.Main>Editor {shell.selectedMemoryId()}</DetailPanel.Main></DetailPanel.Body>; };
-    const Page = () => { const shell = useSparkyShell(); return <Button onClick={() => shell.openMemory("selected")}>Open selected</Button>; };
-    const { host } = mount([{ id: "memories", routes: [{ path: "/today", title: "Today", component: Page }, { path: "/memory/:id", title: "Memory", component: Detail }] }]);
+    const Detail = () => { const shell = useSparkyShell(); return <DetailPanel.Body><DetailPanel.Main>Editor {shell.selectedNoteId()}</DetailPanel.Main></DetailPanel.Body>; };
+    const Page = () => { const shell = useSparkyShell(); return <Button onClick={() => shell.openNote("selected")}>Open selected</Button>; };
+    const { host } = mount([{ id: "notes", routes: [{ path: "/today", title: "Today", component: Page }, { path: "/note/:id", title: "Note", component: Detail }] }]);
     await vi.waitFor(() => expect(host.textContent).toContain("Open selected"));
     button("Open selected").click(); await vi.waitFor(() => expect(host.textContent).toContain("Editor selected"));
     key("j"); await vi.waitFor(() => expect(host.textContent).not.toContain("Editor selected"));
@@ -152,7 +152,7 @@ it("delegates collection keyboard actions and unregisters them on navigation", a
     onMount(() => { const unregister = shell.registerCollectionShortcuts(action); onCleanup(unregister); });
     return <p>Keyboard collection</p>;
   };
-  const { host } = mount([{ id: "memories", routes: [{ path: "/today", title: "Today", component: Page }] }]);
+  const { host } = mount([{ id: "notes", routes: [{ path: "/today", title: "Today", component: Page }] }]);
   await vi.waitFor(() => expect(host.textContent).toContain("Keyboard collection"));
   for (const shortcut of ["Enter", " ", "e", "p"]) key(shortcut, false);
   key("Backspace");
@@ -167,7 +167,7 @@ it("leaves native controls, editable ancestors and overlays out of collection sh
     onMount(() => { onCleanup(shell.registerCollectionShortcuts(action)); });
     return <div data-keyboard-fixture><button><span>Native button</span></button><a href="#">Link</a><input /><div contenteditable="true"><span>Editable</span></div><div role="dialog"><span>Dialog</span></div><div role="menu"><span>Menu</span></div><div role="listbox"><span>Option</span></div><div role="row" tabindex="0">Row</div><p>Other content</p></div>;
   };
-  const { host } = mount([{ id: "memories", routes: [{ path: "/today", title: "Today", component: Page }] }]);
+  const { host } = mount([{ id: "notes", routes: [{ path: "/today", title: "Today", component: Page }] }]);
   await vi.waitFor(() => expect(host.querySelector("[data-keyboard-fixture]")).not.toBeNull());
   host.querySelector("[contenteditable]")!.setAttribute("contenteditable", "");
   for (const target of host.querySelectorAll('[data-keyboard-fixture] button span, a, input, [contenteditable] span, [role="dialog"] span, [role="menu"] span, [role="listbox"] span, [data-keyboard-fixture] p')) {
@@ -233,7 +233,7 @@ it("renders registered Commander sources and strips FTS markers from snippets", 
   const { host, search } = mount([{
     id: "search",
     routes: [],
-    commandSources: [{ id: "memories", search: async query => ({ hits: [{ id: "hit-1", label: `Found ${query}`, snippet: "see <b>milk</b> here", run }] }) }],
+    commandSources: [{ id: "notes", search: async query => ({ hits: [{ id: "hit-1", label: `Found ${query}`, snippet: "see <b>milk</b> here", run }] }) }],
   }]);
   await vi.waitFor(() => expect(host.textContent).toContain("Today is unavailable"));
   key("k"); await vi.waitFor(() => expect(document.querySelector("#sparky-command-input")).not.toBeNull());
@@ -246,48 +246,48 @@ it("renders registered Commander sources and strips FTS markers from snippets", 
   button("Found milksee milk here").click();
   await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
 });
-it("renders registered memoryDetail, memoryCollection, and sidebarTree", async () => {
-  const Detail = (props: { memoryId: string; detailSections: { id: string }[] }) => (
-    <DetailPanel.Body><DetailPanel.Main>Memory detail {props.memoryId} {props.detailSections.map(section => section.id).join(",")}</DetailPanel.Main></DetailPanel.Body>
+it("renders registered noteDetail, noteCollection, and sidebarTree", async () => {
+  const Detail = (props: { noteId: string; detailSections: { id: string }[] }) => (
+    <DetailPanel.Body><DetailPanel.Main>Note detail {props.noteId} {props.detailSections.map(section => section.id).join(",")}</DetailPanel.Main></DetailPanel.Body>
   );
-  const Collection = (props: { mindId: string }) => {
+  const Collection = (props: { spaceId: string }) => {
     const shell = useSparkyShell();
-    return <><p>Mind collection {props.mindId}/{shell.params().id}</p><Button onClick={() => shell.openMemory("mem-1")}>Open memory</Button></>;
+    return <><p>Space collection {props.spaceId}/{shell.params().id}</p><Button onClick={() => shell.openNote("mem-1")}>Open note</Button></>;
   };
   const { host, onLink } = mount([
     {
-      id: "memories",
+      id: "notes",
       routes: [],
-      memoryCollection: Collection,
-      memoryDetail: Detail,
+      noteCollection: Collection,
+      noteDetail: Detail,
       detailSections: [{ id: "schedule", order: 1, component: () => <p>Schedule card</p> }],
     },
     { id: "map", routes: [], detailSections: [{ id: "place", order: 2, component: () => <p>Place card</p> }] },
-    { id: "minds", routes: [], sidebarTree: { id: "minds-tree", component: () => <p>Registered minds tree</p> } },
+    { id: "spaces", routes: [], sidebarTree: { id: "spaces-tree", component: () => <p>Registered spaces tree</p> } },
   ]);
-  await vi.waitFor(() => expect(host.textContent).toContain("Registered minds tree"));
-  onLink("sparky://mind/home");
-  await vi.waitFor(() => expect(host.textContent).toContain("Mind collection home/home"));
-  expect(host.textContent).not.toContain("Mind is unavailable");
-  button("Open memory").click();
-  await vi.waitFor(() => expect(host.textContent).toContain("Memory detail mem-1 schedule,place"));
+  await vi.waitFor(() => expect(host.textContent).toContain("Registered spaces tree"));
+  onLink("sparky://space/home");
+  await vi.waitFor(() => expect(host.textContent).toContain("Space collection home/home"));
+  expect(host.textContent).not.toContain("Space is unavailable");
+  button("Open note").click();
+  await vi.waitFor(() => expect(host.textContent).toContain("Note detail mem-1 schedule,place"));
 });
 it("starts independent queries with the reminder probe", async () => {
   const delayed = mount([], { holdStatus: true });
   await vi.waitFor(() => expect(delayed.status).toHaveBeenCalled());
-  await vi.waitFor(() => expect(delayed.listMemories).toHaveBeenCalled());
-  await vi.waitFor(() => expect(delayed.listMinds).toHaveBeenCalled());
+  await vi.waitFor(() => expect(delayed.listNotes).toHaveBeenCalled());
+  await vi.waitFor(() => expect(delayed.listSpaces).toHaveBeenCalled());
   expect(delayed.host.textContent).toContain("Starting Sparky");
   delayed.releaseStatus();
   await vi.waitFor(() => expect(delayed.host.textContent).toContain("Today is unavailable"));
 });
-it("skips duplicate Mind reads when a sidebar tree is registered", async () => {
+it("skips duplicate Space reads when a sidebar tree is registered", async () => {
   const withTree = mount([
-    { id: "minds", routes: [], sidebarTree: { id: "minds-tree", component: () => <p>Registered minds tree</p> } },
+    { id: "spaces", routes: [], sidebarTree: { id: "spaces-tree", component: () => <p>Registered spaces tree</p> } },
   ], { holdStatus: true });
-  await vi.waitFor(() => expect(withTree.listMemories).toHaveBeenCalled());
-  expect(withTree.listMinds).not.toHaveBeenCalled();
+  await vi.waitFor(() => expect(withTree.listNotes).toHaveBeenCalled());
+  expect(withTree.listSpaces).not.toHaveBeenCalled();
   withTree.releaseStatus();
-  await vi.waitFor(() => expect(withTree.host.textContent).toContain("Registered minds tree"));
-  expect(withTree.listMinds).not.toHaveBeenCalled();
+  await vi.waitFor(() => expect(withTree.host.textContent).toContain("Registered spaces tree"));
+  expect(withTree.listSpaces).not.toHaveBeenCalled();
 });

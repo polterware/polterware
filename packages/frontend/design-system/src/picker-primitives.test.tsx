@@ -82,7 +82,7 @@ describe("ColorSwatchPicker", () => {
 });
 describe("IconPicker", () => {
   it("selects an uncontrolled Hugeicon and restores focus on dismissal", async () => {
-    const change = vi.fn(); const host = mount(() => <IconPicker label="Mind icon" defaultValue="folder" onValueChange={change} />);
+    const change = vi.fn(); const host = mount(() => <IconPicker label="Space icon" defaultValue="folder" onValueChange={change} />);
     const trigger = host.querySelector<HTMLButtonElement>("button")!; trigger.focus(); trigger.click();
     await vi.waitFor(() => expect(document.querySelector('[data-value="book"]')).not.toBeNull());
     const option = document.querySelector<HTMLButtonElement>('[data-value="book"]')!;
@@ -94,7 +94,7 @@ describe("IconPicker", () => {
   it("supports controlled values, Escape and reduced motion", async () => {
     vi.stubGlobal("matchMedia", () => ({ matches: true }));
     const [value, setValue] = createSignal<PickerIconName>("book");
-    const host = mount(() => <IconPicker label="Mind icon" value={value()} onValueChange={setValue} />);
+    const host = mount(() => <IconPicker label="Space icon" value={value()} onValueChange={setValue} />);
     const trigger = host.querySelector<HTMLButtonElement>("button")!; trigger.click();
     await vi.waitFor(() => expect(document.querySelector('[data-value="folder"]')).not.toBeNull());
     document.querySelector<HTMLButtonElement>('[data-value="folder"]')!.click();

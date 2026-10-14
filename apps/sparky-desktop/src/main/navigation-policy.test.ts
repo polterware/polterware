@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { canOpenExternalUrl, contentSecurityPolicy, isAllowedRendererUrl, parseDeepLink } from "./navigation-policy.js";
 const id = "01K6N3QWJ8P9A7B6C5D4E3F2G1";
 describe("navigation policy", () => {
-  it.each([`sparky://memory/${id}`, `sparky://memory/${id}?action=focus`, "sparky://today", "sparky://focus", "sparky://map", "sparky://calendar?date=2026-10-04", "sparky://search?q=hello"])("routes %s", url => expect(parseDeepLink(url)?.route).toMatch(/^\//));
+  it.each([`sparky://note/${id}`, `sparky://note/${id}?action=focus`, "sparky://today", "sparky://focus", "sparky://map", "sparky://calendar?date=2026-10-04", "sparky://search?q=hello"])("routes %s", url => expect(parseDeepLink(url)?.route).toMatch(/^\//));
   it("routes the Start focus command to /focus", () => expect(parseDeepLink("sparky://focus")).toEqual({ url: "sparky://focus", route: "/focus" }));
   it("routes the Map command to /map", () => expect(parseDeepLink("sparky://map")).toEqual({ url: "sparky://map", route: "/map" }));
-  it.each(["https://today", "sparky://other", "sparky://memory/../today", "sparky://memory/bad", `sparky://memory/${id}?action=delete`,
+  it.each(["https://today", "sparky://other", "sparky://note/../today", "sparky://note/bad", `sparky://note/${id}?action=delete`,
     "sparky://calendar?date=2026-02-30", "sparky://today?token=x", "sparky://today#script", "sparky://user@today", "sparky://search?q=x&q=y",
     "sparky://focus?token=x", "sparky://focus/extra", "sparky://map?token=x", "sparky://map/extra"])("rejects %s", url => expect(parseDeepLink(url)).toBeNull());
   it("limits renderer navigation to its document", () => {
@@ -41,7 +41,7 @@ describe("navigation policy", () => {
     }
   });
   it("rejects malformed, nested, encoded and oversized deep links", () => {
-    for (const raw of ["sparky://memory/%2e%2e/%2e%2e/etc", "sparky://memory/%252e%252e", "sparky://today/%00", "sparky://calendar?date=%FF", "sparky://today:123", "sparky://today?next=sparky%3A%2F%2Fmemory%2Fbad", "sparky://search?q=" + "x".repeat(4096), "sparky://memory/" + "%".repeat(512)]) {
+    for (const raw of ["sparky://note/%2e%2e/%2e%2e/etc", "sparky://note/%252e%252e", "sparky://today/%00", "sparky://calendar?date=%FF", "sparky://today:123", "sparky://today?next=sparky%3A%2F%2Fnote%2Fbad", "sparky://search?q=" + "x".repeat(4096), "sparky://note/" + "%".repeat(512)]) {
       expect(parseDeepLink(raw)).toBeNull();
     }
   });

@@ -28,6 +28,8 @@ export type SelectOption = {
   label: string;
   disabled?: boolean;
   separatorBefore?: boolean;
+  /** Leading mark, shown before the label in the list and on the trigger. */
+  icon?: JSX.Element;
 };
 
 export type SelectProps = {
@@ -92,12 +94,12 @@ export function Select(props: SelectProps) {
           props.class,
         )}
       >
-        <Show when={props.icon}>
+        <Show when={selectedOption()?.icon ?? props.icon}>
           <span
             class="inline-flex shrink-0 items-center text-[var(--color-text-muted)]"
             aria-hidden
           >
-            {props.icon}
+            {selectedOption()?.icon ?? props.icon}
           </span>
         </Show>
         <span class="min-w-0 truncate">
@@ -111,7 +113,7 @@ export function Select(props: SelectProps) {
       </DropdownMenuTrigger>
       {/* At least the trigger's width, wider when an option's label needs it. */}
       <DropdownMenuContent
-        class="min-w-[var(--reference-width)] max-w-[calc(100vw-24px)] px-1"
+        class="max-h-[min(320px,calc(100vh-24px))] min-w-[var(--reference-width)] max-w-[calc(100vw-24px)] !overflow-y-auto overscroll-contain px-1"
       >
         <Index each={props.options}>
           {(option) => (
@@ -127,7 +129,12 @@ export function Select(props: SelectProps) {
                 class={cn("justify-between", size() === "md" && "text-[13px]")}
                 onSelect={() => select(option().value)}
               >
-                <span class="min-w-0 truncate">{option().label}</span>
+                <span class="flex min-w-0 items-center gap-2">
+                  <Show when={option().icon}>
+                    <span class="inline-flex shrink-0 items-center" aria-hidden>{option().icon}</span>
+                  </Show>
+                  <span class="min-w-0 truncate">{option().label}</span>
+                </span>
                 <SelectionCheck checked={option().value === value()} />
               </DropdownMenuItem>
             </>

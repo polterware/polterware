@@ -14,7 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/polterware/polterware/sparky/backend/compositions/core"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/search"
 	"github.com/polterware/polterware/sparky/backend/platform/coreclient"
 	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
@@ -28,15 +28,15 @@ func TestListAndFTS10kBudgets(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = rt.Close() })
-	if err := fixture.Seed(t.Context(), rt.Services.Memories, 10000); err != nil {
+	if err := fixture.Seed(t.Context(), rt.Services.Notes, 10000); err != nil {
 		t.Fatal(err)
 	}
 	cases := []struct {
 		name string
 		run  func() error
 	}{
-		{"list_memories", func() error {
-			p, err := rt.Services.Memories.List(t.Context(), memory.ListFilter{Limit: 50})
+		{"list_notes", func() error {
+			p, err := rt.Services.Notes.List(t.Context(), note.ListFilter{Limit: 50})
 			if err == nil && p.Total != 10000 {
 				return fmt.Errorf("total %d", p.Total)
 			}

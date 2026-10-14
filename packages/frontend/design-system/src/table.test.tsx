@@ -292,8 +292,8 @@ describe("DataTable", () => {
     expect(inputs).toHaveLength(3);
     expect(host.querySelector(".pw-data-table-primary-title")?.textContent).toBe("Alpha");
     expect(host.querySelector(".pw-data-table-primary-description")).toBeNull();
-    expect(host.querySelector(".pw-dither-icon")?.getAttribute("data-size")).toBe("24");
-    expect(host.querySelector(".pw-dither-icon-mark")?.textContent).toBe("Icon");
+    expect(host.querySelector(".pw-icon-tile")?.getAttribute("data-size")).toBe("24");
+    expect(host.querySelector(".pw-icon-tile-mark")?.textContent).toBe("Icon");
 
     firstRowInput.click();
     expect(firstRowInput.checked).toBe(true);
@@ -332,7 +332,7 @@ describe("DataTable", () => {
     );
 
     expect(host.querySelector("[data-legacy-leading]")?.textContent).toBe("Legacy");
-    expect(host.querySelector(".pw-dither-icon")).toBeNull();
+    expect(host.querySelector(".pw-icon-tile")).toBeNull();
     dispose();
     host.remove();
   });

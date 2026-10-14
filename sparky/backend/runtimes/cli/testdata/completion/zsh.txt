@@ -5,12 +5,12 @@ commands=(
   'mcp:MCP stdio bridge'
   'status:core health'
   'doctor:diagnostics'
-  'add:create a memory'
-  'list:list memories'
-  'show:show a memory'
-  'done:complete a memory'
-  'rm:delete a memory'
-  'mind:manage minds'
+  'add:create a note'
+  'list:list notes'
+  'show:show a note'
+  'done:complete a note'
+  'rm:delete a note'
+  'space:manage spaces'
   'tag:list tags'
   'search:full-text search'
   'today:today'\''s occurrences'
@@ -32,10 +32,10 @@ case $state in
   args)
     case $words[1] in
       add)
-        _arguments '--mind[Mind name or id]' '--due[RFC 3339, YYYY-MM-DD, today, tomorrow, +2h]' '--repeat[daily|weekly|monthly|yearly or every N unit]'
+        _arguments '--space[Space name or id]' '--due[RFC 3339, YYYY-MM-DD, today, tomorrow, +2h]' '--repeat[daily|weekly|monthly|yearly or every N unit]'
         ;;
       list)
-        _arguments '--json[JSON output]' '--status[active|completed]' '--mind[Mind name or id]' '--inbox[inbox only]' '--limit[page size]'
+        _arguments '--json[JSON output]' '--status[active|completed]' '--space[Space name or id]' '--inbox[inbox only]' '--limit[page size]'
         ;;
       show|search|today|review)
         _arguments '--json[JSON output]'
@@ -46,10 +46,10 @@ case $state in
       rm)
         _arguments '--yes[confirm deletion]'
         ;;
-      mind)
+      space)
         local -a mindcmds
         mindcmds=('add:create' 'ls:list' 'rm:delete')
-        _describe -t commands 'mind command' mindcmds
+        _describe -t commands 'space command' mindcmds
         ;;
       tag)
         local -a tagcmds

@@ -13,7 +13,7 @@ export function SegmentedControl(props: SegmentedControlProps) {
   let indicator: HTMLDivElement | undefined;
   const x = motionValue(0), width = motionValue(0);
   let initialized = false;
-  const paint = () => { if (indicator) indicator.style.transform = `translateX(${x.get()}px) scaleX(${width.get()})`; };
+  const paint = () => { if (indicator) { indicator.style.transform = `translateX(${x.get()}px)`; indicator.style.width = `${width.get()}px`; } };
   onMount(() => {
     const sync = () => {
       const selected = root?.querySelector<HTMLElement>('[data-part="item"][data-state="checked"]');

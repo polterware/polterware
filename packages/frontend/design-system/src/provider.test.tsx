@@ -4,7 +4,7 @@ import { render } from "solid-js/web";
 import { DesignSystemProvider, useDesignSystem } from "./provider";
 import { DataTable } from "./table";
 import { DetailPanel } from "./detail-panel";
-import { DitherIconTile, registerDitherAccents, resolveDitherIconAccent } from "./dither-icon";
+import { IconTile, registerIconTileAccents, resolveIconTileAccent } from "./icon-tile";
 import { PageEmpty, PageForbidden, PageOffline, EmptyIllustration, FixtureBanner } from "./feedback";
 let dispose: (() => void) | undefined;
 afterEach(() => { dispose?.(); document.body.replaceChildren(); localStorage.clear(); });
@@ -16,7 +16,7 @@ describe("app adapters and defaults", () => {
     const host = document.createElement("div"); document.body.append(host);
     dispose = render(() => <DesignSystemProvider storagePrefix="sparky" expandDetail={expand}>
       <DetailPanel.Root open expanded={false} onOpenChange={() => {}} onExpandedChange={() => {}} storageKey="polterware.shell.detail.sidebar.width">
-        <DetailPanel.Collection><DataTable.Root rows={[{ id: "one" }]}><DataTable.Table><DataTable.Body>{row => <DataTable.Row row={row} onActivate={() => {}}><DataTable.Cell>Memory</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table></DataTable.Root></DetailPanel.Collection>
+        <DetailPanel.Collection><DataTable.Root rows={[{ id: "one" }]}><DataTable.Table><DataTable.Body>{row => <DataTable.Row row={row} onActivate={() => {}}><DataTable.Cell>Note</DataTable.Cell></DataTable.Row>}</DataTable.Body></DataTable.Table></DataTable.Root></DetailPanel.Collection>
         <DetailPanel.Content>Details</DetailPanel.Content>
       </DetailPanel.Root>
     </DesignSystemProvider>, host);
@@ -50,15 +50,15 @@ describe("app adapters and defaults", () => {
     expect(host.textContent).toContain("○");
     expect(host.textContent).not.toContain("Hidden");
   });
-  it("extends accents reversibly and gives explicit Mind colors precedence", () => {
-    const unregister = registerDitherAccents({ "Sparky mind": "var(--color-brand)" });
+  it("extends accents reversibly and gives explicit Space colors precedence", () => {
+    const unregister = registerIconTileAccents({ "Sparky space": "var(--color-brand)" });
     try {
-      expect(resolveDitherIconAccent("Sparky mind")).toBe("var(--color-brand)");
-      expect(resolveDitherIconAccent("github")).toBe("#EDEDED");
+      expect(resolveIconTileAccent("Sparky space")).toBe("var(--color-brand)");
+      expect(resolveIconTileAccent("github")).toBe("#EDEDED");
       const host = document.createElement("div"); document.body.append(host);
-      dispose = render(() => <DitherIconTile brand="github" accent="var(--color-brand)">S</DitherIconTile>, host);
+      dispose = render(() => <IconTile brand="github" accent="var(--color-brand)">S</IconTile>, host);
       expect(host.firstElementChild?.getAttribute("style")).toContain("var(--color-brand)");
     } finally { unregister(); }
-    expect(resolveDitherIconAccent("Sparky mind")).toBe("var(--color-dither-accent-neutral)");
+    expect(resolveIconTileAccent("Sparky space")).toBe("var(--color-icon-tile-accent-neutral)");
   });
 });

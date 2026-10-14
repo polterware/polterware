@@ -11,19 +11,19 @@ test("real native reminder delivers with Electron and the core closed", async ({
   await info.attach("native-status-after", { body: JSON.stringify({ authorized, after }), contentType: "application/json" });
   expect(authorized, "Grant Sparky notification permission in macOS; OS delivery cannot be replaced by a stub").toBe(true);
   const fireAt = new Date(Date.now() + 15_000).toISOString();
-  const memoryId = await page.evaluate(async fireAt => {
-    const memory = (await window.sparky.memories.create({ title: "Sparky W3 live reminder" })).memory!;
-    await window.sparky.schedule.set({ schedule: { memoryId: memory.id, active: true, fireAt, tz: "UTC", endType: "never" } });
-    return memory.id;
+  const noteId = await page.evaluate(async fireAt => {
+    const note = (await window.sparky.notes.create({ title: "Sparky W3 live reminder" })).note!;
+    await window.sparky.schedule.set({ schedule: { noteId: note.id, active: true, fireAt, tz: "UTC", endType: "never" } });
+    return note.id;
   }, fireAt);
   await expect.poll(() => page.evaluate(async () => (await window.sparky.reminders.status({})).armed)).toBeGreaterThan(0);
   const pending = await inspectNative(sparky, "pending");
   await info.attach("native-pending", { body: JSON.stringify(pending), contentType: "application/json" });
   expect(pending.ok).toBe(true);
-  expect(pending.pending?.some(item => item.id.includes(memoryId))).toBe(true);
+  expect(pending.pending?.some(item => item.id.includes(noteId))).toBe(true);
   await sparky.app.context().tracing.stop({ path: info.outputPath("live-before-close.zip") });
   await sparky.app.close();
   await sparky.killCore();
-  await expect.poll(async () => (await inspectNative(sparky, "delivered")).delivered?.some(item => item.id.includes(memoryId)) ?? false, { timeout: 30000, intervals: [1000] }).toBe(true);
+  await expect.poll(async () => (await inspectNative(sparky, "delivered")).delivered?.some(item => item.id.includes(noteId)) ?? false, { timeout: 30000, intervals: [1000] }).toBe(true);
   // Notification Center Done/Snooze, sleep/wake and reboot are manual checks.
 });

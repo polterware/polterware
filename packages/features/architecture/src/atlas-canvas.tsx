@@ -6,7 +6,7 @@ import {
   ChevronRight,
   CollapseIcon,
   DetailPanel,
-  DitherIconTile,
+  IconTile,
   ExpandIcon,
   GitCompare,
   Hammer,
@@ -24,7 +24,7 @@ import {
   type SelectOption,
   Tabs,
   type CollapseControls,
-  type DitherIconTone,
+  type IconTileTone,
 } from "@polterware/frontend-design-system";
 import { detailPanelStore, createDetailPanelSelector } from "@polterware/frontend-state";
 import "./atlas-tree.css";
@@ -81,7 +81,7 @@ const STATUS_LABEL: Record<AtlasCanvasNode["status"], string> = {
   drift: "Drift",
 };
 
-const STATUS_MARK: Record<AtlasCanvasNode["status"], { icon: typeof Check; tone: DitherIconTone }> = {
+const STATUS_MARK: Record<AtlasCanvasNode["status"], { icon: typeof Check; tone: IconTileTone }> = {
   proposed: { icon: Pencil, tone: "knowledge" },
   in_progress: { icon: Hammer, tone: "infrastructure" },
   delivered: { icon: Check, tone: "data" },
@@ -351,7 +351,7 @@ function TreeNode(props: TreeContext & { item: TreeItem; index: number; depth: n
   );
 }
 
-/** Flat row: chevron expands in place, the rest opens details. Status is a dither mark with a tooltip. */
+/** Flat row: chevron expands in place, the rest opens details. Status is an icon tile with a tooltip. */
 function TreeRow(props: {
   item: TreeItem;
   historical: boolean;
@@ -417,12 +417,12 @@ export function AtlasStatusMark(props: { status: AtlasCanvasNode["status"]; note
       <Tooltip.Trigger
         asChild={(triggerProps) => (
           <span {...triggerProps({ class: "atlas-tree-row__status", role: "img", "aria-label": label() })}>
-            <DitherIconTile size={28} tone={tone()}>
+            <IconTile size={28} tone={tone()}>
               {(() => {
                 const Icon = STATUS_MARK[props.status].icon;
                 return <Icon size={14} aria-hidden />;
               })()}
-            </DitherIconTile>
+            </IconTile>
           </span>
         )}
       />
@@ -437,9 +437,9 @@ function MigrationMark(props: { label: string }) {
       <Tooltip.Trigger
         asChild={(triggerProps) => (
           <span {...triggerProps({ class: "atlas-tree-row__status", role: "img", "aria-label": props.label })}>
-            <DitherIconTile size={28} tone="knowledge">
+            <IconTile size={28} tone="knowledge">
               <RefreshCw size={14} aria-hidden />
-            </DitherIconTile>
+            </IconTile>
           </span>
         )}
       />

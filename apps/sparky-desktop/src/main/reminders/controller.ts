@@ -1,9 +1,9 @@
-import { isMemoryID, isOwnedIdentifier } from "./plan";
+import { isNoteID, isOwnedIdentifier } from "./plan";
 import { BACKGROUND_IDLE_MS, REFRESH_DEBOUNCE_MS, type NativeNotify, type NotificationAction, type NotifyLog, type RefreshReason, type ReminderCore, type ReminderStatus } from "./types";
 interface Options {
   native: NativeNotify;
   ensureCore(): Promise<ReminderCore>;
-  openMemory(url: string): void | Promise<void>;
+  openNote(url: string): void | Promise<void>;
   hasWindow(): boolean;
   quit(): void;
   background: boolean;
@@ -86,19 +86,19 @@ export function createReminderController(options: Options) {
     try {
       if (!isOwnedIdentifier(event.id) || !options.receipts.authorize(event)) throw new Error("Invalid notification action");
       if (event.action === "com.apple.UNNotificationDismissActionIdentifier") return;
-      // Standalone focus phase has no memory route and no completion action.
-      if (!event.memoryId && event.id.startsWith("one:") && event.action === "com.apple.UNNotificationDefaultActionIdentifier") return;
-      if (!isMemoryID(event.memoryId) || !Number.isFinite(Date.parse(event.occurrenceAt))) throw new Error("Invalid notification action");
+      // Standalone focus phase has no note route and no completion action.
+      if (!event.noteId && event.id.startsWith("one:") && event.action === "com.apple.UNNotificationDefaultActionIdentifier") return;
+      if (!isNoteID(event.noteId) || !Number.isFinite(Date.parse(event.occurrenceAt))) throw new Error("Invalid notification action");
       if (event.action === "DONE" || event.action === "SNOOZE") {
         const core = await options.ensureCore();
-        if (event.action === "DONE") await core.complete(event.memoryId, event.occurrenceAt);
-        else await core.snooze(event.memoryId, event.occurrenceAt);
+        if (event.action === "DONE") await core.complete(event.noteId, event.occurrenceAt);
+        else await core.snooze(event.noteId, event.occurrenceAt);
         // Never replay an ambiguous Snooze failure: v1.1 has no idempotency key.
         log("action-applied", { elapsedMs: Math.max(0, Date.now() - event.receivedAtMs) });
         if (event.action === "DONE") await ack(core, event.id, "done");
         await flush("action");
       } else if (["OPEN", "START_FOCUS", "com.apple.UNNotificationDefaultActionIdentifier"].includes(event.action)) {
-        await options.openMemory(`sparky://memory/${event.memoryId}${event.action === "START_FOCUS" ? "?action=focus" : ""}`);
+        await options.openNote(`sparky://note/${event.noteId}${event.action === "START_FOCUS" ? "?action=focus" : ""}`);
         await ack(await options.ensureCore(), event.id, "opened");
       } else throw new Error("Unknown notification action");
     } catch { log("action-failed"); }
@@ -139,8 +139,8 @@ export function createReminderController(options: Options) {
     requestRefresh,
     onChanges(message: { snapshot: boolean; changes: readonly { entity: string; id?: string }[] }) {
       if (message.snapshot) requestRefresh("snapshot");
-      // SQLite hooks emit singular wire names (memory/reminder/setting); keep table names too.
-      else if (message.changes.some(({ entity, id }) => id !== "_internal.reminder.heartbeat" && ["memory", "memories", "schedules", "completions", "reminder", "reminder_oneoffs", "setting", "settings"].includes(entity))) requestRefresh("change");
+      // SQLite hooks emit singular wire names (note/reminder/setting); keep table names too.
+      else if (message.changes.some(({ entity, id }) => id !== "_internal.reminder.heartbeat" && ["note", "notes", "schedules", "completions", "reminder", "reminder_oneoffs", "setting", "settings"].includes(entity))) requestRefresh("change");
     },
     status: () => ({ ...status }),
     onStatus(callback: (value: ReminderStatus) => void) { listeners.add(callback); callback({ ...status }); return () => { listeners.delete(callback); }; },

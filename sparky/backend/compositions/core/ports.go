@@ -11,21 +11,21 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/focus"
 	"github.com/polterware/polterware/sparky/backend/domains/maintenance"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/reminder"
 	"github.com/polterware/polterware/sparky/backend/domains/review"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/search"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 )
 
 // Services is the composition boundary; handlers never access a database directly.
 type Services struct {
-	Memories       memory.Service
-	Minds          mind.Service
+	Notes          note.Service
+	Spaces         space.Service
 	Tags           tag.Service
 	Focus          focus.Service
 	Review         review.Service
@@ -50,13 +50,13 @@ type ScheduleUseCases interface {
 	Clear(context.Context, actor.Actor, string) error
 	Preview(context.Context, schedule.Schedule, int) ([]time.Time, string, error)
 	ListOccurrences(context.Context, OccurrenceQuery) ([]schedule.Occurrence, error)
-	CompleteOccurrence(context.Context, actor.Actor, string, time.Time) (memory.Completion, error)
+	CompleteOccurrence(context.Context, actor.Actor, string, time.Time) (note.Completion, error)
 	ReopenOccurrence(context.Context, actor.Actor, string, time.Time) error
 	SetFocusRecipe(context.Context, actor.Actor, string, schedule.FocusRecipe) (schedule.Schedule, error)
 }
 type OccurrenceQuery struct {
 	From, To           time.Time
-	MindID             *string
+	SpaceID            *string
 	IncludeDescendants bool
 	TagIDs             []string
 	IncludeCompleted   bool

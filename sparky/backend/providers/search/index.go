@@ -54,22 +54,22 @@ func (i *Index) Upsert(ctx context.Context, doc domain.Document) error {
 }
 
 func (i *Index) upsert(ctx context.Context, conn dbtx, doc domain.Document) error {
-	if strings.TrimSpace(doc.MemoryID) == "" {
-		return errors.New("search: memory id is required")
+	if strings.TrimSpace(doc.NoteID) == "" {
+		return errors.New("search: note id is required")
 	}
-	if _, err := conn.ExecContext(ctx, `DELETE FROM memory_fts WHERE memory_id = ?`, doc.MemoryID); err != nil {
+	if _, err := conn.ExecContext(ctx, `DELETE FROM note_fts WHERE note_id = ?`, doc.NoteID); err != nil {
 		return fmt.Errorf("search delete existing index row: %w", err)
 	}
-	_, err := conn.ExecContext(ctx, `INSERT INTO memory_fts(memory_id,title,note,checklist,tags,mind) VALUES(?,?,?,?,?,?)`,
-		doc.MemoryID, doc.Title, StripMarkdown(doc.Note), doc.Checklist, doc.Tags, doc.Mind)
+	_, err := conn.ExecContext(ctx, `INSERT INTO note_fts(note_id,title,content,checklist,tags,space) VALUES(?,?,?,?,?,?)`,
+		doc.NoteID, doc.Title, StripMarkdown(doc.Content), doc.Checklist, doc.Tags, doc.Space)
 	if err != nil {
 		return fmt.Errorf("search insert index row: %w", err)
 	}
 	return nil
 }
 
-func (i *Index) Delete(ctx context.Context, memoryID string) error {
-	if _, err := i.writeConn(ctx).ExecContext(ctx, `DELETE FROM memory_fts WHERE memory_id = ?`, memoryID); err != nil {
+func (i *Index) Delete(ctx context.Context, noteID string) error {
+	if _, err := i.writeConn(ctx).ExecContext(ctx, `DELETE FROM note_fts WHERE note_id = ?`, noteID); err != nil {
 		return fmt.Errorf("search delete index row: %w", err)
 	}
 	return nil
@@ -89,18 +89,18 @@ func (i *Index) Search(ctx context.Context, query string, filter domain.Filter) 
 	}
 	var where strings.Builder
 	args := []any{match}
-	where.WriteString(`memory_fts MATCH ?`)
+	where.WriteString(`note_fts MATCH ?`)
 	if filter.Status != "" {
 		where.WriteString(` AND m.status = ?`)
 		args = append(args, filter.Status)
 	}
-	if filter.MindID != nil && *filter.MindID != "" {
+	if filter.SpaceID != nil && *filter.SpaceID != "" {
 		if filter.IncludeDescendants {
-			where.WriteString(` AND m.mind_id IN (WITH RECURSIVE tree(id) AS (SELECT id FROM minds WHERE id = ? UNION ALL SELECT minds.id FROM minds JOIN tree ON minds.parent_id=tree.id) SELECT id FROM tree)`)
+			where.WriteString(` AND m.space_id IN (WITH RECURSIVE tree(id) AS (SELECT id FROM spaces WHERE id = ? UNION ALL SELECT spaces.id FROM spaces JOIN tree ON spaces.parent_id=tree.id) SELECT id FROM tree)`)
 		} else {
-			where.WriteString(` AND m.mind_id = ?`)
+			where.WriteString(` AND m.space_id = ?`)
 		}
-		args = append(args, *filter.MindID)
+		args = append(args, *filter.SpaceID)
 	}
 	if len(filter.TagIDs) != 0 {
 		marks := make([]string, len(filter.TagIDs))
@@ -108,7 +108,7 @@ func (i *Index) Search(ctx context.Context, query string, filter domain.Filter) 
 			marks[n] = "?"
 			args = append(args, id)
 		}
-		where.WriteString(` AND EXISTS (SELECT 1 FROM memory_tags mt WHERE mt.memory_id=m.id AND mt.tag_id IN (` + strings.Join(marks, ",") + `))`)
+		where.WriteString(` AND EXISTS (SELECT 1 FROM note_tags mt WHERE mt.note_id=m.id AND mt.tag_id IN (` + strings.Join(marks, ",") + `))`)
 	}
 	appendTime := func(column string, op string, value *time.Time) {
 		if value != nil {
@@ -121,11 +121,11 @@ func (i *Index) Search(ctx context.Context, query string, filter domain.Filter) 
 	appendTime("updated_at", ">=", filter.UpdatedFrom)
 	appendTime("updated_at", "<=", filter.UpdatedTo)
 	args = append(args, limit)
-	sqlQuery := `SELECT memory_fts.memory_id, memory_fts.title, bm25(memory_fts,10.0,1.0,2.0,3.0,1.5), ` +
-		`snippet(memory_fts,1,'<b>','</b>','…',12), ` +
-		`snippet(memory_fts,2,'<b>','</b>','…',12), snippet(memory_fts,3,'<b>','</b>','…',12), ` +
-		`snippet(memory_fts,4,'<b>','</b>','…',12), snippet(memory_fts,5,'<b>','</b>','…',12) ` +
-		`FROM memory_fts JOIN memories m ON m.id=memory_fts.memory_id WHERE ` + where.String() + ` ORDER BY bm25(memory_fts,10.0,1.0,2.0,3.0,1.5), memory_fts.memory_id LIMIT ?`
+	sqlQuery := `SELECT note_fts.note_id, note_fts.title, bm25(note_fts,10.0,1.0,2.0,3.0,1.5), ` +
+		`snippet(note_fts,1,'<b>','</b>','…',12), ` +
+		`snippet(note_fts,2,'<b>','</b>','…',12), snippet(note_fts,3,'<b>','</b>','…',12), ` +
+		`snippet(note_fts,4,'<b>','</b>','…',12), snippet(note_fts,5,'<b>','</b>','…',12) ` +
+		`FROM note_fts JOIN notes m ON m.id=note_fts.note_id WHERE ` + where.String() + ` ORDER BY bm25(note_fts,10.0,1.0,2.0,3.0,1.5), note_fts.note_id LIMIT ?`
 	rows, err := i.readConn(ctx).QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("search query: %w", err)
@@ -135,10 +135,10 @@ func (i *Index) Search(ctx context.Context, query string, filter domain.Filter) 
 	for rows.Next() {
 		var hit domain.Hit
 		var snippets [5]string
-		if err := rows.Scan(&hit.MemoryID, &hit.Title, &hit.Score, &snippets[0], &snippets[1], &snippets[2], &snippets[3], &snippets[4]); err != nil {
+		if err := rows.Scan(&hit.NoteID, &hit.Title, &hit.Score, &snippets[0], &snippets[1], &snippets[2], &snippets[3], &snippets[4]); err != nil {
 			return nil, fmt.Errorf("search scan result: %w", err)
 		}
-		for n, name := range []string{"title", "note", "checklist", "tags", "mind"} {
+		for n, name := range []string{"title", "content", "checklist", "tags", "space"} {
 			if strings.Contains(snippets[n], "<b>") {
 				hit.MatchedIn = append(hit.MatchedIn, name)
 				if hit.Snippet == "" {
@@ -160,7 +160,7 @@ func (i *Index) Rebuild(ctx context.Context, docs []domain.Document) error {
 		return fmt.Errorf("search begin rebuild: %w", err)
 	}
 	defer dbtx.Rollback()
-	if _, err := dbtx.ExecContext(ctx, `DELETE FROM memory_fts`); err != nil {
+	if _, err := dbtx.ExecContext(ctx, `DELETE FROM note_fts`); err != nil {
 		return fmt.Errorf("search clear index: %w", err)
 	}
 	for _, doc := range docs {
@@ -176,7 +176,7 @@ func (i *Index) Rebuild(ctx context.Context, docs []domain.Document) error {
 
 func (i *Index) Count(ctx context.Context) (int, error) {
 	var count int
-	if err := i.readConn(ctx).QueryRowContext(ctx, `SELECT count(*) FROM memory_fts`).Scan(&count); err != nil {
+	if err := i.readConn(ctx).QueryRowContext(ctx, `SELECT count(*) FROM note_fts`).Scan(&count); err != nil {
 		return 0, fmt.Errorf("search count index: %w", err)
 	}
 	return count, nil

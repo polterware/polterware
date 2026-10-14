@@ -1,1 +1,1 @@
-sparky: refusing to delete memory ID without --yes
+sparky: refusing to delete note ID without --yes

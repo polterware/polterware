@@ -14,33 +14,33 @@ export function createAttachmentsStore(getBridge: () => AttachmentsBridge = brow
   const [error, setError] = createSignal("");
   const [microphone, setMicrophone] = createSignal<MicrophoneState>("idle");
   const [fetchTitles, setFetchTitles] = createSignal(false);
-  const [memoryRev, setMemoryRev] = createSignal("0");
+  const [noteRev, setNoteRev] = createSignal("0");
   const [recording, setRecording] = createSignal(false);
   let unsubscribe: (() => void) | undefined;
   let users = 0;
-  let activeMemory = "";
+  let activeNote = "";
 
   function fail(value: unknown) {
     batch(() => { setState("failed"); setError(errorText(value)); });
   }
-  async function refreshRev(memoryId: string) {
-    const result = await getBridge().memories.get({ id: memoryId });
-    setMemoryRev(revisionString(result.memory?.rev));
+  async function refreshRev(noteId: string) {
+    const result = await getBridge().notes.get({ id: noteId });
+    setNoteRev(revisionString(result.note?.rev));
   }
-  async function load(memoryId: string) {
-    if (!memoryId) {
-      batch(() => { setItems([]); setState("unavailable"); setError("Select a memory to attach files."); });
+  async function load(noteId: string) {
+    if (!noteId) {
+      batch(() => { setItems([]); setState("unavailable"); setError("Select a note to attach files."); });
       return;
     }
-    activeMemory = memoryId;
+    activeNote = noteId;
     setState("queued");
     try {
       const [listed, settings] = await Promise.all([
-        getBridge().attachments.list({ memoryId }),
+        getBridge().attachments.list({ noteId }),
         getBridge().settings.get({}),
-        refreshRev(memoryId),
+        refreshRev(noteId),
       ]);
-      if (activeMemory !== memoryId) return;
+      if (activeNote !== noteId) return;
       batch(() => {
         setItems(listed.attachments ?? []);
         setFetchTitles(settings.settings?.linksFetchTitles ?? false);
@@ -48,46 +48,52 @@ export function createAttachmentsStore(getBridge: () => AttachmentsBridge = brow
         setError("");
       });
     } catch (value) {
-      if (activeMemory !== memoryId) return;
+      if (activeNote !== noteId) return;
       batch(() => { setState("unavailable"); setError(errorText(value)); setItems([]); });
     }
   }
-  async function importPaths(memoryId: string, paths: readonly string[]) {
-    if (!paths.length) return;
+  async function importPaths(noteId: string, paths: readonly string[]): Promise<string[]> {
+    if (!paths.length) return [];
+    const before = new Set(items().map(item => item.id));
     setState("queued");
     const messages: string[] = [];
     try {
-      await refreshRev(memoryId);
-      const expectedRev = memoryRev();
+      await refreshRev(noteId);
+      const expectedRev = noteRev();
       for (const sourcePath of paths) {
         try {
-          await getBridge().attachments.importFromPath({ memoryId, sourcePath, name: sourcePath.split("/").pop() ?? "", expectedRev });
+          await getBridge().attachments.importFromPath({ noteId, sourcePath, name: sourcePath.split("/").pop() ?? "", expectedRev });
         } catch (value) { messages.push(errorText(value)); }
       }
-      await load(memoryId);
+      await load(noteId);
       if (messages.length) batch(() => { setState("failed"); setError(messages.join(" ")); });
+      return items().filter(item => item.id && !before.has(item.id)).map(item => item.id!);
     } catch (value) { fail(value); }
+    return [];
   }
-  async function addLink(memoryId: string, url: string, title: string) {
+  async function addLink(noteId: string, url: string, title: string): Promise<string[]> {
+    const before = new Set(items().map(item => item.id));
     setState("queued");
     try {
-      await refreshRev(memoryId);
-      await getBridge().attachments.addLink({ memoryId, url, title, expectedRev: memoryRev() });
-      await load(memoryId);
+      await refreshRev(noteId);
+      await getBridge().attachments.addLink({ noteId, url, title, expectedRev: noteRev() });
+      await load(noteId);
+      return items().filter(item => item.id && !before.has(item.id)).map(item => item.id!);
     } catch (value) { fail(value); }
+    return [];
   }
-  async function remove(memoryId: string, id: string) {
+  async function remove(noteId: string, id: string) {
     setState("queued");
     try {
       await getBridge().attachments.delete({ id });
-      await load(memoryId);
+      await load(noteId);
     } catch (value) { fail(value); }
   }
-  async function move(memoryId: string, index: number, direction: -1 | 1) {
+  async function move(noteId: string, index: number, direction: -1 | 1) {
     const orderedIds = reorderIds(items().map(item => item.id ?? ""), index, direction);
     setState("queued");
     try {
-      const result = await getBridge().attachments.reorder({ memoryId, orderedIds });
+      const result = await getBridge().attachments.reorder({ noteId, orderedIds });
       batch(() => { setItems(result.attachments ?? []); setState("live"); setError(""); });
     } catch (value) { fail(value); }
   }
@@ -97,34 +103,37 @@ export function createAttachmentsStore(getBridge: () => AttachmentsBridge = brow
     try { await getBridge().app.revealInFinder(url); }
     catch (value) { fail(value); }
   }
-  async function pickAndImport(memoryId: string) {
+  async function pickAndImport(noteId: string): Promise<string[]> {
     try {
       const paths = await getBridge().app.pickFiles();
-      await importPaths(memoryId, paths);
+      return await importPaths(noteId, paths);
     } catch (value) { fail(value); }
+    return [];
   }
-  async function importDropped(memoryId: string, files: FileList | File[]) {
+  async function importDropped(noteId: string, files: FileList | File[]): Promise<string[]> {
     const list = [...files];
-    if (!list.length) return;
+    if (!list.length) return [];
     setState("queued");
     try {
       const granted = await getBridge().app.pathsForDroppedFiles(list);
       const refused = list.length - granted.length;
       if (!granted.length) {
         batch(() => { setState("failed"); setError(DROP_PATH_REFUSED); });
-        return;
+        return [];
       }
-      await importPaths(memoryId, granted);
+      const ids = await importPaths(noteId, granted);
       if (refused > 0) {
         const coreError = error();
         batch(() => { setState("failed"); setError([coreError, DROP_PATH_REFUSED].filter(Boolean).join(" ")); });
       }
+      return ids;
     } catch (value) { fail(value); }
+    return [];
   }
-  async function importRecording(memoryId: string, blob: Blob) {
+  async function importRecording(noteId: string, blob: Blob): Promise<string[]> {
     if (blob.size > MAX_RECORDING_BYTES) {
       fail(new Error(RECORDING_OVERSIZE));
-      return;
+      return [];
     }
     setState("queued");
     try {
@@ -132,11 +141,12 @@ export function createAttachmentsStore(getBridge: () => AttachmentsBridge = brow
       const bytes = new Uint8Array(await blob.arrayBuffer());
       if (bytes.byteLength > MAX_RECORDING_BYTES) {
         fail(new Error(RECORDING_OVERSIZE));
-        return;
+        return [];
       }
       const sourcePath = await getBridge().app.writeTempFile(bytes, name);
-      await importPaths(memoryId, [sourcePath]);
+      return await importPaths(noteId, [sourcePath]);
     } catch (value) { fail(value); }
+    return [];
   }
   async function requestMicrophone(): Promise<MicrophoneState> {
     if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
@@ -161,8 +171,8 @@ export function createAttachmentsStore(getBridge: () => AttachmentsBridge = brow
     users += 1;
     if (users === 1) {
       try { unsubscribe = getBridge().onChange(event => {
-        if (event.resync || event.changes.some(change => change.entity === "attachment" || change.entity === "memory" || change.entity === "setting")) {
-          if (activeMemory) void load(activeMemory);
+        if (event.resync || event.changes.some(change => change.entity === "attachment" || change.entity === "note" || change.entity === "setting")) {
+          if (activeNote) void load(activeNote);
         }
       }); } catch { /* Core offline: load() reports unavailable. */ }
     }
@@ -176,7 +186,7 @@ export function createAttachmentsStore(getBridge: () => AttachmentsBridge = brow
     batch(() => { setItems([]); setState("live"); setError(""); setMicrophone("idle"); setRecording(false); });
   }
   return {
-    items, state, error, microphone, fetchTitles, memoryRev, recording, setRecording,
+    items, state, error, microphone, fetchTitles, noteRev, recording, setRecording,
     load, importPaths, addLink, remove, move, reveal, pickAndImport, importDropped, importRecording,
     requestMicrophone, microphoneCopy, connect, dispose, fail,
   };

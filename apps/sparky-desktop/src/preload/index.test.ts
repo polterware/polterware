@@ -33,8 +33,8 @@ describe("sandbox bridge", () => {
     expect(mock.invoke).toHaveBeenCalledWith("sparky:app:writeTempFile", { bytes, name: "clip.webm" });
   });
   it("uses fixed channels", async () => {
-    await bridge.memories.list();
-    expect(mock.invoke).toHaveBeenCalledWith("sparky:memories:list", {});
+    await bridge.notes.list();
+    expect(mock.invoke).toHaveBeenCalledWith("sparky:notes:list", {});
   });
   it("exposes notification authorization through the app allowlist", async () => {
     await bridge.app.requestNotificationAuthorization();

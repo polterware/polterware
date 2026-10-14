@@ -22,12 +22,12 @@ test("startup and idle process RSS", async ({ sparky, page }, info) => {
   expect.soft(startupMs, "First meaningful paint < 1000 ms (conservative interactive proxy)").toBeLessThan(1000);
 });
 
-test("10k memories virtualization and list scrolling FPS trace", async ({ sparky, page }, info) => {
+test("10k notes virtualization and list scrolling FPS trace", async ({ sparky, page }, info) => {
   test.setTimeout(600_000);
   await sparky.skipOnboarding();
   await driver(sparky, "seed");
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
-  await expect(page.getByText("Live · 10000 memories", { exact: true })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText("Live · 10000 notes", { exact: true })).toBeVisible({ timeout: 60_000 });
   const scroll = page.locator('.pw-data-table-scroll[data-virtualized="true"]');
   await expect(scroll).toBeVisible();
   const renderedRows = await page.locator("[data-row-id]").count();

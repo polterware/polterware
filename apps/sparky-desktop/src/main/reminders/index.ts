@@ -13,7 +13,7 @@ import { isBackgroundReminderLaunch } from "./launch";
 
 export interface InstallOptions {
   ensureCore(): Promise<Pick<CoreClients, "reminders" | "schedule" | "settings">>;
-  openMemory(url: string): void | Promise<void>;
+  openNote(url: string): void | Promise<void>;
   hasWindow(): boolean;
   quit(): void;
   dataDirectory: string;

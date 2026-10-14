@@ -22,8 +22,8 @@ func next(t *testing.T, s *Subscription) Event {
 
 func TestSnapshotReplayAndIsolation(t *testing.T) {
 	b := New()
-	b.Publish([]Change{{Entity: "memory", ID: "one", Op: "create"}})
-	input := []Change{{Entity: "memory", ID: "two", Op: "update"}}
+	b.Publish([]Change{{Entity: "note", ID: "one", Op: "create"}})
+	input := []Change{{Entity: "note", ID: "two", Op: "update"}}
 	returned := b.Publish(input)
 	input[0].ID = "mutated"
 	returned.Changes[0].ID = "mutated"

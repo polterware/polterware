@@ -1,4 +1,4 @@
-import type { DitherIconTone } from "@polterware/frontend-design-system";
+import type { IconTileTone } from "@polterware/frontend-design-system";
 import type { ArchNodeDraft } from "./create-node-dialog";
 import { getComponentType } from "./domain/registry";
 
@@ -6,7 +6,7 @@ export type ArchitectureComponentTemplate = {
   id: string;
   title: string;
   description: string;
-  tone: DitherIconTone;
+  tone: IconTileTone;
   brand?: string;
   draft: ArchNodeDraft;
 };
@@ -15,7 +15,7 @@ export type ArchitectureViewTemplate = {
   id: string;
   title: string;
   description: string;
-  tone: DitherIconTone;
+  tone: IconTileTone;
   name: string;
 };
 
@@ -38,7 +38,7 @@ function draftFromCatalogId(catalogId: string): ArchNodeDraft | null {
 function componentTemplate(
   catalogId: string,
   description: string,
-  tone: DitherIconTone,
+  tone: IconTileTone,
   brand?: string,
 ): ArchitectureComponentTemplate | null {
   const draft = draftFromCatalogId(catalogId);

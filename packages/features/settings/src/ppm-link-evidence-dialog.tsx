@@ -6,8 +6,7 @@ import {
   Field,
   Input,
   PageEmpty,
-  StatusChip,
-} from "@polterware/frontend-design-system";
+  StatusChip, FormStack } from "@polterware/frontend-design-system";
 import type { PpmEvidenceRow } from "./ppm-facts-types";
 
 export function PpmLinkEvidenceDialog(props: {
@@ -46,7 +45,7 @@ export function PpmLinkEvidenceDialog(props: {
         </Button>
       }
     >
-      <div class="space-y-3">
+      <FormStack>
         <Field label="Filter">
           <Input
             value={filter()}
@@ -106,7 +105,7 @@ export function PpmLinkEvidenceDialog(props: {
             All listed evidence is already linked or filtered out.
           </p>
         </Show>
-      </div>
+      </FormStack>
     </A11yDialog>
   );
 }

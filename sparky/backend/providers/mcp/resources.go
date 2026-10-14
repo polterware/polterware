@@ -6,16 +6,16 @@ import (
 	"time"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 )
 
 func (s *Server) addResourcesAndPrompts() {
-	s.sdk.AddResource(&mcpsdk.Resource{URI: "sparky://minds", Name: "minds", MIMEType: "text/plain", Description: "Mind tree."}, s.readMinds)
+	s.sdk.AddResource(&mcpsdk.Resource{URI: "sparky://spaces", Name: "spaces", MIMEType: "text/plain", Description: "Space tree."}, s.readSpaces)
 	s.sdk.AddResource(&mcpsdk.Resource{URI: "sparky://today", Name: "today", MIMEType: "text/plain", Description: "Now and today's plate."}, s.readToday)
-	s.sdk.AddResourceTemplate(&mcpsdk.ResourceTemplate{URITemplate: "sparky://memory/{id}", Name: "memory", MIMEType: "text/plain", Description: "One memory."}, s.readMemory)
-	s.sdk.AddPrompt(&mcpsdk.Prompt{Name: "plan_day", Description: "Plan today from Inbox and occurrences."}, promptText("List today's occurrences and Inbox, then propose a short plan. Use list_occurrences and list_memories."))
+	s.sdk.AddResourceTemplate(&mcpsdk.ResourceTemplate{URITemplate: "sparky://note/{id}", Name: "note", MIMEType: "text/plain", Description: "One note."}, s.readNote)
+	s.sdk.AddPrompt(&mcpsdk.Prompt{Name: "plan_day", Description: "Plan today from Inbox and occurrences."}, promptText("List today's occurrences and Inbox, then propose a short plan. Use list_occurrences and list_notes."))
 	s.sdk.AddPrompt(&mcpsdk.Prompt{Name: "weekly_review", Description: "Weekly review from get_review."}, promptText("Call get_review for this week. Summarize streak, completed, and focus minutes. Do not start a timer."))
-	s.sdk.AddPrompt(&mcpsdk.Prompt{Name: "capture", Description: "Turn free text into create_memories arguments."}, promptText("Turn the user's notes into create_memories items. Use mind and tag names. Confirm schedule next occurrences."))
+	s.sdk.AddPrompt(&mcpsdk.Prompt{Name: "capture", Description: "Turn free text into create_notes arguments."}, promptText("Turn the user's notes into create_notes items. Use space and tag names. Confirm schedule next occurrences."))
 }
 
 func promptText(text string) mcpsdk.PromptHandler {
@@ -24,26 +24,26 @@ func promptText(text string) mcpsdk.PromptHandler {
 	}
 }
 
-func (s *Server) readMinds(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
-	rows, err := s.deps.Minds.List(ctx)
+func (s *Server) readSpaces(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
+	rows, err := s.deps.Spaces.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 	sess := s.sessionFor(req.Session)
 	for _, row := range rows {
-		sess.observeMind(row.ID, row.Rev)
+		sess.observeSpace(row.ID, row.Rev)
 	}
-	text := mindTreeText(rows, nil)
+	text := spaceTreeText(rows, nil)
 	if text == "" {
-		text = "0 minds"
+		text = "0 spaces"
 	}
-	return &mcpsdk.ReadResourceResult{Contents: []*mcpsdk.ResourceContents{{URI: "sparky://minds", MIMEType: "text/plain", Text: text}}}, nil
+	return &mcpsdk.ReadResourceResult{Contents: []*mcpsdk.ResourceContents{{URI: "sparky://spaces", MIMEType: "text/plain", Text: text}}}, nil
 }
 
 func (s *Server) readToday(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
 	now := s.deps.now()
 	text := now.Format("Mon 2006-01-02 15:04 MST")
-	snapshots := []memory.Memory{}
+	snapshots := []note.Note{}
 	if s.deps.Schedules != nil {
 		read := func(ctx context.Context) error {
 			from := startOfDay(now)
@@ -53,12 +53,12 @@ func (s *Server) readToday(ctx context.Context, req *mcpsdk.ReadResourceRequest)
 			}
 			titles := make([]string, 0, len(rows))
 			for _, row := range rows {
-				got, err := s.deps.Memories.Get(ctx, row.MemoryID, memory.Include{})
+				got, err := s.deps.Notes.Get(ctx, row.NoteID, note.Include{})
 				if err != nil {
 					return err
 				}
-				titles = append(titles, got.Memory.Title)
-				snapshots = append(snapshots, got.Memory)
+				titles = append(titles, got.Note.Title)
+				snapshots = append(snapshots, got.Note)
 			}
 			if len(titles) > 0 {
 				text += "\n" + strings.Join(titles, ", ")
@@ -82,13 +82,13 @@ func (s *Server) readToday(ctx context.Context, req *mcpsdk.ReadResourceRequest)
 	return &mcpsdk.ReadResourceResult{Contents: []*mcpsdk.ResourceContents{{URI: "sparky://today", MIMEType: "text/plain", Text: text}}}, nil
 }
 
-func (s *Server) readMemory(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
-	id := strings.TrimPrefix(req.Params.URI, "sparky://memory/")
-	got, err := s.sessionFor(req.Session).Get(ctx, id, memory.Include{})
+func (s *Server) readNote(ctx context.Context, req *mcpsdk.ReadResourceRequest) (*mcpsdk.ReadResourceResult, error) {
+	id := strings.TrimPrefix(req.Params.URI, "sparky://note/")
+	got, err := s.sessionFor(req.Session).Get(ctx, id, note.Include{})
 	if err != nil {
 		return nil, err
 	}
-	return &mcpsdk.ReadResourceResult{Contents: []*mcpsdk.ResourceContents{{URI: req.Params.URI, MIMEType: "text/plain", Text: got.Memory.Title}}}, nil
+	return &mcpsdk.ReadResourceResult{Contents: []*mcpsdk.ResourceContents{{URI: req.Params.URI, MIMEType: "text/plain", Text: got.Note.Title}}}, nil
 }
 
 func startOfDay(now time.Time) time.Time {

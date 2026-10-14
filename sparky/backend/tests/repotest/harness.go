@@ -7,13 +7,13 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/focus"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/reminder"
 	"github.com/polterware/polterware/sparky/backend/domains/review"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 	"github.com/polterware/polterware/sparky/backend/domains/tx"
 )
@@ -21,8 +21,8 @@ import (
 // Repos is one backend under the shared repository contract.
 type Repos struct {
 	Tx          tx.Manager
-	Minds       mind.Repository
-	Memories    memory.Repository
+	Spaces      space.Repository
+	Notes       note.Repository
 	Tags        tag.Repository
 	Schedules   schedule.Repository
 	Places      place.Repository
@@ -44,9 +44,9 @@ func ptr[T any](v T) *T { return &v }
 func Run(t *testing.T, name string, setup func(*testing.T) (Repos, func())) {
 	t.Helper()
 	t.Run(name, func(t *testing.T) {
-		t.Run("mindCascadeAndRev", func(t *testing.T) { testMindCascadeAndRev(t, setup) })
-		t.Run("memoryChecklistTagsCompletions", func(t *testing.T) { testMemoryGraph(t, setup) })
-		t.Run("memoryKeyset", func(t *testing.T) { testMemoryKeyset(t, setup) })
+		t.Run("spaceCascadeAndRev", func(t *testing.T) { testSpaceCascadeAndRev(t, setup) })
+		t.Run("noteChecklistTagsCompletions", func(t *testing.T) { testNoteGraph(t, setup) })
+		t.Run("noteKeyset", func(t *testing.T) { testNoteKeyset(t, setup) })
 		t.Run("tagRetarget", func(t *testing.T) { testTagRetarget(t, setup) })
 		t.Run("schedulePlaceSettingsFocus", func(t *testing.T) { testRelated(t, setup) })
 		t.Run("activityCursor", func(t *testing.T) { testActivity(t, setup) })

@@ -39,35 +39,35 @@ func Catalog() ([]Tool, error) {
 			return nil, fmt.Errorf("decode MCP tool: %w", err)
 		}
 		switch tool.Name {
-		case "list_memories":
-			tool.Description = "Filter memory summaries."
+		case "list_notes":
+			tool.Description = "Filter note summaries."
 		case "get_current_time":
 			tool.Description = "Current time and zone."
-		case "create_mind":
-			tool.Description = "Create a mind under parent (name or id)."
-		case "get_memory":
-			tool.Description = "Get a memory; default: note,checklist,schedule."
+		case "create_space":
+			tool.Description = "Create a space under parent (name or id)."
+		case "get_note":
+			tool.Description = "Get a note; default: content,checklist,schedule."
 		case "list_occurrences":
 			tool.Description = "Occurrences, completion, overdue."
-		case "update_mind":
+		case "update_space":
 			tool.Description = "Patch by id/name; null clears parent/color/icon."
 		case "get_review":
 			tool.Description = "Streak, counts, focus minutes."
-		case "delete_mind":
-			tool.Description = "Delete mind tree; memories to Inbox. confirm."
+		case "delete_space":
+			tool.Description = "Delete space tree; notes to Inbox. confirm."
 		case "add_attachments":
 			tool.Description = "Add links or files. files needs allowFileAttach."
-		case "set_memory_status":
+		case "set_note_status":
 			tool.Description = "Set active or completed. occurrence for one repeat."
-		case "update_memories":
+		case "update_notes":
 			tool.Description = "Patch up to 50. null clears. tags replace; add/removeTags."
-		case "create_memories":
-			tool.Description = "Create up to 50 memories; per-item ok or error."
-		case "delete_memories":
-			tool.Description = "Delete memories; confirm true."
+		case "create_notes":
+			tool.Description = "Create up to 50 notes; per-item ok or error."
+		case "delete_notes":
+			tool.Description = "Delete notes; confirm true."
 		case "list_tags":
 			tool.Description = "Tags, colors, counts."
-		case "search_memories":
+		case "search_notes":
 			tool.Description = "Ranked full-text."
 		case "toggle_check_item":
 			tool.Description = "Toggle checklist item by id or title."

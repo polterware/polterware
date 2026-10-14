@@ -13,21 +13,21 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/clock"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
 	"github.com/polterware/polterware/sparky/backend/domains/maintenance"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 	"github.com/polterware/polterware/sparky/backend/platform/privatedest"
 	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
 )
 
-type exportMemory struct {
-	memory.Memory
-	Checklist   []memory.CheckItem       `json:"checklist"`
+type exportNote struct {
+	note.Note
+	Checklist   []note.CheckItem         `json:"checklist"`
 	TagIDs      []string                 `json:"tagIds"`
-	Completions []memory.Completion      `json:"completions"`
+	Completions []note.Completion        `json:"completions"`
 	Schedule    *schedule.Schedule       `json:"schedule,omitempty"`
 	Place       *place.Place             `json:"place,omitempty"`
 	Attachments []attachments.Attachment `json:"attachments"`
@@ -36,8 +36,8 @@ type exportMemory struct {
 type exportDoc struct {
 	Version    string            `json:"version"`
 	ExportedAt time.Time         `json:"exportedAt"`
-	Minds      []mind.Mind       `json:"minds"`
-	Memories   []exportMemory    `json:"memories"`
+	Spaces     []space.Space     `json:"spaces"`
+	Notes      []exportNote      `json:"notes"`
 	Tags       []tag.Tag         `json:"tags"`
 	Settings   settings.Settings `json:"settings"`
 	Activity   []activity.Event  `json:"activity"`
@@ -45,8 +45,8 @@ type exportDoc struct {
 
 type maintenanceService struct {
 	store       *sqlite.Store
-	minds       mind.Repository
-	memories    memory.Repository
+	spaces      space.Repository
+	notes       note.Repository
 	tags        tag.Repository
 	schedules   schedule.Repository
 	places      place.Repository
@@ -85,7 +85,7 @@ func (s maintenanceService) Export(ctx context.Context, zipPath string) (int64, 
 func (s maintenanceService) snapshot(ctx context.Context) (exportDoc, error) {
 	doc := exportDoc{Version: "sparky-export-v1", ExportedAt: s.clock.Now().UTC()}
 	var err error
-	if doc.Minds, err = s.minds.List(ctx); err != nil {
+	if doc.Spaces, err = s.spaces.List(ctx); err != nil {
 		return exportDoc{}, err
 	}
 	if doc.Tags, err = s.tags.List(ctx); err != nil {
@@ -96,16 +96,16 @@ func (s maintenanceService) snapshot(ctx context.Context) (exportDoc, error) {
 	}
 	cursor := ""
 	for {
-		page, err := s.memories.List(ctx, memory.ListFilter{Limit: 500, Cursor: cursor})
+		page, err := s.notes.List(ctx, note.ListFilter{Limit: 500, Cursor: cursor})
 		if err != nil {
 			return exportDoc{}, err
 		}
-		for _, summary := range page.Memories {
-			item, err := s.exportMemory(ctx, summary.ID)
+		for _, summary := range page.Notes {
+			item, err := s.exportNote(ctx, summary.ID)
 			if err != nil {
 				return exportDoc{}, err
 			}
-			doc.Memories = append(doc.Memories, item)
+			doc.Notes = append(doc.Notes, item)
 		}
 		if page.NextCursor == "" {
 			break
@@ -127,33 +127,33 @@ func (s maintenanceService) snapshot(ctx context.Context) (exportDoc, error) {
 	return doc, nil
 }
 
-func (s maintenanceService) exportMemory(ctx context.Context, id string) (exportMemory, error) {
-	m, err := s.memories.Get(ctx, id)
+func (s maintenanceService) exportNote(ctx context.Context, id string) (exportNote, error) {
+	m, err := s.notes.Get(ctx, id)
 	if err != nil {
-		return exportMemory{}, err
+		return exportNote{}, err
 	}
-	item := exportMemory{Memory: m}
-	if item.Checklist, err = s.memories.ListCheckItems(ctx, id); err != nil {
-		return exportMemory{}, err
+	item := exportNote{Note: m}
+	if item.Checklist, err = s.notes.ListCheckItems(ctx, id); err != nil {
+		return exportNote{}, err
 	}
-	if item.TagIDs, err = s.memories.ListTagIDs(ctx, id); err != nil {
-		return exportMemory{}, err
+	if item.TagIDs, err = s.notes.ListTagIDs(ctx, id); err != nil {
+		return exportNote{}, err
 	}
-	if item.Completions, err = s.memories.ListCompletions(ctx, id); err != nil {
-		return exportMemory{}, err
+	if item.Completions, err = s.notes.ListCompletions(ctx, id); err != nil {
+		return exportNote{}, err
 	}
 	if item.Attachments, err = s.attachments.List(ctx, id); err != nil {
-		return exportMemory{}, err
+		return exportNote{}, err
 	}
 	if sc, err := s.schedules.Get(ctx, id); err == nil {
 		item.Schedule = &sc
 	} else if !fault.IsCode(err, fault.CodeNotFound) {
-		return exportMemory{}, err
+		return exportNote{}, err
 	}
 	if p, err := s.places.Get(ctx, id); err == nil {
 		item.Place = &p
 	} else if !fault.IsCode(err, fault.CodeNotFound) {
-		return exportMemory{}, err
+		return exportNote{}, err
 	}
 	return item, nil
 }

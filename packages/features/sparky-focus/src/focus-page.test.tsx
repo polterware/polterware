@@ -26,7 +26,7 @@ function mount() {
   const extra: SparkyFeature = { ...focusFeature, routes: [{ path: "/focus", title: "Focus", component: () => <FocusPage store={store} /> }] };
   const wire = {
     ...fake.bridge,
-    minds: { list: async () => ({ minds: [] }) },
+    spaces: { list: async () => ({ spaces: [] }) },
     tags: { list: async () => ({ tags: [] }) },
     search: { search: async () => ({ hits: [] }) },
     app: { onDeepLink: () => () => {}, getDeepLink: async () => null, requestNotificationAuthorization: async () => true },
@@ -66,7 +66,7 @@ describe("Focus route", () => {
   it("registers Start focus and the Focus route", () => {
     expect(focusFeature.routes[0]?.path).toBe("/focus");
     expect(focusFeature.commands?.[0]?.label).toBe("Start focus");
-    expect(focusFeature.onDeepLink?.(new URL("sparky://memory/memory-1?action=focus"))).toBe(false);
+    expect(focusFeature.onDeepLink?.(new URL("sparky://note/note-1?action=focus"))).toBe(false);
     expect(focusFeature.onDeepLink?.(new URL("sparky://today"))).toBe(false);
   });
 });

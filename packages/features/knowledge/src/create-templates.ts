@@ -1,4 +1,4 @@
-import type { DitherIconTone } from "@polterware/frontend-design-system";
+import type { IconTileTone } from "@polterware/frontend-design-system";
 
 export type KnowledgeTemplateKind = "doc" | "runbook" | "adr" | "card" | "source";
 
@@ -7,7 +7,7 @@ export type KnowledgeCreateTemplate = {
   kind: KnowledgeTemplateKind;
   title: string;
   description: string;
-  tone: DitherIconTone;
+  tone: IconTileTone;
   body?: string;
   extraJson?: string;
 };

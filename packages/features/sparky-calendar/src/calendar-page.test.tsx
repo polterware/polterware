@@ -94,7 +94,7 @@ describe("calendar page through a fake preload bridge", () => {
   });
   it("moves month focus across the visible boundary and navigates occurrences within a day", async () => {
     const date = new Date().toLocaleDateString("en-CA");
-    const { host } = mount({ occurrences: [{ memoryId: "memory-1", title: "Keyboard occurrence", occurrenceAt: new Date().toISOString(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone, allDay: true }] });
+    const { host } = mount({ occurrences: [{ noteId: "note-1", title: "Keyboard occurrence", occurrenceAt: new Date().toISOString(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone, allDay: true }] });
     const root = await vi.waitFor(() => {
       const found = host.querySelector<HTMLElement>("[data-calendar]");
       expect(found).not.toBeNull(); return found!;
@@ -112,14 +112,14 @@ describe("calendar page through a fake preload bridge", () => {
     root.dispatchEvent(new KeyboardEvent("keydown", { key: "t", bubbles: true, cancelable: true }));
     root.dispatchEvent(new KeyboardEvent("keydown", { key: "d", bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(root.dataset.calendarView).toBe("day"));
-    await vi.waitFor(() => expect(host.querySelector('[data-pane="current"] [data-occurrence="memory-1"]')).not.toBeNull());
+    await vi.waitFor(() => expect(host.querySelector('[data-pane="current"] [data-occurrence="note-1"]')).not.toBeNull());
     const header = host.querySelector<HTMLButtonElement>(`[data-pane="current"] [data-day="${date}"] button`)!;
     header.focus();
     header.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
-    await vi.waitFor(() => expect((document.activeElement as HTMLElement).dataset.occurrence).toBe("memory-1"));
+    await vi.waitFor(() => expect((document.activeElement as HTMLElement).dataset.occurrence).toBe("note-1"));
     expect([...host.querySelectorAll<HTMLButtonElement>(".sparky-calendar__grid-wrap button")].filter(button => button.tabIndex === 0)).toHaveLength(1);
   });
-  it("selects the created memory even when saving its slot schedule fails", async () => {
+  it("selects the created note even when saving its slot schedule fails", async () => {
     const { host, fake } = mount();
     fake.schedule.set.mockRejectedValueOnce(new Error("Schedule save failed"));
     const slot = await vi.waitFor(() => {
@@ -127,11 +127,11 @@ describe("calendar page through a fake preload bridge", () => {
       expect(found).not.toBeNull(); return found!;
     });
     pointerClick(slot);
-    await vi.waitFor(() => expect(fake.wire.memories.create).toHaveBeenCalled());
-    await vi.waitFor(() => expect(host.querySelector('[aria-label="Memory details"]')?.textContent).toContain("Untitled memory"));
+    await vi.waitFor(() => expect(fake.wire.notes.create).toHaveBeenCalled());
+    await vi.waitFor(() => expect(host.querySelector('[aria-label="Note details"]')?.textContent).toContain("Untitled note"));
     expect(host.textContent).toContain("Schedule save failed");
   });
-  it("creates a memory from an empty slot and opens the detail panel", async () => {
+  it("creates a note from an empty slot and opens the detail panel", async () => {
     const { host, fake } = mount();
     const slot = await vi.waitFor(() => {
       const found = host.querySelector<HTMLButtonElement>('[data-pane="current"] [data-empty-slot]');
@@ -139,16 +139,16 @@ describe("calendar page through a fake preload bridge", () => {
       return found!;
     });
     pointerClick(slot);
-    await vi.waitFor(() => expect(fake.wire.memories.create).toHaveBeenCalledWith({ title: "Untitled memory" }));
+    await vi.waitFor(() => expect(fake.wire.notes.create).toHaveBeenCalledWith({ title: "Untitled note" }));
     await vi.waitFor(() => expect(fake.schedule.set).toHaveBeenCalled());
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Untitled memory"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Untitled note"));
   });
 
   it("opens a pill in the global DetailPanel", async () => {
     const occurrenceAt = new Date().toISOString();
     const { host } = mount({
       occurrences: [{
-        memoryId: "memory-1",
+        noteId: "note-1",
         title: "Read the brief",
         occurrenceAt,
         allDay: true,
@@ -156,7 +156,7 @@ describe("calendar page through a fake preload bridge", () => {
       }],
     });
     const pill = await vi.waitFor(() => {
-      const found = [...host.querySelectorAll<HTMLButtonElement>("[data-pane='current'] [data-occurrence='memory-1']")].find(item => item.textContent?.includes("Read the brief"));
+      const found = [...host.querySelectorAll<HTMLButtonElement>("[data-pane='current'] [data-occurrence='note-1']")].find(item => item.textContent?.includes("Read the brief"));
       expect(found).toBeDefined();
       return found!;
     });
@@ -190,13 +190,13 @@ describe("calendar page through a fake preload bridge", () => {
   it("asks to move the whole series when a recurring pill is dropped", async () => {
     const occurrenceAt = new Date().toISOString();
     const { host, fake, store } = mount({
-      memories: [{
-        id: "memory-1",
+      notes: [{
+        id: "note-1",
         title: "Standup",
         rev: "3",
-        schedule: { memoryId: "memory-1", fireAt: occurrenceAt, tz: "UTC", freq: "daily", every: 1 },
+        schedule: { noteId: "note-1", fireAt: occurrenceAt, tz: "UTC", freq: "daily", every: 1 },
       }],
-      occurrences: [{ memoryId: "memory-1", title: "Standup", occurrenceAt, tz: "UTC" }],
+      occurrences: [{ noteId: "note-1", title: "Standup", occurrenceAt, tz: "UTC" }],
     });
     await vi.waitFor(() => expect(store.occurrences().length).toBeGreaterThan(0));
     const occurrence = store.occurrences()[0]!;
@@ -227,7 +227,7 @@ describe("calendar page through a fake preload bridge", () => {
     expect(root.textContent).not.toContain("Live");
   });
 
-  it("pans to the next period with a right-button drag off a memory", async () => {
+  it("pans to the next period with a right-button drag off a note", async () => {
     const { host } = mount();
     const root = await vi.waitFor(() => {
       const found = host.querySelector<HTMLElement>("[data-calendar-from]");
@@ -260,10 +260,10 @@ describe("calendar page through a fake preload bridge", () => {
     await vi.waitFor(() => expect(root.getAttribute("data-calendar-from")).not.toBe(from));
   });
 
-  it("does not pan when a right-button drag starts on a memory", async () => {
+  it("does not pan when a right-button drag starts on a note", async () => {
     const { host } = mount({
       occurrences: [{
-        memoryId: "memory-1",
+        noteId: "note-1",
         title: "Stay put",
         occurrenceAt: new Date().toISOString(),
         allDay: true,
@@ -276,7 +276,7 @@ describe("calendar page through a fake preload bridge", () => {
       return found!;
     });
     const pill = await vi.waitFor(() => {
-      const found = host.querySelector<HTMLElement>('[data-pane="current"] [data-occurrence="memory-1"]');
+      const found = host.querySelector<HTMLElement>('[data-pane="current"] [data-occurrence="note-1"]');
       expect(found).not.toBeNull();
       return found!;
     });
@@ -295,7 +295,7 @@ describe("calendar page through a fake preload bridge", () => {
     });
     expect(gutter.textContent).toContain("12 AM");
     expect(gutter.textContent).not.toContain("00:00");
-    expect(host.querySelector("[data-pane='current']")!.textContent).not.toContain("Add memory");
+    expect(host.querySelector("[data-pane='current']")!.textContent).not.toContain("Add note");
     const root = host.querySelector<HTMLElement>("[data-calendar]")!;
     root.focus();
     root.dispatchEvent(new KeyboardEvent("keydown", { key: "s", bubbles: true, cancelable: true }));

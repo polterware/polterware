@@ -36,7 +36,7 @@ func (h scheduleHandler) Clear(ctx context.Context, r *connect.Request[v1.ClearS
 	if h.s == nil {
 		return nil, unavailable("schedules")
 	}
-	err := h.s.Clear(ctx, caller(ctx), r.Msg.MemoryId)
+	err := h.s.Clear(ctx, caller(ctx), r.Msg.NoteId)
 	return response(&v1.ClearScheduleResponse{}, err)
 }
 func (h scheduleHandler) Preview(ctx context.Context, r *connect.Request[v1.PreviewScheduleRequest]) (*connect.Response[v1.PreviewScheduleResponse], error) {
@@ -61,10 +61,10 @@ func (h scheduleHandler) ListOccurrences(ctx context.Context, r *connect.Request
 		return nil, unavailable("schedules")
 	}
 	in := r.Msg
-	items, err := h.s.ListOccurrences(ctx, OccurrenceQuery{From: instant(in.From), To: instant(in.To), MindID: stringPtr(in.MindId), IncludeDescendants: in.IncludeDescendants, TagIDs: in.TagIds, IncludeCompleted: in.IncludeCompleted, Limit: int(in.Limit)})
+	items, err := h.s.ListOccurrences(ctx, OccurrenceQuery{From: instant(in.From), To: instant(in.To), SpaceID: stringPtr(in.SpaceId), IncludeDescendants: in.IncludeDescendants, TagIDs: in.TagIds, IncludeCompleted: in.IncludeCompleted, Limit: int(in.Limit)})
 	out := &v1.ListOccurrencesResponse{}
 	for _, o := range items {
-		out.Occurrences = append(out.Occurrences, &v1.Occurrence{MemoryId: o.MemoryID, Title: o.Title, OccurrenceAt: stamp(o.OccurrenceAt), FireAt: stamp(o.FireAt), Completed: o.Completed, Overdue: o.Overdue, AllDay: o.AllDay, MindId: stringValue(o.MindID), Tz: o.TZ})
+		out.Occurrences = append(out.Occurrences, &v1.Occurrence{NoteId: o.NoteID, Title: o.Title, OccurrenceAt: stamp(o.OccurrenceAt), FireAt: stamp(o.FireAt), Completed: o.Completed, Overdue: o.Overdue, AllDay: o.AllDay, SpaceId: stringValue(o.SpaceID), Tz: o.TZ})
 	}
 	return response(out, err)
 }
@@ -75,7 +75,7 @@ func (h scheduleHandler) CompleteOccurrence(ctx context.Context, r *connect.Requ
 	if h.s == nil {
 		return nil, unavailable("schedules")
 	}
-	c, err := h.s.CompleteOccurrence(ctx, caller(ctx), r.Msg.MemoryId, instant(r.Msg.OccurrenceAt))
+	c, err := h.s.CompleteOccurrence(ctx, caller(ctx), r.Msg.NoteId, instant(r.Msg.OccurrenceAt))
 	return response(&v1.CompleteOccurrenceResponse{Completion: completionProto(c)}, err)
 }
 func (h scheduleHandler) ReopenOccurrence(ctx context.Context, r *connect.Request[v1.ReopenOccurrenceRequest]) (*connect.Response[v1.ReopenOccurrenceResponse], error) {
@@ -85,7 +85,7 @@ func (h scheduleHandler) ReopenOccurrence(ctx context.Context, r *connect.Reques
 	if h.s == nil {
 		return nil, unavailable("schedules")
 	}
-	err := h.s.ReopenOccurrence(ctx, caller(ctx), r.Msg.MemoryId, instant(r.Msg.OccurrenceAt))
+	err := h.s.ReopenOccurrence(ctx, caller(ctx), r.Msg.NoteId, instant(r.Msg.OccurrenceAt))
 	return response(&v1.ReopenOccurrenceResponse{}, err)
 }
 func (h scheduleHandler) SetFocusRecipe(ctx context.Context, r *connect.Request[v1.SetFocusRecipeRequest]) (*connect.Response[v1.SetFocusRecipeResponse], error) {
@@ -93,7 +93,7 @@ func (h scheduleHandler) SetFocusRecipe(ctx context.Context, r *connect.Request[
 		return nil, unavailable("schedules")
 	}
 	in := r.Msg
-	s, err := h.s.SetFocusRecipe(ctx, caller(ctx), in.MemoryId, schedule.FocusRecipe{Enabled: in.Enabled, WorkMin: int(in.WorkMin), ShortBreakMin: int(in.ShortBreakMin), LongBreakMin: int(in.LongBreakMin), Cycles: int(in.Cycles), AutoContinue: in.AutoContinue})
+	s, err := h.s.SetFocusRecipe(ctx, caller(ctx), in.NoteId, schedule.FocusRecipe{Enabled: in.Enabled, WorkMin: int(in.WorkMin), ShortBreakMin: int(in.ShortBreakMin), LongBreakMin: int(in.LongBreakMin), Cycles: int(in.Cycles), AutoContinue: in.AutoContinue})
 	return response(&v1.SetFocusRecipeResponse{Schedule: scheduleProto(s)}, err)
 }
 
@@ -107,7 +107,7 @@ func (h placeHandler) Set(ctx context.Context, r *connect.Request[v1.SetPlaceReq
 		return nil, unavailable("places")
 	}
 	in := r.Msg.Place
-	p := place.Place{MemoryID: in.MemoryId, Name: in.Name, Lat: in.Lat, Lng: in.Lng, RadiusM: valueOr(in.RadiusM, place.DefaultRadiusM), Event: in.Event, Active: valueOr(in.Active, true)}
+	p := place.Place{NoteID: in.NoteId, Name: in.Name, Lat: in.Lat, Lng: in.Lng, RadiusM: valueOr(in.RadiusM, place.DefaultRadiusM), Event: in.Event, Active: valueOr(in.Active, true)}
 	if p.Event == "" {
 		p.Event = place.EventEnter
 	}
@@ -118,7 +118,7 @@ func (h placeHandler) Clear(ctx context.Context, r *connect.Request[v1.ClearPlac
 	if h.s == nil {
 		return nil, unavailable("places")
 	}
-	err := h.s.Clear(ctx, r.Msg.MemoryId, r.Msg.GetExpectedRev())
+	err := h.s.Clear(ctx, r.Msg.NoteId, r.Msg.GetExpectedRev())
 	return response(&v1.ClearPlaceResponse{}, err)
 }
 func (h placeHandler) ListInBounds(ctx context.Context, r *connect.Request[v1.ListPlacesInBoundsRequest]) (*connect.Response[v1.ListPlacesInBoundsResponse], error) {

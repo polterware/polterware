@@ -8,7 +8,7 @@ type WireNamespace = Record<string, (input?: JsonValue) => Promise<JsonValue>>;
 /** Structural subset of window.sparky. Feature packages must not declare Window.sparky. */
 export type AttachmentsWireBridge = {
   attachments: WireNamespace;
-  memories: WireNamespace;
+  notes: WireNamespace;
   settings: WireNamespace;
   onChange(callback: (event: { resync: boolean; changes: { entity: string; id: string; op: string }[] }) => void): () => void;
   app: AttachmentsBridge["app"];
@@ -38,7 +38,7 @@ function bind<S extends DescService>(source: WireNamespace, service: S): Record<
 export function createAttachmentsBridge(wire: AttachmentsWireBridge): AttachmentsBridge {
   return {
     attachments: bind(wire.attachments, Contracts.AttachmentService) as AttachmentsBridge["attachments"],
-    memories: bind(wire.memories, Contracts.MemoryService) as AttachmentsBridge["memories"],
+    notes: bind(wire.notes, Contracts.NoteService) as AttachmentsBridge["notes"],
     settings: bind(wire.settings, Contracts.SettingsService) as AttachmentsBridge["settings"],
     onChange: callback => wire.onChange(callback),
     app: wire.app,

@@ -31,7 +31,7 @@ function mount(options: { empty?: boolean; fail?: "search" | "unavailable"; ftsD
   let onLink: ((link: { url: string; route: string }) => void) | undefined;
   const wire = {
     ...fake.bridge,
-    memories: { list: async () => ({ memories: [], total: 0 }), get: async () => ({}) },
+    notes: { list: async () => ({ notes: [], total: 0 }), get: async () => ({}) },
     reminders: { status: async () => ({ planned: 0, armed: 0, permission: "authorized" }) },
     search: fake.bridge.search,
     app: {
@@ -72,16 +72,16 @@ async function openSearch(host: HTMLElement) {
 }
 
 describe("Search route", () => {
-  it("registers the Search page and Commander Search memories command", () => {
+  it("registers the Search page and Commander Search notes command", () => {
     expect(searchFeature.routes[0]?.path).toBe("/search");
-    expect(searchFeature.commands?.[0]).toMatchObject({ id: "search.open", label: "Search memories" });
+    expect(searchFeature.commands?.[0]).toMatchObject({ id: "search.open", label: "Search notes" });
   });
 
   it("shows the empty state, then fixture hits with highlighted snippets and no innerHTML", async () => {
     const { host, store } = mount();
     await openSearch(host);
     await vi.waitFor(() => expect(store.loadState()).toBe("live"));
-    expect(document.body.textContent).toContain("Search memories");
+    expect(document.body.textContent).toContain("Search notes");
     expect(document.body.textContent).toContain("FTS5");
     store.setQuery("milk");
     await store.flush();
@@ -111,7 +111,7 @@ describe("Search route", () => {
     onLink("sparky://search?q=%20packaging%20");
     await vi.waitFor(() => expect(document.querySelector("[data-search-page]")).not.toBeNull());
     await vi.waitFor(() => expect(store.query()).toBe("packaging"));
-    const box = document.querySelector<HTMLInputElement>('[aria-label="Search memories"]');
+    const box = document.querySelector<HTMLInputElement>('[aria-label="Search notes"]');
     expect(box?.value).toBe("packaging");
     await store.flush();
     await vi.waitFor(() => expect(fake.bridge.search.search).toHaveBeenCalledWith(expect.objectContaining({ query: "packaging" })));

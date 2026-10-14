@@ -13,7 +13,7 @@ import { attachmentsStore } from "./store";
 export function AttachmentsSection() {
   const shell = useSparkyShell();
   const store = attachmentsStore;
-  const memoryId = () => shell.selectedMemoryId() ?? "";
+  const noteId = () => shell.selectedNoteId() ?? "";
   const [linkOpen, setLinkOpen] = createSignal(false);
   const [linkUrl, setLinkUrl] = createSignal("");
   const [linkTitle, setLinkTitle] = createSignal("");
@@ -26,7 +26,7 @@ export function AttachmentsSection() {
   let chunks: Blob[] = [];
   onMount(() => onCleanup(store.connect()));
   createEffect(() => {
-    const id = memoryId();
+    const id = noteId();
     void store.load(id);
   });
   onCleanup(() => { recorder?.stop(); if (localBlob()) URL.revokeObjectURL(localBlob()); });
@@ -36,8 +36,8 @@ export function AttachmentsSection() {
     event.preventDefault();
     setDragging(false);
     const list = event.dataTransfer?.files;
-    if (!list?.length || !memoryId()) return;
-    void store.importDropped(memoryId(), list);
+    if (!list?.length || !noteId()) return;
+    void store.importDropped(noteId(), list);
   }
   async function startRecording() {
     const permission = await store.requestMicrophone();
@@ -58,7 +58,7 @@ export function AttachmentsSection() {
         if (!chunks.length) return;
         const preview = URL.createObjectURL(blob);
         setLocalBlob(preview);
-        void store.importRecording(memoryId(), blob).then(() => {
+        void store.importRecording(noteId(), blob).then(() => {
           if (store.state() === "failed") return;
           URL.revokeObjectURL(preview);
           setLocalBlob(current => current === preview ? "" : current);
@@ -76,20 +76,20 @@ export function AttachmentsSection() {
     store.setRecording(false);
   }
   async function saveLink() {
-    await store.addLink(memoryId(), linkUrl().trim(), linkTitle().trim());
+    await store.addLink(noteId(), linkUrl().trim(), linkTitle().trim());
     if (store.state() !== "failed") { setLinkOpen(false); setLinkUrl(""); setLinkTitle(""); }
   }
   async function confirmDelete() {
     const id = deleteId();
     if (!id) return;
-    await store.remove(memoryId(), id);
+    await store.remove(noteId(), id);
     if (store.state() !== "failed") setDeleteId(undefined);
   }
-  return <Show when={memoryId()} fallback={<p>Select a memory to attach files.</p>}>
+  return <Show when={noteId()} fallback={<p>Select a note to attach files.</p>}>
     <div class="flex flex-col gap-3" data-attachments-section>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-2">
-          <h3 class="text-[13px] font-medium text-[var(--color-text-primary)]">Attachments</h3>
+          <h3 class="sr-only">Attachments</h3>
           <StatusChip tone={store.state() === "live" ? "ok" : store.state() === "queued" ? "syncing" : store.state() === "unavailable" ? "muted" : "danger"}>
             {store.state() === "live" ? "Live" : store.state() === "queued" ? "Queued" : store.state() === "unavailable" ? "Unavailable" : "Failed"}
           </StatusChip>
@@ -99,8 +99,8 @@ export function AttachmentsSection() {
             <Plus /> Add
           </DropdownMenuTrigger>
           <DropdownMenuContent>
-            <DropdownMenuItem value="photo" onSelect={() => void store.pickAndImport(memoryId())}>Add photo</DropdownMenuItem>
-            <DropdownMenuItem value="file" onSelect={() => void store.pickAndImport(memoryId())}>Add file</DropdownMenuItem>
+            <DropdownMenuItem value="photo" onSelect={() => void store.pickAndImport(noteId())}>Add photo</DropdownMenuItem>
+            <DropdownMenuItem value="file" onSelect={() => void store.pickAndImport(noteId())}>Add file</DropdownMenuItem>
             <DropdownMenuItem value="audio" onSelect={() => void startRecording()}>Record audio</DropdownMenuItem>
             <DropdownMenuItem value="link" onSelect={() => setLinkOpen(true)}>Add link</DropdownMenuItem>
           </DropdownMenuContent>
@@ -109,7 +109,7 @@ export function AttachmentsSection() {
       <p data-fetch-titles class="text-[12px] text-[var(--color-text-muted)]">{store.fetchTitles() ? FETCH_TITLES_ON : FETCH_TITLES_OFF}</p>
       <Show when={store.error()}><p role="alert">{store.error()}</p></Show>
       <Show when={store.state() === "unavailable" && store.error()}>
-        <PageError title="Attachments unavailable" message={store.error()} onRetry={() => void store.load(memoryId())} />
+        <PageError title="Attachments unavailable" message={store.error()} onRetry={() => void store.load(noteId())} />
       </Show>
       <div
         data-drop-zone
@@ -149,7 +149,7 @@ export function AttachmentsSection() {
       </Show>
       <ul class="flex flex-col gap-2">
         <For each={store.items()}>{(item, index) => {
-          const move = (direction: -1 | 1) => void store.move(memoryId(), index(), direction);
+          const move = (direction: -1 | 1) => void store.move(noteId(), index(), direction);
           if (item.kind === "link") return <LinkRow item={item} index={index()} total={store.items().length} onMove={move} onDelete={() => setDeleteId(item.id)} />;
           if (item.kind === "photo") return <PhotoRow item={item} index={index()} total={store.items().length} onMove={move} onOpen={() => { const photoIndex = photos().findIndex(entry => entry.id === item.id); setViewer(photoIndex); setViewerOpen(true); }} onDelete={() => setDeleteId(item.id)} />;
           return <FileRow item={item} index={index()} total={store.items().length} onMove={move} onReveal={() => void store.reveal(item)} onDelete={() => setDeleteId(item.id)} />;
@@ -171,7 +171,7 @@ export function AttachmentsSection() {
       </A11yDialog>
       <A11yDialog open={Boolean(deleteId())} title="Delete attachment?" size="sm" onClose={() => setDeleteId(undefined)}
         footer={<><Button variant="ghost" onClick={() => setDeleteId(undefined)}>Cancel</Button><Button variant="danger" onClick={() => void confirmDelete()}>Delete</Button></>}>
-        <p>This removes the attachment from the memory. Files are deleted from Sparky storage.</p>
+        <p>This removes the attachment from the note. Files are deleted from Sparky storage.</p>
       </A11yDialog>
       <A11yDialog open={viewerOpen()} title={viewerItem()?.name ?? "Photo"} size="lg" onClose={() => setViewerOpen(false)}
         footer={<><Button variant="ghost" disabled={viewer() === 0} onClick={() => setViewer(value => value - 1)}>Previous</Button>

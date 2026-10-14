@@ -1,4 +1,4 @@
-import type { DitherIconTone } from "@polterware/frontend-design-system";
+import type { IconTileTone } from "@polterware/frontend-design-system";
 import { defaultProtectionForKind } from "./environment-status";
 import type { EnvironmentKind, ProtectionLevel } from "./types";
 
@@ -6,7 +6,7 @@ export type EnvironmentCreateTemplate = {
   id: string;
   title: string;
   description: string;
-  tone: DitherIconTone;
+  tone: IconTileTone;
   draft: {
     name: string;
     kind: EnvironmentKind;
@@ -17,7 +17,7 @@ export type EnvironmentCreateTemplate = {
 function environmentTemplate(
   kind: EnvironmentKind,
   description: string,
-  tone: DitherIconTone,
+  tone: IconTileTone,
 ): EnvironmentCreateTemplate {
   const title = kind.charAt(0).toUpperCase() + kind.slice(1);
   return {

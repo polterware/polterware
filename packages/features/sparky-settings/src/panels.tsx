@@ -1,7 +1,16 @@
 import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
 import {
+  Bell,
   Button,
+  Cog,
   Copy,
+  Globe,
+  HardDrive,
+  Moon,
+  Monitor,
+  Sun,
+  Pause,
+  CalendarClock,
   DataTable,
   Eye,
   Input,
@@ -48,9 +57,9 @@ function SaveStatus() {
 }
 
 const SOUND_OPTIONS = [
-  { value: "", label: "Default" },
-  { value: "none", label: "None" },
-  ...NAMED_SOUNDS.map(sound => ({ value: sound, label: sound[0]!.toUpperCase() + sound.slice(1) })),
+  { value: "", label: "Default", icon: <Bell size={14} aria-hidden="true" /> },
+  { value: "none", label: "None", icon: <Pause size={14} aria-hidden="true" /> },
+  ...NAMED_SOUNDS.map(sound => ({ value: sound, label: sound[0]!.toUpperCase() + sound.slice(1), icon: <Bell size={14} aria-hidden="true" /> })),
 ];
 
 function reminderCopy(permission: string | undefined, armed: number | undefined, planned: number | undefined): { tone: "ok" | "warn" | "danger" | "muted"; label: string; body: string } {
@@ -99,7 +108,7 @@ export function NotificationsPanel() {
   const permission = () => store.reminders()?.permission ?? "not_determined";
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
-      <SettingsSection title="Notifications" description="Sound, all-day delivery time, snooze, and the live notifier status.">
+      <SettingsSection title="Delivery" description="Sound, all-day delivery time, and snooze.">
         <SettingsRow label="Sound" description="Preview plays the bundled file, or a short tone when the file is missing.">
           <Select aria-label="Notification sound" value={store.settings().notificationsSound ?? ""} options={SOUND_OPTIONS} onChange={value => void store.set("notifications.sound", value)} />
           <Button size="sm" variant="ghost" onClick={() => void previewSound(store.settings().notificationsSound || "glass")}>Preview</Button>
@@ -110,7 +119,9 @@ export function NotificationsPanel() {
         <SettingsRow label="Snooze minutes">
           <NumberStepper label="Snooze minutes" min={1} max={1440} value={String(store.settings().notificationsSnoozeMinutes ?? 10)} onValueChange={details => { if (Number.isFinite(details.valueAsNumber)) void store.set("notifications.snoozeMinutes", Math.trunc(details.valueAsNumber)); }} />
         </SettingsRow>
-        <SettingsRow label="Notifier" description={status().body}>
+      </SettingsSection>
+      <SettingsSection title="Notifier">
+        <SettingsRow label="Status" description={status().body}>
           <StatusChip tone={status().tone} label={status().label} />
           <Show when={permission() === "not_determined"}>
             <Button size="sm" disabled={store.authState() === "queued"} onClick={() => void store.requestNotifications()}>Enable notifications</Button>
@@ -130,7 +141,7 @@ export function FocusPanel() {
   };
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
-      <SettingsSection title="Focus defaults" description="Used for quick focus when a memory has no recipe.">
+      <SettingsSection title="Durations" description="Used for quick focus when a note has no recipe.">
         <SettingsRow label="Work minutes">
           <NumberStepper label="Work" min={1} max={60} value={String(store.settings().focusWorkMin ?? 25)} onValueChange={details => setNumber("focus.work", details.valueAsNumber)} />
         </SettingsRow>
@@ -143,9 +154,13 @@ export function FocusPanel() {
         <SettingsRow label="Cycles">
           <NumberStepper label="Cycles" min={1} max={12} value={String(store.settings().focusCycles ?? 4)} onValueChange={details => setNumber("focus.cycles", details.valueAsNumber)} />
         </SettingsRow>
+      </SettingsSection>
+      <SettingsSection title="Behavior">
         <SwitchRow label="Auto-continue" checked={store.settings().focusAutoContinue ?? false} onCheckedChange={value => void store.set("focus.autoContinue", value)} />
         <SwitchRow label="Play focus sounds" checked={store.settings().focusSounds ?? false} onCheckedChange={value => void store.set("focus.sounds", value)} />
         <SwitchRow label="Phase-end notifications" checked={store.settings().focusNotifications ?? false} onCheckedChange={value => void store.set("focus.notifications", value)} />
+      </SettingsSection>
+      <SettingsSection title="Sound">
         <SettingsRow label="Preview completion sound">
           <Button size="sm" variant="ghost" onClick={() => void previewSound("glass")}>Preview</Button>
         </SettingsRow>
@@ -164,7 +179,7 @@ export function CalendarPanel() {
           <Select
             aria-label="Week starts on"
             value={store.settings().calendarWeekStart ?? "mon"}
-            options={[{ value: "mon", label: "Monday" }, { value: "sun", label: "Sunday" }]}
+            options={[{ value: "mon", label: "Monday", icon: <CalendarClock size={14} aria-hidden="true" /> }, { value: "sun", label: "Sunday", icon: <CalendarClock size={14} aria-hidden="true" /> }]}
             onChange={value => void store.set("calendar.weekStart", value)}
           />
         </SettingsRow>
@@ -179,7 +194,7 @@ export function MapPanel() {
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
       <SettingsSection
-        title="Map"
+        title="Tiles"
         description="Online tiles are downloaded from OpenFreeMap. Your viewport is visible to the tile host. Places do not trigger notifications in v1."
       >
         <SwitchRow
@@ -187,6 +202,16 @@ export function MapPanel() {
           checked={store.settings().mapOnline ?? false}
           onCheckedChange={value => void store.set("map.online", value)}
         />
+        <SettingsRow label="Provider" description="PMTiles requires a local region file; no region loader is available in this build.">
+          <Select
+            aria-label="Map provider"
+            value={store.settings().mapProvider ?? ""}
+            options={[{ value: "", label: "Default", icon: <Cog size={14} aria-hidden="true" /> }, { value: "openfreemap", label: "OpenFreeMap", icon: <Globe size={14} aria-hidden="true" /> }, { value: "pmtiles", label: "PMTiles", icon: <HardDrive size={14} aria-hidden="true" /> }]}
+            onChange={value => void store.set("map.provider", value)}
+          />
+        </SettingsRow>
+      </SettingsSection>
+      <SettingsSection title="Address search">
         <SwitchRow
           label="Address search"
           checked={store.settings().mapGeocoding === true}
@@ -194,14 +219,6 @@ export function MapPanel() {
           onCheckedChange={value => void store.set("map.geocoding", value)}
         />
         <p class="text-[12px] text-[var(--color-text-muted)]">Typed address text is sent to Nominatim, a third party. Off by default. Changing this reloads Sparky. Save place edits first.</p>
-        <SettingsRow label="Provider" description="PMTiles requires a local region file; no region loader is available in this build.">
-          <Select
-            aria-label="Map provider"
-            value={store.settings().mapProvider ?? ""}
-            options={[{ value: "", label: "Default" }, { value: "openfreemap", label: "OpenFreeMap" }, { value: "pmtiles", label: "PMTiles" }]}
-            onChange={value => void store.set("map.provider", value)}
-          />
-        </SettingsRow>
         <SaveStatus />
       </SettingsSection>
     </PanelFrame>
@@ -220,8 +237,8 @@ export function SearchPanel() {
   const status = () => searchStatus(store.reindexState(), store.search()?.ftsDocuments);
   return (
     <PanelFrame state={store.loadState()} error={store.loadError()} onRetry={() => void store.refresh()}>
-      <SettingsSection title="Search" description="Search matches words in your memories. Semantic search is unavailable.">
-        <SettingsRow label="Index" description="Memories included in the search index.">
+      <SettingsSection title="Search" description="Search matches words in your notes. Semantic search is unavailable.">
+        <SettingsRow label="Index" description="Notes included in the search index.">
           <StatusChip tone={status().tone} label={status().label} />
           <Button size="sm" disabled={store.reindexState() === "progress"} onClick={() => void store.reindex()}>Reindex</Button>
         </SettingsRow>
@@ -419,7 +436,7 @@ export function AdvancedPanel() {
           <Select
             aria-label="Theme"
             value={store.settings().appearanceTheme ?? "dark"}
-            options={[{ value: "dark", label: "Dark" }, { value: "system", label: "System" }, { value: "light", label: "Light" }]}
+            options={[{ value: "dark", label: "Dark", icon: <Moon size={14} aria-hidden="true" /> }, { value: "system", label: "System", icon: <Monitor size={14} aria-hidden="true" /> }, { value: "light", label: "Light", icon: <Sun size={14} aria-hidden="true" /> }]}
             onChange={value => void store.set("appearance.theme", value)}
           />
         </SettingsRow>
@@ -430,10 +447,12 @@ export function AdvancedPanel() {
         />
         <SaveStatus />
       </SettingsSection>
-      <SettingsSection title="Desktop" description="Local files and window appearance.">
+      <SettingsSection title="Files" description="Local files.">
         <SettingsRow label="Logs" description="Reveal the Sparky log file in Finder."><Button size="sm" disabled={store.advancedState() === "queued"} onClick={() => void store.reveal("log")}>Open logs</Button></SettingsRow>
         <SettingsRow label="Open data folder" description="Reveal the Sparky data directory in Finder."><Button size="sm" disabled={store.advancedState() === "queued"} onClick={() => void store.reveal("data")}>Open data folder</Button></SettingsRow>
         <HonestyLine state={store.advancedState()} idle={store.advancedDetail() || "Live"} error={store.advancedState() === "failed" ? store.advancedDetail() : ""} />
+      </SettingsSection>
+      <SettingsSection title="Window" description="Launch and window appearance.">
         <SettingsRow label="Open at login" description="Automatic launch at login is unavailable in this build."><StatusChip tone="muted" label="Unavailable" /></SettingsRow>
         <SwitchRow label="Reduce transparency" checked={store.reduceTransparency() === true} disabled={store.reduceTransparency() === undefined || store.appearanceState() === "queued"} onCheckedChange={value => void store.setReduceTransparency(value)} />
         <HonestyLine state={store.appearanceState()} idle="Window preference applied" error={store.appearanceError()} />

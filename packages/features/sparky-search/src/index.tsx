@@ -9,7 +9,7 @@ const feature: SparkyFeature = {
   commandSources: [createSearchCommandSource()],
   commands: [{
     id: "search.open",
-    label: "Search memories",
+    label: "Search notes",
     keywords: ["find", "fts", "query", "search"],
     run: () => { void openSearchPage(); },
   }],

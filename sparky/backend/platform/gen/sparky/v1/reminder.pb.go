@@ -104,14 +104,14 @@ func (x *ReminderDateComponents) GetSecond() int32 {
 type ReminderItem struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	MemoryId     string                 `protobuf:"bytes,2,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId       string                 `protobuf:"bytes,2,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	OccurrenceAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurrence_at,json=occurrenceAt,proto3" json:"occurrence_at,omitempty"`
 	FireAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fire_at,json=fireAt,proto3" json:"fire_at,omitempty"`
 	Title        string                 `protobuf:"bytes,5,opt,name=title,proto3" json:"title,omitempty"`
 	Body         string                 `protobuf:"bytes,6,opt,name=body,proto3" json:"body,omitempty"`
 	Category     string                 `protobuf:"bytes,7,opt,name=category,proto3" json:"category,omitempty"`
-	// Set only for native repeating items (ids rem:<memory>:repeat or
-	// rem:<memory>:wd<n>); omitted for concrete one-shots.
+	// Set only for native repeating items (ids rem:<note>:repeat or
+	// rem:<note>:wd<n>); omitted for concrete one-shots.
 	Repeat        *ReminderDateComponents `protobuf:"bytes,8,opt,name=repeat,proto3" json:"repeat,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -154,9 +154,9 @@ func (x *ReminderItem) GetId() string {
 	return ""
 }
 
-func (x *ReminderItem) GetMemoryId() string {
+func (x *ReminderItem) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -397,7 +397,7 @@ func (*AckReminderResponse) Descriptor() ([]byte, []int) {
 
 type SnoozeReminderRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	OccurrenceAt  *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=occurrence_at,json=occurrenceAt,proto3" json:"occurrence_at,omitempty"`
 	Minutes       int32                  `protobuf:"varint,3,opt,name=minutes,proto3" json:"minutes,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -434,9 +434,9 @@ func (*SnoozeReminderRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_reminder_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *SnoozeReminderRequest) GetMemoryId() string {
+func (x *SnoozeReminderRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -510,7 +510,7 @@ func (x *SnoozeReminderResponse) GetFireAt() *timestamppb.Timestamp {
 type ArmOneOffRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
-	MemoryId      string                 `protobuf:"bytes,2,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,2,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	FireAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=fire_at,json=fireAt,proto3" json:"fire_at,omitempty"`
 	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
 	Body          string                 `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
@@ -555,9 +555,9 @@ func (x *ArmOneOffRequest) GetKind() string {
 	return ""
 }
 
-func (x *ArmOneOffRequest) GetMemoryId() string {
+func (x *ArmOneOffRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -930,10 +930,10 @@ const file_sparky_v1_reminder_proto_rawDesc = "" +
 	"\b_weekdayB\a\n" +
 	"\x05_hourB\t\n" +
 	"\a_minuteB\t\n" +
-	"\a_second\"\xb2\x02\n" +
+	"\a_second\"\xae\x02\n" +
 	"\fReminderItem\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
-	"\tmemory_id\x18\x02 \x01(\tR\bmemoryId\x12?\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12?\n" +
 	"\roccurrence_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\foccurrenceAt\x123\n" +
 	"\afire_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06fireAt\x12\x14\n" +
 	"\x05title\x18\x05 \x01(\tR\x05title\x12\x12\n" +
@@ -949,18 +949,18 @@ const file_sparky_v1_reminder_proto_rawDesc = "" +
 	"\x12AckReminderRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aoutcome\x18\x02 \x01(\tR\aoutcome\"\x15\n" +
-	"\x13AckReminderResponse\"\x8f\x01\n" +
-	"\x15SnoozeReminderRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12?\n" +
+	"\x13AckReminderResponse\"\x8b\x01\n" +
+	"\x15SnoozeReminderRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12?\n" +
 	"\roccurrence_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\foccurrenceAt\x12\x18\n" +
 	"\aminutes\x18\x03 \x01(\x05R\aminutes\"k\n" +
 	"\x16SnoozeReminderResponse\x12\x1c\n" +
 	"\n" +
 	"one_off_id\x18\x01 \x01(\tR\boneOffId\x123\n" +
-	"\afire_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06fireAt\"\xa2\x01\n" +
+	"\afire_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06fireAt\"\x9e\x01\n" +
 	"\x10ArmOneOffRequest\x12\x12\n" +
-	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x1b\n" +
-	"\tmemory_id\x18\x02 \x01(\tR\bmemoryId\x123\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x17\n" +
+	"\anote_id\x18\x02 \x01(\tR\x06noteId\x123\n" +
 	"\afire_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06fireAt\x12\x14\n" +
 	"\x05title\x18\x04 \x01(\tR\x05title\x12\x12\n" +
 	"\x04body\x18\x05 \x01(\tR\x04body\"X\n" +

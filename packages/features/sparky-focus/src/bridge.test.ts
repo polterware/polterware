@@ -6,7 +6,7 @@ import { fromJson, toJson } from "@bufbuild/protobuf";
 describe("protobuf JSON focus bridge", () => {
   it("sends RFC 3339 timestamps and the core focus_phase kind", async () => {
     const armOneOff = vi.fn(async (input?: unknown) => {
-      expect(input).toMatchObject({ kind: FOCUS_PHASE_KIND, fireAt: "2026-10-04T12:25:00.000Z", memoryId: "memory-1" });
+      expect(input).toMatchObject({ kind: FOCUS_PHASE_KIND, fireAt: "2026-10-04T12:25:00.000Z", noteId: "note-1" });
       return { id: "one-1", fireAt: "2026-10-04T12:25:00.000Z" };
     });
     const recordSession = vi.fn(async (input?: unknown) => {
@@ -14,10 +14,10 @@ describe("protobuf JSON focus bridge", () => {
       return { session: { id: "session-1", ...(input as object) } };
     });
     const bridge = createFocusBridge({
-      focus: { recordSession }, reminders: { armOneOff }, settings: { get: async () => ({ settings: {} }) }, memories: { get: async () => ({}) },
+      focus: { recordSession }, reminders: { armOneOff }, settings: { get: async () => ({ settings: {} }) }, notes: { get: async () => ({}) },
       onChange: () => () => {},
     } as unknown as FocusWireBridge);
-    await bridge.reminders.armOneOff({ kind: FOCUS_PHASE_KIND, memoryId: "memory-1", fireAt: "2026-10-04T12:25:00.000Z", title: "Focus complete", body: "Time for a break." });
+    await bridge.reminders.armOneOff({ kind: FOCUS_PHASE_KIND, noteId: "note-1", fireAt: "2026-10-04T12:25:00.000Z", title: "Focus complete", body: "Time for a break." });
     await bridge.focus.recordSession({
       phase: "work", plannedS: 1500, elapsedS: 1500, state: "completed",
       startedAt: "2026-10-04T12:00:00.000Z", endedAt: "2026-10-04T12:25:00.000Z",

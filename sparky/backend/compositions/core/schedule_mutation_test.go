@@ -9,7 +9,7 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/tx"
@@ -21,41 +21,41 @@ type fixedMutationClock struct{ at time.Time }
 
 func (c fixedMutationClock) Now() time.Time { return c.at }
 
-func mutationFixture(t *testing.T) (*sqlite.Store, activity.Audit, memory.Service) {
+func mutationFixture(t *testing.T) (*sqlite.Store, activity.Audit, note.Service) {
 	t.Helper()
 	s := searchStore(t)
 	WireSearch(s)
 	audit := activity.Audit{Repository: s.Activity(), Transactions: s, Clock: fixedMutationClock{time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)}, IDs: ids.Generator{}}
-	mem := memory.NewService(s.Memories(), s.Minds(), s.Tags(), s.Schedules(), schedule.Engine{Clock: audit.Clock}, audit)
+	mem := note.NewService(s.Notes(), s.Spaces(), s.Tags(), s.Schedules(), schedule.Engine{Clock: audit.Clock}, audit)
 	return s, audit, mem
 }
 
 func mutationSchedule(s *sqlite.Store, audit activity.Audit) scheduleRuntime {
-	return scheduleRuntime{clock: audit.Clock, audit: audit, memories: s.Memories(), schedules: s.Schedules()}
+	return scheduleRuntime{clock: audit.Clock, audit: audit, notes: s.Notes(), schedules: s.Schedules()}
 }
 
 func testSchedule(id string) schedule.Schedule {
-	return schedule.Schedule{MemoryID: id, Active: true, FireAt: time.Date(2026, 10, 5, 9, 0, 0, 0, time.UTC), TZ: "UTC", Every: 1, EndType: schedule.EndNever}
+	return schedule.Schedule{NoteID: id, Active: true, FireAt: time.Date(2026, 10, 5, 9, 0, 0, 0, time.UTC), TZ: "UTC", Every: 1, EndType: schedule.EndNever}
 }
 
-func TestScheduleAndPlaceMutationsInvalidateMemoryRevision(t *testing.T) {
+func TestScheduleAndPlaceMutationsInvalidateNoteRevision(t *testing.T) {
 	for _, name := range []string{"schedule-set", "schedule-clear", "focus-recipe", "place-set", "place-clear"} {
 		t.Run(name, func(t *testing.T) {
 			s, audit, mem := mutationFixture(t)
-			m := seedSearchMemory(t, s)
+			m := seedSearchNote(t, s)
 			sched := mutationSchedule(s, audit)
-			places := placeService{repo: s.Places(), memories: s.Memories(), clock: audit.Clock, audit: audit}
+			places := placeService{repo: s.Places(), notes: s.Notes(), clock: audit.Clock, audit: audit}
 			if name == "schedule-clear" || name == "focus-recipe" {
 				if _, err := sched.Set(t.Context(), actor.UI(), testSchedule(m.ID)); err != nil {
 					t.Fatal(err)
 				}
 			}
 			if name == "place-clear" {
-				if _, err := places.Set(t.Context(), place.Place{MemoryID: m.ID, Lat: 1, Lng: 2}, 0); err != nil {
+				if _, err := places.Set(t.Context(), place.Place{NoteID: m.ID, Lat: 1, Lng: 2}, 0); err != nil {
 					t.Fatal(err)
 				}
 			}
-			before, err := s.Memories().Get(t.Context(), m.ID)
+			before, err := s.Notes().Get(t.Context(), m.ID)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -67,19 +67,19 @@ func TestScheduleAndPlaceMutationsInvalidateMemoryRevision(t *testing.T) {
 			case "focus-recipe":
 				_, err = sched.SetFocusRecipe(t.Context(), actor.UI(), m.ID, schedule.FocusRecipe{Enabled: true, WorkMin: 25, ShortBreakMin: 5, LongBreakMin: 15, Cycles: 4})
 			case "place-set":
-				_, err = places.Set(t.Context(), place.Place{MemoryID: m.ID, Lat: 1, Lng: 2}, 0)
+				_, err = places.Set(t.Context(), place.Place{NoteID: m.ID, Lat: 1, Lng: 2}, 0)
 			case "place-clear":
 				err = places.Clear(t.Context(), m.ID, 0)
 			}
 			if err != nil {
 				t.Fatal(err)
 			}
-			after, err := s.Memories().Get(t.Context(), m.ID)
+			after, err := s.Notes().Get(t.Context(), m.ID)
 			if err != nil || after.Rev != before.Rev+1 || !after.UpdatedAt.Equal(audit.Clock.Now()) {
 				t.Fatalf("revision: before=%+v after=%+v err=%v", before, after, err)
 			}
 			title := "stale write"
-			if _, err := mem.Update(t.Context(), actor.UI(), m.ID, before.Rev, memory.Patch{Title: &title}); !fault.IsCode(err, fault.CodeConflict) {
+			if _, err := mem.Update(t.Context(), actor.UI(), m.ID, before.Rev, note.Patch{Title: &title}); !fault.IsCode(err, fault.CodeConflict) {
 				t.Fatalf("stale expectedRev accepted: %v", err)
 			}
 		})
@@ -103,7 +103,7 @@ func (p pausedMutation) Within(ctx context.Context, fn func(context.Context) err
 
 func TestFocusRecipeReadsScheduleInsideTransaction(t *testing.T) {
 	s, audit, _ := mutationFixture(t)
-	m := seedSearchMemory(t, s)
+	m := seedSearchNote(t, s)
 	sched := mutationSchedule(s, audit)
 	if _, err := sched.Set(t.Context(), actor.UI(), testSchedule(m.ID)); err != nil {
 		t.Fatal(err)
@@ -147,17 +147,17 @@ func (rejectedActivity) Append(context.Context, activity.Event) error {
 
 func TestScheduleAndPlaceRevisionRollbackWithAudit(t *testing.T) {
 	s, audit, _ := mutationFixture(t)
-	m := seedSearchMemory(t, s)
+	m := seedSearchNote(t, s)
 	audit.Repository = rejectedActivity{audit.Repository}
 	sched := mutationSchedule(s, audit)
 	if _, err := sched.Set(t.Context(), actor.UI(), testSchedule(m.ID)); err == nil {
 		t.Fatal("missing audit failure")
 	}
-	places := placeService{repo: s.Places(), memories: s.Memories(), clock: audit.Clock, audit: audit}
-	if _, err := places.Set(t.Context(), place.Place{MemoryID: m.ID}, 0); err == nil {
+	places := placeService{repo: s.Places(), notes: s.Notes(), clock: audit.Clock, audit: audit}
+	if _, err := places.Set(t.Context(), place.Place{NoteID: m.ID}, 0); err == nil {
 		t.Fatal("missing audit failure")
 	}
-	got, err := s.Memories().Get(t.Context(), m.ID)
+	got, err := s.Notes().Get(t.Context(), m.ID)
 	if err != nil || got.Rev != m.Rev {
 		t.Fatalf("revision escaped rollback: %+v %v", got, err)
 	}

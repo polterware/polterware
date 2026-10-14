@@ -13,7 +13,9 @@ describe("browser dev bridge", () => {
     for (const [namespace, methods] of Object.entries(RPC_METHODS)) {
       for (const method of methods) expect(typeof bridge[namespace]![method], `${namespace}.${method}`).toBe("function");
     }
-    expect(await (g.window.sparky as Window["sparky"]).memories.list({})).toMatchObject({ memories: [] });
+    const list = await (g.window.sparky as Window["sparky"]).notes.list({}) as unknown as { notes: unknown[]; total: number };
+    expect(list.notes.length).toBeGreaterThan(0);
+    expect(list.total).toBe(list.notes.length);
   });
   it("keeps an existing bridge", () => {
     const existing = {} as Window["sparky"];

@@ -36,7 +36,7 @@ type Defaults struct {
 // Session is one finished or stopped focus phase.
 type Session struct {
 	ID        string
-	MemoryID  *string
+	NoteID    *string
 	Phase     string
 	PlannedS  int
 	ElapsedS  int

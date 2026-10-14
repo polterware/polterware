@@ -10,7 +10,7 @@ func TestParseCommandInterspersed(t *testing.T) {
 		fs := flag.NewFlagSet("add", flag.ContinueOnError)
 		fs.String("due", "", "")
 		fs.String("repeat", "", "")
-		fs.String("mind", "", "")
+		fs.String("space", "", "")
 		fs.Bool("yes", false, "")
 		fs.Bool("json", false, "")
 		return fs

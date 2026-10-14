@@ -6,11 +6,11 @@ option go_package = "github.com/polterware/polterware/sparky/backend/platform/ge
 
 import "google/protobuf/timestamp.proto";
 
-// Schedule is the 1:1 rule for a memory.
+// Schedule is the 1:1 rule for a note.
 // freq empty means one-shot. weekday_mask bit 0 is Sunday.
 // end_type is never, until, or count.
 message Schedule {
-  string memory_id = 1;
+  string note_id = 1;
   optional bool active = 2;
   google.protobuf.Timestamp fire_at = 3;
   string tz = 4;
@@ -32,21 +32,21 @@ message Schedule {
 
 message OccurrenceCompletion {
   string id = 1;
-  string memory_id = 2;
+  string note_id = 2;
   google.protobuf.Timestamp occurrence_at = 3;
   google.protobuf.Timestamp completed_at = 4;
 }
 
 message Occurrence {
-  string memory_id = 1;
+  string note_id = 1;
   string title = 2;
   google.protobuf.Timestamp occurrence_at = 3;
   google.protobuf.Timestamp fire_at = 4;
   bool completed = 5;
   bool overdue = 6;
   bool all_day = 7;
-  string mind_id = 8;
-  // IANA time zone of the memory's schedule; civil dates (all-day) use it.
+  string space_id = 8;
+  // IANA time zone of the note's schedule; civil dates (all-day) use it.
   string tz = 9;
 }
 
@@ -59,7 +59,7 @@ message SetScheduleResponse {
 }
 
 message ClearScheduleRequest {
-  string memory_id = 1;
+  string note_id = 1;
 }
 
 message ClearScheduleResponse {}
@@ -77,7 +77,7 @@ message PreviewScheduleResponse {
 message ListOccurrencesRequest {
   google.protobuf.Timestamp from = 1;
   google.protobuf.Timestamp to = 2;
-  string mind_id = 3;
+  string space_id = 3;
   bool include_descendants = 4;
   repeated string tag_ids = 5;
   bool include_completed = 6;
@@ -89,7 +89,7 @@ message ListOccurrencesResponse {
 }
 
 message CompleteOccurrenceRequest {
-  string memory_id = 1;
+  string note_id = 1;
   google.protobuf.Timestamp occurrence_at = 2;
 }
 
@@ -98,14 +98,14 @@ message CompleteOccurrenceResponse {
 }
 
 message ReopenOccurrenceRequest {
-  string memory_id = 1;
+  string note_id = 1;
   google.protobuf.Timestamp occurrence_at = 2;
 }
 
 message ReopenOccurrenceResponse {}
 
 message SetFocusRecipeRequest {
-  string memory_id = 1;
+  string note_id = 1;
   bool enabled = 2;
   int32 work_min = 3;
   int32 short_break_min = 4;

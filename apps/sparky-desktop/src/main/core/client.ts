@@ -1,11 +1,11 @@
 import { createClient, type Interceptor } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-node";
-import { MemoryService, MindService, TagService, ScheduleService, PlaceService, AttachmentService, FocusService,
+import { NoteService, SpaceService, TagService, ScheduleService, PlaceService, AttachmentService, FocusService,
   ReviewService, SearchService, ReminderService, ActivityService, SettingsService, AgentAccessService,
   MaintenanceService, HealthService, ChangeService } from "@polterware/sparky-contracts";
 
 export const services = {
-  memories: MemoryService, minds: MindService, tags: TagService, schedule: ScheduleService,
+  notes: NoteService, spaces: SpaceService, tags: TagService, schedule: ScheduleService,
   places: PlaceService, attachments: AttachmentService, focus: FocusService, review: ReviewService,
   search: SearchService, reminders: ReminderService, activity: ActivityService, settings: SettingsService,
   agents: AgentAccessService, maintenance: MaintenanceService,
@@ -24,7 +24,7 @@ export function createCoreClients(endpoint: string, token: string) {
   };
   const transport = createConnectTransport({ baseUrl: validateEndpoint(endpoint), httpVersion: "1.1", interceptors: [auth] });
   return {
-    memories: createClient(MemoryService, transport), minds: createClient(MindService, transport),
+    notes: createClient(NoteService, transport), spaces: createClient(SpaceService, transport),
     tags: createClient(TagService, transport), schedule: createClient(ScheduleService, transport),
     places: createClient(PlaceService, transport), attachments: createClient(AttachmentService, transport),
     focus: createClient(FocusService, transport), review: createClient(ReviewService, transport),

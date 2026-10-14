@@ -64,8 +64,8 @@ func Start(ln net.Listener, cfg Config) (*Server, error) {
 	mux := http.NewServeMux()
 	opts := []connect.HandlerOption{connect.WithInterceptors(serverInterceptor{s: s}), connect.WithReadMaxBytes(8 << 20)}
 	mux.Handle(rpc.NewHealthServiceHandler(healthHandler{s: s}, opts...))
-	mux.Handle(rpc.NewMindServiceHandler(mindHandler{s: cfg.Services.Minds}, opts...))
-	mux.Handle(rpc.NewMemoryServiceHandler(memoryHandler{services: cfg.Services}, opts...))
+	mux.Handle(rpc.NewSpaceServiceHandler(spaceHandler{s: cfg.Services.Spaces}, opts...))
+	mux.Handle(rpc.NewNoteServiceHandler(noteHandler{services: cfg.Services}, opts...))
 	mux.Handle(rpc.NewTagServiceHandler(tagHandler{s: cfg.Services.Tags}, opts...))
 	mux.Handle(rpc.NewFocusServiceHandler(focusHandler{s: cfg.Services.Focus}, opts...))
 	mux.Handle(rpc.NewReviewServiceHandler(reviewHandler{s: cfg.Services.Review}, opts...))

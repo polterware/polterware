@@ -56,7 +56,7 @@ func (i storeSearchIndex) Rebuild(ctx context.Context, docs []search.Document) e
 type storeDocuments struct{ store *sqlite.Store }
 
 func (s storeDocuments) ListSearchDocuments(ctx context.Context) ([]search.Document, error) {
-	rows, err := s.store.Handle().Q(ctx, false).QueryContext(ctx, `SELECT id FROM memories ORDER BY id`)
+	rows, err := s.store.Handle().Q(ctx, false).QueryContext(ctx, `SELECT id FROM notes ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +86,9 @@ func (s storeDocuments) ListSearchDocuments(ctx context.Context) ([]search.Docum
 	return docs, nil
 }
 
-func searchFilterFromRequest(in *v1.SearchMemoriesRequest) search.Filter {
+func searchFilterFromRequest(in *v1.SearchNotesRequest) search.Filter {
 	return search.Filter{
-		MindID:             stringPtr(in.MindId),
+		SpaceID:            stringPtr(in.SpaceId),
 		IncludeDescendants: in.IncludeDescendants,
 		TagIDs:             in.TagIds,
 		Status:             in.Status,
@@ -100,15 +100,15 @@ func searchFilterFromRequest(in *v1.SearchMemoriesRequest) search.Filter {
 	}
 }
 
-func (h searchHandler) Search(ctx context.Context, r *connect.Request[v1.SearchMemoriesRequest]) (*connect.Response[v1.SearchMemoriesResponse], error) {
+func (h searchHandler) Search(ctx context.Context, r *connect.Request[v1.SearchNotesRequest]) (*connect.Response[v1.SearchNotesResponse], error) {
 	if h.s == nil {
 		return nil, unavailable("search")
 	}
 	in := r.Msg
 	result, err := h.s.Search(ctx, in.Query, searchFilterFromRequest(in))
-	out := &v1.SearchMemoriesResponse{Notice: result.Notice}
+	out := &v1.SearchNotesResponse{Notice: result.Notice}
 	for _, hit := range result.Hits {
-		out.Hits = append(out.Hits, &v1.SearchHit{MemoryId: hit.MemoryID, Title: hit.Title, Score: hit.Score, Snippet: hit.Snippet, MatchedIn: hit.MatchedIn})
+		out.Hits = append(out.Hits, &v1.SearchHit{NoteId: hit.NoteID, Title: hit.Title, Score: hit.Score, Snippet: hit.Snippet, MatchedIn: hit.MatchedIn})
 	}
 	return response(out, err)
 }
@@ -124,7 +124,7 @@ func (h searchHandler) Reindex(ctx context.Context, _ *connect.Request[v1.Reinde
 		return nil, unavailable("search")
 	}
 	n, err := h.s.Reindex(ctx)
-	return response(&v1.ReindexResponse{Memories: int32(n)}, err)
+	return response(&v1.ReindexResponse{Notes: int32(n)}, err)
 }
 
 type attachmentHandler struct{ s attachments.Service }
@@ -134,7 +134,7 @@ func (h attachmentHandler) ImportFromPath(ctx context.Context, r *connect.Reques
 		return nil, unavailable("attachments")
 	}
 	in := r.Msg
-	a, err := h.s.ImportFromPath(ctx, in.MemoryId, in.SourcePath, in.Name, in.GetExpectedRev())
+	a, err := h.s.ImportFromPath(ctx, in.NoteId, in.SourcePath, in.Name, in.GetExpectedRev())
 	return response(&v1.ImportAttachmentResponse{Attachment: attachmentProto(a)}, err)
 }
 func (h attachmentHandler) AddLink(ctx context.Context, r *connect.Request[v1.AddLinkRequest]) (*connect.Response[v1.AddLinkResponse], error) {
@@ -142,14 +142,14 @@ func (h attachmentHandler) AddLink(ctx context.Context, r *connect.Request[v1.Ad
 		return nil, unavailable("attachments")
 	}
 	in := r.Msg
-	a, err := h.s.AddLink(ctx, in.MemoryId, in.Url, in.Title, in.GetExpectedRev())
+	a, err := h.s.AddLink(ctx, in.NoteId, in.Url, in.Title, in.GetExpectedRev())
 	return response(&v1.AddLinkResponse{Attachment: attachmentProto(a)}, err)
 }
 func (h attachmentHandler) List(ctx context.Context, r *connect.Request[v1.ListAttachmentsRequest]) (*connect.Response[v1.ListAttachmentsResponse], error) {
 	if h.s == nil {
 		return nil, unavailable("attachments")
 	}
-	items, err := h.s.List(ctx, r.Msg.MemoryId)
+	items, err := h.s.List(ctx, r.Msg.NoteId)
 	out := &v1.ListAttachmentsResponse{}
 	for _, a := range items {
 		out.Attachments = append(out.Attachments, attachmentProto(a))
@@ -167,7 +167,7 @@ func (h attachmentHandler) Reorder(ctx context.Context, r *connect.Request[v1.Re
 	if h.s == nil {
 		return nil, unavailable("attachments")
 	}
-	items, err := h.s.Reorder(ctx, r.Msg.MemoryId, r.Msg.OrderedIds)
+	items, err := h.s.Reorder(ctx, r.Msg.NoteId, r.Msg.OrderedIds)
 	out := &v1.ReorderAttachmentsResponse{}
 	for _, a := range items {
 		out.Attachments = append(out.Attachments, attachmentProto(a))

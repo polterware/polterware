@@ -10,7 +10,7 @@ import (
 // ShapeBody produces the first 140 Unicode characters of plain text. It removes
 // Markdown presentation, link destinations, HTML tags, and list/check markers,
 // preserving readable labels and code contents. Scanning stops at the prefix.
-func ShapeBody(note string) string {
+func ShapeBody(content string) string {
 	out := make([]rune, 0, 140)
 	space, lineStart, fenced := false, true, false
 	appendText := func(text string) {
@@ -31,10 +31,10 @@ func ShapeBody(note string) string {
 			}
 		}
 	}
-	for i := 0; i < len(note) && len(out) < 140; {
-		if lineStart && (strings.HasPrefix(note[i:], "```") || strings.HasPrefix(note[i:], "~~~")) {
+	for i := 0; i < len(content) && len(out) < 140; {
+		if lineStart && (strings.HasPrefix(content[i:], "```") || strings.HasPrefix(content[i:], "~~~")) {
 			fenced = !fenced
-			if end := strings.IndexByte(note[i:], '\n'); end >= 0 {
+			if end := strings.IndexByte(content[i:], '\n'); end >= 0 {
 				i += end + 1
 			} else {
 				break
@@ -42,7 +42,7 @@ func ShapeBody(note string) string {
 			lineStart, space = true, len(out) != 0
 			continue
 		}
-		r, size := utf8.DecodeRuneInString(note[i:])
+		r, size := utf8.DecodeRuneInString(content[i:])
 		if r == '\n' || r == '\r' {
 			lineStart = true
 		}
@@ -58,21 +58,21 @@ func ShapeBody(note string) string {
 			}
 			if lineStart && r >= '0' && r <= '9' {
 				j := i
-				for j < len(note) && note[j] >= '0' && note[j] <= '9' {
+				for j < len(content) && content[j] >= '0' && content[j] <= '9' {
 					j++
 				}
-				if j+1 < len(note) && (note[j] == '.' || note[j] == ')') && note[j+1] == ' ' {
+				if j+1 < len(content) && (content[j] == '.' || content[j] == ')') && content[j+1] == ' ' {
 					i = j + 2
 					continue
 				}
 			}
-			if lineStart && (strings.HasPrefix(note[i:], "[ ] ") || strings.HasPrefix(note[i:], "[x] ") || strings.HasPrefix(note[i:], "[X] ")) {
+			if lineStart && (strings.HasPrefix(content[i:], "[ ] ") || strings.HasPrefix(content[i:], "[x] ") || strings.HasPrefix(content[i:], "[X] ")) {
 				i += 4
 				continue
 			}
 			if r == '<' {
-				if end := strings.IndexByte(note[i:], '>'); end >= 0 {
-					inside := note[i+1 : i+end]
+				if end := strings.IndexByte(content[i:], '>'); end >= 0 {
+					inside := content[i+1 : i+end]
 					if strings.HasPrefix(inside, "https://") || strings.HasPrefix(inside, "http://") {
 						appendText(inside)
 						i += end + 1
@@ -83,7 +83,7 @@ func ShapeBody(note string) string {
 					continue
 				}
 			}
-			if r == '!' && i+1 < len(note) && note[i+1] == '[' {
+			if r == '!' && i+1 < len(content) && content[i+1] == '[' {
 				i++
 				continue
 			}
@@ -93,20 +93,20 @@ func ShapeBody(note string) string {
 			}
 			if r == ']' {
 				i++
-				if i < len(note) && note[i] == '(' {
+				if i < len(content) && content[i] == '(' {
 					depth := 1
 					i++
-					for i < len(note) && depth > 0 {
-						if note[i] == '(' {
+					for i < len(content) && depth > 0 {
+						if content[i] == '(' {
 							depth++
 						}
-						if note[i] == ')' {
+						if content[i] == ')' {
 							depth--
 						}
 						i++
 					}
-				} else if i < len(note) && note[i] == '[' {
-					if end := strings.IndexByte(note[i:], ']'); end >= 0 {
+				} else if i < len(content) && content[i] == '[' {
+					if end := strings.IndexByte(content[i:], ']'); end >= 0 {
 						i += end + 1
 					}
 				}
@@ -116,14 +116,14 @@ func ShapeBody(note string) string {
 				i += size
 				continue
 			}
-			if r == '\\' && i+size < len(note) {
+			if r == '\\' && i+size < len(content) {
 				i += size
-				r, size = utf8.DecodeRuneInString(note[i:])
+				r, size = utf8.DecodeRuneInString(content[i:])
 			}
 			if r == '&' {
-				end := strings.IndexByte(note[i:min(i+16, len(note))], ';')
+				end := strings.IndexByte(content[i:min(i+16, len(content))], ';')
 				if end >= 0 {
-					encoded := note[i : i+end+1]
+					encoded := content[i : i+end+1]
 					decoded := html.UnescapeString(encoded)
 					if decoded != encoded {
 						appendText(decoded)

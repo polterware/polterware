@@ -7,8 +7,8 @@ import (
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 )
 
 func sentence(err error) string {
@@ -19,13 +19,13 @@ func sentence(err error) string {
 	if errors.As(err, &domain) {
 		if domain.Code == fault.CodeConflict {
 			title := domain.EntityID
-			if current, ok := domain.Current.(memory.Memory); ok && current.Title != "" {
+			if current, ok := domain.Current.(note.Note); ok && current.Title != "" {
 				title = current.Title
 			}
-			if current, ok := domain.Current.(memory.Summary); ok && current.Title != "" {
+			if current, ok := domain.Current.(note.Summary); ok && current.Title != "" {
 				title = current.Title
 			}
-			if current, ok := domain.Current.(mind.Mind); ok && current.Name != "" {
+			if current, ok := domain.Current.(space.Space); ok && current.Name != "" {
 				title = current.Name
 			}
 			return fmt.Sprintf("%s changed since this session last read it (rev %d). Current: %q.", domain.Entity, domain.Rev, title)

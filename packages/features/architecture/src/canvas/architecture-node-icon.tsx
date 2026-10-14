@@ -1,6 +1,6 @@
 import {
-  DitherIconTile,
-  resolveDitherIconAccent,
+  IconTile,
+  resolveIconTileAccent,
 } from "@polterware/frontend-design-system";
 import { NodeIcon } from "../domain/node-icon";
 import {
@@ -13,14 +13,14 @@ export { resolveNodeIconName };
 
 export function nodeAccentColor(node: NodeIconIdentity): string {
   const iconName = resolveNodeIconName(node);
-  return resolveDitherIconAccent(
+  return resolveIconTileAccent(
     [iconName, node.subtype ?? "", node.provider ?? ""],
     "architecture",
   );
 }
 
 export function nodeIconAccent(name: string, provider?: string): string {
-  return resolveDitherIconAccent([name, provider ?? ""], "neutral");
+  return resolveIconTileAccent([name, provider ?? ""], "neutral");
 }
 
 export function ArchitectureNodeIcon(props: {
@@ -36,7 +36,7 @@ export function ArchitectureNodeIcon(props: {
 
   return (
     <span class="architecture-node-icon-wrapper">
-      <DitherIconTile
+      <IconTile
         size={props.tiny ? 16 : props.compact ? 20 : 28}
         tone="architecture"
         brand={[props.name, props.subtype ?? "", props.provider ?? ""]}
@@ -48,7 +48,7 @@ export function ArchitectureNodeIcon(props: {
           size={iconSize()}
           brand={false}
         />
-      </DitherIconTile>
+      </IconTile>
     </span>
   );
 }

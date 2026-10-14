@@ -21,8 +21,8 @@ type Repository interface {
 type Service interface {
 	Plan(ctx context.Context, q schedule.PlanQuery) ([]schedule.ReminderItem, error)
 	Ack(ctx context.Context, id, outcome string) error
-	Snooze(ctx context.Context, memoryID string, occurrenceAt time.Time, minutes int) (OneOff, error)
-	ArmOneOff(ctx context.Context, kind, memoryID string, fireAt time.Time, title, body string) (OneOff, error)
+	Snooze(ctx context.Context, noteID string, occurrenceAt time.Time, minutes int) (OneOff, error)
+	ArmOneOff(ctx context.Context, kind, noteID string, fireAt time.Time, title, body string) (OneOff, error)
 	CancelOneOff(ctx context.Context, id string) error
 	Heartbeat(ctx context.Context, hb Heartbeat) (time.Time, error)
 	Status(ctx context.Context) (Status, error)

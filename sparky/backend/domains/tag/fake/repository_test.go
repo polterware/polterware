@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/polterware/polterware/sparky/backend/domains/activity/fake/testkit"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 	"testing"
 )
@@ -45,7 +45,7 @@ func TestTagRepositoryContract(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, id := range []string{"a", "b"} {
-		if e = f.Mem.Insert(ctx, memory.Memory{ID: id}); e != nil {
+		if e = f.Mem.Insert(ctx, note.Note{ID: id}); e != nil {
 			t.Fatal(e)
 		}
 		if e = f.Mem.SetTagIDs(ctx, id, []string{one.ID, two.ID}); e != nil {

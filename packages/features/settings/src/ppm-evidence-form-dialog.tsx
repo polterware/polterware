@@ -6,8 +6,7 @@ import {
   Field,
   Input,
   Select,
-  Textarea,
-} from "@polterware/frontend-design-system";
+  Textarea, FormStack } from "@polterware/frontend-design-system";
 import {
   PPM_EVIDENCE_KIND_OPTIONS,
   type PpmEvidenceDraft,
@@ -63,7 +62,7 @@ export function PpmEvidenceFormDialog(props: {
         </>
       }
     >
-      <div class="grid gap-3">
+      <FormStack>
         <Field label="Kind">
           <Select
             options={[...PPM_EVIDENCE_KIND_OPTIONS]}
@@ -93,7 +92,7 @@ export function PpmEvidenceFormDialog(props: {
             onCheckedChange={(checked) => setLinkToSelectedFact(checked)}
           />
         </Show>
-      </div>
+      </FormStack>
     </A11yDialog>
   );
 }

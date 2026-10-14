@@ -22,12 +22,12 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Schedule is the 1:1 rule for a memory.
+// Schedule is the 1:1 rule for a note.
 // freq empty means one-shot. weekday_mask bit 0 is Sunday.
 // end_type is never, until, or count.
 type Schedule struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId           string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId             string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	Active             *bool                  `protobuf:"varint,2,opt,name=active,proto3,oneof" json:"active,omitempty"`
 	FireAt             *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=fire_at,json=fireAt,proto3" json:"fire_at,omitempty"`
 	Tz                 string                 `protobuf:"bytes,4,opt,name=tz,proto3" json:"tz,omitempty"`
@@ -79,9 +79,9 @@ func (*Schedule) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_schedule_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Schedule) GetMemoryId() string {
+func (x *Schedule) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -208,7 +208,7 @@ func (x *Schedule) GetUpdatedAt() *timestamppb.Timestamp {
 type OccurrenceCompletion struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	MemoryId      string                 `protobuf:"bytes,2,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,2,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	OccurrenceAt  *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurrence_at,json=occurrenceAt,proto3" json:"occurrence_at,omitempty"`
 	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -252,9 +252,9 @@ func (x *OccurrenceCompletion) GetId() string {
 	return ""
 }
 
-func (x *OccurrenceCompletion) GetMemoryId() string {
+func (x *OccurrenceCompletion) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -275,15 +275,15 @@ func (x *OccurrenceCompletion) GetCompletedAt() *timestamppb.Timestamp {
 
 type Occurrence struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId     string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId       string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	Title        string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	OccurrenceAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurrence_at,json=occurrenceAt,proto3" json:"occurrence_at,omitempty"`
 	FireAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fire_at,json=fireAt,proto3" json:"fire_at,omitempty"`
 	Completed    bool                   `protobuf:"varint,5,opt,name=completed,proto3" json:"completed,omitempty"`
 	Overdue      bool                   `protobuf:"varint,6,opt,name=overdue,proto3" json:"overdue,omitempty"`
 	AllDay       bool                   `protobuf:"varint,7,opt,name=all_day,json=allDay,proto3" json:"all_day,omitempty"`
-	MindId       string                 `protobuf:"bytes,8,opt,name=mind_id,json=mindId,proto3" json:"mind_id,omitempty"`
-	// IANA time zone of the memory's schedule; civil dates (all-day) use it.
+	SpaceId      string                 `protobuf:"bytes,8,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
+	// IANA time zone of the note's schedule; civil dates (all-day) use it.
 	Tz            string `protobuf:"bytes,9,opt,name=tz,proto3" json:"tz,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -319,9 +319,9 @@ func (*Occurrence) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_schedule_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *Occurrence) GetMemoryId() string {
+func (x *Occurrence) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -368,9 +368,9 @@ func (x *Occurrence) GetAllDay() bool {
 	return false
 }
 
-func (x *Occurrence) GetMindId() string {
+func (x *Occurrence) GetSpaceId() string {
 	if x != nil {
-		return x.MindId
+		return x.SpaceId
 	}
 	return ""
 }
@@ -472,7 +472,7 @@ func (x *SetScheduleResponse) GetSchedule() *Schedule {
 
 type ClearScheduleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -507,9 +507,9 @@ func (*ClearScheduleRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_schedule_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ClearScheduleRequest) GetMemoryId() string {
+func (x *ClearScheduleRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -658,7 +658,7 @@ type ListOccurrencesRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	From               *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
 	To                 *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
-	MindId             string                 `protobuf:"bytes,3,opt,name=mind_id,json=mindId,proto3" json:"mind_id,omitempty"`
+	SpaceId            string                 `protobuf:"bytes,3,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	IncludeDescendants bool                   `protobuf:"varint,4,opt,name=include_descendants,json=includeDescendants,proto3" json:"include_descendants,omitempty"`
 	TagIds             []string               `protobuf:"bytes,5,rep,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
 	IncludeCompleted   bool                   `protobuf:"varint,6,opt,name=include_completed,json=includeCompleted,proto3" json:"include_completed,omitempty"`
@@ -711,9 +711,9 @@ func (x *ListOccurrencesRequest) GetTo() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *ListOccurrencesRequest) GetMindId() string {
+func (x *ListOccurrencesRequest) GetSpaceId() string {
 	if x != nil {
-		return x.MindId
+		return x.SpaceId
 	}
 	return ""
 }
@@ -792,7 +792,7 @@ func (x *ListOccurrencesResponse) GetOccurrences() []*Occurrence {
 
 type CompleteOccurrenceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	OccurrenceAt  *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=occurrence_at,json=occurrenceAt,proto3" json:"occurrence_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -828,9 +828,9 @@ func (*CompleteOccurrenceRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_schedule_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *CompleteOccurrenceRequest) GetMemoryId() string {
+func (x *CompleteOccurrenceRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -888,7 +888,7 @@ func (x *CompleteOccurrenceResponse) GetCompletion() *OccurrenceCompletion {
 
 type ReopenOccurrenceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	OccurrenceAt  *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=occurrence_at,json=occurrenceAt,proto3" json:"occurrence_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -924,9 +924,9 @@ func (*ReopenOccurrenceRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_schedule_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *ReopenOccurrenceRequest) GetMemoryId() string {
+func (x *ReopenOccurrenceRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -976,7 +976,7 @@ func (*ReopenOccurrenceResponse) Descriptor() ([]byte, []int) {
 
 type SetFocusRecipeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	Enabled       bool                   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	WorkMin       int32                  `protobuf:"varint,3,opt,name=work_min,json=workMin,proto3" json:"work_min,omitempty"`
 	ShortBreakMin int32                  `protobuf:"varint,4,opt,name=short_break_min,json=shortBreakMin,proto3" json:"short_break_min,omitempty"`
@@ -1017,9 +1017,9 @@ func (*SetFocusRecipeRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_schedule_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *SetFocusRecipeRequest) GetMemoryId() string {
+func (x *SetFocusRecipeRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -1114,9 +1114,9 @@ var File_sparky_v1_schedule_proto protoreflect.FileDescriptor
 
 const file_sparky_v1_schedule_proto_rawDesc = "" +
 	"\n" +
-	"\x18sparky/v1/schedule.proto\x12\tsparky.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe5\x06\n" +
-	"\bSchedule\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x1b\n" +
+	"\x18sparky/v1/schedule.proto\x12\tsparky.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe1\x06\n" +
+	"\bSchedule\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x1b\n" +
 	"\x06active\x18\x02 \x01(\bH\x00R\x06active\x88\x01\x01\x123\n" +
 	"\afire_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06fireAt\x12\x0e\n" +
 	"\x02tz\x18\x04 \x01(\tR\x02tz\x12\x17\n" +
@@ -1143,59 +1143,59 @@ const file_sparky_v1_schedule_proto_rawDesc = "" +
 	"\x16_focus_short_break_minB\x17\n" +
 	"\x15_focus_long_break_minB\x0f\n" +
 	"\r_focus_cyclesB\x16\n" +
-	"\x14_focus_auto_continue\"\xc3\x01\n" +
+	"\x14_focus_auto_continue\"\xbf\x01\n" +
 	"\x14OccurrenceCompletion\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
-	"\tmemory_id\x18\x02 \x01(\tR\bmemoryId\x12?\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12?\n" +
 	"\roccurrence_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\foccurrenceAt\x12=\n" +
-	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\"\xaf\x02\n" +
+	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\"\xad\x02\n" +
 	"\n" +
-	"Occurrence\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x14\n" +
+	"Occurrence\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12?\n" +
 	"\roccurrence_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\foccurrenceAt\x123\n" +
 	"\afire_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06fireAt\x12\x1c\n" +
 	"\tcompleted\x18\x05 \x01(\bR\tcompleted\x12\x18\n" +
 	"\aoverdue\x18\x06 \x01(\bR\aoverdue\x12\x17\n" +
-	"\aall_day\x18\a \x01(\bR\x06allDay\x12\x17\n" +
-	"\amind_id\x18\b \x01(\tR\x06mindId\x12\x0e\n" +
+	"\aall_day\x18\a \x01(\bR\x06allDay\x12\x19\n" +
+	"\bspace_id\x18\b \x01(\tR\aspaceId\x12\x0e\n" +
 	"\x02tz\x18\t \x01(\tR\x02tz\"E\n" +
 	"\x12SetScheduleRequest\x12/\n" +
 	"\bschedule\x18\x01 \x01(\v2\x13.sparky.v1.ScheduleR\bschedule\"F\n" +
 	"\x13SetScheduleResponse\x12/\n" +
-	"\bschedule\x18\x01 \x01(\v2\x13.sparky.v1.ScheduleR\bschedule\"3\n" +
-	"\x14ClearScheduleRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\"\x17\n" +
+	"\bschedule\x18\x01 \x01(\v2\x13.sparky.v1.ScheduleR\bschedule\"/\n" +
+	"\x14ClearScheduleRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\"\x17\n" +
 	"\x15ClearScheduleResponse\"_\n" +
 	"\x16PreviewScheduleRequest\x12/\n" +
 	"\bschedule\x18\x01 \x01(\v2\x13.sparky.v1.ScheduleR\bschedule\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"y\n" +
 	"\x17PreviewScheduleResponse\x12<\n" +
 	"\voccurrences\x18\x01 \x03(\v2\x1a.google.protobuf.TimestampR\voccurrences\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\"\x9a\x02\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\"\x9c\x02\n" +
 	"\x16ListOccurrencesRequest\x12.\n" +
 	"\x04from\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x04from\x12*\n" +
-	"\x02to\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x02to\x12\x17\n" +
-	"\amind_id\x18\x03 \x01(\tR\x06mindId\x12/\n" +
+	"\x02to\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x02to\x12\x19\n" +
+	"\bspace_id\x18\x03 \x01(\tR\aspaceId\x12/\n" +
 	"\x13include_descendants\x18\x04 \x01(\bR\x12includeDescendants\x12\x17\n" +
 	"\atag_ids\x18\x05 \x03(\tR\x06tagIds\x12+\n" +
 	"\x11include_completed\x18\x06 \x01(\bR\x10includeCompleted\x12\x14\n" +
 	"\x05limit\x18\a \x01(\x05R\x05limit\"R\n" +
 	"\x17ListOccurrencesResponse\x127\n" +
-	"\voccurrences\x18\x01 \x03(\v2\x15.sparky.v1.OccurrenceR\voccurrences\"y\n" +
-	"\x19CompleteOccurrenceRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12?\n" +
+	"\voccurrences\x18\x01 \x03(\v2\x15.sparky.v1.OccurrenceR\voccurrences\"u\n" +
+	"\x19CompleteOccurrenceRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12?\n" +
 	"\roccurrence_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\foccurrenceAt\"]\n" +
 	"\x1aCompleteOccurrenceResponse\x12?\n" +
 	"\n" +
 	"completion\x18\x01 \x01(\v2\x1f.sparky.v1.OccurrenceCompletionR\n" +
-	"completion\"w\n" +
-	"\x17ReopenOccurrenceRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12?\n" +
+	"completion\"s\n" +
+	"\x17ReopenOccurrenceRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12?\n" +
 	"\roccurrence_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\foccurrenceAt\"\x1a\n" +
-	"\x18ReopenOccurrenceResponse\"\xf4\x01\n" +
-	"\x15SetFocusRecipeRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x18\n" +
+	"\x18ReopenOccurrenceResponse\"\xf0\x01\n" +
+	"\x15SetFocusRecipeRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12\x19\n" +
 	"\bwork_min\x18\x03 \x01(\x05R\aworkMin\x12&\n" +
 	"\x0fshort_break_min\x18\x04 \x01(\x05R\rshortBreakMin\x12$\n" +

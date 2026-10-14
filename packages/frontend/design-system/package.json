@@ -21,6 +21,7 @@
     "@polterware/frontend-state": "workspace:*",
     "@tanstack/solid-virtual": "3.13.40",
     "@tiptap/core": "^3.31.3",
+    "@tiptap/extension-list": "^3.31.3",
     "@tiptap/extension-placeholder": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
     "marked": "^18.0.14",

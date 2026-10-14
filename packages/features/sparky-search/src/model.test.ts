@@ -17,14 +17,14 @@ describe("FTS5 snippet markers", () => {
   });
 });
 
-describe("SearchMemoriesRequest mapping", () => {
-  it("sends mind, descendants, tags, status, limit, and v1.2 date filters as RFC 3339 strings", () => {
+describe("SearchNotesRequest mapping", () => {
+  it("sends space, descendants, tags, status, limit, and v1.2 date filters as RFC 3339 strings", () => {
     const now = new Date(2026, 9, 4, 15, 0, 0);
     const request = buildSearchRequest("milk", {
-      ...EMPTY_FILTERS, mindId: "mind-1", includeDescendants: true, tagIds: ["tag-1"], status: "active", due: "today", updated: "last7",
+      ...EMPTY_FILTERS, spaceId: "space-1", includeDescendants: true, tagIds: ["tag-1"], status: "active", due: "today", updated: "last7",
     }, now, 50);
     expect(request).toMatchObject({
-      query: "milk", mindId: "mind-1", includeDescendants: true, tagIds: ["tag-1"], status: "active", limit: 50,
+      query: "milk", spaceId: "space-1", includeDescendants: true, tagIds: ["tag-1"], status: "active", limit: 50,
     });
     expect(request.dueFrom).toMatch(/^2026-10-04T/);
     expect(request.dueTo).toMatch(/^2026-10-0[45]T/);
@@ -33,10 +33,10 @@ describe("SearchMemoriesRequest mapping", () => {
   });
 });
 
-describe("10k-memory UI window", () => {
+describe("10k-note UI window", () => {
   it("keeps windowing and snippet work under 100 ms", () => {
     const hits = Array.from({ length: 10_000 }, (_, index) => ({
-      memoryId: `memory-${index}`, title: `Memory ${index}`, snippet: `before <b>match</b> ${index}`, matchedIn: ["note"],
+      noteId: `note-${index}`, title: `Note ${index}`, snippet: `before <b>match</b> ${index}`, matchedIn: ["content"],
     }));
     const start = performance.now();
     const visible = windowHits(hits, RESULT_WINDOW);

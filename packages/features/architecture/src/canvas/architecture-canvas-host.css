@@ -112,7 +112,7 @@
   color: var(--color-text-primary);
 }
 
-.atlas-domain-frame__label .pw-dither-icon {
+.atlas-domain-frame__label .pw-icon-tile {
   border-radius: 9999px;
 }
 
@@ -149,8 +149,8 @@
   }
 }
 
-.architecture-node-card .pw-dither-icon,
-.architecture-node-card .pw-dither-icon-mark,
+.architecture-node-card .pw-icon-tile,
+.architecture-node-card .pw-icon-tile-mark,
 .architecture-node-icon-wrapper {
   transition:
     background-color 120ms var(--ease-standard),

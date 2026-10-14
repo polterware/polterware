@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, X } from "./hugeicons";
-import { DitherIconTile, type DitherIconTone } from "./dither-icon";
+import { IconTile, type IconTileTone } from "./icon-tile";
 import { useDesignSystem } from "./provider";
 import {
   For,
@@ -1076,6 +1076,7 @@ function DataTableRow<T = any>(props: {
   rowId?: string;
   children: JSX.Element;
   onActivate?: (row: T) => void;
+  onContextMenu?: (event: MouseEvent, row: T) => void;
   "aria-label"?: string;
   class?: string;
 }) {
@@ -1119,6 +1120,7 @@ function DataTableRow<T = any>(props: {
       aria-current={active() ? "true" : undefined}
       aria-label={props["aria-label"]}
       tabIndex={interactive() ? 0 : undefined}
+      onContextMenu={(event) => props.onContextMenu?.(event, props.row)}
       onClick={(event) => {
         if (!interactive() || isDataTableInteractiveTarget(event.target, event.currentTarget)) return;
         activate();
@@ -1179,7 +1181,7 @@ export type DataTablePrimaryCellProps = {
 } & (
   | {
       icon: JSX.Element;
-      iconTone: DitherIconTone;
+      iconTone: IconTileTone;
       iconBrand?: string | readonly string[];
       leading?: never;
     }
@@ -1197,9 +1199,9 @@ function DataTablePrimaryCell(props: DataTablePrimaryCellProps) {
   const leading = createMemo(() => {
     const icon = props.icon;
     return icon ? (
-      <DitherIconTile size={24} tone={props.iconTone} brand={props.iconBrand}>
+      <IconTile size={24} tone={props.iconTone} brand={props.iconBrand}>
         {icon}
-      </DitherIconTile>
+      </IconTile>
     ) : props.leading;
   });
   return (

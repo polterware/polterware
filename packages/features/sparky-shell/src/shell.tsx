@@ -1,30 +1,32 @@
-import { createEffect, createMemo, createResource, createSignal, ErrorBoundary, For, onCleanup, onMount, Show, type Component } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, ErrorBoundary, For, on, onCleanup, onMount, Show, type Component } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import {
-  Button, CalendarClock, Clock, DetailPanel, DesignSystemProvider,
-  Dialog, DitherIconTile, Folder, HelpCircle, Inbox, MapPin, MenuItem, MenuList, PageEmpty, PageError,
-  FloatingWindow, PageHeader, PageLoading, PageOffline, Plus, Popover, Search, Settings, StatusChip, ToastRegion, TreeView, pushToast, type TreeViewNode,
+  A11yDialog, Activity, Badge, ChevronLeft, ChevronRight, Bell, Bot, Button, CalendarClock, Cog, Cpu, Database, Hammer, Input, Layers, Clock, DetailPanel, DesignSystemProvider,
+  Dialog, IconTile, Folder, HelpCircle, Inbox, MapPin, MenuItem, MenuList, PageEmpty, PageError,
+  PageHeader, PageLoading, PageOffline, Popover, Search, Settings, StatusChip, X, ToastRegion, TreeView, pushToast, type TreeViewNode,
 } from "@polterware/frontend-design-system";
-import { MainFrame, MainSurfaceFrame, ShellRoot, SidebarFrame } from "@polterware/frontend-shell";
+import { MainFrame, MainSurfaceFrame, ShellRoot, SidebarFrame, SidebarItem } from "@polterware/frontend-shell";
 import type { MessageShape } from "@bufbuild/protobuf";
-import type { MindSchema } from "@polterware/sparky-contracts";
+import type { SpaceSchema } from "@polterware/sparky-contracts";
 import type { ShellBridge } from "./bridge";
 import type { SparkyFeature } from "./feature";
-import { ShellContext, type MemoryDetailRenderer } from "./context";
+import { ShellContext, type NoteDetailRenderer } from "./context";
 import { Commander } from "./commander";
-import { MemoryComposer } from "./memory-composer";
 import { createCoreConnection, independentQueryKey, reminderLabel } from "./connection";
 import { DEFAULT_PATH, deepLinkPath, normalizePath, pushRoute, resolveRoute, SHELL_ROUTES, sidebarItems, type RouteHistory } from "./route";
-import { isCollectionTarget, isEditing, memoryShortcut, shellShortcut, type MemoryShortcut } from "./shortcuts";
+import { isCollectionTarget, isEditing, noteShortcut, shellShortcut, type NoteShortcut } from "./shortcuts";
 import "./shell.css";
 
 const icons: Record<string, Component<{ size?: number }>> = { CalendarClock, Clock, Folder, Inbox, MapPin, Search, Settings };
 const titlebarIconClass = "control-field control-field-sm inline-flex w-[var(--control-height-sm)] shrink-0 cursor-pointer items-center justify-center !rounded-full !p-0 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)] focus-visible:outline-none";
-export function mindTree(minds: MessageShape<typeof MindSchema>[], parentId = "", ancestors = new Set<string>()): TreeViewNode[] {
-  return minds.filter(mind => (mind.parentId ?? "") === parentId && mind.id && !ancestors.has(mind.id)).map(mind => ({
-    id: mind.id!, label: mind.name ?? "Untitled Mind", children: mindTree(minds, mind.id!, new Set([...ancestors, mind.id!])),
+export function spaceTree(spaces: MessageShape<typeof SpaceSchema>[], parentId = "", ancestors = new Set<string>()): TreeViewNode[] {
+  return spaces.filter(space => (space.parentId ?? "") === parentId && space.id && !ancestors.has(space.id)).map(space => ({
+    id: space.id!, label: space.name ?? "Untitled Space", children: spaceTree(spaces, space.id!, new Set([...ancestors, space.id!])),
   }));
 }
+
+/** Placeholder title for a note created from the page; the core requires a non-empty title. */
+const FRESH_TITLE = "Untitled";
 
 export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?: ShellBridge; onReady?: () => void }) {
   const core = createCoreConnection(props.bridge);
@@ -34,11 +36,16 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [settingsPanel, setSettingsPanel] = createSignal("");
   const [palette, setPalette] = createSignal<"commands" | "quick-add" | "search" | null>(null);
-  const [composerOpen, setComposerOpen] = createSignal(false);
-  const [composerExpanded, setComposerExpanded] = createSignal(false);
-  const [selectedMemoryId, setSelectedMemoryId] = createSignal<string | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = createSignal<string | null>(null);
   const [expanded, setExpanded] = createSignal(false);
-  const [detailRenderer, setDetailRenderer] = createSignal<MemoryDetailRenderer>();
+  const [propertiesOpen, setPropertiesOpenSignal] = createSignal((() => {
+    try { return localStorage.getItem("sparky.notes.properties.open") !== "false"; } catch { return true; }
+  })());
+  const setPropertiesOpen = (open: boolean) => {
+    setPropertiesOpenSignal(open);
+    try { localStorage.setItem("sparky.notes.properties.open", String(open)); } catch { /* Session-only. */ }
+  };
+  const [detailRenderer, setDetailRenderer] = createSignal<NoteDetailRenderer>();
   const [onboardingOpen, setOnboardingOpen] = createSignal((() => {
     try { return localStorage.getItem("sparky.shell.onboarding") !== "complete"; }
     catch { return true; }
@@ -47,12 +54,12 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
   const [authorizationBusy, setAuthorizationBusy] = createSignal(false);
   const [authorizationError, setAuthorizationError] = createSignal<string | null>(null);
   const [deepLink, setDeepLink] = createSignal<URL | null>(null);
-  let collectionShortcuts: ((action: MemoryShortcut) => void) | undefined;
+  let collectionShortcuts: ((action: NoteShortcut) => void) | undefined;
   const [helpMenuOpen, setHelpMenuOpen] = createSignal(false);
   let helpAnchor: HTMLButtonElement | undefined;
   const [helpOpen, setHelpOpen] = createSignal(false);
   const [dataRevision, setDataRevision] = createSignal(0);
-  const [expandedMinds, setExpandedMinds] = createSignal<string[]>([]);
+  const [expandedSpaces, setExpandedSpaces] = createSignal<string[]>([]);
   let main: HTMLElement | undefined;
   let restoredFocus: HTMLElement | undefined;
   const route = createMemo(() => resolveRoute(props.features, path()));
@@ -60,36 +67,84 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
   const items = createMemo(() => sidebarItems(props.features));
   const settingsPanels = createMemo(() => props.features.flatMap(feature => feature.settingsPanels ?? []));
   const settingsGroups = createMemo(() => [...new Set(settingsPanels().map(panel => panel.group))]);
+  const [settingsQuery, setSettingsQuery] = createSignal("");
+  const settingsSearching = () => settingsQuery().trim().length > 0;
+  const settingsResults = createMemo(() => {
+    const terms = settingsQuery().trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return [];
+    return settingsPanels().filter(panel => terms.every(term => `${panel.label} ${panel.group} ${panel.id}`.toLowerCase().includes(term)));
+  });
+  const settingsIcons: Record<string, Component<{ size?: number; "aria-hidden"?: boolean }>> = {
+    general: Cog, notifications: Bell, focus: Clock, calendar: CalendarClock, "settings-map": MapPin, "map-tiles": MapPin,
+    search: Search, "agents-access": Bot, "agents-activity": Activity, data: Database, shortcuts: Layers, advanced: Hammer,
+  };
   const activeSettings = createMemo(() => settingsPanels().find(panel => panel.id === settingsPanel()) ?? settingsPanels()[0]);
   const detailSections = createMemo(() => props.features.flatMap(feature => feature.detailSections ?? []).sort((a, b) => a.order - b.order));
-  const memoryDetail = createMemo(() => props.features.find(feature => feature.memoryDetail)?.memoryDetail);
-  const memoryCollection = createMemo(() => props.features.find(feature => feature.memoryCollection)?.memoryCollection);
+  const noteDetail = createMemo(() => props.features.find(feature => feature.noteDetail)?.noteDetail);
+  const noteAttachments = createMemo(() => props.features.find(feature => feature.noteAttachments)?.noteAttachments);
+  const noteProperties = createMemo(() => props.features.find(feature => feature.noteProperties)?.noteProperties);
+  const noteCollection = createMemo(() => props.features.find(feature => feature.noteCollection)?.noteCollection);
   const sidebarTree = createMemo(() => props.features.find(feature => feature.sidebarTree)?.sidebarTree);
   const canRequestNotifications = () => typeof props.bridge?.app.requestNotificationAuthorization === "function";
   const notificationGranted = () => ["authorized", "provisional", "ephemeral"].includes(core.status()?.permission ?? "");
   const queryKey = () => independentQueryKey(core.state(), dataRevision(), props.bridge);
-  const [minds] = createResource(() => sidebarTree() ? false : queryKey(), async () => (await props.bridge!.minds.list({})).minds ?? []);
-  const [inboxCount] = createResource(queryKey, async () => (await props.bridge!.memories.list({ inboxOnly: true, status: "active", limit: 1 })).total);
-  const tree = createMemo(() => mindTree(minds.error ? [] : minds() ?? []));
+  const [spaces] = createResource(() => sidebarTree() ? false : queryKey(), async () => (await props.bridge!.spaces.list({})).spaces ?? []);
+  const [inboxCount] = createResource(queryKey, async () => (await props.bridge!.notes.list({ inboxOnly: true, status: "active", limit: 1 })).total);
+  const tree = createMemo(() => spaceTree(spaces.error ? [] : spaces() ?? []));
   const params = createMemo(() => route()?.params ?? {});
   const searchParams = createMemo(() => new URLSearchParams(path().split("?")[1] ?? ""));
-  const [memory] = createResource(() => core.state() === "live" && selectedMemoryId() ? `${selectedMemoryId()}:${dataRevision()}` : false,
-    async () => (await props.bridge!.memories.get({ id: selectedMemoryId()!, include: { note: true } })).memory);
-  const detailRoute = createMemo(() => selectedMemoryId() ? resolveRoute(props.features, `/memory/${selectedMemoryId()}`) : undefined);
+  const [note] = createResource(() => core.state() === "live" && selectedNoteId() ? `${selectedNoteId()}:${dataRevision()}` : false,
+    async () => (await props.bridge!.notes.get({ id: selectedNoteId()!, include: { content: true } })).note);
+  /** The note whose page is open; section contributions (schedule, place, attachments, focus) read it. */
+  const openNoteId = createMemo(() => {
+    const match = /^\/note\/([^/?]+)/.exec(normalizePath(path()));
+    return match ? decodeURIComponent(match[1]!) : null;
+  });
+  const detailRoute = createMemo(() => selectedNoteId() ? resolveRoute(props.features, `/note/${selectedNoteId()}`) : undefined);
   function closeDetail() {
-    setSelectedMemoryId(null); setExpanded(false);
+    setSelectedNoteId(null); setExpanded(false);
     if (restoredFocus?.isConnected) restoredFocus.focus();
   }
-  function openMemory(id: string) {
-    restoredFocus = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-    setSelectedMemoryId(id);
+  function openNote(id: string) { navigate(`/note/${encodeURIComponent(id)}`); }
+  /** Notes created through `newNote` that nobody has written to yet; discarded when the page is left. */
+  const fresh = new Set<string>();
+  async function newNote(options: { spaceId?: string } = {}) {
+    if (core.state() !== "live" || !props.bridge) return;
+    setPalette(null);
+    try {
+      const { note } = await props.bridge.notes.create({ title: FRESH_TITLE, ...(options.spaceId ? { spaceId: options.spaceId } : {}) });
+      if (!note?.id) return;
+      fresh.add(note.id);
+      openNote(note.id);
+      setTimeout(() => {
+        const input = document.querySelector<HTMLInputElement>("[data-note-title]");
+        input?.focus(); input?.select();
+      }, 50);
+    } catch { /* The notes list surfaces core errors; nothing to open. */ }
   }
+  async function discardIfUntouched(id: string) {
+    if (!fresh.delete(id) || !props.bridge) return;
+    try {
+      const { note } = await props.bridge.notes.get({ id, include: { content: true, checklist: true } });
+      if (note?.title === FRESH_TITLE && !note.content && !note.checklist?.length) await props.bridge.notes.delete({ id, expectedRev: String(note.rev ?? 0) });
+    } catch { /* Keep the note when it cannot be verified as empty. */ }
+  }
+  /** Explicit cancel of a note made by `newNote`: leave the page, then delete it whatever was typed. */
+  function isFreshNote(id: string) { return fresh.has(id); }
+  async function cancelNewNote(id: string) {
+    if (!fresh.delete(id) || !props.bridge) return;
+    if (history().index > 0) moveHistory(-1); else navigate(DEFAULT_PATH);
+    try {
+      const { note } = await props.bridge.notes.get({ id, include: { content: true } });
+      if (note) await props.bridge.notes.delete({ id, expectedRev: String(note.rev ?? 0) });
+    } catch { /* The note stays listed when it cannot be deleted. */ }
+  }
+  createEffect(on(openNoteId, (_current, previous) => { if (previous) void discardIfUntouched(previous); }, { defer: true }));
   function navigate(raw: string) {
     const normalized = normalizePath(raw);
     if (normalized === "/settings") { setSettingsOpen(true); return; }
-    if (/^\/memory\/[^/]+$/.test(normalized)) { openMemory(decodeURIComponent(normalized.slice(8))); return; }
     closeDetail();
-    const next = resolveRoute(props.features, normalized) || SHELL_ROUTES.some(route => route.path === normalized) || /^\/mind\/[^/]+$/.test(normalized) ? raw : DEFAULT_PATH;
+    const next = resolveRoute(props.features, normalized) || SHELL_ROUTES.some(route => route.path === normalized) || /^\/space\/[^/]+$/.test(normalized) ? raw : DEFAULT_PATH;
     // Keep query parameters for feature search/calendar state.
     setHistory(current => pushRoute(current, next));
     queueMicrotask(() => main?.focus());
@@ -119,18 +174,18 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     ...SHELL_ROUTES.map(item => ({ id: `navigate:${item.path}`, label: `Go to ${item.title}`, keywords: ["navigate"], run: () => navigate(item.path) })),
     ...props.features.flatMap(feature => feature.routes).filter(item => !SHELL_ROUTES.some(defaultRoute => defaultRoute.path === item.path) && !item.path.includes(":"))
       .map(item => ({ id: `navigate:${item.path}`, label: `Go to ${item.title}`, run: () => navigate(item.path) })),
-    { id: "quick-add", label: "New memory", keywords: ["add", "create"], run: () => { setPalette(null); setComposerOpen(true); } },
+    { id: "quick-add", label: "New note", keywords: ["add", "create"], run: () => { void newNote(); } },
     { id: "settings", label: "Open Settings", run: () => setSettingsOpen(true) },
     ...props.features.flatMap(feature => feature.commands ?? []),
   ]);
   const commandSources = createMemo(() => props.features.flatMap(feature => feature.commandSources ?? []));
   const context = {
-    features: props.features, path, params, searchParams, navigate, selectedMemoryId, openMemory, closeDetail, detailSections, settingsPanels, deepLink,
-    registerCollectionShortcuts: (handler: (action: MemoryShortcut) => void) => {
+    features: props.features, path, params, searchParams, navigate, selectedNoteId: openNoteId, openNote, newNote, isFreshNote, cancelNewNote, propertiesOpen, setPropertiesOpen, noteAttachments, closeDetail, detailSections, settingsPanels, deepLink,
+    registerCollectionShortcuts: (handler: (action: NoteShortcut) => void) => {
       collectionShortcuts = handler;
       return () => { if (collectionShortcuts === handler) collectionShortcuts = undefined; };
     },
-    registerMemoryDetail: (component: MemoryDetailRenderer) => {
+    registerNoteDetail: (component: NoteDetailRenderer) => {
       setDetailRenderer(() => component);
       return () => { if (detailRenderer() === component) setDetailRenderer(undefined); };
     },
@@ -144,10 +199,10 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     for (const feature of props.features) {
       if (feature.onDeepLink?.(url)) { handled = true; break; }
     }
-    if (url.hostname === "memory" && url.searchParams.get("action") === "focus") {
+    if (url.hostname === "note" && url.searchParams.get("action") === "focus") {
       const id = url.pathname.replace(/^\//, "");
       navigate("/focus");
-      if (id) openMemory(id);
+      if (id) openNote(id);
       return;
     }
     if (handled) return;
@@ -156,8 +211,8 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
   }
   onMount(() => {
     try {
-      const saved: unknown = JSON.parse(localStorage.getItem("sparky.shell.minds.expanded") ?? "[]");
-      if (Array.isArray(saved) && saved.every(value => typeof value === "string")) setExpandedMinds(saved);
+      const saved: unknown = JSON.parse(localStorage.getItem("sparky.shell.spaces.expanded") ?? "[]");
+      if (Array.isArray(saved) && saved.every(value => typeof value === "string")) setExpandedSpaces(saved);
     } catch { setOnboardingOpen(true); }
     void core.refresh();
     const timer = setInterval(() => void core.refresh(), 5000);
@@ -170,7 +225,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
       if (settingsOpen() || onboardingOpen() || helpOpen()) return;
       if (!shortcut) {
         if (palette() !== null) return;
-        const action = memoryShortcut(event, isEditing(event.target));
+        const action = noteShortcut(event, isEditing(event.target));
         if (action && collectionShortcuts && isCollectionTarget(event.target)) { event.preventDefault(); collectionShortcuts(action); }
         return;
       }
@@ -178,7 +233,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
       event.preventDefault();
       switch (shortcut) {
         case "commander": setPalette(current => current === "commands" ? null : "commands"); break;
-        case "quick-add": setPalette(null); setComposerOpen(true); break;
+        case "quick-add": void newNote(); break;
         case "settings": setSettingsOpen(true); break;
         case "back": moveHistory(-1); break;
         case "forward": moveHistory(1); break;
@@ -208,42 +263,44 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
     reminderToast = message;
     pushToast(message);
   });
-  const title = () => route()?.route.title ?? SHELL_ROUTES.find(item => item.path === normalizePath(path()))?.title ?? "Mind";
+  const title = () => route()?.route.title ?? SHELL_ROUTES.find(item => item.path === normalizePath(path()))?.title ?? "Space";
   const boundary = (error: Error, reset: () => void) => <PageError title="This feature failed" message={error.message} onRetry={reset} />;
   return <ShellContext.Provider value={context}>
-    <DesignSystemProvider storagePrefix="sparky" expandDetail={() => { if (selectedMemoryId()) setExpanded(true); }}
+    <DesignSystemProvider storagePrefix="sparky" expandDetail={() => { if (selectedNoteId()) setExpanded(true); }}
       matchesShortcut={(id, event) => id === "shell.toggle_detail" && shellShortcut(event, false) === "close-detail"}
       createShortcutLabel={id => () => id === "shell.toggle_detail" ? "⌘J" : ""}>
       <ShellRoot glass={false} class="sparky-shell">
-        <FloatingWindow.Root open={composerOpen()} minimized expanded={composerExpanded()} controls="close"
-          aria-label="New memory" storageKey="sparky.memory.composer" bubble={<Plus size={16} />}
-          onOpenChange={next => { setComposerOpen(next); if (!next) setComposerExpanded(false); }}
-          onMinimizedChange={() => {}} onExpandedChange={setComposerExpanded}>
-        <FloatingWindow.Workspace>
         <div class="sparky-workspace">
           <SidebarFrame class="sparky-sidebar" aria-label="Sidebar">
-            <MenuList>
-              <MenuItem aria-label="Open Commander" onClick={() => setPalette("commands")}><Search size={15} /><span class="flex-1">Search</span></MenuItem>
-            </MenuList>
-            <nav aria-label="Main navigation">
-              <MenuList><For each={items()}>{item => <MenuItem aria-label={item.label} aria-current={normalizePath(path()) === normalizePath(item.path) ? "page" : undefined}
-                selected={normalizePath(path()) === normalizePath(item.path)} onClick={() => navigate(item.path)}>
-                <Dynamic component={icons[item.icon ?? ""] ?? Folder} size={15} /><span class="flex-1">{item.label}</span>
-                <Show when={item.path === "/inbox" && !inboxCount.error && inboxCount() !== undefined}><span aria-label="Active Inbox memories">{inboxCount()}</span></Show>
-                <Show when={item.badge !== undefined && item.path !== "/inbox"}><span>{item.badge}</span></Show>
-              </MenuItem>}</For></MenuList>
+            <div class="sparky-history-nav">
+              <button type="button" aria-label="Go back" disabled={history().index <= 0} onClick={() => moveHistory(-1)}><ChevronLeft size={14} /></button>
+              <button type="button" aria-label="Go forward" disabled={history().index >= history().entries.length - 1} onClick={() => moveHistory(1)}><ChevronRight size={14} /></button>
+            </div>
+            <div class="pw-sidebar-group">
+              <SidebarItem aria-label="Open Commander" icon={<Search size={14} />} onClick={() => setPalette("commands")}>Search</SidebarItem>
+            </div>
+            <nav aria-label="Main navigation" class="pw-sidebar-group">
+              <For each={items()}>{item => {
+                const Icon = icons[item.icon ?? ""] ?? Folder;
+                const count = () => item.path === "/inbox" ? (!inboxCount.error ? inboxCount() : undefined) : item.badge;
+                return <SidebarItem aria-label={item.label} active={normalizePath(path()) === normalizePath(item.path)} icon={<Icon size={14} />}
+                  onClick={() => navigate(item.path)}
+                  trailing={<Show when={count() !== undefined && count() !== 0}><Badge class="pw-sidebar-item-count" tone="muted" aria-label={item.path === "/inbox" ? "Active Inbox notes" : undefined}>{count()}</Badge></Show>}>
+                  {item.label}
+                </SidebarItem>;
+              }}</For>
             </nav>
             <Show when={sidebarTree()} fallback={
               <Show when={core.state() === "live"}>
-                <Show when={!minds.error} fallback={<p role="status">Minds unavailable</p>}>
-                  <Show when={tree().length}><TreeView label="Minds" nodes={tree()} expandedValue={expandedMinds()} selectedValue={params().id ? [params().id!] : []}
-                    onExpandedChange={details => { setExpandedMinds(details.expandedValue); try { localStorage.setItem("sparky.shell.minds.expanded", JSON.stringify(details.expandedValue)); } catch { /* Session-only. */ } }}
-                    onSelectionChange={details => { const id = details.selectedValue[0]; if (id) navigate(`/mind/${encodeURIComponent(id)}`); }} /></Show>
+                <Show when={!spaces.error} fallback={<p role="status">Spaces unavailable</p>}>
+                  <Show when={tree().length}><TreeView label="Spaces" nodes={tree()} expandedValue={expandedSpaces()} selectedValue={params().id ? [params().id!] : []}
+                    onExpandedChange={details => { setExpandedSpaces(details.expandedValue); try { localStorage.setItem("sparky.shell.spaces.expanded", JSON.stringify(details.expandedValue)); } catch { /* Session-only. */ } }}
+                    onSelectionChange={details => { const id = details.selectedValue[0]; if (id) navigate(`/space/${encodeURIComponent(id)}`); }} /></Show>
                 </Show>
               </Show>
             }>{treeDef => <Dynamic component={treeDef().component} />}</Show>
             <div class="sparky-sidebar-footer">
-              <Button variant="ghost" class="min-w-0 flex-1 justify-start !rounded-[var(--radius-item)]" onClick={() => setSettingsOpen(true)}><Settings size={15} />Settings</Button>
+              <SidebarItem footer icon={<Settings size={14} />} onClick={() => setSettingsOpen(true)}>Settings</SidebarItem>
               <button type="button" ref={helpAnchor} class={titlebarIconClass} aria-label="Help" aria-expanded={helpMenuOpen()} aria-haspopup="dialog" onClick={() => setHelpMenuOpen(open => !open)}><HelpCircle size={14} /></button>
               <Popover open={helpMenuOpen()} onClose={() => setHelpMenuOpen(false)} title="Help" anchorRef={() => helpAnchor} placement="top-end" width={240}>
                 <MenuList>
@@ -257,29 +314,18 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
             <MainSurfaceFrame as="div">
               <Show when={core.state() !== "loading"} fallback={<PageLoading label="Starting Sparky…" />}>
                 <Show when={core.state() === "live"} fallback={<PageOffline title="Core offline" message="Sparky cannot reach the local core. Retry to reconnect." onRetry={() => void core.refresh()} />}>
-                  <DetailPanel.Root open={!!selectedMemoryId()} expanded={expanded()} activeEntityId={selectedMemoryId()} onOpenChange={open => { if (!open) closeDetail(); }} onExpandedChange={setExpanded} aria-label="Memory details">
+                  <DetailPanel.Root expandable={false} open={!!openNoteId() && !!noteProperties() && propertiesOpen()} expanded={expanded()} activeEntityId={openNoteId()} onOpenChange={setPropertiesOpen} onExpandedChange={setExpanded} aria-label="Note details">
                     <DetailPanel.Collection>
                       <Show keyed when={path()}>{(_path) => <ErrorBoundary fallback={boundary}>
-                        <Show when={!hasFeatureRoute() && /^\/mind\/[^/]+$/.test(normalizePath(path())) && memoryCollection()} fallback={
+                        <Show when={!hasFeatureRoute() && /^\/space\/[^/]+$/.test(normalizePath(path())) && noteCollection()} fallback={
                           <Show when={route()} fallback={<><PageHeader title={title()} subtitle={<StatusChip tone="muted" label="Unavailable" />} /><PageEmpty title={`${title()} is unavailable`} description="This feature has not registered a route yet." /></>}>
                             {resolved => <Dynamic component={resolved().route.component} />}
                           </Show>
-                        }>{collection => <Dynamic component={collection()} mindId={decodeURIComponent(normalizePath(path()).split("/")[2] ?? "")} />}</Show>
+                        }>{collection => <Dynamic component={collection()} spaceId={decodeURIComponent(normalizePath(path()).split("/")[2] ?? "")} />}</Show>
                       </ErrorBoundary>}</Show>
                     </DetailPanel.Collection>
                     <DetailPanel.Content><DetailPanel.Header /><ErrorBoundary fallback={boundary}>
-                      <Show when={selectedMemoryId()}>{id => <Show when={memoryDetail() ?? detailRenderer() ?? detailRoute()?.route.component} fallback={
-                        <DetailPanel.Body layout="document"><DetailPanel.Main>
-                          <Show when={!memory.loading} fallback={<PageLoading label="Loading memory…" />}>
-                            <Show when={!memory.error && memory()} fallback={<PageError message="The selected memory could not be loaded." onRetry={() => setDataRevision(value => value + 1)} />}>
-                              <DetailPanel.Title title={memory()?.title ?? "Memory"} />
-                              <StatusChip tone="muted" label="Details editor unavailable" />
-                              <p class="whitespace-pre-wrap">{memory()?.note}</p>
-                              <For each={detailSections().filter(section => !section.visible || section.visible(id()))}>{section => <Dynamic component={section.component} />}</For>
-                            </Show>
-                          </Show>
-                        </DetailPanel.Main></DetailPanel.Body>
-                      }>{component => <Dynamic component={component()} memoryId={id()} detailSections={detailSections()} />}</Show>}</Show>
+                      <Show when={openNoteId()}>{id => <Show when={noteProperties()}>{component => <Dynamic component={component()} noteId={id()} detailSections={detailSections()} />}</Show>}</Show>
                     </ErrorBoundary></DetailPanel.Content>
                   </DetailPanel.Root>
                 </Show>
@@ -287,28 +333,63 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
             </MainSurfaceFrame>
           </MainFrame>
         </div>
-        </FloatingWindow.Workspace>
-        <FloatingWindow.Content>
-          <MemoryComposer open={composerOpen()} bridge={props.bridge} live={core.state() === "live"} onCreated={openMemory} onClose={() => setComposerOpen(false)} />
-        </FloatingWindow.Content>
-        </FloatingWindow.Root>
       </ShellRoot>
       <ToastRegion />
-      <Commander open={palette() !== null} mode={palette() ?? "commands"} bridge={props.bridge} commands={commands()} commandSources={commandSources()} live={core.state() === "live"} onClose={() => setPalette(null)} onMemory={openMemory} />
-      <Dialog open={settingsOpen()} bodyClass="flex min-h-0 flex-1 flex-col overflow-hidden px-7 py-4 text-[13px] text-[var(--color-text-secondary)]" title="Settings" onClose={() => setSettingsOpen(false)} size="xl">
+      <Commander open={palette() !== null} mode={palette() ?? "commands"} bridge={props.bridge} commands={commands()} commandSources={commandSources()} live={core.state() === "live"} onClose={() => setPalette(null)} onNote={openNote} />
+      <A11yDialog open={settingsOpen()} title="Settings" size="xl" chrome="flush" bodyClass="p-0" showCloseButton={false} autoFocusField={false}
+        class="!rounded-[var(--radius-dialog)] !bg-[var(--color-app-background)]" onClose={() => setSettingsOpen(false)}>
         <div class="sparky-settings-layout">
-          <nav aria-label="Settings panels"><For each={settingsGroups()}>{group => <><p class="text-xs text-[var(--color-text-muted)]">{group}</p><MenuList>
-            <For each={settingsPanels().filter(panel => panel.group === group)}>{panel => <MenuItem selected={panel.id === activeSettings()?.id} aria-current={panel.id === activeSettings()?.id ? "page" : undefined} onClick={() => setSettingsPanel(panel.id)}>{panel.label}</MenuItem>}</For>
-          </MenuList></>}</For></nav>
-          <section aria-label="Selected settings panel"><Show when={activeSettings()} fallback={<PageEmpty title="Settings unavailable" description="Settings panels have not been registered yet." />}>
-            {panel => <Show keyed when={panel().id}>{(_id) => <ErrorBoundary fallback={boundary}><Dynamic component={panel().component} /></ErrorBoundary>}</Show>}
-          </Show></section>
+          <nav aria-label="Settings panels" class="flex flex-col gap-1 p-2">
+            <Input size="sm" type="search" class="mb-2 !rounded-full" placeholder="Search settings" aria-label="Search settings"
+              autocomplete="off" spellcheck={false} value={settingsQuery()}
+              onInput={event => setSettingsQuery(event.currentTarget.value)}
+              onKeyDown={event => { if (event.key === "Escape" && settingsQuery()) { event.preventDefault(); event.stopPropagation(); setSettingsQuery(""); } }} />
+            <For each={settingsGroups()}>{(group, index) => <>
+              <p class="m-0 px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]"
+                classList={{ "mt-4": index() > 0, "mt-1": index() === 0 }}>{group}</p>
+              <For each={settingsPanels().filter(panel => panel.group === group)}>{panel => {
+                const active = () => !settingsSearching() && panel.id === activeSettings()?.id;
+                const Icon = settingsIcons[panel.id] ?? Cog;
+                return <button type="button" aria-current={active() ? "page" : undefined}
+                  class="flex h-8 w-full cursor-pointer items-center gap-2 rounded-[var(--radius-control)] border-0 px-2.5 text-left text-[12.5px]"
+                  classList={{
+                    "bg-[var(--color-surface-selected)] text-[var(--color-text-primary)]": active(),
+                    "bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]": !active(),
+                  }}
+                  onClick={() => { setSettingsQuery(""); setSettingsPanel(panel.id); }}><Icon size={14} aria-hidden />{panel.label}</button>;
+              }}</For>
+            </>}</For>
+          </nav>
+          <section aria-label="Selected settings panel" class="surface-panel relative">
+            <button type="button" aria-label="Close settings" onClick={() => setSettingsOpen(false)}
+              class="absolute top-5 right-5 z-10 inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)]">
+              <X size={16} aria-hidden />
+            </button>
+            <div class="sparky-settings-content text-[13px] text-[var(--color-text-secondary)]">
+              <h2 class="m-0 mb-6 pr-10 text-[16px] font-semibold text-[var(--color-text-primary)]">{settingsSearching() ? "Search results" : activeSettings()?.label}</h2>
+              <Show when={settingsSearching()}>
+                <Show when={settingsResults().length > 0} fallback={<p class="m-0 px-1 text-[12.5px] text-[var(--color-text-muted)]">No settings match “{settingsQuery().trim()}”.</p>}>
+                  <ul class="m-0 flex list-none flex-col gap-1 p-0">
+                    <For each={settingsResults()}>{panel => <li>
+                      <button type="button" onClick={() => { setSettingsQuery(""); setSettingsPanel(panel.id); }}
+                        class="flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-[var(--radius-control)] border-0 bg-transparent px-2.5 py-2 text-left hover:bg-[var(--color-surface-hover)]">
+                        <span class="text-[12.5px] text-[var(--color-text-primary)]">{panel.label}</span>
+                        <span class="text-[11.5px] text-[var(--color-text-muted)]">{panel.group}</span>
+                      </button></li>}</For>
+                  </ul>
+                </Show>
+              </Show>
+              <Show when={!settingsSearching()}><Show when={activeSettings()} fallback={<PageEmpty title="Settings unavailable" description="Settings panels have not been registered yet." />}>
+                {panel => <Show keyed when={panel().id}>{(_id) => <ErrorBoundary fallback={boundary}><Dynamic component={panel().component} /></ErrorBoundary>}</Show>}
+              </Show></Show>
+            </div>
+          </section>
         </div>
-      </Dialog>
+      </A11yDialog>
       <Dialog open={onboardingOpen()} title={["Welcome to Sparky", "Notifications", "Connect an agent"][onboardingStep()]!} onClose={finishOnboarding}
         footer={<><Button variant="ghost" onClick={finishOnboarding}>Skip onboarding</Button><Show when={onboardingStep() > 0}><Button onClick={() => setOnboardingStep(step => step - 1)}>Back</Button></Show>
           <Button onClick={() => onboardingStep() === 2 ? finishOnboarding() : setOnboardingStep(step => step + 1)}>{onboardingStep() === 2 ? "Get started" : "Continue"}</Button></>}>
-        <Show when={onboardingStep() === 0}><DitherIconTile><Inbox size={24} /></DitherIconTile><p>Keep memories, plans, and Minds together on your Mac. Your data stays in the local core.</p></Show>
+        <Show when={onboardingStep() === 0}><IconTile><Inbox size={24} /></IconTile><p>Keep notes, plans, and Spaces together on your Mac. Your data stays in the local core.</p></Show>
         <Show when={onboardingStep() === 1}><p>macOS delivers armed reminders even after Sparky closes. Reminders are refreshed when Sparky runs.</p>
           <StatusChip label={reminderLabel(core.status())} />
           <Show when={canRequestNotifications()} fallback={<p>Notification authorization is unavailable in this build. No reminder is armed by this step.</p>}>
@@ -322,9 +403,9 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
         </Show>
       </Dialog>
       <Dialog open={helpOpen()} title="Sparky shortcuts" onClose={() => setHelpOpen(false)}>
-        <p>⌘K Commander · ⌘N New memory · ⌘, Settings · ⌘[ Back · ⌘] Forward · ⌘J Close details</p>
+        <p>⌘K Commander · ⌘N New note · ⌘, Settings · ⌘[ Back · ⌘] Forward · ⌘J Close details</p>
         <p>⌘1 Inbox · ⌘2 Today · ⌘3 Calendar · ⌘4 Map · ⌘5 Focus · / Search</p>
-        <p>In memory collections: Enter opens the selection, Space toggles completion, E edits the title, P pins, and ⌘⌫ asks to delete.</p>
+        <p>In note lists: Enter opens the selection, Space toggles completion, E edits the title, P pins, and ⌘⌫ asks to delete.</p>
       </Dialog>
     </DesignSystemProvider>
   </ShellContext.Provider>;

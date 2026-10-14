@@ -34,8 +34,8 @@ type attachmentComposite struct {
 	files *attachprovider.Store
 }
 
-func (c attachmentComposite) List(ctx context.Context, memoryID string) ([]attachments.Attachment, error) {
-	return c.meta.List(ctx, memoryID)
+func (c attachmentComposite) List(ctx context.Context, noteID string) ([]attachments.Attachment, error) {
+	return c.meta.List(ctx, noteID)
 }
 
 func (c attachmentComposite) Get(ctx context.Context, id string) (attachments.Attachment, error) {
@@ -50,15 +50,15 @@ func (c attachmentComposite) Delete(ctx context.Context, id string) error {
 	return c.meta.Delete(ctx, id)
 }
 
-func (c attachmentComposite) Reorder(ctx context.Context, memoryID string, orderedIDs []string) error {
-	return c.meta.Reorder(ctx, memoryID, orderedIDs)
+func (c attachmentComposite) Reorder(ctx context.Context, noteID string, orderedIDs []string) error {
+	return c.meta.Reorder(ctx, noteID, orderedIDs)
 }
 
-func (c attachmentComposite) ImportFile(ctx context.Context, memoryID, attachmentID, sourcePath string) (attachments.ImportedFile, error) {
+func (c attachmentComposite) ImportFile(ctx context.Context, noteID, attachmentID, sourcePath string) (attachments.ImportedFile, error) {
 	if c.files == nil {
 		return attachments.ImportedFile{}, fault.Unavailable("attachment files are not available")
 	}
-	return c.files.ImportFile(ctx, memoryID, attachmentID, sourcePath)
+	return c.files.ImportFile(ctx, noteID, attachmentID, sourcePath)
 }
 
 func (c attachmentComposite) AbsolutePath(relPath string) (string, error) {
@@ -101,7 +101,7 @@ func buildAttachmentService(store attachments.Store) (attachments.Service, error
 		}
 		composite.files = files
 	}
-	return attachments.NewService(composite, ids.Generator{}, clock.Clock{}).WithMemoryRev(sqliteMeta.Memories(), sqliteMeta.Store).WithAudit(write), nil
+	return attachments.NewService(composite, ids.Generator{}, clock.Clock{}).WithNoteRev(sqliteMeta.Notes(), sqliteMeta.Store).WithAudit(write), nil
 }
 
 func (a attachmentMeta) service() (attachments.Service, error) {
@@ -111,24 +111,24 @@ func (a attachmentMeta) service() (attachments.Service, error) {
 	return entry.service, entry.err
 }
 
-func (a attachmentMeta) ImportFromPath(ctx context.Context, memoryID, sourcePath, name string, expectedRev int64) (attachments.Attachment, error) {
+func (a attachmentMeta) ImportFromPath(ctx context.Context, noteID, sourcePath, name string, expectedRev int64) (attachments.Attachment, error) {
 	svc, err := a.service()
 	if err != nil {
 		return attachments.Attachment{}, err
 	}
-	return svc.ImportFromPath(ctx, memoryID, sourcePath, name, expectedRev)
+	return svc.ImportFromPath(ctx, noteID, sourcePath, name, expectedRev)
 }
 
-func (a attachmentMeta) AddLink(ctx context.Context, memoryID, rawURL, title string, expectedRev int64) (attachments.Attachment, error) {
+func (a attachmentMeta) AddLink(ctx context.Context, noteID, rawURL, title string, expectedRev int64) (attachments.Attachment, error) {
 	svc, err := a.service()
 	if err != nil {
 		return attachments.Attachment{}, err
 	}
-	return svc.AddLink(ctx, memoryID, rawURL, title, expectedRev)
+	return svc.AddLink(ctx, noteID, rawURL, title, expectedRev)
 }
 
-func (a attachmentMeta) List(ctx context.Context, memoryID string) ([]attachments.Attachment, error) {
-	return a.store.List(ctx, memoryID)
+func (a attachmentMeta) List(ctx context.Context, noteID string) ([]attachments.Attachment, error) {
+	return a.store.List(ctx, noteID)
 }
 
 func (a attachmentMeta) Delete(ctx context.Context, id string) error {
@@ -139,12 +139,12 @@ func (a attachmentMeta) Delete(ctx context.Context, id string) error {
 	return svc.Delete(ctx, id)
 }
 
-func (a attachmentMeta) Reorder(ctx context.Context, memoryID string, orderedIDs []string) ([]attachments.Attachment, error) {
+func (a attachmentMeta) Reorder(ctx context.Context, noteID string, orderedIDs []string) ([]attachments.Attachment, error) {
 	svc, err := a.service()
 	if err != nil {
 		return nil, err
 	}
-	return svc.Reorder(ctx, memoryID, orderedIDs)
+	return svc.Reorder(ctx, noteID, orderedIDs)
 }
 
 func (a attachmentMeta) OpenInfo(ctx context.Context, id string) (attachments.OpenInfo, error) {

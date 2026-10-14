@@ -2,15 +2,12 @@
 .pw-picker__control { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pw-picker__body { display: grid; gap: 12px; padding: 12px; }
 .pw-picker__grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.pw-date-picker__surface { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 12px; }
-.pw-date-picker__surface > [data-part="view-control"], .pw-date-picker__surface > [data-part="view"] { grid-column: 1 / -1; }
-.pw-date-picker__day { width: 32px; height: 32px; border-radius: var(--radius-item); color: var(--color-text-primary); cursor: pointer; }
-.pw-date-picker__day[data-selected] { background: var(--color-surface-selected); }
-.pw-date-picker__day[data-today] { color: var(--color-brand); }
-.pw-date-picker__day[data-outside-range], .pw-date-picker__day[data-disabled] { color: var(--color-text-disabled); }
-.pw-date-picker__day[data-focus] { outline: 2px solid var(--color-border-strong); }
+.pw-date-picker__surface { width: 276px; padding: 12px; }
 .pw-color-swatches__button { position: relative; width: 28px; height: 28px; border-radius: var(--radius-control); overflow: hidden; cursor: pointer; }
-.pw-color-swatches__swatch { position: absolute; inset: 0; }
+.pw-color-swatches__swatch { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .pw-color-swatches__indicator { position: relative; display: grid; place-items: center; height: 100%; color: var(--color-app-background); }
-.pw-icon-picker__options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.pw-icon-picker__option[aria-selected="true"] { background: var(--color-surface-selected); color: var(--color-text-primary); }
+.pw-icon-picker__options { display: grid; grid-template-columns: repeat(6, 36px); justify-content: center; gap: 6px; padding: 12px; }
+.pw-icon-picker__option { width: 36px; height: 36px; border-radius: var(--radius-control); color: var(--color-text-secondary); cursor: pointer; transition: background-color 120ms ease, color 120ms ease; }
+.pw-icon-picker__option:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.pw-icon-picker__option:focus-visible { outline: 2px solid var(--color-border-strong); outline-offset: -2px; }
+.pw-icon-picker__option[aria-selected="true"] { background: var(--color-surface-selected); color: var(--color-brand); }

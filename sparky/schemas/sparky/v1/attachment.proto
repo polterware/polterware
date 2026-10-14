@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 
 message Attachment {
   string id = 1;
-  string memory_id = 2;
+  string note_id = 2;
   string kind = 3;
   optional string name = 4;
   optional string mime = 5;
@@ -22,7 +22,7 @@ message Attachment {
 }
 
 message ImportAttachmentRequest {
-  string memory_id = 1;
+  string note_id = 1;
   string source_path = 2;
   string name = 3;
   optional int64 expected_rev = 4;
@@ -33,7 +33,7 @@ message ImportAttachmentResponse {
 }
 
 message AddLinkRequest {
-  string memory_id = 1;
+  string note_id = 1;
   string url = 2;
   string title = 3;
   optional int64 expected_rev = 4;
@@ -44,7 +44,7 @@ message AddLinkResponse {
 }
 
 message ListAttachmentsRequest {
-  string memory_id = 1;
+  string note_id = 1;
 }
 
 message ListAttachmentsResponse {
@@ -58,7 +58,7 @@ message DeleteAttachmentRequest {
 message DeleteAttachmentResponse {}
 
 message ReorderAttachmentsRequest {
-  string memory_id = 1;
+  string note_id = 1;
   repeated string ordered_ids = 2;
 }
 

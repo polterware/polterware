@@ -16,9 +16,9 @@ type Namespace<S extends { method: object }> = {
     ? (input?: Input<Wire<MessageShape<S["method"][K]["input"]>>>) => Promise<Partial<Wire<MessageShape<S["method"][K]["output"]>>>>
     : never;
 };
-type TestBridge = Omit<SparkyBridge, "memories" | "minds" | "tags" | "schedule" | "places" | "attachments" | "focus" | "review" | "search" | "reminders" | "activity" | "settings" | "agents" | "maintenance"> & {
-  memories: Namespace<typeof Contracts.MemoryService>;
-  minds: Namespace<typeof Contracts.MindService>;
+type TestBridge = Omit<SparkyBridge, "notes" | "spaces" | "tags" | "schedule" | "places" | "attachments" | "focus" | "review" | "search" | "reminders" | "activity" | "settings" | "agents" | "maintenance"> & {
+  notes: Namespace<typeof Contracts.NoteService>;
+  spaces: Namespace<typeof Contracts.SpaceService>;
   tags: Namespace<typeof Contracts.TagService>;
   schedule: Namespace<typeof Contracts.ScheduleService>;
   places: Namespace<typeof Contracts.PlaceService>;

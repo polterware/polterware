@@ -20,7 +20,7 @@ const (
 type OneOff struct {
 	ID        string
 	Kind      string
-	MemoryID  *string
+	NoteID    *string
 	FireAt    time.Time
 	Title     string
 	Body      string

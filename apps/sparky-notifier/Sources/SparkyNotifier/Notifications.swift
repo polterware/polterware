@@ -115,9 +115,9 @@ func schedule(_ item: ReminderItem) async throws {
     content.categoryIdentifier = item.category
     content.sound = .default
     content.userInfo = [
-        "memoryId": item.memoryId,
+        "noteId": item.noteId,
         "hash": contentHash(title: item.title, body: item.body, fireAt: item.fireAt, category: item.category),
-        "url": "sparky://memory/\(item.memoryId)",
+        "url": "sparky://note/\(item.noteId)",
     ]
     let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
     let request = UNNotificationRequest(identifier: item.id, content: content, trigger: trigger)

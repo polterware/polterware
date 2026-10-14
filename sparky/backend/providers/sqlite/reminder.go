@@ -20,7 +20,7 @@ type heartbeatPayload struct {
 
 func (r Reminders) ListDue(ctx context.Context, from, to time.Time) ([]reminder.OneOff, error) {
 	rows, err := r.q(ctx, false).QueryContext(ctx, `
-		SELECT id, kind, memory_id, fire_at, title, body, created_at
+		SELECT id, kind, note_id, fire_at, title, body, created_at
 		FROM reminder_oneoffs WHERE fire_at >= ? AND fire_at <= ?
 		ORDER BY fire_at, id`, formatTime(from), formatTime(to))
 	if err != nil {
@@ -41,9 +41,9 @@ func (r Reminders) ListDue(ctx context.Context, from, to time.Time) ([]reminder.
 func (r Reminders) Insert(ctx context.Context, o reminder.OneOff) error {
 	return r.Within(ctx, func(ctx context.Context) error {
 		_, err := r.q(ctx, true).ExecContext(ctx, `
-			INSERT INTO reminder_oneoffs(id, kind, memory_id, fire_at, title, body, created_at)
+			INSERT INTO reminder_oneoffs(id, kind, note_id, fire_at, title, body, created_at)
 			VALUES (?,?,?,?,?,?,?)`,
-			o.ID, o.Kind, nullString(o.MemoryID), formatTime(o.FireAt), o.Title, o.Body, formatTime(o.CreatedAt))
+			o.ID, o.Kind, nullString(o.NoteID), formatTime(o.FireAt), o.Title, o.Body, formatTime(o.CreatedAt))
 		return mapSQL(err, "reminder", o.ID)
 	})
 }
@@ -104,12 +104,12 @@ func (r Reminders) LastSeen(ctx context.Context) (time.Time, string, int, bool, 
 
 func scanOneOff(row interface{ Scan(...any) error }) (reminder.OneOff, error) {
 	var o reminder.OneOff
-	var memoryID, body sql.NullString
+	var noteID, body sql.NullString
 	var fireAt, created string
-	if err := row.Scan(&o.ID, &o.Kind, &memoryID, &fireAt, &o.Title, &body, &created); err != nil {
+	if err := row.Scan(&o.ID, &o.Kind, &noteID, &fireAt, &o.Title, &body, &created); err != nil {
 		return reminder.OneOff{}, err
 	}
-	o.MemoryID = scanString(memoryID)
+	o.NoteID = scanString(noteID)
 	if body.Valid {
 		o.Body = body.String
 	}

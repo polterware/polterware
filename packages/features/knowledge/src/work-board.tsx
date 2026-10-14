@@ -7,7 +7,7 @@ import {
   ChevronDown,
   createDragMotion,
   createFluidHover,
-  DitherIconTile,
+  IconTile,
   FluidHoverHighlight,
   Pencil,
   Popover,
@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   RadioButtonIcon,
   spring,
-  type DitherIconTone,
+  type IconTileTone,
   type DragMotion,
   type FluidHover,
 } from "@polterware/frontend-design-system";
@@ -33,7 +33,7 @@ const STAGE_ICON: Record<WorkStage, typeof Check> = {
 };
 
 /** One chart hue per stage, so the five lanes stay distinguishable. */
-const STAGE_DITHER: Record<WorkStage, { tone: DitherIconTone; class: string }> = {
+const STAGE_TILE: Record<WorkStage, { tone: IconTileTone; class: string }> = {
   shape: { tone: "knowledge", class: "!text-[var(--color-chart-amber)]" },
   plan: { tone: "architecture", class: "!text-[var(--color-chart-blue)]" },
   build: { tone: "infrastructure", class: "!text-[var(--color-chart-cyan)]" },
@@ -196,16 +196,16 @@ export function WorkBoard(props: {
           >
             <header class="pw-work-column__header">
               <span class="pw-work-column__label text-[12px] font-medium">
-                <DitherIconTile
+                <IconTile
                   size={20}
-                  tone={STAGE_DITHER[column().id].tone}
-                  class={STAGE_DITHER[column().id].class}
+                  tone={STAGE_TILE[column().id].tone}
+                  class={STAGE_TILE[column().id].class}
                 >
                   {(() => {
                     const Icon = STAGE_ICON[column().id];
                     return <Icon size={12} aria-hidden />;
                   })()}
-                </DitherIconTile>
+                </IconTile>
                 {column().label}
               </span>
               <span class="text-[12px] tabular-nums text-[var(--color-text-muted)]">

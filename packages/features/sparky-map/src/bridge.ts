@@ -10,14 +10,14 @@ type WireNamespace = Record<string, Rpc>;
 export type MapWireBridge = {
   app: { openDeepLink(url: string): Promise<void> };
   places: WireNamespace;
-  memories: WireNamespace;
+  notes: WireNamespace;
   settings: WireNamespace;
   onChange(callback: (event: { resync: boolean; changes: { entity: string; id: string; op: string }[] }) => void): () => void;
 };
 
 export type MapBridge = {
   places: { set: Rpc; clear: Rpc; listInBounds: Rpc };
-  memories: { get: Rpc; list: Rpc };
+  notes: { get: Rpc; list: Rpc };
   settings: { get: Rpc; set: Rpc };
   onChange: MapWireBridge["onChange"];
   app: MapWireBridge["app"];
@@ -50,7 +50,7 @@ export function createMapBridge(wire: MapWireBridge): MapBridge {
   return {
     app: wire.app,
     places: bind(wire.places, Contracts.PlaceService) as MapBridge["places"],
-    memories: bind(wire.memories, Contracts.MemoryService) as MapBridge["memories"],
+    notes: bind(wire.notes, Contracts.NoteService) as MapBridge["notes"],
     settings: bind(wire.settings, Contracts.SettingsService) as MapBridge["settings"],
     onChange: callback => wire.onChange(callback),
   };
@@ -59,7 +59,7 @@ export function createMapBridge(wire: MapWireBridge): MapBridge {
 /** Reads the preload wire without augmenting Window. Sparky Desktop owns that type. */
 export function browserBridge(): MapBridge {
   const wire = Reflect.get(globalThis, "sparky") as MapWireBridge | undefined;
-  if (!wire?.places || !wire.memories || !wire.settings) throw new Error("Sparky bridge unavailable. Open this page in Sparky Desktop.");
+  if (!wire?.places || !wire.notes || !wire.settings) throw new Error("Sparky bridge unavailable. Open this page in Sparky Desktop.");
   return createMapBridge(wire);
 }
 

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
 )
@@ -18,29 +18,29 @@ func TestHostileSQLValuesCannotChangeQueryStructure(t *testing.T) {
 	}
 	defer store.Close()
 	now := time.Now().UTC()
-	payload := "x'); DROP TABLE memories; --"
+	payload := "x'); DROP TABLE notes; --"
 	ctx := t.Context()
-	if err := store.Minds().Insert(ctx, mind.Mind{ID: "mind", Name: payload, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
+	if err := store.Spaces().Insert(ctx, space.Space{ID: "space", Name: payload, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Tags().Insert(ctx, tag.Tag{ID: "tag", Name: payload, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Memories().Insert(ctx, memory.Memory{ID: "memory", MindID: ptr("mind"), Title: payload, Note: payload, Status: memory.StatusActive, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
+	if err := store.Notes().Insert(ctx, note.Note{ID: "note", SpaceID: ptr("space"), Title: payload, Content: payload, Status: note.StatusActive, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
 		t.Fatal(err)
 	}
-	got, err := store.Memories().Get(ctx, "memory")
-	if err != nil || got.Title != payload || got.Note != payload {
+	got, err := store.Notes().Get(ctx, "note")
+	if err != nil || got.Title != payload || got.Content != payload {
 		t.Fatalf("hostile text was not literal: %+v %v", got, err)
 	}
-	for _, filter := range []memory.ListFilter{{MindID: ptr("' OR 1=1 --")}, {Status: "' OR 1=1 --"}, {TagIDs: []string{"') OR 1=1 --"}}} {
-		page, err := store.Memories().List(ctx, filter)
-		if err != nil || len(page.Memories) != 0 {
+	for _, filter := range []note.ListFilter{{SpaceID: ptr("' OR 1=1 --")}, {Status: "' OR 1=1 --"}, {TagIDs: []string{"') OR 1=1 --"}}} {
+		page, err := store.Notes().List(ctx, filter)
+		if err != nil || len(page.Notes) != 0 {
 			t.Fatalf("filter escaped parameters: %+v %v", page, err)
 		}
 	}
-	for _, id := range []string{"' OR 1=1 --", "memory'; DELETE FROM memories; --"} {
-		if _, err := store.Memories().Get(ctx, id); err == nil {
+	for _, id := range []string{"' OR 1=1 --", "note'; DELETE FROM notes; --"} {
+		if _, err := store.Notes().Get(ctx, id); err == nil {
 			t.Fatalf("hostile lookup returned a row: %s", id)
 		}
 	}
@@ -51,8 +51,8 @@ func TestHostileSQLValuesCannotChangeQueryStructure(t *testing.T) {
 		t.Fatal(err)
 	}
 	// FTS grammar may reject hostile syntax; it must never change SQL structure.
-	_, _ = store.Memories().List(ctx, memory.ListFilter{Query: "x' OR 1=1 --"})
-	if _, err := store.Memories().Get(ctx, "memory"); err != nil {
+	_, _ = store.Notes().List(ctx, note.ListFilter{Query: "x' OR 1=1 --"})
+	if _, err := store.Notes().Get(ctx, "note"); err != nil {
 		t.Fatalf("table was altered: %v", err)
 	}
 }

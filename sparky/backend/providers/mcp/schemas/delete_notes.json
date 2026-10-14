@@ -1,0 +1,36 @@
+{
+  "name": "delete_notes",
+  "description": "Delete notes. Requires confirm true.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "ids",
+      "confirm"
+    ],
+    "properties": {
+      "ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "confirm": {
+        "const": true
+      },
+      "expectedRev": {
+        "type": "object"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "results"
+    ],
+    "properties": {
+      "results": {
+        "type": "array"
+      }
+    }
+  }
+}

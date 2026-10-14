@@ -12,10 +12,10 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file sparky/v1/schedule.proto.
  */
 export const file_sparky_v1_schedule: GenFile = /*@__PURE__*/
-  fileDesc("ChhzcGFya3kvdjEvc2NoZWR1bGUucHJvdG8SCXNwYXJreS52MSKUBQoIU2NoZWR1bGUSEQoJbWVtb3J5X2lkGAEgASgJEhMKBmFjdGl2ZRgCIAEoCEgAiAEBEisKB2ZpcmVfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgoKAnR6GAQgASgJEg8KB2FsbF9kYXkYBSABKAgSDAoEZnJlcRgGIAEoCRISCgVldmVyeRgHIAEoBUgBiAEBEhQKDHdlZWtkYXlfbWFzaxgIIAEoBRIQCghlbmRfdHlwZRgJIAEoCRIsCgh1bnRpbF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASHQoQb2NjdXJyZW5jZV9jb3VudBgLIAEoBUgCiAEBEhUKDWZvY3VzX2VuYWJsZWQYDCABKAgSGwoOZm9jdXNfd29ya19taW4YDSABKAVIA4gBARIiChVmb2N1c19zaG9ydF9icmVha19taW4YDiABKAVIBIgBARIhChRmb2N1c19sb25nX2JyZWFrX21pbhgPIAEoBUgFiAEBEhkKDGZvY3VzX2N5Y2xlcxgQIAEoBUgGiAEBEiAKE2ZvY3VzX2F1dG9fY29udGludWUYESABKAhIB4gBARIuCgp1cGRhdGVkX2F0GBIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIJCgdfYWN0aXZlQggKBl9ldmVyeUITChFfb2NjdXJyZW5jZV9jb3VudEIRCg9fZm9jdXNfd29ya19taW5CGAoWX2ZvY3VzX3Nob3J0X2JyZWFrX21pbkIXChVfZm9jdXNfbG9uZ19icmVha19taW5CDwoNX2ZvY3VzX2N5Y2xlc0IWChRfZm9jdXNfYXV0b19jb250aW51ZSKaAQoUT2NjdXJyZW5jZUNvbXBsZXRpb24SCgoCaWQYASABKAkSEQoJbWVtb3J5X2lkGAIgASgJEjEKDW9jY3VycmVuY2VfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGNvbXBsZXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAi4AEKCk9jY3VycmVuY2USEQoJbWVtb3J5X2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEjEKDW9jY3VycmVuY2VfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEisKB2ZpcmVfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWNvbXBsZXRlZBgFIAEoCBIPCgdvdmVyZHVlGAYgASgIEg8KB2FsbF9kYXkYByABKAgSDwoHbWluZF9pZBgIIAEoCRIKCgJ0ehgJIAEoCSI7ChJTZXRTY2hlZHVsZVJlcXVlc3QSJQoIc2NoZWR1bGUYASABKAsyEy5zcGFya3kudjEuU2NoZWR1bGUiPAoTU2V0U2NoZWR1bGVSZXNwb25zZRIlCghzY2hlZHVsZRgBIAEoCzITLnNwYXJreS52MS5TY2hlZHVsZSIpChRDbGVhclNjaGVkdWxlUmVxdWVzdBIRCgltZW1vcnlfaWQYASABKAkiFwoVQ2xlYXJTY2hlZHVsZVJlc3BvbnNlIk4KFlByZXZpZXdTY2hlZHVsZVJlcXVlc3QSJQoIc2NoZWR1bGUYASABKAsyEy5zcGFya3kudjEuU2NoZWR1bGUSDQoFbGltaXQYAiABKAUiXwoXUHJldmlld1NjaGVkdWxlUmVzcG9uc2USLwoLb2NjdXJyZW5jZXMYASADKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC2Rlc2NyaXB0aW9uGAIgASgJItMBChZMaXN0T2NjdXJyZW5jZXNSZXF1ZXN0EigKBGZyb20YASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiYKAnRvGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIPCgdtaW5kX2lkGAMgASgJEhsKE2luY2x1ZGVfZGVzY2VuZGFudHMYBCABKAgSDwoHdGFnX2lkcxgFIAMoCRIZChFpbmNsdWRlX2NvbXBsZXRlZBgGIAEoCBINCgVsaW1pdBgHIAEoBSJFChdMaXN0T2NjdXJyZW5jZXNSZXNwb25zZRIqCgtvY2N1cnJlbmNlcxgBIAMoCzIVLnNwYXJreS52MS5PY2N1cnJlbmNlImEKGUNvbXBsZXRlT2NjdXJyZW5jZVJlcXVlc3QSEQoJbWVtb3J5X2lkGAEgASgJEjEKDW9jY3VycmVuY2VfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlEKGkNvbXBsZXRlT2NjdXJyZW5jZVJlc3BvbnNlEjMKCmNvbXBsZXRpb24YASABKAsyHy5zcGFya3kudjEuT2NjdXJyZW5jZUNvbXBsZXRpb24iXwoXUmVvcGVuT2NjdXJyZW5jZVJlcXVlc3QSEQoJbWVtb3J5X2lkGAEgASgJEjEKDW9jY3VycmVuY2VfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhoKGFJlb3Blbk9jY3VycmVuY2VSZXNwb25zZSKlAQoVU2V0Rm9jdXNSZWNpcGVSZXF1ZXN0EhEKCW1lbW9yeV9pZBgBIAEoCRIPCgdlbmFibGVkGAIgASgIEhAKCHdvcmtfbWluGAMgASgFEhcKD3Nob3J0X2JyZWFrX21pbhgEIAEoBRIWCg5sb25nX2JyZWFrX21pbhgFIAEoBRIOCgZjeWNsZXMYBiABKAUSFQoNYXV0b19jb250aW51ZRgHIAEoCCI/ChZTZXRGb2N1c1JlY2lwZVJlc3BvbnNlEiUKCHNjaGVkdWxlGAEgASgLMhMuc3Bhcmt5LnYxLlNjaGVkdWxlMuYECg9TY2hlZHVsZVNlcnZpY2USRAoDU2V0Eh0uc3Bhcmt5LnYxLlNldFNjaGVkdWxlUmVxdWVzdBoeLnNwYXJreS52MS5TZXRTY2hlZHVsZVJlc3BvbnNlEkoKBUNsZWFyEh8uc3Bhcmt5LnYxLkNsZWFyU2NoZWR1bGVSZXF1ZXN0GiAuc3Bhcmt5LnYxLkNsZWFyU2NoZWR1bGVSZXNwb25zZRJQCgdQcmV2aWV3EiEuc3Bhcmt5LnYxLlByZXZpZXdTY2hlZHVsZVJlcXVlc3QaIi5zcGFya3kudjEuUHJldmlld1NjaGVkdWxlUmVzcG9uc2USWAoPTGlzdE9jY3VycmVuY2VzEiEuc3Bhcmt5LnYxLkxpc3RPY2N1cnJlbmNlc1JlcXVlc3QaIi5zcGFya3kudjEuTGlzdE9jY3VycmVuY2VzUmVzcG9uc2USYQoSQ29tcGxldGVPY2N1cnJlbmNlEiQuc3Bhcmt5LnYxLkNvbXBsZXRlT2NjdXJyZW5jZVJlcXVlc3QaJS5zcGFya3kudjEuQ29tcGxldGVPY2N1cnJlbmNlUmVzcG9uc2USWwoQUmVvcGVuT2NjdXJyZW5jZRIiLnNwYXJreS52MS5SZW9wZW5PY2N1cnJlbmNlUmVxdWVzdBojLnNwYXJreS52MS5SZW9wZW5PY2N1cnJlbmNlUmVzcG9uc2USVQoOU2V0Rm9jdXNSZWNpcGUSIC5zcGFya3kudjEuU2V0Rm9jdXNSZWNpcGVSZXF1ZXN0GiEuc3Bhcmt5LnYxLlNldEZvY3VzUmVjaXBlUmVzcG9uc2VCtAEKDWNvbS5zcGFya3kudjFCDVNjaGVkdWxlUHJvdG9QAVpPZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvc3Bhcmt5L2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3NwYXJreS92MTtzcGFya3l2MaICA1NYWKoCCVNwYXJreS5WMcoCCVNwYXJreVxWMeICFVNwYXJreVxWMVxHUEJNZXRhZGF0YeoCClNwYXJreTo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChhzcGFya3kvdjEvc2NoZWR1bGUucHJvdG8SCXNwYXJreS52MSKSBQoIU2NoZWR1bGUSDwoHbm90ZV9pZBgBIAEoCRITCgZhY3RpdmUYAiABKAhIAIgBARIrCgdmaXJlX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIKCgJ0ehgEIAEoCRIPCgdhbGxfZGF5GAUgASgIEgwKBGZyZXEYBiABKAkSEgoFZXZlcnkYByABKAVIAYgBARIUCgx3ZWVrZGF5X21hc2sYCCABKAUSEAoIZW5kX3R5cGUYCSABKAkSLAoIdW50aWxfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEh0KEG9jY3VycmVuY2VfY291bnQYCyABKAVIAogBARIVCg1mb2N1c19lbmFibGVkGAwgASgIEhsKDmZvY3VzX3dvcmtfbWluGA0gASgFSAOIAQESIgoVZm9jdXNfc2hvcnRfYnJlYWtfbWluGA4gASgFSASIAQESIQoUZm9jdXNfbG9uZ19icmVha19taW4YDyABKAVIBYgBARIZCgxmb2N1c19jeWNsZXMYECABKAVIBogBARIgChNmb2N1c19hdXRvX2NvbnRpbnVlGBEgASgISAeIAQESLgoKdXBkYXRlZF9hdBgSIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCCQoHX2FjdGl2ZUIICgZfZXZlcnlCEwoRX29jY3VycmVuY2VfY291bnRCEQoPX2ZvY3VzX3dvcmtfbWluQhgKFl9mb2N1c19zaG9ydF9icmVha19taW5CFwoVX2ZvY3VzX2xvbmdfYnJlYWtfbWluQg8KDV9mb2N1c19jeWNsZXNCFgoUX2ZvY3VzX2F1dG9fY29udGludWUimAEKFE9jY3VycmVuY2VDb21wbGV0aW9uEgoKAmlkGAEgASgJEg8KB25vdGVfaWQYAiABKAkSMQoNb2NjdXJyZW5jZV9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMY29tcGxldGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLfAQoKT2NjdXJyZW5jZRIPCgdub3RlX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEjEKDW9jY3VycmVuY2VfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEisKB2ZpcmVfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCWNvbXBsZXRlZBgFIAEoCBIPCgdvdmVyZHVlGAYgASgIEg8KB2FsbF9kYXkYByABKAgSEAoIc3BhY2VfaWQYCCABKAkSCgoCdHoYCSABKAkiOwoSU2V0U2NoZWR1bGVSZXF1ZXN0EiUKCHNjaGVkdWxlGAEgASgLMhMuc3Bhcmt5LnYxLlNjaGVkdWxlIjwKE1NldFNjaGVkdWxlUmVzcG9uc2USJQoIc2NoZWR1bGUYASABKAsyEy5zcGFya3kudjEuU2NoZWR1bGUiJwoUQ2xlYXJTY2hlZHVsZVJlcXVlc3QSDwoHbm90ZV9pZBgBIAEoCSIXChVDbGVhclNjaGVkdWxlUmVzcG9uc2UiTgoWUHJldmlld1NjaGVkdWxlUmVxdWVzdBIlCghzY2hlZHVsZRgBIAEoCzITLnNwYXJreS52MS5TY2hlZHVsZRINCgVsaW1pdBgCIAEoBSJfChdQcmV2aWV3U2NoZWR1bGVSZXNwb25zZRIvCgtvY2N1cnJlbmNlcxgBIAMoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLZGVzY3JpcHRpb24YAiABKAki1AEKFkxpc3RPY2N1cnJlbmNlc1JlcXVlc3QSKAoEZnJvbRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHNwYWNlX2lkGAMgASgJEhsKE2luY2x1ZGVfZGVzY2VuZGFudHMYBCABKAgSDwoHdGFnX2lkcxgFIAMoCRIZChFpbmNsdWRlX2NvbXBsZXRlZBgGIAEoCBINCgVsaW1pdBgHIAEoBSJFChdMaXN0T2NjdXJyZW5jZXNSZXNwb25zZRIqCgtvY2N1cnJlbmNlcxgBIAMoCzIVLnNwYXJreS52MS5PY2N1cnJlbmNlIl8KGUNvbXBsZXRlT2NjdXJyZW5jZVJlcXVlc3QSDwoHbm90ZV9pZBgBIAEoCRIxCg1vY2N1cnJlbmNlX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJRChpDb21wbGV0ZU9jY3VycmVuY2VSZXNwb25zZRIzCgpjb21wbGV0aW9uGAEgASgLMh8uc3Bhcmt5LnYxLk9jY3VycmVuY2VDb21wbGV0aW9uIl0KF1Jlb3Blbk9jY3VycmVuY2VSZXF1ZXN0Eg8KB25vdGVfaWQYASABKAkSMQoNb2NjdXJyZW5jZV9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiGgoYUmVvcGVuT2NjdXJyZW5jZVJlc3BvbnNlIqMBChVTZXRGb2N1c1JlY2lwZVJlcXVlc3QSDwoHbm90ZV9pZBgBIAEoCRIPCgdlbmFibGVkGAIgASgIEhAKCHdvcmtfbWluGAMgASgFEhcKD3Nob3J0X2JyZWFrX21pbhgEIAEoBRIWCg5sb25nX2JyZWFrX21pbhgFIAEoBRIOCgZjeWNsZXMYBiABKAUSFQoNYXV0b19jb250aW51ZRgHIAEoCCI/ChZTZXRGb2N1c1JlY2lwZVJlc3BvbnNlEiUKCHNjaGVkdWxlGAEgASgLMhMuc3Bhcmt5LnYxLlNjaGVkdWxlMuYECg9TY2hlZHVsZVNlcnZpY2USRAoDU2V0Eh0uc3Bhcmt5LnYxLlNldFNjaGVkdWxlUmVxdWVzdBoeLnNwYXJreS52MS5TZXRTY2hlZHVsZVJlc3BvbnNlEkoKBUNsZWFyEh8uc3Bhcmt5LnYxLkNsZWFyU2NoZWR1bGVSZXF1ZXN0GiAuc3Bhcmt5LnYxLkNsZWFyU2NoZWR1bGVSZXNwb25zZRJQCgdQcmV2aWV3EiEuc3Bhcmt5LnYxLlByZXZpZXdTY2hlZHVsZVJlcXVlc3QaIi5zcGFya3kudjEuUHJldmlld1NjaGVkdWxlUmVzcG9uc2USWAoPTGlzdE9jY3VycmVuY2VzEiEuc3Bhcmt5LnYxLkxpc3RPY2N1cnJlbmNlc1JlcXVlc3QaIi5zcGFya3kudjEuTGlzdE9jY3VycmVuY2VzUmVzcG9uc2USYQoSQ29tcGxldGVPY2N1cnJlbmNlEiQuc3Bhcmt5LnYxLkNvbXBsZXRlT2NjdXJyZW5jZVJlcXVlc3QaJS5zcGFya3kudjEuQ29tcGxldGVPY2N1cnJlbmNlUmVzcG9uc2USWwoQUmVvcGVuT2NjdXJyZW5jZRIiLnNwYXJreS52MS5SZW9wZW5PY2N1cnJlbmNlUmVxdWVzdBojLnNwYXJreS52MS5SZW9wZW5PY2N1cnJlbmNlUmVzcG9uc2USVQoOU2V0Rm9jdXNSZWNpcGUSIC5zcGFya3kudjEuU2V0Rm9jdXNSZWNpcGVSZXF1ZXN0GiEuc3Bhcmt5LnYxLlNldEZvY3VzUmVjaXBlUmVzcG9uc2VCtAEKDWNvbS5zcGFya3kudjFCDVNjaGVkdWxlUHJvdG9QAVpPZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvc3Bhcmt5L2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3NwYXJreS92MTtzcGFya3l2MaICA1NYWKoCCVNwYXJreS5WMcoCCVNwYXJreVxWMeICFVNwYXJreVxWMVxHUEJNZXRhZGF0YeoCClNwYXJreTo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
- * Schedule is the 1:1 rule for a memory.
+ * Schedule is the 1:1 rule for a note.
  * freq empty means one-shot. weekday_mask bit 0 is Sunday.
  * end_type is never, until, or count.
  *
@@ -23,9 +23,9 @@ export const file_sparky_v1_schedule: GenFile = /*@__PURE__*/
  */
 export type Schedule = Message<"sparky.v1.Schedule"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: optional bool active = 2;
@@ -130,9 +130,9 @@ export type OccurrenceCompletion = Message<"sparky.v1.OccurrenceCompletion"> & {
   id: string;
 
   /**
-   * @generated from field: string memory_id = 2;
+   * @generated from field: string note_id = 2;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: google.protobuf.Timestamp occurrence_at = 3;
@@ -157,9 +157,9 @@ export const OccurrenceCompletionSchema: GenMessage<OccurrenceCompletion> = /*@_
  */
 export type Occurrence = Message<"sparky.v1.Occurrence"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: string title = 2;
@@ -192,12 +192,12 @@ export type Occurrence = Message<"sparky.v1.Occurrence"> & {
   allDay: boolean;
 
   /**
-   * @generated from field: string mind_id = 8;
+   * @generated from field: string space_id = 8;
    */
-  mindId: string;
+  spaceId: string;
 
   /**
-   * IANA time zone of the memory's schedule; civil dates (all-day) use it.
+   * IANA time zone of the note's schedule; civil dates (all-day) use it.
    *
    * @generated from field: string tz = 9;
    */
@@ -250,9 +250,9 @@ export const SetScheduleResponseSchema: GenMessage<SetScheduleResponse> = /*@__P
  */
 export type ClearScheduleRequest = Message<"sparky.v1.ClearScheduleRequest"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 };
 
 /**
@@ -334,9 +334,9 @@ export type ListOccurrencesRequest = Message<"sparky.v1.ListOccurrencesRequest">
   to?: Timestamp | undefined;
 
   /**
-   * @generated from field: string mind_id = 3;
+   * @generated from field: string space_id = 3;
    */
-  mindId: string;
+  spaceId: string;
 
   /**
    * @generated from field: bool include_descendants = 4;
@@ -388,9 +388,9 @@ export const ListOccurrencesResponseSchema: GenMessage<ListOccurrencesResponse> 
  */
 export type CompleteOccurrenceRequest = Message<"sparky.v1.CompleteOccurrenceRequest"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: google.protobuf.Timestamp occurrence_at = 2;
@@ -427,9 +427,9 @@ export const CompleteOccurrenceResponseSchema: GenMessage<CompleteOccurrenceResp
  */
 export type ReopenOccurrenceRequest = Message<"sparky.v1.ReopenOccurrenceRequest"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: google.protobuf.Timestamp occurrence_at = 2;
@@ -462,9 +462,9 @@ export const ReopenOccurrenceResponseSchema: GenMessage<ReopenOccurrenceResponse
  */
 export type SetFocusRecipeRequest = Message<"sparky.v1.SetFocusRecipeRequest"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: bool enabled = 2;

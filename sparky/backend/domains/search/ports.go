@@ -2,10 +2,10 @@ package search
 
 import "context"
 
-// Index maintains memory_fts inside the same transaction as the memory write.
+// Index maintains note_fts inside the same transaction as the note write.
 type Index interface {
 	Upsert(ctx context.Context, doc Document) error
-	Delete(ctx context.Context, memoryID string) error
+	Delete(ctx context.Context, noteID string) error
 	Search(ctx context.Context, query string, filter Filter) ([]Hit, error)
 	Rebuild(ctx context.Context, docs []Document) error
 	Count(ctx context.Context) (int, error)

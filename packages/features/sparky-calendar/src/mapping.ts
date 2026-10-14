@@ -2,7 +2,7 @@ import { systemTimeZone, wallClockToUtc } from "./grid";
 
 /** Protobuf JSON body of sparky.v1.Schedule used by Set. One-shot only. */
 export type ScheduleInput = {
-  memoryId: string;
+  noteId: string;
   active: boolean;
   fireAt: string;
   tz: string;
@@ -53,12 +53,12 @@ export function validateSlot(draft: SlotDraft): string {
 }
 
 /** Maps a calendar slot to a one-shot Schedule body. Recurrence stays on W2-SCHEDULE. */
-export function toOneShotSchedule(draft: SlotDraft, memoryId: string): ScheduleInput {
+export function toOneShotSchedule(draft: SlotDraft, noteId: string): ScheduleInput {
   const issue = validateSlot(draft);
   if (issue) throw new Error(issue);
   const tz = draft.tz || systemTimeZone();
   return {
-    memoryId,
+    noteId,
     active: true,
     fireAt: wallClockToUtc(draft.date, draft.allDay ? "00:00" : draft.time, tz),
     tz,
@@ -77,7 +77,7 @@ export function moveSeriesAnchor(schedule: ScheduleJSON, occurrenceAt: string, d
   const to = Date.parse(dropAt);
   if (!Number.isFinite(fireAt) || !Number.isFinite(from) || !Number.isFinite(to)) throw new Error("A valid schedule instant is required.");
   const next: ScheduleInput = {
-    memoryId: schedule.memoryId ?? "",
+    noteId: schedule.noteId ?? "",
     active: schedule.active ?? true,
     fireAt: new Date(fireAt + (to - from)).toISOString(),
     tz: schedule.tz || systemTimeZone(),

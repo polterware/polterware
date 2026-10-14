@@ -1,4 +1,4 @@
-/* Markdown editor — floating format dock + prose surface */
+/* Markdown editor — block insertion, selection formatting and prose. */
 
 .pw-md-editor {
   position: relative;
@@ -15,26 +15,26 @@
   flex: 1 1 auto;
 }
 
-/* Room for sticky dock while editable — always reserved to avoid maximize jump */
-.pw-md-editor[data-toolbar="true"] .pw-md-editor__surface {
-  padding-bottom: 64px;
+/* Gutter space remains stable while selection and insertion controls appear. */
+.pw-md-editor[data-editable="true"] .pw-md-editor__surface {
+  padding-inline: 32px 8px;
 }
 
-/* Sticky bottom dock: stays visible while the document body scrolls */
-.pw-md-editor__dock {
-  position: sticky;
-  bottom: 12px;
-  z-index: 5;
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  margin-top: -48px;
-  pointer-events: none;
+.pw-md-editor__add {
+  position: absolute;
+  left: 0;
+  z-index: 2;
 }
 
-.pw-md-editor__dock[data-visible="false"] {
-  opacity: 0;
-  visibility: hidden;
+.pw-md-editor__slash {
+  width: 220px;
+  max-height: min(440px, calc(100vh - 64px));
+  overflow-y: auto;
+}
+
+.pw-md-editor__no-results {
+  padding: 12px;
+  color: var(--color-text-muted);
 }
 
 /*
@@ -46,9 +46,9 @@
   flex-wrap: wrap;
   gap: 2px 4px;
   align-items: center;
-  max-width: calc(100% - 24px);
+  max-width: calc(100vw - 24px);
   padding: 3px 4px;
-  border-radius: 9999px;
+  border-radius: var(--radius-menu);
   overflow: visible;
   pointer-events: auto;
   /* Whisper lift — card-panel weight, not surface-panel-float */
@@ -76,13 +76,10 @@
   justify-content: center;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-control);
-  background: transparent;
+  border-radius: 9999px;
+  background: var(--color-surface-subtle);
   color: var(--color-text-muted);
   cursor: pointer;
-  transition:
-    background var(--duration-control, 120ms) var(--ease-standard, ease),
-    color var(--duration-control, 120ms) var(--ease-standard, ease);
 }
 
 .pw-md-editor__tool[data-kind="text"] {
@@ -251,11 +248,74 @@
   font-style: italic;
 }
 
-.pw-md-editor[data-editable="false"] .pw-md-editor__surface .ProseMirror,
-.pw-md-editor[data-toolbar="false"] .pw-md-editor__surface .ProseMirror {
-  min-height: 0;
-}
-
 .pw-md-editor[data-editable="false"] .pw-md-editor__surface .ProseMirror {
   min-height: 0;
 }
+
+/* Task lists: round checkbox + text, no bullet marker */
+.pw-md-editor__prose ul[data-type="taskList"] {
+  padding-left: 0;
+  list-style: none;
+}
+
+.pw-md-editor__prose li[data-type="taskItem"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.pw-md-editor__prose li[data-type="taskItem"] > label {
+  display: flex;
+  flex: none;
+  padding-top: 0.3em;
+  user-select: none;
+}
+
+.pw-md-editor__prose li[data-type="taskItem"] > label input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--color-brand);
+  cursor: pointer;
+}
+
+.pw-md-editor__prose li[data-type="taskItem"] > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.pw-md-editor__prose li[data-type="taskItem"][data-checked="true"] > div {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+/* Note page: document scrolls inside the editor to its edge, selection formatting floats above it */
+.pw-note-editor .pw-md-editor__surface {
+  overflow-y: auto;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 28px), transparent 100%);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong, var(--color-text-muted)) transparent;
+}
+
+.pw-note-editor .pw-md-editor__surface::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pw-note-editor .pw-md-editor__surface::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pw-note-editor .pw-md-editor__surface::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: var(--color-border-strong, var(--color-text-muted));
+}
+
+.pw-note-editor .pw-md-editor__surface::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+.pw-md-editor__attachment { margin: 8px 0; border-radius: var(--radius-card); }
+.pw-md-editor__attachment.ProseMirror-selectednode { outline: 2px solid var(--color-border-strong); outline-offset: 2px; }

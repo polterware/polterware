@@ -25,9 +25,9 @@ describe("one-shot slot → Schedule mapping", () => {
       fireAt: wallClockToUtc("2026-03-08", "02:30", "America/New_York"),
     },
   ])("$name", ({ draft, fireAt }) => {
-    const input = toOneShotSchedule(draft, "memory-1");
+    const input = toOneShotSchedule(draft, "note-1");
     expect(input).toMatchObject({
-      memoryId: "memory-1",
+      noteId: "note-1",
       active: true,
       fireAt,
       tz: draft.tz,
@@ -48,7 +48,7 @@ describe("one-shot slot → Schedule mapping", () => {
 describe("series-anchor move", () => {
   it("shifts a one-shot fireAt by the drop delta", () => {
     const next = moveSeriesAnchor(
-      { memoryId: "memory-1", fireAt: "2026-10-03T21:30:00.000Z", tz: "UTC", freq: "" },
+      { noteId: "note-1", fireAt: "2026-10-03T21:30:00.000Z", tz: "UTC", freq: "" },
       "2026-10-03T21:30:00.000Z",
       "2026-10-04T10:00:00.000Z",
     );
@@ -58,7 +58,7 @@ describe("series-anchor move", () => {
 
   it("moves the whole recurring series from the current occurrence", () => {
     const next = moveSeriesAnchor(
-      { memoryId: "memory-1", fireAt: "2026-03-01T12:00:00.000Z", tz: "America/Sao_Paulo", freq: "daily", every: 1 },
+      { noteId: "note-1", fireAt: "2026-03-01T12:00:00.000Z", tz: "America/Sao_Paulo", freq: "daily", every: 1 },
       "2026-03-03T12:00:00.000Z",
       "2026-03-03T15:00:00.000Z",
     );

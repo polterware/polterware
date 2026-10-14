@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { A11yDialog, Button, Field, Input } from "@polterware/frontend-design-system";
+import { A11yDialog, Button, Field, Input, FormStack } from "@polterware/frontend-design-system";
 import type { KnowledgeCreateTemplate } from "./create-templates";
 import { KnowledgeTemplateGrid } from "./knowledge-template-grid";
 
@@ -45,7 +45,7 @@ export function CreateSourceDialog(props: {
         </>
       }
     >
-      <div class="grid gap-4">
+      <FormStack>
         <Field label="Title">
           <Input
             size="sm"
@@ -72,7 +72,7 @@ export function CreateSourceDialog(props: {
             }}
           />
         ) : null}
-      </div>
+      </FormStack>
     </A11yDialog>
   );
 }

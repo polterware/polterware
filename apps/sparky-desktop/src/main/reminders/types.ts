@@ -13,7 +13,7 @@ export interface RepeatComponents {
 }
 export interface Reminder {
   id: string;
-  memoryId: string;
+  noteId: string;
   occurrenceAt: string;
   fireAt: string;
   title: string;
@@ -35,7 +35,7 @@ export interface NotificationAction {
   token: string;
   action: string;
   id: string;
-  memoryId: string;
+  noteId: string;
   occurrenceAt: string;
   receivedAtMs: number;
 }
@@ -57,8 +57,8 @@ export interface NativeNotify {
 }
 export interface ReminderCore {
   plan(now: Date): Promise<Reminder[]>;
-  complete(memoryId: string, occurrenceAt: string): Promise<void>;
-  snooze(memoryId: string, occurrenceAt: string): Promise<void>;
+  complete(noteId: string, occurrenceAt: string): Promise<void>;
+  snooze(noteId: string, occurrenceAt: string): Promise<void>;
   ack(id: string, outcome: "done" | "opened" | "delivered"): Promise<void>;
   heartbeat(status: NativeStatus): Promise<void>;
 }

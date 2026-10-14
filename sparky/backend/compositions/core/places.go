@@ -6,20 +6,20 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/clock"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 )
 
 type placeService struct {
-	repo     place.Repository
-	memories memory.Repository
-	clock    clock.Clock
-	audit    activity.Audit
+	repo  place.Repository
+	notes note.Repository
+	clock clock.Clock
+	audit activity.Audit
 }
 
 func (s placeService) Set(ctx context.Context, p place.Place, expectedRev int64) (place.Place, error) {
-	if p.MemoryID == "" {
-		return place.Place{}, invalid("place.memory_id", "required")
+	if p.NoteID == "" {
+		return place.Place{}, invalid("place.note_id", "required")
 	}
 	if p.Lat < -90 || p.Lat > 90 || p.Lng < -180 || p.Lng > 180 {
 		return place.Place{}, invalid("place", "coordinates must be valid WGS84")
@@ -37,8 +37,8 @@ func (s placeService) Set(ctx context.Context, p place.Place, expectedRev int64)
 		return place.Place{}, invalid("place.event", "must be enter or exit")
 	}
 	p.UpdatedAt = s.clock.Now().UTC()
-	err := s.audit.Write(ctx, caller(ctx), "place", p.MemoryID, activity.OpUpdate, "Set place", func(ctx context.Context) error {
-		if err := bumpMemoryRevisionExpecting(ctx, s.memories, p.MemoryID, expectedRev, p.UpdatedAt); err != nil {
+	err := s.audit.Write(ctx, caller(ctx), "place", p.NoteID, activity.OpUpdate, "Set place", func(ctx context.Context) error {
+		if err := bumpNoteRevisionExpecting(ctx, s.notes, p.NoteID, expectedRev, p.UpdatedAt); err != nil {
 			return err
 		}
 		return s.repo.Upsert(ctx, p)
@@ -49,15 +49,15 @@ func (s placeService) Set(ctx context.Context, p place.Place, expectedRev int64)
 	return p, nil
 }
 
-func (s placeService) Clear(ctx context.Context, memoryID string, expectedRev int64) error {
-	if memoryID == "" {
-		return invalid("memory_id", "required")
+func (s placeService) Clear(ctx context.Context, noteID string, expectedRev int64) error {
+	if noteID == "" {
+		return invalid("note_id", "required")
 	}
-	err := s.audit.Write(ctx, caller(ctx), "place", memoryID, activity.OpDelete, "Clear place", func(ctx context.Context) error {
-		if err := s.repo.Delete(ctx, memoryID); err != nil {
+	err := s.audit.Write(ctx, caller(ctx), "place", noteID, activity.OpDelete, "Clear place", func(ctx context.Context) error {
+		if err := s.repo.Delete(ctx, noteID); err != nil {
 			return err
 		}
-		return bumpMemoryRevisionExpecting(ctx, s.memories, memoryID, expectedRev, s.clock.Now().UTC())
+		return bumpNoteRevisionExpecting(ctx, s.notes, noteID, expectedRev, s.clock.Now().UTC())
 	})
 	if err != nil && !fault.IsCode(err, fault.CodeNotFound) {
 		return err

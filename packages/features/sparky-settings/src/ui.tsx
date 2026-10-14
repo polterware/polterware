@@ -1,5 +1,5 @@
 import { Show, type JSX } from "solid-js";
-import { Card, PageError, PageLoading, PageOffline, StatusChip } from "@polterware/frontend-design-system";
+import { PageError, PageLoading, PageOffline, StatusChip } from "@polterware/frontend-design-system";
 import type { Honesty } from "./model";
 
 export function SettingsSection(props: { title: string; description?: string; children: JSX.Element }) {
@@ -11,7 +11,7 @@ export function SettingsSection(props: { title: string; description?: string; ch
           <p class="m-0 mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{props.description}</p>
         </Show>
       </div>
-      <Card class="flex flex-col gap-4 p-4">{props.children}</Card>
+      <div class="sparky-settings-stack">{props.children}</div>
     </section>
   );
 }
@@ -35,7 +35,7 @@ export function SettingsRow(props: { label: JSX.Element; description?: JSX.Eleme
 export function HonestyLine(props: { state: Honesty; error?: string; idle?: string }) {
   const tone = () => props.state === "failed" || props.state === "unavailable" ? "danger" : props.state === "queued" ? "syncing" : "ok";
   const label = () => props.error || (props.state === "queued" ? "Saving…" : props.state === "failed" ? "Save failed" : props.state === "unavailable" ? "Unavailable" : props.idle ?? "Live");
-  return <StatusChip tone={tone()} label={label()} />;
+  return <Show when={props.state !== "live" || Boolean(props.error)}><StatusChip tone={tone()} label={label()} /></Show>;
 }
 
 export function PanelFrame(props: { state: Honesty; error?: string; onRetry?: () => void; children: JSX.Element }) {

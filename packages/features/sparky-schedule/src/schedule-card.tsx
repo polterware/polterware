@@ -1,30 +1,39 @@
-import { For, Show, createEffect, createSignal, onCleanup, on, type JSX } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal, onCleanup, on, type JSX } from "solid-js";
 import { useSparkyShell } from "@polterware/feature-sparky-shell/feature";
 import {
-  Button, DatePicker, Field, FilterChip, NumberStepper, PageError, PageLoading, SegmentedControl, Select, StatusChip, SwitchRow, TimePicker, parseDate,
+  Button, CalendarClock, Clock, DateTimePicker, DetailPanel, Switch, Field, Globe, History, Moon, Sun, XIcon, FilterChip, NumberStepper, PageError, PageLoading, SegmentedControl, Select, SwitchRow, TimePicker,
 } from "@polterware/frontend-design-system";
 import { browserBridge, type ScheduleBridge } from "./bridge";
 import {
   END_OPTIONS, REPEAT_OPTIONS, WEEKDAYS, defaultFocusRecipe, defaultForm, errorText, focusFromSchedule, focusRecipeInput, formFromSchedule, formatOccurrence,
-  reminderTone, reminderWording, timezoneOptions, toScheduleInput, validateFocusRecipe, validateScheduleForm, type FocusRecipeForm, type ReminderWording, type ScheduleForm, type ScheduleJSON,
+  reminderWording, timezoneOptions, toScheduleInput, validateFocusRecipe, validateScheduleForm, type FocusRecipeForm, type ReminderWording, type ScheduleForm, type ScheduleJSON,
 } from "./mapping";
 
 type Preview = { occurrences: string[]; description: string };
 type ReminderStatus = { permission?: string; armed?: number; planned?: number; notifierLastSeenAt?: string };
 type SaveState = "live" | "queued" | "failed" | "unavailable";
 
-export function ScheduleCard(): JSX.Element {
+const REPEAT_ICONS: Record<string, JSX.Element> = {
+  "": <XIcon size={14} aria-hidden="true" />,
+  hourly: <Clock size={14} aria-hidden="true" />,
+  daily: <Sun size={14} aria-hidden="true" />,
+  weekly: <CalendarClock size={14} aria-hidden="true" />,
+  monthly: <Moon size={14} aria-hidden="true" />,
+  yearly: <History size={14} aria-hidden="true" />,
+};
+
+export function ScheduleCard(props: { children?: JSX.Element; onAllDayChange?: (allDay: boolean) => void }): JSX.Element {
   const shell = useSparkyShell();
-  const memoryId = () => shell.selectedMemoryId();
-  return <Show when={memoryId()}>{id => <ScheduleEditor memoryId={id()} />}</Show>;
+  const noteId = () => shell.selectedNoteId();
+  return <Show when={noteId()}>{id => <ScheduleEditor noteId={id()} onAllDayChange={props.onAllDayChange}>{props.children}</ScheduleEditor>}</Show>;
 }
 
-function ScheduleEditor(props: { memoryId: string }) {
+function ScheduleEditor(props: { noteId: string; children?: JSX.Element; onAllDayChange?: (allDay: boolean) => void }) {
   const [form, setForm] = createSignal<ScheduleForm>(defaultForm());
   const [focus, setFocus] = createSignal<FocusRecipeForm>(defaultFocusRecipe());
   const [preview, setPreview] = createSignal<Preview>({ occurrences: [], description: "" });
   const [completions, setCompletions] = createSignal<string[]>([]);
-  const [memoryStatus, setMemoryStatus] = createSignal("active");
+  const [noteStatus, setNoteStatus] = createSignal("active");
   const [saved, setSaved] = createSignal(false);
   const [status, setStatus] = createSignal<ReminderStatus>();
   const [snoozeMinutes, setSnoozeMinutes] = createSignal(10);
@@ -38,7 +47,7 @@ function ScheduleEditor(props: { memoryId: string }) {
   const validation = () => validateScheduleForm(form()) || validateFocusRecipe(focus());
   const wording = (): ReminderWording => reminderWording({
     ...status(),
-    memoryStatus: memoryStatus(),
+    noteStatus: noteStatus(),
     nextOccurrenceCompleted: completed(preview().occurrences[0], completions()),
   });
   function patch(partial: Partial<ScheduleForm>) {
@@ -73,17 +82,17 @@ function ScheduleEditor(props: { memoryId: string }) {
     setPending(true); setLoadError("");
     try {
       const bridge = browserBridge();
-      const [memoryResponse, settingsResponse] = await Promise.all([
-        bridge.memories.get({ id, include: { schedule: true, completions: true } }),
+      const [noteResponse, settingsResponse] = await Promise.all([
+        bridge.notes.get({ id, include: { schedule: true, completions: true } }),
         bridge.settings.get({}).catch(() => ({ settings: { notificationsSnoozeMinutes: 10 } })),
       ]);
-      const memory = (memoryResponse as { memory?: { status?: string; schedule?: ScheduleJSON; completions?: { occurrenceAt?: string }[] } }).memory;
-      if (!memory) throw new Error("Memory unavailable. It may have been deleted.");
-      const schedule = memory.schedule;
+      const note = (noteResponse as { note?: { status?: string; schedule?: ScheduleJSON; completions?: { occurrenceAt?: string }[] } }).note;
+      if (!note) throw new Error("Note unavailable. It may have been deleted.");
+      const schedule = note.schedule;
       setForm(formFromSchedule(schedule));
       setFocus(focusFromSchedule(schedule));
-      setMemoryStatus(memory.status ?? "active");
-      setCompletions((memory.completions ?? []).map(item => item.occurrenceAt ?? "").filter(Boolean));
+      setNoteStatus(note.status ?? "active");
+      setCompletions((note.completions ?? []).map(item => item.occurrenceAt ?? "").filter(Boolean));
       setSaved(Boolean(schedule?.fireAt));
       const settings = (settingsResponse as { settings?: { notificationsSnoozeMinutes?: number } }).settings;
       if (settings?.notificationsSnoozeMinutes) setSnoozeMinutes(settings.notificationsSnoozeMinutes);
@@ -109,14 +118,14 @@ function ScheduleEditor(props: { memoryId: string }) {
       setPreviewError(errorText(error));
     }
   }
-  createEffect(on(() => props.memoryId, id => {
+  createEffect(on(() => props.noteId, id => {
     let active = true;
     void load(id).then(() => { if (active) void refreshPreview(form(), id); });
     let unsubscribe: (() => void) | undefined;
     try {
       unsubscribe = browserBridge().onChange(event => {
         if (saveState() === "queued") return;
-        if (event.resync || event.changes.some(change => ["schedule", "memory", "memories", "reminders"].includes(change.entity))) {
+        if (event.resync || event.changes.some(change => ["schedule", "note", "notes", "reminders"].includes(change.entity))) {
           void load(id);
         }
       });
@@ -124,15 +133,20 @@ function ScheduleEditor(props: { memoryId: string }) {
     onCleanup(() => { active = false; unsubscribe?.(); });
   }));
   createEffect(on(() => JSON.stringify(form()), () => {
-    const id = props.memoryId;
+    const id = props.noteId;
     const current = form();
     const timer = setTimeout(() => { void refreshPreview(current, id); }, 250);
     onCleanup(() => clearTimeout(timer));
   }));
+  createEffect(on(() => [JSON.stringify(form()), JSON.stringify(focus()), saveState()] as const, ([, , state]) => {
+    if (state !== "queued" || busy() || validation()) return;
+    const timer = setTimeout(() => { void save(); }, 800);
+    onCleanup(() => clearTimeout(timer));
+  }, { defer: true }));
   async function save() {
     const issue = validation();
     if (issue) { setFormError(issue); return; }
-    const id = props.memoryId;
+    const id = props.noteId;
     const payload = toScheduleInput(form(), id);
     const recipe = focus();
     await withBridge("save", async bridge => {
@@ -151,7 +165,7 @@ function ScheduleEditor(props: { memoryId: string }) {
   }
   async function clear() {
     await withBridge("clear", async bridge => {
-      await bridge.schedule.clear({ memoryId: props.memoryId });
+      await bridge.schedule.clear({ noteId: props.noteId });
       setSaved(false);
       setForm(defaultForm());
       setFocus(defaultFocusRecipe());
@@ -162,20 +176,22 @@ function ScheduleEditor(props: { memoryId: string }) {
   }
   async function complete(occurrenceAt: string, reopen = false) {
     await withBridge(reopen ? "reopen" : "complete", async bridge => {
-      if (reopen) await bridge.schedule.reopenOccurrence({ memoryId: props.memoryId, occurrenceAt });
-      else await bridge.schedule.completeOccurrence({ memoryId: props.memoryId, occurrenceAt });
-      await load(props.memoryId);
-      await refreshPreview(form(), props.memoryId);
+      if (reopen) await bridge.schedule.reopenOccurrence({ noteId: props.noteId, occurrenceAt });
+      else await bridge.schedule.completeOccurrence({ noteId: props.noteId, occurrenceAt });
+      await load(props.noteId);
+      await refreshPreview(form(), props.noteId);
     });
   }
   async function snooze() {
     const occurrenceAt = preview().occurrences.find(item => !completed(item, completions()));
     if (!occurrenceAt) { setCoreError("No upcoming occurrence to snooze."); return; }
     await withBridge("snooze", async bridge => {
-      await bridge.reminders.snooze({ memoryId: props.memoryId, occurrenceAt, minutes: snoozeMinutes() });
+      await bridge.reminders.snooze({ noteId: props.noteId, occurrenceAt, minutes: snoozeMinutes() });
       await refreshStatus(bridge);
     });
   }
+  const tz = createMemo(() => form().tz);
+  const tzOptions = createMemo(() => timezoneOptions(tz()).map(option => ({ ...option, icon: <Globe size={14} aria-hidden="true" /> })));
   const keyboard = (event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
       event.preventDefault();
@@ -183,84 +199,75 @@ function ScheduleEditor(props: { memoryId: string }) {
     }
   };
   return <div data-schedule-card class="flex flex-col gap-4" onKeyDown={keyboard}>
-    <div class="flex flex-wrap items-center gap-2">
-      <h2 class="text-sm font-medium text-[var(--color-text-primary)]">Schedule</h2>
-      <StatusChip tone={saveState() === "live" ? "ok" : saveState() === "queued" ? "syncing" : saveState() === "failed" ? "danger" : "muted"}>
-        {saveState() === "live" ? "Live" : saveState() === "queued" ? "Queued" : saveState() === "failed" ? "Failed" : "Unavailable"}
-      </StatusChip>
-      <span data-reminder-state={wording()}><StatusChip tone={reminderTone(wording())}>{wording()}</StatusChip></span>
-    </div>
+    <h2 class="sr-only">Schedule</h2>
     <Show when={pending()}><PageLoading label="Loading schedule" /></Show>
-    <Show when={loadError()}><PageError title="Schedule unavailable" message={loadError()} onRetry={() => void load(props.memoryId)} /></Show>
+    <Show when={loadError()}><PageError title="Schedule unavailable" message={loadError()} onRetry={() => void load(props.noteId)} /></Show>
     <Show when={!pending() && !loadError()}>
-      <DatePicker label="Start date" value={form().date ? [parseDate(form().date)] : []} onValueChange={details => {
-        const next = details.value[0]?.toString() ?? "";
-        patch({ date: next });
-      }} />
-      <SwitchRow label="All day" aria-label="All day" checked={form().allDay} onCheckedChange={value => patch({ allDay: value })} />
-      <Show when={!form().allDay}><TimePicker label="Time" value={form().time} onValueChange={time => patch({ time })} /></Show>
-      <Field label="Time zone" for="schedule-tz">
-        <Select id="schedule-tz" aria-label="Time zone" value={form().tz} options={timezoneOptions(form().tz)} onChange={tz => patch({ tz })} />
-      </Field>
-      <Field label="Repeat">
-        <Select aria-label="Repeat" value={form().freq} options={REPEAT_OPTIONS.map(option => ({ value: option.value, label: option.label }))} onChange={freq => patch({ freq: freq as ScheduleForm["freq"], weekdays: freq === "weekly" ? form().weekdays : WEEKDAYS.map(() => false) })} />
-      </Field>
-      <Show when={form().freq}>
-        <NumberStepper label="Every" min={1} value={String(form().every)} onValueChange={details => patch({ every: Number.isFinite(details.valueAsNumber) ? Math.max(1, Math.trunc(details.valueAsNumber)) : 1 })} />
-      </Show>
-      <Show when={form().freq === "weekly"}>
-        <div role="group" aria-label="Weekdays" class="flex flex-wrap gap-2">
-          <For each={WEEKDAYS}>{day =>
-            <FilterChip selected={form().weekdays[day.bit]} aria-label={day.label} onClick={() => {
-              const weekdays = [...form().weekdays];
-              weekdays[day.bit] = !weekdays[day.bit];
-              patch({ weekdays });
-            }}>{day.label}</FilterChip>
-          }</For>
-        </div>
-      </Show>
-      <Show when={form().freq}>
-        <Field label="Ends">
-          <SegmentedControl aria-label="Ends" value={form().endType} options={END_OPTIONS} onValueChange={details => patch({ endType: (details.value as ScheduleForm["endType"]) || "never" })} />
-        </Field>
-      </Show>
-      <Show when={form().freq && form().endType === "until"}>
-        <DatePicker label="Until date" value={form().untilDate ? [parseDate(form().untilDate)] : []} onValueChange={details => patch({ untilDate: details.value[0]?.toString() ?? "" })} />
-        <Show when={!form().allDay}><TimePicker label="Until time" value={form().untilTime} onValueChange={untilTime => patch({ untilTime })} /></Show>
-      </Show>
-      <Show when={form().freq && form().endType === "count"}>
-        <NumberStepper label="Occurrences" min={1} value={String(form().occurrenceCount)} onValueChange={details => patch({ occurrenceCount: Number.isFinite(details.valueAsNumber) ? Math.max(1, Math.trunc(details.valueAsNumber)) : 1 })} />
-      </Show>
+      <DetailPanel.Properties>
+        <DetailPanel.Property label="Time of day" value={
+          <Select aria-label="Time of day" value={form().allDay ? "all-day" : "at-time"}
+            options={[{ value: "at-time", label: "At time", icon: <Clock size={14} aria-hidden="true" /> }, { value: "all-day", label: "All day", icon: <CalendarClock size={14} aria-hidden="true" /> }]}
+            onChange={value => { patch({ allDay: value === "all-day" }); props.onAllDayChange?.(value === "all-day"); }} />
+        } />
+        <DetailPanel.Property label="Starts" value={
+          <DateTimePicker class="!w-auto !ml-auto" aria-label="Starts" dateOnly={form().allDay} value={dateTimeValue(form().date, form().time, form().allDay)}
+            onValueChange={value => patch(splitDateTime(value, "date", "time"))} />
+        } />
+        {props.children}
+        <DetailPanel.Property label="Time zone" value={
+          <Select id="schedule-tz" aria-label="Time zone" value={form().tz} options={tzOptions()} onChange={tz => patch({ tz })} />
+        } />
+        <DetailPanel.Property label="Repeat" value={
+          <Select aria-label="Repeat" value={form().freq} options={REPEAT_OPTIONS.map(option => ({ value: option.value, label: option.label, icon: REPEAT_ICONS[option.value] }))} onChange={freq => patch({ freq: freq as ScheduleForm["freq"], weekdays: freq === "weekly" ? form().weekdays : WEEKDAYS.map(() => false) })} />
+        } />
+        <Show when={form().freq}>
+          <DetailPanel.Property label="Every" value={
+            <NumberStepper class="!ml-auto" min={1} value={String(form().every)} onValueChange={details => patch({ every: Number.isFinite(details.valueAsNumber) ? Math.max(1, Math.trunc(details.valueAsNumber)) : 1 })} />
+          } />
+        </Show>
+        <Show when={form().freq === "weekly"}>
+          <DetailPanel.Property label="On" value={
+            <div role="group" aria-label="Weekdays" class="ml-auto grid w-[168px] grid-cols-7 gap-0.5">
+              <For each={WEEKDAYS}>{day =>
+                <FilterChip class="!w-full !justify-center !px-0" selected={form().weekdays[day.bit]} aria-label={day.label} onClick={() => {
+                  const weekdays = [...form().weekdays];
+                  weekdays[day.bit] = !weekdays[day.bit];
+                  patch({ weekdays });
+                }}>{day.label.slice(0, 1)}</FilterChip>
+              }</For>
+            </div>
+          } />
+        </Show>
+        <Show when={form().freq}>
+          <DetailPanel.Property label="Ends" value={
+            <Select aria-label="Ends" value={form().endType} options={END_OPTIONS.map(option => ({ value: option.value, label: option.label }))} onChange={endType => patch({ endType: (endType as ScheduleForm["endType"]) || "never" })} />
+          } />
+        </Show>
+        <Show when={form().freq && form().endType === "until"}>
+          <DetailPanel.Property label="Until" value={
+            <DateTimePicker class="!w-auto !ml-auto" aria-label="Repeats until" dateOnly={form().allDay} value={dateTimeValue(form().untilDate, form().untilTime, form().allDay)}
+              onValueChange={value => patch(splitDateTime(value, "untilDate", "untilTime"))} />
+          } />
+        </Show>
+        <Show when={form().freq && form().endType === "count"}>
+          <DetailPanel.Property label="Occurrences" value={
+            <NumberStepper class="!ml-auto" min={1} value={String(form().occurrenceCount)} onValueChange={details => patch({ occurrenceCount: Number.isFinite(details.valueAsNumber) ? Math.max(1, Math.trunc(details.valueAsNumber)) : 1 })} />
+          } />
+        </Show>
+      </DetailPanel.Properties>
       <Show when={formError()}><p role="alert">{formError()}</p></Show>
       <Show when={previewError()}><p role="status">Preview failed: {previewError()}</p></Show>
-      <Show when={preview().description}><p data-schedule-summary>{preview().description}</p></Show>
-      <div data-schedule-preview class="flex flex-col gap-2">
-        <p class="text-sm text-[var(--color-text-muted)]">Next 5 occurrences</p>
-        <For each={preview().occurrences} fallback={<p>No upcoming occurrences.</p>}>{occurrence =>
-          <div class="flex flex-wrap items-center gap-2" data-occurrence={occurrence}>
-            <span>{formatOccurrence(occurrence, form().tz, form().allDay)}</span>
-            <Show when={form().freq}>
-              <Show when={completed(occurrence, completions())} fallback={<Button variant="secondary" onClick={() => void complete(occurrence)}>Complete occurrence</Button>}>
-                <Button variant="secondary" onClick={() => void complete(occurrence, true)}>Reopen occurrence</Button>
-              </Show>
-            </Show>
-          </div>
-        }</For>
-      </div>
-      <SwitchRow label="Focus recipe" aria-label="Focus recipe" checked={focus().enabled} onCheckedChange={enabled => patchFocus({ enabled })} />
-      <Show when={focus().enabled}>
-        <NumberStepper label="Work" min={1} max={60} value={String(focus().workMin)} onValueChange={details => patchFocus({ workMin: clamp(details.valueAsNumber, 1, 60) })} />
-        <NumberStepper label="Short break" min={1} max={60} value={String(focus().shortBreakMin)} onValueChange={details => patchFocus({ shortBreakMin: clamp(details.valueAsNumber, 1, 60) })} />
-        <NumberStepper label="Long break" min={1} max={60} value={String(focus().longBreakMin)} onValueChange={details => patchFocus({ longBreakMin: clamp(details.valueAsNumber, 1, 60) })} />
-        <NumberStepper label="Cycles" min={1} max={12} value={String(focus().cycles)} onValueChange={details => patchFocus({ cycles: clamp(details.valueAsNumber, 1, 12) })} />
-        <SwitchRow label="Auto-continue" checked={focus().autoContinue} onCheckedChange={autoContinue => patchFocus({ autoContinue })} />
-      </Show>
+      <DetailPanel.Properties>
+        <DetailPanel.Property label="Focus recipe" value={<div class="flex w-full justify-end"><Switch size="sm" aria-label="Focus recipe" checked={focus().enabled} onCheckedChange={enabled => patchFocus({ enabled })} /></div>} />
+        <Show when={focus().enabled}>
+          <DetailPanel.Property label="Work" value={<NumberStepper aria-label="Work" min={1} max={60} value={String(focus().workMin)} onValueChange={details => patchFocus({ workMin: clamp(details.valueAsNumber, 1, 60) })} />} />
+          <DetailPanel.Property label="Short break" value={<NumberStepper aria-label="Short break" min={1} max={60} value={String(focus().shortBreakMin)} onValueChange={details => patchFocus({ shortBreakMin: clamp(details.valueAsNumber, 1, 60) })} />} />
+          <DetailPanel.Property label="Long break" value={<NumberStepper aria-label="Long break" min={1} max={60} value={String(focus().longBreakMin)} onValueChange={details => patchFocus({ longBreakMin: clamp(details.valueAsNumber, 1, 60) })} />} />
+          <DetailPanel.Property label="Cycles" value={<NumberStepper aria-label="Cycles" min={1} max={12} value={String(focus().cycles)} onValueChange={details => patchFocus({ cycles: clamp(details.valueAsNumber, 1, 12) })} />} />
+          <DetailPanel.Property label="Auto-continue" value={<div class="flex w-full justify-end"><Switch size="sm" aria-label="Auto-continue" checked={focus().autoContinue} onCheckedChange={autoContinue => patchFocus({ autoContinue })} /></div>} />
+        </Show>
+      </DetailPanel.Properties>
       <Show when={coreError()}><p role="alert">{coreError()}</p></Show>
-      <div class="flex flex-wrap gap-2">
-        <Button disabled={Boolean(busy()) || Boolean(validation())} onClick={() => void save()}>Save schedule</Button>
-        <Show when={saved()}><Button variant="secondary" disabled={Boolean(busy())} onClick={() => void clear()}>Clear schedule</Button></Show>
-        <Button variant="secondary" disabled={Boolean(busy()) || !preview().occurrences.length} onClick={() => void snooze()}>Snooze</Button>
-      </div>
     </Show>
   </div>;
 }
@@ -275,3 +282,15 @@ function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, Math.trunc(value)));
 }
+
+function dateTimeValue(date: string, time: string, allDay: boolean): string {
+  if (!date) return "";
+  return allDay ? date : `${date}T${time || "09:00"}`;
+}
+
+function splitDateTime<D extends "date" | "untilDate", T extends "time" | "untilTime">(value: string, dateKey: D, timeKey: T): Partial<ScheduleForm> {
+  const patch: Record<string, string> = { [dateKey]: value.slice(0, 10) };
+  if (value.length > 10) patch[timeKey] = value.slice(11, 16);
+  return patch as Partial<ScheduleForm>;
+}
+

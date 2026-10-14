@@ -6,40 +6,40 @@ const schemaDir = new URL("../../../sparky/backend/providers/mcp/schemas/", impo
 
 const toolNames = [
   "get_current_time",
-  "list_minds",
+  "list_spaces",
   "list_tags",
-  "list_memories",
-  "search_memories",
-  "get_memory",
+  "list_notes",
+  "search_notes",
+  "get_note",
   "list_occurrences",
   "get_review",
   "list_activity",
-  "create_memories",
-  "update_memories",
-  "set_memory_status",
+  "create_notes",
+  "update_notes",
+  "set_note_status",
   "toggle_check_item",
-  "delete_memories",
-  "create_mind",
-  "update_mind",
-  "delete_mind",
+  "delete_notes",
+  "create_space",
+  "update_space",
+  "delete_space",
   "add_attachments",
 ];
 
 const samples = {
   get_current_time: {},
-  list_minds: { parent: "Work" },
+  list_spaces: { parent: "Work" },
   list_tags: {},
-  list_memories: { mind: "Work", includeDescendants: true, status: "active", limit: 20, order: "due" },
-  search_memories: { query: "milk", limit: 20 },
-  get_memory: { id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", include: ["note", "checklist", "schedule"] },
+  list_notes: { space: "Work", includeDescendants: true, status: "active", limit: 20, order: "due" },
+  search_notes: { query: "milk", limit: 20 },
+  get_note: { id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", include: ["content", "checklist", "schedule"] },
   list_occurrences: { from: "2026-10-03T00:00:00.000Z", to: "2026-10-10T00:00:00.000Z", includeCompleted: true },
   get_review: { period: "week" },
   list_activity: { limit: 20, actor: "mcp:claude" },
-  create_memories: {
+  create_notes: {
     items: [
       {
         title: "Buy milk",
-        mind: "Work",
+        space: "Work",
         tags: ["home"],
         due: "2026-10-04",
         pinned: false,
@@ -55,17 +55,17 @@ const samples = {
       },
     ],
   },
-  update_memories: {
-    items: [{ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", expectedRev: 2, note: null, addTags: ["home"], schedule: null }],
+  update_notes: {
+    items: [{ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", expectedRev: 2, content: null, addTags: ["home"], schedule: null }],
   },
-  set_memory_status: { id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", status: "completed", occurrence: "2026-10-05T08:00:00.000Z" },
-  toggle_check_item: { memoryId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", itemTitle: "Milk" },
-  delete_memories: { ids: ["01ARZ3NDEKTSV4RRFFQ69G5FAV"], confirm: true },
-  create_mind: { name: "Work", parent: "Life", color: "#112233", icon: "briefcase", sortOrder: 0 },
-  update_mind: { name: "Work", newName: "Office", color: null, expectedRev: 2 },
-  delete_mind: { name: "Work", confirm: true },
+  set_note_status: { id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", status: "completed", occurrence: "2026-10-05T08:00:00.000Z" },
+  toggle_check_item: { noteId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", itemTitle: "Milk" },
+  delete_notes: { ids: ["01ARZ3NDEKTSV4RRFFQ69G5FAV"], confirm: true },
+  create_space: { name: "Work", parent: "Life", color: "#112233", icon: "briefcase", sortOrder: 0 },
+  update_space: { name: "Work", newName: "Office", color: null, expectedRev: 2 },
+  delete_space: { name: "Work", confirm: true },
   add_attachments: {
-    memoryId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    noteId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
     links: [{ url: "https://example.com" }],
     files: [{ path: "/tmp/note.txt" }],
   },
@@ -101,23 +101,23 @@ describe("MCP tool schemas", () => {
   });
 
   it("keeps the search tool on the text-search contract", () => {
-    const tool = loadTool("search_memories");
-    expect(Object.keys(tool.inputSchema.properties)).toEqual(["query", "mind", "tag", "limit"]);
+    const tool = loadTool("search_notes");
+    expect(Object.keys(tool.inputSchema.properties)).toEqual(["query", "space", "tag", "limit"]);
     expect(Object.keys(tool.outputSchema.properties)).toEqual(["hits", "notice"]);
     expect(tool.outputSchema.required).toEqual(["hits"]);
     expect(validate(tool.outputSchema, { hits: [] })).toEqual([]);
   });
 
   it("rejects a create without a title and a delete without confirm", () => {
-    expect(validate(loadTool("create_memories").inputSchema, { items: [{}] }).length).toBeGreaterThan(0);
-    expect(validate(loadTool("delete_memories").inputSchema, { ids: ["x"] }).length).toBeGreaterThan(0);
-    expect(validate(loadTool("delete_memories").inputSchema, { ids: ["x"], confirm: false }).length).toBeGreaterThan(0);
+    expect(validate(loadTool("create_notes").inputSchema, { items: [{}] }).length).toBeGreaterThan(0);
+    expect(validate(loadTool("delete_notes").inputSchema, { ids: ["x"] }).length).toBeGreaterThan(0);
+    expect(validate(loadTool("delete_notes").inputSchema, { ids: ["x"], confirm: false }).length).toBeGreaterThan(0);
   });
 
   it("validates the shared schedule and place shapes", () => {
     const schedule = JSON.parse(readFileSync(new URL("schedule.schema.json", schemaDir), "utf8"));
     const place = JSON.parse(readFileSync(new URL("place.schema.json", schemaDir), "utf8"));
-    const sample = samples.create_memories.items[0];
+    const sample = samples.create_notes.items[0];
     expect(validate(schedule, sample.schedule)).toEqual([]);
     expect(validate(place, sample.place)).toEqual([]);
     expect(validate(schedule, { repeat: { freq: "daily" } }).length).toBeGreaterThan(0);

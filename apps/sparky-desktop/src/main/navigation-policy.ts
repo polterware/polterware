@@ -8,11 +8,11 @@ export function parseDeepLink(raw: string): DeepLink | null {
     const params = [...url.searchParams.keys()];
     let route: string;
     switch (url.hostname) {
-      case "memory": {
+      case "note": {
         const id = url.pathname.slice(1);
         if (!ULID.test(id) || params.some(key => key !== "action") || url.searchParams.getAll("action").length > 1 ||
           (url.searchParams.has("action") && url.searchParams.get("action") !== "focus")) return null;
-        route = `/memory/${id}${url.search}`; break;
+        route = `/note/${id}${url.search}`; break;
       }
       case "today":
         if ((url.pathname && url.pathname !== "/") || params.length) return null;

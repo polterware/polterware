@@ -8,7 +8,8 @@
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
-    "dev": "pnpm --dir ../.. build:cli && electron-vite dev",
+    "core:build": "pnpm --dir ../.. build:cli",
+    "dev": "pnpm core:build && electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "dist:mac": "bash ../../tooling/release/dist-mac.sh lore",

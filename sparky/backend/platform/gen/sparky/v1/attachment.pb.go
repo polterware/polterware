@@ -25,7 +25,7 @@ const (
 type Attachment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	MemoryId      string                 `protobuf:"bytes,2,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,2,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
 	Name          *string                `protobuf:"bytes,4,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	Mime          *string                `protobuf:"bytes,5,opt,name=mime,proto3,oneof" json:"mime,omitempty"`
@@ -77,9 +77,9 @@ func (x *Attachment) GetId() string {
 	return ""
 }
 
-func (x *Attachment) GetMemoryId() string {
+func (x *Attachment) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -156,7 +156,7 @@ func (x *Attachment) GetCreatedAt() *timestamppb.Timestamp {
 
 type ImportAttachmentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	SourcePath    string                 `protobuf:"bytes,2,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	ExpectedRev   *int64                 `protobuf:"varint,4,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
@@ -194,9 +194,9 @@ func (*ImportAttachmentRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_attachment_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ImportAttachmentRequest) GetMemoryId() string {
+func (x *ImportAttachmentRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -268,7 +268,7 @@ func (x *ImportAttachmentResponse) GetAttachment() *Attachment {
 
 type AddLinkRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	Url           string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	ExpectedRev   *int64                 `protobuf:"varint,4,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
@@ -306,9 +306,9 @@ func (*AddLinkRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_attachment_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *AddLinkRequest) GetMemoryId() string {
+func (x *AddLinkRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -380,7 +380,7 @@ func (x *AddLinkResponse) GetAttachment() *Attachment {
 
 type ListAttachmentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -415,9 +415,9 @@ func (*ListAttachmentsRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_attachment_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ListAttachmentsRequest) GetMemoryId() string {
+func (x *ListAttachmentsRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -548,7 +548,7 @@ func (*DeleteAttachmentResponse) Descriptor() ([]byte, []int) {
 
 type ReorderAttachmentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	OrderedIds    []string               `protobuf:"bytes,2,rep,name=ordered_ids,json=orderedIds,proto3" json:"ordered_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -584,9 +584,9 @@ func (*ReorderAttachmentsRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_attachment_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *ReorderAttachmentsRequest) GetMemoryId() string {
+func (x *ReorderAttachmentsRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -766,11 +766,11 @@ var File_sparky_v1_attachment_proto protoreflect.FileDescriptor
 
 const file_sparky_v1_attachment_proto_rawDesc = "" +
 	"\n" +
-	"\x1asparky/v1/attachment.proto\x12\tsparky.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x03\n" +
+	"\x1asparky/v1/attachment.proto\x12\tsparky.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb3\x03\n" +
 	"\n" +
 	"Attachment\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
-	"\tmemory_id\x18\x02 \x01(\tR\bmemoryId\x12\x12\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12\x12\n" +
 	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x17\n" +
 	"\x04name\x18\x04 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x17\n" +
 	"\x04mime\x18\x05 \x01(\tH\x01R\x04mime\x88\x01\x01\x12\"\n" +
@@ -791,9 +791,9 @@ const file_sparky_v1_attachment_proto_rawDesc = "" +
 	"\a_sha256B\v\n" +
 	"\t_rel_pathB\x06\n" +
 	"\x04_urlB\b\n" +
-	"\x06_title\"\xa4\x01\n" +
-	"\x17ImportAttachmentRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x1f\n" +
+	"\x06_title\"\xa0\x01\n" +
+	"\x17ImportAttachmentRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x1f\n" +
 	"\vsource_path\x18\x02 \x01(\tR\n" +
 	"sourcePath\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12&\n" +
@@ -802,9 +802,9 @@ const file_sparky_v1_attachment_proto_rawDesc = "" +
 	"\x18ImportAttachmentResponse\x125\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2\x15.sparky.v1.AttachmentR\n" +
-	"attachment\"\x8e\x01\n" +
-	"\x0eAddLinkRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x10\n" +
+	"attachment\"\x8a\x01\n" +
+	"\x0eAddLinkRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12&\n" +
 	"\fexpected_rev\x18\x04 \x01(\x03H\x00R\vexpectedRev\x88\x01\x01B\x0f\n" +
@@ -812,16 +812,16 @@ const file_sparky_v1_attachment_proto_rawDesc = "" +
 	"\x0fAddLinkResponse\x125\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2\x15.sparky.v1.AttachmentR\n" +
-	"attachment\"5\n" +
-	"\x16ListAttachmentsRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\"R\n" +
+	"attachment\"1\n" +
+	"\x16ListAttachmentsRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\"R\n" +
 	"\x17ListAttachmentsResponse\x127\n" +
 	"\vattachments\x18\x01 \x03(\v2\x15.sparky.v1.AttachmentR\vattachments\")\n" +
 	"\x17DeleteAttachmentRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x1a\n" +
-	"\x18DeleteAttachmentResponse\"Y\n" +
-	"\x19ReorderAttachmentsRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x1f\n" +
+	"\x18DeleteAttachmentResponse\"U\n" +
+	"\x19ReorderAttachmentsRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x1f\n" +
 	"\vordered_ids\x18\x02 \x03(\tR\n" +
 	"orderedIds\"U\n" +
 	"\x1aReorderAttachmentsResponse\x127\n" +

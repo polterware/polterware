@@ -1,10 +1,12 @@
 import type { SparkyFeature } from "@polterware/feature-sparky-shell/feature";
 import { AttachmentsSection } from "./section";
+import { noteAttachments } from "./embed";
+import "./embed.css";
 
 const feature: SparkyFeature = {
   id: "attachments",
   routes: [],
-  detailSections: [{ id: "attachments", order: 30, component: AttachmentsSection }],
+  noteAttachments,
 };
 
 export default feature;

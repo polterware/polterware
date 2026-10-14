@@ -16,13 +16,13 @@ function renderHtml(ui: Parameters<typeof render>[0]) {
 }
 
 describe("ArchitectureNodeIcon", () => {
-  it("uses the mark first, then provider, then the light neutral dither tone", () => {
+  it("uses the mark first, then provider, then the light neutral tone", () => {
     expect(nodeIconAccent("vercel", "AWS")).toBe(SERVICE_MARK_TINT.vercel);
     expect(nodeIconAccent("service", "AWS")).toBe(SERVICE_MARK_TINT.aws);
-    expect(nodeIconAccent("service")).toBe("var(--color-dither-accent-neutral)");
+    expect(nodeIconAccent("service")).toBe("var(--color-icon-tile-accent-neutral)");
   });
 
-  it("renders an opaque dither tile with a dark mark over light brand dither", () => {
+  it("renders an opaque icon tile with a dark mark over a light brand accent", () => {
     const html = renderHtml(() => (
       <ArchitectureNodeIcon
         name="vercel"
@@ -32,9 +32,9 @@ describe("ArchitectureNodeIcon", () => {
       />
     ));
 
-    expect(html).toContain("data-dither-icon");
+    expect(html).toContain("data-icon-tile");
     expect(html).toContain('data-size="28"');
-    expect(html).toContain("pw-dither-icon");
+    expect(html).toContain("pw-icon-tile");
     // jsdom serializes inline hex as rgb()
     expect(html).toMatch(/color:\s*rgb\(237,\s*237,\s*237\)|#EDEDED/i);
     expect(html).toContain('fill="currentColor"');

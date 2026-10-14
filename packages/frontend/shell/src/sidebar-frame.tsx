@@ -40,6 +40,7 @@ export function SidebarItem(props: {
   hover?: SidebarItemHover;
   index?: number;
   class?: string;
+  "aria-label"?: string;
 }) {
   let element: HTMLButtonElement | undefined;
   onMount(() => {
@@ -53,6 +54,7 @@ export function SidebarItem(props: {
     <button
       ref={element}
       type="button"
+      aria-label={props["aria-label"]}
       aria-current={props.active ? "page" : undefined}
       class={cx(
         "pw-sidebar-item",

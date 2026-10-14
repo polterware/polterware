@@ -18,7 +18,7 @@ export function MapPage(props: { store?: MapStore }) {
 
   createEffect(() => {
     const id = store.selectedId();
-    if (id) shell.openMemory(id);
+    if (id) shell.openNote(id);
   });
 
   return (
@@ -67,15 +67,15 @@ export function MapPage(props: { store?: MapStore }) {
             </section>
             <aside class="sparky-map-page__list" aria-label="Places">
               <p class="sparky-map-page__list-title">Places</p>
-              <Show when={store.places().length} fallback={<p class="text-[13px] text-[var(--color-text-muted)]">No places yet. Pin a memory from its Place card.</p>}>
+              <Show when={store.places().length} fallback={<p class="text-[13px] text-[var(--color-text-muted)]">No places yet. Pin a note from its Place card.</p>}>
                 <ul class="sparky-map-page__rows">
                   <For each={store.places()}>{place => (
                     <li>
                       <Button
                         variant="ghost"
-                        class={`sparky-map-page__row ${store.selectedId() === place.memoryId ? "is-selected" : ""}`}
-                        aria-current={store.selectedId() === place.memoryId ? "true" : undefined}
-                        onClick={() => store.select(place.memoryId)}
+                        class={`sparky-map-page__row ${store.selectedId() === place.noteId ? "is-selected" : ""}`}
+                        aria-current={store.selectedId() === place.noteId ? "true" : undefined}
+                        onClick={() => store.select(place.noteId)}
                       >
                         <span class="sparky-map-page__row-title">{place.title}</span>
                         <span class="sparky-map-page__row-meta">{place.name || `${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}`}</span>

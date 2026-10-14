@@ -45,20 +45,20 @@ describe("focus store", () => {
     expect(fake.bridge.reminders.armOneOff).toHaveBeenCalledTimes(2);
   });
 
-  it("starts a memory-bound session from its schedule recipe", async () => {
+  it("starts a note-bound session from its schedule recipe", async () => {
     const { store } = mount();
     store.connect();
     await vi.waitFor(() => expect(store.loadState()).toBe("live"));
-    await store.startMemory("memory-1");
+    await store.startNote("note-1");
     await store.flush();
-    expect(store.snapshot().memoryId).toBe("memory-1");
+    expect(store.snapshot().noteId).toBe("note-1");
     expect(store.snapshot().plannedMs).toBe(12 * 60_000);
   });
 
   it("does not resume a session persisted from a closed window and says so", async () => {
     const { fake, store, storage } = mount();
     storage.setItem("sparky.focus.session", JSON.stringify({
-      phase: "work", plannedS: 1500, elapsedS: 120, startedAt: Date.parse("2026-10-04T11:50:00.000Z"), memoryId: "memory-1",
+      phase: "work", plannedS: 1500, elapsedS: 120, startedAt: Date.parse("2026-10-04T11:50:00.000Z"), noteId: "note-1",
     }));
     store.connect();
     await vi.waitFor(() => expect(store.loadState()).toBe("live"));

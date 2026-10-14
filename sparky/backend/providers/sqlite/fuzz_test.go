@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 )
 
@@ -17,55 +17,55 @@ func TestForeignKeyCheckAfterRandomOps(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 10, 3, 21, 30, 0, 0, time.UTC)
 	rng := rand.New(rand.NewSource(4))
-	var minds []string
-	var memories []string
+	var spaces []string
+	var notes []string
 	var tags []string
 	for i := 0; i < 200; i++ {
 		switch rng.Intn(8) {
 		case 0:
-			id := fmt.Sprintf("mind%03d", i)
+			id := fmt.Sprintf("space%03d", i)
 			var parent *string
-			if len(minds) > 0 && rng.Intn(2) == 0 {
-				parent = &minds[rng.Intn(len(minds))]
+			if len(spaces) > 0 && rng.Intn(2) == 0 {
+				parent = &spaces[rng.Intn(len(spaces))]
 			}
-			if err := s.Minds().Insert(ctx, mind.Mind{ID: id, ParentID: parent, Name: id, CreatedAt: now, UpdatedAt: now, Rev: 1}); err == nil {
-				minds = append(minds, id)
+			if err := s.Spaces().Insert(ctx, space.Space{ID: id, ParentID: parent, Name: id, CreatedAt: now, UpdatedAt: now, Rev: 1}); err == nil {
+				spaces = append(spaces, id)
 			}
 		case 1:
-			if len(minds) == 0 {
+			if len(spaces) == 0 {
 				continue
 			}
-			id := minds[rng.Intn(len(minds))]
-			_ = s.Minds().Delete(ctx, 0, id)
-			next := minds[:0]
-			for _, m := range minds {
-				if _, err := s.Minds().Get(ctx, m); err == nil {
+			id := spaces[rng.Intn(len(spaces))]
+			_ = s.Spaces().Delete(ctx, 0, id)
+			next := spaces[:0]
+			for _, m := range spaces {
+				if _, err := s.Spaces().Get(ctx, m); err == nil {
 					next = append(next, m)
 				}
 			}
-			minds = next
+			spaces = next
 		case 2:
 			id := fmt.Sprintf("mem%03d", i)
-			var mindID *string
-			if len(minds) > 0 && rng.Intn(3) != 0 {
-				mindID = &minds[rng.Intn(len(minds))]
+			var spaceID *string
+			if len(spaces) > 0 && rng.Intn(3) != 0 {
+				spaceID = &spaces[rng.Intn(len(spaces))]
 			}
-			if err := s.Memories().Insert(ctx, memory.Memory{ID: id, MindID: mindID, Title: id, Status: memory.StatusActive, CreatedAt: now, UpdatedAt: now, Rev: 1}); err == nil {
-				memories = append(memories, id)
+			if err := s.Notes().Insert(ctx, note.Note{ID: id, SpaceID: spaceID, Title: id, Status: note.StatusActive, CreatedAt: now, UpdatedAt: now, Rev: 1}); err == nil {
+				notes = append(notes, id)
 			}
 		case 3:
-			if len(memories) == 0 {
+			if len(notes) == 0 {
 				continue
 			}
-			id := memories[rng.Intn(len(memories))]
-			_ = s.Memories().Delete(ctx, 0, id)
-			next := memories[:0]
-			for _, m := range memories {
-				if _, err := s.Memories().Get(ctx, m); err == nil {
+			id := notes[rng.Intn(len(notes))]
+			_ = s.Notes().Delete(ctx, 0, id)
+			next := notes[:0]
+			for _, m := range notes {
+				if _, err := s.Notes().Get(ctx, m); err == nil {
 					next = append(next, m)
 				}
 			}
-			memories = next
+			notes = next
 		case 4:
 			id := fmt.Sprintf("tag%03d", i)
 			if err := s.Tags().Insert(ctx, tag.Tag{ID: id, Name: id, CreatedAt: now, UpdatedAt: now, Rev: 1}); err == nil {
@@ -85,17 +85,17 @@ func TestForeignKeyCheckAfterRandomOps(t *testing.T) {
 			}
 			tags = next
 		case 6:
-			if len(memories) == 0 || len(tags) == 0 {
+			if len(notes) == 0 || len(tags) == 0 {
 				continue
 			}
-			_ = s.Memories().SetTagIDs(ctx, memories[rng.Intn(len(memories))], []string{tags[rng.Intn(len(tags))]})
+			_ = s.Notes().SetTagIDs(ctx, notes[rng.Intn(len(notes))], []string{tags[rng.Intn(len(tags))]})
 		default:
-			if len(memories) == 0 {
+			if len(notes) == 0 {
 				continue
 			}
-			id := memories[rng.Intn(len(memories))]
-			_ = s.Memories().ReplaceCheckItems(ctx, id, []memory.CheckItem{{
-				ID: fmt.Sprintf("chk%03d", i), MemoryID: id, Title: "item", CreatedAt: now, UpdatedAt: now,
+			id := notes[rng.Intn(len(notes))]
+			_ = s.Notes().ReplaceCheckItems(ctx, id, []note.CheckItem{{
+				ID: fmt.Sprintf("chk%03d", i), NoteID: id, Title: "item", CreatedAt: now, UpdatedAt: now,
 			}})
 		}
 	}

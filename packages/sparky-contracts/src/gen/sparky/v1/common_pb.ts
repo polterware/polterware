@@ -57,7 +57,7 @@ export const BadRequestSchema: GenMessage<BadRequest> = /*@__PURE__*/
 
 /**
  * PreconditionDetail is the error detail for FAILED_PRECONDITION.
- * reason is rev_conflict, mind_cycle, or schedule_in_the_past.
+ * reason is rev_conflict, space_cycle, or schedule_in_the_past.
  * On rev_conflict, current_json is the current entity and current_rev is its rev.
  *
  * @generated from message sparky.v1.PreconditionDetail

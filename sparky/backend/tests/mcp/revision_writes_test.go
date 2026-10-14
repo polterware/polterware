@@ -9,9 +9,9 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/polterware/polterware/sparky/backend/compositions/core"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 )
 
 type revisionClient struct {
@@ -46,7 +46,7 @@ func (c revisionClient) call(t *testing.T, tool string, args any) map[string]any
 }
 func (c revisionClient) create(t *testing.T, item map[string]any) string {
 	t.Helper()
-	row := c.call(t, "create_memories", map[string]any{"items": []any{item}})
+	row := c.call(t, "create_notes", map[string]any{"items": []any{item}})
 	if row["ok"] != true {
 		t.Fatal(row)
 	}
@@ -56,24 +56,24 @@ func (c revisionClient) create(t *testing.T, item map[string]any) string {
 }
 func (c revisionClient) assertRev(t *testing.T, id string, row map[string]any) {
 	t.Helper()
-	got, err := c.rt.Services.Memories.Get(t.Context(), id, memory.Include{})
+	got, err := c.rt.Services.Notes.Get(t.Context(), id, note.Include{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if row["rev"] != float64(got.Memory.Rev) {
-		t.Fatalf("returned revision differs from committed memory: %v / %d", row, got.Memory.Rev)
+	if row["rev"] != float64(got.Note.Rev) {
+		t.Fatalf("returned revision differs from committed note: %v / %d", row, got.Note.Rev)
 	}
 }
 func (c revisionClient) uiEdit(t *testing.T, id string) {
 	t.Helper()
 	title := "Outside UI edit"
-	if _, err := c.rt.Services.Memories.Update(t.Context(), actor.UI(), id, 0, memory.Patch{Title: &title}); err != nil {
+	if _, err := c.rt.Services.Notes.Update(t.Context(), actor.UI(), id, 0, note.Patch{Title: &title}); err != nil {
 		t.Fatal(err)
 	}
 }
 func (c revisionClient) update(t *testing.T, item map[string]any) map[string]any {
 	t.Helper()
-	return c.call(t, "update_memories", map[string]any{"items": []any{item}})
+	return c.call(t, "update_notes", map[string]any{"items": []any{item}})
 }
 
 func TestCoreMCPUpdatePathsRegisterFinalRevision(t *testing.T) {
@@ -83,7 +83,7 @@ func TestCoreMCPUpdatePathsRegisterFinalRevision(t *testing.T) {
 		name  string
 		patch map[string]any
 	}{
-		{"fields", map[string]any{"note": "Agent note"}},
+		{"fields", map[string]any{"content": "Agent content"}},
 		{"schedule_set", map[string]any{"schedule": schedule}},
 		{"schedule_clear", map[string]any{"schedule": nil}},
 		{"place_set", map[string]any{"place": place}},
@@ -131,7 +131,7 @@ func TestCoreMCPCreateExtrasRegisterFinalRevision(t *testing.T) {
 			}
 			id := c.create(t, item)
 			for range 2 {
-				row := c.update(t, map[string]any{"id": id, "note": "Follow-up"})
+				row := c.update(t, map[string]any{"id": id, "content": "Follow-up"})
 				if row["ok"] != true {
 					t.Fatal(row)
 				}
@@ -146,7 +146,7 @@ func TestCoreMCPCreateExtrasRegisterFinalRevision(t *testing.T) {
 }
 
 func TestCoreMCPSingleWritePathsKeepSessionRevision(t *testing.T) {
-	for _, tool := range []string{"set_memory_status", "set_occurrence_status", "toggle_check_item", "add_links", "add_files", "first_add_links"} {
+	for _, tool := range []string{"set_note_status", "set_occurrence_status", "toggle_check_item", "add_links", "add_files", "first_add_links"} {
 		t.Run(tool, func(t *testing.T) {
 			c := newRevisionClient(t)
 			item := map[string]any{"title": "Task", "checklist": []string{"Check"}}
@@ -155,7 +155,7 @@ func TestCoreMCPSingleWritePathsKeepSessionRevision(t *testing.T) {
 			}
 			id := ""
 			if tool == "first_add_links" {
-				m, err := c.rt.Services.Memories.Create(t.Context(), actor.UI(), memory.Create{Title: "Unread"})
+				m, err := c.rt.Services.Notes.Create(t.Context(), actor.UI(), note.Create{Title: "Unread"})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -167,13 +167,13 @@ func TestCoreMCPSingleWritePathsKeepSessionRevision(t *testing.T) {
 			args := map[string]any{"id": id, "status": "completed"}
 			switch tool {
 			case "set_occurrence_status":
-				name = "set_memory_status"
+				name = "set_note_status"
 				args["occurrence"] = "2026-10-05T12:00:00Z"
 			case "toggle_check_item":
-				args = map[string]any{"memoryId": id, "itemTitle": "Check"}
+				args = map[string]any{"noteId": id, "itemTitle": "Check"}
 			case "add_links", "first_add_links":
 				name = "add_attachments"
-				args = map[string]any{"memoryId": id, "links": []any{map[string]any{"url": "https://example.com/a"}, map[string]any{"url": "https://example.com/b"}}}
+				args = map[string]any{"noteId": id, "links": []any{map[string]any{"url": "https://example.com/a"}, map[string]any{"url": "https://example.com/b"}}}
 			case "add_files":
 				name = "add_attachments"
 				if _, err := c.rt.Services.Settings.Set(t.Context(), actor.UI(), []string{settings.KeyAgentsAllowFileAttach}, settings.Settings{AgentsAllowFileAttach: true}); err != nil {
@@ -187,7 +187,7 @@ func TestCoreMCPSingleWritePathsKeepSessionRevision(t *testing.T) {
 				if err := os.WriteFile(path, []byte("attachment content"), 0600); err != nil {
 					t.Fatal(err)
 				}
-				args = map[string]any{"memoryId": id, "files": []any{map[string]any{"path": path}}}
+				args = map[string]any{"noteId": id, "files": []any{map[string]any{"path": path}}}
 			}
 			for range 2 {
 				row := c.call(t, name, args)
@@ -204,18 +204,18 @@ func TestCoreMCPSingleWritePathsKeepSessionRevision(t *testing.T) {
 	}
 }
 
-func TestCoreMCPMindDeleteRegistersMovedMemoryRevisions(t *testing.T) {
+func TestCoreMCPSpaceDeleteRegistersMovedNoteRevisions(t *testing.T) {
 	for _, outsideBefore := range []bool{false, true} {
 		t.Run(map[bool]string{false: "own_move", true: "unseen_UI_edit"}[outsideBefore], func(t *testing.T) {
 			c := newRevisionClient(t)
-			root := c.call(t, "create_mind", map[string]any{"name": "Root"})["id"].(string)
-			child := c.call(t, "create_mind", map[string]any{"name": "Child", "parent": root})["id"].(string)
-			id := c.create(t, map[string]any{"title": "Task", "mind": child})
+			root := c.call(t, "create_space", map[string]any{"name": "Root"})["id"].(string)
+			child := c.call(t, "create_space", map[string]any{"name": "Child", "parent": root})["id"].(string)
+			id := c.create(t, map[string]any{"title": "Task", "space": child})
 			if outsideBefore {
 				c.uiEdit(t, id)
 			}
-			row := c.call(t, "delete_mind", map[string]any{"id": root, "confirm": true})
-			if row["error"] != nil || row["movedMemoryCount"] != float64(1) {
+			row := c.call(t, "delete_space", map[string]any{"id": root, "confirm": true})
+			if row["error"] != nil || row["movedNoteCount"] != float64(1) {
 				t.Fatal(row)
 			}
 			if outsideBefore {
@@ -224,10 +224,10 @@ func TestCoreMCPMindDeleteRegistersMovedMemoryRevisions(t *testing.T) {
 				}
 				return
 			}
-			revisions := row["memoryRevisions"].(map[string]any)
+			revisions := row["noteRevisions"].(map[string]any)
 			c.assertRev(t, id, map[string]any{"rev": revisions[id]})
 			for range 2 {
-				row := c.update(t, map[string]any{"id": id, "note": "Follow-up"})
+				row := c.update(t, map[string]any{"id": id, "content": "Follow-up"})
 				if row["ok"] != true {
 					t.Fatal(row)
 				}
@@ -236,13 +236,13 @@ func TestCoreMCPMindDeleteRegistersMovedMemoryRevisions(t *testing.T) {
 			if row := c.update(t, map[string]any{"id": id, "title": "Overwrite"}); row["conflict"] != true {
 				t.Fatal(row)
 			}
-			// Deletion itself still honors an externally changed mind revision.
-			next := c.call(t, "create_mind", map[string]any{"name": "Next"})["id"].(string)
+			// Deletion itself still honors an externally changed space revision.
+			next := c.call(t, "create_space", map[string]any{"name": "Next"})["id"].(string)
 			renamed := "UI renamed"
-			if _, err := c.rt.Services.Minds.Update(t.Context(), actor.UI(), next, 0, mind.Patch{Name: &renamed}); err != nil {
+			if _, err := c.rt.Services.Spaces.Update(t.Context(), actor.UI(), next, 0, space.Patch{Name: &renamed}); err != nil {
 				t.Fatal(err)
 			}
-			if row := c.call(t, "delete_mind", map[string]any{"id": next, "confirm": true}); row["conflict"] != true {
+			if row := c.call(t, "delete_space", map[string]any{"id": next, "confirm": true}); row["conflict"] != true {
 				t.Fatal(row)
 			}
 		})
@@ -266,8 +266,8 @@ func TestCoreMCPUpdateFailureKeepsCommittedSessionRevision(t *testing.T) {
 			if row := c.update(t, patch); row["ok"] != false {
 				t.Fatal(row)
 			}
-			got, err := c.rt.Services.Memories.Get(t.Context(), id, memory.Include{Checklist: true})
-			if err != nil || got.Memory.Title != "Original" || got.Memory.Rev != 1 || len(got.Checklist) != 0 {
+			got, err := c.rt.Services.Notes.Get(t.Context(), id, note.Include{Checklist: true})
+			if err != nil || got.Note.Title != "Original" || got.Note.Rev != 1 || len(got.Checklist) != 0 {
 				t.Fatalf("failed update leaked: %v / %v", got, err)
 			}
 			links, err := c.rt.Services.Attachments.List(t.Context(), id)
@@ -281,7 +281,7 @@ func TestCoreMCPUpdateFailureKeepsCommittedSessionRevision(t *testing.T) {
 	}
 }
 
-func TestCoreMCPMemoryDeleteAfterOwnWriteAndOutsideWrite(t *testing.T) {
+func TestCoreMCPNoteDeleteAfterOwnWriteAndOutsideWrite(t *testing.T) {
 	for _, outside := range []bool{false, true} {
 		t.Run(map[bool]string{false: "own_write", true: "outside_write"}[outside], func(t *testing.T) {
 			c := newRevisionClient(t)
@@ -292,7 +292,7 @@ func TestCoreMCPMemoryDeleteAfterOwnWriteAndOutsideWrite(t *testing.T) {
 			if outside {
 				c.uiEdit(t, id)
 			}
-			row := c.call(t, "delete_memories", map[string]any{"ids": []string{id}, "confirm": true})
+			row := c.call(t, "delete_notes", map[string]any{"ids": []string{id}, "confirm": true})
 			if outside {
 				if row["conflict"] != true {
 					t.Fatal(row)

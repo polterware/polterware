@@ -32,19 +32,19 @@ func TestAuditedTransactions(t *testing.T) {
 	repo := af.New(store)
 	a := activity.Audit{Repository: repo, Transactions: store, Clock: clock{}, IDs: &ids{}}
 	for _, who := range []actor.Actor{actor.UI(), actor.CLI(), actor.System(), actor.MCP("test")} {
-		err := a.Write(ctx, who, "memory", "id", activity.OpUpdate, "Update memory", func(ctx context.Context) error { return store.Put(ctx, "data", who.Raw, "changed") })
+		err := a.Write(ctx, who, "note", "id", activity.OpUpdate, "Update note", func(ctx context.Context) error { return store.Put(ctx, "data", who.Raw, "changed") })
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 	for _, who := range []actor.Actor{{Raw: ""}, {Raw: "mcp:"}, {Raw: "bad"}} {
-		if err := a.Write(ctx, who, "memory", "id", activity.OpUpdate, "Update", func(context.Context) error { t.Fatal("invalid actor entered mutation"); return nil }); !fault.IsCode(err, fault.CodeInvalid) {
+		if err := a.Write(ctx, who, "note", "id", activity.OpUpdate, "Update", func(context.Context) error { t.Fatal("invalid actor entered mutation"); return nil }); !fault.IsCode(err, fault.CodeInvalid) {
 			t.Fatal(err)
 		}
 	}
 	fail := errors.New("failed")
 	for _, audit := range []activity.Audit{a, {Repository: broken{repo, fail}, Transactions: store, Clock: clock{}, IDs: &ids{}}} {
-		err := audit.Write(ctx, actor.UI(), "memory", "id", activity.OpUpdate, "Update", func(ctx context.Context) error {
+		err := audit.Write(ctx, actor.UI(), "note", "id", activity.OpUpdate, "Update", func(ctx context.Context) error {
 			if e := store.Put(ctx, "data", "rollback", "changed"); e != nil {
 				return e
 			}

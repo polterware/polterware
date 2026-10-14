@@ -7,8 +7,8 @@ import {
 } from "./model";
 
 export type MapBoundsQuery = { south: number; west: number; north: number; east: number };
-const MEMORY_PAGE_SIZE = 500;
-const MAX_MEMORY_PAGES = 20;
+const NOTE_PAGE_SIZE = 500;
+const MAX_NOTE_PAGES = 20;
 
 export function createMapStore(getBridge: () => MapBridge = browserBridge) {
   const [places, setPlaces] = createSignal<MapPlaceRow[]>([]);
@@ -40,22 +40,22 @@ export function createMapStore(getBridge: () => MapBridge = browserBridge) {
     return settings;
   }
 
-  async function loadMemoryTitles(bridge: MapBridge, current: number) {
+  async function loadNoteTitles(bridge: MapBridge, current: number) {
     const titles = new Map<string, string>();
     const cursors = new Set<string>();
     let cursor: string | undefined;
-    for (let page = 0; page < MAX_MEMORY_PAGES; page++) {
-      const response = await bridge.memories.list({ hasPlace: true, limit: MEMORY_PAGE_SIZE, ...(cursor ? { cursor } : {}) }) as {
-        memories?: { id?: string; title?: string }[]; nextCursor?: string;
+    for (let page = 0; page < MAX_NOTE_PAGES; page++) {
+      const response = await bridge.notes.list({ hasPlace: true, limit: NOTE_PAGE_SIZE, ...(cursor ? { cursor } : {}) }) as {
+        notes?: { id?: string; title?: string }[]; nextCursor?: string;
       };
       if (current !== generation) return titles;
-      for (const row of response.memories ?? []) titles.set(row.id ?? "", row.title ?? "");
+      for (const row of response.notes ?? []) titles.set(row.id ?? "", row.title ?? "");
       if (!response.nextCursor) return titles;
-      if (cursors.has(response.nextCursor)) throw new Error("Map memory query returned a repeated cursor.");
+      if (cursors.has(response.nextCursor)) throw new Error("Map note query returned a repeated cursor.");
       cursors.add(response.nextCursor);
       cursor = response.nextCursor;
     }
-    throw new Error("Map memory query exceeds 10000 memories.");
+    throw new Error("Map note query exceeds 10000 notes.");
   }
 
   async function loadPlaces(next = bounds()) {
@@ -68,18 +68,18 @@ export function createMapStore(getBridge: () => MapBridge = browserBridge) {
       if (current !== generation) return;
       const [placeResponse, titles] = await Promise.all([
         bridge.places.listInBounds(next) as Promise<{ places?: PlaceJSON[] }>,
-        loadMemoryTitles(bridge, current),
+        loadNoteTitles(bridge, current),
       ]);
       if (current !== generation) return;
       const rows = (placeResponse.places ?? []).map(place => ({
-        memoryId: place.memoryId ?? "",
-        title: titles.get(place.memoryId ?? "") || place.name || "Untitled place",
+        noteId: place.noteId ?? "",
+        title: titles.get(place.noteId ?? "") || place.name || "Untitled place",
         name: place.name ?? "",
         lat: place.lat ?? 0,
         lng: place.lng ?? 0,
         radiusM: place.radiusM,
         event: place.event || "enter",
-      })).filter(row => row.memoryId);
+      })).filter(row => row.noteId);
       setPlaces(rows);
       setBounds(next);
       if (!fitted && rows[0]) {
@@ -99,13 +99,13 @@ export function createMapStore(getBridge: () => MapBridge = browserBridge) {
     places, bounds, center, zoom, selectedId, mapOnline, provider, geocoding, disclosureSeen, loadState, saveState, loadError, saveError,
     tilesLive: () => mapOnline() && provider() !== "pmtiles",
     showDisclosure: () => !disclosureSeen(),
-    markers: () => places().map(place => ({ id: place.memoryId, lat: place.lat, lng: place.lng, radius: place.radiusM })),
+    markers: () => places().map(place => ({ id: place.noteId, lat: place.lat, lng: place.lng, radius: place.radiusM })),
     connect() {
       users += 1;
       if (users === 1) {
         try {
           unsubscribe = getBridge().onChange(event => {
-            if (event.resync || event.changes.some(change => ["place", "places", "memory", "memories", "settings"].includes(change.entity))) {
+            if (event.resync || event.changes.some(change => ["place", "places", "note", "notes", "settings"].includes(change.entity))) {
               io = io.catch(() => undefined).then(() => loadPlaces(bounds()));
             }
           });
@@ -127,7 +127,7 @@ export function createMapStore(getBridge: () => MapBridge = browserBridge) {
     },
     select(id: string | null) {
       setSelectedId(id);
-      const row = places().find(place => place.memoryId === id);
+      const row = places().find(place => place.noteId === id);
       if (row) setCenter({ lat: row.lat, lng: row.lng });
     },
     markDisclosureSeen() {

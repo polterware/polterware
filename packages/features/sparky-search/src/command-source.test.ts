@@ -9,17 +9,17 @@ afterEach(() => vi.useRealTimers());
 describe("Commander search source", () => {
   it("registers dynamic hits alongside the static search.open command", () => {
     expect(feature.commands?.[0]?.id).toBe("search.open");
-    expect(feature.commandSources?.[0]?.id).toBe("search.memories");
+    expect(feature.commandSources?.[0]?.id).toBe("search.notes");
   });
-  it("returns fixture hits with plain snippets and opens the selected memory", async () => {
+  it("returns fixture hits with plain snippets and opens the selected note", async () => {
     const fake = fakeBridge();
     const store = createSearchStore(() => fake.bridge, { debounceMs: 0 });
     const source = createSearchCommandSource(store);
     const result = await source.search("milk");
-    expect(result.hits[0]).toMatchObject({ id: "memory-milk", label: "Buy milk", snippet: "Get <b>milk</b> from the store" });
+    expect(result.hits[0]).toMatchObject({ id: "note-milk", label: "Buy milk", snippet: "Get <b>milk</b> from the store" });
     expect(typeof result.hits[0]!.snippet).toBe("string");
     result.hits[0]!.run();
-    expect(fake.bridge.app.openDeepLink).toHaveBeenCalledWith("sparky://memory/memory-milk");
+    expect(fake.bridge.app.openDeepLink).toHaveBeenCalledWith("sparky://note/note-milk");
     store.dispose();
   });
   it("debounces and cancels stale queries including an in-flight request", async () => {

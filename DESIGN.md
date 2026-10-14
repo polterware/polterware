@@ -31,26 +31,37 @@ The title bar contains history controls, one ghost project switcher, one environ
 | Multiline input | `Textarea` |
 | Selection | `Select` |
 | Labeled control | `Field` |
+| Stack of fields | `FormStack` |
+| Icon + name record field | `IconNameField` |
 | Actions | `Button` |
+| Navigation actions | `LinkButton` (native anchor with shared button materials) |
 | Nested section | `Card` |
 | Elevated host | `Surface` |
 | Dialog | `Dialog` or `A11yDialog` |
 | Anchored surface | Ark-backed `Popover` |
 | Compact menu | `MenuPanel` and `MenuItem` |
 | Tabs | Ark-backed `Tabs` |
+| Site navigation (public website) | Ark-backed `NavigationMenu` with `NavigationMenuPreviewPanel` |
 | Section toolbar | compound `PageToolbar` |
 | Filters | `FilterChip`, `FilterPopover`, or `ActiveFilterBar` |
 | Operational collection | compound `DataTable` |
 | Status | filled `StatusChip` |
 | Entity details | global compound `DetailPanel` |
-| Domain identity | `DitherIconTile` |
+| Domain identity | `IconTile` |
 | Loading placeholder | `Skeleton` / `PageSkeleton` (via `PageLoading`) |
 
-Menu rows (dropdown and context menus) lead with a 14px Hugeicons icon before the label whenever a fitting icon exists; checkable rows (switches, checkmarks) and pure value lists may omit it. A menu does not mix rows with and without icons in the same group.
+Menu rows (dropdown and context menus) always lead with a 14px Hugeicons icon before the label; this is law. Every `ContextMenu.Item` and `MenuItem` carries an icon, and a menu never mixes rows with and without icons. Only checkable rows (switches, checkmarks) and pure value lists may omit it.
+
+Text fields (`input`, `textarea`, `select`, contenteditable, and `control-field` inputs such as steppers and time fields) never show a focus ring, on click or keyboard, in any app; focus reads through the caret and selection. Do not add `outline`, `ring` or focus `box-shadow` to a text field. Buttons, links and composite widgets keep the neutral keyboard focus outline from `accessibility.css`.
 
 Product features must not reproduce focus management, Escape behavior, outside dismissal, portals, positioning, or presence when the shared Ark-backed primitive owns it.
 
 Dialogs in every Polterware app (Lore, Sparky, Vitals) never draw dividers: spacing alone separates header, body, and footer. Footer actions are passed as a fragment of buttons, never wrapped: the dismiss action (Cancel, Reject, Skip) comes first and sits on the left; the primary or destructive action comes last on the right. A lone footer action stays on the right. The shared dialog owns its spacing: 28px side inset on every region, 24px above the 16px title and below the footer; features do not re-pad the body.
+
+
+### Form spacing
+
+The label sits tight to its control: `Field` owns a 6px label → control gap. Space between fields is 14px and comes from `FormStack`. Never use `space-y-*`, `grid gap-*` or a per-app override of `.pw-field` to space a form, and never pad a `Dialog` body again (the dialog already pads it). A record that has an icon and a color puts them in the `IconNameField` tile beside the name, not in separate rows.
 
 ## Collections and details
 
@@ -80,6 +91,8 @@ Reference and long-form reading pages (for example the CLI reference) use a sing
 
 Structural fills are opaque shared neutral tokens. Text and labeled icons use opaque semantic colors, with icons inheriting `currentColor`. Do not add ad-hoc `rgba`, alpha hex, Tailwind opacity modifiers, `color-mix(... transparent)`, or translucent product chrome.
 
+Covers and tiles reuse the shared chrome finish (a chromatic metal reflection derived from an accent color). Use `AuroraCover` and the `IconTile` aurora option where applicable; structural surfaces stay opaque neutral.
+
 Exception — macOS Desktop window chrome only: the main window title bar and sidebar may use shared `--color-shell-glass` / `--color-sidebar-glass` washes so frosted Electron vibrancy shows through while keeping the quiet dark cast. Commander (in-app palette and global overlay) uses the same opaque `surface-panel-float` material as other product dialogs. All other product surfaces, text, dialogs, and cards stay opaque. Settings Advanced → Reduce transparency disables main-window vibrancy / frost and restores opaque title bar and sidebar. Do not extend this exception to Commander, other in-app dialogs, cards, or other platforms.
 
 Lore, Sparky, and Vitals share one lifted dark neutral ladder from `base.css`: canvas, shell, and sidebar `#131313`, surfaces stepping from `#161616` to `#232323`. Apps do not override the dark ladder; only Vitals adds a light palette.
@@ -106,6 +119,10 @@ Use `control-field`, `.surface-panel`, `.surface-panel-float`, `.menu-panel`, an
 
 Every screen must communicate whether an action is live, queued, completed, failed, unavailable, preview-only, or based on seeded demonstration data. Integration connect sessions report their actual core-owned state. A bounded inventory sync must not imply a complete provider graph, and no local action may imply a remote deployment or Cloud operation.
 
-Motion may fade opacity only in transitions: presence keyframes in the shared popup, dialog, drawer, and toast CSS; boot splash and root cross-fade (`apps/lore-desktop/src/renderer/boot-splash.css`, `apps/sparky-desktop/src/renderer/boot-splash.css`); markdown editor dock visibility (`markdown-editor.css`); template card enter keyframes (`template-card.css`); and Motion values in shared design-system motion primitives (the fluid hover highlight and gliding indicators). Resting surfaces stay opaque.
+Motion may fade opacity only in transitions: presence keyframes in the shared popup, dialog, drawer, and toast CSS; boot splash and root cross-fade (`apps/lore-desktop/src/renderer/boot-splash.css`, `apps/sparky-desktop/src/renderer/boot-splash.css`); markdown editor dock visibility (`markdown-editor.css`); navigation menu viewport and content swaps (`navigation-menu.css`); template card enter keyframes (`template-card.css`); and Motion values in shared design-system motion primitives (the fluid hover highlight and gliding indicators). Resting surfaces stay opaque.
 
 Run `pnpm design:lint` after UI changes. `tooling/check-ui-opacity.mjs` is the enforcement source; update this document before broadening its allowlist.
+
+## Public website
+
+`apps/web` is the product site for Lore (the main product), the Lore CLI and Vitals: a family home at `/` and one landing per product (`/lore`, `/lore/cli`, `/vitals`). It uses the same dark tokens, Inter, Hugeicons and shared primitives, with responsive layout, normal document scrolling and larger reading spacing than desktop product surfaces. The header uses the shared `NavigationMenu`; the Products menu is a `NavigationMenuPreviewPanel` with a live preview per product, and narrow screens use the shared `Drawer`. Product pictures are code-built mockups from tokens and shared primitives, labelled as illustrations, not screenshots or live data. Links use native anchors, including shared `LinkButton` for navigation actions; website routes do not use the desktop entity DetailPanel. Structural surfaces stay opaque, with no decorative grids or page-flip effects.

@@ -11,17 +11,17 @@ import (
 )
 
 const (
-	DefaultBudget         = 60
-	DefaultHorizon        = 30 * 24 * time.Hour
-	DefaultPerMemoryLimit = 256
+	DefaultBudget       = 60
+	DefaultHorizon      = 30 * 24 * time.Hour
+	DefaultPerNoteLimit = 256
 )
 
 // Engine adapts the pure functions to the frozen Planner port. Calendar overdue
 // state uses an injected clock; Plan always uses its explicit query.Now.
 type Engine struct {
-	Clock          clock.Clock
-	PerMemoryLimit int
-	AllDayTime     string
+	Clock        clock.Clock
+	PerNoteLimit int
+	AllDayTime   string
 }
 
 var _ Planner = Engine{}
@@ -39,7 +39,7 @@ func (e Engine) Occurrences(subjects []PlanSubject, from, to time.Time, includeC
 		return nil, invalid("clock", "an injected clock is required for overdue state")
 	}
 	return ListOccurrences(subjects, OccurrenceQuery{From: from, To: to, Now: e.Clock.Now(), IncludeCompleted: includeCompleted,
-		Limit: limit, PerMemoryLimit: e.PerMemoryLimit, AllDayTime: e.AllDayTime})
+		Limit: limit, PerNoteLimit: e.PerNoteLimit, AllDayTime: e.AllDayTime})
 }
 
 // Preview seeks only the requested prefix, without expanding a fixed horizon.
@@ -134,8 +134,8 @@ func (h planHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 func (h *planHeap) Push(v any)   { *h = append(*h, v.(planCandidate)) }
 func (h *planHeap) Pop() any     { old := *h; v := old[len(old)-1]; *h = old[:len(old)-1]; return v }
 
-func reminderID(memoryID string, at time.Time) string {
-	return "rem:" + memoryID + ":" + strconv.FormatInt(at.UnixMilli(), 10)
+func reminderID(noteID string, at time.Time) string {
+	return "rem:" + noteID + ":" + strconv.FormatInt(at.UnixMilli(), 10)
 }
 
 func (c *planCandidate) advance(subject PlanSubject, now, until time.Time, hour, minute int, skipCompleted bool) bool {
@@ -151,13 +151,13 @@ func (c *planCandidate) advance(subject PlanSubject, now, until time.Time, hour,
 		if fire.Before(now) || (skipCompleted && completed(c.completed, at)) {
 			continue
 		}
-		c.at, c.fire, c.id = at, fire, reminderID(subject.MemoryID, at)
+		c.at, c.fire, c.id = at, fire, reminderID(subject.NoteID, at)
 		return true
 	}
 }
 
 // Plan merges native repeating slots and one upcoming occurrence per remaining
-// memory with pending one-offs. Native repeats occupy one budget slot each
+// note with pending one-offs. Native repeats occupy one budget slot each
 // (one per weekday) and are not expanded. Only a selected one-shot series
 // advances. Title/body shaping happens only for selected items.
 func Plan(q PlanQuery, subjects []PlanSubject, oneOffs []PendingOneOff, allDayTime string) ([]ReminderItem, error) {
@@ -191,10 +191,10 @@ func Plan(q PlanQuery, subjects []PlanSubject, oneOffs []PendingOneOff, allDayTi
 		}
 		s, err := prepare(subject.Rule)
 		if err != nil {
-			return nil, fmt.Errorf("memory %s: %w", subject.MemoryID, err)
+			return nil, fmt.Errorf("note %s: %w", subject.NoteID, err)
 		}
 		if err := subject.Rule.checkRange(q.Now, until); err != nil {
-			return nil, fmt.Errorf("memory %s: %w", subject.MemoryID, err)
+			return nil, fmt.Errorf("note %s: %w", subject.NoteID, err)
 		}
 		from := q.Now
 		if subject.Rule.AllDay {
@@ -210,14 +210,14 @@ func Plan(q PlanQuery, subjects []PlanSubject, oneOffs []PendingOneOff, allDayTi
 					}
 					candidates = append(candidates, planCandidate{
 						subject: i, at: at, fire: fire,
-						id: repeatID(subject.MemoryID, true, *rep.Weekday), repeat: copyRepeat(rep),
+						id: repeatID(subject.NoteID, true, *rep.Weekday), repeat: copyRepeat(rep),
 					})
 				}
 			} else {
 				c := planCandidate{subject: i, cursor: cursor{s: s, k: s.seek(from)}}
 				if c.advance(subject, q.Now, until, hour, minute, false) {
 					c.repeat = copyRepeat(repeats[0])
-					c.id = repeatID(subject.MemoryID, false, 0)
+					c.id = repeatID(subject.NoteID, false, 0)
 					candidates = append(candidates, c)
 				}
 			}
@@ -244,13 +244,13 @@ func Plan(q PlanQuery, subjects []PlanSubject, oneOffs []PendingOneOff, allDayTi
 		item := ReminderItem{ID: c.id, OccurrenceAt: c.at, FireAt: c.fire, Category: CategoryReminder}
 		if c.subject < 0 {
 			one := oneOffs[c.one]
-			item.MemoryID, item.Title, item.Body = one.MemoryID, one.Title, ShapeBody(one.Body)
+			item.NoteID, item.Title, item.Body = one.NoteID, one.Title, ShapeBody(one.Body)
 			if one.Kind == "focus_phase" {
 				item.Category = CategoryFocusPhase
 			}
 		} else {
 			subject := subjects[c.subject]
-			item.MemoryID, item.Title, item.Body = subject.MemoryID, subject.Title, ShapeBody(subject.Note)
+			item.NoteID, item.Title, item.Body = subject.NoteID, subject.Title, ShapeBody(subject.Content)
 			if subject.FocusEnabled {
 				item.Category = CategoryReminderFocus
 			}
@@ -280,7 +280,7 @@ func DiffPlan(previous, next []ReminderItem) PlanDelta {
 	delta := PlanDelta{}
 	for _, item := range next {
 		before, exists := old[item.ID]
-		if !exists || before.MemoryID != item.MemoryID || before.Title != item.Title || before.Body != item.Body ||
+		if !exists || before.NoteID != item.NoteID || before.Title != item.Title || before.Body != item.Body ||
 			before.Category != item.Category || !sameRepeat(before.Repeat, item.Repeat) ||
 			(item.Repeat == nil && (!before.OccurrenceAt.Equal(item.OccurrenceAt) || !before.FireAt.Equal(item.FireAt))) {
 			delta.Upsert = append(delta.Upsert, item)

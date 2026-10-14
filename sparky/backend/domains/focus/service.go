@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"time"
 )
 
@@ -18,11 +18,11 @@ type DefaultsRepository interface {
 type service struct {
 	repo     Repository
 	settings DefaultsRepository
-	memories memory.Repository
+	notes    note.Repository
 	audit    activity.Audit
 }
 
-func NewService(r Repository, settings DefaultsRepository, m memory.Repository, a activity.Audit) Service {
+func NewService(r Repository, settings DefaultsRepository, m note.Repository, a activity.Audit) Service {
 	return &service{r, settings, m, a}
 }
 func defaultsFields(d *Defaults) map[string]any {
@@ -93,8 +93,8 @@ func (s *service) RecordSession(ctx context.Context, a actor.Actor, in Session) 
 	out.StartedAt = out.StartedAt.UTC()
 	out.EndedAt = out.EndedAt.UTC()
 	err = s.audit.Write(ctx, a, "focus", out.ID, activity.OpCreate, "Record focus session", func(ctx context.Context) error {
-		if out.MemoryID != nil {
-			if _, e := s.memories.Get(ctx, *out.MemoryID); e != nil {
+		if out.NoteID != nil {
+			if _, e := s.notes.Get(ctx, *out.NoteID); e != nil {
 				return e
 			}
 		}

@@ -4,7 +4,7 @@ import (
 	"context"
 	store "github.com/polterware/polterware/sparky/backend/domains/activity/fake"
 	"github.com/polterware/polterware/sparky/backend/domains/focus"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/review"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"time"
@@ -18,7 +18,7 @@ var _ review.Reader = (*Reader)(nil)
 
 func (r *Reader) Completions(ctx context.Context, from, to time.Time) ([]review.Completion, error) {
 	out := []review.Completion{}
-	rows, e := store.All[memory.Memory](ctx, r.Store, "memories")
+	rows, e := store.All[note.Note](ctx, r.Store, "notes")
 	if e != nil {
 		return nil, e
 	}
@@ -30,14 +30,14 @@ func (r *Reader) Completions(ctx context.Context, from, to time.Time) ([]review.
 		if sc.Freq != "" {
 			continue
 		}
-		if v.Status == memory.StatusCompleted && v.CompletedAt != nil && !v.CompletedAt.Before(from) && v.CompletedAt.Before(to) {
-			out = append(out, review.Completion{MemoryID: v.ID, At: *v.CompletedAt})
+		if v.Status == note.StatusCompleted && v.CompletedAt != nil && !v.CompletedAt.Before(from) && v.CompletedAt.Before(to) {
+			out = append(out, review.Completion{NoteID: v.ID, At: *v.CompletedAt})
 		}
 	}
-	cs, e := store.All[memory.Completion](ctx, r.Store, "completions")
+	cs, e := store.All[note.Completion](ctx, r.Store, "completions")
 	for _, v := range cs {
 		if !v.CompletedAt.Before(from) && v.CompletedAt.Before(to) {
-			out = append(out, review.Completion{MemoryID: v.MemoryID, At: v.CompletedAt})
+			out = append(out, review.Completion{NoteID: v.NoteID, At: v.CompletedAt})
 		}
 	}
 	return out, e

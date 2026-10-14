@@ -19,14 +19,14 @@ message ReminderDateComponents {
 
 message ReminderItem {
   string id = 1;
-  string memory_id = 2;
+  string note_id = 2;
   google.protobuf.Timestamp occurrence_at = 3;
   google.protobuf.Timestamp fire_at = 4;
   string title = 5;
   string body = 6;
   string category = 7;
-  // Set only for native repeating items (ids rem:<memory>:repeat or
-  // rem:<memory>:wd<n>); omitted for concrete one-shots.
+  // Set only for native repeating items (ids rem:<note>:repeat or
+  // rem:<note>:wd<n>); omitted for concrete one-shots.
   ReminderDateComponents repeat = 8;
 }
 
@@ -48,7 +48,7 @@ message AckReminderRequest {
 message AckReminderResponse {}
 
 message SnoozeReminderRequest {
-  string memory_id = 1;
+  string note_id = 1;
   google.protobuf.Timestamp occurrence_at = 2;
   int32 minutes = 3;
 }
@@ -60,7 +60,7 @@ message SnoozeReminderResponse {
 
 message ArmOneOffRequest {
   string kind = 1;
-  string memory_id = 2;
+  string note_id = 2;
   google.protobuf.Timestamp fire_at = 3;
   string title = 4;
   string body = 5;

@@ -1,5 +1,5 @@
 import { createEffect, createSignal } from "solid-js";
-import { A11yDialog, Button, Field, Input, Select } from "@polterware/frontend-design-system";
+import { A11yDialog, Button, Field, Input, Select, FormStack } from "@polterware/frontend-design-system";
 import type { EnvironmentCreateTemplate } from "./create-templates";
 import { defaultProtectionForKind } from "./environment-status";
 import { EnvironmentTemplateGrid } from "./environment-template-grid";
@@ -73,7 +73,7 @@ export function CreateEnvironmentDialog(props: {
         </>
       }
     >
-      <div class="grid gap-4">
+      <FormStack>
         <Field label="Name">
           <Input
             size="sm"
@@ -107,7 +107,7 @@ export function CreateEnvironmentDialog(props: {
             onSelect={(template) => props.onCreateFromTemplate?.(template)}
           />
         ) : null}
-      </div>
+      </FormStack>
     </A11yDialog>
   );
 }

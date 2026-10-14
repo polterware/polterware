@@ -1,1 +1,1 @@
-{"memories":[{"id":"ID","title":"Buy milk","status":"active","mindId":"","dueAt":null,"dueAllDay":false,"pinned":false,"tagIds":[],"scheduleLabel":"","snippet":"","rev":"1","updatedAt":"TIME","createdAt":"TIME","sortOrder":0}],"nextCursor":"","total":1}
+{"notes":[{"id":"ID","title":"Buy milk","status":"active","spaceId":"","dueAt":null,"dueAllDay":false,"pinned":false,"tagIds":[],"scheduleLabel":"","snippet":"","rev":"1","updatedAt":"TIME","createdAt":"TIME","sortOrder":0}],"nextCursor":"","total":1}

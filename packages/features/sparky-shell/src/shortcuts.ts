@@ -21,8 +21,8 @@ export function isCollectionTarget(target: EventTarget | null): boolean {
   return !!target.closest('[data-row-id], [role="row"], [role="grid"], [role="table"], [role="list"], table');
 }
 
-export type MemoryShortcut = "open" | "toggle-done" | "edit-title" | "pin" | "delete";
-export function memoryShortcut(event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey" | "isComposing">, editing: boolean): MemoryShortcut | undefined {
+export type NoteShortcut = "open" | "toggle-done" | "edit-title" | "pin" | "delete";
+export function noteShortcut(event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "shiftKey" | "isComposing">, editing: boolean): NoteShortcut | undefined {
   if (editing || event.isComposing || event.altKey || event.shiftKey) return;
   if (event.metaKey || event.ctrlKey) return event.key === "Backspace" ? "delete" : undefined;
   return ({ Enter: "open", " ": "toggle-done", e: "edit-title", p: "pin" } as const)[event.key as "Enter"];

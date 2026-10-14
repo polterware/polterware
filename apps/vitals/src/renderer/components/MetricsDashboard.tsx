@@ -1,4 +1,4 @@
-import { Activity, ArrowDataTransferVertical, ControlButton, Cpu, DataTable, DitherIconTile, EmptyIllustration, Gauge, HardDrive, ListOrdered, MemoryStick, PageEmpty, RefreshCw, Server, StatusChip, Zap } from "@polterware/frontend-design-system";
+import { Activity, ArrowDataTransferVertical, ControlButton, Cpu, DataTable, IconTile, EmptyIllustration, Gauge, HardDrive, ListOrdered, MemoryStick, PageEmpty, RefreshCw, Server, StatusChip, Zap } from "@polterware/frontend-design-system";
 import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { connectionPresentation, type ConnectionMetricsMode, type ConnectionStatus, type DiskIoStats, type DiskPartition, type MetricsSnapshot, type NetworkInterface, type SessionHistory } from "../api";
 import { formatBytesPerSec, formatNetworkRate, formatKb, formatPercent, formatUptime } from "../utils/format";
@@ -166,9 +166,9 @@ export function MetricsDashboard(props: {
           description={props.message || "The host could not be reached."}
           illustration={
             <EmptyIllustration class="vitals-empty-illustration">
-              <DitherIconTile size={28} dimmed>
+              <IconTile size={28} dimmed>
                 <Server size={16} />
-              </DitherIconTile>
+              </IconTile>
             </EmptyIllustration>
           }
           action={

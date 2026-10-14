@@ -3,7 +3,7 @@ import { browserBridge } from "./bridge";
 import {
   DEBOUNCE_MS, EMPTY_FILTERS, RECENT_KEY, SAVED_KEY, RESULT_WINDOW, buildSearchRequest, errorText, filtersActive,
   honestyLabel, indexHonesty, isUnavailable, readJson, rememberRecent, routeSearchQuery, windowHits, writeJson,
-  type Honesty, type SavedFilter, type SearchBridge, type SearchFilters, type SearchHitJSON, type MindJSON, type TagJSON,
+  type Honesty, type SavedFilter, type SearchBridge, type SearchFilters, type SearchHitJSON, type SpaceJSON, type TagJSON,
 } from "./model";
 
 export function createSearchStore(
@@ -19,7 +19,7 @@ export function createSearchStore(
   const [visibleHits, setVisibleHits] = createSignal<SearchHitJSON[]>([]);
   const [notice, setNotice] = createSignal("");
   const [ftsDocuments, setFtsDocuments] = createSignal<number | undefined>(undefined);
-  const [minds, setMinds] = createSignal<MindJSON[]>([]);
+  const [spaces, setSpaces] = createSignal<SpaceJSON[]>([]);
   const [tags, setTags] = createSignal<TagJSON[]>([]);
   const [recent, setRecent] = createSignal<string[]>([]);
   const [saved, setSaved] = createSignal<SavedFilter[]>([]);
@@ -38,14 +38,14 @@ export function createSearchStore(
   async function loadMeta(): Promise<void> {
     setLoadState("queued"); setLoadError("");
     try {
-      const [status, mindList, tagList] = await Promise.all([
+      const [status, spaceList, tagList] = await Promise.all([
         getBridge().search.status({}),
-        getBridge().minds.list({}).catch(() => ({ minds: [] as MindJSON[] })),
+        getBridge().spaces.list({}).catch(() => ({ spaces: [] as SpaceJSON[] })),
         getBridge().tags.list({}).catch(() => ({ tags: [] as TagJSON[] })),
       ]);
       batch(() => {
         setFtsDocuments(status.ftsDocuments);
-        setMinds(mindList.minds ?? []);
+        setSpaces(spaceList.spaces ?? []);
         setTags(tagList.tags ?? []);
         setLoadState("live");
       });
@@ -77,7 +77,7 @@ export function createSearchStore(
         setSearched(true);
         setSearchState("live");
         setRecent(remembered);
-        setActiveId(windowHits(nextHits, RESULT_WINDOW)[0]?.memoryId ?? null);
+        setActiveId(windowHits(nextHits, RESULT_WINDOW)[0]?.noteId ?? null);
       });
       persistRecent(remembered);
     } catch (error) {
@@ -97,7 +97,7 @@ export function createSearchStore(
   }
 
   const store = {
-    query, filters, hits, visibleHits, notice, ftsDocuments, minds, tags, recent, saved,
+    query, filters, hits, visibleHits, notice, ftsDocuments, spaces, tags, recent, saved,
     loadState, searchState, loadError, searchError, searched, activeId,
     emptyQuery: () => !query().trim() && !searched(),
     noResults: () => searched() && searchState() === "live" && visibleHits().length === 0,
@@ -125,7 +125,7 @@ export function createSearchStore(
       if (searchState() !== "live") throw new Error(searchError() || "Search unavailable.");
       return visibleHits();
     },
-    openHit(id: string) { return getBridge().app.openDeepLink(`sparky://memory/${encodeURIComponent(id)}`); },
+    openHit(id: string) { return getBridge().app.openDeepLink(`sparky://note/${encodeURIComponent(id)}`); },
     setActiveId,
     applyRecent(value: string) { setQueryValue(value); void run(value, filters()); },
     saveFilters(name: string) {
@@ -158,7 +158,7 @@ export function createSearchStore(
         }
         try {
           unsubscribe = getBridge().onChange(event => {
-            if (event.resync || event.changes.some(change => change.entity === "memory" || change.entity === "mind" || change.entity === "tag")) {
+            if (event.resync || event.changes.some(change => change.entity === "note" || change.entity === "space" || change.entity === "tag")) {
               void loadMeta().then(() => run());
             }
           });

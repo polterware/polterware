@@ -74,7 +74,7 @@ func listOccurrences(ctx context.Context, dbPath string, from, to time.Time, jso
 		} else if o.Overdue {
 			state = "overdue"
 		}
-		fmt.Fprintf(out, "%s\t%s\t%s\t%s\n", formatStamp(o.OccurrenceAt), state, o.MemoryId, o.Title)
+		fmt.Fprintf(out, "%s\t%s\t%s\t%s\n", formatStamp(o.OccurrenceAt), state, o.NoteId, o.Title)
 	}
 	return nil
 }

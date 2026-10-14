@@ -13,7 +13,7 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/review"
 	rf "github.com/polterware/polterware/sparky/backend/domains/review/fake"
@@ -35,14 +35,14 @@ func setupMCP(t *testing.T, configure ...func(*provider.Deps)) *harness {
 	f := testkit.Setup()
 	att := &attachStub{items: map[string][]attachments.Attachment{}}
 	att.revs = func(id string) (int64, error) {
-		got, err := f.MS.Get(context.Background(), id, memory.Include{})
+		got, err := f.MS.Get(context.Background(), id, note.Include{})
 		if err != nil {
 			return 0, err
 		}
-		return got.Memory.Rev, nil
+		return got.Note.Rev, nil
 	}
 	deps := provider.Deps{
-		Within: f.Store.Within, Memories: f.MS, Minds: f.NS, Tags: f.TS, Activity: activity.NewService(af.New(f.Store)),
+		Within: f.Store.Within, Notes: f.MS, Spaces: f.NS, Tags: f.TS, Activity: activity.NewService(af.New(f.Store)),
 		Review: review.NewService(rf.New(f.Store)), Search: searchStub{mem: f.MS}, Attachments: att,
 		Places: placeStub{rows: map[string]place.Place{}}, Settings: f.SS, Schedules: scheduleStub{},
 		Now: f.Audit.Clock.Now,
@@ -104,13 +104,13 @@ func textOf(res *mcp.CallToolResult) string {
 	return ""
 }
 
-type searchStub struct{ mem memory.Service }
+type searchStub struct{ mem note.Service }
 
 func (s searchStub) Search(ctx context.Context, q string, f search.Filter) (search.Result, error) {
-	page, err := s.mem.List(ctx, memory.ListFilter{Query: q, Limit: f.Limit, MindID: f.MindID, TagIDs: f.TagIDs, Status: f.Status})
+	page, err := s.mem.List(ctx, note.ListFilter{Query: q, Limit: f.Limit, SpaceID: f.SpaceID, TagIDs: f.TagIDs, Status: f.Status})
 	out := search.Result{}
-	for _, item := range page.Memories {
-		out.Hits = append(out.Hits, search.Hit{MemoryID: item.ID, Title: item.Title, Score: 1, Snippet: item.Snippet, MatchedIn: []string{"title"}})
+	for _, item := range page.Notes {
+		out.Hits = append(out.Hits, search.Hit{NoteID: item.ID, Title: item.Title, Score: 1, Snippet: item.Snippet, MatchedIn: []string{"title"}})
 	}
 	return out, err
 }
@@ -131,30 +131,30 @@ func (a *attachStub) checkRev(id string, expectedRev int64) error {
 		return err
 	}
 	if rev != expectedRev {
-		return fault.Conflict("memory", id, rev, memory.Memory{ID: id, Rev: rev})
+		return fault.Conflict("note", id, rev, note.Note{ID: id, Rev: rev})
 	}
 	return nil
 }
 
-func (a *attachStub) ImportFromPath(_ context.Context, memoryID, sourcePath, _ string, expectedRev int64) (attachments.Attachment, error) {
-	if err := a.checkRev(memoryID, expectedRev); err != nil {
+func (a *attachStub) ImportFromPath(_ context.Context, noteID, sourcePath, _ string, expectedRev int64) (attachments.Attachment, error) {
+	if err := a.checkRev(noteID, expectedRev); err != nil {
 		return attachments.Attachment{}, err
 	}
-	item := attachments.Attachment{ID: "file-1", MemoryID: memoryID, Kind: attachments.KindFile}
-	a.items[memoryID] = append(a.items[memoryID], item)
+	item := attachments.Attachment{ID: "file-1", NoteID: noteID, Kind: attachments.KindFile}
+	a.items[noteID] = append(a.items[noteID], item)
 	return item, nil
 }
-func (a *attachStub) AddLink(_ context.Context, memoryID, url, title string, expectedRev int64) (attachments.Attachment, error) {
-	if err := a.checkRev(memoryID, expectedRev); err != nil {
+func (a *attachStub) AddLink(_ context.Context, noteID, url, title string, expectedRev int64) (attachments.Attachment, error) {
+	if err := a.checkRev(noteID, expectedRev); err != nil {
 		return attachments.Attachment{}, err
 	}
 	titlePtr, u := title, url
-	item := attachments.Attachment{ID: "link-1", MemoryID: memoryID, Kind: attachments.KindLink, URL: &u, Title: &titlePtr}
-	a.items[memoryID] = append(a.items[memoryID], item)
+	item := attachments.Attachment{ID: "link-1", NoteID: noteID, Kind: attachments.KindLink, URL: &u, Title: &titlePtr}
+	a.items[noteID] = append(a.items[noteID], item)
 	return item, nil
 }
-func (a *attachStub) List(_ context.Context, memoryID string) ([]attachments.Attachment, error) {
-	return a.items[memoryID], nil
+func (a *attachStub) List(_ context.Context, noteID string) ([]attachments.Attachment, error) {
+	return a.items[noteID], nil
 }
 func (*attachStub) Delete(context.Context, string) error { return nil }
 func (*attachStub) Reorder(context.Context, string, []string) ([]attachments.Attachment, error) {
@@ -167,7 +167,7 @@ func (*attachStub) OpenInfo(context.Context, string) (attachments.OpenInfo, erro
 type placeStub struct{ rows map[string]place.Place }
 
 func (p placeStub) Set(_ context.Context, _ actor.Actor, in place.Place) (place.Place, error) {
-	p.rows[in.MemoryID] = in
+	p.rows[in.NoteID] = in
 	return in, nil
 }
 func (p placeStub) Clear(_ context.Context, _ actor.Actor, id string) error {

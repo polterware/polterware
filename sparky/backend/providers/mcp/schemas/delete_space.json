@@ -1,0 +1,38 @@
+{
+  "name": "delete_space",
+  "description": "Delete a space and children. Notes move to Inbox. confirm true.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "confirm"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "confirm": {
+        "const": true
+      },
+      "expectedRev": {
+        "type": "integer"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "deletedSpaceIds": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "movedNoteCount": {
+        "type": "integer"
+      }
+    }
+  }
+}

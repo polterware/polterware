@@ -24,14 +24,14 @@ type tableMeta struct {
 }
 
 var watched = map[string]tableMeta{
-	"minds":            {entity: "mind", idCol: 0},
-	"memories":         {entity: "memory", idCol: 0},
+	"spaces":           {entity: "space", idCol: 0},
+	"notes":            {entity: "note", idCol: 0},
 	"tags":             {entity: "tag", idCol: 0},
-	"memory_tags":      {entity: "memory", idCol: 0},
-	"check_items":      {entity: "memory", idCol: 1},
-	"schedules":        {entity: "memory", idCol: 0},
-	"places":           {entity: "memory", idCol: 0},
-	"completions":      {entity: "memory", idCol: 1},
+	"note_tags":        {entity: "note", idCol: 0},
+	"check_items":      {entity: "note", idCol: 1},
+	"schedules":        {entity: "note", idCol: 0},
+	"places":           {entity: "note", idCol: 0},
+	"completions":      {entity: "note", idCol: 1},
 	"attachments":      {entity: "attachment", idCol: 0},
 	"focus_sessions":   {entity: "focus", idCol: 0},
 	"reminder_oneoffs": {entity: "reminder", idCol: 0},

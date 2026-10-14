@@ -116,17 +116,17 @@ describe("FocusTimer fake clock", () => {
     expect(snap.phase).toBe("idle");
     expect(snap.isSessionActive).toBe(false);
     expect(snap.isRunning).toBe(false);
-    expect(snap.memoryId).toBeNull();
+    expect(snap.noteId).toBeNull();
     expect(h.events.some(event => event.type === "reset")).toBe(true);
     expect(h.events.some(event => event.type === "phase-end" && event.record.state === "stopped")).toBe(true);
   });
 
   it("does not replace a different active session", () => {
     const h = harness();
-    h.timer.beginMemory("memory-a", "A", recipe());
-    expect(h.timer.wouldReplace("memory-b")).toBe(true);
-    expect(h.timer.beginMemory("memory-b", "B", recipe())).toBe(false);
-    expect(h.timer.snapshot().memoryId).toBe("memory-a");
+    h.timer.beginNote("note-a", "A", recipe());
+    expect(h.timer.wouldReplace("note-b")).toBe(true);
+    expect(h.timer.beginNote("note-b", "B", recipe())).toBe(false);
+    expect(h.timer.snapshot().noteId).toBe("note-a");
     expect(h.timer.beginQuick()).toBe(false);
   });
 

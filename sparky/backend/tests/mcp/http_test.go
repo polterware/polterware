@@ -60,7 +60,7 @@ func TestGuardedHTTPAndProxy(t *testing.T) {
 		init,
 		`{"jsonrpc":"2.0","method":"notifications/initialized"}`,
 		`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`,
-		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"create_memories","arguments":{"items":[{"title":"Milk"}]}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"create_notes","arguments":{"items":[{"title":"Milk"}]}}}`,
 	}, "\n") + "\n")
 	var out bytes.Buffer
 	if err := provider.Proxy(context.Background(), endpoint, token, in, &out); err != nil {

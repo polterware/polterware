@@ -9,7 +9,7 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 )
 
-const tagCols = `t.id, t.name, t.color, t.created_at, t.updated_at, t.rev, (SELECT COUNT(*) FROM memory_tags mt WHERE mt.tag_id = t.id)`
+const tagCols = `t.id, t.name, t.color, t.created_at, t.updated_at, t.rev, (SELECT COUNT(*) FROM note_tags mt WHERE mt.tag_id = t.id)`
 
 func (r Tags) List(ctx context.Context) ([]tag.Tag, error) {
 	rows, err := r.q(ctx, false).QueryContext(ctx, `SELECT `+tagCols+` FROM tags t ORDER BY t.name COLLATE NOCASE`)
@@ -78,7 +78,7 @@ func (r Tags) Update(ctx context.Context, expectedRev int64, t tag.Tag) error {
 
 func (r Tags) Delete(ctx context.Context, id string) error {
 	return r.Within(ctx, func(ctx context.Context) error {
-		ids, err := r.memoryIDs(ctx, id)
+		ids, err := r.noteIDs(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -88,8 +88,8 @@ func (r Tags) Delete(ctx context.Context, id string) error {
 		if _, err := r.q(ctx, true).ExecContext(ctx, `DELETE FROM tags WHERE id=?`, id); err != nil {
 			return err
 		}
-		for _, memoryID := range ids {
-			if err := r.syncIndex(ctx, memoryID, false); err != nil {
+		for _, noteID := range ids {
+			if err := r.syncIndex(ctx, noteID, false); err != nil {
 				return err
 			}
 		}
@@ -100,27 +100,27 @@ func (r Tags) Delete(ctx context.Context, id string) error {
 func (r Tags) Retarget(ctx context.Context, fromID, toID string) (int, error) {
 	var moved int
 	err := r.Within(ctx, func(ctx context.Context) error {
-		ids, err := r.memoryIDs(ctx, fromID)
+		ids, err := r.noteIDs(ctx, fromID)
 		if err != nil {
 			return err
 		}
 		if _, err := r.q(ctx, true).ExecContext(ctx, `
-			INSERT OR IGNORE INTO memory_tags(memory_id, tag_id)
-			SELECT memory_id, ? FROM memory_tags WHERE tag_id=?`, toID, fromID); err != nil {
+			INSERT OR IGNORE INTO note_tags(note_id, tag_id)
+			SELECT note_id, ? FROM note_tags WHERE tag_id=?`, toID, fromID); err != nil {
 			return err
 		}
-		res, err := r.q(ctx, true).ExecContext(ctx, `DELETE FROM memory_tags WHERE tag_id=?`, fromID)
+		res, err := r.q(ctx, true).ExecContext(ctx, `DELETE FROM note_tags WHERE tag_id=?`, fromID)
 		if err != nil {
 			return err
 		}
 		n, _ := res.RowsAffected()
 		moved = int(n)
 		at := formatTime(time.Now().UTC())
-		for _, memoryID := range ids {
-			if _, err := r.q(ctx, true).ExecContext(ctx, `UPDATE memories SET rev=rev+1, updated_at=? WHERE id=?`, at, memoryID); err != nil {
+		for _, noteID := range ids {
+			if _, err := r.q(ctx, true).ExecContext(ctx, `UPDATE notes SET rev=rev+1, updated_at=? WHERE id=?`, at, noteID); err != nil {
 				return err
 			}
-			if err := r.syncIndex(ctx, memoryID, false); err != nil {
+			if err := r.syncIndex(ctx, noteID, false); err != nil {
 				return err
 			}
 		}
@@ -146,8 +146,8 @@ func (r Tags) Names(ctx context.Context) ([]string, error) {
 	return out, rows.Err()
 }
 
-func (r Tags) memoryIDs(ctx context.Context, tagID string) ([]string, error) {
-	rows, err := r.q(ctx, false).QueryContext(ctx, `SELECT memory_id FROM memory_tags WHERE tag_id=?`, tagID)
+func (r Tags) noteIDs(ctx context.Context, tagID string) ([]string, error) {
+	rows, err := r.q(ctx, false).QueryContext(ctx, `SELECT note_id FROM note_tags WHERE tag_id=?`, tagID)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (r Tags) memoryIDs(ctx context.Context, tagID string) ([]string, error) {
 }
 
 func (r Tags) reindexTagged(ctx context.Context, tagID string) error {
-	ids, err := r.memoryIDs(ctx, tagID)
+	ids, err := r.noteIDs(ctx, tagID)
 	if err != nil {
 		return err
 	}

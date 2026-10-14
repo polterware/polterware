@@ -17,25 +17,25 @@ func ensureClients(ctx context.Context, dbPath string) (coreclient.Clients, erro
 	return coreclient.New(state, "cli")
 }
 
-func lookupMindID(ctx context.Context, clients coreclient.Clients, ref string) (string, error) {
+func lookupSpaceID(ctx context.Context, clients coreclient.Clients, ref string) (string, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
 		return "", nil
 	}
-	got, err := clients.Mind.Get(ctx, connect.NewRequest(&v1.GetMindRequest{Id: ref}))
+	got, err := clients.Space.Get(ctx, connect.NewRequest(&v1.GetSpaceRequest{Id: ref}))
 	if err == nil {
-		return got.Msg.Mind.Id, nil
+		return got.Msg.Space.Id, nil
 	}
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		return "", mapRPC(err)
 	}
-	page, err := clients.Mind.List(ctx, connect.NewRequest(&v1.ListMindsRequest{}))
+	page, err := clients.Space.List(ctx, connect.NewRequest(&v1.ListSpacesRequest{}))
 	if err != nil {
 		return "", mapRPC(err)
 	}
 	var matches []string
-	valid := make([]string, 0, len(page.Msg.Minds))
-	for _, m := range page.Msg.Minds {
+	valid := make([]string, 0, len(page.Msg.Spaces))
+	for _, m := range page.Msg.Spaces {
 		valid = append(valid, m.Name)
 		if strings.EqualFold(m.Name, ref) {
 			matches = append(matches, m.Id)
@@ -45,9 +45,9 @@ func lookupMindID(ctx context.Context, clients coreclient.Clients, ref string) (
 		return matches[0], nil
 	}
 	if len(matches) > 1 {
-		return "", exitf(ExitError, "mind %q is ambiguous", ref)
+		return "", exitf(ExitError, "space %q is ambiguous", ref)
 	}
-	return "", exitf(ExitNotFound, "Mind %q not found. Valid: %s", ref, strings.Join(valid, ", "))
+	return "", exitf(ExitNotFound, "Space %q not found. Valid: %s", ref, strings.Join(valid, ", "))
 }
 
 func lookupTagID(ctx context.Context, clients coreclient.Clients, ref string) (string, error) {
@@ -69,24 +69,24 @@ func lookupTagID(ctx context.Context, clients coreclient.Clients, ref string) (s
 	return "", exitf(ExitNotFound, "Tag %q not found. Valid: %s", ref, strings.Join(valid, ", "))
 }
 
-func getMemory(ctx context.Context, clients coreclient.Clients, id string, include *v1.MemoryInclude) (*v1.Memory, error) {
-	got, err := clients.Memory.Get(ctx, connect.NewRequest(&v1.GetMemoryRequest{Id: id, Include: include}))
+func getNote(ctx context.Context, clients coreclient.Clients, id string, include *v1.NoteInclude) (*v1.Note, error) {
+	got, err := clients.Note.Get(ctx, connect.NewRequest(&v1.GetNoteRequest{Id: id, Include: include}))
 	if err != nil {
 		return nil, mapRPC(err)
 	}
-	return got.Msg.Memory, nil
+	return got.Msg.Note, nil
 }
 
-func getMind(ctx context.Context, clients coreclient.Clients, ref string) (*v1.Mind, error) {
-	id, err := lookupMindID(ctx, clients, ref)
+func getSpace(ctx context.Context, clients coreclient.Clients, ref string) (*v1.Space, error) {
+	id, err := lookupSpaceID(ctx, clients, ref)
 	if err != nil {
 		return nil, err
 	}
-	got, err := clients.Mind.Get(ctx, connect.NewRequest(&v1.GetMindRequest{Id: id}))
+	got, err := clients.Space.Get(ctx, connect.NewRequest(&v1.GetSpaceRequest{Id: id}))
 	if err != nil {
 		return nil, mapRPC(err)
 	}
-	return got.Msg.Mind, nil
+	return got.Msg.Space, nil
 }
 
 func int64ptr(n int64) *int64 { return &n }

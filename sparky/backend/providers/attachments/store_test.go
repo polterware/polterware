@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-const testMemoryID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+const testNoteID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 const testAttachmentID = "01ARZ3NDEKTSV4RRFFQ69G5FAW"
 
 func TestImportFileSafetyAndCrashShape(t *testing.T) {
@@ -22,7 +22,7 @@ func TestImportFileSafetyAndCrashShape(t *testing.T) {
 	if err = os.WriteFile(source, []byte("hello"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.ImportFile(context.Background(), testMemoryID, testAttachmentID, source)
+	got, err := s.ImportFile(context.Background(), testNoteID, testAttachmentID, source)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestImportFileSafetyAndCrashShape(t *testing.T) {
 	if _, err = os.Stat(filepath.Join(root, "attachments", got.RelPath)); err != nil {
 		t.Fatal(err)
 	}
-	entries, err := os.ReadDir(filepath.Join(root, "attachments", testMemoryID))
+	entries, err := os.ReadDir(filepath.Join(root, "attachments", testNoteID))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,14 +42,14 @@ func TestImportFileSafetyAndCrashShape(t *testing.T) {
 	if _, err = s.ImportFile(context.Background(), "../../escape", testAttachmentID, source); err == nil {
 		t.Fatal("traversal ID accepted")
 	}
-	if _, err = s.ImportFile(context.Background(), testMemoryID, "../../escape", source); err == nil {
+	if _, err = s.ImportFile(context.Background(), testNoteID, "../../escape", source); err == nil {
 		t.Fatal("absolute/traversal ID accepted")
 	}
 	link := filepath.Join(root, "link")
 	if err = os.Symlink(source, link); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.ImportFile(context.Background(), testMemoryID, testAttachmentID, link); err == nil {
+	if _, err = s.ImportFile(context.Background(), testNoteID, testAttachmentID, link); err == nil {
 		t.Fatal("symlink accepted")
 	}
 	large := filepath.Join(root, "large")
@@ -61,7 +61,7 @@ func TestImportFileSafetyAndCrashShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.Close()
-	if _, err = s.ImportFile(context.Background(), testMemoryID, testAttachmentID, large); err == nil {
+	if _, err = s.ImportFile(context.Background(), testNoteID, testAttachmentID, large); err == nil {
 		t.Fatal("oversized file accepted")
 	}
 }
@@ -83,7 +83,7 @@ func TestConcurrentImportsUseIndependentTemporaryFiles(t *testing.T) {
 		wg.Add(1)
 		go func(id string) {
 			defer wg.Done()
-			_, e := s.ImportFile(context.Background(), testMemoryID, id, src)
+			_, e := s.ImportFile(context.Background(), testNoteID, id, src)
 			errs <- e
 		}(id)
 	}
@@ -97,7 +97,7 @@ func TestConcurrentImportsUseIndependentTemporaryFiles(t *testing.T) {
 }
 
 func TestStoreRejectsSymlinkAncestorsForEveryFileOperation(t *testing.T) {
-	for _, ancestor := range []string{"attachments", testMemoryID} {
+	for _, ancestor := range []string{"attachments", testNoteID} {
 		t.Run(ancestor, func(t *testing.T) {
 			data, outside := t.TempDir(), t.TempDir()
 			s, err := New(nil, data)
@@ -105,8 +105,8 @@ func TestStoreRejectsSymlinkAncestorsForEveryFileOperation(t *testing.T) {
 				t.Fatal(err)
 			}
 			target := filepath.Join(data, "attachments")
-			if ancestor == testMemoryID {
-				target = filepath.Join(target, testMemoryID)
+			if ancestor == testNoteID {
+				target = filepath.Join(target, testNoteID)
 			} else if err = os.Remove(target); err != nil {
 				t.Fatal(err)
 			}
@@ -121,8 +121,8 @@ func TestStoreRejectsSymlinkAncestorsForEveryFileOperation(t *testing.T) {
 			if err = os.WriteFile(victim, []byte("private"), 0600); err != nil {
 				t.Fatal(err)
 			}
-			rel := filepath.Join(testMemoryID, testAttachmentID+".bin")
-			if _, err = s.ImportFile(context.Background(), testMemoryID, testAttachmentID, source); err == nil {
+			rel := filepath.Join(testNoteID, testAttachmentID+".bin")
+			if _, err = s.ImportFile(context.Background(), testNoteID, testAttachmentID, source); err == nil {
 				t.Fatal("import followed symlink ancestor")
 			}
 			if _, err = s.AbsolutePath(rel); err == nil {
@@ -149,12 +149,12 @@ func TestAnchoredDirectorySurvivesAncestorSwap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir, err := s.openMemory(testMemoryID, true)
+	dir, err := s.openNote(testNoteID, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer dir.Close()
-	original := filepath.Join(data, "attachments", testMemoryID)
+	original := filepath.Join(data, "attachments", testNoteID)
 	moved := original + ".moved"
 	if err = os.Rename(original, moved); err != nil {
 		t.Fatal(err)
@@ -195,7 +195,7 @@ func TestImportNormalizesPreviewMIME(t *testing.T) {
 			if err = os.WriteFile(src, tc.data, 0600); err != nil {
 				t.Fatal(err)
 			}
-			got, err := s.ImportFile(context.Background(), testMemoryID, testAttachmentID, src)
+			got, err := s.ImportFile(context.Background(), testNoteID, testAttachmentID, src)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -230,10 +230,10 @@ func TestImportAppliesMIMELimitBeforeCompletingCopy(t *testing.T) {
 			f.Write(tc.header)
 			f.Truncate(tc.limit + 4096)
 			f.Close()
-			if _, err = s.ImportFile(context.Background(), testMemoryID, testAttachmentID, src); err == nil {
+			if _, err = s.ImportFile(context.Background(), testNoteID, testAttachmentID, src); err == nil {
 				t.Fatal("kind limit ignored")
 			}
-			entries, err := os.ReadDir(filepath.Join(data, "attachments", testMemoryID))
+			entries, err := os.ReadDir(filepath.Join(data, "attachments", testNoteID))
 			if err != nil || len(entries) != 0 {
 				t.Fatalf("failed import left files: %v %v", entries, err)
 			}

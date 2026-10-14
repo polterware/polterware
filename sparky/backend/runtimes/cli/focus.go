@@ -43,7 +43,7 @@ func runToday(ctx context.Context, dbPath string, args []string, out, stderr io.
 		return mapRPC(err)
 	}
 	for _, s := range sessions.Msg.Sessions {
-		fmt.Fprintf(out, "focus\t%s\t%s\t%ds\n", s.Phase, dash(s.MemoryId), s.ElapsedS)
+		fmt.Fprintf(out, "focus\t%s\t%s\t%ds\n", s.Phase, dash(s.NoteId), s.ElapsedS)
 	}
 	return nil
 }

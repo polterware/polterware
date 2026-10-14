@@ -18,7 +18,7 @@ message FocusDefaults {
 
 message FocusSession {
   string id = 1;
-  string memory_id = 2;
+  string note_id = 2;
   string phase = 3;
   int32 planned_s = 4;
   int32 elapsed_s = 5;
@@ -42,7 +42,7 @@ message SetFocusDefaultsResponse {
 }
 
 message RecordFocusSessionRequest {
-  string memory_id = 1;
+  string note_id = 1;
   string phase = 2;
   int32 planned_s = 3;
   int32 elapsed_s = 4;

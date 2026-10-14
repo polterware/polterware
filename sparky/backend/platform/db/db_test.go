@@ -84,22 +84,22 @@ func TestMigrateForwardOnlyIdempotent(t *testing.T) {
 func TestWALReaderDuringWrite(t *testing.T) {
 	h := tempHandle(t)
 	ctx := context.Background()
-	if _, err := h.Writer().ExecContext(ctx, `CREATE TABLE memories (id TEXT PRIMARY KEY, title TEXT NOT NULL) STRICT`); err != nil {
+	if _, err := h.Writer().ExecContext(ctx, `CREATE TABLE notes (id TEXT PRIMARY KEY, title TEXT NOT NULL) STRICT`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Writer().ExecContext(ctx, `INSERT INTO memories(id, title) VALUES ('a', 'seed')`); err != nil {
+	if _, err := h.Writer().ExecContext(ctx, `INSERT INTO notes(id, title) VALUES ('a', 'seed')`); err != nil {
 		t.Fatal(err)
 	}
 	tx, err := h.Writer().BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO memories(id, title) VALUES ('b', 'uncommitted')`); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO notes(id, title) VALUES ('b', 'uncommitted')`); err != nil {
 		t.Fatal(err)
 	}
 	started := time.Now()
 	var n int
-	if err := h.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM memories`).Scan(&n); err != nil {
+	if err := h.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM notes`).Scan(&n); err != nil {
 		t.Fatalf("reader during write: %v", err)
 	}
 	if time.Since(started) > time.Second {
@@ -111,7 +111,7 @@ func TestWALReaderDuringWrite(t *testing.T) {
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM memories`).Scan(&n); err != nil {
+	if err := h.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM notes`).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	if n != 2 {
@@ -122,25 +122,25 @@ func TestWALReaderDuringWrite(t *testing.T) {
 func TestChangesAfterCommitNeverOnRollback(t *testing.T) {
 	h := tempHandle(t)
 	ctx := context.Background()
-	if _, err := h.Writer().ExecContext(ctx, `CREATE TABLE memories (id TEXT PRIMARY KEY, title TEXT NOT NULL) STRICT`); err != nil {
+	if _, err := h.Writer().ExecContext(ctx, `CREATE TABLE notes (id TEXT PRIMARY KEY, title TEXT NOT NULL) STRICT`); err != nil {
 		t.Fatal(err)
 	}
 	h.discardCommitted()
 	var got []changes.Change
 	h.AfterCommit = func(batch []changes.Change) { got = append([]changes.Change(nil), batch...) }
 	err := h.Within(ctx, func(ctx context.Context) error {
-		_, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO memories(id, title) VALUES ('m1', 'one')`)
+		_, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO notes(id, title) VALUES ('m1', 'one')`)
 		return err
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Entity != "memory" || got[0].ID != "m1" || got[0].Op != "create" {
+	if len(got) != 1 || got[0].Entity != "note" || got[0].ID != "m1" || got[0].Op != "create" {
 		t.Fatalf("commit batch: %+v", got)
 	}
 	got = nil
 	err = h.Within(ctx, func(ctx context.Context) error {
-		if _, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO memories(id, title) VALUES ('m2', 'two')`); err != nil {
+		if _, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO notes(id, title) VALUES ('m2', 'two')`); err != nil {
 			return err
 		}
 		return errRollback
@@ -152,7 +152,7 @@ func TestChangesAfterCommitNeverOnRollback(t *testing.T) {
 		t.Fatalf("published on rollback: %+v", got)
 	}
 	var n int
-	if err := h.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM memories`).Scan(&n); err != nil {
+	if err := h.Reader().QueryRowContext(ctx, `SELECT COUNT(*) FROM notes`).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	if n != 1 {
@@ -216,7 +216,7 @@ func TestWriterWaitsForCommitPublication(t *testing.T) {
 	h := tempHandle(t)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	if _, err := h.Writer().ExecContext(ctx, `CREATE TABLE memories (id TEXT PRIMARY KEY, title TEXT NOT NULL) STRICT`); err != nil {
+	if _, err := h.Writer().ExecContext(ctx, `CREATE TABLE notes (id TEXT PRIMARY KEY, title TEXT NOT NULL) STRICT`); err != nil {
 		t.Fatal(err)
 	}
 	h.discardCommitted()
@@ -232,7 +232,7 @@ func TestWriterWaitsForCommitPublication(t *testing.T) {
 		committed <- h.Within(ctx, func(ctx context.Context) error {
 			// Nested writes must join rather than lock again.
 			return h.Within(ctx, func(ctx context.Context) error {
-				_, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO memories VALUES ('a', 'committed')`)
+				_, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO notes VALUES ('a', 'committed')`)
 				return err
 			})
 		})
@@ -247,7 +247,7 @@ func TestWriterWaitsForCommitPublication(t *testing.T) {
 	go func() {
 		rolledBack <- h.Within(ctx, func(ctx context.Context) error {
 			close(entered)
-			if _, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO memories VALUES ('b', 'rolled back')`); err != nil {
+			if _, err := h.Q(ctx, true).ExecContext(ctx, `INSERT INTO notes VALUES ('b', 'rolled back')`); err != nil {
 				return err
 			}
 			return errRollback

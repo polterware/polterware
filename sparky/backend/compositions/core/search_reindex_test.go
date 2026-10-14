@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/search"
 	searchprovider "github.com/polterware/polterware/sparky/backend/providers/search"
 	"github.com/polterware/polterware/sparky/backend/providers/sqlite"
@@ -23,11 +23,11 @@ func searchStore(t *testing.T) *sqlite.Store {
 	return s
 }
 
-func seedSearchMemory(t *testing.T, s *sqlite.Store) memory.Memory {
+func seedSearchNote(t *testing.T, s *sqlite.Store) note.Note {
 	t.Helper()
 	now := time.Now().UTC()
-	m := memory.Memory{ID: "m", Title: "Before", Status: memory.StatusActive, Rev: 1, CreatedAt: now, UpdatedAt: now}
-	if err := s.Memories().Insert(t.Context(), m); err != nil {
+	m := note.Note{ID: "m", Title: "Before", Status: note.StatusActive, Rev: 1, CreatedAt: now, UpdatedAt: now}
+	if err := s.Notes().Insert(t.Context(), m); err != nil {
 		t.Fatal(err)
 	}
 	return m
@@ -35,7 +35,7 @@ func seedSearchMemory(t *testing.T, s *sqlite.Store) memory.Memory {
 
 func TestSearchDocumentsReleaseRowsBeforeProjection(t *testing.T) {
 	s := searchStore(t)
-	seedSearchMemory(t, s)
+	seedSearchNote(t, s)
 	// Even one reader must suffice; projection cannot wait on its own open Rows.
 	s.Handle().Reader().SetMaxOpenConns(1)
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
@@ -49,7 +49,7 @@ func TestSearchDocumentsReleaseRowsBeforeProjection(t *testing.T) {
 func TestConcurrentReindexDoesNotStarveConnections(t *testing.T) {
 	s := searchStore(t)
 	svc := WireSearch(s)
-	seedSearchMemory(t, s)
+	seedSearchNote(t, s)
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	start := make(chan struct{})
@@ -91,11 +91,11 @@ func (s pausedDocuments) ListSearchDocuments(ctx context.Context) ([]search.Docu
 	}
 }
 
-func TestReindexCannotOverwriteConcurrentMemoryUpdate(t *testing.T) {
+func TestReindexCannotOverwriteConcurrentNoteUpdate(t *testing.T) {
 	s := searchStore(t)
 	idx := searchprovider.NewWithReader(s.Handle().Writer(), s.Handle().Reader())
 	s.SetIndex(idx)
-	m := seedSearchMemory(t, s)
+	m := seedSearchNote(t, s)
 	source := pausedDocuments{storeDocuments{s}, make(chan struct{}), make(chan struct{})}
 	svc := searchRuntime{
 		Service: search.NewService(storeSearchIndex{idx, s}, source), transactions: s,
@@ -111,7 +111,7 @@ func TestReindexCannotOverwriteConcurrentMemoryUpdate(t *testing.T) {
 	}
 	m.Title, m.Rev = "After", 2
 	updated := make(chan error, 1)
-	go func() { updated <- s.Memories().Update(ctx, 1, m) }()
+	go func() { updated <- s.Notes().Update(ctx, 1, m) }()
 	// The competing writer must wait until the full rebuild commits.
 	var updateErr error
 	var overtook bool

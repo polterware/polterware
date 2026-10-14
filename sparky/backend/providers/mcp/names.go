@@ -8,23 +8,23 @@ import (
 
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 )
 
-func resolveMind(ctx context.Context, minds mind.Service, ref string) (mind.Mind, error) {
+func resolveSpace(ctx context.Context, spaces space.Service, ref string) (space.Space, error) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
-		return mind.Mind{}, fault.Invalid(fault.Violation{Field: "mind", Reason: "required"})
+		return space.Space{}, fault.Invalid(fault.Violation{Field: "space", Reason: "required"})
 	}
-	if got, err := minds.Get(ctx, ref); err == nil {
+	if got, err := spaces.Get(ctx, ref); err == nil {
 		return got, nil
 	} else if !fault.IsCode(err, fault.CodeNotFound) {
-		return mind.Mind{}, err
+		return space.Space{}, err
 	}
-	rows, err := minds.List(ctx)
+	rows, err := spaces.List(ctx)
 	if err != nil {
-		return mind.Mind{}, err
+		return space.Space{}, err
 	}
 	names := make(map[string]string, len(rows))
 	valid := make([]string, 0, len(rows))
@@ -35,9 +35,9 @@ func resolveMind(ctx context.Context, minds mind.Service, ref string) (mind.Mind
 	id, err := activity.Lookup(ref, names)
 	if err != nil {
 		sort.Strings(valid)
-		return mind.Mind{}, &fault.Error{Code: fault.CodeNotFound, Entity: "mind", Message: fmt.Sprintf("Mind %q not found. Valid: %s", ref, strings.Join(valid, ", "))}
+		return space.Space{}, &fault.Error{Code: fault.CodeNotFound, Entity: "space", Message: fmt.Sprintf("Space %q not found. Valid: %s", ref, strings.Join(valid, ", "))}
 	}
-	return minds.Get(ctx, id)
+	return spaces.Get(ctx, id)
 }
 
 func resolveTag(ctx context.Context, tags tag.Service, ref string) (tag.Tag, error) {
@@ -83,11 +83,11 @@ func resolveTags(ctx context.Context, tags tag.Service, refs []string) ([]string
 	return ids, nil
 }
 
-func optionalMind(ctx context.Context, minds mind.Service, ref string) (*string, error) {
+func optionalSpace(ctx context.Context, spaces space.Service, ref string) (*string, error) {
 	if strings.TrimSpace(ref) == "" {
 		return nil, nil
 	}
-	got, err := resolveMind(ctx, minds, ref)
+	got, err := resolveSpace(ctx, spaces, ref)
 	if err != nil {
 		return nil, err
 	}

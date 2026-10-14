@@ -20,7 +20,7 @@ export type FocusWireBridge = {
   focus: WireNamespace;
   reminders: WireNamespace;
   settings: WireNamespace;
-  memories: WireNamespace;
+  notes: WireNamespace;
   onChange(callback: (event: { resync: boolean; changes: { entity: string; id: string; op: string }[] }) => void): () => void;
 };
 
@@ -28,15 +28,15 @@ export type FocusBridge = {
   focus: Namespace<typeof Contracts.FocusService>;
   reminders: Namespace<typeof Contracts.ReminderService>;
   settings: Namespace<typeof Contracts.SettingsService>;
-  memories: Namespace<typeof Contracts.MemoryService>;
+  notes: Namespace<typeof Contracts.NoteService>;
   onChange: FocusWireBridge["onChange"];
 };
 
 export type FocusSessionJSON = JsonOf<typeof Contracts.FocusSessionSchema>;
 export type FocusDefaultsJSON = JsonOf<typeof Contracts.FocusDefaultsSchema>;
 export type SettingsJSON = JsonOf<typeof Contracts.SettingsSchema>;
-export type MemoryJSON = JsonOf<typeof Contracts.MemorySchema>;
-export type ScheduleJSON = NonNullable<MemoryJSON["schedule"]>;
+export type NoteJSON = JsonOf<typeof Contracts.NoteSchema>;
+export type ScheduleJSON = NonNullable<NoteJSON["schedule"]>;
 
 function jsonValue(value: unknown): JsonValue {
   return JSON.parse(JSON.stringify(value ?? {}, (_key, item) => typeof item === "bigint" ? item.toString() : item)) as JsonValue;
@@ -61,7 +61,7 @@ export function createFocusBridge(wire: FocusWireBridge): FocusBridge {
     focus: bind(wire.focus, Contracts.FocusService),
     reminders: bind(wire.reminders, Contracts.ReminderService),
     settings: bind(wire.settings, Contracts.SettingsService),
-    memories: bind(wire.memories, Contracts.MemoryService),
+    notes: bind(wire.notes, Contracts.NoteService),
     onChange: callback => wire.onChange(callback),
   };
 }
@@ -69,7 +69,7 @@ export function createFocusBridge(wire: FocusWireBridge): FocusBridge {
 /** Reads the preload wire without augmenting Window. Sparky Desktop owns that type. */
 export function browserBridge(): FocusBridge {
   const wire = Reflect.get(globalThis, "sparky") as FocusWireBridge | undefined;
-  if (!wire?.focus || !wire.reminders || !wire.settings || !wire.memories) {
+  if (!wire?.focus || !wire.reminders || !wire.settings || !wire.notes) {
     throw new Error("Sparky bridge unavailable. Open this page in Sparky Desktop.");
   }
   return createFocusBridge(wire);

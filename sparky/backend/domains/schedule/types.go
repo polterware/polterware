@@ -61,7 +61,7 @@ type Rule struct {
 
 // Schedule is the schedules row, including the focus recipe.
 type Schedule struct {
-	MemoryID           string
+	NoteID             string
 	Active             bool
 	FireAt             time.Time
 	TZ                 string
@@ -83,14 +83,14 @@ type Schedule struct {
 
 // Occurrence is one concrete instant in a range, with completion state.
 type Occurrence struct {
-	MemoryID     string
+	NoteID       string
 	Title        string
 	OccurrenceAt time.Time
 	FireAt       time.Time
 	Completed    bool
 	Overdue      bool
 	AllDay       bool
-	MindID       *string
+	SpaceID      *string
 	TZ           string
 }
 
@@ -123,11 +123,11 @@ func sameRepeat(a, b *DateComponents) bool {
 	return a.equal(*b)
 }
 
-// ReminderItem is one notification. One-shots use rem:<memoryID>:<occurrenceUnixMs>
-// or one:<id>. Native repeating items use rem:<memoryID>:repeat or rem:<memoryID>:wd<n>.
+// ReminderItem is one notification. One-shots use rem:<noteID>:<occurrenceUnixMs>
+// or one:<id>. Native repeating items use rem:<noteID>:repeat or rem:<noteID>:wd<n>.
 type ReminderItem struct {
 	ID           string
-	MemoryID     string
+	NoteID       string
 	OccurrenceAt time.Time
 	FireAt       time.Time
 	Title        string
@@ -143,15 +143,15 @@ type PlanQuery struct {
 	Horizon time.Duration
 }
 
-// PlanSubject is one active memory the planner may remind.
+// PlanSubject is one active note the planner may remind.
 type PlanSubject struct {
-	MemoryID     string
+	NoteID       string
 	Title        string
-	Note         string
+	Content      string
 	Rule         Rule
 	CompletedAt  []time.Time
 	FocusEnabled bool
-	MindID       *string
+	SpaceID      *string
 	TagIDs       []string
 	// Empty Status means active, preserving callers that supply active subjects.
 	Status           string
@@ -160,15 +160,15 @@ type PlanSubject struct {
 
 // PendingOneOff is an extra notification (focus phase or snooze) merged into the plan.
 type PendingOneOff struct {
-	ID       string
-	Kind     string
-	MemoryID string
-	FireAt   time.Time
-	Title    string
-	Body     string
+	ID     string
+	Kind   string
+	NoteID string
+	FireAt time.Time
+	Title  string
+	Body   string
 }
 
-// FocusRecipe is the per-memory pomodoro recipe stored on the schedule.
+// FocusRecipe is the per-note pomodoro recipe stored on the schedule.
 type FocusRecipe struct {
 	Enabled       bool
 	WorkMin       int

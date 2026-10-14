@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 	"strings"
 	"testing"
@@ -55,7 +55,7 @@ func TestTagRules(t *testing.T) {
 	}
 	_, e = tag.ResolveName(f.Ctx, f.Tags, "on")
 	code(t, e, fault.CodeNotFound)
-	m, e := f.MS.Create(f.Ctx, a, memory.Create{Title: "Tagged", TagIDs: []string{one.ID, two.ID}})
+	m, e := f.MS.Create(f.Ctx, a, note.Create{Title: "Tagged", TagIDs: []string{one.ID, two.ID}})
 	check(t, e)
 	_, e = f.TS.Merge(f.Ctx, a, one.ID, one.ID)
 	code(t, e, fault.CodeInvalid)
@@ -63,7 +63,7 @@ func TestTagRules(t *testing.T) {
 	code(t, e, fault.CodeNotFound)
 	merged, e := f.TS.Merge(f.Ctx, a, one.ID, two.ID)
 	check(t, e)
-	if merged.MovedMemoryCount != 1 || merged.Target.Rev != 2 {
+	if merged.MovedNoteCount != 1 || merged.Target.Rev != 2 {
 		t.Fatal(merged)
 	}
 	ids, e := f.Mem.ListTagIDs(f.Ctx, m.ID)

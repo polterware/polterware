@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { BUDGET, type NativeReminder, type PendingReminder, type Reminder, type RepeatComponents } from "./types";
 
 export const isOwnedIdentifier = (id: string): boolean => /^(rem:|one:).+/.test(id);
-export const isMemoryID = (id: string): boolean => /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(id);
+export const isNoteID = (id: string): boolean => /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(id);
 const ranges = { month: [1, 12], day: [1, 31], weekday: [1, 7], hour: [0, 23], minute: [0, 59], second: [0, 59] } as const;
 function instant(value: string): string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(value)) throw new Error("Invalid notification instant");
@@ -47,8 +47,8 @@ export function normalizePlan(items: readonly Reminder[], now = Date.now()): Nat
   return items.map((item) => {
     if (typeof item.id !== "string" || !isOwnedIdentifier(item.id) || ids.has(item.id)) throw new Error("Invalid notification identifier");
     ids.add(item.id);
-    if (typeof item.memoryId !== "string" || (item.memoryId !== "" && !isMemoryID(item.memoryId)) ||
-        (item.category !== "focus-phase" && !isMemoryID(item.memoryId))) throw new Error("Invalid notification memory");
+    if (typeof item.noteId !== "string" || (item.noteId !== "" && !isNoteID(item.noteId)) ||
+        (item.category !== "focus-phase" && !isNoteID(item.noteId))) throw new Error("Invalid notification note");
     if (typeof item.title !== "string" || typeof item.body !== "string" ||
         !["reminder", "reminder-focus", "focus-phase"].includes(item.category)) throw new Error("Invalid notification content");
     const repeat = components(item.repeat);
@@ -56,7 +56,7 @@ export function normalizePlan(items: readonly Reminder[], now = Date.now()): Nat
     if (!repeat && Date.parse(fireAt) <= now) throw new Error("Expired notification");
     const sound = item.sound ?? "default";
     if (sound !== "default" && sound !== "none" && !/^[A-Za-z0-9_-]+\.(caf|aiff|wav)$/.test(sound)) throw new Error("Invalid notification sound");
-    const value = { id: item.id, memoryId: item.memoryId, occurrenceAt, fireAt,
+    const value = { id: item.id, noteId: item.noteId, occurrenceAt, fireAt,
       title: Array.from(item.title).slice(0, 500).join(""), body: Array.from(item.body).slice(0, 140).join(""), category: item.category, repeat, sound };
     // A repeating trigger is stable as Plan's next concrete occurrence advances.
     // Its occurrence key is resolved at delivery by the native calendar trigger.

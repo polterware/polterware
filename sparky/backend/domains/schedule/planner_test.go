@@ -22,14 +22,14 @@ func TestPlanNearestFirstGlobalBudget(t *testing.T) {
 	slow.Freq = FreqHourly
 	slow.Anchor = now.Add(30 * time.Second)
 	subjects := []PlanSubject{
-		{MemoryID: "fast", Rule: fast, Title: "Fast", Note: "# **Hello** [world](https://example.com)", CompletedAt: []time.Time{now}},
-		{MemoryID: "slow", Rule: slow, Title: "Slow", FocusEnabled: true},
-		{MemoryID: "inactive", Rule: Rule{}, ScheduleInactive: true},
-		{MemoryID: "done", Rule: Rule{}, Status: "completed"},
+		{NoteID: "fast", Rule: fast, Title: "Fast", Content: "# **Hello** [world](https://example.com)", CompletedAt: []time.Time{now}},
+		{NoteID: "slow", Rule: slow, Title: "Slow", FocusEnabled: true},
+		{NoteID: "inactive", Rule: Rule{}, ScheduleInactive: true},
+		{NoteID: "done", Rule: Rule{}, Status: "completed"},
 	}
 	ones := []PendingOneOff{
 		{ID: "focus", Kind: "focus_phase", FireAt: now.Add(15 * time.Second), Title: "Break"},
-		{ID: "snooze", Kind: "snooze", MemoryID: "fast", FireAt: now.Add(45 * time.Second)},
+		{ID: "snooze", Kind: "snooze", NoteID: "fast", FireAt: now.Add(45 * time.Second)},
 		{ID: "past", Kind: "snooze", FireAt: now.Add(-time.Second)},
 		{ID: "outside", Kind: "snooze", FireAt: now.Add(2 * time.Hour)},
 	}
@@ -62,7 +62,7 @@ func TestPlanNearestFirstGlobalBudget(t *testing.T) {
 func TestPlanDefaultsAndBoundaries(t *testing.T) {
 	r := daily(t)
 	r.Freq = FreqMinutely
-	subjects := []PlanSubject{{MemoryID: "m", Rule: r}}
+	subjects := []PlanSubject{{NoteID: "m", Rule: r}}
 	got, err := Plan(PlanQuery{Now: r.Anchor}, subjects, nil, "")
 	if err != nil || len(got) != 1 || got[0].Repeat == nil || got[0].ID != "rem:m:repeat" {
 		t.Fatalf("native minutely: %v %v", got, err)
@@ -108,7 +108,7 @@ func TestPlanAllDayCompletionKey(t *testing.T) {
 	r.End = End{Type: EndCount, Count: 10}
 	r.Anchor = instant(t, "2026-10-03T18:30:00-03:00") // anchor time ignored
 	key := instant(t, "2026-10-03T00:00:00-03:00")
-	subjects := []PlanSubject{{MemoryID: "all", Rule: r}}
+	subjects := []PlanSubject{{NoteID: "all", Rule: r}}
 	now := instant(t, "2026-10-03T08:00:00-03:00")
 	got, err := Plan(PlanQuery{Now: now, Budget: 3, Horizon: 4 * 24 * time.Hour}, subjects, nil, "")
 	if err != nil || len(got) != 3 {
@@ -132,13 +132,13 @@ func TestPlanAllDayCompletionKey(t *testing.T) {
 func TestPlanDelta(t *testing.T) {
 	r := daily(t)
 	r.End = End{Type: EndCount, Count: 10}
-	subjects := []PlanSubject{{MemoryID: "m", Rule: r, Title: "Title", Note: strings.Repeat("a", 140) + "tail"}}
+	subjects := []PlanSubject{{NoteID: "m", Rule: r, Title: "Title", Content: strings.Repeat("a", 140) + "tail"}}
 	q := PlanQuery{Now: r.Anchor, Budget: 2}
 	before, err := Plan(q, subjects, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	subjects[0].Note = strings.Repeat("a", 140) + "different tail"
+	subjects[0].Content = strings.Repeat("a", 140) + "different tail"
 	after, err := Plan(q, subjects, nil, "")
 	if err != nil {
 		t.Fatal(err)
@@ -189,15 +189,15 @@ func TestPlanNativeRepeat(t *testing.T) {
 	allDay.AllDay = true
 	allDay.Anchor = instant(t, "2026-10-05T18:00:00-03:00")
 	subjects := []PlanSubject{
-		{MemoryID: "daily", Rule: dailyRule, Title: "Daily", CompletedAt: []time.Time{now}},
-		{MemoryID: "weekly", Rule: weekly},
-		{MemoryID: "hourly", Rule: hourly, FocusEnabled: true},
-		{MemoryID: "minutely", Rule: minutely},
-		{MemoryID: "monthly", Rule: monthly},
-		{MemoryID: "every-two", Rule: everyTwo},
-		{MemoryID: "bounded", Rule: bounded},
-		{MemoryID: "future", Rule: future},
-		{MemoryID: "all-day", Rule: allDay},
+		{NoteID: "daily", Rule: dailyRule, Title: "Daily", CompletedAt: []time.Time{now}},
+		{NoteID: "weekly", Rule: weekly},
+		{NoteID: "hourly", Rule: hourly, FocusEnabled: true},
+		{NoteID: "minutely", Rule: minutely},
+		{NoteID: "monthly", Rule: monthly},
+		{NoteID: "every-two", Rule: everyTwo},
+		{NoteID: "bounded", Rule: bounded},
+		{NoteID: "future", Rule: future},
+		{NoteID: "all-day", Rule: allDay},
 	}
 	got, err := Plan(PlanQuery{Now: now, Budget: 60, Horizon: 30 * 24 * time.Hour}, subjects, nil, "09:00")
 	if err != nil {
@@ -233,12 +233,12 @@ func TestPlanNativeRepeat(t *testing.T) {
 			t.Fatalf("unexpected native repeat %s", id)
 		}
 	}
-	budgeted, err := Plan(PlanQuery{Now: now, Budget: 1, Horizon: 30 * 24 * time.Hour}, []PlanSubject{{MemoryID: "weekly", Rule: weekly}}, nil, "")
+	budgeted, err := Plan(PlanQuery{Now: now, Budget: 1, Horizon: 30 * 24 * time.Hour}, []PlanSubject{{NoteID: "weekly", Rule: weekly}}, nil, "")
 	if err != nil || len(budgeted) != 1 || budgeted[0].ID != "rem:weekly:wd2" {
 		t.Fatalf("weekday budget slot: %v %v", budgeted, err)
 	}
 	later := now.Add(24 * time.Hour)
-	next, err := Plan(PlanQuery{Now: later, Budget: 1, Horizon: 30 * 24 * time.Hour}, []PlanSubject{{MemoryID: "daily", Rule: dailyRule, Title: "Daily"}}, nil, "")
+	next, err := Plan(PlanQuery{Now: later, Budget: 1, Horizon: 30 * 24 * time.Hour}, []PlanSubject{{NoteID: "daily", Rule: dailyRule, Title: "Daily"}}, nil, "")
 	if err != nil || len(next) != 1 {
 		t.Fatal(err)
 	}
@@ -252,7 +252,7 @@ func TestPlanNativeRepeat(t *testing.T) {
 }
 
 func TestShapeBody(t *testing.T) {
-	for _, tc := range []struct{ note, want string }{
+	for _, tc := range []struct{ content, want string }{
 		{"# Heading\n\n**bold** _italic_ ~~old~~ `code`", "Heading bold italic old code"},
 		{"- [x] Done\n1. [Link](https://example.com/a(b)) ![Photo](image.png)", "Done Link Photo"},
 		{"<b>Hello</b> &amp; goodbye", "Hello & goodbye"},
@@ -264,8 +264,8 @@ func TestShapeBody(t *testing.T) {
 		{"Hello [reference][id]", "Hello reference"},
 		{strings.Repeat("🧠", 141), strings.Repeat("🧠", 140)},
 	} {
-		if got := ShapeBody(tc.note); got != tc.want || utf8.RuneCountInString(got) > 140 {
-			t.Errorf("%q: got %q want %q", tc.note, got, tc.want)
+		if got := ShapeBody(tc.content); got != tc.want || utf8.RuneCountInString(got) > 140 {
+			t.Errorf("%q: got %q want %q", tc.content, got, tc.want)
 		}
 	}
 }
@@ -274,12 +274,12 @@ func benchmarkSubjects(b *testing.B, frequency Freq) ([]PlanSubject, time.Time) 
 	r := daily(b)
 	r.Freq = frequency
 	r.Anchor = instant(b, "2020-01-01T09:00:00Z")
-	memories := make([]PlanSubject, 5000)
-	for i := range memories {
-		memories[i] = PlanSubject{MemoryID: fmt.Sprintf("m%05d", i), Rule: r, Title: "Memory", Note: "# Note\n" + strings.Repeat("Long note content ", 100)}
-		memories[i].Rule.TZ = location(b, []string{"America/Sao_Paulo", "Europe/London", "Pacific/Auckland", "Asia/Kolkata"}[i%4])
+	notes := make([]PlanSubject, 5000)
+	for i := range notes {
+		notes[i] = PlanSubject{NoteID: fmt.Sprintf("m%05d", i), Rule: r, Title: "Note", Content: "# Note\n" + strings.Repeat("Long note content ", 100)}
+		notes[i].Rule.TZ = location(b, []string{"America/Sao_Paulo", "Europe/London", "Pacific/Auckland", "Asia/Kolkata"}[i%4])
 	}
-	return memories, instant(b, "2026-10-04T10:00:00Z")
+	return notes, instant(b, "2026-10-04T10:00:00Z")
 }
 
 func BenchmarkPlan5000(b *testing.B) {

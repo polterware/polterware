@@ -2,7 +2,7 @@ import { vi } from "vitest";
 import type { ScheduleWireBridge } from "./bridge";
 import type { ScheduleJSON } from "./mapping";
 
-export type FakeMemory = {
+export type FakeNote = {
   id: string;
   status?: string;
   rev?: string;
@@ -10,16 +10,16 @@ export type FakeMemory = {
   completions?: { occurrenceAt: string; completedAt?: string }[];
 };
 
-export function fakeScheduleBridge(seed: FakeMemory = { id: "memory-1", status: "active", rev: "1" }) {
-  const memory: FakeMemory = { completions: [], ...seed };
+export function fakeScheduleBridge(seed: FakeNote = { id: "note-1", status: "active", rev: "1" }) {
+  const note: FakeNote = { completions: [], ...seed };
   let listener: Parameters<ScheduleWireBridge["onChange"]>[0] | undefined;
   const schedule = {
     set: vi.fn(async (input?: { schedule?: ScheduleJSON }) => {
-      memory.schedule = { ...memory.schedule, ...input?.schedule, memoryId: memory.id };
-      return { schedule: memory.schedule };
+      note.schedule = { ...note.schedule, ...input?.schedule, noteId: note.id };
+      return { schedule: note.schedule };
     }),
     clear: vi.fn(async () => {
-      memory.schedule = undefined;
+      note.schedule = undefined;
       return {};
     }),
     preview: vi.fn(async (input?: { schedule?: ScheduleJSON; limit?: number }) => ({
@@ -28,17 +28,17 @@ export function fakeScheduleBridge(seed: FakeMemory = { id: "memory-1", status: 
     })),
     completeOccurrence: vi.fn(async (input?: { occurrenceAt?: string }) => {
       const occurrenceAt = input?.occurrenceAt ?? "";
-      memory.completions = [...(memory.completions ?? []).filter(item => item.occurrenceAt !== occurrenceAt), { occurrenceAt, completedAt: new Date().toISOString() }];
-      return { completion: { memoryId: memory.id, occurrenceAt } };
+      note.completions = [...(note.completions ?? []).filter(item => item.occurrenceAt !== occurrenceAt), { occurrenceAt, completedAt: new Date().toISOString() }];
+      return { completion: { noteId: note.id, occurrenceAt } };
     }),
     reopenOccurrence: vi.fn(async (input?: { occurrenceAt?: string }) => {
-      memory.completions = (memory.completions ?? []).filter(item => item.occurrenceAt !== input?.occurrenceAt);
+      note.completions = (note.completions ?? []).filter(item => item.occurrenceAt !== input?.occurrenceAt);
       return {};
     }),
     setFocusRecipe: vi.fn(async (input?: { enabled?: boolean; workMin?: number; shortBreakMin?: number; longBreakMin?: number; cycles?: number; autoContinue?: boolean }) => {
-      if (!memory.schedule) throw new Error("Save a schedule before enabling a focus recipe.");
-      memory.schedule = {
-        ...memory.schedule,
+      if (!note.schedule) throw new Error("Save a schedule before enabling a focus recipe.");
+      note.schedule = {
+        ...note.schedule,
         focusEnabled: input?.enabled,
         focusWorkMin: input?.workMin,
         focusShortBreakMin: input?.shortBreakMin,
@@ -46,7 +46,7 @@ export function fakeScheduleBridge(seed: FakeMemory = { id: "memory-1", status: 
         focusCycles: input?.cycles,
         focusAutoContinue: input?.autoContinue,
       };
-      return { schedule: memory.schedule };
+      return { schedule: note.schedule };
     }),
   };
   const reminders = {
@@ -57,11 +57,11 @@ export function fakeScheduleBridge(seed: FakeMemory = { id: "memory-1", status: 
     })),
   };
   const wire = {
-    memories: {
-      get: vi.fn(async () => ({ memory: { id: memory.id, title: "Scheduled", status: memory.status ?? "active", rev: memory.rev ?? "1", note: "", completions: memory.completions ?? [], ...(memory.schedule ? { schedule: memory.schedule } : {}) } })),
-      list: vi.fn(async () => ({ memories: [], total: 0 })),
+    notes: {
+      get: vi.fn(async () => ({ note: { id: note.id, title: "Scheduled", status: note.status ?? "active", rev: note.rev ?? "1", content: "", completions: note.completions ?? [], ...(note.schedule ? { schedule: note.schedule } : {}) } })),
+      list: vi.fn(async () => ({ notes: [], total: 0 })),
     },
-    minds: { list: vi.fn(async () => ({ minds: [] })) },
+    spaces: { list: vi.fn(async () => ({ spaces: [] })) },
     tags: { list: vi.fn(async () => ({ tags: [] })) },
     search: { search: vi.fn(async () => ({ hits: [] })) },
     schedule,
@@ -81,7 +81,7 @@ export function fakeScheduleBridge(seed: FakeMemory = { id: "memory-1", status: 
   } as unknown as ScheduleWireBridge;
   return {
     wire,
-    memory,
-    emit: () => listener?.({ resync: false, changes: [{ entity: "schedule", id: memory.id, op: "update" }] }),
+    note,
+    emit: () => listener?.({ resync: false, changes: [{ entity: "schedule", id: note.id, op: "update" }] }),
   };
 }

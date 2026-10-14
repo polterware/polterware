@@ -24,9 +24,9 @@ func TestPlanCarriesNativeRepeatMatchers(t *testing.T) {
 	weekday, hour, minute, second := 2, 9, 30, 0
 	at := time.Date(2026, 10, 5, 12, 30, 0, 0, time.UTC)
 	handler := reminderHandler{s: planOnly{items: []schedule.ReminderItem{
-		{ID: "rem:m1:wd2", MemoryID: "m1", OccurrenceAt: at, FireAt: at, Title: "Weekly", Category: "reminder",
+		{ID: "rem:m1:wd2", NoteID: "m1", OccurrenceAt: at, FireAt: at, Title: "Weekly", Category: "reminder",
 			Repeat: &schedule.DateComponents{TZ: "America/Sao_Paulo", Weekday: &weekday, Hour: &hour, Minute: &minute, Second: &second}},
-		{ID: "rem:m2:1", MemoryID: "m2", OccurrenceAt: at, FireAt: at, Title: "Once", Category: "reminder"},
+		{ID: "rem:m2:1", NoteID: "m2", OccurrenceAt: at, FireAt: at, Title: "Once", Category: "reminder"},
 	}}}
 	res, err := handler.Plan(t.Context(), connect.NewRequest(&v1.PlanRemindersRequest{}))
 	if err != nil {

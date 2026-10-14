@@ -4,10 +4,10 @@
   "inputSchema": {
     "type": "object",
     "required": [
-      "memoryId"
+      "noteId"
     ],
     "properties": {
-      "memoryId": {
+      "noteId": {
         "type": "string"
       },
       "links": {

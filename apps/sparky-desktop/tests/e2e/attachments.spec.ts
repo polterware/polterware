@@ -3,10 +3,10 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 
-async function openInboxMemory(page: Page, title: string) {
+async function openInboxNote(page: Page, title: string) {
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
-  const id = await page.evaluate(async title => (await window.sparky.memories.create({ title })).memory!.id, title);
-  await page.evaluate(id => window.sparky.app.openDeepLink(`sparky://memory/${id}`), id);
+  const id = await page.evaluate(async title => (await window.sparky.notes.create({ title })).note!.id, title);
+  await page.evaluate(id => window.sparky.app.openDeepLink(`sparky://note/${id}`), id);
   await expect(page.locator("[data-attachments-section]")).toBeVisible();
   return id;
 }
@@ -22,11 +22,11 @@ test("imports 20 mixed files through pickFiles and never uses file:// previews",
   await sparky.app.evaluate(async ({ dialog }, paths) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: paths });
   }, files);
-  const memoryId = await openInboxMemory(page, "Attachment import");
+  const noteId = await openInboxNote(page, "Attachment import");
   await page.getByRole("button", { name: "Add attachment", exact: true }).click();
   await page.getByRole("menuitem", { name: "Add file", exact: true }).click();
   await expect(page.locator("[data-attachments-section]").getByText("Live", { exact: true })).toBeVisible();
-  await expect.poll(() => page.evaluate(async id => (await window.sparky.attachments.list({ memoryId: id })).attachments?.length, memoryId)).toBe(20);
+  await expect.poll(() => page.evaluate(async id => (await window.sparky.attachments.list({ noteId: id })).attachments?.length, noteId)).toBe(20);
   const previewUrls = await page.locator("[data-preview-url]").evaluateAll(nodes => nodes.map(node => node.getAttribute("data-preview-url") ?? ""));
   expect(previewUrls.length).toBeGreaterThan(0);
   expect(previewUrls.every(url => url.startsWith("sparky-file://attachment/"))).toBe(true);
@@ -35,7 +35,7 @@ test("imports 20 mixed files through pickFiles and never uses file:// previews",
 
 test("drag-drop import uses a real drop and granted paths", async ({ sparky, page }) => {
   await sparky.skipOnboarding();
-  const memoryId = await openInboxMemory(page, "Attachment drop");
+  const noteId = await openInboxNote(page, "Attachment drop");
   const zone = page.locator("[data-drop-zone]");
   await expect(zone).toBeVisible();
   const path = join(sparky.directory, "drop.txt");
@@ -51,7 +51,7 @@ test("drag-drop import uses a real drop and granted paths", async ({ sparky, pag
   await session.send("Input.dispatchDragEvent", { type: "drop", ...point, data });
   await expect(page.getByText("drop.txt")).toBeVisible();
   await expect(page.locator("[data-attachments-section]").getByText("Live", { exact: true })).toBeVisible();
-  const listed = await page.evaluate(async (id) => window.sparky.attachments.list({ memoryId: id }), memoryId);
+  const listed = await page.evaluate(async (id) => window.sparky.attachments.list({ noteId: id }), noteId);
   expect(listed.attachments?.some(item => item.name === "drop.txt")).toBe(true);
   expect(await page.locator("[src^='file:']").count()).toBe(0);
   await expect(page.getByText(/no filesystem path/)).toHaveCount(0);
@@ -59,7 +59,7 @@ test("drag-drop import uses a real drop and granted paths", async ({ sparky, pag
 
 test("denied microphone permission is shown honestly", async ({ sparky, page }) => {
   await sparky.skipOnboarding();
-  await openInboxMemory(page, "Attachment mic");
+  await openInboxNote(page, "Attachment mic");
   await sparky.app.evaluate(({ systemPreferences }) => {
     systemPreferences.askForMediaAccess = async () => false;
   });

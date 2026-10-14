@@ -42,9 +42,9 @@ func openDirectory(parent *os.File, name string) (*os.File, error) {
 	return dir, nil
 }
 
-func (s *Store) openMemory(memoryID string, create bool) (*os.File, error) {
-	if !ulidPattern.MatchString(memoryID) {
-		return nil, fmt.Errorf("invalid memory ID")
+func (s *Store) openNote(noteID string, create bool) (*os.File, error) {
+	if !ulidPattern.MatchString(noteID) {
+		return nil, fmt.Errorf("invalid note ID")
 	}
 	root, err := s.openRoot()
 	if err != nil {
@@ -52,11 +52,11 @@ func (s *Store) openMemory(memoryID string, create bool) (*os.File, error) {
 	}
 	defer root.Close()
 	if create {
-		if err = unix.Mkdirat(int(root.Fd()), memoryID, 0700); err != nil && err != unix.EEXIST {
+		if err = unix.Mkdirat(int(root.Fd()), noteID, 0700); err != nil && err != unix.EEXIST {
 			return nil, err
 		}
 	}
-	return openDirectory(root, memoryID)
+	return openDirectory(root, noteID)
 }
 
 func splitPath(rel string) (string, string, error) {

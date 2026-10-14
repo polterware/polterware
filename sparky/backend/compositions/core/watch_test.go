@@ -77,7 +77,7 @@ func (f *testFeed) Subscribe(_ context.Context, since int64) (Subscription, erro
 func TestWatchConcurrentWritersOrderingReplayAndLatency(t *testing.T) {
 	feed := newFeed()
 	p := newProbe(feed)
-	clients, _, _ := loopback(t, Services{Memories: p, Changes: feed})
+	clients, _, _ := loopback(t, Services{Notes: p, Changes: feed})
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	stream, err := clients.Change.Watch(ctx, connect.NewRequest(&v1.WatchChangesRequest{}))
@@ -90,7 +90,7 @@ func TestWatchConcurrentWritersOrderingReplayAndLatency(t *testing.T) {
 	}
 	start := time.Now()
 	title := "first"
-	if _, err := clients.Memory.Update(ctx, connect.NewRequest(&v1.UpdateMemoryRequest{Id: p.row.ID, Title: &title})); err != nil {
+	if _, err := clients.Note.Update(ctx, connect.NewRequest(&v1.UpdateNoteRequest{Id: p.row.ID, Title: &title})); err != nil {
 		t.Fatal(err)
 	}
 	if !stream.Receive() {
@@ -110,7 +110,7 @@ func TestWatchConcurrentWritersOrderingReplayAndLatency(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			title := fmt.Sprintf("writer %d", i)
-			_, err := clients.Memory.Update(ctx, connect.NewRequest(&v1.UpdateMemoryRequest{Id: p.row.ID, Title: &title}))
+			_, err := clients.Note.Update(ctx, connect.NewRequest(&v1.UpdateNoteRequest{Id: p.row.ID, Title: &title}))
 			errs <- err
 		}(i)
 	}
@@ -149,7 +149,7 @@ func TestWatchConcurrentWritersOrderingReplayAndLatency(t *testing.T) {
 		}
 	}
 	title = "live after replay"
-	if _, err := clients.Memory.Update(ctx, connect.NewRequest(&v1.UpdateMemoryRequest{Id: p.row.ID, Title: &title})); err != nil {
+	if _, err := clients.Note.Update(ctx, connect.NewRequest(&v1.UpdateNoteRequest{Id: p.row.ID, Title: &title})); err != nil {
 		t.Fatal(err)
 	}
 	if !replay.Receive() || replay.Msg().Seq != writers+2 {
@@ -159,7 +159,7 @@ func TestWatchConcurrentWritersOrderingReplayAndLatency(t *testing.T) {
 func TestWatchInvalidAndExpiredSequences(t *testing.T) {
 	feed := newFeed()
 	for i := 0; i < 1100; i++ {
-		feed.publish(Change{Entity: "memories", ID: "id", Op: "update"})
+		feed.publish(Change{Entity: "notes", ID: "id", Op: "update"})
 	}
 	clients, _, _ := loopback(t, Services{Changes: feed})
 	for _, tc := range []struct {
@@ -185,7 +185,7 @@ func TestShutdownRacesWithOpenWatchAndWriters(t *testing.T) {
 	for attempt := 0; attempt < 8; attempt++ {
 		feed := newFeed()
 		p := newProbe(feed)
-		clients, _, server := loopback(t, Services{Memories: p, Changes: feed})
+		clients, _, server := loopback(t, Services{Notes: p, Changes: feed})
 		ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 		stream, err := clients.Change.Watch(ctx, connect.NewRequest(&v1.WatchChangesRequest{}))
 		if err != nil {
@@ -202,7 +202,7 @@ func TestShutdownRacesWithOpenWatchAndWriters(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				title := "shutdown race"
-				_, err := clients.Memory.Update(ctx, connect.NewRequest(&v1.UpdateMemoryRequest{Id: p.row.ID, Title: &title}))
+				_, err := clients.Note.Update(ctx, connect.NewRequest(&v1.UpdateNoteRequest{Id: p.row.ID, Title: &title}))
 				if err != nil {
 					switch connect.CodeOf(err) {
 					case connect.CodeUnavailable, connect.CodeCanceled, connect.CodeUnknown:

@@ -49,9 +49,9 @@ export function SearchPage(props: { store?: SearchStore }) {
   const activeFilters = createMemo(() => {
     const filters = store.filters();
     const items: { id: string; label: string; onRemove: () => void }[] = [];
-    if (filters.mindId) {
-      const mind = store.minds().find(item => item.id === filters.mindId);
-      items.push({ id: "mind", label: mind?.name ? `Mind: ${mind.name}` : "Mind", onRemove: () => store.setFilters({ mindId: "" }) });
+    if (filters.spaceId) {
+      const space = store.spaces().find(item => item.id === filters.spaceId);
+      items.push({ id: "space", label: space?.name ? `Space: ${space.name}` : "Space", onRemove: () => store.setFilters({ spaceId: "" }) });
     }
     for (const id of filters.tagIds) {
       const tag = store.tags().find(item => item.id === id);
@@ -61,7 +61,7 @@ export function SearchPage(props: { store?: SearchStore }) {
     if (filters.updated !== "any") items.push({ id: "updated", label: updatedLabel(filters), onRemove: () => store.setFilters({ updated: "any", updatedFrom: "", updatedTo: "" }) });
     return items;
   });
-  function open(id: string | null) { if (id) shell.openMemory(id); }
+  function open(id: string | null) { if (id) shell.openNote(id); }
   function onKeyDown(event: KeyboardEvent) {
     if (event.isComposing) return;
     const editing = event.target instanceof HTMLElement && event.target.closest("input, textarea, select, [contenteditable=true]");
@@ -79,12 +79,12 @@ export function SearchPage(props: { store?: SearchStore }) {
     } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       if (!rows.length) return;
-      const index = Math.max(0, rows.findIndex(hit => hit.memoryId === store.activeId()));
+      const index = Math.max(0, rows.findIndex(hit => hit.noteId === store.activeId()));
       const next = event.key === "ArrowDown" ? Math.min(rows.length - 1, index + 1) : Math.max(0, index <= 0 ? 0 : index - 1);
-      store.setActiveId(rows[next]?.memoryId ?? null);
+      store.setActiveId(rows[next]?.noteId ?? null);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      open(store.activeId() ?? rows[0]?.memoryId ?? null);
+      open(store.activeId() ?? rows[0]?.noteId ?? null);
     }
   }
   return (
@@ -96,13 +96,13 @@ export function SearchPage(props: { store?: SearchStore }) {
       <PageToolbar.Root>
         <PageToolbar.Leading>
           <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <SearchBar aria-label="Search memories" placeholder="Search memories" value={store.query()} onInput={value => store.setQuery(value)} />
+            <SearchBar aria-label="Search notes" placeholder="Search notes" value={store.query()} onInput={value => store.setQuery(value)} />
             <FilterChipGroup aria-label="Status" value={store.filters().status} items={STATUS_CHIPS} onChange={status => store.setFilters({ status })} />
             <FilterPopover
-              ariaLabel="Filter by Mind" triggerLabel="Mind" active={Boolean(store.filters().mindId)} onClear={() => store.setFilters({ mindId: "", includeDescendants: true })}
+              ariaLabel="Filter by Space" triggerLabel="Space" active={Boolean(store.filters().spaceId)} onClear={() => store.setFilters({ spaceId: "", includeDescendants: true })}
               groups={[
-                { id: "descendants", label: "Include child Minds", inline: true, options: [{ id: "descendants", label: "Include child Minds", checked: store.filters().includeDescendants, onCheckedChange: checked => store.setFilters({ includeDescendants: checked }) }] },
-                { id: "minds", label: "Minds", selectionMode: "single", options: store.minds().map(mind => ({ id: mind.id ?? "", label: mind.name ?? "Unnamed Mind", checked: store.filters().mindId === mind.id, onCheckedChange: checked => store.setFilters({ mindId: checked ? mind.id ?? "" : "" }) })) },
+                { id: "descendants", label: "Include child Spaces", inline: true, options: [{ id: "descendants", label: "Include child Spaces", checked: store.filters().includeDescendants, onCheckedChange: checked => store.setFilters({ includeDescendants: checked }) }] },
+                { id: "spaces", label: "Spaces", selectionMode: "single", options: store.spaces().map(space => ({ id: space.id ?? "", label: space.name ?? "Unnamed Space", checked: store.filters().spaceId === space.id, onCheckedChange: checked => store.setFilters({ spaceId: checked ? space.id ?? "" : "" }) })) },
               ]}
             />
             <FilterPopover
@@ -165,10 +165,10 @@ export function SearchPage(props: { store?: SearchStore }) {
         <Show when={store.searchState() === "failed" || store.searchState() === "unavailable"}>
           <PageError title={store.searchState() === "unavailable" ? "Search unavailable" : "Search failed"} message={store.searchError()} onRetry={() => void store.reload()} />
         </Show>
-        <Show when={store.searchState() === "queued"}><PageLoading label="Searching memories" /></Show>
+        <Show when={store.searchState() === "queued"}><PageLoading label="Searching notes" /></Show>
         <Show when={store.loadState() !== "unavailable" && store.loadState() !== "failed" && store.searchState() !== "failed" && store.searchState() !== "unavailable"}>
           <Show when={store.emptyQuery()}>
-            <PageEmpty title="Search memories" description="Search words in titles, notes, checklists, tags, and Minds.">
+            <PageEmpty title="Search notes" description="Search words in titles, content, checklists, tags, and Spaces.">
               <Show when={store.recent().length}>
                 <div class="flex flex-wrap justify-center gap-2" role="group" aria-label="Recent searches">
                   <For each={store.recent()}>{item => <FilterChip onClick={() => store.applyRecent(item)}>{item}</FilterChip>}</For>
@@ -180,16 +180,16 @@ export function SearchPage(props: { store?: SearchStore }) {
             <PageEmpty title="No results" description="Try another query or clear your filters." />
           </Show>
           <Show when={store.visibleHits().length}>
-            <DataTable.Root rows={store.visibleHits()} getRowId={row => row.memoryId ?? ""} activeRowId={store.activeId() ?? undefined} onActiveRowChange={id => store.setActiveId(id)} estimateRowHeight={56} columnWidthsKey="search">
+            <DataTable.Root rows={store.visibleHits()} getRowId={row => row.noteId ?? ""} activeRowId={store.activeId() ?? undefined} onActiveRowChange={id => store.setActiveId(id)} estimateRowHeight={56} columnWidthsKey="search">
               <DataTable.Table aria-label="Search results">
                 <DataTable.Header>
-                  <DataTable.ColumnHeader id="title" sortable={false}>Memory</DataTable.ColumnHeader>
+                  <DataTable.ColumnHeader id="title" sortable={false}>Note</DataTable.ColumnHeader>
                   <DataTable.ColumnHeader id="snippet" sortable={false}>Snippet</DataTable.ColumnHeader>
                   <DataTable.ColumnHeader id="matched" sortable={false}>Matched in</DataTable.ColumnHeader>
                 </DataTable.Header>
                 <DataTable.Body>{(row: SearchHitJSON) => (
-                  <DataTable.Row row={row} rowId={row.memoryId ?? ""} aria-label={hitLabel(row)} onActivate={() => open(row.memoryId ?? null)}>
-                    <DataTable.PrimaryCell leading={<SearchIcon size={16} />} title={row.title || "Untitled memory"} />
+                  <DataTable.Row row={row} rowId={row.noteId ?? ""} aria-label={hitLabel(row)} onActivate={() => open(row.noteId ?? null)}>
+                    <DataTable.PrimaryCell leading={<SearchIcon size={16} />} title={row.title || "Untitled note"} />
                     <DataTable.Cell wrap><HighlightedSnippet snippet={row.snippet} class="text-[13px] text-[var(--color-text-secondary)]" /></DataTable.Cell>
                     <DataTable.Cell>{matchedInLabel(row.matchedIn)}</DataTable.Cell>
                   </DataTable.Row>

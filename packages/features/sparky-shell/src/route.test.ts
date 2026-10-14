@@ -6,26 +6,26 @@ describe("shell registry and routes", () => {
   it("uses registered routes before shell stubs", () => {
     const stub = { path: "/today", title: "Stub", component };
     const live = { ...stub, title: "Live" };
-    expect(resolveRoute([{ id: "shell", routes: [stub] }, { id: "memories", routes: [live] }], "/today")?.route).toBe(live);
+    expect(resolveRoute([{ id: "shell", routes: [stub] }, { id: "notes", routes: [live] }], "/today")?.route).toBe(live);
   });
   it.each([
-    ["/mind/:id", "/mind/Home%20Office", { id: "Home Office" }],
+    ["/space/:id", "/space/Home%20Office", { id: "Home Office" }],
     ["/calendar", "/calendar/?date=2026-10-04", {}],
-    ["/mind/:id", "/mind", null], ["/mind/:id", "/mind/%", null], ["/today", "/today/extra", null],
+    ["/space/:id", "/space", null], ["/space/:id", "/space/%", null], ["/today", "/today/extra", null],
   ])("matches %s to %s", (pattern, path, expected) => expect(matchPath(pattern, path)).toEqual(expected));
   it("preserves the primary navigation destinations and contributions", () => {
-    const feature: SparkyFeature = { id: "minds", routes: [], sidebar: [{ id: "minds", label: "My Minds", path: "/minds", badge: 3 }, { id: "custom", label: "Custom", path: "/custom" }] };
+    const feature: SparkyFeature = { id: "spaces", routes: [], sidebar: [{ id: "spaces", label: "My Spaces", path: "/spaces", badge: 3 }, { id: "custom", label: "Custom", path: "/custom" }] };
     const items = sidebarItems([feature]);
-    expect(items.find(item => item.path === "/minds")?.label).toBe("My Minds");
-    expect(items.filter(item => item.path === "/minds")).toHaveLength(1);
+    expect(items.find(item => item.path === "/spaces")?.label).toBe("My Spaces");
+    expect(items.filter(item => item.path === "/spaces")).toHaveLength(1);
     expect(items.some(item => item.path === "/today")).toBe(false);
-    expect(items.map(item => item.path)).toEqual(["/inbox", "/calendar", "/minds", "/map", "/focus", "/custom"]);
+    expect(items.map(item => item.path)).toEqual(["/inbox", "/calendar", "/spaces", "/map", "/focus", "/custom"]);
     expect(items.at(-1)?.path).toBe("/custom");
   });
   it("finds a registered command by keywords and executes its callback", async () => {
     const run = vi.fn();
-    const commands = [{ id: "pin", label: "Pin selected memory", keywords: ["favorite"], run }];
-    await findCommands(commands, "favorite memory")[0]?.run();
+    const commands = [{ id: "pin", label: "Pin selected note", keywords: ["favorite"], run }];
+    await findCommands(commands, "favorite note")[0]?.run();
     expect(run).toHaveBeenCalledOnce();
     expect(findCommands(commands, "missing")).toHaveLength(0);
   });
@@ -35,7 +35,7 @@ describe("shell registry and routes", () => {
     expect(pushRoute(history, "/inbox")).toBe(history);
   });
   it.each([
-    ["sparky://today", "/today"], ["sparky://focus", "/focus"], ["sparky://map", "/map"], ["sparky://memory/ABC?action=focus", "/memory/ABC"],
+    ["sparky://today", "/today"], ["sparky://focus", "/focus"], ["sparky://map", "/map"], ["sparky://note/ABC?action=focus", "/note/ABC"],
     ["sparky://calendar?date=2026-10-04", "/calendar"], ["https://example.com/today", null], ["sparky://unknown", null], ["bad url", null],
   ])("routes deep link %s", (url, expected) => expect(deepLinkPath(url)).toBe(expected));
 });

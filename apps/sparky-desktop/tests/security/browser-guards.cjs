@@ -51,7 +51,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         rebinding:await run(`http://attacker.test:${port}/mcp`,true),
         csrf:await run(`http://127.0.0.1:${port}/mcp`,false),
         leakedBearer:await run(`http://127.0.0.1:${port}/mcp`,true),
-        connect:await run(`${coreEndpoint}/sparky.v1.MemoryService/Create`,false),
+        connect:await run(`${coreEndpoint}/sparky.v1.NoteService/Create`,false),
       };
     },{port,token,body,coreEndpoint:state.endpoint});
     for(const [name,result] of Object.entries(outcomes)) assert.equal(result.resolved,false,`${name} fetch unexpectedly succeeded`);

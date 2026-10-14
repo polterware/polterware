@@ -22,14 +22,14 @@ export function createReminderCore(clients: Pick<CoreClients, "reminders" | "sch
         // A native-repeat identifier without its matcher must never be armed as a one-shot.
         if (repeatId.test(item.id) !== Boolean(item.repeat)) throw new Error("Invalid core reminder plan");
         const repeat = item.repeat ? { tz: item.repeat.tz, weekday: item.repeat.weekday, hour: item.repeat.hour, minute: item.repeat.minute, second: item.repeat.second } : null;
-        return { id: item.id, memoryId: item.memoryId, occurrenceAt: timestampDate(item.occurrenceAt).toISOString(), fireAt: timestampDate(item.fireAt).toISOString(), title: item.title, body: item.body,
+        return { id: item.id, noteId: item.noteId, occurrenceAt: timestampDate(item.occurrenceAt).toISOString(), fireAt: timestampDate(item.fireAt).toISOString(), title: item.title, body: item.body,
           category: item.category as Reminder["category"], repeat, sound: config?.notificationsSound || "default" };
       });
     },
-    async complete(memoryId, occurrenceAt) { await schedules.completeOccurrence({ memoryId, occurrenceAt: timestampFromDate(new Date(occurrenceAt)) }, callOptions()); },
-    async snooze(memoryId, occurrenceAt) {
+    async complete(noteId, occurrenceAt) { await schedules.completeOccurrence({ noteId, occurrenceAt: timestampFromDate(new Date(occurrenceAt)) }, callOptions()); },
+    async snooze(noteId, occurrenceAt) {
       const { settings: config } = await settings.get({}, callOptions());
-      await reminders.snooze({ memoryId, occurrenceAt: timestampFromDate(new Date(occurrenceAt)), minutes: config?.notificationsSnoozeMinutes || 10 }, callOptions());
+      await reminders.snooze({ noteId, occurrenceAt: timestampFromDate(new Date(occurrenceAt)), minutes: config?.notificationsSnoozeMinutes || 10 }, callOptions());
     },
     async ack(id, outcome) { await reminders.ack({ id, outcome }, callOptions()); },
     async heartbeat(status: NativeStatus) {

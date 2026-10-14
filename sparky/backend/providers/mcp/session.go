@@ -8,27 +8,27 @@ import (
 
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 )
 
-// MemorySession belongs to exactly one MCP transport session. Its caller must
+// NoteSession belongs to exactly one MCP transport session. Its caller must
 // discard it when that SDK session closes; it must never be shared by clients.
 // Mutations delegate atomic revision checks to the same service used by the UI.
-type MemorySession struct {
-	service memory.Service
+type NoteSession struct {
+	service note.Service
 	actor   actor.Actor
 	mu      sync.Mutex
 	reads   map[string]int64
 }
 
-func NewMemorySession(service memory.Service, clientName string) *MemorySession {
-	return &MemorySession{service: service, actor: actor.MCP(clientName), reads: make(map[string]int64)}
+func NewNoteSession(service note.Service, clientName string) *NoteSession {
+	return &NoteSession{service: service, actor: actor.MCP(clientName), reads: make(map[string]int64)}
 }
 
 // provisional carries the existing expectations without publishing writes
 // that may still roll back in an enclosing transaction.
-func (s *MemorySession) provisional() *MemorySession {
-	out := NewMemorySession(s.service, "unknown")
+func (s *NoteSession) provisional() *NoteSession {
+	out := NewNoteSession(s.service, "unknown")
 	out.actor = s.actor
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -38,7 +38,7 @@ func (s *MemorySession) provisional() *MemorySession {
 	return out
 }
 
-func (s *MemorySession) observe(id string, rev int64) {
+func (s *NoteSession) observe(id string, rev int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// Out-of-order read responses must not lower a revision already observed.
@@ -47,7 +47,7 @@ func (s *MemorySession) observe(id string, rev int64) {
 	}
 }
 
-func (s *MemorySession) expected(id string, explicit *int64) int64 {
+func (s *NoteSession) expected(id string, explicit *int64) int64 {
 	if explicit != nil {
 		return *explicit
 	}
@@ -56,27 +56,27 @@ func (s *MemorySession) expected(id string, explicit *int64) int64 {
 	return s.reads[id] // zero means first-write last-write-wins at the domain port
 }
 
-func (s *MemorySession) Get(ctx context.Context, id string, include memory.Include) (memory.GetResult, error) {
+func (s *NoteSession) Get(ctx context.Context, id string, include note.Include) (note.GetResult, error) {
 	result, err := s.service.Get(ctx, id, include)
 	if err == nil {
-		s.observe(result.Memory.ID, result.Memory.Rev)
+		s.observe(result.Note.ID, result.Note.Rev)
 	}
 	return result, err
 }
 
-func (s *MemorySession) List(ctx context.Context, filter memory.ListFilter) (memory.ListPage, error) {
+func (s *NoteSession) List(ctx context.Context, filter note.ListFilter) (note.ListPage, error) {
 	page, err := s.service.List(ctx, filter)
 	if err == nil {
-		for _, item := range page.Memories {
+		for _, item := range page.Notes {
 			s.observe(item.ID, item.Rev)
 		}
 	}
 	return page, err
 }
 
-func (s *MemorySession) Update(ctx context.Context, id string, explicitRev *int64, patch memory.Patch) (memory.Memory, error) {
+func (s *NoteSession) Update(ctx context.Context, id string, explicitRev *int64, patch note.Patch) (note.Note, error) {
 	if err := validateRevision(explicitRev); err != nil {
-		return memory.Memory{}, err
+		return note.Note{}, err
 	}
 	result, err := s.service.Update(ctx, s.actor, id, s.expected(id, explicitRev), patch)
 	if err == nil {
@@ -85,9 +85,9 @@ func (s *MemorySession) Update(ctx context.Context, id string, explicitRev *int6
 	return result, err
 }
 
-func (s *MemorySession) SetStatus(ctx context.Context, id string, explicitRev *int64, status string, occurrence *time.Time) (memory.Memory, error) {
+func (s *NoteSession) SetStatus(ctx context.Context, id string, explicitRev *int64, status string, occurrence *time.Time) (note.Note, error) {
 	if err := validateRevision(explicitRev); err != nil {
-		return memory.Memory{}, err
+		return note.Note{}, err
 	}
 	result, err := s.service.SetStatus(ctx, s.actor, id, s.expected(id, explicitRev), status, occurrence)
 	if err == nil {
@@ -96,38 +96,38 @@ func (s *MemorySession) SetStatus(ctx context.Context, id string, explicitRev *i
 	return result, err
 }
 
-func (s *MemorySession) ToggleCheckItem(ctx context.Context, memoryID, itemID string, explicitRev *int64, done *bool) (memory.CheckItem, error) {
-	item, _, err := s.ToggleWithRevision(ctx, memoryID, itemID, explicitRev, done)
+func (s *NoteSession) ToggleCheckItem(ctx context.Context, noteID, itemID string, explicitRev *int64, done *bool) (note.CheckItem, error) {
+	item, _, err := s.ToggleWithRevision(ctx, noteID, itemID, explicitRev, done)
 	return item, err
 }
 
 // ToggleWithRevision derives the exact committed revision from the domain's
 // atomic expected-revision check and single increment; no post-commit read.
-func (s *MemorySession) ToggleWithRevision(ctx context.Context, memoryID, itemID string, explicitRev *int64, done *bool) (memory.CheckItem, int64, error) {
+func (s *NoteSession) ToggleWithRevision(ctx context.Context, noteID, itemID string, explicitRev *int64, done *bool) (note.CheckItem, int64, error) {
 	if err := validateRevision(explicitRev); err != nil {
-		return memory.CheckItem{}, 0, err
+		return note.CheckItem{}, 0, err
 	}
 	// Freeze a positive expected revision before the mutation. The domain's
 	// successful toggle increments that revision exactly once in its transaction.
-	rev := s.expected(memoryID, explicitRev)
+	rev := s.expected(noteID, explicitRev)
 	if rev == 0 {
-		got, err := s.service.Get(ctx, memoryID, memory.Include{})
+		got, err := s.service.Get(ctx, noteID, note.Include{})
 		if err != nil {
-			return memory.CheckItem{}, 0, err
+			return note.CheckItem{}, 0, err
 		}
-		rev = got.Memory.Rev
+		rev = got.Note.Rev
 	}
 	if rev <= 0 {
-		return memory.CheckItem{}, 0, fmt.Errorf("memory revision must be positive")
+		return note.CheckItem{}, 0, fmt.Errorf("note revision must be positive")
 	}
-	item, err := s.service.ToggleCheckItem(ctx, s.actor, memoryID, itemID, rev, done)
+	item, err := s.service.ToggleCheckItem(ctx, s.actor, noteID, itemID, rev, done)
 	if err == nil {
-		s.observe(memoryID, rev+1)
+		s.observe(noteID, rev+1)
 	}
 	return item, rev + 1, err
 }
 
-func (s *MemorySession) Delete(ctx context.Context, id string, explicitRev *int64) error {
+func (s *NoteSession) Delete(ctx context.Context, id string, explicitRev *int64) error {
 	if err := validateRevision(explicitRev); err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func (s *MemorySession) Delete(ctx context.Context, id string, explicitRev *int6
 	return err
 }
 
-func (s *MemorySession) Create(ctx context.Context, in memory.Create) (memory.Memory, error) {
+func (s *NoteSession) Create(ctx context.Context, in note.Create) (note.Note, error) {
 	result, err := s.service.Create(ctx, s.actor, in)
 	if err == nil {
 		s.observe(result.ID, result.Rev)
@@ -146,21 +146,21 @@ func (s *MemorySession) Create(ctx context.Context, in memory.Create) (memory.Me
 	return result, err
 }
 
-func (s *MemorySession) Actor() actor.Actor { return s.actor }
+func (s *NoteSession) Actor() actor.Actor { return s.actor }
 
-func (s *MemorySession) observeMind(id string, rev int64) { s.observe("mind:"+id, rev) }
+func (s *NoteSession) observeSpace(id string, rev int64) { s.observe("space:"+id, rev) }
 
-func (s *MemorySession) expectedMind(id string, explicit *int64) int64 {
-	return s.expected("mind:"+id, explicit)
+func (s *NoteSession) expectedSpace(id string, explicit *int64) int64 {
+	return s.expected("space:"+id, explicit)
 }
 
-func (s *MemorySession) forget(id string) {
+func (s *NoteSession) forget(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.reads, id)
 }
 
-func (s *MemorySession) forgetMind(id string) { s.forget("mind:" + id) }
+func (s *NoteSession) forgetSpace(id string) { s.forget("space:" + id) }
 
 func validateRevision(explicit *int64) error {
 	if explicit != nil && *explicit <= 0 {

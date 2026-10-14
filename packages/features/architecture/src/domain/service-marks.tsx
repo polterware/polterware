@@ -1,5 +1,5 @@
 import type { Component, JSX } from "solid-js";
-import { DITHER_BRAND_ACCENTS } from "@polterware/frontend-design-system";
+import { ICON_TILE_BRAND_ACCENTS } from "@polterware/frontend-design-system";
 import { hasServiceMark, type ServiceMarkKey } from "./service-mark-keys";
 
 export { hasServiceMark, type ServiceMarkKey } from "./service-mark-keys";
@@ -9,7 +9,7 @@ export { hasServiceMark, type ServiceMarkKey } from "./service-mark-keys";
  * UI chrome icons remain Hugeicons; these marks are architecture cards + integrations catalog.
  * Paths derived from Simple Icons (CC0) for product identification.
  */
-export const SERVICE_MARK_TINT: Record<ServiceMarkKey, string> = DITHER_BRAND_ACCENTS;
+export const SERVICE_MARK_TINT: Record<ServiceMarkKey, string> = ICON_TILE_BRAND_ACCENTS;
 
 const PATHS = {
   auth0: "M21.98 7.448L19.62 0H4.347L2.02 7.448c-1.352 4.312.03 9.206 3.815 12.015L12.007 24l6.157-4.552c3.755-2.81 5.182-7.688 3.815-12.015l-6.16 4.58 2.343 7.45-6.157-4.597-6.158 4.58 2.358-7.433-6.188-4.55 7.63-.045L12.008 0l2.356 7.404 7.615.044z",

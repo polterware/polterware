@@ -20,16 +20,16 @@ type WireNamespace = Record<string, Rpc>;
 
 /** Structural subset of window.sparky. Feature packages must not declare Window.sparky. */
 export type CalendarWireBridge = {
-  memories: WireNamespace;
-  minds: WireNamespace;
+  notes: WireNamespace;
+  spaces: WireNamespace;
   schedule: WireNamespace;
   settings: WireNamespace;
   onChange(callback: (event: { resync: boolean; changes: { entity: string; id: string; op: string }[] }) => void): () => void;
 };
 
 export type CalendarBridge = {
-  memories: { create: Rpc; get: Rpc };
-  minds: { list: Rpc };
+  notes: { create: Rpc; get: Rpc };
+  spaces: { list: Rpc };
   schedule: Pick<Namespace<typeof Contracts.ScheduleService>, "listOccurrences" | "set">;
   settings: Pick<Namespace<typeof Contracts.SettingsService>, "get">;
   onChange: CalendarWireBridge["onChange"];
@@ -55,8 +55,8 @@ function bind(source: WireNamespace, service: DescService): WireNamespace {
 
 export function createCalendarBridge(wire: CalendarWireBridge): CalendarBridge {
   return {
-    memories: bind(wire.memories, Contracts.MemoryService) as CalendarBridge["memories"],
-    minds: bind(wire.minds, Contracts.MindService) as CalendarBridge["minds"],
+    notes: bind(wire.notes, Contracts.NoteService) as CalendarBridge["notes"],
+    spaces: bind(wire.spaces, Contracts.SpaceService) as CalendarBridge["spaces"],
     schedule: bind(wire.schedule, Contracts.ScheduleService) as CalendarBridge["schedule"],
     settings: bind(wire.settings, Contracts.SettingsService) as CalendarBridge["settings"],
     onChange: callback => wire.onChange(callback),
@@ -66,7 +66,7 @@ export function createCalendarBridge(wire: CalendarWireBridge): CalendarBridge {
 /** Reads the preload wire without augmenting Window. Sparky Desktop owns that type. */
 export function browserBridge(): CalendarBridge {
   const wire = Reflect.get(globalThis, "sparky") as CalendarWireBridge | undefined;
-  if (!wire?.schedule || !wire.memories) throw new Error("Sparky bridge unavailable. Open this page in Sparky Desktop.");
+  if (!wire?.schedule || !wire.notes) throw new Error("Sparky bridge unavailable. Open this page in Sparky Desktop.");
   return createCalendarBridge(wire);
 }
 

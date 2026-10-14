@@ -11,12 +11,12 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 )
 
-func (s *Server) createMemories(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) createNotes(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		Items []createItem `json:"items"`
 	}
@@ -24,10 +24,10 @@ func (s *Server) createMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 		return fail(err), nil
 	}
 	if len(in.Items) == 0 {
-		return fail(fmt.Errorf("create_memories needs at least 1 item")), nil
+		return fail(fmt.Errorf("create_notes needs at least 1 item")), nil
 	}
 	if len(in.Items) > MaxBatch {
-		return fail(fmt.Errorf("create_memories accepts at most %d items", MaxBatch)), nil
+		return fail(fmt.Errorf("create_notes accepts at most %d items", MaxBatch)), nil
 	}
 	sess := s.session(req)
 	results := make([]map[string]any, 0, len(in.Items))
@@ -46,8 +46,8 @@ func (s *Server) createMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 
 type createItem struct {
 	Title     string            `json:"title"`
-	Note      string            `json:"note"`
-	Mind      string            `json:"mind"`
+	Content   string            `json:"content"`
+	Space     string            `json:"space"`
 	Tags      []string          `json:"tags"`
 	Due       string            `json:"due"`
 	Pinned    bool              `json:"pinned"`
@@ -62,7 +62,7 @@ type linkIn struct {
 	Title string `json:"title"`
 }
 
-func (s *Server) createOne(ctx context.Context, sess *MemorySession, item createItem) (map[string]any, error) {
+func (s *Server) createOne(ctx context.Context, sess *NoteSession, item createItem) (map[string]any, error) {
 	if err := s.validateCreateExtras(item); err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (s *Server) createOne(ctx context.Context, sess *MemorySession, item create
 	}
 	var row map[string]any
 	// Do not publish revisions from a rolled-back item into the real session.
-	provisional := NewMemorySession(s.deps.Memories, "unknown")
+	provisional := NewNoteSession(s.deps.Notes, "unknown")
 	provisional.actor = sess.Actor()
 	err := s.deps.Within(ctx, func(ctx context.Context) error {
 		var err error
@@ -82,9 +82,9 @@ func (s *Server) createOne(ctx context.Context, sess *MemorySession, item create
 		if err != nil {
 			return err
 		}
-		got, err := s.deps.Memories.Get(ctx, row["id"].(string), memory.Include{})
+		got, err := s.deps.Notes.Get(ctx, row["id"].(string), note.Include{})
 		if err == nil {
-			row["rev"] = got.Memory.Rev
+			row["rev"] = got.Note.Rev
 		}
 		return err
 	})
@@ -124,14 +124,14 @@ func (s *Server) validateCreateExtras(item createItem) error {
 	return nil
 }
 
-func (s *Server) createOneInTx(ctx context.Context, sess *MemorySession, item createItem) (map[string]any, error) {
-	in := memory.Create{Title: item.Title, Note: item.Note, Pinned: item.Pinned}
-	if item.Mind != "" {
-		id, err := optionalMind(ctx, s.deps.Minds, item.Mind)
+func (s *Server) createOneInTx(ctx context.Context, sess *NoteSession, item createItem) (map[string]any, error) {
+	in := note.Create{Title: item.Title, Content: item.Content, Pinned: item.Pinned}
+	if item.Space != "" {
+		id, err := optionalSpace(ctx, s.deps.Spaces, item.Space)
 		if err != nil {
 			return nil, err
 		}
-		in.MindID = id
+		in.SpaceID = id
 	}
 	if len(item.Tags) > 0 {
 		if s.deps.Tags == nil {
@@ -179,7 +179,7 @@ func (s *Server) createOneInTx(ctx context.Context, sess *MemorySession, item cr
 	return itemOK(created.ID, extra), nil
 }
 
-func (s *Server) updateMemories(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) updateNotes(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		Items []updateItem `json:"items"`
 	}
@@ -187,10 +187,10 @@ func (s *Server) updateMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 		return fail(err), nil
 	}
 	if len(in.Items) == 0 {
-		return fail(fmt.Errorf("update_memories needs at least 1 item")), nil
+		return fail(fmt.Errorf("update_notes needs at least 1 item")), nil
 	}
 	if len(in.Items) > MaxBatch {
-		return fail(fmt.Errorf("update_memories accepts at most %d items", MaxBatch)), nil
+		return fail(fmt.Errorf("update_notes accepts at most %d items", MaxBatch)), nil
 	}
 	sess := s.session(req)
 	results := make([]map[string]any, 0, len(in.Items))
@@ -211,8 +211,8 @@ type updateItem struct {
 	ID          string            `json:"id"`
 	ExpectedRev *int64            `json:"expectedRev"`
 	Title       nullable[string]  `json:"title"`
-	Note        nullable[string]  `json:"note"`
-	Mind        nullable[string]  `json:"mind"`
+	Content     nullable[string]  `json:"content"`
+	Space       nullable[string]  `json:"space"`
 	Tags        []string          `json:"tags"`
 	AddTags     []string          `json:"addTags"`
 	RemoveTags  []string          `json:"removeTags"`
@@ -224,7 +224,7 @@ type updateItem struct {
 	Links       []linkIn          `json:"links"`
 }
 
-func (s *Server) updateOne(ctx context.Context, sess *MemorySession, item updateItem) (map[string]any, error) {
+func (s *Server) updateOne(ctx context.Context, sess *NoteSession, item updateItem) (map[string]any, error) {
 	if item.ID == "" {
 		return nil, fmt.Errorf("id is required")
 	}
@@ -245,9 +245,9 @@ func (s *Server) updateOne(ctx context.Context, sess *MemorySession, item update
 		if err != nil {
 			return err
 		}
-		got, err := s.deps.Memories.Get(ctx, item.ID, memory.Include{})
+		got, err := s.deps.Notes.Get(ctx, item.ID, note.Include{})
 		if err == nil {
-			row["rev"] = got.Memory.Rev
+			row["rev"] = got.Note.Rev
 		}
 		return err
 	})
@@ -258,28 +258,28 @@ func (s *Server) updateOne(ctx context.Context, sess *MemorySession, item update
 	return row, nil
 }
 
-func (s *Server) updateOneInTx(ctx context.Context, sess *MemorySession, item updateItem) (map[string]any, error) {
-	patch := memory.Patch{}
+func (s *Server) updateOneInTx(ctx context.Context, sess *NoteSession, item updateItem) (map[string]any, error) {
+	patch := note.Patch{}
 	if item.Title.Set && !item.Title.Null {
 		patch.Title = &item.Title.Value
 	}
-	if item.Note.Set {
-		if item.Note.Null {
+	if item.Content.Set {
+		if item.Content.Null {
 			empty := ""
-			patch.Note = &empty
+			patch.Content = &empty
 		} else {
-			patch.Note = &item.Note.Value
+			patch.Content = &item.Content.Value
 		}
 	}
-	if item.Mind.Set {
-		if item.Mind.Null || item.Mind.Value == "" {
-			patch.ClearMindID = true
+	if item.Space.Set {
+		if item.Space.Null || item.Space.Value == "" {
+			patch.ClearSpaceID = true
 		} else {
-			id, err := optionalMind(ctx, s.deps.Minds, item.Mind.Value)
+			id, err := optionalSpace(ctx, s.deps.Spaces, item.Space.Value)
 			if err != nil {
 				return nil, err
 			}
-			patch.MindID = id
+			patch.SpaceID = id
 		}
 	}
 	if item.Due.Set {
@@ -305,7 +305,7 @@ func (s *Server) updateOneInTx(ctx context.Context, sess *MemorySession, item up
 		if err != nil {
 			return nil, err
 		}
-		if _, err := s.deps.Memories.ReplaceChecklist(ctx, sess.Actor(), item.ID, updated.Rev, items); err != nil {
+		if _, err := s.deps.Notes.ReplaceChecklist(ctx, sess.Actor(), item.ID, updated.Rev, items); err != nil {
 			return nil, err
 		}
 		updated.Rev++
@@ -351,14 +351,14 @@ func (s *Server) updateOneInTx(ctx context.Context, sess *MemorySession, item up
 	return itemOK(item.ID, extra), nil
 }
 
-func (s *Server) applyTagChanges(ctx context.Context, sess *MemorySession, item updateItem, rev int64) (int64, error) {
+func (s *Server) applyTagChanges(ctx context.Context, sess *NoteSession, item updateItem, rev int64) (int64, error) {
 	if item.Tags == nil && len(item.AddTags) == 0 && len(item.RemoveTags) == 0 {
 		return rev, nil
 	}
 	if s.deps.Tags == nil {
 		return rev, fault.Unavailable("tags backend is not wired")
 	}
-	current, err := s.deps.Memories.Get(ctx, item.ID, memory.Include{Tags: true})
+	current, err := s.deps.Notes.Get(ctx, item.ID, note.Include{Tags: true})
 	if err != nil {
 		return rev, err
 	}
@@ -383,7 +383,7 @@ func (s *Server) applyTagChanges(ctx context.Context, sess *MemorySession, item 
 		}
 		ids = subtract(ids, remove)
 	}
-	if err := s.deps.Memories.SetTags(ctx, sess.Actor(), item.ID, rev, ids); err != nil {
+	if err := s.deps.Notes.SetTags(ctx, sess.Actor(), item.ID, rev, ids); err != nil {
 		return rev, err
 	}
 	// SetTags increments exactly once under its revision check.
@@ -392,7 +392,7 @@ func (s *Server) applyTagChanges(ctx context.Context, sess *MemorySession, item 
 	return rev, nil
 }
 
-func (s *Server) setMemoryStatus(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) setNoteStatus(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		ID          string `json:"id"`
 		Status      string `json:"status"`
@@ -422,7 +422,7 @@ func (s *Server) setMemoryStatus(ctx context.Context, req *mcpsdk.CallToolReques
 
 func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
-		MemoryID    string `json:"memoryId"`
+		NoteID      string `json:"noteId"`
 		ItemID      string `json:"itemId"`
 		ItemTitle   string `json:"itemTitle"`
 		ExpectedRev *int64 `json:"expectedRev"`
@@ -430,8 +430,8 @@ func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolReques
 	if err := decodeArgs(req, &in); err != nil {
 		return fail(err), nil
 	}
-	if in.MemoryID == "" {
-		return fail(fmt.Errorf("memoryId is required")), nil
+	if in.NoteID == "" {
+		return fail(fmt.Errorf("noteId is required")), nil
 	}
 	sess := s.session(req)
 	itemID := in.ItemID
@@ -440,8 +440,8 @@ func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolReques
 		if in.ItemTitle == "" {
 			return fail(fmt.Errorf("itemId or itemTitle is required")), nil
 		}
-		expected := sess.expected(in.MemoryID, explicit)
-		got, err := s.deps.Memories.Get(ctx, in.MemoryID, memory.Include{Checklist: true})
+		expected := sess.expected(in.NoteID, explicit)
+		got, err := s.deps.Notes.Get(ctx, in.NoteID, note.Include{Checklist: true})
 		if err != nil {
 			return fail(err), nil
 		}
@@ -449,7 +449,7 @@ func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolReques
 		// Preserve a prior read revision; on the first write, pin this lookup.
 		if explicit == nil {
 			if expected == 0 {
-				expected = got.Memory.Rev
+				expected = got.Note.Rev
 			}
 			explicit = &expected
 		}
@@ -463,14 +463,14 @@ func (s *Server) toggleCheckItem(ctx context.Context, req *mcpsdk.CallToolReques
 			return fail(fmt.Errorf("checklist item %q not found", in.ItemTitle)), nil
 		}
 	}
-	item, rev, err := sess.ToggleWithRevision(ctx, in.MemoryID, itemID, explicit, nil)
+	item, rev, err := sess.ToggleWithRevision(ctx, in.NoteID, itemID, explicit, nil)
 	if err != nil {
 		return fail(err), nil
 	}
-	return ok(item.Title, map[string]any{"id": item.ID, "title": item.Title, "done": item.Done, "memoryId": in.MemoryID, "rev": rev}), nil
+	return ok(item.Title, map[string]any{"id": item.ID, "title": item.Title, "done": item.Done, "noteId": in.NoteID, "rev": rev}), nil
 }
 
-func (s *Server) deleteMemories(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) deleteNotes(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		IDs         []string         `json:"ids"`
 		Confirm     bool             `json:"confirm"`
@@ -483,16 +483,16 @@ func (s *Server) deleteMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 		return fail(fmt.Errorf("ids is required")), nil
 	}
 	if len(in.IDs) > MaxBatch {
-		return fail(fmt.Errorf("delete_memories accepts at most %d ids", MaxBatch)), nil
+		return fail(fmt.Errorf("delete_notes accepts at most %d ids", MaxBatch)), nil
 	}
 	titles := make([]string, 0, len(in.IDs))
 	for _, id := range in.IDs {
-		got, err := s.deps.Memories.Get(ctx, id, memory.Include{})
+		got, err := s.deps.Notes.Get(ctx, id, note.Include{})
 		if err != nil {
 			titles = append(titles, id)
 			continue
 		}
-		titles = append(titles, got.Memory.Title)
+		titles = append(titles, got.Note.Title)
 	}
 	if !in.Confirm {
 		return fail(fmt.Errorf("refusing to delete. Set confirm true. Would delete: %s", strings.Join(titles, ", "))), nil
@@ -515,7 +515,7 @@ func (s *Server) deleteMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 	return ok(fmt.Sprintf("deleted %d", okCount), map[string]any{"results": results}), nil
 }
 
-func (s *Server) createMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) createSpace(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		Name      string `json:"name"`
 		Parent    string `json:"parent"`
@@ -526,9 +526,9 @@ func (s *Server) createMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 	if err := decodeArgs(req, &in); err != nil {
 		return fail(err), nil
 	}
-	create := mind.Create{Name: in.Name, SortOrder: in.SortOrder}
+	create := space.Create{Name: in.Name, SortOrder: in.SortOrder}
 	if in.Parent != "" {
-		id, err := optionalMind(ctx, s.deps.Minds, in.Parent)
+		id, err := optionalSpace(ctx, s.deps.Spaces, in.Parent)
 		if err != nil {
 			return fail(err), nil
 		}
@@ -540,15 +540,15 @@ func (s *Server) createMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 	if in.Icon != "" {
 		create.Icon = &in.Icon
 	}
-	created, err := s.deps.Minds.Create(ctx, s.session(req).Actor(), create)
+	created, err := s.deps.Spaces.Create(ctx, s.session(req).Actor(), create)
 	if err != nil {
 		return fail(err), nil
 	}
-	s.session(req).observeMind(created.ID, created.Rev)
-	return ok(created.Name, mindJSON(created)), nil
+	s.session(req).observeSpace(created.ID, created.Rev)
+	return ok(created.Name, spaceJSON(created)), nil
 }
 
-func (s *Server) updateMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) updateSpace(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		ID          string           `json:"id"`
 		Name        string           `json:"name"`
@@ -569,11 +569,11 @@ func (s *Server) updateMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 	if ref == "" {
 		return fail(fmt.Errorf("id or name is required")), nil
 	}
-	got, err := resolveMind(ctx, s.deps.Minds, ref)
+	got, err := resolveSpace(ctx, s.deps.Spaces, ref)
 	if err != nil {
 		return fail(err), nil
 	}
-	patch := mind.Patch{SortOrder: in.SortOrder}
+	patch := space.Patch{SortOrder: in.SortOrder}
 	if in.NewName != "" {
 		patch.Name = &in.NewName
 	} else if in.Name != "" && in.ID != "" {
@@ -583,7 +583,7 @@ func (s *Server) updateMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 		if in.Parent.Null || in.Parent.Value == "" {
 			patch.ClearParent = true
 		} else {
-			id, err := optionalMind(ctx, s.deps.Minds, in.Parent.Value)
+			id, err := optionalSpace(ctx, s.deps.Spaces, in.Parent.Value)
 			if err != nil {
 				return fail(err), nil
 			}
@@ -605,15 +605,15 @@ func (s *Server) updateMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 		}
 	}
 	sess := s.session(req)
-	updated, err := s.deps.Minds.Update(ctx, sess.Actor(), got.ID, sess.expectedMind(got.ID, in.ExpectedRev), patch)
+	updated, err := s.deps.Spaces.Update(ctx, sess.Actor(), got.ID, sess.expectedSpace(got.ID, in.ExpectedRev), patch)
 	if err != nil {
 		return fail(err), nil
 	}
-	sess.observeMind(updated.ID, updated.Rev)
-	return ok(updated.Name, mindJSON(updated)), nil
+	sess.observeSpace(updated.ID, updated.Rev)
+	return ok(updated.Name, spaceJSON(updated)), nil
 }
 
-func (s *Server) deleteMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) deleteSpace(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		ID          string `json:"id"`
 		Name        string `json:"name"`
@@ -630,30 +630,30 @@ func (s *Server) deleteMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 	if ref == "" {
 		return fail(fmt.Errorf("id or name is required")), nil
 	}
-	got, err := resolveMind(ctx, s.deps.Minds, ref)
+	got, err := resolveSpace(ctx, s.deps.Spaces, ref)
 	if err != nil {
 		return fail(err), nil
 	}
 	if !in.Confirm {
-		return fail(fmt.Errorf("refusing to delete mind %q. Children are deleted and memories move to Inbox. Set confirm true", got.Name)), nil
+		return fail(fmt.Errorf("refusing to delete space %q. Children are deleted and notes move to Inbox. Set confirm true", got.Name)), nil
 	}
 	sess := s.session(req)
 	if s.deps.Within == nil {
-		return fail(fault.Unavailable("atomic mind deletion backend is not wired")), nil
+		return fail(fault.Unavailable("atomic space deletion backend is not wired")), nil
 	}
-	var result mind.DeleteResult
+	var result space.DeleteResult
 	revisions := map[string]int64{}
 	err = s.deps.Within(ctx, func(ctx context.Context) error {
-		// Only advance memories whose pre-delete revision the session knew.
-		// An unseen UI edit must remain a conflict on the next memory write.
+		// Only advance notes whose pre-delete revision the session knew.
+		// An unseen UI edit must remain a conflict on the next note write.
 		var moved []string
-		filter := memory.ListFilter{MindID: &got.ID, IncludeDescendants: true, Limit: 500}
+		filter := note.ListFilter{SpaceID: &got.ID, IncludeDescendants: true, Limit: 500}
 		for {
-			page, err := s.deps.Memories.List(ctx, filter)
+			page, err := s.deps.Notes.List(ctx, filter)
 			if err != nil {
 				return err
 			}
-			for _, m := range page.Memories {
+			for _, m := range page.Notes {
 				expected := sess.expected(m.ID, nil)
 				if expected == 0 || expected == m.Rev {
 					moved = append(moved, m.ID)
@@ -665,16 +665,16 @@ func (s *Server) deleteMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 			filter.Cursor = page.NextCursor
 		}
 		var err error
-		result, err = s.deps.Minds.Delete(ctx, sess.Actor(), got.ID, sess.expectedMind(got.ID, in.ExpectedRev))
+		result, err = s.deps.Spaces.Delete(ctx, sess.Actor(), got.ID, sess.expectedSpace(got.ID, in.ExpectedRev))
 		if err != nil {
 			return err
 		}
 		for _, id := range moved {
-			m, err := s.deps.Memories.Get(ctx, id, memory.Include{})
+			m, err := s.deps.Notes.Get(ctx, id, note.Include{})
 			if err != nil {
 				return err
 			}
-			revisions[id] = m.Memory.Rev
+			revisions[id] = m.Note.Rev
 		}
 		return nil
 	})
@@ -684,15 +684,15 @@ func (s *Server) deleteMind(ctx context.Context, req *mcpsdk.CallToolRequest) (*
 	for id, rev := range revisions {
 		sess.observe(id, rev)
 	}
-	for _, id := range result.DeletedMindIDs {
-		sess.forgetMind(id)
+	for _, id := range result.DeletedSpaceIDs {
+		sess.forgetSpace(id)
 	}
-	return ok("deleted "+got.Name, map[string]any{"deletedMindIds": result.DeletedMindIDs, "movedMemoryCount": result.MovedMemoryCount, "memoryRevisions": revisions}), nil
+	return ok("deleted "+got.Name, map[string]any{"deletedSpaceIds": result.DeletedSpaceIDs, "movedNoteCount": result.MovedNoteCount, "noteRevisions": revisions}), nil
 }
 
 func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
-		MemoryID    string   `json:"memoryId"`
+		NoteID      string   `json:"noteId"`
 		Links       []linkIn `json:"links"`
 		ExpectedRev *int64   `json:"expectedRev"`
 		Files       []struct {
@@ -702,10 +702,10 @@ func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest
 	if err := decodeArgs(req, &in); err != nil {
 		return fail(err), nil
 	}
-	if in.MemoryID == "" {
-		return fail(fmt.Errorf("memoryId is required")), nil
+	if in.NoteID == "" {
+		return fail(fmt.Errorf("noteId is required")), nil
 	}
-	got, err := s.deps.Memories.Get(ctx, in.MemoryID, memory.Include{})
+	got, err := s.deps.Notes.Get(ctx, in.NoteID, note.Include{})
 	if err != nil {
 		return fail(err), nil
 	}
@@ -727,19 +727,19 @@ func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest
 		return fail(fault.Unavailable("attachments backend is not wired")), nil
 	}
 	sess := s.session(req)
-	expected := sess.expected(in.MemoryID, in.ExpectedRev)
+	expected := sess.expected(in.NoteID, in.ExpectedRev)
 	if expected == 0 {
-		expected = got.Memory.Rev
+		expected = got.Note.Rev
 	}
-	// Attachments check but do not increment Memory.Rev. Pin that checked
+	// Attachments check but do not increment Note.Rev. Pin that checked
 	// revision, including on a first write; never read it after the commit.
 	var out []map[string]any
 	for _, link := range in.Links {
-		a, err := s.deps.Attachments.AddLink(ctx, in.MemoryID, link.URL, link.Title, expected)
+		a, err := s.deps.Attachments.AddLink(ctx, in.NoteID, link.URL, link.Title, expected)
 		if err != nil {
 			return fail(err), nil
 		}
-		sess.observe(in.MemoryID, expected)
+		sess.observe(in.NoteID, expected)
 		row := map[string]any{"id": a.ID, "kind": a.Kind}
 		if a.URL != nil {
 			row["url"] = *a.URL
@@ -747,21 +747,21 @@ func (s *Server) addAttachments(ctx context.Context, req *mcpsdk.CallToolRequest
 		out = append(out, row)
 	}
 	for _, file := range in.Files {
-		a, err := s.deps.Attachments.ImportFromPath(attachments.WithImportLimit(ctx, 50<<20), in.MemoryID, file.Path, "", expected)
+		a, err := s.deps.Attachments.ImportFromPath(attachments.WithImportLimit(ctx, 50<<20), in.NoteID, file.Path, "", expected)
 		if err != nil {
 			return fail(err), nil
 		}
-		sess.observe(in.MemoryID, expected)
+		sess.observe(in.NoteID, expected)
 		out = append(out, map[string]any{"id": a.ID, "kind": a.Kind})
 	}
 	return ok(fmt.Sprintf("added %d", len(out)), map[string]any{"attachments": out, "rev": expected}), nil
 }
 
-func (s *Server) setSchedule(ctx context.Context, sess *MemorySession, memoryID string, raw json.RawMessage) ([]string, error) {
+func (s *Server) setSchedule(ctx context.Context, sess *NoteSession, noteID string, raw json.RawMessage) ([]string, error) {
 	if s.deps.Schedules == nil {
 		return nil, fault.Unavailable("schedule backend is not wired")
 	}
-	row, rule, err := parseSchedule(raw, memoryID)
+	row, rule, err := parseSchedule(raw, noteID)
 	if err != nil {
 		return nil, err
 	}
@@ -778,11 +778,11 @@ func (s *Server) setSchedule(ctx context.Context, sess *MemorySession, memoryID 
 	return nextOccurrences(times), nil
 }
 
-func (s *Server) setPlace(ctx context.Context, sess *MemorySession, memoryID string, raw json.RawMessage) error {
+func (s *Server) setPlace(ctx context.Context, sess *NoteSession, noteID string, raw json.RawMessage) error {
 	if s.deps.Places == nil {
 		return fault.Unavailable("place backend is not wired")
 	}
-	p, err := parsePlace(raw, memoryID)
+	p, err := parsePlace(raw, noteID)
 	if err != nil {
 		return err
 	}
@@ -790,7 +790,7 @@ func (s *Server) setPlace(ctx context.Context, sess *MemorySession, memoryID str
 	return err
 }
 
-func (s *Server) addLinks(ctx context.Context, memoryID string, links []linkIn) error {
+func (s *Server) addLinks(ctx context.Context, noteID string, links []linkIn) error {
 	if len(links) == 0 {
 		return nil
 	}
@@ -798,7 +798,7 @@ func (s *Server) addLinks(ctx context.Context, memoryID string, links []linkIn) 
 		return fault.Unavailable("attachments backend is not wired")
 	}
 	for _, link := range links {
-		if _, err := s.deps.Attachments.AddLink(ctx, memoryID, link.URL, link.Title, 0); err != nil {
+		if _, err := s.deps.Attachments.AddLink(ctx, noteID, link.URL, link.Title, 0); err != nil {
 			return err
 		}
 	}

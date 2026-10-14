@@ -24,7 +24,7 @@ func TestRepoSuite(t *testing.T) {
 	repotest.Run(t, "sqlite", func(t *testing.T) (repotest.Repos, func()) {
 		s := openStore(t)
 		return repotest.Repos{
-			Tx: s, Minds: s.Minds(), Memories: s.Memories(), Tags: s.Tags(),
+			Tx: s, Spaces: s.Spaces(), Notes: s.Notes(), Tags: s.Tags(),
 			Schedules: s.Schedules(), Places: s.Places(), Attachments: s.Attachments(),
 			Focus: s.Focus(), Activity: s.Activity(), Settings: s.Settings(),
 			Reminders: s.Reminders(), Review: s.Review(),
@@ -45,10 +45,10 @@ func (r *recIndex) Upsert(_ context.Context, doc search.Document) error {
 	return nil
 }
 
-func (r *recIndex) Delete(_ context.Context, memoryID string) error {
+func (r *recIndex) Delete(_ context.Context, noteID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.deleted = append(r.deleted, memoryID)
+	r.deleted = append(r.deleted, noteID)
 	return nil
 }
 

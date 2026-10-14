@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { diffPlan, normalizePlan } from "./plan";
 import { isBackgroundReminderLaunch } from "./launch";
 import type { Reminder } from "./types";
-const memoryId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+const noteId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const now = Date.parse("2026-10-04T10:00:00Z");
-const item = (overrides: Partial<Reminder> = {}): Reminder => ({ id: `rem:${memoryId}:1791111600000`, memoryId, occurrenceAt: "2026-10-04T11:00:00.000Z", fireAt: "2026-10-04T11:00:00.000Z", title: "Synthetic reminder", body: "Synthetic body", category: "reminder", ...overrides });
+const item = (overrides: Partial<Reminder> = {}): Reminder => ({ id: `rem:${noteId}:1791111600000`, noteId, occurrenceAt: "2026-10-04T11:00:00.000Z", fireAt: "2026-10-04T11:00:00.000Z", title: "Synthetic reminder", body: "Synthetic body", category: "reminder", ...overrides });
 describe("notification plan", () => {
   it("diffs by content and repeat descriptor while preserving foreign IDs", () => {
     const desired = normalizePlan([item()], now);
@@ -40,7 +40,7 @@ describe("notification plan", () => {
     expect(() => normalizePlan(items, now)).toThrow("budget");
   });
   it.each([
-    { id: "foreign:bad" }, { memoryId: "not-a-memory" }, { body: undefined },
+    { id: "foreign:bad" }, { noteId: "not-a-note" }, { body: undefined },
     { fireAt: "not-a-time" }, { fireAt: "2026-10-04T09:00:00.000Z" }, { sound: "../../secret.caf" },
     { repeat: { tz: "UTC", hour: 24, minute: 0, second: 0 } },
     { repeat: { tz: "UTC", second: 70 } }, { repeat: { tz: "invalid/zone", second: 0 } },
@@ -53,13 +53,13 @@ describe("notification plan", () => {
     for (const repeat of [{ tz: "UTC", second: 0 }, { tz: "UTC", minute: 15, second: 0 }, { tz: "UTC", weekday: 2, hour: 9, minute: 0, second: 0 }]) {
       expect(normalizePlan([item({ repeat })], now)[0].repeat).toEqual(repeat);
     }
-    expect(normalizePlan([item({ id: "one:focus", memoryId: "", category: "focus-phase" })], now)).toHaveLength(1);
+    expect(normalizePlan([item({ id: "one:focus", noteId: "", category: "focus-phase" })], now)).toHaveLength(1);
   });
   it("accepts planner-shaped repeats and stable rem:repeat / rem:wdN identifiers", () => {
-    const daily = normalizePlan([item({ id: `rem:${memoryId}:repeat`, repeat: { tz: "UTC", hour: 11, minute: 0 } })], now)[0];
+    const daily = normalizePlan([item({ id: `rem:${noteId}:repeat`, repeat: { tz: "UTC", hour: 11, minute: 0 } })], now)[0];
     expect(daily.repeat).toEqual({ tz: "UTC", hour: 11, minute: 0, second: 0 });
-    expect(daily.hash).toBe(normalizePlan([item({ id: `rem:${memoryId}:repeat`, repeat: { tz: "UTC", hour: 11, minute: 0, second: 0 } })], now)[0].hash);
-    const weekly = normalizePlan([item({ id: `rem:${memoryId}:wd2`, repeat: { tz: "America/Sao_Paulo", weekday: 2, hour: 9, minute: 0 } })], now)[0];
+    expect(daily.hash).toBe(normalizePlan([item({ id: `rem:${noteId}:repeat`, repeat: { tz: "UTC", hour: 11, minute: 0, second: 0 } })], now)[0].hash);
+    const weekly = normalizePlan([item({ id: `rem:${noteId}:wd2`, repeat: { tz: "America/Sao_Paulo", weekday: 2, hour: 9, minute: 0 } })], now)[0];
     expect(weekly.repeat).toEqual({ tz: "America/Sao_Paulo", weekday: 2, hour: 9, minute: 0, second: 0 });
     expect(normalizePlan([item({ repeat: { tz: "UTC", minute: 15 } })], now)[0].repeat).toEqual({ tz: "UTC", minute: 15, second: 0 });
   });

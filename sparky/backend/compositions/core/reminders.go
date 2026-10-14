@@ -9,7 +9,7 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/clock"
 	"github.com/polterware/polterware/sparky/backend/domains/ids"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/reminder"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
@@ -23,7 +23,7 @@ type reminderService struct {
 	planner   schedule.Planner
 	schedules scheduleRuntime
 	settings  settings.Service
-	complete  memory.Service
+	complete  note.Service
 }
 
 func (s reminderService) query(ctx context.Context, q schedule.PlanQuery) (schedule.PlanQuery, string, error) {
@@ -53,8 +53,8 @@ func (s reminderService) subjectsAndOneOffs(ctx context.Context, q schedule.Plan
 	oneOffs := make([]schedule.PendingOneOff, 0, len(due))
 	for _, o := range due {
 		item := schedule.PendingOneOff{ID: o.ID, Kind: o.Kind, FireAt: o.FireAt, Title: o.Title, Body: o.Body}
-		if o.MemoryID != nil {
-			item.MemoryID = *o.MemoryID
+		if o.NoteID != nil {
+			item.NoteID = *o.NoteID
 		}
 		oneOffs = append(oneOffs, item)
 	}
@@ -85,7 +85,7 @@ func (s reminderService) Ack(ctx context.Context, id, outcome string) error {
 	if strings.HasPrefix(id, "one:") {
 		return s.deleteOneOff(ctx, strings.TrimPrefix(id, "one:"), "Complete one-off reminder")
 	}
-	memoryID, rest, ok := strings.Cut(strings.TrimPrefix(id, "rem:"), ":")
+	noteID, rest, ok := strings.Cut(strings.TrimPrefix(id, "rem:"), ":")
 	if !ok || !strings.HasPrefix(id, "rem:") {
 		return invalid("id", "unknown reminder identifier")
 	}
@@ -97,13 +97,13 @@ func (s reminderService) Ack(ctx context.Context, id, outcome string) error {
 		return invalid("id", "unknown reminder identifier")
 	}
 	at := time.UnixMilli(ms).UTC()
-	_, err = s.complete.SetStatus(ctx, caller(ctx), memoryID, 0, memory.StatusCompleted, &at)
+	_, err = s.complete.SetStatus(ctx, caller(ctx), noteID, 0, note.StatusCompleted, &at)
 	return err
 }
 
-func (s reminderService) Snooze(ctx context.Context, memoryID string, occurrenceAt time.Time, minutes int) (reminder.OneOff, error) {
-	if memoryID == "" {
-		return reminder.OneOff{}, invalid("memory_id", "required")
+func (s reminderService) Snooze(ctx context.Context, noteID string, occurrenceAt time.Time, minutes int) (reminder.OneOff, error) {
+	if noteID == "" {
+		return reminder.OneOff{}, invalid("note_id", "required")
 	}
 	if minutes <= 0 {
 		doc, err := s.settings.Get(ctx)
@@ -115,14 +115,14 @@ func (s reminderService) Snooze(ctx context.Context, memoryID string, occurrence
 	if minutes < 1 || minutes > 1440 {
 		return reminder.OneOff{}, invalid("minutes", "must be between 1 and 1440")
 	}
-	m, err := s.schedules.memories.Get(ctx, memoryID)
+	m, err := s.schedules.notes.Get(ctx, noteID)
 	if err != nil {
 		return reminder.OneOff{}, err
 	}
-	return s.insertOneOff(ctx, reminder.KindSnooze, &memoryID, s.clock.Now().UTC().Add(time.Duration(minutes)*time.Minute), m.Title, "")
+	return s.insertOneOff(ctx, reminder.KindSnooze, &noteID, s.clock.Now().UTC().Add(time.Duration(minutes)*time.Minute), m.Title, "")
 }
 
-func (s reminderService) ArmOneOff(ctx context.Context, kind, memoryID string, fireAt time.Time, title, body string) (reminder.OneOff, error) {
+func (s reminderService) ArmOneOff(ctx context.Context, kind, noteID string, fireAt time.Time, title, body string) (reminder.OneOff, error) {
 	if kind != reminder.KindFocusPhase && kind != reminder.KindSnooze {
 		return reminder.OneOff{}, invalid("kind", "must be focus_phase or snooze")
 	}
@@ -130,17 +130,17 @@ func (s reminderService) ArmOneOff(ctx context.Context, kind, memoryID string, f
 		return reminder.OneOff{}, invalid("fire_at", "required")
 	}
 	var mid *string
-	if memoryID != "" {
-		if _, err := s.schedules.memories.Get(ctx, memoryID); err != nil {
+	if noteID != "" {
+		if _, err := s.schedules.notes.Get(ctx, noteID); err != nil {
 			return reminder.OneOff{}, err
 		}
-		mid = &memoryID
+		mid = &noteID
 	}
 	return s.insertOneOff(ctx, kind, mid, fireAt.UTC(), title, body)
 }
 
-func (s reminderService) insertOneOff(ctx context.Context, kind string, memoryID *string, fireAt time.Time, title, body string) (reminder.OneOff, error) {
-	o := reminder.OneOff{ID: s.ids.New(), Kind: kind, MemoryID: memoryID, FireAt: fireAt.Truncate(time.Millisecond), Title: title, Body: body, CreatedAt: s.clock.Now().UTC()}
+func (s reminderService) insertOneOff(ctx context.Context, kind string, noteID *string, fireAt time.Time, title, body string) (reminder.OneOff, error) {
+	o := reminder.OneOff{ID: s.ids.New(), Kind: kind, NoteID: noteID, FireAt: fireAt.Truncate(time.Millisecond), Title: title, Body: body, CreatedAt: s.clock.Now().UTC()}
 	err := s.audit.Write(ctx, caller(ctx), "reminder", o.ID, activity.OpCreate, "Arm one-off reminder", func(ctx context.Context) error {
 		return s.repo.Insert(ctx, o)
 	})

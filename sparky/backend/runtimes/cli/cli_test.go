@@ -165,21 +165,21 @@ func TestAddDueRepeatAndAgendaToday(t *testing.T) {
 	}
 }
 
-func TestMindTagReviewExportBackup(t *testing.T) {
+func TestSpaceTagReviewExportBackup(t *testing.T) {
 	db, _ := startLoopbackCLI(t)
-	stdout, stderr, code := runCLI(t, db, "mind", "add", "Work")
+	stdout, stderr, code := runCLI(t, db, "space", "add", "Work")
 	if code != 0 {
-		t.Fatalf("mind add: %d %s", code, stderr)
+		t.Fatalf("space add: %d %s", code, stderr)
 	}
-	mindID := createdID(t, stdout)
-	stdout, stderr, code = runCLI(t, db, "mind", "ls", "--json")
+	spaceID := createdID(t, stdout)
+	stdout, stderr, code = runCLI(t, db, "space", "ls", "--json")
 	if code != 0 {
-		t.Fatalf("mind ls: %d %s", code, stderr)
+		t.Fatalf("space ls: %d %s", code, stderr)
 	}
-	assertGolden(t, filepath.Join("json", "mind_ls.json"), normalizeCLI(stdout))
-	stdout, stderr, code = runCLI(t, db, "add", "Task", "--mind", "Work")
+	assertGolden(t, filepath.Join("json", "space_ls.json"), normalizeCLI(stdout))
+	stdout, stderr, code = runCLI(t, db, "add", "Task", "--space", "Work")
 	if code != 0 {
-		t.Fatalf("add mind: %d %s", code, stderr)
+		t.Fatalf("add space: %d %s", code, stderr)
 	}
 	stdout, stderr, code = runCLI(t, db, "tag", "ls", "--json")
 	if code != 0 {
@@ -207,14 +207,14 @@ func TestMindTagReviewExportBackup(t *testing.T) {
 	if _, err := os.Stat(backup); err != nil {
 		t.Fatal(err)
 	}
-	stdout, stderr, code = runCLI(t, db, "mind", "rm", mindID)
+	stdout, stderr, code = runCLI(t, db, "space", "rm", spaceID)
 	if code != ExitRefused {
-		t.Fatalf("mind rm without --yes: %d %s", code, stderr)
+		t.Fatalf("space rm without --yes: %d %s", code, stderr)
 	}
-	assertGolden(t, filepath.Join("human", "mind_rm_refused.txt"), normalizeCLI(stderr))
-	stdout, stderr, code = runCLI(t, db, "mind", "rm", mindID, "--yes")
+	assertGolden(t, filepath.Join("human", "space_rm_refused.txt"), normalizeCLI(stderr))
+	stdout, stderr, code = runCLI(t, db, "space", "rm", spaceID, "--yes")
 	if code != 0 {
-		t.Fatalf("mind rm: %d %s", code, stderr)
+		t.Fatalf("space rm: %d %s", code, stderr)
 	}
 }
 
@@ -259,16 +259,16 @@ func TestConflictExitCode(t *testing.T) {
 		t.Fatalf("add: %d %s", code, stderr)
 	}
 	id := createdID(t, stdout)
-	got, err := clients.Memory.Get(t.Context(), connect.NewRequest(&v1.GetMemoryRequest{Id: id}))
+	got, err := clients.Note.Get(t.Context(), connect.NewRequest(&v1.GetNoteRequest{Id: id}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	stale := got.Msg.Memory.Rev
+	stale := got.Msg.Note.Rev
 	title := "changed"
-	if _, err := clients.Memory.Update(t.Context(), connect.NewRequest(&v1.UpdateMemoryRequest{Id: id, ExpectedRev: int64ptr(stale), Title: &title})); err != nil {
+	if _, err := clients.Note.Update(t.Context(), connect.NewRequest(&v1.UpdateNoteRequest{Id: id, ExpectedRev: int64ptr(stale), Title: &title})); err != nil {
 		t.Fatal(err)
 	}
-	err = setMemoryStatus(t.Context(), clients, id, "completed", stale, ioDiscard())
+	err = setNoteStatus(t.Context(), clients, id, "completed", stale, ioDiscard())
 	if exitCodeOf(err) != ExitConflict {
 		t.Fatalf("conflict exit %d err=%v", exitCodeOf(err), err)
 	}

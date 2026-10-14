@@ -2,7 +2,7 @@
 #import <UserNotifications/UserNotifications.h>
 #include <napi.h>
 #include <cstdlib>
-#include <memory>
+#include <note>
 #include <mutex>
 #import "calendar.h"
 
@@ -87,7 +87,7 @@ static NSString *Occurrence(UNNotification *notification) {
   @synchronized (self) { self.completions[token] = [completion copy]; }
   NSDictionary *info = response.notification.request.content.userInfo;
   self.emit(@{@"event":@"action", @"token":token, @"action":response.actionIdentifier,
-    @"id":response.notification.request.identifier, @"memoryId":info[@"memoryId"] ?: @"",
+    @"id":response.notification.request.identifier, @"noteId":info[@"noteId"] ?: @"",
     @"occurrenceAt":Occurrence(response.notification), @"receivedAtMs":@([NSDate.date timeIntervalSince1970] * 1000)});
   // OS completion must not hang on a failed core or a shutdown race.
   __weak SparkyNotifyDelegate *weakSelf = self;
@@ -138,7 +138,7 @@ static UNNotificationRequest *Request(NSDictionary *item) {
   content.title = item[@"title"]; content.body = item[@"body"]; content.categoryIdentifier = item[@"category"];
   NSString *sound = item[@"sound"];
   content.sound = [sound isEqual:@"none"] ? nil : ([sound isEqual:@"default"] ? UNNotificationSound.defaultSound : [UNNotificationSound soundNamed:sound]);
-  NSMutableDictionary *info = [@{@"memoryId":item[@"memoryId"], @"hash":item[@"hash"], @"occurrenceAt":item[@"occurrenceAt"], @"fireAt":item[@"fireAt"]} mutableCopy];
+  NSMutableDictionary *info = [@{@"noteId":item[@"noteId"], @"hash":item[@"hash"], @"occurrenceAt":item[@"occurrenceAt"], @"fireAt":item[@"fireAt"]} mutableCopy];
   UNNotificationTrigger *trigger;
   NSDictionary *repeat = item[@"repeat"];
   if ([repeat isKindOfClass:NSDictionary.class]) {
@@ -163,7 +163,7 @@ static BOOL ValidPlan(id input) {
   NSMutableSet *ids = [NSMutableSet set];
   for (id item in input) {
     if (![item isKindOfClass:NSDictionary.class] || !Owned(item[@"id"]) || [ids containsObject:item[@"id"]]) return NO;
-    for (NSString *key in @[@"title", @"body", @"memoryId", @"occurrenceAt", @"fireAt", @"category", @"hash", @"sound"])
+    for (NSString *key in @[@"title", @"body", @"noteId", @"occurrenceAt", @"fireAt", @"category", @"hash", @"sound"])
       if (![item[key] isKindOfClass:NSString.class]) return NO;
     if (!SparkyDate(item[@"fireAt"]) || !SparkyDate(item[@"occurrenceAt"])) return NO;
     if (![@[@"reminder", @"reminder-focus", @"focus-phase"] containsObject:item[@"category"]]) return NO;

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createReminderController } from "./controller";
 import type { NativeNotify, NativeRefresh, NotificationAction, ReminderCore } from "./types";
-const memoryId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+const noteId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 function fixture(background = false) {
   let action!: (event: NotificationAction) => void, event!: (value: NativeRefresh) => void;
   const native: NativeNotify = {
@@ -12,10 +12,10 @@ function fixture(background = false) {
     finishAction: vi.fn(async () => {}), emitSystemEvent: vi.fn(async () => {}), close: vi.fn(), wasActionLaunch: () => false,
   };
   const core: ReminderCore = { plan: vi.fn(async () => []), complete: vi.fn(async () => {}), snooze: vi.fn(async () => {}), ack: vi.fn(async () => {}), heartbeat: vi.fn(async () => {}) };
-  const ensureCore = vi.fn(async () => core), quit = vi.fn(), openMemory = vi.fn(), log = vi.fn(), hasWindow = vi.fn(() => !background);
-  const controller = createReminderController({ native, ensureCore, quit, openMemory, hasWindow, background, log, receipts: { record: vi.fn(), authorize: () => true } });
-  const sendAction = (overrides: Partial<NotificationAction> = {}) => action({ event: "action", id: `rem:${memoryId}:1791111600000`, memoryId, occurrenceAt: "2026-10-04T11:00:00.000Z", action: "DONE", token: "opaque", receivedAtMs: Date.now(), ...overrides });
-  return { controller, native, core, ensureCore, quit, openMemory, hasWindow, log, sendAction, event: (value: NativeRefresh) => event(value) };
+  const ensureCore = vi.fn(async () => core), quit = vi.fn(), openNote = vi.fn(), log = vi.fn(), hasWindow = vi.fn(() => !background);
+  const controller = createReminderController({ native, ensureCore, quit, openNote, hasWindow, background, log, receipts: { record: vi.fn(), authorize: () => true } });
+  const sendAction = (overrides: Partial<NotificationAction> = {}) => action({ event: "action", id: `rem:${noteId}:1791111600000`, noteId, occurrenceAt: "2026-10-04T11:00:00.000Z", action: "DONE", token: "opaque", receivedAtMs: Date.now(), ...overrides });
+  return { controller, native, core, ensureCore, quit, openNote, hasWindow, log, sendAction, event: (value: NativeRefresh) => event(value) };
 }
 let cleanups: (() => void)[] = [];
 beforeEach(() => { vi.useFakeTimers(); });
@@ -35,7 +35,7 @@ describe("lazy reminder controller", () => {
     const f = setup(); f.controller.start(); await vi.advanceTimersByTimeAsync(500);
     f.controller.onChanges({ snapshot: false, changes: [{ entity: "tags" }, { entity: "activity" }] });
     await vi.advanceTimersByTimeAsync(500); expect(f.core.plan).toHaveBeenCalledTimes(1);
-    f.controller.onChanges({ snapshot: false, changes: [{ entity: "memory" }] }); await vi.advanceTimersByTimeAsync(500);
+    f.controller.onChanges({ snapshot: false, changes: [{ entity: "note" }] }); await vi.advanceTimersByTimeAsync(500);
     expect(f.core.plan).toHaveBeenCalledTimes(2);
     for (const reason of ["timezone", "wake", "delivered"] as const) { f.event({ event: "refresh", reason, id: "one:1" }); await vi.advanceTimersByTimeAsync(500); }
     f.controller.onChanges({ snapshot: true, changes: [] }); await vi.advanceTimersByTimeAsync(500);
@@ -87,7 +87,7 @@ describe("lazy reminder controller", () => {
     const f = setup(true); f.sendAction(); expect(f.ensureCore).not.toHaveBeenCalled();
     expect(f.controller.shouldStartHidden()).toBe(true);
     f.controller.start(); await vi.advanceTimersByTimeAsync(0);
-    expect(f.core.complete).toHaveBeenCalledWith(memoryId, "2026-10-04T11:00:00.000Z");
+    expect(f.core.complete).toHaveBeenCalledWith(noteId, "2026-10-04T11:00:00.000Z");
     expect(f.native.finishAction).toHaveBeenCalledWith("opaque");
     expect(f.native.apply).toHaveBeenCalled();
     expect(vi.mocked(f.core.complete).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(f.native.apply).mock.invocationCallOrder[0]);
@@ -104,24 +104,24 @@ describe("lazy reminder controller", () => {
     const f = setup(true); vi.mocked(f.core.snooze).mockRejectedValue(new Error("Bearer secret; private note"));
     f.controller.start(); f.sendAction({ action: "SNOOZE" }); await vi.advanceTimersByTimeAsync(0);
     expect(f.core.snooze).toHaveBeenCalledTimes(1); expect(f.native.finishAction).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(f.log.mock.calls)).not.toMatch(/secret|private note|opaque/);
+    expect(JSON.stringify(f.log.mock.calls)).not.toMatch(/secret|private content|opaque/);
   });
   it("recovers after Plan failure and never reports a successful refresh", async () => {
     const f = setup(); vi.mocked(f.core.plan).mockRejectedValueOnce(new Error("private note"));
     f.controller.start(); await vi.advanceTimersByTimeAsync(500); expect(f.controller.status().state).toBe("refresh-pending");
     f.controller.requestRefresh("core-write"); await vi.advanceTimersByTimeAsync(500); expect(f.controller.status().state).toBe("armed");
   });
-  it("routes Open and Start focus through a validated memory URL and stays open", async () => {
-    const f = setup(true); f.openMemory.mockImplementation(() => { f.hasWindow.mockReturnValue(true); });
+  it("routes Open and Start focus through a validated note URL and stays open", async () => {
+    const f = setup(true); f.openNote.mockImplementation(() => { f.hasWindow.mockReturnValue(true); });
     f.controller.start(); f.sendAction({ action: "START_FOCUS" }); await vi.advanceTimersByTimeAsync(0);
-    expect(f.openMemory).toHaveBeenCalledWith(`sparky://memory/${memoryId}?action=focus`);
+    expect(f.openNote).toHaveBeenCalledWith(`sparky://note/${noteId}?action=focus`);
     await vi.advanceTimersByTimeAsync(11_000); expect(f.quit).not.toHaveBeenCalled();
   });
   it("rejects malformed actions and safely handles standalone focus activation", async () => {
     const f = setup(); f.controller.start();
-    f.sendAction({ memoryId: "../../bad" }); f.sendAction({ id: "one:focus", memoryId: "", action: "com.apple.UNNotificationDefaultActionIdentifier" });
+    f.sendAction({ noteId: "../../bad" }); f.sendAction({ id: "one:focus", noteId: "", action: "com.apple.UNNotificationDefaultActionIdentifier" });
     await vi.advanceTimersByTimeAsync(0);
-    expect(f.core.complete).not.toHaveBeenCalled(); expect(f.openMemory).not.toHaveBeenCalled(); expect(f.native.finishAction).toHaveBeenCalledTimes(2);
+    expect(f.core.complete).not.toHaveBeenCalled(); expect(f.openNote).not.toHaveBeenCalled(); expect(f.native.finishAction).toHaveBeenCalledTimes(2);
   });
   it("cancels lifecycle timers and closes the native delegate once", async () => {
     const f = setup(true); f.controller.start(); f.controller.close(); f.controller.close();

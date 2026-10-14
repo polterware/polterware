@@ -7,9 +7,9 @@ import (
 
 // Repository persists schedule rows.
 type Repository interface {
-	Get(ctx context.Context, memoryID string) (Schedule, error)
+	Get(ctx context.Context, noteID string) (Schedule, error)
 	Upsert(ctx context.Context, s Schedule) error
-	Delete(ctx context.Context, memoryID string) error
+	Delete(ctx context.Context, noteID string) error
 	ListActive(ctx context.Context) ([]Schedule, error)
 }
 

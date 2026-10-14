@@ -1,0 +1,76 @@
+.pw-icon-tile {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  /* Flat light tint of the accent; shown until the chrome finish paints over it. */
+  background: color-mix(
+    in srgb,
+    currentColor var(--pw-icon-tile-base-mix, 26%),
+    var(--color-icon-tile-base)
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      currentColor var(--pw-icon-tile-edge-mix, 34%),
+      var(--color-icon-tile-edge)
+    );
+}
+
+.pw-icon-tile-finish {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pw-aurora-cover {
+  position: relative;
+  height: 5rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: color-mix(
+    in srgb,
+    currentColor var(--pw-icon-tile-base-mix, 26%),
+    var(--color-icon-tile-base)
+  );
+}
+
+.pw-aurora-cover-finish {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pw-icon-tile-mark {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Dark ink on the light chrome finish — never text-primary (light on dark UI). */
+  color: var(--color-icon-tile-mark);
+}
+
+.pw-icon-tile-mark > * {
+  color: inherit;
+}
+
+/*
+ * Identity tiles are small (12–16px marks). Bump stroke above the global
+ * POLTER_ICON_STROKE_WIDTH (1.5) so glyphs read on the light chrome finish.
+ * Filled service-mark logos are unchanged (no stroke paint).
+ */
+.pw-icon-tile-mark :is(path, circle, rect, line, polyline, polygon) {
+  stroke-width: var(--pw-icon-tile-stroke-width, 2);
+}
+
+.pw-icon-tile--dimmed .pw-icon-tile-mark {
+  color: var(--color-icon-tile-mark-dimmed);
+}

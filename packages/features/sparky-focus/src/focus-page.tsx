@@ -1,6 +1,6 @@
 import { For, Show, createEffect, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import {
-  Button, Card, FilterChipGroup, PageError, PageLoading, PageOffline, Play, ProgressRing, StatusChip,
+  Button, FilterChipGroup, PageError, PageLoading, PageOffline, Play, ProgressRing, StatusChip,
 } from "@polterware/frontend-design-system";
 import { useSparkyShell } from "@polterware/feature-sparky-shell/feature";
 import { formatRemaining, phaseLabel, WORK_PRESETS, type FocusRecipe } from "./timer";
@@ -37,10 +37,10 @@ export function FocusPage(props: { store?: FocusStore }) {
 
   createEffect(() => {
     const url = shell.deepLink();
-    if (!url || url.hostname !== "memory" || url.searchParams.get("action") !== "focus") return;
+    if (!url || url.hostname !== "note" || url.searchParams.get("action") !== "focus") return;
     const id = url.pathname.replace(/^\//, "");
     if (!id) return;
-    void store.startMemory(id).catch(error => store.reload().then(() => { throw error; }).catch(() => {}));
+    void store.startNote(id).catch(error => store.reload().then(() => { throw error; }).catch(() => {}));
   });
 
   const cycles = () => Array.from({ length: recipe().cycles }, (_, index) => index);
@@ -98,11 +98,11 @@ export function FocusPage(props: { store?: FocusStore }) {
   const title = () => {
     if (!snap().isSessionActive) return "Focus";
     if (snap().phase !== "work") return phaseLabel(snap().phase);
-    return snap().memoryTitle || "Focus";
+    return snap().noteTitle || "Focus";
   };
 
   return (
-    <div data-focus-page class="flex h-full min-h-0 flex-col">
+    <div data-focus-page class="sparky-focus-page">
       <Show when={store.loadState() === "queued"}><PageLoading label="Loading focus" /></Show>
       <Show when={store.loadState() === "unavailable"}>
         <PageOffline title="Focus unavailable" message={store.loadError() || "The local core is unreachable."} onRetry={() => void store.reload()} />
@@ -117,7 +117,7 @@ export function FocusPage(props: { store?: FocusStore }) {
             <p role="status" class="max-w-md text-center text-[13px] text-[var(--color-text-secondary)]">{store.interrupted()!.message} {store.interrupted()!.recorded ? "The interrupted phase was recorded as stopped." : "The interrupted phase could not be recorded."}</p>
           </Show>
           <Show when={snap().isQuickSession}><p class="text-[13px] text-[var(--color-text-muted)]">Quick focus</p></Show>
-          <Show when={snap().memoryId}><p class="text-[13px] text-[var(--color-text-muted)]">Memory-bound</p></Show>
+          <Show when={snap().noteId}><p class="text-[13px] text-[var(--color-text-muted)]">Note-bound</p></Show>
           <div class="sparky-focus-clock" ref={clock} data-dragging={dragging() ? "" : undefined}
             onPointerDown={onDialDown} onPointerMove={onDialMove} onPointerUp={onDialUp} onPointerCancel={onDialUp}>
             <ProgressRing label={dial() ? "Work duration" : `${phaseLabel(snap().phase)} remaining`} value={dial() ? Math.round(recipe().workMin / DIAL_MAX * 100) : Math.round(snap().progress * 100)} size={DIAL_SIZE} thickness={DIAL_THICKNESS} />
@@ -152,16 +152,20 @@ export function FocusPage(props: { store?: FocusStore }) {
           </Show>
         </div>
         <Show when={store.sessions().length}>
-          <section class="mx-auto w-full max-w-xl px-6 pb-8" aria-label="Today's sessions">
-            <h2 class="mb-2 text-[13px] font-medium text-[var(--color-text-secondary)]">Today</h2>
-            <div class="flex flex-col gap-2">
-              <For each={store.sessions()}>{session => (
-                <Card>
-                  <p class="text-[13px] text-[var(--color-text-primary)]">{phaseLabel((session.phase as "work" | "short_break" | "long_break") ?? "idle")} · {session.state === "completed" ? "Completed" : "Stopped"}</p>
-                  <p class="text-[12px] text-[var(--color-text-muted)]">{session.elapsedS ?? 0}s of {session.plannedS ?? 0}s{session.endedAt ? ` · ${new Date(session.endedAt).toLocaleTimeString()}` : ""}</p>
-                </Card>
-              )}</For>
+          <section class="sparky-focus-sessions" aria-label="Today's sessions">
+            <div class="sparky-focus-sessions-head">
+              <h2>Today</h2>
+              <span>{store.sessions().filter(session => session.state === "completed" && session.phase === "work").length} completed</span>
             </div>
+            <For each={store.sessions()}>{session => (
+              <div class="sparky-focus-session" data-state={session.state === "completed" ? "completed" : "stopped"}>
+                <span class="sparky-focus-session-dot" aria-hidden="true" />
+                <span>{phaseLabel((session.phase as "work" | "short_break" | "long_break") ?? "idle")}{session.state === "completed" ? "" : " · Stopped"}</span>
+                <span class="sparky-focus-session-meta">
+                  {Math.round((session.elapsedS ?? 0) / 60)} min{session.endedAt ? ` · ${new Date(session.endedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}
+                </span>
+              </div>
+            )}</For>
           </section>
         </Show>
       </Show>

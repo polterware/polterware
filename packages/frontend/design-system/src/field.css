@@ -1,11 +1,11 @@
 /**
- * Labeled form field — keep label → control breathing room explicit
- * (not Tailwind space-y, which is easy to under-space).
+ * Labeled form field — the label sits tight to its control (6px). Space between fields comes from
+ * `FormStack`, never from a per-app override of this gap.
  */
 .pw-field {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 6px;
 }
 
 .pw-field__label {

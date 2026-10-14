@@ -14,7 +14,7 @@ const (
 
 // Place is the places row. RadiusM defaults to 200. Event defaults to enter.
 type Place struct {
-	MemoryID  string
+	NoteID    string
 	Name      *string
 	Lat       float64
 	Lng       float64

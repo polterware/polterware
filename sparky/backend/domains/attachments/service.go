@@ -13,26 +13,26 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/clock"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
 	"github.com/polterware/polterware/sparky/backend/domains/ids"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/tx"
 )
 
 type ServiceImpl struct {
-	mu       sync.Mutex
-	store    Store
-	ids      ids.Generator
-	clock    clock.Clock
-	memories memory.Repository
-	tx       tx.Manager
-	audit    func(context.Context, string, string, func(context.Context) error) error
+	mu    sync.Mutex
+	store Store
+	ids   ids.Generator
+	clock clock.Clock
+	notes note.Repository
+	tx    tx.Manager
+	audit func(context.Context, string, string, func(context.Context) error) error
 }
 
 func NewService(store Store, generator ids.Generator, c clock.Clock) *ServiceImpl {
 	return &ServiceImpl{store: store, ids: generator, clock: c}
 }
 
-func (s *ServiceImpl) WithMemoryRev(memories memory.Repository, tx tx.Manager) *ServiceImpl {
-	s.memories = memories
+func (s *ServiceImpl) WithNoteRev(notes note.Repository, tx tx.Manager) *ServiceImpl {
+	s.notes = notes
 	s.tx = tx
 	return s
 }
@@ -66,31 +66,31 @@ func (s *ServiceImpl) within(ctx context.Context, fn func(context.Context) error
 	return s.tx.Within(ctx, fn)
 }
 
-func (s *ServiceImpl) checkMemoryRev(ctx context.Context, memoryID string, expectedRev int64) error {
+func (s *ServiceImpl) checkNoteRev(ctx context.Context, noteID string, expectedRev int64) error {
 	if expectedRev == 0 {
 		return nil
 	}
-	if s.memories == nil {
-		return fault.Unavailable("memory revision check is not wired")
+	if s.notes == nil {
+		return fault.Unavailable("note revision check is not wired")
 	}
-	m, err := s.memories.Get(ctx, memoryID)
+	m, err := s.notes.Get(ctx, noteID)
 	if err != nil {
 		return err
 	}
 	if m.Rev != expectedRev {
-		return fault.Conflict("memory", memoryID, m.Rev, m)
+		return fault.Conflict("note", noteID, m.Rev, m)
 	}
 	return nil
 }
 
-func (s *ServiceImpl) ImportFromPath(ctx context.Context, memoryID, sourcePath, name string, expectedRev int64) (Attachment, error) {
+func (s *ServiceImpl) ImportFromPath(ctx context.Context, noteID, sourcePath, name string, expectedRev int64) (Attachment, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if memoryID == "" || sourcePath == "" {
+	if noteID == "" || sourcePath == "" {
 		return Attachment{}, fault.Invalid(fault.Violation{Field: "source_path", Reason: "required"})
 	}
 	id := s.ids.New()
-	file, err := s.store.ImportFile(ctx, memoryID, id, sourcePath)
+	file, err := s.store.ImportFile(ctx, noteID, id, sourcePath)
 	if err != nil {
 		return Attachment{}, err
 	}
@@ -109,13 +109,13 @@ func (s *ServiceImpl) ImportFromPath(ctx context.Context, memoryID, sourcePath, 
 		name = filepath.Base(sourcePath)
 	}
 	mime, size, hash, rel := file.Mime, file.SizeBytes, file.SHA256, file.RelPath
-	a := Attachment{ID: id, MemoryID: memoryID, Kind: kind, Name: &name, Mime: &mime, SizeBytes: &size, SHA256: &hash, RelPath: &rel, CreatedAt: s.clock.Now().UTC()}
+	a := Attachment{ID: id, NoteID: noteID, Kind: kind, Name: &name, Mime: &mime, SizeBytes: &size, SHA256: &hash, RelPath: &rel, CreatedAt: s.clock.Now().UTC()}
 	var duplicate *Attachment
 	if err = s.within(ctx, func(ctx context.Context) error {
-		if err := s.checkMemoryRev(ctx, memoryID, expectedRev); err != nil {
+		if err := s.checkNoteRev(ctx, noteID, expectedRev); err != nil {
 			return err
 		}
-		prior, err := s.store.List(ctx, memoryID)
+		prior, err := s.store.List(ctx, noteID)
 		if err != nil {
 			return err
 		}
@@ -138,19 +138,19 @@ func (s *ServiceImpl) ImportFromPath(ctx context.Context, memoryID, sourcePath, 
 	return a, nil
 }
 
-func (s *ServiceImpl) AddLink(ctx context.Context, memoryID, rawURL, title string, expectedRev int64) (Attachment, error) {
+func (s *ServiceImpl) AddLink(ctx context.Context, noteID, rawURL, title string, expectedRev int64) (Attachment, error) {
 	// Link insertion is serialized by the writer transaction. Avoid taking
 	// the file-import mutex when joining an already-open transaction.
 	u, err := url.ParseRequestURI(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
 		return Attachment{}, fault.Invalid(fault.Violation{Field: "url", Reason: "must be an http or https URL"})
 	}
-	a := Attachment{ID: s.ids.New(), MemoryID: memoryID, Kind: KindLink, URL: &rawURL, CreatedAt: s.clock.Now().UTC()}
+	a := Attachment{ID: s.ids.New(), NoteID: noteID, Kind: KindLink, URL: &rawURL, CreatedAt: s.clock.Now().UTC()}
 	if title != "" {
 		a.Title = &title
 	}
 	err = s.mutate(ctx, a.ID, "create", func(ctx context.Context) error {
-		if err := s.checkMemoryRev(ctx, memoryID, expectedRev); err != nil {
+		if err := s.checkNoteRev(ctx, noteID, expectedRev); err != nil {
 			return err
 		}
 		return s.store.Insert(ctx, a)
@@ -160,16 +160,16 @@ func (s *ServiceImpl) AddLink(ctx context.Context, memoryID, rawURL, title strin
 	}
 	return a, nil
 }
-func (s *ServiceImpl) List(ctx context.Context, memoryID string) ([]Attachment, error) {
-	return s.store.List(ctx, memoryID)
+func (s *ServiceImpl) List(ctx context.Context, noteID string) ([]Attachment, error) {
+	return s.store.List(ctx, noteID)
 }
-func (s *ServiceImpl) Reorder(ctx context.Context, memoryID string, ids []string) ([]Attachment, error) {
+func (s *ServiceImpl) Reorder(ctx context.Context, noteID string, ids []string) ([]Attachment, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.mutate(ctx, memoryID, "update", func(ctx context.Context) error { return s.store.Reorder(ctx, memoryID, ids) }); err != nil {
+	if err := s.mutate(ctx, noteID, "update", func(ctx context.Context) error { return s.store.Reorder(ctx, noteID, ids) }); err != nil {
 		return nil, err
 	}
-	return s.store.List(ctx, memoryID)
+	return s.store.List(ctx, noteID)
 }
 func (s *ServiceImpl) OpenInfo(ctx context.Context, id string) (OpenInfo, error) {
 	a, err := s.store.Get(ctx, id)

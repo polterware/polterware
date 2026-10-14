@@ -1,0 +1,38 @@
+{
+  "name": "search_notes",
+  "description": "Ranked full-text search.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "query"
+    ],
+    "properties": {
+      "query": {
+        "type": "string"
+      },
+      "space": {
+        "type": "string"
+      },
+      "tag": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "hits"
+    ],
+    "properties": {
+      "hits": {
+        "type": "array"
+      },
+      "notice": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -33,7 +33,7 @@ func run(ctx context.Context) error {
 	mode := flag.String("mode", "stdio", "stdio, http, or seed")
 	db := flag.String("db", "", "isolated database path")
 	binary := flag.String("binary", "", "core executable")
-	title := flag.String("title", "Agent memory", "synthetic memory title")
+	title := flag.String("title", "Agent note", "synthetic note title")
 	count := flag.Int("count", 10000, "seed size")
 	flag.Parse()
 	state, ok := runstate.ReadCore(*db)
@@ -46,9 +46,9 @@ func run(ctx context.Context) error {
 	}
 	if *mode == "seed" {
 		for i := 0; i < *count; i++ {
-			_, err := clients.Memory.Create(ctx, connect.NewRequest(&v1.CreateMemoryRequest{Title: fmt.Sprintf("Performance memory %05d", i), Note: fmt.Sprintf("Benchmark group %d", i%100)}))
+			_, err := clients.Note.Create(ctx, connect.NewRequest(&v1.CreateNoteRequest{Title: fmt.Sprintf("Performance note %05d", i), Content: fmt.Sprintf("Benchmark group %d", i%100)}))
 			if err != nil {
-				return fmt.Errorf("seed memory %d: %w", i, err)
+				return fmt.Errorf("seed note %d: %w", i, err)
 			}
 		}
 		return json.NewEncoder(os.Stdout).Encode(map[string]int{"seeded": *count})
@@ -78,7 +78,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("connect SDK: %w", err)
 	}
 	defer session.Close()
-	result, err := session.CallTool(ctx, &sdk.CallToolParams{Name: "create_memories", Arguments: map[string]any{"items": []map[string]string{{"title": *title}}}})
+	result, err := session.CallTool(ctx, &sdk.CallToolParams{Name: "create_notes", Arguments: map[string]any{"items": []map[string]string{{"title": *title}}}})
 	if err != nil {
 		return fmt.Errorf("agent write: %w", err)
 	}

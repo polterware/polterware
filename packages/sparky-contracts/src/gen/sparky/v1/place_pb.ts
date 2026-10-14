@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file sparky/v1/place.proto.
  */
 export const file_sparky_v1_place: GenFile = /*@__PURE__*/
-  fileDesc("ChVzcGFya3kvdjEvcGxhY2UucHJvdG8SCXNwYXJreS52MSLTAQoFUGxhY2USEQoJbWVtb3J5X2lkGAEgASgJEhEKBG5hbWUYAiABKAlIAIgBARILCgNsYXQYAyABKAESCwoDbG5nGAQgASgBEhUKCHJhZGl1c19tGAUgASgBSAGIAQESDQoFZXZlbnQYBiABKAkSEwoGYWN0aXZlGAcgASgISAKIAQESLgoKdXBkYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBwoFX25hbWVCCwoJX3JhZGl1c19tQgkKB19hY3RpdmUiXgoPU2V0UGxhY2VSZXF1ZXN0Eh8KBXBsYWNlGAEgASgLMhAuc3Bhcmt5LnYxLlBsYWNlEhkKDGV4cGVjdGVkX3JldhgCIAEoA0gAiAEBQg8KDV9leHBlY3RlZF9yZXYiMwoQU2V0UGxhY2VSZXNwb25zZRIfCgVwbGFjZRgBIAEoCzIQLnNwYXJreS52MS5QbGFjZSJSChFDbGVhclBsYWNlUmVxdWVzdBIRCgltZW1vcnlfaWQYASABKAkSGQoMZXhwZWN0ZWRfcmV2GAIgASgDSACIAQFCDwoNX2V4cGVjdGVkX3JldiIUChJDbGVhclBsYWNlUmVzcG9uc2UiVQoZTGlzdFBsYWNlc0luQm91bmRzUmVxdWVzdBINCgVzb3V0aBgBIAEoARIMCgR3ZXN0GAIgASgBEg0KBW5vcnRoGAMgASgBEgwKBGVhc3QYBCABKAEiPgoaTGlzdFBsYWNlc0luQm91bmRzUmVzcG9uc2USIAoGcGxhY2VzGAEgAygLMhAuc3Bhcmt5LnYxLlBsYWNlMvEBCgxQbGFjZVNlcnZpY2USPgoDU2V0Ehouc3Bhcmt5LnYxLlNldFBsYWNlUmVxdWVzdBobLnNwYXJreS52MS5TZXRQbGFjZVJlc3BvbnNlEkQKBUNsZWFyEhwuc3Bhcmt5LnYxLkNsZWFyUGxhY2VSZXF1ZXN0Gh0uc3Bhcmt5LnYxLkNsZWFyUGxhY2VSZXNwb25zZRJbCgxMaXN0SW5Cb3VuZHMSJC5zcGFya3kudjEuTGlzdFBsYWNlc0luQm91bmRzUmVxdWVzdBolLnNwYXJreS52MS5MaXN0UGxhY2VzSW5Cb3VuZHNSZXNwb25zZUKxAQoNY29tLnNwYXJreS52MUIKUGxhY2VQcm90b1ABWk9naXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9zcGFya3kvYmFja2VuZC9wbGF0Zm9ybS9nZW4vc3Bhcmt5L3YxO3NwYXJreXYxogIDU1hYqgIJU3Bhcmt5LlYxygIJU3Bhcmt5XFYx4gIVU3Bhcmt5XFYxXEdQQk1ldGFkYXRh6gIKU3Bhcmt5OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("ChVzcGFya3kvdjEvcGxhY2UucHJvdG8SCXNwYXJreS52MSLRAQoFUGxhY2USDwoHbm90ZV9pZBgBIAEoCRIRCgRuYW1lGAIgASgJSACIAQESCwoDbGF0GAMgASgBEgsKA2xuZxgEIAEoARIVCghyYWRpdXNfbRgFIAEoAUgBiAEBEg0KBWV2ZW50GAYgASgJEhMKBmFjdGl2ZRgHIAEoCEgCiAEBEi4KCnVwZGF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgcKBV9uYW1lQgsKCV9yYWRpdXNfbUIJCgdfYWN0aXZlIl4KD1NldFBsYWNlUmVxdWVzdBIfCgVwbGFjZRgBIAEoCzIQLnNwYXJreS52MS5QbGFjZRIZCgxleHBlY3RlZF9yZXYYAiABKANIAIgBAUIPCg1fZXhwZWN0ZWRfcmV2IjMKEFNldFBsYWNlUmVzcG9uc2USHwoFcGxhY2UYASABKAsyEC5zcGFya3kudjEuUGxhY2UiUAoRQ2xlYXJQbGFjZVJlcXVlc3QSDwoHbm90ZV9pZBgBIAEoCRIZCgxleHBlY3RlZF9yZXYYAiABKANIAIgBAUIPCg1fZXhwZWN0ZWRfcmV2IhQKEkNsZWFyUGxhY2VSZXNwb25zZSJVChlMaXN0UGxhY2VzSW5Cb3VuZHNSZXF1ZXN0Eg0KBXNvdXRoGAEgASgBEgwKBHdlc3QYAiABKAESDQoFbm9ydGgYAyABKAESDAoEZWFzdBgEIAEoASI+ChpMaXN0UGxhY2VzSW5Cb3VuZHNSZXNwb25zZRIgCgZwbGFjZXMYASADKAsyEC5zcGFya3kudjEuUGxhY2Uy8QEKDFBsYWNlU2VydmljZRI+CgNTZXQSGi5zcGFya3kudjEuU2V0UGxhY2VSZXF1ZXN0Ghsuc3Bhcmt5LnYxLlNldFBsYWNlUmVzcG9uc2USRAoFQ2xlYXISHC5zcGFya3kudjEuQ2xlYXJQbGFjZVJlcXVlc3QaHS5zcGFya3kudjEuQ2xlYXJQbGFjZVJlc3BvbnNlElsKDExpc3RJbkJvdW5kcxIkLnNwYXJreS52MS5MaXN0UGxhY2VzSW5Cb3VuZHNSZXF1ZXN0GiUuc3Bhcmt5LnYxLkxpc3RQbGFjZXNJbkJvdW5kc1Jlc3BvbnNlQrEBCg1jb20uc3Bhcmt5LnYxQgpQbGFjZVByb3RvUAFaT2dpdGh1Yi5jb20vcG9sdGVyd2FyZS9wb2x0ZXJ3YXJlL3NwYXJreS9iYWNrZW5kL3BsYXRmb3JtL2dlbi9zcGFya3kvdjE7c3Bhcmt5djGiAgNTWFiqAglTcGFya3kuVjHKAglTcGFya3lcVjHiAhVTcGFya3lcVjFcR1BCTWV0YWRhdGHqAgpTcGFya3k6OlYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * Place is stored and shown on the map. Geofence arming is not part of v1.
@@ -21,9 +21,9 @@ export const file_sparky_v1_place: GenFile = /*@__PURE__*/
  */
 export type Place = Message<"sparky.v1.Place"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: optional string name = 2;
@@ -78,7 +78,7 @@ export type SetPlaceRequest = Message<"sparky.v1.SetPlaceRequest"> & {
   place?: Place | undefined;
 
   /**
-   * Memory revision from the caller's last read; 0 or absent means unchecked.
+   * Note revision from the caller's last read; 0 or absent means unchecked.
    *
    * @generated from field: optional int64 expected_rev = 2;
    */
@@ -114,9 +114,9 @@ export const SetPlaceResponseSchema: GenMessage<SetPlaceResponse> = /*@__PURE__*
  */
 export type ClearPlaceRequest = Message<"sparky.v1.ClearPlaceRequest"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: optional int64 expected_rev = 2;

@@ -3,11 +3,11 @@ import { test, expect } from "../fixtures";
 test("configure a daily schedule, preview occurrences, and snooze", async ({ sparky, page }) => {
   await page.getByRole("button", { name: "Skip onboarding", exact: true }).click();
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
-  await page.getByRole("main").getByRole("button", { name: "New memory", exact: true }).first().click();
-  const dialog = page.getByRole("dialog", { name: "New memory", exact: true });
-  await dialog.getByLabel("Title", { exact: true }).fill("Scheduled memory");
-  await dialog.getByRole("button", { name: "Create memory" }).click();
-  await expect(page.locator("[data-memory-title]")).toHaveValue("Scheduled memory");
+  await page.getByRole("main").getByRole("button", { name: "New note", exact: true }).first().click();
+  const dialog = page.getByRole("dialog", { name: "New note", exact: true });
+  await dialog.getByLabel("Title", { exact: true }).fill("Scheduled note");
+  await dialog.getByRole("button", { name: "Create note" }).click();
+  await expect(page.locator("[data-note-title]")).toHaveValue("Scheduled note");
   const card = page.locator("[data-schedule-card]");
   await expect(card).toBeVisible();
   await card.getByLabel("Start date").fill(new Date(Date.now() + 86400000).toISOString().slice(0, 10));

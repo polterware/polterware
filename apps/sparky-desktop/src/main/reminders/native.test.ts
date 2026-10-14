@@ -10,7 +10,7 @@ function fixture() {
 afterEach(() => { vi.useRealTimers(); });
 it("buffers early actions and system events until callbacks are installed", () => {
   const f = fixture(), action = vi.fn(), event = vi.fn();
-  const payload: NotificationAction = { event: "action", id: "one:1", memoryId: "", occurrenceAt: "2026-10-04T12:00:00.000Z", action: "DONE", token: "opaque", receivedAtMs: 1 };
+  const payload: NotificationAction = { event: "action", id: "one:1", noteId: "", occurrenceAt: "2026-10-04T12:00:00.000Z", action: "DONE", token: "opaque", receivedAtMs: 1 };
   f.receive(payload); f.receive({ event: "refresh", reason: "timezone" });
   f.native.onAction(action); f.native.onEvent(event);
   expect(action).toHaveBeenCalledWith(payload); expect(event).toHaveBeenCalledWith({ event: "refresh", reason: "timezone" });

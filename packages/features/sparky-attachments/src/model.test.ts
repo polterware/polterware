@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { DROP_PATH_REFUSED, MAX_RECORDING_BYTES, linkHost, previewUrl, recordingFileName, reorderIds, revisionString } from "./model";
 
-const memory = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+const note = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
 const file = "01ARZ3NDEKTSV4RRFFQ69G5FB0.png";
 
 describe("attachment preview URLs", () => {
   it("builds sparky-file URLs from a two-segment relPath and rejects file://", () => {
-    expect(previewUrl(`${memory}/${file}`)).toBe(`sparky-file://attachment/${memory}/${file}`);
-    expect(previewUrl(`${memory}\\${file}`)).toBe(`sparky-file://attachment/${memory}/${file}`);
+    expect(previewUrl(`${note}/${file}`)).toBe(`sparky-file://attachment/${note}/${file}`);
+    expect(previewUrl(`${note}\\${file}`)).toBe(`sparky-file://attachment/${note}/${file}`);
     expect(previewUrl("/etc/passwd")).toBeUndefined();
-    expect(previewUrl(`file://${memory}/${file}`)).toBeUndefined();
+    expect(previewUrl(`file://${note}/${file}`)).toBeUndefined();
     expect(previewUrl(undefined)).toBeUndefined();
-    expect(previewUrl(`${memory}/${file}`)?.startsWith("file:")).toBe(false);
+    expect(previewUrl(`${note}/${file}`)?.startsWith("file:")).toBe(false);
   });
   it("maps MediaRecorder mime types to a basename Main accepts", () => {
     expect(recordingFileName("audio/webm;codecs=opus")).toBe("recording.webm");

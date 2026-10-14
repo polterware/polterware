@@ -16,7 +16,6 @@ const feature: SparkyFeature = {
     // Returning false lets the shell navigate to the registered /map route.
     return false;
   },
-  settingsPanels: [{ id: "map-tiles", label: "Tiles", group: "Map", component: MapSettingsPanel }],
   detailSections: [{ id: "place", order: 20, component: PlaceCard }],
   commands: [{
     id: "map.open",

@@ -6,20 +6,20 @@ import (
 
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 )
 
-func memorySummary(item memory.Summary, mindName string, tagNames []string) map[string]any {
+func noteSummary(item note.Summary, spaceName string, tagNames []string) map[string]any {
 	out := map[string]any{"id": item.ID, "title": item.Title, "status": item.Status, "rev": item.Rev}
-	if item.MindID != nil {
-		out["mindId"] = *item.MindID
+	if item.SpaceID != nil {
+		out["spaceId"] = *item.SpaceID
 	}
-	if mindName != "" {
-		out["mind"] = mindName
+	if spaceName != "" {
+		out["space"] = spaceName
 	}
 	if due := formatDue(item.DueAt, item.DueAllDay); due != "" {
 		out["due"] = due
@@ -39,13 +39,13 @@ func memorySummary(item memory.Summary, mindName string, tagNames []string) map[
 	return out
 }
 
-func memoryJSON(m memory.Memory, checklist []memory.CheckItem, tagNames []string, sched *schedule.Schedule, rule schedule.Rule, p *place.Place, files []attachments.Attachment, completions []memory.Completion) map[string]any {
+func noteJSON(m note.Note, checklist []note.CheckItem, tagNames []string, sched *schedule.Schedule, rule schedule.Rule, p *place.Place, files []attachments.Attachment, completions []note.Completion) map[string]any {
 	out := map[string]any{"id": m.ID, "title": m.Title, "status": m.Status, "rev": m.Rev}
-	if m.MindID != nil {
-		out["mindId"] = *m.MindID
+	if m.SpaceID != nil {
+		out["spaceId"] = *m.SpaceID
 	}
-	if m.Note != "" {
-		out["note"] = m.Note
+	if m.Content != "" {
+		out["content"] = m.Content
 	}
 	if m.Pinned {
 		out["pinned"] = true
@@ -112,7 +112,7 @@ func memoryJSON(m memory.Memory, checklist []memory.CheckItem, tagNames []string
 	return out
 }
 
-func mindJSON(m mind.Mind) map[string]any {
+func spaceJSON(m space.Space) map[string]any {
 	out := map[string]any{"id": m.ID, "name": m.Name, "rev": m.Rev}
 	if m.ParentID != nil {
 		out["parentId"] = *m.ParentID
@@ -139,9 +139,9 @@ func activityJSON(e activity.Event) map[string]any {
 	return map[string]any{"at": e.At.UTC().Format(time.RFC3339), "actor": e.Actor, "entity": e.Entity, "id": e.EntityID, "op": e.Op, "summary": e.Summary}
 }
 
-func mindTreeText(nodes []mind.Mind, parent *string) string {
-	children := map[string][]mind.Mind{}
-	roots := []mind.Mind{}
+func spaceTreeText(nodes []space.Space, parent *string) string {
+	children := map[string][]space.Space{}
+	roots := []space.Space{}
 	for _, node := range nodes {
 		if parent != nil {
 			if node.ParentID != nil && *node.ParentID == *parent {
@@ -156,17 +156,17 @@ func mindTreeText(nodes []mind.Mind, parent *string) string {
 		}
 	}
 	if parent != nil {
-		return joinMinds(roots, children)
+		return joinSpaces(roots, children)
 	}
-	return joinMinds(roots, children)
+	return joinSpaces(roots, children)
 }
 
-func joinMinds(nodes []mind.Mind, children map[string][]mind.Mind) string {
+func joinSpaces(nodes []space.Space, children map[string][]space.Space) string {
 	parts := make([]string, 0, len(nodes))
 	for _, node := range nodes {
 		label := node.Name + "(" + node.ID + ")"
 		if kids := children[node.ID]; len(kids) > 0 {
-			label += " > " + joinMinds(kids, children)
+			label += " > " + joinSpaces(kids, children)
 		}
 		parts = append(parts, label)
 	}

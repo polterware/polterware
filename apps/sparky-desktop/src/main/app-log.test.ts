@@ -12,7 +12,7 @@ describe("Main app log", () => {
       log.write("core.ready", {
         changed: true,
         token: "secret-token",
-        body: "SELECT * FROM memories",
+        body: "SELECT * FROM notes",
         path: "/Users/erick/Library/Application Support/Sparky/sparky.db",
       });
       const output = readFileSync(log.path, "utf8");

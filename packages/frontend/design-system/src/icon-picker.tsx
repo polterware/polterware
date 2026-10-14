@@ -27,6 +27,24 @@ export type IconPickerProps = {
 
 const ICON_NAMES = Object.keys(PICKER_ICONS) as PickerIconName[];
 
+/** The icon option grid on its own, for popovers that host more than the icons. */
+function IconPickerGrid(props: { label: string; value: PickerIconName; onValueChange: (value: PickerIconName) => void }) {
+  return (
+    <div class="pw-picker__grid pw-icon-picker__options" role="listbox" aria-label={props.label}>
+      <For each={ICON_NAMES}>
+        {(name) => {
+          const Icon = PICKER_ICONS[name];
+          return (
+            <button type="button" role="option" data-value={name} aria-label={name} aria-selected={props.value === name} class="pw-primitive-button pw-icon-picker__option" onClick={() => props.onValueChange(name)}>
+              <Icon size={16} />
+            </button>
+          );
+        }}
+      </For>
+    </div>
+  );
+}
+
 export function IconPicker(props: IconPickerProps) {
   const [internal, setInternal] = createSignal<PickerIconName>(props.defaultValue ?? "brain");
   const [open, setOpen] = createSignal(false);
@@ -85,3 +103,4 @@ export function IconPicker(props: IconPickerProps) {
     </>
   );
 }
+IconPicker.Grid = IconPickerGrid;

@@ -10,8 +10,8 @@ type Namespace<S extends { method: object }> = {
 export type ChangeEvent = { seq: string; changes: { entity: string; id: string; op: string }[]; resync: boolean };
 export type DeepLink = { url: string; route: string };
 export type SparkyBridge = {
-  memories: Namespace<typeof Contracts.MemoryService>;
-  minds: Namespace<typeof Contracts.MindService>;
+  notes: Namespace<typeof Contracts.NoteService>;
+  spaces: Namespace<typeof Contracts.SpaceService>;
   tags: Namespace<typeof Contracts.TagService>;
   schedule: Namespace<typeof Contracts.ScheduleService>;
   places: Namespace<typeof Contracts.PlaceService>;

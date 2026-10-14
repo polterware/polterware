@@ -8,17 +8,17 @@ import { searchAddress } from "./geocoding";
 import { browserBridge, type MapBridge } from "./bridge";
 import {
   DEFAULT_RADIUS_M, MAX_RADIUS_M, MIN_RADIUS_M, PLACE_NOTICE, clampRadius, draftFromPlace, errorText, honestyLabel,
-  honestyTone, parseCoordinate, placeFromDraft, revisionString, type Honesty, type MemoryJSON, type PlaceDraft, type PlaceJSON, type SettingsJSON,
+  honestyTone, parseCoordinate, placeFromDraft, revisionString, type Honesty, type NoteJSON, type PlaceDraft, type PlaceJSON, type SettingsJSON,
 } from "./model";
 import { mapStore } from "./store";
 
 export function PlaceCard(): JSX.Element {
   const shell = useSparkyShell();
-  const memoryId = () => shell.selectedMemoryId();
-  return <Show when={memoryId()}>{id => <PlaceEditor memoryId={id()} />}</Show>;
+  const noteId = () => shell.selectedNoteId();
+  return <Show when={noteId()}>{id => <PlaceEditor noteId={id()} />}</Show>;
 }
 
-function PlaceEditor(props: { memoryId: string }) {
+function PlaceEditor(props: { noteId: string }) {
   const [draft, setDraft] = createSignal<PlaceDraft>(draftFromPlace());
   const [saved, setSaved] = createSignal(false);
   const [rev, setRev] = createSignal("0");
@@ -65,15 +65,15 @@ function PlaceEditor(props: { memoryId: string }) {
     setPending(true); setLoadError("");
     try {
       const bridge = browserBridge();
-      const [memoryResponse, settingsResponse] = await Promise.all([
-        bridge.memories.get({ id, include: { place: true } }) as Promise<{ memory?: MemoryJSON }>,
+      const [noteResponse, settingsResponse] = await Promise.all([
+        bridge.notes.get({ id, include: { place: true } }) as Promise<{ note?: NoteJSON }>,
         bridge.settings.get({}).catch(() => ({ settings: { mapOnline: false } })) as Promise<{ settings?: SettingsJSON }>,
       ]);
-      const memory = memoryResponse.memory;
-      if (!memory) throw new Error("Memory unavailable. It may have been deleted.");
-      setRev(revisionString(memory.rev));
-      setDraft(draftFromPlace(memory.place));
-      setSaved(Boolean(memory.place && Number.isFinite(memory.place.lat)));
+      const note = noteResponse.note;
+      if (!note) throw new Error("Note unavailable. It may have been deleted.");
+      setRev(revisionString(note.rev));
+      setDraft(draftFromPlace(note.place));
+      setSaved(Boolean(note.place && Number.isFinite(note.place.lat)));
       setGeocoding(settingsResponse.settings?.mapGeocoding === true);
       setOnline(Boolean(settingsResponse.settings?.mapOnline) && mapStore.provider() !== "pmtiles");
       setSaveState("live");
@@ -110,24 +110,24 @@ function PlaceEditor(props: { memoryId: string }) {
   }
 
   async function save() {
-    const place = placeFromDraft(props.memoryId, draft());
+    const place = placeFromDraft(props.noteId, draft());
     if (!place) { setFormError("Enter a valid latitude and longitude."); return; }
     const result = await withBridge("save", bridge => bridge.places.set({ expectedRev: rev(), place }) as Promise<{ place?: PlaceJSON }>);
     if (!result?.place) return;
     setDraft(draftFromPlace(result.place));
     setSaved(true);
-    const memory = await withBridge("reload", bridge => bridge.memories.get({ id: props.memoryId, include: { place: true } }) as Promise<{ memory?: MemoryJSON }>);
-    if (memory?.memory) setRev(revisionString(memory.memory.rev));
+    const note = await withBridge("reload", bridge => bridge.notes.get({ id: props.noteId, include: { place: true } }) as Promise<{ note?: NoteJSON }>);
+    if (note?.note) setRev(revisionString(note.note.rev));
     setSaveState("live");
   }
 
   async function clearPlace() {
-    const result = await withBridge("clear", bridge => bridge.places.clear({ memoryId: props.memoryId, expectedRev: rev() }));
+    const result = await withBridge("clear", bridge => bridge.places.clear({ noteId: props.noteId, expectedRev: rev() }));
     if (result === undefined && saveState() === "failed") return;
     setDraft(draftFromPlace());
     setSaved(false);
-    const memory = await withBridge("reload", bridge => bridge.memories.get({ id: props.memoryId, include: { place: true } }) as Promise<{ memory?: MemoryJSON }>);
-    if (memory?.memory) setRev(revisionString(memory.memory.rev));
+    const note = await withBridge("reload", bridge => bridge.notes.get({ id: props.noteId, include: { place: true } }) as Promise<{ note?: NoteJSON }>);
+    if (note?.note) setRev(revisionString(note.note.rev));
     setSaveState("live");
   }
 
@@ -139,7 +139,7 @@ function PlaceEditor(props: { memoryId: string }) {
     });
   }
 
-  createEffect(on(() => props.memoryId, id => {
+  createEffect(on(() => props.noteId, id => {
     addressGeneration += 1; setAddressHits([]); setAddressError(""); setAddressBusy(false);
     void load(id);
     let unsubscribe: (() => void) | undefined;
@@ -147,7 +147,7 @@ function PlaceEditor(props: { memoryId: string }) {
       unsubscribe = browserBridge().onChange(event => {
         if (event.resync || event.changes.some(change => change.entity === "settings")) void refreshGeocoding();
         if (saveState() === "queued") return;
-        if (event.resync || event.changes.some(change => ["place", "places", "memory", "memories", "settings"].includes(change.entity))) {
+        if (event.resync || event.changes.some(change => ["place", "places", "note", "notes", "settings"].includes(change.entity))) {
           void load(id);
         }
       });
@@ -158,12 +158,12 @@ function PlaceEditor(props: { memoryId: string }) {
   return (
     <section data-place-card class="flex flex-col gap-3">
       <div class="flex items-center justify-between gap-2">
-        <p class="text-[13px] font-medium text-[var(--color-text-primary)]">Place</p>
+        <p class="sr-only">Place</p>
         <StatusChip tone={honestyTone(saveState())}>{honestyLabel(saveState())}</StatusChip>
       </div>
       <p class="text-[12px] text-[var(--color-text-muted)]">{PLACE_NOTICE}</p>
       <Show when={pending()}><PageLoading label="Loading place" /></Show>
-      <Show when={loadError()}><PageError title="Place unavailable" message={loadError()} onRetry={() => void load(props.memoryId)} /></Show>
+      <Show when={loadError()}><PageError title="Place unavailable" message={loadError()} onRetry={() => void load(props.noteId)} /></Show>
       <Show when={!pending() && !loadError()}>
         <Show when={online() && pinReady()}>
           <div class="h-52 overflow-hidden rounded-[var(--radius-card)]">
@@ -172,8 +172,8 @@ function PlaceEditor(props: { memoryId: string }) {
               pickEnabled
               center={{ lat: lat() ?? DEFAULT_MAP_CENTER.lat, lng: lng() ?? DEFAULT_MAP_CENTER.lng }}
               zoom={14}
-              markers={[{ id: props.memoryId, lat: lat()!, lng: lng()!, radius: draft().radiusM }]}
-              selectedId={props.memoryId}
+              markers={[{ id: props.noteId, lat: lat()!, lng: lng()!, radius: draft().radiusM }]}
+              selectedId={props.noteId}
               onPick={pick => patch({ lat: String(pick.lat), lng: String(pick.lng) })}
             />
           </div>

@@ -1,0 +1,25 @@
+{
+  "name": "get_note",
+  "description": "One note. include defaults to content,checklist,schedule.",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "id"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "include": {
+        "type": "array",
+        "description": "content,checklist,schedule,place,attachments,completions",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object"
+  }
+}

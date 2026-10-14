@@ -21,7 +21,7 @@ func (r *Repository) List(ctx context.Context) ([]tag.Tag, error) {
 	if err != nil {
 		return nil, err
 	}
-	links, err := store.All[tagLinks](ctx, r.Store, "memory_tags")
+	links, err := store.All[tagLinks](ctx, r.Store, "note_tags")
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (r *Repository) Get(ctx context.Context, id string) (tag.Tag, error) {
 	if err != nil {
 		return v, err
 	}
-	links, err := store.All[tagLinks](ctx, r.Store, "memory_tags")
+	links, err := store.All[tagLinks](ctx, r.Store, "note_tags")
 	v.UsageCount = 0
 	for _, link := range links {
 		if contains(link.IDs, v.ID) {
@@ -120,7 +120,7 @@ func (r *Repository) Retarget(ctx context.Context, from, to string) (count int, 
 		if _, e := r.Get(ctx, to); e != nil {
 			return e
 		}
-		links, e := store.All[tagLinks](ctx, r.Store, "memory_tags")
+		links, e := store.All[tagLinks](ctx, r.Store, "note_tags")
 		if e != nil {
 			return e
 		}
@@ -139,7 +139,7 @@ func (r *Repository) Retarget(ctx context.Context, from, to string) (count int, 
 			if found {
 				count++
 				link.IDs = ids
-				if e = r.Store.Put(ctx, "memory_tags", link.MemoryID, link); e != nil {
+				if e = r.Store.Put(ctx, "note_tags", link.NoteID, link); e != nil {
 					return e
 				}
 			}
@@ -150,8 +150,8 @@ func (r *Repository) Retarget(ctx context.Context, from, to string) (count int, 
 }
 
 type tagLinks struct {
-	MemoryID string
-	IDs      []string
+	NoteID string
+	IDs    []string
 }
 
 func contains(ids []string, id string) bool {
@@ -167,7 +167,7 @@ func (r *Repository) Delete(ctx context.Context, id string) error {
 		if _, e := r.Get(ctx, id); e != nil {
 			return e
 		}
-		links, e := store.All[tagLinks](ctx, r.Store, "memory_tags")
+		links, e := store.All[tagLinks](ctx, r.Store, "note_tags")
 		if e != nil {
 			return e
 		}
@@ -179,7 +179,7 @@ func (r *Repository) Delete(ctx context.Context, id string) error {
 				}
 			}
 			link.IDs = ids
-			if e = r.Store.Put(ctx, "memory_tags", link.MemoryID, link); e != nil {
+			if e = r.Store.Put(ctx, "note_tags", link.NoteID, link); e != nil {
 				return e
 			}
 		}

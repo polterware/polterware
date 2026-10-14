@@ -81,6 +81,8 @@ import {
   Package as PackageDefinition,
   PauseIcon as PauseDefinition,
   Pencil as PencilDefinition,
+  PinIcon as PinDefinition,
+  PinOffIcon as PinOffDefinition,
   Play as PlayDefinition,
   PlugIcon as PlugDefinition,
   PlusIcon as PlusDefinition,
@@ -125,6 +127,8 @@ import {
   MinusSignIcon as MinusSignIconDefinition,
   SidebarRightIcon as SidebarRightIconDefinition,
   DragDropVerticalIcon as DragDropVerticalIconDefinition,
+  Menu01Icon as Menu01IconDefinition,
+  ArrowRight02Icon as ArrowRight02IconDefinition,
 } from "@hugeicons/core-free-icons";
 
 type HugeIconNodeAttributes = Readonly<Record<string, string | number>>;
@@ -306,6 +310,8 @@ const iconDefinitions = {
   Package: PackageDefinition,
   Pause: PauseDefinition,
   Pencil: PencilDefinition,
+  Pin: PinDefinition,
+  PinOff: PinOffDefinition,
   Play: PlayDefinition,
   Plug: PlugDefinition,
   Plus: PlusDefinition,
@@ -350,6 +356,8 @@ const iconDefinitions = {
   MinusSignIcon: MinusSignIconDefinition,
   SidebarRightIcon: SidebarRightIconDefinition,
   DragDropVerticalIcon: DragDropVerticalIconDefinition,
+  Menu01Icon: Menu01IconDefinition,
+  ArrowRight02Icon: ArrowRight02IconDefinition,
 } satisfies Record<string, HugeIconDefinition>;
 
 type PolterIconName = keyof typeof iconDefinitions;
@@ -444,6 +452,8 @@ export const {
   Package,
   Pause,
   Pencil,
+  Pin,
+  PinOff,
   Play,
   Plug,
   Plus,
@@ -488,6 +498,8 @@ export const {
   MinusSignIcon,
   SidebarRightIcon,
   DragDropVerticalIcon,
+  Menu01Icon,
+  ArrowRight02Icon,
 } = iconComponents;
 
 export const PlusIcon = Plus;

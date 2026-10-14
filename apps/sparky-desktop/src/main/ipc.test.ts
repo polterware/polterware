@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { BadRequestSchema, ListMemoriesResponseSchema } from "@polterware/sparky-contracts";
+import { BadRequestSchema, ListNotesResponseSchema } from "@polterware/sparky-contracts";
 import { services, type CoreClients } from "./core/client.js";
 import { assertTrustedSender, validateAppInput, channel, createRpcHandlers, handleRequestNotificationAuthorization } from "./ipc.js";
 import { RPC_METHODS } from "../shared/channels.js";
 import { APP_METHODS } from "../shared/bridge.js";
-const list = vi.fn(async () => create(ListMemoriesResponseSchema, {}));
-const options = () => ({ getClients: () => ({ memories: { list } }) as unknown as CoreClients, authorizePath: () => false });
+const list = vi.fn(async () => create(ListNotesResponseSchema, {}));
+const options = () => ({ getClients: () => ({ notes: { list } }) as unknown as CoreClients, authorizePath: () => false });
 describe("IPC allowlist and schemas", () => {
   it("matches all frozen public unary services and no hidden core channels", () => {
     const handlers = createRpcHandlers(options());
@@ -19,12 +19,12 @@ describe("IPC allowlist and schemas", () => {
   });
   it("validates unknown fields and scalar types before reaching the core", async () => {
     list.mockClear();
-    const handler = createRpcHandlers(options())[channel("memories", "list")]!;
+    const handler = createRpcHandlers(options())[channel("notes", "list")]!;
     await expect(handler({ endpoint: "http://evil" })).rejects.toThrow();
     await expect(handler({ limit: "not a number" })).rejects.toThrow();
     await expect(handler([])).rejects.toThrow();
     expect(list).not.toHaveBeenCalled();
-    await expect(handler({ limit: 50 })).resolves.toMatchObject({ memories: [] });
+    await expect(handler({ limit: 50 })).resolves.toMatchObject({ notes: [] });
     expect(list).toHaveBeenCalledOnce();
   });
   it("requires native dialog grants for import and maintenance writes", async () => {

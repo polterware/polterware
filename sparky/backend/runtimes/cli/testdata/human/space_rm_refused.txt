@@ -1,0 +1,1 @@
+sparky: refusing to delete space ID without --yes

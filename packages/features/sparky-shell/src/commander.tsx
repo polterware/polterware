@@ -5,7 +5,7 @@ import {
 } from "@polterware/frontend-design-system";
 import type { ShellBridge } from "./bridge";
 import type { CommandDef, CommandSourceDef } from "./feature";
-import { createQuickMemory, parseQuickAdd } from "./quick-add";
+import { createQuickNote, parseQuickAdd } from "./quick-add";
 import { findCommands } from "./route";
 import { plainSnippet } from "./snippet";
 import "./commander.css";
@@ -17,7 +17,7 @@ const routeIcons: Record<string, Icon> = {
   "/inbox": Inbox,
   "/today": CalendarClock,
   "/calendar": CalendarClock,
-  "/minds": Folder,
+  "/spaces": Folder,
   "/map": MapPin,
   "/focus": Clock,
   "/search": Search,
@@ -25,7 +25,7 @@ const routeIcons: Record<string, Icon> = {
 const commandIcons: Record<string, Icon> = {
   "quick-add": Plus,
   settings: Settings,
-  "memories.create": FileText,
+  "notes.create": FileText,
   "focus.start": Play,
   "search.open": Search,
   "calendar.open": CalendarClock,
@@ -39,7 +39,7 @@ function iconFor(command: CommandDef): Icon {
 
 export function Commander(props: {
   open: boolean; mode: "commands" | "quick-add" | "search"; bridge?: ShellBridge;
-  commands: CommandDef[]; commandSources?: CommandSourceDef[]; live: boolean; onClose: () => void; onMemory: (id: string) => void;
+  commands: CommandDef[]; commandSources?: CommandSourceDef[]; live: boolean; onClose: () => void; onNote: (id: string) => void;
 }) {
   const [query, setQuery] = createSignal("");
   const [busy, setBusy] = createSignal(false);
@@ -90,10 +90,10 @@ export function Commander(props: {
       if (!props.live || !props.bridge) { setSearching(false); return; }
       void props.bridge.search.search({ query: text, limit: 20 }).then(result => {
         finish((result.hits ?? []).map(hit => ({
-          id: hit.memoryId ?? hit.title ?? text,
-          label: hit.title ?? "Memory",
+          id: hit.noteId ?? hit.title ?? text,
+          label: hit.title ?? "Note",
           snippet: plainSnippet(hit.snippet),
-          run: () => { if (hit.memoryId) { props.onClose(); props.onMemory(hit.memoryId); } },
+          run: () => { if (hit.noteId) { props.onClose(); props.onNote(hit.noteId); } },
         })), result.notice ?? "");
       }).catch(fail);
     }, 180);
@@ -117,8 +117,8 @@ export function Commander(props: {
     if (busy() || !props.live || !props.bridge) return;
     setBusy(true); setError("");
     try {
-      const memory = await createQuickMemory(props.bridge, parseQuickAdd(query()));
-      props.onClose(); props.onMemory(memory.id!);
+      const note = await createQuickNote(props.bridge, parseQuickAdd(query()));
+      props.onClose(); props.onNote(note.id!);
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   }
@@ -145,8 +145,8 @@ export function Commander(props: {
             class="sparky-commander__input"
             type="text"
             role="searchbox"
-            placeholder={props.mode === "quick-add" ? "Buy milk tomorrow 9am #errands @Home" : "Search memories or commands…"}
-            aria-label={props.mode === "quick-add" ? "Memory" : "Search or command"}
+            placeholder={props.mode === "quick-add" ? "Buy milk tomorrow 9am #errands @Home" : "Search notes or commands…"}
+            aria-label={props.mode === "quick-add" ? "Note" : "Search or command"}
             value={query()}
             autofocus
             autocomplete="off"
@@ -164,7 +164,7 @@ export function Commander(props: {
             <form class="flex flex-col gap-3 px-2" onSubmit={event => { event.preventDefault(); void add(); }}>
               <p aria-live="polite">{preview().parsed ? `Title: ${preview().parsed!.title}${preview().parsed!.dueAt ? ` · Due: ${new Date(preview().parsed!.dueAt!).toLocaleString()}` : ""}` : preview().error}</p>
               <Show when={!props.live}><StatusChip tone="down" label="Core offline — creation unavailable" /></Show>
-              <Button type="submit" disabled={busy() || !props.live || !preview().parsed}>{busy() ? "Creating…" : "Create memory"}</Button>
+              <Button type="submit" disabled={busy() || !props.live || !preview().parsed}>{busy() ? "Creating…" : "Create note"}</Button>
             </form>
           </Show>
           <Show when={props.mode !== "quick-add"}>
@@ -181,8 +181,8 @@ export function Commander(props: {
               </div>
             </Show>
             <Show when={hits().length}>
-              <div class="sparky-commander__group" role="group" aria-label="Memories">
-                <p class="sparky-commander__heading">Memories</p>
+              <div class="sparky-commander__group" role="group" aria-label="Notes">
+                <p class="sparky-commander__heading">Notes</p>
                 <For each={hits()}>{hit => (
                   <button type="button" class="sparky-commander__row" data-command disabled={busy()} onClick={() => void activate(hit)}>
                     <StickyNote size={16} class="sparky-commander__icon" />
@@ -191,9 +191,9 @@ export function Commander(props: {
                 )}</For>
               </div>
             </Show>
-            <Show when={searching()}><p class="sparky-commander__status" role="status">Searching memories…</p></Show>
+            <Show when={searching()}><p class="sparky-commander__status" role="status">Searching notes…</p></Show>
             <Show when={!commands().length && !hits().length && searched() && !searching()}><p class="sparky-commander__status" role="status">No matches</p></Show>
-            <Show when={!props.live}><div class="px-2 pt-2"><StatusChip tone="down" label="Core offline — memory search unavailable" /></div></Show>
+            <Show when={!props.live}><div class="px-2 pt-2"><StatusChip tone="down" label="Core offline — note search unavailable" /></div></Show>
             <Show when={notice()}><p class="sparky-commander__status" role="status">{notice()}</p></Show>
           </Show>
         </div>

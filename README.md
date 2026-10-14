@@ -46,6 +46,7 @@ That installs Vitals; add `APP=lore` or `APP=sparky` before `bash` for the other
 
 ## Repository
 
+- `apps/web` — Solid studio portfolio; use `pnpm dev:web`, `pnpm build:web`, and `pnpm preview:web`
 - `apps/lore-desktop` — Electron Main, preload bridge, and Solid renderer
 - `packages/features` — product surfaces
 - `packages/frontend` — shared design system, canvas, and state
@@ -59,10 +60,11 @@ That installs Vitals; add `APP=lore` or `APP=sparky` before `bash` for the other
 
 ```bash
 pnpm install
-pnpm dev:desktop
+pnpm dev            # every app (Turborepo): Lore, Sparky, Vitals, web, gallery
+pnpm dev:lore       # or one app: dev:lore | dev:sparky | dev:vitals | dev:web | dev:gallery
 ```
 
-`pnpm dev:desktop` starts the Desktop together with the local core. For standalone core development:
+Each desktop `dev` builds its local core first and starts it with the app. The same `<task>[:<app>]` pattern applies to `build`, `preview`, `typecheck`, and `test`. Dev ports are fixed: Lore 5173, Sparky 5174, Vitals 5175, gallery 5177, web 5178. For standalone core development:
 
 ```bash
 pnpm dev:core
@@ -80,7 +82,7 @@ git diff --check
 
 ## Sparky
 
-Sparky is a local-first memory and reminder app that lives in this monorepo next to Polterware. It reuses the Polterware design system and has its own Go core (`sparky/backend`: SQLite with FTS5, Connect RPC, an MCP server for agents, and the `sparky` CLI), an Electron + Solid desktop (`apps/sparky-desktop`), a native macOS reminders module, and feature packages under `packages/features/sparky-*`. Contracts live in `sparky/schemas`.
+Sparky is a local-first notes and reminders app that lives in this monorepo next to Polterware. It reuses the Polterware design system and has its own Go core (`sparky/backend`: SQLite with FTS5, Connect RPC, an MCP server for agents, and the `sparky` CLI), an Electron + Solid desktop (`apps/sparky-desktop`), a native macOS reminders module, and feature packages under `packages/features/sparky-*`. Contracts live in `sparky/schemas`.
 
 ```bash
 pnpm install

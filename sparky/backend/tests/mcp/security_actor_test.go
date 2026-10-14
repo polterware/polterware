@@ -3,7 +3,7 @@ package mcp_test
 import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"net/http/httptest"
 	"testing"
 )
@@ -18,11 +18,11 @@ func TestMCPAttachmentWritesCarrySessionActor(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer session.Close()
-	m, err := rt.Services.Memories.Create(t.Context(), actor.UI(), memory.Create{Title: "Attachment actor"})
+	m, err := rt.Services.Notes.Create(t.Context(), actor.UI(), note.Create{Title: "Attachment actor"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := session.CallTool(t.Context(), &sdk.CallToolParams{Name: "add_attachments", Arguments: map[string]any{"memoryId": m.ID, "links": []map[string]string{{"url": "https://example.com", "title": "Link"}}}})
+	result, err := session.CallTool(t.Context(), &sdk.CallToolParams{Name: "add_attachments", Arguments: map[string]any{"noteId": m.ID, "links": []map[string]string{{"url": "https://example.com", "title": "Link"}}}})
 	if err != nil || result.IsError {
 		t.Fatalf("tool: %+v %v", result, err)
 	}

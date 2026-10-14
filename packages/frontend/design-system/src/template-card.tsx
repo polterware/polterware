@@ -1,12 +1,12 @@
 import { For, type JSX } from "solid-js";
-import { DitherIconTile, type DitherIconTone } from "./dither-icon";
+import { IconTile, type IconTileTone } from "./icon-tile";
 import "./template-card.css";
 
 export type TemplateCardProps = {
   title: string;
   description: string;
   icon: JSX.Element;
-  tone?: DitherIconTone;
+  tone?: IconTileTone;
   brand?: string | readonly string[];
   index?: number;
   class?: string;
@@ -23,9 +23,9 @@ export function TemplateCard(props: TemplateCardProps) {
       style={{ "animation-delay": `${delayMs()}ms` }}
       onClick={() => props.onSelect()}
     >
-      <DitherIconTile size={28} tone={props.tone ?? "neutral"} brand={props.brand}>
+      <IconTile size={28} tone={props.tone ?? "neutral"} brand={props.brand}>
         {props.icon}
-      </DitherIconTile>
+      </IconTile>
       <div class="grid gap-1">
         <p class="pw-template-card__title">{props.title}</p>
         <p class="pw-template-card__description">{props.description}</p>
@@ -39,7 +39,7 @@ export type TemplateCardGridItem = {
   title: string;
   description: string;
   icon: JSX.Element;
-  tone?: DitherIconTone;
+  tone?: IconTileTone;
   brand?: string | readonly string[];
   onSelect: () => void;
 };

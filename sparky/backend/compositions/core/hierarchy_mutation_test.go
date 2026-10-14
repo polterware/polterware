@@ -5,34 +5,34 @@ import (
 
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/search"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 )
 
-func TestMindDeleteMovesAndReindexesMemoriesAtomically(t *testing.T) {
+func TestSpaceDeleteMovesAndReindexesNotesAtomically(t *testing.T) {
 	for _, rejectAudit := range []bool{false, true} {
 		t.Run(map[bool]string{false: "commit", true: "rollback"}[rejectAudit], func(t *testing.T) {
 			s, audit, mem := mutationFixture(t)
-			svc := mind.NewService(s.Minds(), s.Memories(), audit)
-			parent, err := svc.Create(t.Context(), actor.UI(), mind.Create{Name: "Obsolete"})
+			svc := space.NewService(s.Spaces(), s.Notes(), audit)
+			parent, err := svc.Create(t.Context(), actor.UI(), space.Create{Name: "Obsolete"})
 			if err != nil {
 				t.Fatal(err)
 			}
-			child, err := svc.Create(t.Context(), actor.UI(), mind.Create{Name: "Child", ParentID: &parent.ID})
+			child, err := svc.Create(t.Context(), actor.UI(), space.Create{Name: "Child", ParentID: &parent.ID})
 			if err != nil {
 				t.Fatal(err)
 			}
-			var before []memory.Memory
+			var before []note.Note
 			for _, id := range []string{parent.ID, child.ID} {
-				m, err := mem.Create(t.Context(), actor.UI(), memory.Create{Title: "Retained", MindID: &id})
+				m, err := mem.Create(t.Context(), actor.UI(), note.Create{Title: "Retained", SpaceID: &id})
 				if err != nil {
 					t.Fatal(err)
 				}
 				before = append(before, m)
 			}
-			unrelated, err := mem.Create(t.Context(), actor.UI(), memory.Create{Title: "Inbox"})
+			unrelated, err := mem.Create(t.Context(), actor.UI(), note.Create{Title: "Inbox"})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -43,37 +43,37 @@ func TestMindDeleteMovesAndReindexesMemoriesAtomically(t *testing.T) {
 			}
 			if rejectAudit {
 				audit.Repository = rejectedActivity{audit.Repository}
-				svc = mind.NewService(s.Minds(), s.Memories(), audit)
+				svc = space.NewService(s.Spaces(), s.Notes(), audit)
 			}
 			deleted, err := svc.Delete(t.Context(), actor.UI(), parent.ID, parent.Rev)
 			if rejectAudit && err == nil || !rejectAudit && err != nil {
 				t.Fatalf("delete: %+v %v", deleted, err)
 			}
-			if !rejectAudit && (len(deleted.DeletedMindIDs) != 2 || deleted.MovedMemoryCount != 2) {
+			if !rejectAudit && (len(deleted.DeletedSpaceIDs) != 2 || deleted.MovedNoteCount != 2) {
 				t.Fatal(deleted)
 			}
 			for _, old := range before {
-				got, err := s.Memories().Get(t.Context(), old.ID)
+				got, err := s.Notes().Get(t.Context(), old.ID)
 				if err != nil {
 					t.Fatal(err)
 				}
 				if rejectAudit {
-					if got.MindID == nil || *got.MindID != *old.MindID || got.Rev != old.Rev {
+					if got.SpaceID == nil || *got.SpaceID != *old.SpaceID || got.Rev != old.Rev {
 						t.Fatalf("rollback: %+v", got)
 					}
 				} else {
-					if got.MindID != nil || got.Rev != old.Rev+1 || !got.UpdatedAt.After(old.UpdatedAt) {
-						t.Fatalf("moved memory: %+v", got)
+					if got.SpaceID != nil || got.Rev != old.Rev+1 || !got.UpdatedAt.After(old.UpdatedAt) {
+						t.Fatalf("moved note: %+v", got)
 					}
 					title := "stale"
-					if _, err := mem.Update(t.Context(), actor.UI(), got.ID, old.Rev, memory.Patch{Title: &title}); !fault.IsCode(err, fault.CodeConflict) {
+					if _, err := mem.Update(t.Context(), actor.UI(), got.ID, old.Rev, note.Patch{Title: &title}); !fault.IsCode(err, fault.CodeConflict) {
 						t.Fatal(err)
 					}
 				}
 			}
-			got, err := s.Memories().Get(t.Context(), unrelated.ID)
+			got, err := s.Notes().Get(t.Context(), unrelated.ID)
 			if err != nil || got.Rev != unrelated.Rev || !got.UpdatedAt.Equal(unrelated.UpdatedAt) {
-				t.Fatalf("unrelated memory changed: %+v %v", got, err)
+				t.Fatalf("unrelated note changed: %+v %v", got, err)
 			}
 			hits, err := searchSvc.Search(t.Context(), "Obsolete", search.Filter{})
 			expected := 0
@@ -89,7 +89,7 @@ func TestMindDeleteMovesAndReindexesMemoriesAtomically(t *testing.T) {
 			}
 			deletes := 0
 			for _, event := range page.Events {
-				if event.Entity == "mind" && event.EntityID == parent.ID && event.Op == "delete" {
+				if event.Entity == "space" && event.EntityID == parent.ID && event.Op == "delete" {
 					deletes++
 				}
 			}
@@ -100,7 +100,7 @@ func TestMindDeleteMovesAndReindexesMemoriesAtomically(t *testing.T) {
 	}
 }
 
-func TestTagMergeInvalidatesAffectedMemoryRevisions(t *testing.T) {
+func TestTagMergeInvalidatesAffectedNoteRevisions(t *testing.T) {
 	for _, rejectAudit := range []bool{false, true} {
 		t.Run(map[bool]string{false: "commit", true: "rollback"}[rejectAudit], func(t *testing.T) {
 			s, audit, mem := mutationFixture(t)
@@ -113,9 +113,9 @@ func TestTagMergeInvalidatesAffectedMemoryRevisions(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			var before []memory.Memory
+			var before []note.Note
 			for _, tags := range [][]string{{from.ID}, {from.ID, to.ID}, {to.ID}} {
-				m, err := mem.Create(t.Context(), actor.UI(), memory.Create{Title: "Tagged", TagIDs: tags})
+				m, err := mem.Create(t.Context(), actor.UI(), note.Create{Title: "Tagged", TagIDs: tags})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -129,11 +129,11 @@ func TestTagMergeInvalidatesAffectedMemoryRevisions(t *testing.T) {
 			if rejectAudit && err == nil || !rejectAudit && err != nil {
 				t.Fatalf("merge: %+v %v", merged, err)
 			}
-			if !rejectAudit && merged.MovedMemoryCount != 2 {
+			if !rejectAudit && merged.MovedNoteCount != 2 {
 				t.Fatal(merged)
 			}
 			for i, old := range before {
-				got, err := s.Memories().Get(t.Context(), old.ID)
+				got, err := s.Notes().Get(t.Context(), old.ID)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -142,7 +142,7 @@ func TestTagMergeInvalidatesAffectedMemoryRevisions(t *testing.T) {
 					expected++
 				}
 				if got.Rev != expected {
-					t.Fatalf("memory %d rev=%d want %d", i, got.Rev, expected)
+					t.Fatalf("note %d rev=%d want %d", i, got.Rev, expected)
 				}
 				if !rejectAudit && i < 2 {
 					if !got.UpdatedAt.After(old.UpdatedAt) {
@@ -152,7 +152,7 @@ func TestTagMergeInvalidatesAffectedMemoryRevisions(t *testing.T) {
 						t.Fatalf("stale SetTags: %v", err)
 					}
 				}
-				ids, err := s.Memories().ListTagIDs(t.Context(), old.ID)
+				ids, err := s.Notes().ListTagIDs(t.Context(), old.ID)
 				if err != nil {
 					t.Fatal(err)
 				}

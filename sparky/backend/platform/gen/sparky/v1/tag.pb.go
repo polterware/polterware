@@ -490,7 +490,7 @@ func (*DeleteTagResponse) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_tag_proto_rawDescGZIP(), []int{8}
 }
 
-// MergeTagsRequest moves every memory from source_id onto target_id, then deletes source_id.
+// MergeTagsRequest moves every note from source_id onto target_id, then deletes source_id.
 type MergeTagsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SourceId      string                 `protobuf:"bytes,1,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
@@ -544,11 +544,11 @@ func (x *MergeTagsRequest) GetTargetId() string {
 }
 
 type MergeTagsResponse struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Target           *Tag                   `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	MovedMemoryCount int32                  `protobuf:"varint,2,opt,name=moved_memory_count,json=movedMemoryCount,proto3" json:"moved_memory_count,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Target         *Tag                   `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	MovedNoteCount int32                  `protobuf:"varint,2,opt,name=moved_note_count,json=movedNoteCount,proto3" json:"moved_note_count,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *MergeTagsResponse) Reset() {
@@ -588,9 +588,9 @@ func (x *MergeTagsResponse) GetTarget() *Tag {
 	return nil
 }
 
-func (x *MergeTagsResponse) GetMovedMemoryCount() int32 {
+func (x *MergeTagsResponse) GetMovedNoteCount() int32 {
 	if x != nil {
-		return x.MovedMemoryCount
+		return x.MovedNoteCount
 	}
 	return 0
 }
@@ -636,10 +636,10 @@ const file_sparky_v1_tag_proto_rawDesc = "" +
 	"\x11DeleteTagResponse\"L\n" +
 	"\x10MergeTagsRequest\x12\x1b\n" +
 	"\tsource_id\x18\x01 \x01(\tR\bsourceId\x12\x1b\n" +
-	"\ttarget_id\x18\x02 \x01(\tR\btargetId\"i\n" +
+	"\ttarget_id\x18\x02 \x01(\tR\btargetId\"e\n" +
 	"\x11MergeTagsResponse\x12&\n" +
-	"\x06target\x18\x01 \x01(\v2\x0e.sparky.v1.TagR\x06target\x12,\n" +
-	"\x12moved_memory_count\x18\x02 \x01(\x05R\x10movedMemoryCount2\xe0\x02\n" +
+	"\x06target\x18\x01 \x01(\v2\x0e.sparky.v1.TagR\x06target\x12(\n" +
+	"\x10moved_note_count\x18\x02 \x01(\x05R\x0emovedNoteCount2\xe0\x02\n" +
 	"\n" +
 	"TagService\x12?\n" +
 	"\x04List\x12\x1a.sparky.v1.ListTagsRequest\x1a\x1b.sparky.v1.ListTagsResponse\x12C\n" +

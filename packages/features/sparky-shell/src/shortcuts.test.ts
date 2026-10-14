@@ -13,12 +13,12 @@ it("protects editable fields and IME composition", () => {
   expect(shellShortcut(event("k", { ctrlKey: true }), true)).toBe("commander");
 });
 
-import { memoryShortcut } from "./shortcuts";
-it.each([["Enter", "open"], [" ", "toggle-done"], ["e", "edit-title"], ["p", "pin"]])("delegates memory key %s", (key, expected) => {
-  expect(memoryShortcut(event(key), false)).toBe(expected);
-  expect(memoryShortcut(event(key), true)).toBeUndefined();
+import { noteShortcut } from "./shortcuts";
+it.each([["Enter", "open"], [" ", "toggle-done"], ["e", "edit-title"], ["p", "pin"]])("delegates note key %s", (key, expected) => {
+  expect(noteShortcut(event(key), false)).toBe(expected);
+  expect(noteShortcut(event(key), true)).toBeUndefined();
 });
 it("delegates deletion to the collection owner for confirmation", () => {
-  expect(memoryShortcut(event("Backspace", { metaKey: true }), false)).toBe("delete");
-  expect(memoryShortcut(event("Backspace"), false)).toBeUndefined();
+  expect(noteShortcut(event("Backspace", { metaKey: true }), false)).toBe("delete");
+  expect(noteShortcut(event("Backspace"), false)).toBeUndefined();
 });

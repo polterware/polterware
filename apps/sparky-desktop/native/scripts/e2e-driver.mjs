@@ -133,14 +133,14 @@ if (!["authorized", "provisional"].includes(status.permission)) {
 const now = Date.now();
 const ids = [];
 for (let i = 0; i < 200; i++) {
-  const created = await connect("/sparky.v1.MemoryService/Create", {
+  const created = await connect("/sparky.v1.NoteService/Create", {
     title: `${titlePrefix} budget-${String(i).padStart(3, "0")}`,
-    note: `${secret} extra markdown that must never appear in notify.log ${"x".repeat(80)}`,
+    content: `${secret} extra markdown that must never appear in notify.log ${"x".repeat(80)}`,
   });
-  const id = created.memory.id;
+  const id = created.note.id;
   ids.push(id);
   await connect("/sparky.v1.ScheduleService/Set", {
-    schedule: { memoryId: id, active: true, fireAt: new Date(now + (i + 30) * 60_000).toISOString(), tz: "UTC" },
+    schedule: { noteId: id, active: true, fireAt: new Date(now + (i + 30) * 60_000).toISOString(), tz: "UTC" },
   });
 }
 await waitQuiet();
@@ -151,30 +151,30 @@ if (armed > 60) fail(`armed ${armed} exceeds Budget 60`);
 if (plan.items.some((item) => /:(?:repeat|wd\d+)$/.test(item.id))) fail("Plan serialized a native repeat as a one-shot");
 console.log(`budget pass: planned=${plan.items.length} armed=${armed}`);
 
-const daily = await connect("/sparky.v1.MemoryService/Create", { title: `${titlePrefix} open-ended-daily`, note: secret });
+const daily = await connect("/sparky.v1.NoteService/Create", { title: `${titlePrefix} open-ended-daily`, content: secret });
 await connect("/sparky.v1.ScheduleService/Set", {
-  schedule: { memoryId: daily.memory.id, active: true, fireAt: new Date(now - 3600_000).toISOString(), tz: "UTC", freq: "daily", every: 1 },
+  schedule: { noteId: daily.note.id, active: true, fireAt: new Date(now - 3600_000).toISOString(), tz: "UTC", freq: "daily", every: 1 },
 });
-const bounded = await connect("/sparky.v1.MemoryService/Create", { title: `${titlePrefix} bounded-daily`, note: secret });
+const bounded = await connect("/sparky.v1.NoteService/Create", { title: `${titlePrefix} bounded-daily`, content: secret });
 await connect("/sparky.v1.ScheduleService/Set", {
   schedule: {
-    memoryId: bounded.memory.id, active: true, fireAt: new Date(now + 120_000).toISOString(),
+    noteId: bounded.note.id, active: true, fireAt: new Date(now + 120_000).toISOString(),
     tz: "UTC", freq: "daily", every: 1, endType: "until", untilAt: new Date(now + 3 * 86400_000).toISOString(),
   },
 });
 await waitQuiet();
 const afterRepeat = await connect("/sparky.v1.ReminderService/Plan", { now: new Date().toISOString(), budget: 60 });
 if (afterRepeat.items.some((item) => /:(?:repeat|wd\d+)$/.test(item.id))) fail("open-ended daily leaked as a one-shot");
-if (afterRepeat.items.some((item) => item.memoryId === daily.memory.id)) fail("open-ended daily armed as a one-shot");
-if (!afterRepeat.items.some((item) => item.memoryId === bounded.memory.id && /:\d+$/.test(item.id))) {
+if (afterRepeat.items.some((item) => item.noteId === daily.note.id)) fail("open-ended daily armed as a one-shot");
+if (!afterRepeat.items.some((item) => item.noteId === bounded.note.id && /:\d+$/.test(item.id))) {
   fail("bounded daily did not arm as one-shot occurrences");
 }
-console.log(`repeat gap pass: open-ended omitted, bounded one-shots=${afterRepeat.items.filter((item) => item.memoryId === bounded.memory.id).length}`);
+console.log(`repeat gap pass: open-ended omitted, bounded one-shots=${afterRepeat.items.filter((item) => item.noteId === bounded.note.id).length}`);
 
 await waitQuiet();
 const editedAt = Date.now();
 await connect("/sparky.v1.ScheduleService/Set", {
-  schedule: { memoryId: ids[0], active: true, fireAt: new Date(now + 90_000).toISOString(), tz: "UTC" },
+  schedule: { noteId: ids[0], active: true, fireAt: new Date(now + 90_000).toISOString(), tz: "UTC" },
 });
 await waitFor(() => {
   const row = lastRefresh("change");
@@ -188,12 +188,12 @@ writeFileSync(hookPath, "timezone");
 await waitFor(() => lastRefresh("timezone"), 3_000, "timezone hook did not re-plan");
 console.log("timezone re-plan pass");
 
-const soon = await connect("/sparky.v1.MemoryService/Create", { title: `${titlePrefix} fire-closed`, note: secret });
+const soon = await connect("/sparky.v1.NoteService/Create", { title: `${titlePrefix} fire-closed`, content: secret });
 const fireAt = new Date(Date.now() + 8_000).toISOString();
 await connect("/sparky.v1.ScheduleService/Set", {
-  schedule: { memoryId: soon.memory.id, active: true, fireAt, tz: "UTC" },
+  schedule: { noteId: soon.note.id, active: true, fireAt, tz: "UTC" },
 });
-await waitFor(() => lastRefresh("change") && Date.parse(lastRefresh("change").at) >= Date.parse(soon.memory.createdAt || 0), 5_000, "soon one-shot was not armed");
+await waitFor(() => lastRefresh("change") && Date.parse(lastRefresh("change").at) >= Date.parse(soon.note.createdAt || 0), 5_000, "soon one-shot was not armed");
 const logText = readFileSync(logPath, "utf8");
 if (logText.includes(secret)) fail("notify.log contains note content");
 if (/Bearer |core\.json/i.test(logText)) fail("notify.log contains secrets");

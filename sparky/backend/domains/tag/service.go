@@ -103,7 +103,7 @@ func (s *service) Merge(ctx context.Context, a actor.Actor, source, target strin
 		if e != nil {
 			return e
 		}
-		out.MovedMemoryCount, e = s.repo.Retarget(ctx, source, target)
+		out.MovedNoteCount, e = s.repo.Retarget(ctx, source, target)
 		if e != nil {
 			return e
 		}

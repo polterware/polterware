@@ -1,0 +1,45 @@
+{
+  "name": "update_space",
+  "description": "Patch a space by id or name. null clears parent, color, icon.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "newName": {
+        "type": "string"
+      },
+      "parent": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "color": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "icon": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "sortOrder": {
+        "type": "integer"
+      },
+      "expectedRev": {
+        "type": "integer"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object"
+  }
+}

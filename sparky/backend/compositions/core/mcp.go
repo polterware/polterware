@@ -40,16 +40,16 @@ func (p mcpPlaces) Clear(ctx context.Context, who actor.Actor, id string) error 
 
 type mcpSchedules struct{ ScheduleUseCases }
 
-func (s mcpSchedules) ListOccurrences(ctx context.Context, from, to time.Time, mindID *string, includeCompleted bool, limit int) ([]schedule.Occurrence, error) {
-	return s.ScheduleUseCases.ListOccurrences(ctx, OccurrenceQuery{From: from, To: to, MindID: mindID, IncludeCompleted: includeCompleted, Limit: limit})
+func (s mcpSchedules) ListOccurrences(ctx context.Context, from, to time.Time, spaceID *string, includeCompleted bool, limit int) ([]schedule.Occurrence, error) {
+	return s.ScheduleUseCases.ListOccurrences(ctx, OccurrenceQuery{From: from, To: to, SpaceID: spaceID, IncludeCompleted: includeCompleted, Limit: limit})
 }
 
 func (s mcpSchedules) Set(ctx context.Context, who actor.Actor, in schedule.Schedule) (schedule.Schedule, error) {
 	return s.ScheduleUseCases.Set(ctx, who, in)
 }
 
-func (s mcpSchedules) Clear(ctx context.Context, who actor.Actor, memoryID string) error {
-	return s.ScheduleUseCases.Clear(ctx, who, memoryID)
+func (s mcpSchedules) Clear(ctx context.Context, who actor.Actor, noteID string) error {
+	return s.ScheduleUseCases.Clear(ctx, who, noteID)
 }
 
 func (s mcpSchedules) Preview(ctx context.Context, in schedule.Schedule, limit int) ([]time.Time, string, error) {
@@ -64,7 +64,7 @@ func bindMCP(services Services, token string, port int, enabled bool, version st
 		WithActor: func(ctx context.Context, who actor.Actor) context.Context {
 			return context.WithValue(ctx, actorKey{}, who)
 		},
-		Version: version, Memories: services.Memories, Minds: services.Minds, Tags: services.Tags,
+		Version: version, Notes: services.Notes, Spaces: services.Spaces, Tags: services.Tags,
 		Activity: services.Activity, Review: services.Review, Search: services.Search,
 		Attachments: services.Attachments, Settings: services.Settings,
 	}

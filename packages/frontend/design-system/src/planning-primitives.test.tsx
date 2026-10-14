@@ -23,7 +23,7 @@ afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.bo
 describe("TreeView", () => {
   const nodes = [{ id: "work", label: "Work", children: [{ id: "ideas", label: "Ideas" }] }, { id: "personal", label: "Personal" }];
   it("expands, roves focus and selects by keyboard in uncontrolled mode", async () => {
-    const host = mount(() => <TreeView label="Minds" nodes={nodes} defaultExpandedValue={["work"]} />);
+    const host = mount(() => <TreeView label="Spaces" nodes={nodes} defaultExpandedValue={["work"]} />);
     const work = host.querySelector<HTMLElement>('[data-part="branch-control"]')!;
     expect(work.getAttribute("data-state")).toBe("open");
     work.focus();
@@ -37,7 +37,7 @@ describe("TreeView", () => {
   });
   it("reports controlled selection and retains hierarchy with reduced motion", async () => {
     vi.stubGlobal("matchMedia", () => ({ matches: true })); const change = vi.fn();
-    const host = mount(() => <TreeView label="Minds" nodes={nodes} selectedValue={["personal"]} onSelectionChange={change} defaultExpandedValue={["work"]} />);
+    const host = mount(() => <TreeView label="Spaces" nodes={nodes} selectedValue={["personal"]} onSelectionChange={change} defaultExpandedValue={["work"]} />);
     const ideas = Array.from(host.querySelectorAll<HTMLElement>('[data-part="item"]')).find(item => item.textContent === "Ideas")!;
     ideas.click(); await vi.waitFor(() => expect(change).toHaveBeenCalledWith(expect.objectContaining({ selectedValue: ["ideas"] })));
     expect(ideas.getAttribute("aria-selected")).toBe("false");

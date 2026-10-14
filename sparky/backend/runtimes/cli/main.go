@@ -31,7 +31,7 @@ func run(ctx context.Context, args []string, out, stderr io.Writer) int {
 	db := fs.String("db", defaultPath, "SQLite database path")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: sparky [-db path] <command> [options]")
-		fmt.Fprintln(stderr, "Commands: serve mcp status doctor add list show done rm mind tag search today agenda review export backup completion")
+		fmt.Fprintln(stderr, "Commands: serve mcp status doctor add list show done rm space tag search today agenda review export backup completion")
 		fmt.Fprintln(stderr, "mcp config <claude|cursor|claude-desktop> prints client snippets")
 		fs.PrintDefaults()
 	}
@@ -74,8 +74,8 @@ func run(ctx context.Context, args []string, out, stderr io.Writer) int {
 		err = runDone(ctx, path, args[1:], out, stderr)
 	case "rm":
 		err = runRm(ctx, path, args[1:], out, stderr)
-	case "mind":
-		err = runMind(ctx, path, args[1:], out, stderr)
+	case "space":
+		err = runSpace(ctx, path, args[1:], out, stderr)
 	case "tag":
 		err = runTag(ctx, path, args[1:], out, stderr)
 	case "search":

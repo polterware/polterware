@@ -4,7 +4,7 @@ import { animate, motionValue, type AnimationPlaybackControls } from "motion";
 import { Button } from "./button";
 import { prefersReducedMotion } from "./reduced-motion";
 import { spring } from "./springs";
-import { CollapseIcon, ExpandIcon, X } from "./hugeicons";
+import { ChevronDown, CollapseIcon, ExpandIcon, X } from "./hugeicons";
 import { PanelInteractionContext, panelOwnerAt, rememberPanelInteraction, registerPanelInteraction, type PanelInteractionOwner } from "./panel-interaction";
 import { DetailPanelLinkedEntities } from "./detail-panel-linked-entities";
 import { DetailPanelMenuItem } from "./detail-panel-menu";
@@ -36,6 +36,8 @@ export type DetailPanelRootProps = {
   open: boolean;
   expanded: boolean;
   available?: boolean;
+  /** Shows the expand/restore button in the header (default true). */
+  expandable?: boolean;
   activeEntityId?: string | null;
   onOpenChange: (open: boolean) => void;
   onExpandedChange: (expanded: boolean) => void;
@@ -70,6 +72,12 @@ export type DetailPanelSectionProps = {
   title?: JSX.Element;
   /** Right-aligned element on the section title row. */
   aside?: JSX.Element;
+  /** Renders the section as a card whose body folds behind its title. */
+  collapsible?: boolean;
+  /** Leading icon of a collapsible section. */
+  icon?: JSX.Element;
+  /** Initial state of a collapsible section (default open). */
+  defaultOpen?: boolean;
 };
 
 type DetailPanelContextValue = {
@@ -410,9 +418,11 @@ function DetailPanelRoot(props: DetailPanelRootProps) {
             <Button variant="icon" aria-label="Close details" title={`Close details (${closeShortcut()})`} onClick={() => close()}>
               <X size={14} />
             </Button>
-            <Button variant="icon" aria-label={expandLabel()} aria-pressed={expanded()} title={`${expandLabel()} (${expandShortcut()})`} onClick={toggleExpanded}>
-              <Show when={expanded()} fallback={<ExpandIcon size={14} />}><CollapseIcon size={14} /></Show>
-            </Button>
+            <Show when={props.expandable !== false}>
+              <Button variant="icon" aria-label={expandLabel()} aria-pressed={expanded()} title={`${expandLabel()} (${expandShortcut()})`} onClick={toggleExpanded}>
+                <Show when={expanded()} fallback={<ExpandIcon size={14} />}><CollapseIcon size={14} /></Show>
+              </Button>
+            </Show>
           </header>
           <div ref={setDetailHost} class="pw-detail-panel__surface" />
         </section>
@@ -464,7 +474,7 @@ function DetailPanelBody(props: DetailPanelBodyProps) {
   const layout = () => props.layout ?? "record";
   return (
     <div
-      class={`pw-detail-panel__body ${props.class ?? ""}`}
+      class={`pw-detail-panel__body pw-scroll-fade ${props.class ?? ""}`}
       data-layout={layout()}
     >
       <Show when={layout() === "record"} fallback={props.children}>
@@ -474,35 +484,123 @@ function DetailPanelBody(props: DetailPanelBodyProps) {
   );
 }
 
-function DetailPanelMain(props: { children: JSX.Element; class?: string }) {
+export type DetailPanelMainProps = {
+  children: JSX.Element;
+  class?: string;
+};
+
+function DetailPanelMain(props: DetailPanelMainProps) {
   return (
     <div class={`pw-detail-panel__main ${props.class ?? ""}`}>{props.children}</div>
   );
 }
 
-function DetailPanelRail(props: { children: JSX.Element; class?: string }) {
+export type DetailPanelRailProps = {
+  children: JSX.Element;
+  class?: string;
+  "aria-label"?: string;
+};
+
+function DetailPanelRail(props: DetailPanelRailProps) {
   return (
-    <aside class={`pw-detail-panel__rail ${props.class ?? ""}`}>{props.children}</aside>
+    <aside aria-label={props["aria-label"]} class={`pw-detail-panel__rail ${props.class ?? ""}`}>{props.children}</aside>
   );
 }
 
 function DetailPanelSection(props: DetailPanelSectionProps) {
   const titleId = createUniqueId();
+  const bodyId = createUniqueId();
+  const [open, setOpen] = createSignal(props.defaultOpen !== false);
   return (
-    <section
-      class={`pw-detail-panel__section ${props.class ?? ""}`}
-      aria-labelledby={props.title ? titleId : undefined}
-    >
-      <Show when={props.title || props.aside}>
+    <Show when={props.collapsible} fallback={
+      <section
+        class={`pw-detail-panel__section ${props.class ?? ""}`}
+        aria-labelledby={props.title ? titleId : undefined}
+      >
+        <Show when={props.title || props.aside}>
+          <div class="pw-detail-panel__section-heading">
+            <h3 id={titleId} class="pw-detail-panel__section-title">
+              {props.title}
+            </h3>
+            <Show when={props.aside}>{props.aside}</Show>
+          </div>
+        </Show>
+        {props.children}
+      </section>
+    }>
+      <section class={`pw-detail-panel__section pw-detail-panel__section--card ${props.class ?? ""}`} aria-labelledby={titleId} data-open={open()}>
         <div class="pw-detail-panel__section-heading">
-          <h3 id={titleId} class="pw-detail-panel__section-title">
-            {props.title}
-          </h3>
+          <button type="button" class="pw-detail-panel__section-toggle" aria-expanded={open()} aria-controls={bodyId} onClick={() => setOpen(value => !value)}>
+            <Show when={props.icon}><span class="pw-detail-panel__section-icon" aria-hidden>{props.icon}</span></Show>
+            <h3 id={titleId} class="pw-detail-panel__section-title">{props.title}</h3>
+            <ChevronDown size={14} class="pw-detail-panel__section-chevron" aria-hidden />
+          </button>
           <Show when={props.aside}>{props.aside}</Show>
         </div>
-      </Show>
-      {props.children}
+        <DetailPanelSectionBody id={bodyId} open={open()}>{props.children}</DetailPanelSectionBody>
+      </section>
+    </Show>
+  );
+}
+
+/** Titled, collapsible block for page content (not the floating panel); shares the animated body. */
+export function CollapsibleSection(props: { title: string; icon?: JSX.Element; defaultOpen?: boolean; class?: string; children: JSX.Element }) {
+  const [open, setOpen] = createSignal(props.defaultOpen !== false);
+  const titleId = createUniqueId();
+  const bodyId = createUniqueId();
+  return (
+    <section aria-labelledby={titleId} data-open={open()} class={`pw-detail-panel__section pw-detail-panel__section--card !border-0 ${props.class ?? ""}`}>
+      <button type="button" class="pw-detail-panel__section-toggle !w-auto !flex-none !py-1 [[data-open=true]_&]:!pb-4" aria-expanded={open()} aria-controls={bodyId} onClick={() => setOpen(value => !value)}>
+        <Show when={props.icon}><span class="pw-detail-panel__section-icon" aria-hidden>{props.icon}</span></Show>
+        <h3 id={titleId} class="pw-detail-panel__section-title">{props.title}</h3>
+        <ChevronDown size={14} class="pw-detail-panel__section-chevron" aria-hidden />
+      </button>
+      <DetailPanelSectionBody id={bodyId} open={open()}>{props.children}</DetailPanelSectionBody>
     </section>
+  );
+}
+
+/** Collapses to a measured pixel height with the shared springs; snaps on first paint and under reduced motion. */
+function DetailPanelSectionBody(props: { id: string; open: boolean; children: JSX.Element }) {
+  let clip: HTMLDivElement | undefined;
+  let inner: HTMLDivElement | undefined;
+  let controls: AnimationPlaybackControls | undefined;
+  let first = true;
+  const initiallyOpen = untrack(() => props.open);
+  createEffect(() => {
+    const open = props.open;
+    if (!clip || !inner) return;
+    controls?.stop();
+    const settle = () => {
+      if (!clip) return;
+      clip.style.height = "";
+      clip.style.opacity = "";
+      clip.style.overflow = "";
+      clip.hidden = !open;
+    };
+    if (first || prefersReducedMotion()) { first = false; settle(); return; }
+    clip.hidden = false;
+    clip.style.overflow = "hidden";
+    const from = clip.offsetHeight;
+    const to = open ? inner.offsetHeight : 0;
+    const paint = (value: number) => {
+      if (!clip) return;
+      clip.style.height = `${value}px`;
+      const span = Math.max(1, open ? to : from);
+      clip.style.opacity = String(Math.min(1, Math.max(0, value / span)));
+    };
+    paint(from);
+    controls = animate(from, to, {
+      ...(open ? spring.moderate : { type: "tween" as const, ...spring.moderate.exit }),
+      onUpdate: paint,
+      onComplete: settle,
+    });
+  });
+  onCleanup(() => controls?.stop());
+  return (
+    <div ref={clip} id={props.id} class="pw-detail-panel__section-clip" hidden={!initiallyOpen}>
+      <div ref={inner} class="pw-detail-panel__section-body">{props.children}</div>
+    </div>
   );
 }
 

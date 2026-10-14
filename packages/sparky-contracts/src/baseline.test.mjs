@@ -14,22 +14,22 @@ describe("SQL baseline", () => {
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
 
     const now = "2026-10-03T21:30:00.000Z";
-    db.prepare("INSERT INTO minds (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)").run(
+    db.prepare("INSERT INTO spaces (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)").run(
       "01ARZ3NDEKTSV4RRFFQ69G5FAV",
       "Work",
       now,
       now,
     );
-    db.prepare("INSERT INTO memories (id, mind_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(
+    db.prepare("INSERT INTO notes (id, space_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(
       "01ARZ3NDEKTSV4RRFFQ69G5FAW",
       "01ARZ3NDEKTSV4RRFFQ69G5FAV",
       "Buy milk",
       now,
       now,
     );
-    db.prepare("DELETE FROM minds WHERE id = ?").run("01ARZ3NDEKTSV4RRFFQ69G5FAV");
-    const memory = db.prepare("SELECT mind_id FROM memories WHERE id = ?").get("01ARZ3NDEKTSV4RRFFQ69G5FAW");
-    expect(memory.mind_id).toBeNull();
+    db.prepare("DELETE FROM spaces WHERE id = ?").run("01ARZ3NDEKTSV4RRFFQ69G5FAV");
+    const note = db.prepare("SELECT space_id FROM notes WHERE id = ?").get("01ARZ3NDEKTSV4RRFFQ69G5FAW");
+    expect(note.space_id).toBeNull();
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 });

@@ -256,7 +256,7 @@ else {
   const reminders = installReminders({
     dataDirectory: data,
     ensureCore: async () => { await reconnect(); return getClients(); },
-    openMemory: url => {
+    openNote: url => {
       suppressWindow = false;
       app.setActivationPolicy("regular");
       reminders.setBackgroundLaunch(false);

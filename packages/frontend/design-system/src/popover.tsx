@@ -41,6 +41,8 @@ export type PopoverProps = {
     | "left-end"
     | "left";
   gutter?: number;
+  /** Move focus into the popover when it opens (default true). Off keeps typing in the anchor. */
+  autoFocus?: boolean;
   /** Extra portalled elements that belong to this popover interaction tree. */
   persistentElements?: Array<() => HTMLElement | null>;
   /** Receives the mounted Ark content element. */
@@ -82,11 +84,18 @@ export function Popover(props: PopoverProps) {
         if (!details.open) props.onClose();
       }}
       modal={false}
+      autoFocus={props.autoFocus}
       portalled
       lazyMount
       unmountOnExit
       closeOnEscape
       closeOnInteractOutside
+      onInteractOutside={(event) => {
+        // Menus, selects and popovers opened from inside this popover are portalled
+        // elsewhere; interacting with them is not an outside dismissal.
+        const target = event.target as Element | null;
+        if (target?.closest?.('.pw-dropdown-positioner, [data-scope="menu"], [data-scope="select"], [data-scope="popover"], [data-scope="date-picker"]')) event.preventDefault();
+      }}
       persistentElements={[
         resolvePersistentAnchor,
         ...(props.persistentElements ?? []),

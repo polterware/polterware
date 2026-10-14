@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/platform/changes"
 )
 
@@ -22,7 +22,7 @@ func TestChangesAfterCommitNeverOnRollback(t *testing.T) {
 	if e, err := watch.Next(ctx); err != nil || !e.Snapshot {
 		t.Fatalf("snapshot: %+v %v", e, err)
 	}
-	if err := s.Memories().Insert(ctx, memory.Memory{ID: "m1", Title: "one", Status: memory.StatusActive, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
+	if err := s.Notes().Insert(ctx, note.Note{ID: "m1", Title: "one", Status: note.StatusActive, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
 		t.Fatal(err)
 	}
 	wait, cancel := context.WithTimeout(ctx, time.Second)
@@ -31,12 +31,12 @@ func TestChangesAfterCommitNeverOnRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(e.Changes) != 1 || e.Changes[0].Entity != "memory" || e.Changes[0].ID != "m1" || e.Changes[0].Op != "create" {
+	if len(e.Changes) != 1 || e.Changes[0].Entity != "note" || e.Changes[0].ID != "m1" || e.Changes[0].Op != "create" {
 		t.Fatalf("commit event: %+v", e)
 	}
 	boom := errors.New("boom")
 	err = s.Within(ctx, func(ctx context.Context) error {
-		if err := s.Memories().Insert(ctx, memory.Memory{ID: "m2", Title: "two", Status: memory.StatusActive, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
+		if err := s.Notes().Insert(ctx, note.Note{ID: "m2", Title: "two", Status: note.StatusActive, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
 			return err
 		}
 		return boom
@@ -55,19 +55,19 @@ func TestWALReaderDoesNotBlock(t *testing.T) {
 	s := openStore(t)
 	ctx := context.Background()
 	now := time.Date(2026, 10, 3, 21, 30, 0, 0, time.UTC)
-	if err := s.Memories().Insert(ctx, memory.Memory{ID: "seed", Title: "seed", Status: memory.StatusActive, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
+	if err := s.Notes().Insert(ctx, note.Note{ID: "seed", Title: "seed", Status: note.StatusActive, CreatedAt: now, UpdatedAt: now, Rev: 1}); err != nil {
 		t.Fatal(err)
 	}
 	tx, err := s.Handle().Writer().BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO memories(id, title, note, status, created_at, updated_at, rev) VALUES ('held', 'held', '', 'active', ?, ?, 1)`,
+	if _, err := tx.ExecContext(ctx, `INSERT INTO notes(id, title, content, status, created_at, updated_at, rev) VALUES ('held', 'held', '', 'active', ?, ?, 1)`,
 		formatTime(now), formatTime(now)); err != nil {
 		t.Fatal(err)
 	}
 	started := time.Now()
-	page, err := s.Memories().List(ctx, memory.ListFilter{Limit: 10})
+	page, err := s.Notes().List(ctx, note.ListFilter{Limit: 10})
 	if err != nil {
 		t.Fatalf("reader during write: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestWALReaderDoesNotBlock(t *testing.T) {
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	page, err = s.Memories().List(ctx, memory.ListFilter{Limit: 10})
+	page, err = s.Notes().List(ctx, note.ListFilter{Limit: 10})
 	if err != nil {
 		t.Fatal(err)
 	}

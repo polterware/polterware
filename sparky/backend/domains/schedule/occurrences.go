@@ -8,19 +8,19 @@ import (
 	"time"
 )
 
-// OccurrenceQuery is a pure calendar query. MindIDs is the already-resolved
+// OccurrenceQuery is a pure calendar query. SpaceIDs is the already-resolved
 // descendant scope (the core owns hierarchy traversal); TagIDs uses AND matching.
-// PerMemoryLimit defaults to 256 and caps examined occurrences per memory before
+// PerNoteLimit defaults to 256 and caps examined occurrences per note before
 // completion filtering. Dense series return their earliest prefix in the range,
 // never an eager full expansion. Narrow the range to see later occurrences.
 type OccurrenceQuery struct {
 	From, To, Now    time.Time
-	MindID           *string
-	MindIDs          []string
+	SpaceID          *string
+	SpaceIDs         []string
 	TagIDs           []string
 	IncludeCompleted bool
 	Limit            int
-	PerMemoryLimit   int
+	PerNoteLimit     int
 	AllDayTime       string
 }
 
@@ -28,11 +28,11 @@ func matches(subject PlanSubject, q OccurrenceQuery) bool {
 	if subject.ScheduleInactive {
 		return false
 	}
-	if q.MindID != nil || len(q.MindIDs) != 0 {
-		if subject.MindID == nil {
+	if q.SpaceID != nil || len(q.SpaceIDs) != 0 {
+		if subject.SpaceID == nil {
 			return false
 		}
-		if (q.MindID == nil || *subject.MindID != *q.MindID) && !slices.Contains(q.MindIDs, *subject.MindID) {
+		if (q.SpaceID == nil || *subject.SpaceID != *q.SpaceID) && !slices.Contains(q.SpaceIDs, *subject.SpaceID) {
 			return false
 		}
 	}
@@ -46,7 +46,7 @@ func matches(subject PlanSubject, q OccurrenceQuery) bool {
 
 func occurrenceLess(a, b Occurrence) bool {
 	if a.OccurrenceAt.Equal(b.OccurrenceAt) {
-		return a.MemoryID < b.MemoryID
+		return a.NoteID < b.NoteID
 	}
 	return a.OccurrenceAt.Before(b.OccurrenceAt)
 }
@@ -67,7 +67,7 @@ func (h *occurrenceHeap) Pop() any {
 
 // ListOccurrences returns globally ordered occurrences in [From,To), completion
 // keyed by exact instants, and overdue derived from explicit Now and FireAt.
-// Its per-memory expansion cap is separate from the global returned-item limit.
+// Its per-note expansion cap is separate from the global returned-item limit.
 func ListOccurrences(subjects []PlanSubject, q OccurrenceQuery) ([]Occurrence, error) {
 	if q.Now.IsZero() {
 		return nil, invalid("now", "an explicit instant is required for overdue state")
@@ -75,14 +75,14 @@ func ListOccurrences(subjects []PlanSubject, q OccurrenceQuery) ([]Occurrence, e
 	if err := checkRange(q.From, q.To); err != nil {
 		return nil, err
 	}
-	if q.PerMemoryLimit == 0 {
-		q.PerMemoryLimit = DefaultPerMemoryLimit
+	if q.PerNoteLimit == 0 {
+		q.PerNoteLimit = DefaultPerNoteLimit
 	}
 	if q.Limit == 0 {
 		q.Limit = MaxOccurrences
 	}
-	if q.PerMemoryLimit < 1 || q.PerMemoryLimit > MaxOccurrences {
-		return nil, invalid("per_memory_limit", "must be between 1 and 10000")
+	if q.PerNoteLimit < 1 || q.PerNoteLimit > MaxOccurrences {
+		return nil, invalid("per_note_limit", "must be between 1 and 10000")
 	}
 	if q.Limit < 1 || q.Limit > MaxOccurrences {
 		return nil, invalid("limit", "must be between 1 and 10000")
@@ -91,7 +91,7 @@ func ListOccurrences(subjects []PlanSubject, q OccurrenceQuery) ([]Occurrence, e
 	if err != nil {
 		return nil, err
 	}
-	// Keep at most the global limit, rather than allocating memories*cap results.
+	// Keep at most the global limit, rather than allocating notes*cap results.
 	items := make(occurrenceHeap, 0, min(q.Limit, 64))
 	for _, subject := range subjects {
 		if !matches(subject, q) {
@@ -99,14 +99,14 @@ func ListOccurrences(subjects []PlanSubject, q OccurrenceQuery) ([]Occurrence, e
 		}
 		s, err := prepare(subject.Rule)
 		if err != nil {
-			return nil, fmt.Errorf("memory %s: %w", subject.MemoryID, err)
+			return nil, fmt.Errorf("note %s: %w", subject.NoteID, err)
 		}
 		if err := subject.Rule.checkRange(q.From, q.To); err != nil {
-			return nil, fmt.Errorf("memory %s: %w", subject.MemoryID, err)
+			return nil, fmt.Errorf("note %s: %w", subject.NoteID, err)
 		}
 		c := cursor{s: s, k: s.seek(q.From)}
 		completions := completionSet(subject.CompletedAt)
-		for examined := 0; examined < q.PerMemoryLimit; examined++ {
+		for examined := 0; examined < q.PerNoteLimit; examined++ {
 			at, ok := c.next()
 			if !ok || !at.Before(q.To) {
 				break
@@ -116,8 +116,8 @@ func ListOccurrences(subjects []PlanSubject, q OccurrenceQuery) ([]Occurrence, e
 				continue
 			}
 			fire := fireTime(at, subject.Rule, hour, minute)
-			item := Occurrence{MemoryID: subject.MemoryID, Title: subject.Title, OccurrenceAt: at, FireAt: fire,
-				Completed: done, Overdue: !done && fire.Before(q.Now), AllDay: subject.Rule.AllDay, MindID: subject.MindID, TZ: subject.Rule.TZ.String()}
+			item := Occurrence{NoteID: subject.NoteID, Title: subject.Title, OccurrenceAt: at, FireAt: fire,
+				Completed: done, Overdue: !done && fire.Before(q.Now), AllDay: subject.Rule.AllDay, SpaceID: subject.SpaceID, TZ: subject.Rule.TZ.String()}
 			if len(items) < q.Limit {
 				heap.Push(&items, item)
 			} else {

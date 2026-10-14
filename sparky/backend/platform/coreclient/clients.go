@@ -15,8 +15,8 @@ const ClientHeader = "Sparky-Client"
 
 type Clients struct {
 	Health      rpc.HealthServiceClient
-	Mind        rpc.MindServiceClient
-	Memory      rpc.MemoryServiceClient
+	Space       rpc.SpaceServiceClient
+	Note        rpc.NoteServiceClient
 	Tag         rpc.TagServiceClient
 	Focus       rpc.FocusServiceClient
 	Review      rpc.ReviewServiceClient
@@ -45,8 +45,8 @@ func NewWithHTTP(state runstate.Core, client string, httpClient connect.HTTPClie
 	options := connect.WithInterceptors(headers{token: state.Token, client: client})
 	return Clients{
 		Health:      rpc.NewHealthServiceClient(httpClient, state.Endpoint, options),
-		Mind:        rpc.NewMindServiceClient(httpClient, state.Endpoint, options),
-		Memory:      rpc.NewMemoryServiceClient(httpClient, state.Endpoint, options),
+		Space:       rpc.NewSpaceServiceClient(httpClient, state.Endpoint, options),
+		Note:        rpc.NewNoteServiceClient(httpClient, state.Endpoint, options),
 		Tag:         rpc.NewTagServiceClient(httpClient, state.Endpoint, options),
 		Focus:       rpc.NewFocusServiceClient(httpClient, state.Endpoint, options),
 		Review:      rpc.NewReviewServiceClient(httpClient, state.Endpoint, options),

@@ -34,11 +34,11 @@
   --color-text-muted: #8f8f8f;
   --color-text-disabled: #4b4b4b;
 
-  /* Primary CTA — pastel cyan; rare special buttons only (not brand green) */
+  /* Primary accent — pastel cyan; the brand token follows it */
   --color-primary: #8eccc9;
   --color-primary-foreground: var(--color-surface-selected);
 
-  --color-brand: #01dd96;
+  --color-brand: var(--color-primary);
 
   --color-danger: #e46666;
   --color-warning: #d8a85d;
@@ -62,12 +62,12 @@
   --color-heatmap-4: #01dd96;
   --color-chart-grid: var(--color-border-default);
 
-  /* Dither identity tiles — two light colors + dark marks (never black gaps / text-primary). */
-  --color-dither-accent-neutral: #a8a8a8;
-  --color-dither-icon-base: #f4f4f4;
-  --color-dither-icon-edge: #d0d0d0;
-  --color-dither-icon-mark: #121212;
-  --color-dither-icon-mark-dimmed: #3a3a3a;
+  /* Identity icon tiles — light accent chrome + dark marks (never text-primary). */
+  --color-icon-tile-accent-neutral: #a8a8a8;
+  --color-icon-tile-base: #f4f4f4;
+  --color-icon-tile-edge: #d0d0d0;
+  --color-icon-tile-mark: #121212;
+  --color-icon-tile-mark-dimmed: #3a3a3a;
 
   /* Compact semantic status badges — opaque tone pairs. */
   --color-status-success-background: #3d8f74;

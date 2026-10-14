@@ -5,7 +5,7 @@ export const SHELL_ROUTES = [
   { path: "/inbox", title: "Inbox", icon: "Inbox" },
   { path: "/today", title: "Today", icon: "CalendarClock" },
   { path: "/calendar", title: "Calendar", icon: "CalendarClock" },
-  { path: "/minds", title: "Minds", icon: "Folder" },
+  { path: "/spaces", title: "Spaces", icon: "Folder" },
   { path: "/map", title: "Map", icon: "MapPin" },
   { path: "/focus", title: "Focus", icon: "Clock" },
   { path: "/search", title: "Search", icon: "Search" },
@@ -63,7 +63,7 @@ export function deepLinkPath(raw: string): string | null {
     const url = new URL(raw);
     if (url.protocol !== "sparky:") return null;
     const path = normalizePath(`/${url.host}${url.pathname}`);
-    if (/^\/(memory|mind)\/[^/]+$/.test(path) || SHELL_ROUTES.some(route => route.path === path) || path === "/settings") return path;
+    if (/^\/(note|space)\/[^/]+$/.test(path) || SHELL_ROUTES.some(route => route.path === path) || path === "/settings") return path;
     return null;
   } catch { return null; }
 }

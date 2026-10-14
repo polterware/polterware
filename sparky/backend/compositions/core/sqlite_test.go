@@ -133,11 +133,11 @@ func TestSqliteEveryRPCAgainstTempDB(t *testing.T) {
 
 func TestSqliteRevConflictAndConcurrentWriters(t *testing.T) {
 	clients, state, _ := sqliteLoopback(t)
-	created, err := clients.Memory.Create(t.Context(), connect.NewRequest(&v1.CreateMemoryRequest{Title: "initial"}))
+	created, err := clients.Note.Create(t.Context(), connect.NewRequest(&v1.CreateNoteRequest{Title: "initial"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	id, rev := created.Msg.Memory.Id, created.Msg.Memory.Rev
+	id, rev := created.Msg.Note.Id, created.Msg.Note.Rev
 	httpClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
 	other, err := coreclient.NewWithHTTP(state, "desktop", httpClient)
 	if err != nil {
@@ -151,11 +151,11 @@ func TestSqliteRevConflictAndConcurrentWriters(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			title := fmt.Sprintf("writer-%d", i)
-			client := clients.Memory
+			client := clients.Note
 			if i%2 == 0 {
-				client = other.Memory
+				client = other.Note
 			}
-			_, err := client.Update(t.Context(), connect.NewRequest(&v1.UpdateMemoryRequest{Id: id, ExpectedRev: &rev, Title: &title}))
+			_, err := client.Update(t.Context(), connect.NewRequest(&v1.UpdateNoteRequest{Id: id, ExpectedRev: &rev, Title: &title}))
 			results <- err
 		}(i)
 	}
@@ -180,7 +180,7 @@ func TestSqliteRevConflictAndConcurrentWriters(t *testing.T) {
 			t.Fatal(err)
 		}
 		detail := value.(*v1.PreconditionDetail)
-		if detail.Reason != "rev_conflict" || detail.Entity != "memory" || detail.EntityId != id {
+		if detail.Reason != "rev_conflict" || detail.Entity != "note" || detail.EntityId != id {
 			t.Fatalf("conflict detail: %v", detail)
 		}
 	}
@@ -202,7 +202,7 @@ func TestSqliteWatchWriteLatencyReplayAndShutdown(t *testing.T) {
 		t.Fatalf("snapshot: %v", stream.Err())
 	}
 	start := time.Now()
-	created, err := clients.Memory.Create(ctx, connect.NewRequest(&v1.CreateMemoryRequest{Title: "watched"}))
+	created, err := clients.Note.Create(ctx, connect.NewRequest(&v1.CreateNoteRequest{Title: "watched"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func TestSqliteWatchWriteLatencyReplayAndShutdown(t *testing.T) {
 	if time.Since(start) > 100*time.Millisecond {
 		t.Fatalf("watch delivery took %s", time.Since(start))
 	}
-	if stream.Msg().Snapshot || stream.Msg().Changes[0].Id != created.Msg.Memory.Id {
+	if stream.Msg().Snapshot || stream.Msg().Changes[0].Id != created.Msg.Note.Id {
 		t.Fatal(stream.Msg())
 	}
 	firstSeq := stream.Msg().Seq
@@ -222,7 +222,7 @@ func TestSqliteWatchWriteLatencyReplayAndShutdown(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			_, err := clients.Memory.Create(ctx, connect.NewRequest(&v1.CreateMemoryRequest{Title: fmt.Sprintf("w-%d", i)}))
+			_, err := clients.Note.Create(ctx, connect.NewRequest(&v1.CreateNoteRequest{Title: fmt.Sprintf("w-%d", i)}))
 			if err != nil {
 				t.Error(err)
 			}
@@ -264,14 +264,14 @@ func TestSqliteWatchWriteLatencyReplayAndShutdown(t *testing.T) {
 
 func TestSqlitePlanCarriesNativeRepeats(t *testing.T) {
 	clients, _, _ := sqliteLoopback(t)
-	created, err := clients.Memory.Create(t.Context(), connect.NewRequest(&v1.CreateMemoryRequest{Title: "daily"}))
+	created, err := clients.Note.Create(t.Context(), connect.NewRequest(&v1.CreateNoteRequest{Title: "daily"}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	active := true
 	every := int32(1)
 	_, err = clients.Schedule.Set(t.Context(), connect.NewRequest(&v1.SetScheduleRequest{Schedule: &v1.Schedule{
-		MemoryId: created.Msg.Memory.Id, Active: &active, FireAt: timestamppb.New(time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC)),
+		NoteId: created.Msg.Note.Id, Active: &active, FireAt: timestamppb.New(time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC)),
 		Tz: "UTC", Freq: "daily", Every: &every,
 	}}))
 	if err != nil {
@@ -298,7 +298,7 @@ func TestSqlitePlanCarriesNativeRepeats(t *testing.T) {
 	until := timestamppb.New(time.Date(2026, 10, 10, 9, 0, 0, 0, time.UTC))
 	end := "until"
 	_, err = clients.Schedule.Set(t.Context(), connect.NewRequest(&v1.SetScheduleRequest{Schedule: &v1.Schedule{
-		MemoryId: created.Msg.Memory.Id, Active: &active, FireAt: timestamppb.New(time.Date(2026, 10, 4, 15, 0, 0, 0, time.UTC)),
+		NoteId: created.Msg.Note.Id, Active: &active, FireAt: timestamppb.New(time.Date(2026, 10, 4, 15, 0, 0, 0, time.UTC)),
 		Tz: "UTC", Freq: "daily", Every: &every, EndType: end, UntilAt: until,
 	}}))
 	if err != nil {
@@ -312,10 +312,10 @@ func TestSqlitePlanCarriesNativeRepeats(t *testing.T) {
 		t.Fatal("bounded one-shots were dropped")
 	}
 	for _, item := range plan.Msg.Items {
-		if item.MemoryId != created.Msg.Memory.Id {
+		if item.NoteId != created.Msg.Note.Id {
 			continue
 		}
-		if !strings.HasPrefix(item.Id, "rem:"+created.Msg.Memory.Id+":") {
+		if !strings.HasPrefix(item.Id, "rem:"+created.Msg.Note.Id+":") {
 			t.Fatalf("expected concrete one-shot id, got %s", item.Id)
 		}
 		if strings.HasSuffix(item.Id, ":repeat") {
@@ -352,7 +352,7 @@ func TestSqliteHeartbeatDoesNotBreakSettings(t *testing.T) {
 
 func TestSqliteExportAndBackup(t *testing.T) {
 	clients, _, _ := sqliteLoopback(t)
-	if _, err := clients.Memory.Create(t.Context(), connect.NewRequest(&v1.CreateMemoryRequest{Title: "exported"})); err != nil {
+	if _, err := clients.Note.Create(t.Context(), connect.NewRequest(&v1.CreateNoteRequest{Title: "exported"})); err != nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
@@ -373,13 +373,13 @@ func TestSqliteExportAndBackup(t *testing.T) {
 
 func TestSqliteOccurrenceCarriesZoneAndWeekStartPersists(t *testing.T) {
 	clients, _, _ := sqliteLoopback(t)
-	created, err := clients.Memory.Create(t.Context(), connect.NewRequest(&v1.CreateMemoryRequest{Title: "dinner"}))
+	created, err := clients.Note.Create(t.Context(), connect.NewRequest(&v1.CreateNoteRequest{Title: "dinner"}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	active := true
 	_, err = clients.Schedule.Set(t.Context(), connect.NewRequest(&v1.SetScheduleRequest{Schedule: &v1.Schedule{
-		MemoryId: created.Msg.Memory.Id, Active: &active, FireAt: timestamppb.New(time.Date(2026, 10, 12, 23, 0, 0, 0, time.UTC)),
+		NoteId: created.Msg.Note.Id, Active: &active, FireAt: timestamppb.New(time.Date(2026, 10, 12, 23, 0, 0, 0, time.UTC)),
 		Tz: "America/New_York", AllDay: true,
 	}}))
 	if err != nil {
@@ -409,14 +409,14 @@ func TestSqliteOccurrenceCarriesZoneAndWeekStartPersists(t *testing.T) {
 
 func TestSqlitePlaceWritesCheckExpectedRev(t *testing.T) {
 	clients, _, _ := sqliteLoopback(t)
-	created, err := clients.Memory.Create(t.Context(), connect.NewRequest(&v1.CreateMemoryRequest{Title: "spot"}))
+	created, err := clients.Note.Create(t.Context(), connect.NewRequest(&v1.CreateNoteRequest{Title: "spot"}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := created.Msg.Memory.Id
-	rev := created.Msg.Memory.Rev
+	id := created.Msg.Note.Id
+	rev := created.Msg.Note.Rev
 	name := "Home"
-	place := &v1.Place{MemoryId: id, Lat: -23.55, Lng: -46.63, Name: &name}
+	place := &v1.Place{NoteId: id, Lat: -23.55, Lng: -46.63, Name: &name}
 	if _, err := clients.Place.Set(t.Context(), connect.NewRequest(&v1.SetPlaceRequest{Place: place, ExpectedRev: &rev})); err != nil {
 		t.Fatalf("set with the current revision: %v", err)
 	}
@@ -424,14 +424,14 @@ func TestSqlitePlaceWritesCheckExpectedRev(t *testing.T) {
 	if _, err := clients.Place.Set(t.Context(), connect.NewRequest(&v1.SetPlaceRequest{Place: place, ExpectedRev: &stale})); connect.CodeOf(err) != connect.CodeAborted && connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("stale set must conflict, got %v", err)
 	}
-	if _, err := clients.Place.Clear(t.Context(), connect.NewRequest(&v1.ClearPlaceRequest{MemoryId: id, ExpectedRev: &stale})); connect.CodeOf(err) != connect.CodeAborted && connect.CodeOf(err) != connect.CodeFailedPrecondition {
+	if _, err := clients.Place.Clear(t.Context(), connect.NewRequest(&v1.ClearPlaceRequest{NoteId: id, ExpectedRev: &stale})); connect.CodeOf(err) != connect.CodeAborted && connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("stale clear must conflict, got %v", err)
 	}
 	list, err := clients.Place.ListInBounds(t.Context(), connect.NewRequest(&v1.ListPlacesInBoundsRequest{South: -24, West: -47, North: -23, East: -46}))
 	if err != nil || len(list.Msg.Places) != 1 {
 		t.Fatalf("the stale clear must not delete the place: %v / %v", list, err)
 	}
-	if _, err := clients.Place.Clear(t.Context(), connect.NewRequest(&v1.ClearPlaceRequest{MemoryId: id})); err != nil {
+	if _, err := clients.Place.Clear(t.Context(), connect.NewRequest(&v1.ClearPlaceRequest{NoteId: id})); err != nil {
 		t.Fatalf("unchecked clear: %v", err)
 	}
 }

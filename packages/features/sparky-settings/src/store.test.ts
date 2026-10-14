@@ -91,7 +91,7 @@ describe("settings store", () => {
   it("lists only MCP-attributed activity", async () => {
     const { store } = setup();
     await store.loadActivity();
-    expect(store.activity()).toEqual([expect.objectContaining({ actor: "mcp:Claude Code", summary: "Updated memory title" })]);
+    expect(store.activity()).toEqual([expect.objectContaining({ actor: "mcp:Claude Code", summary: "Updated note title" })]);
   });
   it("reveals logs and data through Main and reports failures", async () => {
     const { store, bridge } = setup();

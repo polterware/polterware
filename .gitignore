@@ -57,3 +57,9 @@ apps/sparky-desktop/release/
 apps/vitals/release/
 apps/sparky-desktop/test-results/
 .playwright-mcp/
+
+# SolidStart web output
+apps/web/.output/
+apps/web/.solid/
+apps/web/.nitro/
+apps/web/.solid-start/

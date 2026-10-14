@@ -28,9 +28,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function OpenMemory() {
+function OpenNote() {
   const shell = useSparkyShell();
-  return <Button onClick={() => shell.openMemory("memory-1")}>Open memory</Button>;
+  return <Button onClick={() => shell.openNote("note-1")}>Open note</Button>;
 }
 
 function namedButton(host: HTMLElement, label: string) {
@@ -54,8 +54,8 @@ function mount(path: "map" | "today", seed?: Parameters<typeof fakeMapBridge>[0]
   const store = createMapStore(() => createMapBridge(fake.wire));
   const opener: SparkyFeature = {
     id: "opener",
-    routes: [{ path: "/today", title: "Today", component: OpenMemory }],
-    memoryDetail: () => {
+    routes: [{ path: "/today", title: "Today", component: OpenNote }],
+    noteDetail: () => {
       const shell = useSparkyShell();
       return <>{shell.detailSections().map((section: DetailSectionDef) => {
         const Content = section.component;
@@ -70,7 +70,7 @@ function mount(path: "map" | "today", seed?: Parameters<typeof fakeMapBridge>[0]
   const host = document.createElement("div");
   document.body.append(host);
   dispose = render(() => <SparkyShell features={[shellFeature, opener, feature]} bridge={createShellBridge(fake.wire as unknown as ShellWireBridge)} />, host);
-  return { host, fake, store, go: () => pointerClick(namedButton(host, path === "map" ? "Map" : "Open memory")) };
+  return { host, fake, store, go: () => pointerClick(namedButton(host, path === "map" ? "Map" : "Open note")) };
 }
 
 describe("map route and place card", () => {
@@ -89,9 +89,9 @@ describe("map route and place card", () => {
     expect(fetch.mock.calls.filter(call => String(call[0]).includes("openfreemap"))).toEqual([]);
   });
 
-  it("saves and clears a place with the memory expectedRev", async () => {
+  it("saves and clears a place with the note expectedRev", async () => {
     const { host, fake, go } = mount("today");
-    await vi.waitFor(() => namedButton(host, "Open memory"));
+    await vi.waitFor(() => namedButton(host, "Open note"));
     go();
     await vi.waitFor(() => expect(host.querySelector("#place-name")).not.toBeNull());
     expect(host.textContent).toContain(PLACE_NOTICE);
@@ -111,13 +111,13 @@ describe("map route and place card", () => {
     });
     pointerClick(namedButton(host, "Clear place"));
     await vi.waitFor(() => expect(fake.wire.places.clear).toHaveBeenCalled());
-    const cleared = (fake.wire.places.clear as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as { expectedRev?: string; memoryId?: string };
-    expect(cleared).toMatchObject({ memoryId: "memory-1", expectedRev: "4" });
+    const cleared = (fake.wire.places.clear as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as { expectedRev?: string; noteId?: string };
+    expect(cleared).toMatchObject({ noteId: "note-1", expectedRev: "4" });
   });
   it("hides address search while off and never sends typed coordinates", async () => {
     const send = vi.fn(); vi.stubGlobal("fetch", send);
     const { host, go } = mount("today");
-    await vi.waitFor(() => namedButton(host, "Open memory")); go();
+    await vi.waitFor(() => namedButton(host, "Open note")); go();
     await vi.waitFor(() => expect(host.querySelector("#place-name")).not.toBeNull());
     expect(host.querySelector("#place-address")).toBeNull();
     expect(send).not.toHaveBeenCalled();
@@ -127,7 +127,7 @@ describe("map route and place card", () => {
     const send = vi.fn(async () => new Response(JSON.stringify([{ display_name: "Test place", lat: "1", lon: "2" }])));
     vi.stubGlobal("fetch", send);
     const { host, fake, go } = mount("today", { settings: { mapGeocoding: true } });
-    await vi.waitFor(() => namedButton(host, "Open memory")); go();
+    await vi.waitFor(() => namedButton(host, "Open note")); go();
     await vi.waitFor(() => expect(host.querySelector("#place-address")).not.toBeNull());
     const address = host.querySelector<HTMLInputElement>("#place-address")!;
     address.value = "Test place"; address.dispatchEvent(new Event("input", { bubbles: true }));
@@ -144,7 +144,7 @@ describe("map route and place card", () => {
   it("shows a blocked-host error without claiming a saved place", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
     const { host, go } = mount("today", { settings: { mapGeocoding: true } });
-    await vi.waitFor(() => namedButton(host, "Open memory")); go();
+    await vi.waitFor(() => namedButton(host, "Open note")); go();
     await vi.waitFor(() => expect(host.querySelector("#place-address")).not.toBeNull());
     const address = host.querySelector<HTMLInputElement>("#place-address")!;
     address.value = "Test place"; address.dispatchEvent(new Event("input", { bubbles: true }));

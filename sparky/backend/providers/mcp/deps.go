@@ -7,13 +7,13 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/review"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/search"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 )
 
@@ -32,7 +32,7 @@ type Schedules interface {
 	Set(context.Context, actor.Actor, schedule.Schedule) (schedule.Schedule, error)
 	Clear(context.Context, actor.Actor, string) error
 	Preview(context.Context, schedule.Schedule, int) ([]time.Time, string, error)
-	ListOccurrences(ctx context.Context, from, to time.Time, mindID *string, includeCompleted bool, limit int) ([]schedule.Occurrence, error)
+	ListOccurrences(ctx context.Context, from, to time.Time, spaceID *string, includeCompleted bool, limit int) ([]schedule.Occurrence, error)
 }
 
 // Places carries the MCP actor without changing the frozen domain service.
@@ -46,8 +46,8 @@ type Deps struct {
 	Within      func(context.Context, func(context.Context) error) error
 	WithActor   func(context.Context, actor.Actor) context.Context
 	Version     string
-	Memories    memory.Service
-	Minds       mind.Service
+	Notes       note.Service
+	Spaces      space.Service
 	Tags        tag.Service
 	Activity    activity.Service
 	Review      review.Service

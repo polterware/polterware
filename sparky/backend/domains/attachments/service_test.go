@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 )
 
 type testStore struct {
@@ -29,7 +29,7 @@ func (s *testStore) List(_ context.Context, m string) ([]Attachment, error) {
 	defer s.mu.Unlock()
 	var out []Attachment
 	for _, a := range s.rows {
-		if a.MemoryID == m {
+		if a.NoteID == m {
 			out = append(out, a)
 		}
 	}
@@ -97,7 +97,7 @@ func TestImportDeduplicatesHashAndNeverUsesDisplayNameForPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := svc.ImportFromPath(context.Background(), first.MemoryID, src, "duplicate", 0)
+	second, err := svc.ImportFromPath(context.Background(), first.NoteID, src, "duplicate", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,11 +137,11 @@ func TestConcurrentDuplicateImportsDeduplicate(t *testing.T) {
 }
 
 type revMem struct {
-	memory.Repository
-	current memory.Memory
+	note.Repository
+	current note.Note
 }
 
-func (r *revMem) Get(context.Context, string) (memory.Memory, error) { return r.current, nil }
+func (r *revMem) Get(context.Context, string) (note.Note, error) { return r.current, nil }
 
 type joinTx struct{}
 
@@ -150,7 +150,7 @@ func (joinTx) Within(ctx context.Context, fn func(context.Context) error) error 
 func TestAddLinkExpectedRev(t *testing.T) {
 	store := newTestStore("")
 	svc := NewService(store, &testIDs{}, testClock{})
-	svc.WithMemoryRev(&revMem{current: memory.Memory{ID: "m", Rev: 2}}, joinTx{})
+	svc.WithNoteRev(&revMem{current: note.Note{ID: "m", Rev: 2}}, joinTx{})
 	if _, err := svc.AddLink(context.Background(), "m", "https://example.com/a", "", 1); !fault.IsCode(err, fault.CodeConflict) {
 		t.Fatalf("stale: %v", err)
 	}
@@ -193,8 +193,8 @@ func TestFailedTransactionCleanupIgnoresCancellationAndSurfacesFailure(t *testin
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			svc := NewService(store, &testIDs{}, testClock{}).WithMemoryRev(nil, cancelTx{cancel})
-			_, err := svc.ImportFromPath(ctx, "memory", "source", "", 0)
+			svc := NewService(store, &testIDs{}, testClock{}).WithNoteRev(nil, cancelTx{cancel})
+			_, err := svc.ImportFromPath(ctx, "note", "source", "", 0)
 			if !errors.Is(err, context.Canceled) || store.cleanupContext != nil {
 				t.Fatalf("cleanup canceled: %v / %v", err, store.cleanupContext)
 			}
@@ -210,7 +210,7 @@ func TestFailedTransactionCleanupIgnoresCancellationAndSurfacesFailure(t *testin
 
 func TestDedupChecksExpectedRevisionAndCleansCopy(t *testing.T) {
 	store := newTestStore("source")
-	svc := NewService(store, &testIDs{}, testClock{}).WithMemoryRev(&revMem{current: memory.Memory{ID: "m", Rev: 2}}, joinTx{})
+	svc := NewService(store, &testIDs{}, testClock{}).WithNoteRev(&revMem{current: note.Note{ID: "m", Rev: 2}}, joinTx{})
 	if _, err := svc.ImportFromPath(context.Background(), "m", "source", "", 2); err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +238,7 @@ func (s *pausedStore) List(ctx context.Context, id string) ([]Attachment, error)
 func TestDeleteCannotInvalidateAnImportDedupSnapshot(t *testing.T) {
 	base := newTestStore("source")
 	hash, rel := "same-hash", "m/original.dat"
-	base.rows["original"] = Attachment{ID: "original", MemoryID: "m", SHA256: &hash, RelPath: &rel}
+	base.rows["original"] = Attachment{ID: "original", NoteID: "m", SHA256: &hash, RelPath: &rel}
 	store := &pausedStore{testStore: base, listed: make(chan struct{}), resume: make(chan struct{})}
 	svc := NewService(store, &testIDs{}, testClock{})
 	imported := make(chan Attachment, 1)

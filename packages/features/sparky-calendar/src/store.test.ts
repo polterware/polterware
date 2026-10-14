@@ -12,12 +12,12 @@ function threeMonths() {
     const date = new Date(Date.UTC(2026, 8, 28 + day, 12, 0, 0));
     const iso = date.toISOString();
     rows.push({
-      memoryId: `memory-${day}`,
+      noteId: `note-${day}`,
       title: day % 7 === 0 ? `Recurring ${day}` : `One-shot ${day}`,
       occurrenceAt: iso,
       fireAt: iso,
       allDay: day % 5 === 0,
-      mindId: day % 2 === 0 ? "mind-1" : "",
+      spaceId: day % 2 === 0 ? "space-1" : "",
       tz: "UTC",
     });
   }
@@ -60,10 +60,10 @@ describe("calendar store against a fake preload bridge", () => {
     const store = createCalendarStore(() => createCalendarBridge(fake.wire));
     const id = await store.createFromSlot({ date: "2026-10-03", time: "21:30", allDay: false, tz: "UTC" });
     expect(id).toBe("created-1");
-    expect(fake.wire.memories.create).toHaveBeenCalledWith({ title: "Untitled memory" });
+    expect(fake.wire.notes.create).toHaveBeenCalledWith({ title: "Untitled note" });
     expect(fake.schedule.set).toHaveBeenCalledWith({
       schedule: expect.objectContaining({
-        memoryId: "created-1",
+        noteId: "created-1",
         fireAt: "2026-10-03T21:30:00.000Z",
         allDay: false,
         freq: "",
@@ -74,24 +74,24 @@ describe("calendar store against a fake preload bridge", () => {
 
   it("asks before moving a recurring series and then shifts the series anchor", async () => {
     const fake = fakeCalendarBridge({
-      memories: [{
-        id: "memory-1",
+      notes: [{
+        id: "note-1",
         title: "Standup",
         rev: "4",
-        schedule: { memoryId: "memory-1", fireAt: "2026-03-01T12:00:00.000Z", tz: "America/Sao_Paulo", freq: "daily", every: 1, allDay: false },
+        schedule: { noteId: "note-1", fireAt: "2026-03-01T12:00:00.000Z", tz: "America/Sao_Paulo", freq: "daily", every: 1, allDay: false },
       }],
-      occurrences: [{ memoryId: "memory-1", title: "Standup", occurrenceAt: "2026-03-03T12:00:00.000Z", tz: "America/Sao_Paulo" }],
+      occurrences: [{ noteId: "note-1", title: "Standup", occurrenceAt: "2026-03-03T12:00:00.000Z", tz: "America/Sao_Paulo" }],
     });
     const store = createCalendarStore(() => createCalendarBridge(fake.wire));
     const occurrence = {
-      memoryId: "memory-1",
+      noteId: "note-1",
       title: "Standup",
       occurrenceAt: "2026-03-03T12:00:00.000Z",
       fireAt: "2026-03-03T12:00:00.000Z",
       completed: false,
       overdue: false,
       allDay: false,
-      mindId: "",
+      spaceId: "",
       tz: "America/Sao_Paulo",
       color: "",
     };
@@ -112,11 +112,11 @@ describe("calendar store against a fake preload bridge", () => {
     expect(fake.wire.settings.get).toHaveBeenCalled();
   });
   it("uses typed occurrence.tz to keep all-day civil dates in the schedule timezone", async () => {
-    const fake = fakeCalendarBridge({ occurrences: [{ memoryId: "memory-zone", title: "All day", occurrenceAt: "2026-10-04T01:00:00.000Z", fireAt: "2026-10-04T01:00:00.000Z", allDay: true, tz: "America/Sao_Paulo" }] });
+    const fake = fakeCalendarBridge({ occurrences: [{ noteId: "note-zone", title: "All day", occurrenceAt: "2026-10-04T01:00:00.000Z", fireAt: "2026-10-04T01:00:00.000Z", allDay: true, tz: "America/Sao_Paulo" }] });
     const store = createCalendarStore(() => createCalendarBridge(fake.wire));
     await store.loadRange({ from: "2026-10-03T00:00:00.000Z", to: "2026-10-05T00:00:00.000Z" });
     expect(store.occurrences()[0]?.tz).toBe("America/Sao_Paulo");
-    expect(store.forDate("2026-10-03")[0]?.memoryId).toBe("memory-zone");
+    expect(store.forDate("2026-10-03")[0]?.noteId).toBe("note-zone");
     expect(store.forDate("2026-10-04")).toEqual([]);
   });
 

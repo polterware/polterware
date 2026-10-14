@@ -10,7 +10,7 @@ import (
 
 	"github.com/polterware/polterware/sparky/backend/compositions/core"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 )
 
 func TestCoreAttachmentAuditAndRecoveryBeforeImport(t *testing.T) {
@@ -21,7 +21,7 @@ func TestCoreAttachmentAuditAndRecoveryBeforeImport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := runtime.Services.Memories.Create(ctx, actor.UI(), memory.Create{Title: "Attachments"})
+	m, err := runtime.Services.Notes.Create(ctx, actor.UI(), note.Create{Title: "Attachments"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestCoreConcurrentFirstImportsPreserveEveryFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer runtime.Close()
-	m, err := runtime.Services.Memories.Create(ctx, actor.UI(), memory.Create{Title: "Concurrent attachments"})
+	m, err := runtime.Services.Notes.Create(ctx, actor.UI(), note.Create{Title: "Concurrent attachments"})
 	if err != nil {
 		t.Fatal(err)
 	}

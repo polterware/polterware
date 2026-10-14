@@ -8,7 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 )
@@ -63,12 +63,12 @@ func parseInstant(raw, field string) (*time.Time, error) {
 	return nil, fault.Invalid(fault.Violation{Field: field, Reason: "must be ISO-8601"})
 }
 
-func parseChecklist(raw []json.RawMessage) ([]memory.CheckItemInput, error) {
-	out := make([]memory.CheckItemInput, 0, len(raw))
+func parseChecklist(raw []json.RawMessage) ([]note.CheckItemInput, error) {
+	out := make([]note.CheckItemInput, 0, len(raw))
 	for i, item := range raw {
 		var title string
 		if json.Unmarshal(item, &title) == nil {
-			out = append(out, memory.CheckItemInput{Title: title, SortOrder: i})
+			out = append(out, note.CheckItemInput{Title: title, SortOrder: i})
 			continue
 		}
 		var obj struct {
@@ -80,7 +80,7 @@ func parseChecklist(raw []json.RawMessage) ([]memory.CheckItemInput, error) {
 		if err := json.Unmarshal(item, &obj); err != nil {
 			return nil, fault.Invalid(fault.Violation{Field: "checklist", Reason: "string or {title, detail?}"})
 		}
-		out = append(out, memory.CheckItemInput{ID: obj.ID, Title: obj.Title, Detail: obj.Detail, Done: obj.Done, SortOrder: i})
+		out = append(out, note.CheckItemInput{ID: obj.ID, Title: obj.Title, Detail: obj.Detail, Done: obj.Done, SortOrder: i})
 	}
 	return out, nil
 }
@@ -104,7 +104,7 @@ type scheduleInput struct {
 	} `json:"focus"`
 }
 
-func parseSchedule(raw json.RawMessage, memoryID string) (schedule.Schedule, schedule.Rule, error) {
+func parseSchedule(raw json.RawMessage, noteID string) (schedule.Schedule, schedule.Rule, error) {
 	var in scheduleInput
 	if err := json.Unmarshal(raw, &in); err != nil {
 		return schedule.Schedule{}, schedule.Rule{}, fault.Invalid(fault.Violation{Field: "schedule", Reason: "invalid object"})
@@ -142,7 +142,7 @@ func parseSchedule(raw json.RawMessage, memoryID string) (schedule.Schedule, sch
 		fire = parsed.In(loc)
 	}
 	row := schedule.Schedule{
-		MemoryID: memoryID, Active: true, FireAt: fire.UTC().Truncate(time.Millisecond), TZ: loc.String(),
+		NoteID: noteID, Active: true, FireAt: fire.UTC().Truncate(time.Millisecond), TZ: loc.String(),
 		AllDay: allDay, Every: 1, EndType: schedule.EndNever,
 	}
 	rule := schedule.Rule{Anchor: fire, TZ: loc, AllDay: allDay, Every: 1}
@@ -211,12 +211,12 @@ type placeInput struct {
 	Event   string  `json:"event"`
 }
 
-func parsePlace(raw json.RawMessage, memoryID string) (place.Place, error) {
+func parsePlace(raw json.RawMessage, noteID string) (place.Place, error) {
 	var in placeInput
 	if err := json.Unmarshal(raw, &in); err != nil {
 		return place.Place{}, fault.Invalid(fault.Violation{Field: "place", Reason: "invalid object"})
 	}
-	p := place.Place{MemoryID: memoryID, Name: in.Name, Lat: in.Lat, Lng: in.Lng, RadiusM: in.RadiusM, Event: in.Event, Active: true}
+	p := place.Place{NoteID: noteID, Name: in.Name, Lat: in.Lat, Lng: in.Lng, RadiusM: in.RadiusM, Event: in.Event, Active: true}
 	if p.RadiusM == 0 {
 		p.RadiusM = place.DefaultRadiusM
 	}

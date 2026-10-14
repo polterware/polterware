@@ -9,25 +9,25 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/search"
 )
 
-// DocumentSource projects a memory's indexed text for search.Index.
+// DocumentSource projects a note's indexed text for search.Index.
 type DocumentSource struct {
 	store *Store
 }
 
 func (s *Store) Documents() DocumentSource { return DocumentSource{store: s} }
 
-func (d DocumentSource) Document(ctx context.Context, memoryID string) (search.Document, error) {
-	return d.store.document(ctx, memoryID)
+func (d DocumentSource) Document(ctx context.Context, noteID string) (search.Document, error) {
+	return d.store.document(ctx, noteID)
 }
 
 // Rebuild replaces the index in the caller's transaction. Collection must use
-// that same transaction so a newer memory write cannot be overwritten.
+// that same transaction so a newer note write cannot be overwritten.
 func (d DocumentSource) Rebuild(ctx context.Context, docs []search.Document) error {
 	return d.store.Within(ctx, func(ctx context.Context) error {
 		if d.store.index == nil {
 			return fmt.Errorf("search index is not configured")
 		}
-		if _, err := d.store.q(ctx, true).ExecContext(ctx, `DELETE FROM memory_fts`); err != nil {
+		if _, err := d.store.q(ctx, true).ExecContext(ctx, `DELETE FROM note_fts`); err != nil {
 			return fmt.Errorf("clear search index: %w", err)
 		}
 		for _, doc := range docs {
@@ -39,49 +39,49 @@ func (d DocumentSource) Rebuild(ctx context.Context, docs []search.Document) err
 	})
 }
 
-func (s *Store) document(ctx context.Context, memoryID string) (search.Document, error) {
+func (s *Store) document(ctx context.Context, noteID string) (search.Document, error) {
 	q := s.q(ctx, false)
-	var title, note string
-	var mindID sql.NullString
-	if err := q.QueryRowContext(ctx, `SELECT title, note, mind_id FROM memories WHERE id=?`, memoryID).
-		Scan(&title, &note, &mindID); err != nil {
-		return search.Document{}, mapSQL(err, "memory", memoryID)
+	var title, content string
+	var spaceID sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT title, content, space_id FROM notes WHERE id=?`, noteID).
+		Scan(&title, &content, &spaceID); err != nil {
+		return search.Document{}, mapSQL(err, "note", noteID)
 	}
 	path := ""
-	if mindID.Valid {
-		p, err := s.mindPath(ctx, mindID.String)
+	if spaceID.Valid {
+		p, err := s.spacePath(ctx, spaceID.String)
 		if err != nil {
 			return search.Document{}, err
 		}
 		path = p
 	}
-	checklist, err := s.checklistText(ctx, memoryID)
+	checklist, err := s.checklistText(ctx, noteID)
 	if err != nil {
 		return search.Document{}, err
 	}
-	tags, err := s.tagText(ctx, memoryID)
+	tags, err := s.tagText(ctx, noteID)
 	if err != nil {
 		return search.Document{}, err
 	}
 	return search.Document{
-		MemoryID:  memoryID,
+		NoteID:    noteID,
 		Title:     title,
-		Note:      stripMarkdown(note),
+		Content:   stripMarkdown(content),
 		Checklist: checklist,
 		Tags:      tags,
-		Mind:      path,
+		Space:     path,
 	}, nil
 }
 
-func (s *Store) mindPath(ctx context.Context, mindID string) (string, error) {
+func (s *Store) spacePath(ctx context.Context, spaceID string) (string, error) {
 	rows, err := s.q(ctx, false).QueryContext(ctx, `
 		WITH RECURSIVE chain AS (
-			SELECT id, parent_id, name, 0 AS depth FROM minds WHERE id = ?
+			SELECT id, parent_id, name, 0 AS depth FROM spaces WHERE id = ?
 			UNION ALL
 			SELECT m.id, m.parent_id, m.name, c.depth + 1
-			FROM minds m JOIN chain c ON c.parent_id = m.id
+			FROM spaces m JOIN chain c ON c.parent_id = m.id
 		)
-		SELECT name FROM chain ORDER BY depth DESC`, mindID)
+		SELECT name FROM chain ORDER BY depth DESC`, spaceID)
 	if err != nil {
 		return "", err
 	}
@@ -97,9 +97,9 @@ func (s *Store) mindPath(ctx context.Context, mindID string) (string, error) {
 	return strings.Join(names, " / "), rows.Err()
 }
 
-func (s *Store) checklistText(ctx context.Context, memoryID string) (string, error) {
+func (s *Store) checklistText(ctx context.Context, noteID string) (string, error) {
 	rows, err := s.q(ctx, false).QueryContext(ctx, `
-		SELECT title, detail FROM check_items WHERE memory_id=? ORDER BY sort_order, id`, memoryID)
+		SELECT title, detail FROM check_items WHERE note_id=? ORDER BY sort_order, id`, noteID)
 	if err != nil {
 		return "", err
 	}
@@ -119,10 +119,10 @@ func (s *Store) checklistText(ctx context.Context, memoryID string) (string, err
 	return strings.Join(parts, "\n"), rows.Err()
 }
 
-func (s *Store) tagText(ctx context.Context, memoryID string) (string, error) {
+func (s *Store) tagText(ctx context.Context, noteID string) (string, error) {
 	rows, err := s.q(ctx, false).QueryContext(ctx, `
-		SELECT t.name FROM memory_tags mt JOIN tags t ON t.id = mt.tag_id
-		WHERE mt.memory_id=? ORDER BY t.name COLLATE NOCASE`, memoryID)
+		SELECT t.name FROM note_tags mt JOIN tags t ON t.id = mt.tag_id
+		WHERE mt.note_id=? ORDER BY t.name COLLATE NOCASE`, noteID)
 	if err != nil {
 		return "", err
 	}
@@ -138,14 +138,14 @@ func (s *Store) tagText(ctx context.Context, memoryID string) (string, error) {
 	return strings.Join(names, " "), rows.Err()
 }
 
-func (s *Store) syncIndex(ctx context.Context, memoryID string, deleted bool) error {
+func (s *Store) syncIndex(ctx context.Context, noteID string, deleted bool) error {
 	if s.index == nil {
 		return nil
 	}
 	if deleted {
-		return s.index.Delete(ctx, memoryID)
+		return s.index.Delete(ctx, noteID)
 	}
-	doc, err := s.document(ctx, memoryID)
+	doc, err := s.document(ctx, noteID)
 	if err != nil {
 		return err
 	}
@@ -179,11 +179,11 @@ func stripMarkdown(s string) string {
 	return strings.TrimSpace(b.String())
 }
 
-func (s *Store) reindexMindMemories(ctx context.Context, mindID string) error {
+func (s *Store) reindexSpaceNotes(ctx context.Context, spaceID string) error {
 	if s.index == nil {
 		return nil
 	}
-	ids, err := s.mindMemoryIDs(ctx, mindID)
+	ids, err := s.spaceNoteIDs(ctx, spaceID)
 	if err != nil {
 		return err
 	}
@@ -195,14 +195,14 @@ func (s *Store) reindexMindMemories(ctx context.Context, mindID string) error {
 	return nil
 }
 
-func (s *Store) mindMemoryIDs(ctx context.Context, mindID string) ([]string, error) {
+func (s *Store) spaceNoteIDs(ctx context.Context, spaceID string) ([]string, error) {
 	rows, err := s.q(ctx, false).QueryContext(ctx, `
 		WITH RECURSIVE tree AS (
-			SELECT id FROM minds WHERE id = ?
+			SELECT id FROM spaces WHERE id = ?
 			UNION ALL
-			SELECT m.id FROM minds m JOIN tree t ON m.parent_id = t.id
+			SELECT m.id FROM spaces m JOIN tree t ON m.parent_id = t.id
 		)
-		SELECT id FROM memories WHERE mind_id IN (SELECT id FROM tree)`, mindID)
+		SELECT id FROM notes WHERE space_id IN (SELECT id FROM tree)`, spaceID)
 	if err != nil {
 		return nil, err
 	}

@@ -29,7 +29,7 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(rootDir, "src/renderer"),
-    server: { port: 5175 },
+    server: { port: 5175, strictPort: true },
     plugins: [
       solid({
         include: [

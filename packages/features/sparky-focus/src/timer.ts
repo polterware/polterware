@@ -42,8 +42,8 @@ export type FocusSnapshot = {
   cycleIndex: number;
   phaseStartedAt: number | null;
   phaseEndsAt: number | null;
-  memoryId: string | null;
-  memoryTitle: string | null;
+  noteId: string | null;
+  noteTitle: string | null;
   recipe: FocusRecipe | null;
 };
 
@@ -137,8 +137,8 @@ export function createFocusTimer(options: { now?: () => number; onEvent?: (event
   let completedPomodoros = 0;
   let phaseStartedAt: number | null = null;
   let phaseEndsAt: number | null = null;
-  let memoryId: string | null = null;
-  let memoryTitle: string | null = null;
+  let noteId: string | null = null;
+  let noteTitle: string | null = null;
   let recipe: FocusRecipe | null = null;
   let live = false;
 
@@ -164,13 +164,13 @@ export function createFocusTimer(options: { now?: () => number; onEvent?: (event
       isRunning,
       isWaitingForManualStart: waiting,
       isSessionActive: active,
-      isQuickSession: active && memoryId == null,
+      isQuickSession: active && noteId == null,
       completedPomodoros,
       cycleIndex: cycleCount === 0 ? 0 : completedPomodoros % cycleCount,
       phaseStartedAt,
       phaseEndsAt: isRunning ? phaseEndsAt : null,
-      memoryId,
-      memoryTitle,
+      noteId,
+      noteTitle,
       recipe,
     };
   }
@@ -227,12 +227,12 @@ export function createFocusTimer(options: { now?: () => number; onEvent?: (event
     configure("work", secondsFor("work", current, completedPomodoros), current.autoContinue);
   }
 
-  function begin(nextRecipe: FocusRecipe, nextMemoryId: string | null, nextTitle: string): boolean {
-    if (recipe != null && memoryId === nextMemoryId) return false;
+  function begin(nextRecipe: FocusRecipe, nextNoteId: string | null, nextTitle: string): boolean {
+    if (recipe != null && noteId === nextNoteId) return false;
     if (recipe != null) return false;
     recipe = clampRecipe(nextRecipe);
-    memoryId = nextMemoryId;
-    memoryTitle = nextTitle;
+    noteId = nextNoteId;
+    noteTitle = nextTitle;
     completedPomodoros = 0;
     configure("work", secondsFor("work", recipe, 0), true);
     return true;
@@ -243,7 +243,7 @@ export function createFocusTimer(options: { now?: () => number; onEvent?: (event
     if (recipe == null && phase === "idle") return false;
     if (phase === "idle") {
       recipe = bound();
-      memoryTitle ??= "Quick Focus";
+      noteTitle ??= "Quick Focus";
       configure("work", secondsFor("work", recipe, completedPomodoros), true);
       return true;
     }
@@ -289,8 +289,8 @@ export function createFocusTimer(options: { now?: () => number; onEvent?: (event
     live = false;
     phase = "idle";
     recipe = null;
-    memoryId = null;
-    memoryTitle = null;
+    noteId = null;
+    noteTitle = null;
     completedPomodoros = 0;
     plannedMs = DEFAULT_RECIPE.workMin * 60_000;
     remainingMs = plannedMs;
@@ -312,7 +312,7 @@ export function createFocusTimer(options: { now?: () => number; onEvent?: (event
     beginQuick(next = DEFAULT_RECIPE) {
       return begin(next, null, "Quick Focus");
     },
-    beginMemory(id: string, title: string, next: FocusRecipe) {
+    beginNote(id: string, title: string, next: FocusRecipe) {
       return begin(next, id, title.trim() || "Focus");
     },
     start,
@@ -321,7 +321,7 @@ export function createFocusTimer(options: { now?: () => number; onEvent?: (event
     reset,
     tick,
     wouldReplace(id: string | null) {
-      return recipe != null && memoryId !== id;
+      return recipe != null && noteId !== id;
     },
   };
 }

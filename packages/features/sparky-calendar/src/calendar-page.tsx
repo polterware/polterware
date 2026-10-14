@@ -39,13 +39,13 @@ function inkFor(fill: string): string {
   const value = Number.parseInt(match[1]!, 16);
   const channel = (shift: number) => (value >> shift) & 255;
   const luminance = (0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0)) / 255;
-  return luminance > 0.62 ? "var(--color-dither-icon-mark)" : "var(--color-text-primary)";
+  return luminance > 0.62 ? "var(--color-icon-tile-mark)" : "var(--color-text-primary)";
 }
 
 function paint(occurrence: CalendarOccurrence): { fill: string; ink: string } {
   if (occurrence.overdue) return { fill: "var(--color-danger)", ink: "var(--color-status-danger-foreground)" };
   const fill = occurrence.color || "var(--color-brand)";
-  return { fill, ink: fill.startsWith("var(") ? "var(--color-dither-icon-mark)" : inkFor(fill) };
+  return { fill, ink: fill.startsWith("var(") ? "var(--color-icon-tile-mark)" : inkFor(fill) };
 }
 
 function eventBox(occurrence: CalendarOccurrence): { top: number; height: number; end: number } {
@@ -325,7 +325,7 @@ export function CalendarPage(props: { store?: CalendarStore }) {
   }
   async function create(draft: SlotDraft) {
     try {
-      await store.createFromSlot(draft, id => shell.openMemory(id));
+      await store.createFromSlot(draft, id => shell.openNote(id));
     } catch {
       /* The status chip already reports failed. */
     }
@@ -482,7 +482,7 @@ export function CalendarPage(props: { store?: CalendarStore }) {
                 displayTz={store.displayTz()}
                 allDay={store.allDayOn}
                 timed={store.timedOn}
-                onOpen={id => shell.openMemory(id)}
+                onOpen={id => shell.openNote(id)}
                 onCreate={create}
                 onDrop={drop}
                 onOpenDay={date => go(date, "day")}
@@ -503,7 +503,7 @@ export function CalendarPage(props: { store?: CalendarStore }) {
     >
       <div class="sparky-calendar__overflow-list">
         <For each={overflow()?.items ?? []}>{item =>
-          <OccurrencePill occurrence={item} onOpen={() => { setOverflow(undefined); shell.openMemory(item.memoryId); }} />
+          <OccurrencePill occurrence={item} onOpen={() => { setOverflow(undefined); shell.openNote(item.noteId); }} />
         }</For>
       </div>
     </Popover>
@@ -640,7 +640,7 @@ function TimeGrid(props: {
           <Show when={visible().length || extra().length}>
             <div class="pw-calendar__all-day" aria-label="All day">
               <For each={visible()}>{item =>
-                <OccurrencePill variant="banner" occurrence={item} draggable onOpen={() => props.onOpen(item.memoryId)} />
+                <OccurrencePill variant="banner" occurrence={item} draggable onOpen={() => props.onOpen(item.noteId)} />
               }</For>
               <Show when={extra().length}>
                 <CalendarGrid.Overflow count={extra().length} onClick={() => props.onOverflow(date, extra())} />
@@ -717,7 +717,7 @@ function TimeColumn(props: {
           left: `calc(${entry.place.column} * (100% - 4px) / ${entry.place.columns} + 2px)`,
           width: `calc((100% - 4px) / ${entry.place.columns})`,
         }}
-        onOpen={() => props.onOpen(entry.item.memoryId)}
+        onOpen={() => props.onOpen(entry.item.noteId)}
       />
     }</For>
     <Show when={props.today}>
@@ -767,7 +767,7 @@ function MonthGrid(props: {
             </div>
             <div class="pw-calendar__month-events">
               <For each={visible()}>{item =>
-                <OccurrencePill variant="chip" occurrence={item} onOpen={() => props.onOpen(item.memoryId)} />
+                <OccurrencePill variant="chip" occurrence={item} onOpen={() => props.onOpen(item.noteId)} />
               }</For>
               <Show when={extra().length}>
                 <CalendarGrid.Overflow count={extra().length} onClick={() => props.onOverflow(date, extra())} />
@@ -850,7 +850,7 @@ function ScheduleList(props: {
           <h3 class="pw-calendar__agenda-date" data-today={day.date === props.today ? "" : undefined}>{agendaHeading(day.date)}</h3>
           <Show when={day.date === props.today}><div class="pw-calendar__agenda-now" data-now-line></div></Show>
           <For each={day.items}>{item =>
-            <OccurrencePill variant="agenda" occurrence={item} onOpen={() => props.onOpen(item.memoryId)} />
+            <OccurrencePill variant="agenda" occurrence={item} onOpen={() => props.onOpen(item.noteId)} />
           }</For>
           <Show when={!hasItems()}><p class="pw-calendar__agenda-empty">Nothing scheduled</p></Show>
         </section>
@@ -899,7 +899,7 @@ function OccurrencePill(props: {
       ...(variant() === "block" || variant() === "banner" ? { background: colors().fill, color: colors().ink } : {}),
       ...props.style,
     }}
-    data-occurrence={props.occurrence.memoryId}
+    data-occurrence={props.occurrence.noteId}
     data-detail-opener
     data-occurrence-at={props.occurrence.occurrenceAt}
     completed={props.occurrence.completed}

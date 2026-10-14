@@ -8,12 +8,12 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 )
 
-const placeCols = `memory_id, name, lat, lng, radius_m, event, active, updated_at`
+const placeCols = `note_id, name, lat, lng, radius_m, event, active, updated_at`
 
-func (r Places) Get(ctx context.Context, memoryID string) (place.Place, error) {
-	p, err := scanPlace(r.q(ctx, false).QueryRowContext(ctx, `SELECT `+placeCols+` FROM places WHERE memory_id=?`, memoryID))
+func (r Places) Get(ctx context.Context, noteID string) (place.Place, error) {
+	p, err := scanPlace(r.q(ctx, false).QueryRowContext(ctx, `SELECT `+placeCols+` FROM places WHERE note_id=?`, noteID))
 	if err != nil {
-		return place.Place{}, mapSQL(err, "place", memoryID)
+		return place.Place{}, mapSQL(err, "place", noteID)
 	}
 	return p, nil
 }
@@ -29,25 +29,25 @@ func (r Places) Upsert(ctx context.Context, p place.Place) error {
 			radius = place.DefaultRadiusM
 		}
 		_, err := r.q(ctx, true).ExecContext(ctx, `
-			INSERT INTO places(memory_id, name, lat, lng, radius_m, event, active, updated_at)
+			INSERT INTO places(note_id, name, lat, lng, radius_m, event, active, updated_at)
 			VALUES (?,?,?,?,?,?,?,?)
-			ON CONFLICT(memory_id) DO UPDATE SET
+			ON CONFLICT(note_id) DO UPDATE SET
 				name=excluded.name, lat=excluded.lat, lng=excluded.lng, radius_m=excluded.radius_m,
 				event=excluded.event, active=excluded.active, updated_at=excluded.updated_at`,
-			p.MemoryID, nullString(p.Name), p.Lat, p.Lng, radius, event, boolInt(p.Active), formatTime(p.UpdatedAt))
+			p.NoteID, nullString(p.Name), p.Lat, p.Lng, radius, event, boolInt(p.Active), formatTime(p.UpdatedAt))
 		return err
 	})
 }
 
-func (r Places) Delete(ctx context.Context, memoryID string) error {
+func (r Places) Delete(ctx context.Context, noteID string) error {
 	return r.Within(ctx, func(ctx context.Context) error {
-		res, err := r.q(ctx, true).ExecContext(ctx, `DELETE FROM places WHERE memory_id=?`, memoryID)
+		res, err := r.q(ctx, true).ExecContext(ctx, `DELETE FROM places WHERE note_id=?`, noteID)
 		if err != nil {
 			return err
 		}
 		n, _ := res.RowsAffected()
 		if n == 0 {
-			return fault.NotFound("place", memoryID)
+			return fault.NotFound("place", noteID)
 		}
 		return nil
 	})
@@ -63,7 +63,7 @@ func (r Places) ListInBounds(ctx context.Context, b place.Bounds) ([]place.Place
 		query += `(lng >= ? OR lng <= ?)`
 		args = append(args, b.West, b.East)
 	}
-	query += ` ORDER BY memory_id`
+	query += ` ORDER BY note_id`
 	rows, err := r.q(ctx, false).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func scanPlace(row interface{ Scan(...any) error }) (place.Place, error) {
 	var name sql.NullString
 	var active int
 	var updated string
-	if err := row.Scan(&p.MemoryID, &name, &p.Lat, &p.Lng, &p.RadiusM, &p.Event, &active, &updated); err != nil {
+	if err := row.Scan(&p.NoteID, &name, &p.Lat, &p.Lng, &p.RadiusM, &p.Event, &active, &updated); err != nil {
 		return place.Place{}, err
 	}
 	p.Name = scanString(name)

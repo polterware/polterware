@@ -7,7 +7,7 @@ type WireNamespace = Record<string, Rpc>;
 
 /** Structural subset of window.sparky. Feature packages must not declare Window.sparky. */
 export type ScheduleWireBridge = {
-  memories: WireNamespace;
+  notes: WireNamespace;
   schedule: WireNamespace;
   reminders: WireNamespace;
   settings: WireNamespace;
@@ -15,7 +15,7 @@ export type ScheduleWireBridge = {
 };
 
 export type ScheduleBridge = {
-  memories: { get: Rpc };
+  notes: { get: Rpc };
   schedule: {
     set: Rpc;
     clear: Rpc;
@@ -61,7 +61,7 @@ function bind(source: WireNamespace, service: DescService): WireNamespace {
 
 export function createScheduleBridge(wire: ScheduleWireBridge): ScheduleBridge {
   return {
-    memories: bind(wire.memories, Contracts.MemoryService) as ScheduleBridge["memories"],
+    notes: bind(wire.notes, Contracts.NoteService) as ScheduleBridge["notes"],
     schedule: bind(wire.schedule, Contracts.ScheduleService) as ScheduleBridge["schedule"],
     reminders: bind(wire.reminders, Contracts.ReminderService) as ScheduleBridge["reminders"],
     settings: bind(wire.settings, Contracts.SettingsService) as ScheduleBridge["settings"],

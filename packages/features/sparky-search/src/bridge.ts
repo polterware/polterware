@@ -8,7 +8,7 @@ type WireNamespace = Record<string, (input?: JsonValue) => Promise<JsonValue>>;
 /** Structural subset of window.sparky. Feature packages must not declare Window.sparky. */
 export type SearchWireBridge = {
   search: WireNamespace;
-  minds: WireNamespace;
+  spaces: WireNamespace;
   tags: WireNamespace;
   onChange(callback: (event: { resync: boolean; changes: { entity: string; id: string; op: string }[] }) => void): () => void;
   app: SearchBridge["app"];
@@ -35,7 +35,7 @@ function bind<S extends DescService>(source: WireNamespace, service: S) {
 export function createSearchBridge(wire: SearchWireBridge): SearchBridge {
   return {
     search: bind(wire.search, Contracts.SearchService) as SearchBridge["search"],
-    minds: bind(wire.minds, Contracts.MindService) as unknown as SearchBridge["minds"],
+    spaces: bind(wire.spaces, Contracts.SpaceService) as unknown as SearchBridge["spaces"],
     tags: bind(wire.tags, Contracts.TagService) as unknown as SearchBridge["tags"],
     onChange: callback => wire.onChange(callback),
     app: wire.app,

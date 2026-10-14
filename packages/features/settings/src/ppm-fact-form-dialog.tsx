@@ -1,5 +1,5 @@
 import { createEffect, createSignal } from "solid-js";
-import { A11yDialog, Button, Field, Input, Select, Textarea } from "@polterware/frontend-design-system";
+import { A11yDialog, Button, Field, Input, Select, Textarea, FormStack } from "@polterware/frontend-design-system";
 import {
   PPM_TRUTH_CLASS_OPTIONS,
   type PpmFactDraft,
@@ -56,7 +56,7 @@ export function PpmFactFormDialog(props: {
         </>
       }
     >
-      <div class="grid gap-3">
+      <FormStack>
         <Field label="Statement">
           <Textarea
             rows={4}
@@ -79,7 +79,7 @@ export function PpmFactFormDialog(props: {
             onInput={(event) => setEntityId(event.currentTarget.value)}
           />
         </Field>
-      </div>
+      </FormStack>
     </A11yDialog>
   );
 }

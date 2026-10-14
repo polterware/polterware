@@ -34,25 +34,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let info = response.notification.request.content.userInfo
-        let memory = info["memoryId"] as? String ?? ""
+        let note = info["noteId"] as? String ?? ""
         let identifier = response.notification.request.identifier
         switch response.actionIdentifier {
         case UNNotificationDismissActionIdentifier:
             log("dismissed id=\(identifier)")
         case UNNotificationDefaultActionIdentifier:
-            await performAction("OPEN", memory: memory, identifier: identifier, source: "os")
+            await performAction("OPEN", note: note, identifier: identifier, source: "os")
         default:
-            await performAction(response.actionIdentifier, memory: memory, identifier: identifier, source: "os")
+            await performAction(response.actionIdentifier, note: note, identifier: identifier, source: "os")
         }
     }
 }
 
-func performAction(_ action: String, memory: String, identifier: String, source: String) async {
-    log("action=\(action) source=\(source) memory=\(memory) id=\(identifier)")
+func performAction(_ action: String, note: String, identifier: String, source: String) async {
+    log("action=\(action) source=\(source) note=\(note) id=\(identifier)")
     switch action {
     case "DONE":
         let code = await postAction(path: "/complete", fields: [
-            "memoryId": memory,
+            "noteId": note,
             "occurrenceId": identifier,
             "action": "done",
             "source": source,
@@ -60,23 +60,23 @@ func performAction(_ action: String, memory: String, identifier: String, source:
         log("complete status=\(code)")
     case "SNOOZE":
         let code = await postAction(path: "/snooze", fields: [
-            "memoryId": memory,
+            "noteId": note,
             "occurrenceId": identifier,
             "minutes": 10,
             "source": source,
         ])
         log("snooze status=\(code)")
     case "OPEN":
-        openSparky(memory: memory, focus: false)
+        openSparky(note: note, focus: false)
     case "START_FOCUS":
-        openSparky(memory: memory, focus: true)
+        openSparky(note: note, focus: true)
     default:
         log("ignored action \(action)")
     }
 }
 
-private func openSparky(memory: String, focus: Bool) {
-    var text = "sparky://memory/\(memory)"
+private func openSparky(note: String, focus: Bool) {
+    var text = "sparky://note/\(note)"
     if focus {
         text += "?action=focus"
     }
@@ -93,7 +93,7 @@ private func run(_ command: Command) async -> Int32 {
     case .serve:
         await serve()
         return 0
-    case let .armIn(seconds, memory, title, body, category):
+    case let .armIn(seconds, note, title, body, category):
         let auth = await requestAuthIfNeeded()
         guard auth == .authorized || auth == .provisional else {
             return 3
@@ -101,8 +101,8 @@ private func run(_ command: Command) async -> Int32 {
         let fire = Date().addingTimeInterval(seconds)
         let millis = Int(fire.timeIntervalSince1970 * 1000)
         let item = ReminderItem(
-            id: "rem:\(memory):\(millis)",
-            memoryId: memory,
+            id: "rem:\(note):\(millis)",
+            noteId: note,
             fireAt: isoString(fire),
             title: title,
             body: body,
@@ -160,8 +160,8 @@ private func run(_ command: Command) async -> Int32 {
     case .registrationStatus:
         emit(registrationSnapshot())
         return 0
-    case let .simulateAction(action, memory, identifier):
-        await performAction(action, memory: memory, identifier: identifier, source: "cli")
+    case let .simulateAction(action, note, identifier):
+        await performAction(action, note: note, identifier: identifier, source: "cli")
         return 0
     }
 }

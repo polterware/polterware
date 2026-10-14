@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE_ROOTS = [
+  "apps/web/src",
   "apps/lore-desktop/src",
   "apps/sparky-desktop/src",
   "apps/vitals/src",
@@ -53,6 +54,7 @@ const PRESENCE_MOTION_PATHS = new Set([
   "packages/frontend/design-system/src/drawer.css",
   "packages/frontend/design-system/src/dropdown-menu.css",
   "packages/frontend/design-system/src/markdown-editor.css",
+  "packages/frontend/design-system/src/navigation-menu.css",
   "packages/frontend/design-system/src/popover.css",
   "packages/frontend/design-system/src/template-card.css",
   "packages/frontend/design-system/src/toast.css",

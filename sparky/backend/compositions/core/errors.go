@@ -7,8 +7,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -64,7 +64,7 @@ func mapError(err error) error {
 			reason = "rev_conflict"
 		}
 		if domain.Code == fault.CodeCycle {
-			reason = "mind_cycle"
+			reason = "space_cycle"
 		}
 		current, err := currentJSON(domain.Current)
 		if err != nil {
@@ -83,17 +83,17 @@ func currentJSON(value any) (string, error) {
 	}
 	// Use wire names for common domain conflict entities.
 	switch v := value.(type) {
-	case memory.Memory:
-		value = memoryProto(v)
-	case *memory.Memory:
+	case note.Note:
+		value = noteProto(v)
+	case *note.Note:
 		if v != nil {
-			value = memoryProto(*v)
+			value = noteProto(*v)
 		}
-	case mind.Mind:
-		value = mindProto(v)
-	case *mind.Mind:
+	case space.Space:
+		value = spaceProto(v)
+	case *space.Space:
 		if v != nil {
-			value = mindProto(*v)
+			value = spaceProto(*v)
 		}
 	case tag.Tag:
 		value = tagProto(v)

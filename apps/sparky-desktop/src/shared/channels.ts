@@ -1,6 +1,6 @@
 // Frozen sparky-contracts-v1.1 unary bridge allowlist.
 export const RPC_METHODS = {
-  "memories": [
+  "notes": [
     "list",
     "get",
     "create",
@@ -14,7 +14,7 @@ export const RPC_METHODS = {
     "setTags",
     "bulkAction"
   ],
-  "minds": [
+  "spaces": [
     "list",
     "get",
     "create",

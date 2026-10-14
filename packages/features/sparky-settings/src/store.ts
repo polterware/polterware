@@ -173,7 +173,7 @@ export function createSettingsStore(getBridge: () => SettingsBridge = browserBri
     setReindexError("");
     try {
       const result = await getBridge().search.reindex({});
-      setSearch({ ftsDocuments: result.memories });
+      setSearch({ ftsDocuments: result.notes });
       setReindexState("live");
     } catch (error) {
       setReindexState("failed");

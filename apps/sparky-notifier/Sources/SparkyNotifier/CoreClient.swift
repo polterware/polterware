@@ -7,7 +7,7 @@ struct CoreConfig: Decodable {
 
 struct ReminderItem: Decodable {
     let id: String
-    let memoryId: String
+    let noteId: String
     let fireAt: String
     let title: String
     let body: String

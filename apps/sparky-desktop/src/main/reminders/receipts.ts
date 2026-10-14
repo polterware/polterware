@@ -2,9 +2,9 @@ import { constants, closeSync, fsyncSync, fstatSync, lstatSync, mkdirSync, openS
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { NotificationAction, Reminder } from "./types";
-import { isMemoryID } from "./plan";
+import { isNoteID } from "./plan";
 
-type Receipt = { id: string; memoryId: string; occurrenceAt: string; repeat: boolean; used: string[] };
+type Receipt = { id: string; noteId: string; occurrenceAt: string; repeat: boolean; used: string[] };
 const validID = /^(?:one:[0-7][0-9A-HJKMNP-TV-Z]{25}|rem:[0-7][0-9A-HJKMNP-TV-Z]{25}:(?:-?\d{1,16}|repeat|wd[1-7]))$/;
 
 /** Private durable receipts keep cold OS actions bound to an actual core plan. */
@@ -19,7 +19,7 @@ export function createActionReceipts(dataDirectory: string) {
       const rows = JSON.parse(readFileSync(fd, "utf8")) as Receipt[];
       if (!Array.isArray(rows) || rows.length > 256) throw new Error("Invalid action receipts");
       for (const row of rows) {
-        if (!validID.test(row.id) || (row.memoryId !== "" && !isMemoryID(row.memoryId)) || !Number.isFinite(Date.parse(row.occurrenceAt)) ||
+        if (!validID.test(row.id) || (row.noteId !== "" && !isNoteID(row.noteId)) || !Number.isFinite(Date.parse(row.occurrenceAt)) ||
           typeof row.repeat !== "boolean" || !Array.isArray(row.used) || row.used.length > 128 || row.used.some(value => typeof value !== "string" || value.length > 32)) throw new Error("Invalid action receipts");
         receipts.set(row.id, row);
       }
@@ -43,15 +43,15 @@ export function createActionReceipts(dataDirectory: string) {
         if (!validID.test(item.id)) throw new Error("Invalid issued notification identifier");
         const previous = next.get(item.id);
         next.delete(item.id);
-        next.set(item.id, { id: item.id, memoryId: item.memoryId, occurrenceAt: item.occurrenceAt, repeat: Boolean(item.repeat), used: previous?.used ?? [] });
+        next.set(item.id, { id: item.id, noteId: item.noteId, occurrenceAt: item.occurrenceAt, repeat: Boolean(item.repeat), used: previous?.used ?? [] });
       }
       while (next.size > 256) next.delete(next.keys().next().value!);
       save(next);
     },
     authorize(event: NotificationAction): boolean {
       const receipt = receipts.get(event.id);
-      if (!receipt || event.memoryId !== receipt.memoryId || !Number.isFinite(Date.parse(event.occurrenceAt))) return false;
-      if (event.id.startsWith("rem:") && event.id.split(":")[1] !== event.memoryId) return false;
+      if (!receipt || event.noteId !== receipt.noteId || !Number.isFinite(Date.parse(event.occurrenceAt))) return false;
+      if (event.id.startsWith("rem:") && event.id.split(":")[1] !== event.noteId) return false;
       const at = new Date(event.occurrenceAt).toISOString();
       if (!receipt.repeat && at !== new Date(receipt.occurrenceAt).toISOString()) return false;
       if (event.action === "DONE" || event.action === "SNOOZE") {

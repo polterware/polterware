@@ -3,19 +3,19 @@ package search
 
 import "time"
 
-// Document is one memory_fts row. Note and checklist are plain text.
+// Document is one note_fts row. Note and checklist are plain text.
 type Document struct {
-	MemoryID  string
+	NoteID    string
 	Title     string
-	Note      string
+	Content   string
 	Checklist string
 	Tags      string
-	Mind      string
+	Space     string
 }
 
 // Hit is one ranked search result.
 type Hit struct {
-	MemoryID  string
+	NoteID    string
 	Title     string
 	Score     float64
 	Snippet   string
@@ -24,7 +24,7 @@ type Hit struct {
 
 // Filter narrows search before ranking.
 type Filter struct {
-	MindID             *string
+	SpaceID            *string
 	IncludeDescendants bool
 	TagIDs             []string
 	Status             string

@@ -7,8 +7,8 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/platform/clock"
 	"github.com/polterware/polterware/sparky/backend/platform/ids"
 )
@@ -17,15 +17,15 @@ func TestConcurrentToggleAndDeleteRev(t *testing.T) {
 	store := openStore(t)
 	ctx := t.Context()
 	audit := activity.Audit{Repository: store.Activity(), Transactions: store, Clock: clock.Clock{}, IDs: ids.Generator{}}
-	memories := memory.NewService(store.Memories(), store.Minds(), store.Tags(), nil, nil, audit)
-	minds := mind.NewService(store.Minds(), store.Memories(), audit)
+	notes := note.NewService(store.Notes(), store.Spaces(), store.Tags(), nil, nil, audit)
+	spaces := space.NewService(store.Spaces(), store.Notes(), audit)
 	who := actor.UI()
 
-	created, err := memories.Create(ctx, who, memory.Create{Title: "Race", Checklist: []memory.CheckItemInput{{Title: "A"}}})
+	created, err := notes.Create(ctx, who, note.Create{Title: "Race", Checklist: []note.CheckItemInput{{Title: "A"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	items, err := store.Memories().ListCheckItems(ctx, created.ID)
+	items, err := store.Notes().ListCheckItems(ctx, created.ID)
 	if err != nil || len(items) != 1 {
 		t.Fatal(items, err)
 	}
@@ -36,7 +36,7 @@ func TestConcurrentToggleAndDeleteRev(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		go func() {
 			defer wg.Done()
-			_, err := memories.ToggleCheckItem(ctx, who, created.ID, items[0].ID, 1, nil)
+			_, err := notes.ToggleCheckItem(ctx, who, created.ID, items[0].ID, 1, nil)
 			errs <- err
 		}()
 	}
@@ -61,21 +61,21 @@ func TestConcurrentToggleAndDeleteRev(t *testing.T) {
 	stale := created
 	stale.Title = "Nope"
 	stale.Rev = 2
-	if err := store.Memories().Update(ctx, 99, stale); !fault.IsCode(err, fault.CodeConflict) {
-		t.Fatalf("memory repo conflict: %v", err)
+	if err := store.Notes().Update(ctx, 99, stale); !fault.IsCode(err, fault.CodeConflict) {
+		t.Fatalf("note repo conflict: %v", err)
 	}
-	if err := store.Memories().Delete(ctx, 1, created.ID); !fault.IsCode(err, fault.CodeConflict) {
+	if err := store.Notes().Delete(ctx, 1, created.ID); !fault.IsCode(err, fault.CodeConflict) {
 		t.Fatalf("delete stale: %v", err)
 	}
 
-	node, err := minds.Create(ctx, who, mind.Create{Name: "Race"})
+	node, err := spaces.Create(ctx, who, space.Create{Name: "Race"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.Minds().Delete(ctx, 99, node.ID); !fault.IsCode(err, fault.CodeConflict) {
-		t.Fatalf("mind delete stale: %v", err)
+	if err := store.Spaces().Delete(ctx, 99, node.ID); !fault.IsCode(err, fault.CodeConflict) {
+		t.Fatalf("space delete stale: %v", err)
 	}
-	if _, err := minds.Delete(ctx, who, node.ID, 1); err != nil {
+	if _, err := spaces.Delete(ctx, who, node.ID, 1); err != nil {
 		t.Fatal(err)
 	}
 }

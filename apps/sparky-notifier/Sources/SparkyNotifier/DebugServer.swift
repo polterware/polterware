@@ -65,13 +65,13 @@ private func debugResponse(for request: String) -> String {
     guard let data = body.data(using: .utf8),
           let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
           let action = object["action"] as? String,
-          let memory = object["memoryId"] as? String,
+          let note = object["noteId"] as? String,
           let identifier = object["identifier"] as? String else {
         return httpJSON(400, ["ok": false])
     }
     let semaphore = DispatchSemaphore(value: 0)
     Task {
-        await performAction(action, memory: memory, identifier: identifier, source: "debug")
+        await performAction(action, note: note, identifier: identifier, source: "debug")
         semaphore.signal()
     }
     semaphore.wait()

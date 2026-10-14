@@ -1,5 +1,5 @@
 import type { DescMessage, DescMethodUnary, MessageShape as ContractMessage } from "@bufbuild/protobuf";
-import type { AttachmentSchema, AttachmentService, MemoryService, SettingsService } from "@polterware/sparky-contracts";
+import type { AttachmentSchema, AttachmentService, NoteService, SettingsService } from "@polterware/sparky-contracts";
 
 /** Protobuf JSON: int64 is a decimal string, timestamps are RFC 3339. */
 export type Wire<T> = T extends { $typeName: "google.protobuf.Timestamp" } ? string
@@ -15,7 +15,7 @@ type Namespace<S extends { method: object }> = {
 
 export type AttachmentsBridge = {
   attachments: Namespace<typeof AttachmentService>;
-  memories: Namespace<typeof MemoryService>;
+  notes: Namespace<typeof NoteService>;
   settings: Namespace<typeof SettingsService>;
   onChange(callback: (event: { resync: boolean; changes: { entity: string; id: string; op: string }[] }) => void): () => void;
   app: {
@@ -32,7 +32,7 @@ export type SaveState = "live" | "queued" | "failed" | "unavailable";
 export type MicrophoneState = "idle" | "granted" | "denied" | "unavailable";
 export type AttachmentKind = "photo" | "audio" | "file" | "link";
 
-const MEMORY_ID = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
+const NOTE_ID = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 const ATTACHMENT_FILE = /^[0-7][0-9A-HJKMNP-TV-Z]{25}\.[a-zA-Z0-9]{1,10}$/;
 
 export function revisionString(rev: string | number | bigint | undefined): string {
@@ -46,7 +46,7 @@ export function revisionString(rev: string | number | bigint | undefined): strin
 export function previewUrl(relPath: string | undefined): string | undefined {
   if (!relPath) return undefined;
   const parts = relPath.replaceAll("\\", "/").split("/").filter(Boolean);
-  if (parts.length !== 2 || !MEMORY_ID.test(parts[0]!) || !ATTACHMENT_FILE.test(parts[1]!)) return undefined;
+  if (parts.length !== 2 || !NOTE_ID.test(parts[0]!) || !ATTACHMENT_FILE.test(parts[1]!)) return undefined;
   return `sparky-file://attachment/${parts[0]}/${parts[1]}`;
 }
 

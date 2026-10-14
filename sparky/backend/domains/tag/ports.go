@@ -6,8 +6,8 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 )
 
-// Repository persists tags and memory-tag links owned by the tag side.
-// Retarget moves memory_tags from one tag id to another.
+// Repository persists tags and note-tag links owned by the tag side.
+// Retarget moves note_tags from one tag id to another.
 type Repository interface {
 	List(ctx context.Context) ([]Tag, error)
 	Get(ctx context.Context, id string) (Tag, error)

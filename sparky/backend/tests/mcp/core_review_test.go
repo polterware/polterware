@@ -15,7 +15,7 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/polterware/polterware/sparky/backend/compositions/core"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/platform/coreclient"
 	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
 	"github.com/polterware/polterware/sparky/backend/platform/runstate"
@@ -121,12 +121,12 @@ func TestCoreMCPPlaceWritesUseSessionActor(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer sess.Close()
-	m, err := rt.Services.Memories.Create(t.Context(), actor.UI(), memory.Create{Title: "Place task"})
+	m, err := rt.Services.Notes.Create(t.Context(), actor.UI(), note.Create{Title: "Place task"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, p := range []any{map[string]any{"lat": -23.55, "lng": -46.63}, nil} {
-		res, err := sess.CallTool(t.Context(), &sdk.CallToolParams{Name: "update_memories", Arguments: map[string]any{"items": []map[string]any{{"id": m.ID, "place": p}}}})
+		res, err := sess.CallTool(t.Context(), &sdk.CallToolParams{Name: "update_notes", Arguments: map[string]any{"items": []map[string]any{{"id": m.ID, "place": p}}}})
 		if err != nil {
 			t.Fatal(err)
 		}

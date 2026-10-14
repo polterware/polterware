@@ -1,6 +1,6 @@
 import type { DescMessage, DescMethodUnary, MessageShape as ContractMessage } from "@bufbuild/protobuf";
 import type {
-  MindSchema, MindService, SearchHitSchema, SearchMemoriesRequestSchema, SearchService, TagSchema, TagService,
+  SpaceSchema, SpaceService, SearchHitSchema, SearchNotesRequestSchema, SearchService, TagSchema, TagService,
 } from "@polterware/sparky-contracts";
 
 /** Protobuf JSON: int64 is a decimal string, timestamps are RFC 3339. */
@@ -16,18 +16,18 @@ export type Namespace<S extends { method: object }> = {
 };
 
 export type SearchHitJSON = JsonOf<typeof SearchHitSchema>;
-export type SearchRequestJSON = JsonOf<typeof SearchMemoriesRequestSchema>;
-export type MindJSON = JsonOf<typeof MindSchema>;
+export type SearchRequestJSON = JsonOf<typeof SearchNotesRequestSchema>;
+export type SpaceJSON = JsonOf<typeof SpaceSchema>;
 export type TagJSON = JsonOf<typeof TagSchema>;
 export type SearchServiceNS = Namespace<typeof SearchService>;
-export type MindServiceNS = Namespace<typeof MindService>;
+export type SpaceServiceNS = Namespace<typeof SpaceService>;
 export type TagServiceNS = Namespace<typeof TagService>;
 
 export type Honesty = "live" | "queued" | "failed" | "unavailable";
 export type DuePreset = "any" | "overdue" | "today" | "next7" | "month" | "custom";
 export type UpdatedPreset = "any" | "today" | "last7" | "last30" | "custom";
 export type SearchFilters = {
-  mindId: string;
+  spaceId: string;
   includeDescendants: boolean;
   tagIds: string[];
   status: string;
@@ -53,13 +53,13 @@ export const SNIPPET_OPEN = "<b>";
 export const SNIPPET_CLOSE = "</b>";
 
 export const EMPTY_FILTERS: SearchFilters = {
-  mindId: "", includeDescendants: true, tagIds: [], status: "active",
+  spaceId: "", includeDescendants: true, tagIds: [], status: "active",
   due: "any", dueFrom: "", dueTo: "", updated: "any", updatedFrom: "", updatedTo: "",
 };
 
 export type SearchBridge = {
   search: SearchServiceNS;
-  minds: MindServiceNS;
+  spaces: SpaceServiceNS;
   tags: TagServiceNS;
   onChange(callback: (event: { resync: boolean; changes: { entity: string; id: string; op: string }[] }) => void): () => void;
   app: { openDeepLink(url: string): Promise<void> };
@@ -147,7 +147,7 @@ export function buildSearchRequest(query: string, filters: SearchFilters, now: D
   const due = dueRange(filters, now);
   const updated = updatedRange(filters, now);
   const request: SearchRequestJSON = { query, includeDescendants: filters.includeDescendants, limit };
-  if (filters.mindId) request.mindId = filters.mindId;
+  if (filters.spaceId) request.spaceId = filters.spaceId;
   if (filters.tagIds.length) request.tagIds = filters.tagIds;
   if (filters.status) request.status = filters.status;
   if (due.from) request.dueFrom = due.from;
@@ -158,7 +158,7 @@ export function buildSearchRequest(query: string, filters: SearchFilters, now: D
 }
 
 export function filtersActive(filters: SearchFilters): boolean {
-  return Boolean(filters.mindId || filters.tagIds.length || (filters.status && filters.status !== "active")
+  return Boolean(filters.spaceId || filters.tagIds.length || (filters.status && filters.status !== "active")
     || filters.due !== "any" || filters.updated !== "any");
 }
 
@@ -176,7 +176,7 @@ export function indexHonesty(ftsDocuments: number | undefined, notice: string, s
 }
 
 export function matchedInLabel(values: readonly string[] | undefined): string {
-  const labels: Record<string, string> = { title: "Title", note: "Note", checklist: "Checklist", tags: "Tags", mind: "Mind" };
+  const labels: Record<string, string> = { title: "Title", content: "Content", checklist: "Checklist", tags: "Tags", space: "Space" };
   return (values ?? []).map(value => labels[value] ?? value).join(" · ");
 }
 

@@ -6,11 +6,11 @@ import (
 
 	"github.com/polterware/polterware/sparky/backend/domains/activity"
 	"github.com/polterware/polterware/sparky/backend/domains/focus"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/review"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 	"github.com/polterware/polterware/sparky/backend/platform/clock"
 	"github.com/polterware/polterware/sparky/backend/platform/ids"
@@ -45,14 +45,14 @@ func OpenRuntime(_ context.Context, dbPath string) (Runtime, error) {
 	planner := schedule.Engine{Clock: clk}
 	settingsRepo := publicSettings{store.Settings()}
 	settingsSvc := settings.NewService(settingsRepo, audit)
-	memories := memory.NewService(store.Memories(), store.Minds(), store.Tags(), store.Schedules(), planner, audit)
+	notes := note.NewService(store.Notes(), store.Spaces(), store.Tags(), store.Schedules(), planner, audit)
 	sched := scheduleRuntime{
-		clock: clk, audit: audit, memories: store.Memories(), minds: store.Minds(),
-		schedules: store.Schedules(), planner: planner, settings: settingsSvc, complete: memories,
+		clock: clk, audit: audit, notes: store.Notes(), spaces: store.Spaces(),
+		schedules: store.Schedules(), planner: planner, settings: settingsSvc, complete: notes,
 	}
 	remind := reminderService{
 		repo: store.Reminders(), clock: clk, ids: idgen, audit: audit, planner: planner,
-		schedules: sched, settings: settingsSvc, complete: memories,
+		schedules: sched, settings: settingsSvc, complete: notes,
 	}
 	doc, err := settingsSvc.Get(context.Background())
 	if err != nil {
@@ -65,21 +65,21 @@ func OpenRuntime(_ context.Context, dbPath string) (Runtime, error) {
 		return Runtime{}, fmt.Errorf("load MCP token: %w", err)
 	}
 	services := Services{
-		Memories: memories,
-		Minds:    mind.NewService(store.Minds(), store.Memories(), audit),
+		Notes:    notes,
+		Spaces:   space.NewService(store.Spaces(), store.Notes(), audit),
 		Tags:     tag.NewService(store.Tags(), audit),
-		Focus:    focus.NewService(store.Focus(), store.Settings(), store.Memories(), audit),
+		Focus:    focus.NewService(store.Focus(), store.Settings(), store.Notes(), audit),
 		Review:   review.NewService(store.Review()),
 		Activity: activity.NewService(store.Activity()),
 		Settings: settingsSvc,
 		Places: placeService{
-			repo: store.Places(), memories: store.Memories(), clock: clk, audit: audit,
+			repo: store.Places(), notes: store.Notes(), clock: clk, audit: audit,
 		},
 		Attachments: attachmentSvc,
 		Reminders:   remind,
 		Agents:      agentService{settings: settingsSvc, tokenPath: runstate.TokenPath(dbPath), audit: audit},
 		Maintenance: maintenanceService{
-			store: store, minds: store.Minds(), memories: store.Memories(), tags: store.Tags(),
+			store: store, spaces: store.Spaces(), notes: store.Notes(), tags: store.Tags(),
 			schedules: store.Schedules(), places: store.Places(), attachments: store.Attachments(),
 			activity: store.Activity(), settings: settingsSvc, clock: clk,
 		},

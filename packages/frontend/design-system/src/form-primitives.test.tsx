@@ -11,7 +11,7 @@ function key(element: HTMLElement, value: string) { element.dispatchEvent(new Ke
 afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); vi.unstubAllGlobals(); });
 describe("Checkbox", () => {
   it.each(["square", "round"] as const)("supports %s, native focus and uncontrolled toggling", async shape => {
-    const host = mount(() => <Checkbox shape={shape} label="Complete memory" defaultChecked={false} />);
+    const host = mount(() => <Checkbox shape={shape} label="Complete note" defaultChecked={false} />);
     const input = host.querySelector<HTMLInputElement>("input")!;
     input.focus(); expect(document.activeElement).toBe(input); input.click();
     await vi.waitFor(() => expect(input.checked).toBe(true));

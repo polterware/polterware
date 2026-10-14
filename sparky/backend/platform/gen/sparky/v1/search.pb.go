@@ -24,7 +24,7 @@ const (
 
 type SearchHit struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	Score         float64                `protobuf:"fixed64,3,opt,name=score,proto3" json:"score,omitempty"`
 	Snippet       string                 `protobuf:"bytes,4,opt,name=snippet,proto3" json:"snippet,omitempty"`
@@ -63,9 +63,9 @@ func (*SearchHit) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_search_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SearchHit) GetMemoryId() string {
+func (x *SearchHit) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -98,10 +98,10 @@ func (x *SearchHit) GetMatchedIn() []string {
 	return nil
 }
 
-type SearchMemoriesRequest struct {
+type SearchNotesRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Query              string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
-	MindId             string                 `protobuf:"bytes,3,opt,name=mind_id,json=mindId,proto3" json:"mind_id,omitempty"`
+	SpaceId            string                 `protobuf:"bytes,3,opt,name=space_id,json=spaceId,proto3" json:"space_id,omitempty"`
 	IncludeDescendants bool                   `protobuf:"varint,4,opt,name=include_descendants,json=includeDescendants,proto3" json:"include_descendants,omitempty"`
 	TagIds             []string               `protobuf:"bytes,5,rep,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
 	Status             string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
@@ -114,20 +114,20 @@ type SearchMemoriesRequest struct {
 	sizeCache          protoimpl.SizeCache
 }
 
-func (x *SearchMemoriesRequest) Reset() {
-	*x = SearchMemoriesRequest{}
+func (x *SearchNotesRequest) Reset() {
+	*x = SearchNotesRequest{}
 	mi := &file_sparky_v1_search_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SearchMemoriesRequest) String() string {
+func (x *SearchNotesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SearchMemoriesRequest) ProtoMessage() {}
+func (*SearchNotesRequest) ProtoMessage() {}
 
-func (x *SearchMemoriesRequest) ProtoReflect() protoreflect.Message {
+func (x *SearchNotesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_sparky_v1_search_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -139,82 +139,82 @@ func (x *SearchMemoriesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SearchMemoriesRequest.ProtoReflect.Descriptor instead.
-func (*SearchMemoriesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SearchNotesRequest.ProtoReflect.Descriptor instead.
+func (*SearchNotesRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_search_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SearchMemoriesRequest) GetQuery() string {
+func (x *SearchNotesRequest) GetQuery() string {
 	if x != nil {
 		return x.Query
 	}
 	return ""
 }
 
-func (x *SearchMemoriesRequest) GetMindId() string {
+func (x *SearchNotesRequest) GetSpaceId() string {
 	if x != nil {
-		return x.MindId
+		return x.SpaceId
 	}
 	return ""
 }
 
-func (x *SearchMemoriesRequest) GetIncludeDescendants() bool {
+func (x *SearchNotesRequest) GetIncludeDescendants() bool {
 	if x != nil {
 		return x.IncludeDescendants
 	}
 	return false
 }
 
-func (x *SearchMemoriesRequest) GetTagIds() []string {
+func (x *SearchNotesRequest) GetTagIds() []string {
 	if x != nil {
 		return x.TagIds
 	}
 	return nil
 }
 
-func (x *SearchMemoriesRequest) GetStatus() string {
+func (x *SearchNotesRequest) GetStatus() string {
 	if x != nil {
 		return x.Status
 	}
 	return ""
 }
 
-func (x *SearchMemoriesRequest) GetLimit() int32 {
+func (x *SearchNotesRequest) GetLimit() int32 {
 	if x != nil {
 		return x.Limit
 	}
 	return 0
 }
 
-func (x *SearchMemoriesRequest) GetDueFrom() *timestamppb.Timestamp {
+func (x *SearchNotesRequest) GetDueFrom() *timestamppb.Timestamp {
 	if x != nil {
 		return x.DueFrom
 	}
 	return nil
 }
 
-func (x *SearchMemoriesRequest) GetDueTo() *timestamppb.Timestamp {
+func (x *SearchNotesRequest) GetDueTo() *timestamppb.Timestamp {
 	if x != nil {
 		return x.DueTo
 	}
 	return nil
 }
 
-func (x *SearchMemoriesRequest) GetUpdatedFrom() *timestamppb.Timestamp {
+func (x *SearchNotesRequest) GetUpdatedFrom() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedFrom
 	}
 	return nil
 }
 
-func (x *SearchMemoriesRequest) GetUpdatedTo() *timestamppb.Timestamp {
+func (x *SearchNotesRequest) GetUpdatedTo() *timestamppb.Timestamp {
 	if x != nil {
 		return x.UpdatedTo
 	}
 	return nil
 }
 
-type SearchMemoriesResponse struct {
+type SearchNotesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Hits          []*SearchHit           `protobuf:"bytes,1,rep,name=hits,proto3" json:"hits,omitempty"`
 	Notice        string                 `protobuf:"bytes,3,opt,name=notice,proto3" json:"notice,omitempty"`
@@ -222,20 +222,20 @@ type SearchMemoriesResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SearchMemoriesResponse) Reset() {
-	*x = SearchMemoriesResponse{}
+func (x *SearchNotesResponse) Reset() {
+	*x = SearchNotesResponse{}
 	mi := &file_sparky_v1_search_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SearchMemoriesResponse) String() string {
+func (x *SearchNotesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SearchMemoriesResponse) ProtoMessage() {}
+func (*SearchNotesResponse) ProtoMessage() {}
 
-func (x *SearchMemoriesResponse) ProtoReflect() protoreflect.Message {
+func (x *SearchNotesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_sparky_v1_search_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -247,19 +247,19 @@ func (x *SearchMemoriesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SearchMemoriesResponse.ProtoReflect.Descriptor instead.
-func (*SearchMemoriesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use SearchNotesResponse.ProtoReflect.Descriptor instead.
+func (*SearchNotesResponse) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_search_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *SearchMemoriesResponse) GetHits() []*SearchHit {
+func (x *SearchNotesResponse) GetHits() []*SearchHit {
 	if x != nil {
 		return x.Hits
 	}
 	return nil
 }
 
-func (x *SearchMemoriesResponse) GetNotice() string {
+func (x *SearchNotesResponse) GetNotice() string {
 	if x != nil {
 		return x.Notice
 	}
@@ -384,7 +384,7 @@ func (*ReindexRequest) Descriptor() ([]byte, []int) {
 
 type ReindexResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Memories      int32                  `protobuf:"varint,1,opt,name=memories,proto3" json:"memories,omitempty"`
+	Notes         int32                  `protobuf:"varint,1,opt,name=notes,proto3" json:"notes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -419,9 +419,9 @@ func (*ReindexResponse) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_search_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ReindexResponse) GetMemories() int32 {
+func (x *ReindexResponse) GetNotes() int32 {
 	if x != nil {
-		return x.Memories
+		return x.Notes
 	}
 	return 0
 }
@@ -430,17 +430,17 @@ var File_sparky_v1_search_proto protoreflect.FileDescriptor
 
 const file_sparky_v1_search_proto_rawDesc = "" +
 	"\n" +
-	"\x16sparky/v1/search.proto\x12\tsparky.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8d\x01\n" +
-	"\tSearchHit\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x14\n" +
+	"\x16sparky/v1/search.proto\x12\tsparky.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x89\x01\n" +
+	"\tSearchHit\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x14\n" +
 	"\x05score\x18\x03 \x01(\x01R\x05score\x12\x18\n" +
 	"\asnippet\x18\x04 \x01(\tR\asnippet\x12\x1d\n" +
 	"\n" +
-	"matched_in\x18\x05 \x03(\tR\tmatchedIn\"\xa8\x03\n" +
-	"\x15SearchMemoriesRequest\x12\x14\n" +
-	"\x05query\x18\x01 \x01(\tR\x05query\x12\x17\n" +
-	"\amind_id\x18\x03 \x01(\tR\x06mindId\x12/\n" +
+	"matched_in\x18\x05 \x03(\tR\tmatchedIn\"\xa7\x03\n" +
+	"\x12SearchNotesRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x19\n" +
+	"\bspace_id\x18\x03 \x01(\tR\aspaceId\x12/\n" +
 	"\x13include_descendants\x18\x04 \x01(\bR\x12includeDescendants\x12\x17\n" +
 	"\atag_ids\x18\x05 \x03(\tR\x06tagIds\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x12\x14\n" +
@@ -450,18 +450,18 @@ const file_sparky_v1_search_proto_rawDesc = "" +
 	"\fupdated_from\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\vupdatedFrom\x129\n" +
 	"\n" +
-	"updated_to\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedToJ\x04\b\x02\x10\x03\"`\n" +
-	"\x16SearchMemoriesResponse\x12(\n" +
+	"updated_to\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedToJ\x04\b\x02\x10\x03\"]\n" +
+	"\x13SearchNotesResponse\x12(\n" +
 	"\x04hits\x18\x01 \x03(\v2\x14.sparky.v1.SearchHitR\x04hits\x12\x16\n" +
 	"\x06notice\x18\x03 \x01(\tR\x06noticeJ\x04\b\x02\x10\x03\"\x15\n" +
 	"\x13SearchStatusRequest\"A\n" +
 	"\x14SearchStatusResponse\x12#\n" +
 	"\rfts_documents\x18\x01 \x01(\x05R\fftsDocumentsJ\x04\b\x02\x10\b\"\x10\n" +
-	"\x0eReindexRequest\"-\n" +
-	"\x0fReindexResponse\x12\x1a\n" +
-	"\bmemories\x18\x01 \x01(\x05R\bmemories2\xeb\x01\n" +
-	"\rSearchService\x12M\n" +
-	"\x06Search\x12 .sparky.v1.SearchMemoriesRequest\x1a!.sparky.v1.SearchMemoriesResponse\x12I\n" +
+	"\x0eReindexRequest\"'\n" +
+	"\x0fReindexResponse\x12\x14\n" +
+	"\x05notes\x18\x01 \x01(\x05R\x05notes2\xe5\x01\n" +
+	"\rSearchService\x12G\n" +
+	"\x06Search\x12\x1d.sparky.v1.SearchNotesRequest\x1a\x1e.sparky.v1.SearchNotesResponse\x12I\n" +
 	"\x06Status\x12\x1e.sparky.v1.SearchStatusRequest\x1a\x1f.sparky.v1.SearchStatusResponse\x12@\n" +
 	"\aReindex\x12\x19.sparky.v1.ReindexRequest\x1a\x1a.sparky.v1.ReindexResponseB\xb2\x01\n" +
 	"\rcom.sparky.v1B\vSearchProtoP\x01ZOgithub.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1;sparkyv1\xa2\x02\x03SXX\xaa\x02\tSparky.V1\xca\x02\tSparky\\V1\xe2\x02\x15Sparky\\V1\\GPBMetadata\xea\x02\n" +
@@ -481,25 +481,25 @@ func file_sparky_v1_search_proto_rawDescGZIP() []byte {
 
 var file_sparky_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_sparky_v1_search_proto_goTypes = []any{
-	(*SearchHit)(nil),              // 0: sparky.v1.SearchHit
-	(*SearchMemoriesRequest)(nil),  // 1: sparky.v1.SearchMemoriesRequest
-	(*SearchMemoriesResponse)(nil), // 2: sparky.v1.SearchMemoriesResponse
-	(*SearchStatusRequest)(nil),    // 3: sparky.v1.SearchStatusRequest
-	(*SearchStatusResponse)(nil),   // 4: sparky.v1.SearchStatusResponse
-	(*ReindexRequest)(nil),         // 5: sparky.v1.ReindexRequest
-	(*ReindexResponse)(nil),        // 6: sparky.v1.ReindexResponse
-	(*timestamppb.Timestamp)(nil),  // 7: google.protobuf.Timestamp
+	(*SearchHit)(nil),             // 0: sparky.v1.SearchHit
+	(*SearchNotesRequest)(nil),    // 1: sparky.v1.SearchNotesRequest
+	(*SearchNotesResponse)(nil),   // 2: sparky.v1.SearchNotesResponse
+	(*SearchStatusRequest)(nil),   // 3: sparky.v1.SearchStatusRequest
+	(*SearchStatusResponse)(nil),  // 4: sparky.v1.SearchStatusResponse
+	(*ReindexRequest)(nil),        // 5: sparky.v1.ReindexRequest
+	(*ReindexResponse)(nil),       // 6: sparky.v1.ReindexResponse
+	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
 }
 var file_sparky_v1_search_proto_depIdxs = []int32{
-	7, // 0: sparky.v1.SearchMemoriesRequest.due_from:type_name -> google.protobuf.Timestamp
-	7, // 1: sparky.v1.SearchMemoriesRequest.due_to:type_name -> google.protobuf.Timestamp
-	7, // 2: sparky.v1.SearchMemoriesRequest.updated_from:type_name -> google.protobuf.Timestamp
-	7, // 3: sparky.v1.SearchMemoriesRequest.updated_to:type_name -> google.protobuf.Timestamp
-	0, // 4: sparky.v1.SearchMemoriesResponse.hits:type_name -> sparky.v1.SearchHit
-	1, // 5: sparky.v1.SearchService.Search:input_type -> sparky.v1.SearchMemoriesRequest
+	7, // 0: sparky.v1.SearchNotesRequest.due_from:type_name -> google.protobuf.Timestamp
+	7, // 1: sparky.v1.SearchNotesRequest.due_to:type_name -> google.protobuf.Timestamp
+	7, // 2: sparky.v1.SearchNotesRequest.updated_from:type_name -> google.protobuf.Timestamp
+	7, // 3: sparky.v1.SearchNotesRequest.updated_to:type_name -> google.protobuf.Timestamp
+	0, // 4: sparky.v1.SearchNotesResponse.hits:type_name -> sparky.v1.SearchHit
+	1, // 5: sparky.v1.SearchService.Search:input_type -> sparky.v1.SearchNotesRequest
 	3, // 6: sparky.v1.SearchService.Status:input_type -> sparky.v1.SearchStatusRequest
 	5, // 7: sparky.v1.SearchService.Reindex:input_type -> sparky.v1.ReindexRequest
-	2, // 8: sparky.v1.SearchService.Search:output_type -> sparky.v1.SearchMemoriesResponse
+	2, // 8: sparky.v1.SearchService.Search:output_type -> sparky.v1.SearchNotesResponse
 	4, // 9: sparky.v1.SearchService.Status:output_type -> sparky.v1.SearchStatusResponse
 	6, // 10: sparky.v1.SearchService.Reindex:output_type -> sparky.v1.ReindexResponse
 	8, // [8:11] is the sub-list for method output_type

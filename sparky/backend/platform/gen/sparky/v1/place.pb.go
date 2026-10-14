@@ -25,7 +25,7 @@ const (
 // Place is stored and shown on the map. Geofence arming is not part of v1.
 type Place struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	Lat           float64                `protobuf:"fixed64,3,opt,name=lat,proto3" json:"lat,omitempty"`
 	Lng           float64                `protobuf:"fixed64,4,opt,name=lng,proto3" json:"lng,omitempty"`
@@ -67,9 +67,9 @@ func (*Place) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_place_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Place) GetMemoryId() string {
+func (x *Place) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -126,7 +126,7 @@ func (x *Place) GetUpdatedAt() *timestamppb.Timestamp {
 type SetPlaceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Place *Place                 `protobuf:"bytes,1,opt,name=place,proto3" json:"place,omitempty"`
-	// Memory revision from the caller's last read; 0 or absent means unchecked.
+	// Note revision from the caller's last read; 0 or absent means unchecked.
 	ExpectedRev   *int64 `protobuf:"varint,2,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -222,7 +222,7 @@ func (x *SetPlaceResponse) GetPlace() *Place {
 
 type ClearPlaceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	ExpectedRev   *int64                 `protobuf:"varint,2,opt,name=expected_rev,json=expectedRev,proto3,oneof" json:"expected_rev,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -258,9 +258,9 @@ func (*ClearPlaceRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_place_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ClearPlaceRequest) GetMemoryId() string {
+func (x *ClearPlaceRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -424,9 +424,9 @@ var File_sparky_v1_place_proto protoreflect.FileDescriptor
 
 const file_sparky_v1_place_proto_rawDesc = "" +
 	"\n" +
-	"\x15sparky/v1/place.proto\x12\tsparky.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x90\x02\n" +
-	"\x05Place\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x17\n" +
+	"\x15sparky/v1/place.proto\x12\tsparky.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8c\x02\n" +
+	"\x05Place\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x10\n" +
 	"\x03lat\x18\x03 \x01(\x01R\x03lat\x12\x10\n" +
 	"\x03lng\x18\x04 \x01(\x01R\x03lng\x12\x1e\n" +
@@ -443,9 +443,9 @@ const file_sparky_v1_place_proto_rawDesc = "" +
 	"\fexpected_rev\x18\x02 \x01(\x03H\x00R\vexpectedRev\x88\x01\x01B\x0f\n" +
 	"\r_expected_rev\":\n" +
 	"\x10SetPlaceResponse\x12&\n" +
-	"\x05place\x18\x01 \x01(\v2\x10.sparky.v1.PlaceR\x05place\"i\n" +
-	"\x11ClearPlaceRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12&\n" +
+	"\x05place\x18\x01 \x01(\v2\x10.sparky.v1.PlaceR\x05place\"e\n" +
+	"\x11ClearPlaceRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12&\n" +
 	"\fexpected_rev\x18\x02 \x01(\x03H\x00R\vexpectedRev\x88\x01\x01B\x0f\n" +
 	"\r_expected_rev\"\x14\n" +
 	"\x12ClearPlaceResponse\"o\n" +

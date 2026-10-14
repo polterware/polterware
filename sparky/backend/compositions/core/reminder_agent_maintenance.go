@@ -23,7 +23,7 @@ func (h reminderHandler) Plan(ctx context.Context, r *connect.Request[v1.PlanRem
 	items, err := h.s.Plan(ctx, schedule.PlanQuery{Now: instant(in.Now), Budget: int(in.Budget), Horizon: in.Horizon.AsDuration()})
 	out := &v1.PlanRemindersResponse{}
 	for _, i := range items {
-		out.Items = append(out.Items, &v1.ReminderItem{Id: i.ID, MemoryId: i.MemoryID, OccurrenceAt: stamp(i.OccurrenceAt), FireAt: stamp(i.FireAt), Title: i.Title, Body: i.Body, Category: i.Category, Repeat: repeatComponents(i.Repeat)})
+		out.Items = append(out.Items, &v1.ReminderItem{Id: i.ID, NoteId: i.NoteID, OccurrenceAt: stamp(i.OccurrenceAt), FireAt: stamp(i.FireAt), Title: i.Title, Body: i.Body, Category: i.Category, Repeat: repeatComponents(i.Repeat)})
 	}
 	return response(out, err)
 }
@@ -62,7 +62,7 @@ func (h reminderHandler) Snooze(ctx context.Context, r *connect.Request[v1.Snooz
 		return nil, unavailable("reminders")
 	}
 	in := r.Msg
-	o, err := h.s.Snooze(ctx, in.MemoryId, instant(in.OccurrenceAt), int(in.Minutes))
+	o, err := h.s.Snooze(ctx, in.NoteId, instant(in.OccurrenceAt), int(in.Minutes))
 	return response(&v1.SnoozeReminderResponse{OneOffId: o.ID, FireAt: stamp(o.FireAt)}, err)
 }
 func (h reminderHandler) ArmOneOff(ctx context.Context, r *connect.Request[v1.ArmOneOffRequest]) (*connect.Response[v1.ArmOneOffResponse], error) {
@@ -73,7 +73,7 @@ func (h reminderHandler) ArmOneOff(ctx context.Context, r *connect.Request[v1.Ar
 		return nil, unavailable("reminders")
 	}
 	in := r.Msg
-	o, err := h.s.ArmOneOff(ctx, in.Kind, in.MemoryId, instant(in.FireAt), in.Title, in.Body)
+	o, err := h.s.ArmOneOff(ctx, in.Kind, in.NoteId, instant(in.FireAt), in.Title, in.Body)
 	return response(&v1.ArmOneOffResponse{Id: o.ID, FireAt: stamp(o.FireAt)}, err)
 }
 func (h reminderHandler) CancelOneOff(ctx context.Context, r *connect.Request[v1.CancelOneOffRequest]) (*connect.Response[v1.CancelOneOffResponse], error) {

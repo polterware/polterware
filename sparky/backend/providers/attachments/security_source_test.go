@@ -50,7 +50,7 @@ func TestSourceOpenPinsAncestorsAndRejectsSymlinks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.ImportFile(t.Context(), testMemoryID, testAttachmentID, source); err == nil {
+	if _, err := store.ImportFile(t.Context(), testNoteID, testAttachmentID, source); err == nil {
 		t.Fatal("ingested a symlink ancestor")
 	}
 }

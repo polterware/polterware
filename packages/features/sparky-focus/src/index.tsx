@@ -2,8 +2,8 @@ import type { SparkyFeature } from "@polterware/feature-sparky-shell/feature";
 import { lazy } from "solid-js";
 import { focusStore } from "./store";
 
-function memoryIdFromFocusLink(url: URL): string | null {
-  if (url.protocol !== "sparky:" || url.hostname !== "memory" || url.searchParams.get("action") !== "focus") return null;
+function noteIdFromFocusLink(url: URL): string | null {
+  if (url.protocol !== "sparky:" || url.hostname !== "note" || url.searchParams.get("action") !== "focus") return null;
   const id = url.pathname.replace(/^\//, "");
   return id || null;
 }
@@ -23,9 +23,9 @@ const feature: SparkyFeature = {
   }],
   detailSections: [{ id: "focus-recipe", order: 40, component: FocusRecipeSection }],
   onDeepLink(url) {
-    const id = memoryIdFromFocusLink(url);
+    const id = noteIdFromFocusLink(url);
     if (!id) return false;
-    void focusStore.startMemory(id).catch(() => {});
+    void focusStore.startNote(id).catch(() => {});
     return false;
   },
 };

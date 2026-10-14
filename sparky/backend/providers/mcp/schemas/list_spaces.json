@@ -1,0 +1,23 @@
+{
+  "name": "list_spaces",
+  "description": "Space tree. parent is a name or id.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "parent": {
+        "type": "string"
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "required": [
+      "spaces"
+    ],
+    "properties": {
+      "spaces": {
+        "type": "array"
+      }
+    }
+  }
+}

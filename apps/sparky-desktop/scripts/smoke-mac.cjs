@@ -69,16 +69,16 @@ const delay = ms => new Promise(done => setTimeout(done, ms));
         assert.equal(report.smoke.updates, 'disabled');
         report.smoke.doctor = JSON.parse(execFileSync(binary, ['-db', profile.database, 'doctor', '--json'], { encoding: 'utf8' }));
         assert.equal(report.smoke.doctor.ok, true);
-        const memoryId = await page.evaluate(async () => (await window.sparky.memories.create({ title: 'Packaging persistence smoke' })).memory.id);
+        const noteId = await page.evaluate(async () => (await window.sparky.notes.create({ title: 'Packaging persistence smoke' })).note.id);
         // Exercise the packaged second-instance sparky:// handler with the same
         // isolated profile; never ask LaunchServices to open a default profile.
         await run(executablePath, [`--user-data-dir=${profile.userdata}`, `--sparky-e2e-env=${profile.environment}`, 'sparky://search?q=packaging'], { env, timeout: 15000 });
         await expect(page.getByRole('main')).toHaveAttribute('aria-label', 'Search');
-        report.smoke.searchQuery = await page.getByRole('searchbox', { name: 'Search memories' }).inputValue();
+        report.smoke.searchQuery = await page.getByRole('searchbox', { name: 'Search notes' }).inputValue();
         report.smoke.searchQueryResult = report.smoke.searchQuery === 'packaging' ? 'PASS' : 'FAIL: route opens but query is not applied';
-        await run(executablePath, [`--user-data-dir=${profile.userdata}`, `--sparky-e2e-env=${profile.environment}`, `sparky://memory/${memoryId}`], { env, timeout: 15000 });
-        await expect(page.locator('[data-memory-title]')).toHaveValue('Packaging persistence smoke');
-        report.smoke.deepLink = 'PASS: packaged second-instance search route and memory detail';
+        await run(executablePath, [`--user-data-dir=${profile.userdata}`, `--sparky-e2e-env=${profile.environment}`, `sparky://note/${noteId}`], { env, timeout: 15000 });
+        await expect(page.locator('[data-note-title]')).toHaveValue('Packaging persistence smoke');
+        report.smoke.deepLink = 'PASS: packaged second-instance search route and note detail';
         report.native.before = await page.evaluate(() => window.sparky.reminders.status({}));
         report.native.authorization = await page.evaluate(async () => {
           try { return { ok: true, authorized: await window.sparky.app.requestNotificationAuthorization() }; }
@@ -94,7 +94,7 @@ const delay = ms => new Promise(done => setTimeout(done, ms));
         process.kill(core.pid, 0);
         report.smoke.coreSurvivesQuit = true;
         const relaunched = await launch(profile);
-        assert.equal(await relaunched.page.evaluate(async id => (await window.sparky.memories.get({ id })).memory.title, memoryId), 'Packaging persistence smoke');
+        assert.equal(await relaunched.page.evaluate(async id => (await window.sparky.notes.get({ id })).note.title, noteId), 'Packaging persistence smoke');
         report.smoke.relaunchKeepsData = true;
       }
       await app.close(); app = undefined;

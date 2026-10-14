@@ -2,33 +2,64 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "polterware",
+      "name": "sparky",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "--filter",
+        "@polterware/sparky-desktop",
+        "run",
+        "dev:web"
+      ],
+      "port": 5180,
+      "url": "http://127.0.0.1:5180"
+    },
+    {
+      "name": "lore-desktop",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@polterware/lore-desktop",
+        "run",
+        "dev"
+      ],
       "port": 5173,
       "url": "http://localhost:5173"
     },
     {
-      "name": "polterware-url",
-      "url": "http://localhost:5173"
-    },
-    {
-      "name": "sparky",
+      "name": "vitals",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["run", "dev:sparky"],
-      "port": 5174,
-      "url": "http://localhost:5174"
+      "runtimeArgs": [
+        "--filter",
+        "@polterware/vitals",
+        "run",
+        "dev"
+      ],
+      "port": 5175,
+      "url": "http://localhost:5175"
     },
     {
-      "name": "sparky-url",
-      "url": "http://localhost:5174"
-    },
-    {
-      "name": "vitals-web",
+      "name": "gallery",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@polterware/vitals", "run", "dev:web"],
-      "port": 5176,
-      "url": "http://127.0.0.1:5176"
+      "runtimeArgs": [
+        "--filter",
+        "@polterware/gallery",
+        "run",
+        "dev"
+      ],
+      "port": 5177,
+      "url": "http://127.0.0.1:5177"
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@polterware/web",
+        "run",
+        "dev"
+      ],
+      "port": 5178,
+      "url": "http://127.0.0.1:5178"
     }
   ]
 }

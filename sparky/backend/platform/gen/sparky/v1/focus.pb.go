@@ -117,7 +117,7 @@ func (x *FocusDefaults) GetNotifications() bool {
 type FocusSession struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	MemoryId      string                 `protobuf:"bytes,2,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,2,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	Phase         string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
 	PlannedS      int32                  `protobuf:"varint,4,opt,name=planned_s,json=plannedS,proto3" json:"planned_s,omitempty"`
 	ElapsedS      int32                  `protobuf:"varint,5,opt,name=elapsed_s,json=elapsedS,proto3" json:"elapsed_s,omitempty"`
@@ -165,9 +165,9 @@ func (x *FocusSession) GetId() string {
 	return ""
 }
 
-func (x *FocusSession) GetMemoryId() string {
+func (x *FocusSession) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -384,7 +384,7 @@ func (x *SetFocusDefaultsResponse) GetDefaults() *FocusDefaults {
 
 type RecordFocusSessionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MemoryId      string                 `protobuf:"bytes,1,opt,name=memory_id,json=memoryId,proto3" json:"memory_id,omitempty"`
+	NoteId        string                 `protobuf:"bytes,1,opt,name=note_id,json=noteId,proto3" json:"note_id,omitempty"`
 	Phase         string                 `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
 	PlannedS      int32                  `protobuf:"varint,3,opt,name=planned_s,json=plannedS,proto3" json:"planned_s,omitempty"`
 	ElapsedS      int32                  `protobuf:"varint,4,opt,name=elapsed_s,json=elapsedS,proto3" json:"elapsed_s,omitempty"`
@@ -425,9 +425,9 @@ func (*RecordFocusSessionRequest) Descriptor() ([]byte, []int) {
 	return file_sparky_v1_focus_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *RecordFocusSessionRequest) GetMemoryId() string {
+func (x *RecordFocusSessionRequest) GetNoteId() string {
 	if x != nil {
-		return x.MemoryId
+		return x.NoteId
 	}
 	return ""
 }
@@ -626,10 +626,10 @@ const file_sparky_v1_focus_proto_rawDesc = "" +
 	"\x06cycles\x18\x04 \x01(\x05R\x06cycles\x12#\n" +
 	"\rauto_continue\x18\x05 \x01(\bR\fautoContinue\x12\x16\n" +
 	"\x06sounds\x18\x06 \x01(\bR\x06sounds\x12$\n" +
-	"\rnotifications\x18\a \x01(\bR\rnotifications\"\x93\x02\n" +
+	"\rnotifications\x18\a \x01(\bR\rnotifications\"\x8f\x02\n" +
 	"\fFocusSession\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
-	"\tmemory_id\x18\x02 \x01(\tR\bmemoryId\x12\x14\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\anote_id\x18\x02 \x01(\tR\x06noteId\x12\x14\n" +
 	"\x05phase\x18\x03 \x01(\tR\x05phase\x12\x1b\n" +
 	"\tplanned_s\x18\x04 \x01(\x05R\bplannedS\x12\x1b\n" +
 	"\telapsed_s\x18\x05 \x01(\x05R\belapsedS\x12\x14\n" +
@@ -643,9 +643,9 @@ const file_sparky_v1_focus_proto_rawDesc = "" +
 	"\x17SetFocusDefaultsRequest\x124\n" +
 	"\bdefaults\x18\x01 \x01(\v2\x18.sparky.v1.FocusDefaultsR\bdefaults\"P\n" +
 	"\x18SetFocusDefaultsResponse\x124\n" +
-	"\bdefaults\x18\x01 \x01(\v2\x18.sparky.v1.FocusDefaultsR\bdefaults\"\x90\x02\n" +
-	"\x19RecordFocusSessionRequest\x12\x1b\n" +
-	"\tmemory_id\x18\x01 \x01(\tR\bmemoryId\x12\x14\n" +
+	"\bdefaults\x18\x01 \x01(\v2\x18.sparky.v1.FocusDefaultsR\bdefaults\"\x8c\x02\n" +
+	"\x19RecordFocusSessionRequest\x12\x17\n" +
+	"\anote_id\x18\x01 \x01(\tR\x06noteId\x12\x14\n" +
 	"\x05phase\x18\x02 \x01(\tR\x05phase\x12\x1b\n" +
 	"\tplanned_s\x18\x03 \x01(\x05R\bplannedS\x12\x1b\n" +
 	"\telapsed_s\x18\x04 \x01(\x05R\belapsedS\x12\x14\n" +

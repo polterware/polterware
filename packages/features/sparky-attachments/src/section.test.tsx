@@ -1,22 +1,22 @@
 import { render } from "solid-js/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DesignSystemProvider } from "@polterware/frontend-design-system";
-import { AUDIO_ID, FILE_ID, LINK_ID, MEMORY_ID, attachmentFixture, fakeBridge } from "./fake-bridge";
+import { AUDIO_ID, FILE_ID, LINK_ID, NOTE_ID, attachmentFixture, fakeBridge } from "./fake-bridge";
 import { DROP_PATH_REFUSED, FETCH_TITLES_OFF, MICROPHONE_DENIED } from "./model";
 import { attachmentsStore } from "./store";
 import { AttachmentsSection } from "./section";
 
 vi.mock("@polterware/feature-sparky-shell/feature", () => ({
   useSparkyShell: () => ({
-    selectedMemoryId: () => MEMORY_ID,
+    selectedNoteId: () => NOTE_ID,
     features: [],
     path: () => "/",
     params: () => ({}),
     searchParams: () => new URLSearchParams(),
     navigate: () => {},
-    openMemory: () => {},
+    openNote: () => {},
     closeDetail: () => {},
-    registerMemoryDetail: () => () => {},
+    registerNoteDetail: () => () => {},
     registerCollectionShortcuts: () => () => {},
     deepLink: () => null,
     detailSections: () => [],
@@ -30,8 +30,8 @@ let fake = fakeBridge();
 beforeEach(() => {
   fake = fakeBridge([
     attachmentFixture(),
-    attachmentFixture({ id: AUDIO_ID, kind: "audio", name: "clip.webm", mime: "audio/webm", relPath: `${MEMORY_ID}/${AUDIO_ID}.webm`, sortOrder: 1 }),
-    attachmentFixture({ id: FILE_ID, kind: "file", name: "notes.pdf", mime: "application/pdf", relPath: `${MEMORY_ID}/${FILE_ID}.pdf`, sortOrder: 2 }),
+    attachmentFixture({ id: AUDIO_ID, kind: "audio", name: "clip.webm", mime: "audio/webm", relPath: `${NOTE_ID}/${AUDIO_ID}.webm`, sortOrder: 1 }),
+    attachmentFixture({ id: FILE_ID, kind: "file", name: "notes.pdf", mime: "application/pdf", relPath: `${NOTE_ID}/${FILE_ID}.pdf`, sortOrder: 2 }),
     attachmentFixture({ id: LINK_ID, kind: "link", url: "https://example.com/path", title: "Example", relPath: undefined, sortOrder: 3 }),
   ]);
   Reflect.set(globalThis, "sparky", fake.bridge);
@@ -80,7 +80,7 @@ describe("attachments section", () => {
     vi.mocked(fake.bridge.app.startMicrophone).mockResolvedValue(false);
     const host = mount();
     await ready(host);
-    await attachmentsStore.pickAndImport(MEMORY_ID);
+    await attachmentsStore.pickAndImport(NOTE_ID);
     await vi.waitFor(() => expect(host.textContent).toContain("attachment exceeds kind size limit"));
     expect(await attachmentsStore.requestMicrophone()).toBe("denied");
     await vi.waitFor(() => expect(host.textContent).toContain(MICROPHONE_DENIED));
@@ -109,14 +109,14 @@ describe("attachments section", () => {
   it("imports a finished recording and refuses oversize bytes before IPC", async () => {
     const host = mount();
     await ready(host);
-    await attachmentsStore.importRecording(MEMORY_ID, new Blob([new Uint8Array([9])], { type: "audio/wav" }));
+    await attachmentsStore.importRecording(NOTE_ID, new Blob([new Uint8Array([9])], { type: "audio/wav" }));
     await vi.waitFor(() => expect(fake.bridge.app.writeTempFile).toHaveBeenCalledWith(expect.any(Uint8Array), "recording.wav"));
     expect(fake.bridge.attachments.importFromPath).toHaveBeenCalledWith(expect.objectContaining({
       sourcePath: "/tmp/tmp-import/recording.wav", expectedRev: "1",
     }));
     vi.mocked(fake.bridge.app.writeTempFile).mockClear();
     vi.mocked(fake.bridge.attachments.importFromPath).mockClear();
-    await attachmentsStore.importRecording(MEMORY_ID, { size: 100 * 1024 * 1024 + 1, type: "audio/webm", arrayBuffer: vi.fn() } as unknown as Blob);
+    await attachmentsStore.importRecording(NOTE_ID, { size: 100 * 1024 * 1024 + 1, type: "audio/webm", arrayBuffer: vi.fn() } as unknown as Blob);
     await vi.waitFor(() => expect(host.querySelector("[role='alert']")?.textContent).toContain("Recording exceeds 100 MB"));
     expect(fake.bridge.app.writeTempFile).not.toHaveBeenCalled();
   });

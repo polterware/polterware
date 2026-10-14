@@ -14,7 +14,7 @@
 //   - Nonexistent wall times shift by the gap, ambiguous times use the first
 //     instant, and Next is strictly after even for one-shot rules.
 //   - The planner enforces a nearest-first global budget, rather than Swift's
-//     per-memory pending limits; note bodies are plain text capped at 140 runes.
+//     per-note pending limits; note bodies are plain text capped at 140 runes.
 //
 // Swift goldens cover daily, weekly without masks, monthly day <=28, non-leap
 // yearly, hourly and minutely, where the reference matches normative semantics.
@@ -23,11 +23,11 @@
 //
 // Safety/performance: Between/Count cap expansion at 10000; infinite range
 // queries cap at five years. Calendar queries default to examining at most 256
-// occurrences per memory, configurable via OccurrenceQuery.PerMemoryLimit or
-// Engine.PerMemoryLimit (1..10000), before filtering completions. The global
+// occurrences per note, configurable via OccurrenceQuery.PerNoteLimit or
+// Engine.PerNoteLimit (1..10000), before filtering completions. The global
 // limit caps returned occurrences separately. Dense series return a prefix;
 // callers narrow the range for later dates. The frozen RPC limit maps to the
-// global limit; W1-CORE can configure the separate per-memory domain parameter.
+// global limit; W1-CORE can configure the separate per-note domain parameter.
 // Plan seeks directly to now, lazily merges series with one candidate each, and
 // stops at Budget (default/hard ceiling 60). Open-ended interval-1 minutely,
 // hourly, daily and weekly rules emit native Repeat matchers (one slot per

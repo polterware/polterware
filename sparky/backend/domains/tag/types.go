@@ -23,6 +23,6 @@ type Patch struct {
 
 // MergeResult is the surviving tag after a merge.
 type MergeResult struct {
-	Target           Tag
-	MovedMemoryCount int
+	Target         Tag
+	MovedNoteCount int
 }

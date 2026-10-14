@@ -17,5 +17,5 @@ export function HighlightedSnippet(props: { snippet?: string; class?: string }) 
 }
 
 export function hitLabel(hit: SearchHitJSON): string {
-  return hit.title || "Untitled memory";
+  return hit.title || "Untitled note";
 }

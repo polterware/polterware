@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 
 // Place is stored and shown on the map. Geofence arming is not part of v1.
 message Place {
-  string memory_id = 1;
+  string note_id = 1;
   optional string name = 2;
   double lat = 3;
   double lng = 4;
@@ -20,7 +20,7 @@ message Place {
 
 message SetPlaceRequest {
   Place place = 1;
-  // Memory revision from the caller's last read; 0 or absent means unchecked.
+  // Note revision from the caller's last read; 0 or absent means unchecked.
   optional int64 expected_rev = 2;
 }
 
@@ -29,7 +29,7 @@ message SetPlaceResponse {
 }
 
 message ClearPlaceRequest {
-  string memory_id = 1;
+  string note_id = 1;
   optional int64 expected_rev = 2;
 }
 

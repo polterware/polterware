@@ -10,12 +10,12 @@ import (
 
 	"github.com/polterware/polterware/sparky/backend/domains/focus"
 	ff "github.com/polterware/polterware/sparky/backend/domains/focus/fake"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	mf "github.com/polterware/polterware/sparky/backend/domains/memory/fake"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
-	nf "github.com/polterware/polterware/sparky/backend/domains/mind/fake"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
+	mf "github.com/polterware/polterware/sparky/backend/domains/note/fake"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
 	sf "github.com/polterware/polterware/sparky/backend/domains/settings/fake"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
+	nf "github.com/polterware/polterware/sparky/backend/domains/space/fake"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 	tf "github.com/polterware/polterware/sparky/backend/domains/tag/fake"
 	"sync"
@@ -43,12 +43,12 @@ type Fixture struct {
 	Store    *af.Store
 	Audit    activity.Audit
 	Mem      *mf.Repository
-	Minds    *nf.Repository
+	Spaces   *nf.Repository
 	Tags     *tf.Repository
 	Settings *sf.Repository
 	Focus    *ff.Repository
-	MS       memory.Service
-	NS       mind.Service
+	MS       note.Service
+	NS       space.Service
 	TS       tag.Service
 	SS       settings.Service
 	FS       focus.Service
@@ -56,10 +56,10 @@ type Fixture struct {
 
 func Setup() *Fixture {
 	st := af.NewStore()
-	f := &Fixture{Ctx: context.Background(), Store: st, Mem: mf.New(st), Minds: nf.New(st), Tags: tf.New(st), Settings: sf.New(st), Focus: ff.New(st)}
+	f := &Fixture{Ctx: context.Background(), Store: st, Mem: mf.New(st), Spaces: nf.New(st), Tags: tf.New(st), Settings: sf.New(st), Focus: ff.New(st)}
 	f.Audit = activity.Audit{Repository: af.New(st), Transactions: st, Clock: fixedClock{time.Date(2026, 10, 4, 18, 0, 0, 0, time.UTC)}, IDs: &generator{}}
-	f.MS = memory.NewService(f.Mem, f.Minds, f.Tags, nil, nil, f.Audit)
-	f.NS = mind.NewService(f.Minds, f.Mem, f.Audit)
+	f.MS = note.NewService(f.Mem, f.Spaces, f.Tags, nil, nil, f.Audit)
+	f.NS = space.NewService(f.Spaces, f.Mem, f.Audit)
 	f.TS = tag.NewService(f.Tags, f.Audit)
 	f.SS = settings.NewService(f.Settings, f.Audit)
 	f.FS = focus.NewService(f.Focus, f.Settings, f.Mem, f.Audit)

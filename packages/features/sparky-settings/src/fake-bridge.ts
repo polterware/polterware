@@ -42,7 +42,7 @@ export function fakeSettingsBridge(seed: Partial<SettingsJSON> = {}) {
   let token = "live-token";
   let tokenPresent = true;
   const activity: ActivityJSON[] = [
-    { id: "activity-1", at: "2026-10-04T12:00:00.000Z", actor: "mcp:Claude Code", entity: "memory", entityId: "memory-1", op: "update", summary: "Updated memory title" },
+    { id: "activity-1", at: "2026-10-04T12:00:00.000Z", actor: "mcp:Claude Code", entity: "note", entityId: "note-1", op: "update", summary: "Updated note title" },
     { id: "activity-2", at: "2026-10-04T11:00:00.000Z", actor: "ui", entity: "settings", entityId: "map.online", op: "update", summary: "Update setting" },
   ];
   const doctor: DoctorCheckJSON[] = [
@@ -122,7 +122,7 @@ export function fakeSettingsBridge(seed: Partial<SettingsJSON> = {}) {
       reindex: vi.fn(async () => {
         ftsDocuments = 24;
         emit("search", "fts");
-        return { memories: ftsDocuments };
+        return { notes: ftsDocuments };
       }),
     },
     activity: {

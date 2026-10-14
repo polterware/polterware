@@ -2,8 +2,8 @@ import { For, Show } from "solid-js";
 import {
   BookOpen,
   Cloud,
-  DitherIconTile,
-  type DitherIconTone,
+  IconTile,
+  type IconTileTone,
 } from "@polterware/frontend-design-system";
 import "./overview-cards.css";
 
@@ -12,7 +12,7 @@ export type OverviewCardModel = {
   title: string;
   /** One short status line under the title. */
   subtitle: string;
-  tone?: DitherIconTone;
+  tone?: IconTileTone;
   openCommandId: string;
 };
 
@@ -43,9 +43,9 @@ export function OverviewCards(props: {
                     props.onSelect(card.id);
                   }}
                 >
-                  <DitherIconTile size={24} tone={card.tone ?? "neutral"}>
+                  <IconTile size={24} tone={card.tone ?? "neutral"}>
                     <Icon size={14} aria-hidden />
-                  </DitherIconTile>
+                  </IconTile>
                   <div class="commander-overview-card__text">
                     <p class="commander-overview-card__title">{card.title}</p>
                     <p class="commander-overview-card__subtitle">{card.subtitle}</p>

@@ -11,14 +11,14 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/focus"
 	"github.com/polterware/polterware/sparky/backend/domains/maintenance"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/reminder"
 	"github.com/polterware/polterware/sparky/backend/domains/review"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/search"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 	"github.com/polterware/polterware/sparky/backend/domains/tag"
 	"github.com/polterware/polterware/sparky/backend/domains/tx"
 	"github.com/polterware/polterware/sparky/backend/platform/changes"
@@ -44,8 +44,8 @@ type Store struct {
 }
 
 type (
-	Minds       struct{ *Store }
-	Memories    struct{ *Store }
+	Spaces      struct{ *Store }
+	Notes       struct{ *Store }
 	Tags        struct{ *Store }
 	Schedules   struct{ *Store }
 	Places      struct{ *Store }
@@ -59,8 +59,8 @@ type (
 
 var (
 	_ tx.Manager           = (*Store)(nil)
-	_ mind.Repository      = Minds{}
-	_ memory.Repository    = Memories{}
+	_ space.Repository     = Spaces{}
+	_ note.Repository      = Notes{}
 	_ tag.Repository       = Tags{}
 	_ schedule.Repository  = Schedules{}
 	_ place.Repository     = Places{}
@@ -98,8 +98,8 @@ func (s *Store) Close() error                  { return s.h.Close() }
 func (s *Store) Handle() *db.Handle            { return s.h }
 func (s *Store) Changes() *changes.Broadcaster { return s.bus }
 func (s *Store) SetIndex(index search.Index)   { s.index = index }
-func (s *Store) Minds() Minds                  { return Minds{s} }
-func (s *Store) Memories() Memories            { return Memories{s} }
+func (s *Store) Spaces() Spaces                { return Spaces{s} }
+func (s *Store) Notes() Notes                  { return Notes{s} }
 func (s *Store) Tags() Tags                    { return Tags{s} }
 func (s *Store) Schedules() Schedules          { return Schedules{s} }
 func (s *Store) Places() Places                { return Places{s} }

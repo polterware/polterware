@@ -20,10 +20,9 @@ html[data-shell-chrome="vibrancy"] #root {
   background: transparent !important;
 }
 
-/* One accent across Vitals: the pastel cyan primary drives brand buttons, success, and healthy meters.
+/* One accent across Vitals: the pastel cyan primary (also the shared brand token) drives success and healthy meters.
  * Warning and danger stay amber and red because they carry status. */
 :root {
-  --color-brand: var(--color-primary);
   --color-success: var(--color-primary);
   --color-status-success-background: var(--color-primary);
   /* Fixed dark ink so brand buttons stay legible on cyan in both themes. */
@@ -219,20 +218,10 @@ main.vitals-main {
   background: var(--color-surface);
 }
 
-.vitals-form,
 .vitals-stack {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-/* Keep each label tight to its control and give the fields room between each other. */
-.vitals-form {
-  gap: 14px;
-}
-
-.vitals-form .pw-field {
-  gap: 6px;
 }
 
 .vitals-chips {
@@ -571,7 +560,7 @@ main.vitals-main {
   margin-bottom: 12px;
 }
 
-.vitals-empty-illustration .pw-dither-icon {
+.vitals-empty-illustration .pw-icon-tile {
   transform: scale(2);
 }
 

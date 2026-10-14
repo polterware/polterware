@@ -5,8 +5,8 @@ const protoDir = new URL("../../../sparky/schemas/sparky/v1/", import.meta.url);
 
 const expected = {
   HealthService: ["Check"],
-  MindService: ["List", "Get", "Create", "Update", "Delete", "Reorder"],
-  MemoryService: [
+  SpaceService: ["List", "Get", "Create", "Update", "Delete", "Reorder"],
+  NoteService: [
     "List",
     "Get",
     "Create",
@@ -57,10 +57,10 @@ describe("RPC surface", () => {
       const body = source.match(new RegExp(`message ${message} \\{([\\s\\S]*?)\\}`))[1];
       return [...body.matchAll(/^\s*(?:repeated )?\w+ (\w+) = \d+;/gm)].map((match) => match[1]);
     };
-    expect(fields("search.proto", "SearchMemoriesRequest")).toEqual([
-      "query", "mind_id", "include_descendants", "tag_ids", "status", "limit",
+    expect(fields("search.proto", "SearchNotesRequest")).toEqual([
+      "query", "space_id", "include_descendants", "tag_ids", "status", "limit",
     ]);
-    expect(fields("search.proto", "SearchMemoriesResponse")).toEqual(["hits", "notice"]);
+    expect(fields("search.proto", "SearchNotesResponse")).toEqual(["hits", "notice"]);
     expect(fields("search.proto", "SearchStatusResponse")).toEqual(["fts_documents"]);
     expect(fields("settings.proto", "Settings")).toEqual([
       "appearance_theme", "notifications_sound", "notifications_all_day_time", "notifications_snooze_minutes",

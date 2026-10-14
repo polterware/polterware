@@ -5,8 +5,8 @@ import { installSpringCssProperties } from "./spring-css";
 /* Spring tiers as CSS custom properties (--spring-<tier>-*), sampled from springs.ts. */
 if (typeof document !== "undefined") installSpringCssProperties();
 
-export { Button } from "./button";
-export type { ButtonProps, ButtonVariant, ButtonSize } from "./button";
+export { Button, LinkButton } from "./button";
+export type { ButtonProps, ButtonVariant, ButtonSize, LinkButtonProps } from "./button";
 export { ControlButton } from "./control-button";
 export type { ControlButtonProps, ControlButtonTone } from "./control-button";
 export { Badge } from "./badge";
@@ -22,15 +22,22 @@ export type { StatusChipAppearance, StatusTone } from "./status";
 export { FilterMark } from "./filter-mark";
 export type { FilterMarkProps, FilterMarkShape } from "./filter-mark";
 export {
-  DitherIconTile,
-  DITHER_BRAND_ACCENTS,
-  resolveDitherIconAccent,
-} from "./dither-icon";
+  IconTile,
+  AuroraCover,
+  auroraForId,
+  AURORA_ACCENTS,
+  AURORA_PALETTES,
+  resolveAuroraAccent,
+  ICON_TILE_BRAND_ACCENTS,
+  resolveIconTileAccent,
+} from "./icon-tile";
 export type {
-  DitherIconSize,
-  DitherIconTileProps,
-  DitherIconTone,
-} from "./dither-icon";
+  IconTileSize,
+  IconTileProps,
+  IconTileTone,
+  AuroraPalette,
+  AuroraCoverProps,
+} from "./icon-tile";
 export { TemplateCard, TemplateCardGrid } from "./template-card";
 export type {
   TemplateCardGridItem,
@@ -52,6 +59,22 @@ export { Tabs, TabPanel } from "./tabs";
 export type { TabItem, TabTooltip } from "./tabs";
 export { Drawer } from "./drawer";
 export { Popover } from "./popover";
+export {
+  NavigationMenu,
+  NavigationMenuList,
+  NavigationMenuItem,
+  NavigationMenuTrigger,
+  NavigationMenuContent,
+  NavigationMenuLink,
+  NavigationMenuIndicator,
+  NavigationMenuPreviewPanel,
+  navigationMenuTriggerClass,
+} from "./navigation-menu";
+export type {
+  NavigationMenuProps,
+  NavigationMenuLinkProps,
+  NavigationMenuPreviewItem,
+} from "./navigation-menu";
 export { Tooltip } from "./tooltip";
 export type {
   TooltipContentProps,
@@ -119,11 +142,14 @@ export {
   DETAIL_PANEL_SIDEBAR_ID,
   DetailPanel,
   DetailPanelCollectionHeader,
+  CollapsibleSection,
   clampDetailPanelWidth,
 } from "./detail-panel";
 export type {
   DetailPanelBodyProps,
   DetailPanelHeaderProps,
+  DetailPanelMainProps,
+  DetailPanelRailProps,
   DetailPanelTitleProps,
   DetailPanelRootProps,
   DetailPanelSectionProps,
@@ -153,6 +179,8 @@ export type { InputProps, TextareaProps, ControlFieldSize } from "./input";
 export { Select } from "./select";
 export type { SelectProps, SelectOption } from "./select";
 export { Field } from "./field";
+export { FormStack } from "./form-stack";
+export { IconNameField, type IconNameFieldProps } from "./icon-name-field";
 export { MenuPanel, MenuList, MenuItem } from "./menu";
 export { SelectionCheck, SELECTION_ACK_MS } from "./menu-highlight";
 export type { MenuItemProps } from "./menu";
@@ -177,12 +205,15 @@ export type { FloatingWindowRootProps, FloatingWindowHeaderProps } from "./float
 export type { FloatingWindowDock, FloatingWindowGeometry } from "./floating-window-geometry";
 
 export { DesignSystemProvider, useDesignSystem, type DesignSystemProviderProps, type DesignSystemShortcut } from "./provider";
-export { registerDitherAccents } from "./dither-icon";
+export { registerIconTileAccents } from "./icon-tile";
+export { CHROME_PRESETS, chromeStopsFromTint, type ChromePreset, type ChromeStop } from "./chrome-finish";
 export { EmptyIllustration } from "./feedback";
 export { Checkbox, type CheckboxProps } from "./checkbox";
 export { SegmentedControl, type SegmentedControlProps, type SegmentOption } from "./segmented-control";
 export { NumberStepper, type NumberStepperProps } from "./number-stepper";
 export { Slider, type SliderProps } from "./slider";
+export { Calendar, type CalendarProps } from "./calendar";
+export { DateTimePicker, type DateTimePickerProps } from "./date-time-picker";
 export { DatePicker, parseDate, type DatePickerProps, type DateValue } from "./date-picker";
 export { TimePicker, parseTime, type TimePickerProps } from "./time-picker";
 export { ColorSwatchPicker, parseColor, type ColorSwatchPickerProps, type ColorSwatchOption } from "./color-swatch-picker";

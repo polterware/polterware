@@ -48,8 +48,8 @@ type Report struct {
 
 // Completion is one completed occurrence instant.
 type Completion struct {
-	MemoryID string
-	At       time.Time
+	NoteID string
+	At     time.Time
 }
 
 // FocusSpan is elapsed focus time inside the range.

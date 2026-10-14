@@ -120,9 +120,9 @@ describe("form → ScheduleInput mapping", () => {
       expect: { fireAt: "2026-10-03T03:00:00.000Z", allDay: true, freq: "daily" },
     },
   ])("vector $id $name", ({ form: value, expect: expected }) => {
-    const input = toScheduleInput(value, "memory-1");
+    const input = toScheduleInput(value, "note-1");
     expect(instant(input.fireAt)).toBe(instant(expected.fireAt));
-    expect(input.memoryId).toBe("memory-1");
+    expect(input.noteId).toBe("note-1");
     expect(input.active).toBe(true);
     expect(input.tz).toBe(expected.tz ?? value.tz);
     expect(input.freq).toBe(expected.freq ?? value.freq);
@@ -137,7 +137,7 @@ describe("form → ScheduleInput mapping", () => {
   });
 
   it("round-trips a saved weekly schedule back into the form", () => {
-    const input = toScheduleInput(form({ date: "2026-10-05", time: "08:00", tz: "UTC", freq: "weekly", weekdays: weekdaysFromMask(10) }), "memory-1");
+    const input = toScheduleInput(form({ date: "2026-10-05", time: "08:00", tz: "UTC", freq: "weekly", weekdays: weekdaysFromMask(10) }), "note-1");
     const restored = formFromSchedule(input);
     expect(restored.date).toBe("2026-10-05");
     expect(restored.time).toBe("08:00");
@@ -190,7 +190,7 @@ describe("invalid combinations", () => {
       weekdays: freq === "weekly" ? weekdaysFromMask(10) : weekdaysFromMask(0),
     });
     expect(validateScheduleForm(value)).toBe("");
-    expect(toScheduleInput(value, "memory-1").freq).toBe(freq);
+    expect(toScheduleInput(value, "note-1").freq).toBe(freq);
   });
 });
 
@@ -205,8 +205,8 @@ describe("reminder wording from reminders.status", () => {
   it("reports notifier off when permission is not granted", () => {
     expect(reminderWording({ ...live, permission: "not-determined" })).toBe("notifier off");
   });
-  it("reports completed from the memory or occurrence", () => {
-    expect(reminderWording({ ...live, memoryStatus: "completed" })).toBe("completed");
+  it("reports completed from the note or occurrence", () => {
+    expect(reminderWording({ ...live, noteStatus: "completed" })).toBe("completed");
     expect(reminderWording({ ...live, nextOccurrenceCompleted: true })).toBe("completed");
   });
   it("reports armed when the notifier has armed items", () => {

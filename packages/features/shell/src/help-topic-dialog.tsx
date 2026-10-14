@@ -2,7 +2,7 @@ import { Show } from "solid-js";
 import {
   A11yDialog,
   Button,
-  DitherIconTile,
+  IconTile,
   ExternalLink,
   pushToast,
 } from "@polterware/frontend-design-system";
@@ -50,9 +50,9 @@ export function HelpTopicDialog(props: {
           const Icon = topic()?.icon;
           if (!Icon) return undefined;
           return (
-            <DitherIconTile size={24} tone="neutral">
+            <IconTile size={24} tone="neutral">
               <Icon size={14} aria-hidden />
-            </DitherIconTile>
+            </IconTile>
           );
         })()
       }

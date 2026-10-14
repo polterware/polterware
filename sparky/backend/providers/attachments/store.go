@@ -41,12 +41,12 @@ func New(db *sql.DB, dataDir string) (*Store, error) {
 	return s, nil
 }
 
-func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (domain.ImportedFile, error) {
+func (s *Store) ImportFile(ctx context.Context, noteID, id, source string) (domain.ImportedFile, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.ImportedFile{}, err
 	}
-	if !ulidPattern.MatchString(memoryID) || !ulidPattern.MatchString(id) {
-		return domain.ImportedFile{}, fmt.Errorf("memory and attachment IDs must be ULIDs")
+	if !ulidPattern.MatchString(noteID) || !ulidPattern.MatchString(id) {
+		return domain.ImportedFile{}, fmt.Errorf("note and attachment IDs must be ULIDs")
 	}
 	in, err := openSource(source)
 	if err != nil {
@@ -108,12 +108,12 @@ func (s *Store) ImportFile(ctx context.Context, memoryID, id, source string) (do
 	if err := ctx.Err(); err != nil {
 		return domain.ImportedFile{}, err
 	}
-	dir, err := s.openMemory(memoryID, true)
+	dir, err := s.openNote(noteID, true)
 	if err != nil {
 		return domain.ImportedFile{}, err
 	}
 	defer dir.Close()
-	rel := filepath.Join(memoryID, id+ext)
+	rel := filepath.Join(noteID, id+ext)
 	tmp, tmpName, err := createTemp(dir)
 	if err != nil {
 		return domain.ImportedFile{}, err
@@ -166,11 +166,11 @@ func (r contextReader) Read(p []byte) (int, error) {
 }
 
 func (s *Store) AbsolutePath(rel string) (string, error) {
-	memoryID, name, err := splitPath(rel)
+	noteID, name, err := splitPath(rel)
 	if err != nil {
 		return "", err
 	}
-	dir, err := s.openMemory(memoryID, false)
+	dir, err := s.openNote(noteID, false)
 	if err != nil {
 		return "", err
 	}
@@ -189,11 +189,11 @@ func (s *Store) RemoveFile(ctx context.Context, rel string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	memoryID, name, err := splitPath(rel)
+	noteID, name, err := splitPath(rel)
 	if err != nil {
 		return err
 	}
-	dir, err := s.openMemory(memoryID, false)
+	dir, err := s.openNote(noteID, false)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
@@ -208,8 +208,8 @@ func (s *Store) RemoveFile(ctx context.Context, rel string) error {
 	}
 	return err
 }
-func (s *Store) List(ctx context.Context, memoryID string) ([]domain.Attachment, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,memory_id,kind,name,mime,size_bytes,sha256,rel_path,url,title,sort_order,created_at FROM attachments WHERE memory_id=? ORDER BY sort_order,created_at`, memoryID)
+func (s *Store) List(ctx context.Context, noteID string) ([]domain.Attachment, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,note_id,kind,name,mime,size_bytes,sha256,rel_path,url,title,sort_order,created_at FROM attachments WHERE note_id=? ORDER BY sort_order,created_at`, noteID)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (s *Store) List(ctx context.Context, memoryID string) ([]domain.Attachment,
 	return out, rows.Err()
 }
 func (s *Store) Get(ctx context.Context, id string) (domain.Attachment, error) {
-	a, e := scan(s.db.QueryRowContext(ctx, `SELECT id,memory_id,kind,name,mime,size_bytes,sha256,rel_path,url,title,sort_order,created_at FROM attachments WHERE id=?`, id))
+	a, e := scan(s.db.QueryRowContext(ctx, `SELECT id,note_id,kind,name,mime,size_bytes,sha256,rel_path,url,title,sort_order,created_at FROM attachments WHERE id=?`, id))
 	if errors.Is(e, sql.ErrNoRows) {
 		return a, fmt.Errorf("attachment not found: %s", id)
 	}
@@ -237,7 +237,7 @@ type scanner interface{ Scan(...any) error }
 func scan(r scanner) (a domain.Attachment, err error) {
 	var name, mime, hash, rel, url, title sql.NullString
 	var size sql.NullInt64
-	err = r.Scan(&a.ID, &a.MemoryID, &a.Kind, &name, &mime, &size, &hash, &rel, &url, &title, &a.SortOrder, &a.CreatedAt)
+	err = r.Scan(&a.ID, &a.NoteID, &a.Kind, &name, &mime, &size, &hash, &rel, &url, &title, &a.SortOrder, &a.CreatedAt)
 	if err != nil {
 		return
 	}
@@ -265,21 +265,21 @@ func scan(r scanner) (a domain.Attachment, err error) {
 	return
 }
 func (s *Store) Insert(ctx context.Context, a domain.Attachment) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO attachments(id,memory_id,kind,name,mime,size_bytes,sha256,rel_path,url,title,sort_order,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, a.ID, a.MemoryID, a.Kind, a.Name, a.Mime, a.SizeBytes, a.SHA256, a.RelPath, a.URL, a.Title, a.SortOrder, a.CreatedAt.UTC().Format("2006-01-02T15:04:05.000Z"))
+	_, err := s.db.ExecContext(ctx, `INSERT INTO attachments(id,note_id,kind,name,mime,size_bytes,sha256,rel_path,url,title,sort_order,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, a.ID, a.NoteID, a.Kind, a.Name, a.Mime, a.SizeBytes, a.SHA256, a.RelPath, a.URL, a.Title, a.SortOrder, a.CreatedAt.UTC().Format("2006-01-02T15:04:05.000Z"))
 	return err
 }
 func (s *Store) Delete(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM attachments WHERE id=?`, id)
 	return err
 }
-func (s *Store) Reorder(ctx context.Context, memoryID string, ids []string) error {
+func (s *Store) Reorder(ctx context.Context, noteID string, ids []string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	for i, id := range ids {
-		r, e := tx.ExecContext(ctx, `UPDATE attachments SET sort_order=? WHERE id=? AND memory_id=?`, i, id, memoryID)
+		r, e := tx.ExecContext(ctx, `UPDATE attachments SET sort_order=? WHERE id=? AND note_id=?`, i, id, noteID)
 		if e != nil {
 			return e
 		}
@@ -288,7 +288,7 @@ func (s *Store) Reorder(ctx context.Context, memoryID string, ids []string) erro
 			return e
 		}
 		if n != 1 {
-			return fmt.Errorf("attachment %q does not belong to memory", id)
+			return fmt.Errorf("attachment %q does not belong to note", id)
 		}
 	}
 	return tx.Commit()

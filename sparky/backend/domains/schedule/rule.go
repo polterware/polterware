@@ -355,7 +355,7 @@ func (s Schedule) Rule(zone *time.Location) (Rule, error) {
 	r := Rule{Anchor: s.FireAt, TZ: zone, AllDay: s.AllDay, Freq: s.Freq, Every: s.Every, WeekdayMask: s.WeekdayMask,
 		End: End{Type: s.EndType, Until: s.UntilAt, Count: count}}
 	if err := r.Validate(); err != nil {
-		return Rule{}, fmt.Errorf("schedule %s: %w", s.MemoryID, err)
+		return Rule{}, fmt.Errorf("schedule %s: %w", s.NoteID, err)
 	}
 	return r, nil
 }

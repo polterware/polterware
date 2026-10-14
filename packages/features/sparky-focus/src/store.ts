@@ -23,7 +23,7 @@ type Persisted = {
   plannedS: number;
   elapsedS: number;
   startedAt: number;
-  memoryId?: string;
+  noteId?: string;
 };
 
 function iso(ms: number): string {
@@ -70,7 +70,7 @@ export function createFocusStore(getBridge: () => FocusBridge = browserBridge, o
   const [reminderDetail, setReminderDetail] = createSignal("Phase reminder is not armed.");
   const [recordState, setRecordState] = createSignal<Honesty>("live");
   const [interrupted, setInterrupted] = createSignal<InterruptedNotice>(null);
-  const [notedMemoryId, setNotedMemoryId] = createSignal<string | null>(null);
+  const [pickedNoteId, setPickedNoteId] = createSignal<string | null>(null);
   let oneOffId = "";
   let tickTimer: ReturnType<typeof setInterval> | undefined;
   let unsubscribe: (() => void) | undefined;
@@ -94,7 +94,7 @@ export function createFocusStore(getBridge: () => FocusBridge = browserBridge, o
     storage.setItem(STORAGE_KEY, JSON.stringify({
       phase: snap.phase, plannedS,
       elapsedS: Math.max(0, Math.min(plannedS, Math.round((snap.plannedMs - snap.remainingMs) / 1000))),
-      startedAt: snap.phaseStartedAt, memoryId: snap.memoryId ?? undefined,
+      startedAt: snap.phaseStartedAt, noteId: snap.noteId ?? undefined,
     } satisfies Persisted));
   }
 
@@ -106,14 +106,14 @@ export function createFocusStore(getBridge: () => FocusBridge = browserBridge, o
     catch { /* The OS may already have delivered this one-off. */ }
   }
 
-  async function armPhase(phase: ActivePhase, phaseEndsAt: number, memoryId: string | null): Promise<void> {
+  async function armPhase(phase: ActivePhase, phaseEndsAt: number, noteId: string | null): Promise<void> {
     setReminderState("queued");
     setReminderDetail("Arming the phase-end reminder.");
     try {
       await cancelArmed();
       const copy = titles(phase);
       const result = await getBridge().reminders.armOneOff({
-        kind: FOCUS_PHASE_KIND, memoryId: memoryId ?? "", fireAt: iso(phaseEndsAt), title: copy.title, body: copy.body,
+        kind: FOCUS_PHASE_KIND, noteId: noteId ?? "", fireAt: iso(phaseEndsAt), title: copy.title, body: copy.body,
       });
       oneOffId = result.id ?? "";
       setReminderState("live");
@@ -124,11 +124,11 @@ export function createFocusStore(getBridge: () => FocusBridge = browserBridge, o
     }
   }
 
-  async function recordPhase(record: PhaseRecord, memoryId: string | null): Promise<boolean> {
+  async function recordPhase(record: PhaseRecord, noteId: string | null): Promise<boolean> {
     setRecordState("queued");
     try {
       await getBridge().focus.recordSession({
-        memoryId: memoryId ?? "", phase: record.phase, plannedS: record.plannedS, elapsedS: record.elapsedS,
+        noteId: noteId ?? "", phase: record.phase, plannedS: record.plannedS, elapsedS: record.elapsedS,
         state: record.state, startedAt: iso(record.startedAt), endedAt: iso(record.endedAt),
       });
       setRecordState("live");
@@ -143,13 +143,13 @@ export function createFocusStore(getBridge: () => FocusBridge = browserBridge, o
 
   function onEvent(event: FocusTimerEvent): void {
     void enqueue(async () => {
-      const memoryId = timer?.snapshot().memoryId ?? null;
+      const noteId = timer?.snapshot().noteId ?? null;
       if (event.type === "phase-start") {
         persist();
-        await armPhase(event.phase, event.phaseEndsAt, memoryId);
+        await armPhase(event.phase, event.phaseEndsAt, noteId);
       } else if (event.type === "phase-end") {
         await cancelArmed();
-        const recorded = await recordPhase(event.record, memoryId);
+        const recorded = await recordPhase(event.record, noteId);
         const enabled = defaults()?.sounds !== false;
         const name = (await getBridge().settings.get({}).catch(() => ({ settings: undefined }))).settings?.notificationsSound ?? "glass";
         if (recorded) await play(name, enabled).catch(() => {});
@@ -207,7 +207,7 @@ export function createFocusStore(getBridge: () => FocusBridge = browserBridge, o
     try {
       recorded = await recordPhase({
         phase: pending.phase, plannedS: pending.plannedS, elapsedS, state: "stopped", startedAt: pending.startedAt, endedAt,
-      }, pending.memoryId ?? null);
+      }, pending.noteId ?? null);
     } catch { recorded = false; }
     setInterrupted({
       message: "The previous focus session was not resumed. The window closed mid-phase.",
@@ -247,32 +247,32 @@ export function createFocusStore(getBridge: () => FocusBridge = browserBridge, o
     return started;
   }
 
-  async function startMemory(id: string): Promise<boolean> {
+  async function startNote(id: string): Promise<boolean> {
     const engine = ensureTimer();
     if (engine.wouldReplace(id)) return false;
-    if (engine.snapshot().isSessionActive && engine.snapshot().memoryId === id) return false;
-    const result = await getBridge().memories.get({ id, include: { schedule: true } });
-    const memory = result.memory;
-    if (!memory?.id) throw new Error("Memory unavailable.");
-    const recipe = recipeFromSchedule(memory.schedule);
-    if (!recipe) throw new Error("This memory has no focus recipe.");
-    const started = engine.beginMemory(memory.id, memory.title ?? "Focus", recipe);
+    if (engine.snapshot().isSessionActive && engine.snapshot().noteId === id) return false;
+    const result = await getBridge().notes.get({ id, include: { schedule: true } });
+    const note = result.note;
+    if (!note?.id) throw new Error("Note unavailable.");
+    const recipe = recipeFromSchedule(note.schedule);
+    if (!recipe) throw new Error("This note has no focus recipe.");
+    const started = engine.beginNote(note.id, note.title ?? "Focus", recipe);
     if (started) afterStart();
     return started;
   }
 
   async function startCommand(): Promise<boolean> {
-    const noted = notedMemoryId();
-    if (noted) {
-      try { if (await startMemory(noted)) return true; }
-      catch { /* Fall back to a quick session when the selected memory has no recipe. */ }
+    const picked = pickedNoteId();
+    if (picked) {
+      try { if (await startNote(picked)) return true; }
+      catch { /* Fall back to a quick session when the selected note has no recipe. */ }
     }
     return startQuick();
   }
 
   const store = {
-    snapshot, defaults, quickRecipe, sessions, loadState, loadError, reminderState, reminderDetail, recordState, interrupted, notedMemoryId,
-    setQuickRecipe, noteMemory: setNotedMemoryId, dismissInterrupted: () => setInterrupted(null),
+    snapshot, defaults, quickRecipe, sessions, loadState, loadError, reminderState, reminderDetail, recordState, interrupted, pickedNoteId,
+    setQuickRecipe, pickNote: setPickedNoteId, dismissInterrupted: () => setInterrupted(null),
     connect() {
       users += 1;
       if (users === 1) {
@@ -291,7 +291,7 @@ export function createFocusStore(getBridge: () => FocusBridge = browserBridge, o
         if (users === 0) { unsubscribe?.(); unsubscribe = undefined; }
       };
     },
-    startQuick, startMemory, startCommand,
+    startQuick, startNote, startCommand,
     pause() { const ok = ensureTimer().pause(); publish(); persist(); if (!ensureTimer().snapshot().isRunning) stopTicking(); return ok; },
     resume() { const ok = ensureTimer().start(); if (ok) afterStart(); return ok; },
     skip() { const ok = ensureTimer().skip(); publish(); persist(); if (!ensureTimer().snapshot().isRunning) stopTicking(); else startTicking(); return ok; },

@@ -23,7 +23,7 @@
 .pw-calendar__weekday { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-text-muted); }
 .pw-calendar__day-heading[data-today] .pw-calendar__weekday { color: var(--color-brand); }
 .pw-calendar__date-num { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 9999px; color: var(--color-text-primary); font-size: 14px; font-weight: 600; }
-.pw-calendar__date-num[data-today] { background: var(--color-brand); color: var(--color-dither-icon-mark); }
+.pw-calendar__date-num[data-today] { background: var(--color-brand); color: var(--color-icon-tile-mark); }
 .pw-calendar__head-day { min-width: 0; box-shadow: inset -1px -1px var(--color-border-subtle); background: var(--color-app-background); }
 .pw-calendar__column { position: relative; min-width: 0; background: var(--color-app-background); box-shadow: inset -1px 0 var(--color-border-subtle); }
 
@@ -47,7 +47,7 @@
 .pw-calendar__month-head { display: flex; padding: 6px 6px 2px; }
 .pw-calendar .pw-button.pw-calendar__date-num { width: 28px; height: 28px; min-height: 0; padding: 0; border-radius: 9999px; background: var(--color-app-background); color: var(--color-text-primary); font-size: 13px; font-weight: 600; }
 .pw-calendar .pw-button.pw-calendar__date-num[data-today],
-.pw-calendar__month-day[data-outside] .pw-button.pw-calendar__date-num[data-today] { background: var(--color-brand); color: var(--color-dither-icon-mark); }
+.pw-calendar__month-day[data-outside] .pw-button.pw-calendar__date-num[data-today] { background: var(--color-brand); color: var(--color-icon-tile-mark); }
 .pw-calendar__month-day[data-outside] .pw-button.pw-calendar__date-num { color: var(--color-text-muted); background: var(--color-app-background); }
 .pw-calendar__month-events { display: grid; gap: 2px; min-width: 0; padding: 0 4px 6px; }
 .pw-calendar .pw-button.pw-calendar__chip { display: flex; width: 100%; height: auto; min-height: 0; align-items: center; justify-content: flex-start; gap: 6px; overflow: hidden; padding: 1px 4px; border-radius: var(--radius-control); background: var(--color-app-background); color: var(--color-text-primary); text-align: left; }
@@ -57,7 +57,7 @@
 .pw-calendar__chip-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pw-calendar__dot { width: 8px; height: 8px; flex: none; border-radius: 9999px; }
 
-.pw-calendar__year { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 20px; padding: 8px 4px 28px; background: var(--color-app-background); }
+.pw-calendar__year { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 20px; padding: 8px 4px 28px; background: var(--color-app-background); }
 .pw-calendar__mini { display: grid; gap: 8px; min-width: 0; }
 .pw-calendar .pw-button.pw-calendar__mini-name { width: 100%; height: auto; min-height: 0; justify-content: flex-start; padding: 0 2px; background: var(--color-app-background); color: var(--color-text-primary); font-size: 13px; font-weight: 600; }
 .pw-calendar__mini-name[data-current] { color: var(--color-brand); }
@@ -66,11 +66,11 @@
 .pw-calendar__mini-weekdays { color: var(--color-text-muted); font-size: 10px; letter-spacing: 0.04em; }
 .pw-calendar .pw-button.pw-calendar__mini-day { width: 28px; height: 28px; min-height: 0; padding: 0; border-radius: 9999px; background: var(--color-app-background); color: var(--color-text-primary); font-size: 12px; }
 .pw-calendar .pw-button.pw-calendar__mini-day[data-outside] { color: var(--color-text-muted); }
-.pw-calendar .pw-button.pw-calendar__mini-day[data-today] { background: var(--color-brand); color: var(--color-dither-icon-mark); }
+.pw-calendar .pw-button.pw-calendar__mini-day[data-today] { background: var(--color-brand); color: var(--color-icon-tile-mark); }
 .pw-calendar .pw-button.pw-calendar__mini-day:hover,
 .pw-calendar .pw-button.pw-calendar__mini-day:focus-visible { background: var(--color-surface-hover); }
 .pw-calendar .pw-button.pw-calendar__mini-day[data-today]:hover,
-.pw-calendar .pw-button.pw-calendar__mini-day[data-today]:focus-visible { background: var(--color-brand); color: var(--color-dither-icon-mark); }
+.pw-calendar .pw-button.pw-calendar__mini-day[data-today]:focus-visible { background: var(--color-brand); color: var(--color-icon-tile-mark); }
 
 .pw-calendar__agenda { display: flex; min-width: 0; flex-direction: column; background: var(--color-app-background); }
 .pw-calendar__agenda-day { display: flex; flex-direction: column; gap: 2px; padding: 14px 8px 10px; box-shadow: inset 0 -1px var(--color-border-subtle); }

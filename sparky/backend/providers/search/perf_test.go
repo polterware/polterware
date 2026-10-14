@@ -26,9 +26,9 @@ func TestSearchPerformance10k(t *testing.T) {
 	q := store.Handle().Writer()
 	for i := 0; i < 10000; i++ {
 		id := fmt.Sprintf("m%05d", i)
-		title := fmt.Sprintf("memory title %d alpha", i%50)
+		title := fmt.Sprintf("note title %d alpha", i%50)
 		if _, err := q.ExecContext(ctx, `
-			INSERT INTO memories(id, title, note, status, pinned, due_all_day, sort_order, auto_complete_on_checklist, created_at, updated_at, rev)
+			INSERT INTO notes(id, title, content, status, pinned, due_all_day, sort_order, auto_complete_on_checklist, created_at, updated_at, rev)
 			VALUES (?,?,?,?,0,0,0,0,?,?,1)`,
 			id, title, "body text", "active", now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano)); err != nil {
 			t.Fatal(err)

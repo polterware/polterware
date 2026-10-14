@@ -12,16 +12,16 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file sparky/v1/search.proto.
  */
 export const file_sparky_v1_search: GenFile = /*@__PURE__*/
-  fileDesc("ChZzcGFya3kvdjEvc2VhcmNoLnByb3RvEglzcGFya3kudjEiYQoJU2VhcmNoSGl0EhEKCW1lbW9yeV9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRINCgVzY29yZRgDIAEoARIPCgdzbmlwcGV0GAQgASgJEhIKCm1hdGNoZWRfaW4YBSADKAkixgIKFVNlYXJjaE1lbW9yaWVzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIPCgdtaW5kX2lkGAMgASgJEhsKE2luY2x1ZGVfZGVzY2VuZGFudHMYBCABKAgSDwoHdGFnX2lkcxgFIAMoCRIOCgZzdGF0dXMYBiABKAkSDQoFbGltaXQYByABKAUSLAoIZHVlX2Zyb20YCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEioKBmR1ZV90bxgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMdXBkYXRlZF9mcm9tGAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX3RvGAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEoECAIQAyJSChZTZWFyY2hNZW1vcmllc1Jlc3BvbnNlEiIKBGhpdHMYASADKAsyFC5zcGFya3kudjEuU2VhcmNoSGl0Eg4KBm5vdGljZRgDIAEoCUoECAIQAyIVChNTZWFyY2hTdGF0dXNSZXF1ZXN0IjMKFFNlYXJjaFN0YXR1c1Jlc3BvbnNlEhUKDWZ0c19kb2N1bWVudHMYASABKAVKBAgCEAgiEAoOUmVpbmRleFJlcXVlc3QiIwoPUmVpbmRleFJlc3BvbnNlEhAKCG1lbW9yaWVzGAEgASgFMusBCg1TZWFyY2hTZXJ2aWNlEk0KBlNlYXJjaBIgLnNwYXJreS52MS5TZWFyY2hNZW1vcmllc1JlcXVlc3QaIS5zcGFya3kudjEuU2VhcmNoTWVtb3JpZXNSZXNwb25zZRJJCgZTdGF0dXMSHi5zcGFya3kudjEuU2VhcmNoU3RhdHVzUmVxdWVzdBofLnNwYXJreS52MS5TZWFyY2hTdGF0dXNSZXNwb25zZRJACgdSZWluZGV4Ehkuc3Bhcmt5LnYxLlJlaW5kZXhSZXF1ZXN0Ghouc3Bhcmt5LnYxLlJlaW5kZXhSZXNwb25zZUKyAQoNY29tLnNwYXJreS52MUILU2VhcmNoUHJvdG9QAVpPZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvc3Bhcmt5L2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3NwYXJreS92MTtzcGFya3l2MaICA1NYWKoCCVNwYXJreS5WMcoCCVNwYXJreVxWMeICFVNwYXJreVxWMVxHUEJNZXRhZGF0YeoCClNwYXJreTo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChZzcGFya3kvdjEvc2VhcmNoLnByb3RvEglzcGFya3kudjEiXwoJU2VhcmNoSGl0Eg8KB25vdGVfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDQoFc2NvcmUYAyABKAESDwoHc25pcHBldBgEIAEoCRISCgptYXRjaGVkX2luGAUgAygJIsQCChJTZWFyY2hOb3Rlc1JlcXVlc3QSDQoFcXVlcnkYASABKAkSEAoIc3BhY2VfaWQYAyABKAkSGwoTaW5jbHVkZV9kZXNjZW5kYW50cxgEIAEoCBIPCgd0YWdfaWRzGAUgAygJEg4KBnN0YXR1cxgGIAEoCRINCgVsaW1pdBgHIAEoBRIsCghkdWVfZnJvbRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKgoGZHVlX3RvGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgx1cGRhdGVkX2Zyb20YCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfdG8YCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSgQIAhADIk8KE1NlYXJjaE5vdGVzUmVzcG9uc2USIgoEaGl0cxgBIAMoCzIULnNwYXJreS52MS5TZWFyY2hIaXQSDgoGbm90aWNlGAMgASgJSgQIAhADIhUKE1NlYXJjaFN0YXR1c1JlcXVlc3QiMwoUU2VhcmNoU3RhdHVzUmVzcG9uc2USFQoNZnRzX2RvY3VtZW50cxgBIAEoBUoECAIQCCIQCg5SZWluZGV4UmVxdWVzdCIgCg9SZWluZGV4UmVzcG9uc2USDQoFbm90ZXMYASABKAUy5QEKDVNlYXJjaFNlcnZpY2USRwoGU2VhcmNoEh0uc3Bhcmt5LnYxLlNlYXJjaE5vdGVzUmVxdWVzdBoeLnNwYXJreS52MS5TZWFyY2hOb3Rlc1Jlc3BvbnNlEkkKBlN0YXR1cxIeLnNwYXJreS52MS5TZWFyY2hTdGF0dXNSZXF1ZXN0Gh8uc3Bhcmt5LnYxLlNlYXJjaFN0YXR1c1Jlc3BvbnNlEkAKB1JlaW5kZXgSGS5zcGFya3kudjEuUmVpbmRleFJlcXVlc3QaGi5zcGFya3kudjEuUmVpbmRleFJlc3BvbnNlQrIBCg1jb20uc3Bhcmt5LnYxQgtTZWFyY2hQcm90b1ABWk9naXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9zcGFya3kvYmFja2VuZC9wbGF0Zm9ybS9nZW4vc3Bhcmt5L3YxO3NwYXJreXYxogIDU1hYqgIJU3Bhcmt5LlYxygIJU3Bhcmt5XFYx4gIVU3Bhcmt5XFYxXEdQQk1ldGFkYXRh6gIKU3Bhcmt5OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message sparky.v1.SearchHit
  */
 export type SearchHit = Message<"sparky.v1.SearchHit"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: string title = 2;
@@ -52,18 +52,18 @@ export const SearchHitSchema: GenMessage<SearchHit> = /*@__PURE__*/
   messageDesc(file_sparky_v1_search, 0);
 
 /**
- * @generated from message sparky.v1.SearchMemoriesRequest
+ * @generated from message sparky.v1.SearchNotesRequest
  */
-export type SearchMemoriesRequest = Message<"sparky.v1.SearchMemoriesRequest"> & {
+export type SearchNotesRequest = Message<"sparky.v1.SearchNotesRequest"> & {
   /**
    * @generated from field: string query = 1;
    */
   query: string;
 
   /**
-   * @generated from field: string mind_id = 3;
+   * @generated from field: string space_id = 3;
    */
-  mindId: string;
+  spaceId: string;
 
   /**
    * @generated from field: bool include_descendants = 4;
@@ -107,16 +107,16 @@ export type SearchMemoriesRequest = Message<"sparky.v1.SearchMemoriesRequest"> &
 };
 
 /**
- * Describes the message sparky.v1.SearchMemoriesRequest.
- * Use `create(SearchMemoriesRequestSchema)` to create a new message.
+ * Describes the message sparky.v1.SearchNotesRequest.
+ * Use `create(SearchNotesRequestSchema)` to create a new message.
  */
-export const SearchMemoriesRequestSchema: GenMessage<SearchMemoriesRequest> = /*@__PURE__*/
+export const SearchNotesRequestSchema: GenMessage<SearchNotesRequest> = /*@__PURE__*/
   messageDesc(file_sparky_v1_search, 1);
 
 /**
- * @generated from message sparky.v1.SearchMemoriesResponse
+ * @generated from message sparky.v1.SearchNotesResponse
  */
-export type SearchMemoriesResponse = Message<"sparky.v1.SearchMemoriesResponse"> & {
+export type SearchNotesResponse = Message<"sparky.v1.SearchNotesResponse"> & {
   /**
    * @generated from field: repeated sparky.v1.SearchHit hits = 1;
    */
@@ -129,10 +129,10 @@ export type SearchMemoriesResponse = Message<"sparky.v1.SearchMemoriesResponse">
 };
 
 /**
- * Describes the message sparky.v1.SearchMemoriesResponse.
- * Use `create(SearchMemoriesResponseSchema)` to create a new message.
+ * Describes the message sparky.v1.SearchNotesResponse.
+ * Use `create(SearchNotesResponseSchema)` to create a new message.
  */
-export const SearchMemoriesResponseSchema: GenMessage<SearchMemoriesResponse> = /*@__PURE__*/
+export const SearchNotesResponseSchema: GenMessage<SearchNotesResponse> = /*@__PURE__*/
   messageDesc(file_sparky_v1_search, 2);
 
 /**
@@ -183,9 +183,9 @@ export const ReindexRequestSchema: GenMessage<ReindexRequest> = /*@__PURE__*/
  */
 export type ReindexResponse = Message<"sparky.v1.ReindexResponse"> & {
   /**
-   * @generated from field: int32 memories = 1;
+   * @generated from field: int32 notes = 1;
    */
-  memories: number;
+  notes: number;
 };
 
 /**
@@ -204,8 +204,8 @@ export const SearchService: GenService<{
    */
   search: {
     methodKind: "unary";
-    input: typeof SearchMemoriesRequestSchema;
-    output: typeof SearchMemoriesResponseSchema;
+    input: typeof SearchNotesRequestSchema;
+    output: typeof SearchNotesResponseSchema;
   },
   /**
    * @generated from rpc sparky.v1.SearchService.Status

@@ -24,9 +24,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function OpenMemory() {
+function OpenNote() {
   const shell = useSparkyShell();
-  return <Button onClick={() => shell.openMemory("memory-1")}>Open memory</Button>;
+  return <Button onClick={() => shell.openNote("note-1")}>Open note</Button>;
 }
 
 function mount(previewOccurrences?: string[]) {
@@ -40,8 +40,8 @@ function mount(previewOccurrences?: string[]) {
   Reflect.set(globalThis, "sparky", fake.wire);
   const opener: SparkyFeature = {
     id: "opener",
-    routes: [{ path: "/today", title: "Today", component: OpenMemory }],
-    memoryDetail: () => {
+    routes: [{ path: "/today", title: "Today", component: OpenNote }],
+    noteDetail: () => {
       const shell = useSparkyShell();
       return <>{shell.detailSections().map(section => {
         const Content = section.component;
@@ -95,8 +95,8 @@ function firstArg<T>(mock: unknown): T {
 
 async function openCard(previewOccurrences?: string[]) {
   const mounted = mount(previewOccurrences);
-  await vi.waitFor(() => expect(mounted.host.textContent).toContain("Open memory"));
-  button("Open memory").click();
+  await vi.waitFor(() => expect(mounted.host.textContent).toContain("Open note"));
+  button("Open note").click();
   await vi.waitFor(() => expect(document.querySelector("[data-schedule-card]")).not.toBeNull());
   await vi.waitFor(() => expect(button("Save schedule")).toBeTruthy());
   return mounted;
@@ -110,7 +110,7 @@ describe("schedule card", () => {
     button("Save schedule").click();
     await vi.waitFor(() => expect(fake.wire.schedule.set).toHaveBeenCalled());
     const sent = firstArg<{ schedule: Record<string, unknown> }>(fake.wire.schedule.set).schedule;
-    expect(sent.memoryId).toBe("memory-1");
+    expect(sent.noteId).toBe("note-1");
     expect(sent.tz).toBeTruthy();
     expect(sent.fireAt).toEqual(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
     expect(typeof sent.fireAt).toBe("string");
@@ -164,7 +164,7 @@ describe("schedule card", () => {
 
   it("keeps the mapped ScheduleInput identical to what Save sends", () => {
     const current = formFromSchedule({
-      memoryId: "memory-1",
+      noteId: "note-1",
       fireAt: "2026-03-01T12:00:00.000Z",
       tz: "America/Sao_Paulo",
       freq: "daily",
@@ -173,7 +173,7 @@ describe("schedule card", () => {
       endType: "never",
       allDay: false,
     });
-    const mapped = toScheduleInput(current as ScheduleForm, "memory-1");
+    const mapped = toScheduleInput(current as ScheduleForm, "note-1");
     expect(mapped.freq).toBe("daily");
     expect(mapped.tz).toBe("America/Sao_Paulo");
     expect(Date.parse(mapped.fireAt)).toBe(Date.parse("2026-03-01T12:00:00.000Z"));

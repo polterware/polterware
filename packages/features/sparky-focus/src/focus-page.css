@@ -1,13 +1,64 @@
+.sparky-focus-page {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
 .sparky-focus-stage {
   display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-  padding: 48px 24px;
+  gap: 24px;
+  padding: 40px 24px 32px;
 }
+
+.sparky-focus-sessions {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 24px 40px;
+}
+
+.sparky-focus-sessions-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.sparky-focus-sessions-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.sparky-focus-session {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 2px;
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.sparky-focus-session-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-brand);
+}
+
+.sparky-focus-session[data-state="stopped"] .sparky-focus-session-dot { background: var(--color-surface-selected); }
+.sparky-focus-session-meta { color: var(--color-text-muted); font-variant-numeric: tabular-nums; font-size: 12px; }
 
 .sparky-focus-title {
   margin: 0;

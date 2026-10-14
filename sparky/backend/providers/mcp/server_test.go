@@ -15,7 +15,7 @@ func TestSessionStateRemovedOnCloseAndExpiration(t *testing.T) {
 	for _, expire := range []bool{false, true} {
 		t.Run(fmt.Sprintf("expire=%v", expire), func(t *testing.T) {
 			f := testkit.Setup()
-			server, err := New(Deps{Memories: f.MS, Minds: f.NS})
+			server, err := New(Deps{Notes: f.MS, Spaces: f.NS})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -32,7 +32,7 @@ func TestSessionStateRemovedOnCloseAndExpiration(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer sess.Close()
-			if _, err := sess.CallTool(t.Context(), &sdk.CallToolParams{Name: "list_minds", Arguments: map[string]any{}}); err != nil {
+			if _, err := sess.CallTool(t.Context(), &sdk.CallToolParams{Name: "list_spaces", Arguments: map[string]any{}}); err != nil {
 				t.Fatal(err)
 			}
 			server.mu.Lock()

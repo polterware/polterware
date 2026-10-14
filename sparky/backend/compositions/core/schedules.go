@@ -8,21 +8,21 @@ import (
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/clock"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
-	"github.com/polterware/polterware/sparky/backend/domains/mind"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/settings"
+	"github.com/polterware/polterware/sparky/backend/domains/space"
 )
 
 type scheduleRuntime struct {
 	clock     clock.Clock
 	audit     activity.Audit
-	memories  memory.Repository
-	minds     mind.Repository
+	notes     note.Repository
+	spaces    space.Repository
 	schedules schedule.Repository
 	planner   schedule.Planner
 	settings  settings.Service
-	complete  memory.Service
+	complete  note.Service
 }
 
 func loadZone(name string) (*time.Location, error) {
@@ -55,7 +55,7 @@ func (s scheduleRuntime) allDay(ctx context.Context) (string, error) {
 	return doc.NotificationsAllDayTime, nil
 }
 
-func descendantIDs(nodes []mind.Mind, root string) []string {
+func descendantIDs(nodes []space.Space, root string) []string {
 	children := map[string][]string{}
 	for _, node := range nodes {
 		if node.ParentID != nil {
@@ -81,7 +81,7 @@ func (s scheduleRuntime) subjects(ctx context.Context) ([]schedule.PlanSubject, 
 	}
 	out := make([]schedule.PlanSubject, 0, len(rows))
 	for _, row := range rows {
-		m, err := s.memories.Get(ctx, row.MemoryID)
+		m, err := s.notes.Get(ctx, row.NoteID)
 		if err != nil {
 			if fault.IsCode(err, fault.CodeNotFound) {
 				continue
@@ -92,11 +92,11 @@ func (s scheduleRuntime) subjects(ctx context.Context) ([]schedule.PlanSubject, 
 		if err != nil {
 			return nil, err
 		}
-		completions, err := s.memories.ListCompletions(ctx, row.MemoryID)
+		completions, err := s.notes.ListCompletions(ctx, row.NoteID)
 		if err != nil {
 			return nil, err
 		}
-		tags, err := s.memories.ListTagIDs(ctx, row.MemoryID)
+		tags, err := s.notes.ListTagIDs(ctx, row.NoteID)
 		if err != nil {
 			return nil, err
 		}
@@ -105,8 +105,8 @@ func (s scheduleRuntime) subjects(ctx context.Context) ([]schedule.PlanSubject, 
 			done = append(done, c.OccurrenceAt)
 		}
 		out = append(out, schedule.PlanSubject{
-			MemoryID: m.ID, Title: m.Title, Note: m.Note, Rule: rule, CompletedAt: done,
-			FocusEnabled: row.FocusEnabled, MindID: m.MindID, TagIDs: tags, Status: m.Status,
+			NoteID: m.ID, Title: m.Title, Content: m.Content, Rule: rule, CompletedAt: done,
+			FocusEnabled: row.FocusEnabled, SpaceID: m.SpaceID, TagIDs: tags, Status: m.Status,
 			ScheduleInactive: !row.Active,
 		})
 	}
@@ -114,8 +114,8 @@ func (s scheduleRuntime) subjects(ctx context.Context) ([]schedule.PlanSubject, 
 }
 
 func (s scheduleRuntime) Set(ctx context.Context, who actor.Actor, in schedule.Schedule) (schedule.Schedule, error) {
-	if in.MemoryID == "" {
-		return schedule.Schedule{}, invalid("schedule.memory_id", "required")
+	if in.NoteID == "" {
+		return schedule.Schedule{}, invalid("schedule.note_id", "required")
 	}
 	if in.Every < 1 {
 		in.Every = 1
@@ -128,8 +128,8 @@ func (s scheduleRuntime) Set(ctx context.Context, who actor.Actor, in schedule.S
 	}
 	in.FireAt = in.FireAt.UTC().Truncate(time.Millisecond)
 	in.UpdatedAt = s.clock.Now().UTC()
-	err := s.audit.Write(ctx, who, "schedule", in.MemoryID, activity.OpUpdate, "Set schedule", func(ctx context.Context) error {
-		if err := bumpMemoryRevision(ctx, s.memories, in.MemoryID, in.UpdatedAt); err != nil {
+	err := s.audit.Write(ctx, who, "schedule", in.NoteID, activity.OpUpdate, "Set schedule", func(ctx context.Context) error {
+		if err := bumpNoteRevision(ctx, s.notes, in.NoteID, in.UpdatedAt); err != nil {
 			return err
 		}
 		return s.schedules.Upsert(ctx, in)
@@ -140,15 +140,15 @@ func (s scheduleRuntime) Set(ctx context.Context, who actor.Actor, in schedule.S
 	return in, nil
 }
 
-func (s scheduleRuntime) Clear(ctx context.Context, who actor.Actor, memoryID string) error {
-	if memoryID == "" {
-		return invalid("memory_id", "required")
+func (s scheduleRuntime) Clear(ctx context.Context, who actor.Actor, noteID string) error {
+	if noteID == "" {
+		return invalid("note_id", "required")
 	}
-	return s.audit.Write(ctx, who, "schedule", memoryID, activity.OpDelete, "Clear schedule", func(ctx context.Context) error {
-		if err := s.schedules.Delete(ctx, memoryID); err != nil {
+	return s.audit.Write(ctx, who, "schedule", noteID, activity.OpDelete, "Clear schedule", func(ctx context.Context) error {
+		if err := s.schedules.Delete(ctx, noteID); err != nil {
 			return err
 		}
-		return bumpMemoryRevision(ctx, s.memories, memoryID, s.clock.Now().UTC())
+		return bumpNoteRevision(ctx, s.notes, noteID, s.clock.Now().UTC())
 	})
 }
 
@@ -170,41 +170,41 @@ func (s scheduleRuntime) ListOccurrences(ctx context.Context, q OccurrenceQuery)
 		return nil, err
 	}
 	query := schedule.OccurrenceQuery{
-		From: q.From, To: q.To, Now: s.clock.Now().UTC(), MindID: q.MindID, TagIDs: q.TagIDs,
+		From: q.From, To: q.To, Now: s.clock.Now().UTC(), SpaceID: q.SpaceID, TagIDs: q.TagIDs,
 		IncludeCompleted: q.IncludeCompleted, Limit: q.Limit, AllDayTime: allDay,
 	}
-	if q.MindID != nil && q.IncludeDescendants {
-		nodes, err := s.minds.List(ctx)
+	if q.SpaceID != nil && q.IncludeDescendants {
+		nodes, err := s.spaces.List(ctx)
 		if err != nil {
 			return nil, err
 		}
-		query.MindIDs = descendantIDs(nodes, *q.MindID)
+		query.SpaceIDs = descendantIDs(nodes, *q.SpaceID)
 	}
 	return schedule.ListOccurrences(subjects, query)
 }
 
-func (s scheduleRuntime) CompleteOccurrence(ctx context.Context, who actor.Actor, memoryID string, at time.Time) (memory.Completion, error) {
-	if _, err := s.complete.SetStatus(ctx, who, memoryID, 0, memory.StatusCompleted, &at); err != nil {
-		return memory.Completion{}, err
+func (s scheduleRuntime) CompleteOccurrence(ctx context.Context, who actor.Actor, noteID string, at time.Time) (note.Completion, error) {
+	if _, err := s.complete.SetStatus(ctx, who, noteID, 0, note.StatusCompleted, &at); err != nil {
+		return note.Completion{}, err
 	}
-	items, err := s.memories.ListCompletions(ctx, memoryID)
+	items, err := s.notes.ListCompletions(ctx, noteID)
 	if err != nil {
-		return memory.Completion{}, err
+		return note.Completion{}, err
 	}
 	for _, item := range items {
 		if item.OccurrenceAt.Equal(at.UTC()) {
 			return item, nil
 		}
 	}
-	return memory.Completion{MemoryID: memoryID, OccurrenceAt: at.UTC()}, nil
+	return note.Completion{NoteID: noteID, OccurrenceAt: at.UTC()}, nil
 }
 
-func (s scheduleRuntime) ReopenOccurrence(ctx context.Context, who actor.Actor, memoryID string, at time.Time) error {
-	_, err := s.complete.SetStatus(ctx, who, memoryID, 0, memory.StatusActive, &at)
+func (s scheduleRuntime) ReopenOccurrence(ctx context.Context, who actor.Actor, noteID string, at time.Time) error {
+	_, err := s.complete.SetStatus(ctx, who, noteID, 0, note.StatusActive, &at)
 	return err
 }
 
-func (s scheduleRuntime) SetFocusRecipe(ctx context.Context, who actor.Actor, memoryID string, recipe schedule.FocusRecipe) (schedule.Schedule, error) {
+func (s scheduleRuntime) SetFocusRecipe(ctx context.Context, who actor.Actor, noteID string, recipe schedule.FocusRecipe) (schedule.Schedule, error) {
 	if recipe.Enabled {
 		for field, value := range map[string]int{"work_min": recipe.WorkMin, "short_break_min": recipe.ShortBreakMin, "long_break_min": recipe.LongBreakMin} {
 			if value < 1 || value > 60 {
@@ -216,9 +216,9 @@ func (s scheduleRuntime) SetFocusRecipe(ctx context.Context, who actor.Actor, me
 		}
 	}
 	var row schedule.Schedule
-	err := s.audit.Write(ctx, who, "schedule", memoryID, activity.OpUpdate, "Set focus recipe", func(ctx context.Context) error {
+	err := s.audit.Write(ctx, who, "schedule", noteID, activity.OpUpdate, "Set focus recipe", func(ctx context.Context) error {
 		var err error
-		row, err = s.schedules.Get(ctx, memoryID)
+		row, err = s.schedules.Get(ctx, noteID)
 		if err != nil {
 			return err
 		}
@@ -232,7 +232,7 @@ func (s scheduleRuntime) SetFocusRecipe(ctx context.Context, who actor.Actor, me
 		if err := s.schedules.Upsert(ctx, row); err != nil {
 			return err
 		}
-		return bumpMemoryRevision(ctx, s.memories, memoryID, row.UpdatedAt)
+		return bumpNoteRevision(ctx, s.notes, noteID, row.UpdatedAt)
 	})
 	if err != nil {
 		return schedule.Schedule{}, err
@@ -240,21 +240,21 @@ func (s scheduleRuntime) SetFocusRecipe(ctx context.Context, who actor.Actor, me
 	return row, nil
 }
 
-// Schedule and place are part of the memory aggregate guarded by expectedRev.
+// Schedule and place are part of the note aggregate guarded by expectedRev.
 // Call only inside the mutation's audit transaction.
-func bumpMemoryRevision(ctx context.Context, repo memory.Repository, id string, at time.Time) error {
-	return bumpMemoryRevisionExpecting(ctx, repo, id, 0, at)
+func bumpNoteRevision(ctx context.Context, repo note.Repository, id string, at time.Time) error {
+	return bumpNoteRevisionExpecting(ctx, repo, id, 0, at)
 }
 
-// bumpMemoryRevisionExpecting bumps the revision inside the caller's transaction;
+// bumpNoteRevisionExpecting bumps the revision inside the caller's transaction;
 // a non-zero expectedRev that differs from the stored one is a conflict.
-func bumpMemoryRevisionExpecting(ctx context.Context, repo memory.Repository, id string, expectedRev int64, at time.Time) error {
+func bumpNoteRevisionExpecting(ctx context.Context, repo note.Repository, id string, expectedRev int64, at time.Time) error {
 	m, err := repo.Get(ctx, id)
 	if err != nil {
 		return err
 	}
 	if expectedRev != 0 && m.Rev != expectedRev {
-		return fault.Conflict("memory", id, m.Rev, m)
+		return fault.Conflict("note", id, m.Rev, m)
 	}
 	oldRev := m.Rev
 	m.Rev++

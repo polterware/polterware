@@ -17,7 +17,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/polterware/polterware/sparky/backend/domains/actor"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/platform/coreclient"
 	v1 "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1"
 	rpc "github.com/polterware/polterware/sparky/backend/platform/gen/sparky/v1/sparkyv1connect"
@@ -175,36 +175,36 @@ func TestAuthStreamingAndOriginGuard(t *testing.T) {
 	}
 }
 
-// memoryProbe verifies the transport's rev/patch/actor forwarding. It is not a
+// noteProbe verifies the transport's rev/patch/actor forwarding. It is not a
 // substitute for W1-DOMAIN or real SQLite integration (request w1-core-1).
-type memoryProbe struct {
-	memory.Service
+type noteProbe struct {
+	note.Service
 	mu    sync.Mutex
-	row   memory.Memory
+	row   note.Note
 	actor string
-	patch memory.Patch
+	patch note.Patch
 	feed  *testFeed
 }
 
-func (p *memoryProbe) Get(_ context.Context, id string, _ memory.Include) (memory.GetResult, error) {
+func (p *noteProbe) Get(_ context.Context, id string, _ note.Include) (note.GetResult, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if id != p.row.ID {
-		return memory.GetResult{}, fault.NotFound("memory", id)
+		return note.GetResult{}, fault.NotFound("note", id)
 	}
-	return memory.GetResult{Memory: p.row}, nil
+	return note.GetResult{Note: p.row}, nil
 }
-func (p *memoryProbe) Update(ctx context.Context, a actor.Actor, id string, rev int64, patch memory.Patch) (memory.Memory, error) {
+func (p *noteProbe) Update(ctx context.Context, a actor.Actor, id string, rev int64, patch note.Patch) (note.Note, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := ctx.Err(); err != nil {
-		return memory.Memory{}, err
+		return note.Note{}, err
 	}
 	if id != p.row.ID {
-		return memory.Memory{}, fault.NotFound("memory", id)
+		return note.Note{}, fault.NotFound("note", id)
 	}
 	if rev != 0 && rev != p.row.Rev {
-		return memory.Memory{}, fault.Conflict("memory", id, p.row.Rev, p.row)
+		return note.Note{}, fault.Conflict("note", id, p.row.Rev, p.row)
 	}
 	p.actor, p.patch = a.Raw, patch
 	if patch.Title != nil {
@@ -213,8 +213,8 @@ func (p *memoryProbe) Update(ctx context.Context, a actor.Actor, id string, rev 
 	if patch.Pinned != nil {
 		p.row.Pinned = *patch.Pinned
 	}
-	if patch.ClearMindID {
-		p.row.MindID = nil
+	if patch.ClearSpaceID {
+		p.row.SpaceID = nil
 	}
 	if patch.ClearDueAt {
 		p.row.DueAt = nil
@@ -225,17 +225,17 @@ func (p *memoryProbe) Update(ctx context.Context, a actor.Actor, id string, rev 
 	p.row.Rev++
 	p.row.UpdatedAt = time.Now().UTC()
 	if p.feed != nil {
-		p.feed.publish(Change{Entity: "memories", ID: id, Op: "update"})
+		p.feed.publish(Change{Entity: "notes", ID: id, Op: "update"})
 	}
 	return p.row, nil
 }
-func newProbe(feed *testFeed) *memoryProbe {
-	return &memoryProbe{row: memory.Memory{ID: "01TEST", Title: "initial", Status: "active", Rev: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}, feed: feed}
+func newProbe(feed *testFeed) *noteProbe {
+	return &noteProbe{row: note.Note{ID: "01TEST", Title: "initial", Status: "active", Rev: 1, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}, feed: feed}
 }
 
 func TestConcurrentWritersAndRevConflictEntity(t *testing.T) {
 	p := newProbe(nil)
-	clients, state, _ := loopback(t, Services{Memories: p})
+	clients, state, _ := loopback(t, Services{Notes: p})
 	other, err := coreclient.NewWithHTTP(state, "desktop", &http.Client{Transport: &http.Transport{DisableKeepAlives: true}})
 	if err != nil {
 		t.Fatal(err)
@@ -249,11 +249,11 @@ func TestConcurrentWritersAndRevConflictEntity(t *testing.T) {
 			defer wg.Done()
 			title := fmt.Sprintf("writer-%d", i)
 			rev := int64(1)
-			client := clients.Memory
+			client := clients.Note
 			if i%2 == 0 {
-				client = other.Memory
+				client = other.Note
 			}
-			_, err := client.Update(t.Context(), connect.NewRequest(&v1.UpdateMemoryRequest{Id: p.row.ID, ExpectedRev: &rev, Title: &title}))
+			_, err := client.Update(t.Context(), connect.NewRequest(&v1.UpdateNoteRequest{Id: p.row.ID, ExpectedRev: &rev, Title: &title}))
 			results <- err
 		}(i)
 	}
@@ -281,7 +281,7 @@ func TestConcurrentWritersAndRevConflictEntity(t *testing.T) {
 			t.Fatal(err)
 		}
 		detail := value.(*v1.PreconditionDetail)
-		if detail.Reason != "rev_conflict" || detail.Entity != "memory" || detail.EntityId != p.row.ID || detail.CurrentRev != 2 {
+		if detail.Reason != "rev_conflict" || detail.Entity != "note" || detail.EntityId != p.row.ID || detail.CurrentRev != 2 {
 			t.Fatalf("conflict detail: %v", detail)
 		}
 		var current map[string]any
@@ -299,34 +299,34 @@ func TestConcurrentWritersAndRevConflictEntity(t *testing.T) {
 
 func TestPatchClearsFalseAndActorForwarding(t *testing.T) {
 	p := newProbe(nil)
-	mind := "mind"
+	space := "space"
 	priority := 3
 	due := time.Now()
-	p.row.MindID = &mind
+	p.row.SpaceID = &space
 	p.row.Priority = &priority
 	p.row.DueAt = &due
 	p.row.Pinned = true
-	clients, _, _ := loopback(t, Services{Memories: p})
+	clients, _, _ := loopback(t, Services{Notes: p})
 	pinned := false
 	empty := ""
 	rev := int64(1)
-	res, err := clients.Memory.Update(t.Context(), connect.NewRequest(&v1.UpdateMemoryRequest{Id: p.row.ID, ExpectedRev: &rev, Note: &empty, Pinned: &pinned, ClearMindId: true, ClearPriority: true, ClearDueAt: true}))
+	res, err := clients.Note.Update(t.Context(), connect.NewRequest(&v1.UpdateNoteRequest{Id: p.row.ID, ExpectedRev: &rev, Content: &empty, Pinned: &pinned, ClearSpaceId: true, ClearPriority: true, ClearDueAt: true}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.actor != "cli" || p.patch.Note == nil || *p.patch.Note != "" || p.patch.Pinned == nil || *p.patch.Pinned || !p.patch.ClearMindID || !p.patch.ClearDueAt || !p.patch.ClearPriority {
+	if p.actor != "cli" || p.patch.Content == nil || *p.patch.Content != "" || p.patch.Pinned == nil || *p.patch.Pinned || !p.patch.ClearSpaceID || !p.patch.ClearDueAt || !p.patch.ClearPriority {
 		t.Fatalf("patch forwarding: %+v actor=%s", p.patch, p.actor)
 	}
-	if res.Msg.Memory.Pinned || res.Msg.Memory.Priority != nil || res.Msg.Memory.DueAt != nil || res.Msg.Memory.MindId != "" {
-		t.Fatalf("clears lost: %v", res.Msg.Memory)
+	if res.Msg.Note.Pinned || res.Msg.Note.Priority != nil || res.Msg.Note.DueAt != nil || res.Msg.Note.SpaceId != "" {
+		t.Fatalf("clears lost: %v", res.Msg.Note)
 	}
 }
 func TestInvalidTimestampDoesNotReachDomain(t *testing.T) {
 	p := newProbe(nil)
-	clients, _, _ := loopback(t, Services{Memories: p})
-	_, err := clients.Memory.Update(t.Context(), connect.NewRequest(&v1.UpdateMemoryRequest{Id: p.row.ID, DueAt: &timestamppb.Timestamp{Seconds: 1, Nanos: -1}}))
+	clients, _, _ := loopback(t, Services{Notes: p})
+	_, err := clients.Note.Update(t.Context(), connect.NewRequest(&v1.UpdateNoteRequest{Id: p.row.ID, DueAt: &timestamppb.Timestamp{Seconds: 1, Nanos: -1}}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatal(err)
 	}
@@ -342,7 +342,7 @@ func TestErrorMapping(t *testing.T) {
 	for _, tc := range []struct {
 		err  error
 		code connect.Code
-	}{{fault.NotFound("memory", "id"), connect.CodeNotFound}, {fault.Invalid(fault.Violation{Field: "title", Reason: "required"}), connect.CodeInvalidArgument}, {fault.Exists("tag", "id"), connect.CodeAlreadyExists}, {fault.Exhausted("too large"), connect.CodeResourceExhausted}, {fault.Unavailable("offline"), connect.CodeUnavailable}, {context.Canceled, connect.CodeCanceled}, {context.DeadlineExceeded, connect.CodeDeadlineExceeded}, {fmt.Errorf("disk contains private note"), connect.CodeInternal}} {
+	}{{fault.NotFound("note", "id"), connect.CodeNotFound}, {fault.Invalid(fault.Violation{Field: "title", Reason: "required"}), connect.CodeInvalidArgument}, {fault.Exists("tag", "id"), connect.CodeAlreadyExists}, {fault.Exhausted("too large"), connect.CodeResourceExhausted}, {fault.Unavailable("offline"), connect.CodeUnavailable}, {context.Canceled, connect.CodeCanceled}, {context.DeadlineExceeded, connect.CodeDeadlineExceeded}, {fmt.Errorf("disk contains private note"), connect.CodeInternal}} {
 		err := mapError(fmt.Errorf("wrapped: %w", tc.err))
 		if connect.CodeOf(err) != tc.code {
 			t.Fatalf("%v -> %v", tc.err, err)
@@ -369,8 +369,8 @@ func TestHealthHandshakeAndDoctorUnavailable(t *testing.T) {
 }
 func TestPanicDoesNotExposeServiceDetails(t *testing.T) {
 	// An unimplemented embedded method panics; transport must fail closed.
-	clients, _, _ := loopback(t, Services{Memories: newProbe(nil)})
-	_, err := clients.Memory.List(t.Context(), connect.NewRequest(&v1.ListMemoriesRequest{}))
+	clients, _, _ := loopback(t, Services{Notes: newProbe(nil)})
+	_, err := clients.Note.List(t.Context(), connect.NewRequest(&v1.ListNotesRequest{}))
 	if connect.CodeOf(err) != connect.CodeInternal {
 		t.Fatal(err)
 	}

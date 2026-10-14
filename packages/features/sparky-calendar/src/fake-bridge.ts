@@ -2,9 +2,9 @@ import { vi } from "vitest";
 import type { CalendarWireBridge, OccurrenceJSON } from "./bridge";
 import type { ScheduleJSON } from "./mapping";
 
-export type FakeOccurrence = OccurrenceJSON & { memoryId: string; title: string; occurrenceAt: string };
+export type FakeOccurrence = OccurrenceJSON & { noteId: string; title: string; occurrenceAt: string };
 
-export type FakeMemory = {
+export type FakeNote = {
   id: string;
   title: string;
   rev: string;
@@ -13,12 +13,12 @@ export type FakeMemory = {
 
 export function fakeCalendarBridge(seed: {
   occurrences?: FakeOccurrence[];
-  memories?: FakeMemory[];
-  minds?: { id: string; name: string; color: string }[];
+  notes?: FakeNote[];
+  spaces?: { id: string; name: string; color: string }[];
   weekStart?: "mon" | "sun";
 } = {}) {
   const occurrences = [...(seed.occurrences ?? [])];
-  const memories = new Map((seed.memories ?? []).map(memory => [memory.id, { ...memory }]));
+  const notes = new Map((seed.notes ?? []).map(note => [note.id, { ...note }]));
   let listener: Parameters<CalendarWireBridge["onChange"]>[0] | undefined;
   const schedule = {
     listOccurrences: vi.fn(async (input?: { from?: string; to?: string; includeCompleted?: boolean }) => {
@@ -33,30 +33,30 @@ export function fakeCalendarBridge(seed: {
       };
     }),
     set: vi.fn(async (input?: { schedule?: ScheduleJSON }) => {
-      const id = input?.schedule?.memoryId ?? "";
-      const memory = memories.get(id);
-      if (memory) {
-        memory.schedule = { ...memory.schedule, ...input?.schedule, memoryId: id };
-        memory.rev = String(BigInt(memory.rev) + 1n);
+      const id = input?.schedule?.noteId ?? "";
+      const note = notes.get(id);
+      if (note) {
+        note.schedule = { ...note.schedule, ...input?.schedule, noteId: id };
+        note.rev = String(BigInt(note.rev) + 1n);
       }
       return { schedule: input?.schedule };
     }),
   };
   const wire = {
-    memories: {
+    notes: {
       create: vi.fn(async (input?: { title?: string }) => {
-        const memory: FakeMemory = { id: `created-${memories.size + 1}`, title: input?.title ?? "Untitled memory", rev: "1" };
-        memories.set(memory.id, memory);
-        return { memory };
+        const note: FakeNote = { id: `created-${notes.size + 1}`, title: input?.title ?? "Untitled note", rev: "1" };
+        notes.set(note.id, note);
+        return { note };
       }),
       get: vi.fn(async (input?: { id?: string }) => {
-        const memory = memories.get(input?.id ?? "");
-        if (!memory) throw new Error("Memory unavailable. It may have been deleted.");
-        return { memory: { ...memory } };
+        const note = notes.get(input?.id ?? "");
+        if (!note) throw new Error("Note unavailable. It may have been deleted.");
+        return { note: { ...note } };
       }),
     },
-    minds: {
-      list: vi.fn(async () => ({ minds: seed.minds ?? [{ id: "mind-1", name: "Home", color: "#7EA8F0" }] })),
+    spaces: {
+      list: vi.fn(async () => ({ spaces: seed.spaces ?? [{ id: "space-1", name: "Home", color: "#7EA8F0" }] })),
     },
     schedule,
     settings: {
@@ -71,7 +71,7 @@ export function fakeCalendarBridge(seed: {
     wire,
     schedule,
     occurrences,
-    memories,
-    emit: () => listener?.({ resync: false, changes: [{ entity: "schedule", id: "memory-1", op: "update" }] }),
+    notes,
+    emit: () => listener?.({ resync: false, changes: [{ entity: "schedule", id: "note-1", op: "update" }] }),
   };
 }

@@ -3,15 +3,15 @@ import { test, expect } from "../fixtures";
 test("retains the local draft on a real revision conflict and offers Reload and Overwrite", async ({ sparky, page }) => {
   await sparky.skipOnboarding();
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
-  const id = await page.evaluate(async () => (await window.sparky.memories.create({ title: "Conflict fixture" })).memory!.id);
-  await page.evaluate(id => window.sparky.app.openDeepLink(`sparky://memory/${id}`), id);
-  const title = page.locator("[data-memory-title]");
+  const id = await page.evaluate(async () => (await window.sparky.notes.create({ title: "Conflict fixture" })).note!.id);
+  await page.evaluate(id => window.sparky.app.openDeepLink(`sparky://note/${id}`), id);
+  const title = page.locator("[data-note-title]");
   await expect(title).toHaveValue("Conflict fixture");
   // Edit and advance the persisted revision in one renderer turn, before the debounce saves.
   await title.evaluate(async (input: HTMLInputElement, id) => {
     input.value = "Local draft";
     input.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    await window.sparky.memories.update({ id, title: "Agent revision" });
+    await window.sparky.notes.update({ id, title: "Agent revision" });
   }, id);
   await title.press("Meta+s");
   await expect(page.getByRole("alert").filter({ hasText: "Edit conflict" })).toContainText("Edit conflict");

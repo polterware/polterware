@@ -1,18 +1,18 @@
 import { vi } from "vitest";
 import type { MapWireBridge } from "./bridge";
-import { DEFAULT_RADIUS_M, type MemoryJSON, type PlaceJSON, type SettingsJSON } from "./model";
+import { DEFAULT_RADIUS_M, type NoteJSON, type PlaceJSON, type SettingsJSON } from "./model";
 
 export function fakeMapBridge(seed?: {
   places?: PlaceJSON[];
-  memories?: MemoryJSON[];
+  notes?: NoteJSON[];
   settings?: SettingsJSON;
 }) {
   const places = new Map((seed?.places ?? [{
-    memoryId: "memory-1", name: "Home", lat: -23.5505, lng: -46.6333, radiusM: DEFAULT_RADIUS_M, event: "enter", active: true, updatedAt: "2026-10-04T12:00:00.000Z",
-  }]).map(place => [place.memoryId ?? "", structuredClone(place)]));
-  const memories = new Map((seed?.memories ?? [{
-    id: "memory-1", title: "Buy milk", note: "", status: "active", rev: "3", place: places.get("memory-1"),
-  }]).map(memory => [memory.id ?? "", structuredClone(memory)]));
+    noteId: "note-1", name: "Home", lat: -23.5505, lng: -46.6333, radiusM: DEFAULT_RADIUS_M, event: "enter", active: true, updatedAt: "2026-10-04T12:00:00.000Z",
+  }]).map(place => [place.noteId ?? "", structuredClone(place)]));
+  const notes = new Map((seed?.notes ?? [{
+    id: "note-1", title: "Buy milk", content: "", status: "active", rev: "3", place: places.get("note-1"),
+  }]).map(note => [note.id ?? "", structuredClone(note)]));
   let settings: SettingsJSON = { mapGeocoding: false, mapOnline: false, mapProvider: "openfreemap", ...seed?.settings };
   let listener: Parameters<MapWireBridge["onChange"]>[0] | undefined;
 
@@ -23,39 +23,39 @@ export function fakeMapBridge(seed?: {
         return { places: [...places.values()].filter(place => (place.lat ?? 0) >= south && (place.lat ?? 0) <= north && (place.lng ?? 0) >= west && (place.lng ?? 0) <= east) };
       }),
       set: vi.fn(async (input?: { expectedRev?: string; place?: PlaceJSON }) => {
-        const memory = memories.get(input?.place?.memoryId ?? "");
-        if (input?.expectedRev && memory && input.expectedRev !== memory.rev) throw Object.assign(new Error("memory rev conflict"), { code: "conflict" });
+        const note = notes.get(input?.place?.noteId ?? "");
+        if (input?.expectedRev && note && input.expectedRev !== note.rev) throw Object.assign(new Error("note rev conflict"), { code: "conflict" });
         const place = { ...input?.place, radiusM: input?.place?.radiusM ?? DEFAULT_RADIUS_M, event: input?.place?.event || "enter", active: input?.place?.active ?? true, updatedAt: new Date().toISOString() };
-        places.set(place.memoryId ?? "", place);
-        if (memory) {
-          memory.place = place;
-          memory.rev = String(BigInt(memory.rev ?? "0") + 1n);
+        places.set(place.noteId ?? "", place);
+        if (note) {
+          note.place = place;
+          note.rev = String(BigInt(note.rev ?? "0") + 1n);
         }
         return { place };
       }),
-      clear: vi.fn(async (input?: { memoryId?: string; expectedRev?: string }) => {
-        const memory = memories.get(input?.memoryId ?? "");
-        if (input?.expectedRev && memory && input.expectedRev !== memory.rev) throw Object.assign(new Error("memory rev conflict"), { code: "conflict" });
-        places.delete(input?.memoryId ?? "");
-        if (memory) {
-          memory.place = undefined;
-          memory.rev = String(BigInt(memory.rev ?? "0") + 1n);
+      clear: vi.fn(async (input?: { noteId?: string; expectedRev?: string }) => {
+        const note = notes.get(input?.noteId ?? "");
+        if (input?.expectedRev && note && input.expectedRev !== note.rev) throw Object.assign(new Error("note rev conflict"), { code: "conflict" });
+        places.delete(input?.noteId ?? "");
+        if (note) {
+          note.place = undefined;
+          note.rev = String(BigInt(note.rev ?? "0") + 1n);
         }
         return {};
       }),
     },
-    memories: {
+    notes: {
       get: vi.fn(async (input?: { id?: string }) => {
-        const memory = memories.get(input?.id ?? "");
-        if (!memory) throw new Error("Memory not found");
-        return { memory: structuredClone(memory) };
+        const note = notes.get(input?.id ?? "");
+        if (!note) throw new Error("Note not found");
+        return { note: structuredClone(note) };
       }),
       list: vi.fn(async (input?: { hasPlace?: boolean; limit?: number; cursor?: string }) => {
         const limit = input?.limit ?? 50;
         if (limit < 1 || limit > 500) throw new Error("must be between 1 and 500");
-        const rows = [...memories.values()].filter(memory => !input?.hasPlace || Boolean(memory.place ?? places.get(memory.id ?? "")));
+        const rows = [...notes.values()].filter(note => !input?.hasPlace || Boolean(note.place ?? places.get(note.id ?? "")));
         const offset = Number(input?.cursor ?? 0);
-        return { memories: rows.slice(offset, offset + limit).map(memory => ({ id: memory.id, title: memory.title, snippet: memory.note, rev: memory.rev })), total: rows.length, nextCursor: offset + limit < rows.length ? String(offset + limit) : "" };
+        return { notes: rows.slice(offset, offset + limit).map(note => ({ id: note.id, title: note.title, snippet: note.content, rev: note.rev })), total: rows.length, nextCursor: offset + limit < rows.length ? String(offset + limit) : "" };
       }),
     },
     settings: {
@@ -68,7 +68,7 @@ export function fakeMapBridge(seed?: {
     reminders: {
       status: vi.fn(async () => ({ permission: "authorized", armed: 0, planned: 0, notifierLastSeenAt: new Date().toISOString() })),
     },
-    minds: { list: vi.fn(async () => ({ minds: [] })) },
+    spaces: { list: vi.fn(async () => ({ spaces: [] })) },
     tags: { list: vi.fn(async () => ({ tags: [] })) },
     search: { search: vi.fn(async () => ({ hits: [] })) },
     app: {
@@ -86,7 +86,7 @@ export function fakeMapBridge(seed?: {
   return {
     wire,
     places,
-    memories,
-    emit: (entity = "place", id = "memory-1") => listener?.({ resync: false, changes: [{ entity, id, op: "update" }] }),
+    notes,
+    emit: (entity = "place", id = "note-1") => listener?.({ resync: false, changes: [{ entity, id, op: "update" }] }),
   };
 }

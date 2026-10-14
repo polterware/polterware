@@ -49,7 +49,7 @@ message DeleteTagRequest {
 
 message DeleteTagResponse {}
 
-// MergeTagsRequest moves every memory from source_id onto target_id, then deletes source_id.
+// MergeTagsRequest moves every note from source_id onto target_id, then deletes source_id.
 message MergeTagsRequest {
   string source_id = 1;
   string target_id = 2;
@@ -57,7 +57,7 @@ message MergeTagsRequest {
 
 message MergeTagsResponse {
   Tag target = 1;
-  int32 moved_memory_count = 2;
+  int32 moved_note_count = 2;
 }
 
 service TagService {

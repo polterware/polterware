@@ -52,7 +52,7 @@ export type FocusRecipeForm = {
 
 /** Protobuf JSON body of sparky.v1.Schedule used by Set and Preview. */
 export type ScheduleInput = {
-  memoryId: string;
+  noteId: string;
   active: boolean;
   fireAt: string;
   tz: string;
@@ -240,12 +240,12 @@ export function validateScheduleForm(form: ScheduleForm): string {
   return "";
 }
 
-export function toScheduleInput(form: ScheduleForm, memoryId: string): ScheduleInput {
+export function toScheduleInput(form: ScheduleForm, noteId: string): ScheduleInput {
   const error = validateScheduleForm(form);
   if (error) throw new Error(error);
   const time = form.allDay ? "00:00" : form.time;
   const input: ScheduleInput = {
-    memoryId,
+    noteId,
     active: true,
     fireAt: wallClockToUtc(form.date, time, form.tz),
     tz: form.tz,
@@ -269,9 +269,9 @@ export function validateFocusRecipe(form: FocusRecipeForm): string {
   return "";
 }
 
-export function focusRecipeInput(form: FocusRecipeForm, memoryId: string) {
+export function focusRecipeInput(form: FocusRecipeForm, noteId: string) {
   return {
-    memoryId,
+    noteId,
     enabled: form.enabled,
     workMin: form.workMin,
     shortBreakMin: form.shortBreakMin,
@@ -286,11 +286,11 @@ export function reminderWording(input: {
   armed?: number;
   planned?: number;
   notifierLastSeenAt?: string;
-  memoryStatus?: string;
+  noteStatus?: string;
   nextOccurrenceCompleted?: boolean;
   now?: number;
 }): ReminderWording {
-  if (input.memoryStatus === "completed" || input.nextOccurrenceCompleted) return "completed";
+  if (input.noteStatus === "completed" || input.nextOccurrenceCompleted) return "completed";
   if (input.permission === "denied") return "permission denied";
   const authorized = ["authorized", "provisional", "ephemeral"].includes(input.permission ?? "");
   const seen = input.notifierLastSeenAt ? Date.parse(input.notifierLastSeenAt) : Number.NaN;

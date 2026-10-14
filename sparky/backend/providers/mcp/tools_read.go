@@ -10,7 +10,7 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/polterware/polterware/sparky/backend/domains/attachments"
 	"github.com/polterware/polterware/sparky/backend/domains/fault"
-	"github.com/polterware/polterware/sparky/backend/domains/memory"
+	"github.com/polterware/polterware/sparky/backend/domains/note"
 	"github.com/polterware/polterware/sparky/backend/domains/place"
 	"github.com/polterware/polterware/sparky/backend/domains/schedule"
 	"github.com/polterware/polterware/sparky/backend/domains/search"
@@ -28,32 +28,32 @@ func (s *Server) getCurrentTime(context.Context, *mcpsdk.CallToolRequest) (*mcps
 	return ok(now.Format(time.RFC3339), out), nil
 }
 
-func (s *Server) listMinds(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) listSpaces(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		Parent string `json:"parent"`
 	}
 	if err := decodeArgs(req, &in); err != nil {
 		return fail(err), nil
 	}
-	rows, err := s.deps.Minds.List(ctx)
+	rows, err := s.deps.Spaces.List(ctx)
 	if err != nil {
 		return fail(err), nil
 	}
 	sess := s.session(req)
 	for _, row := range rows {
-		sess.observeMind(row.ID, row.Rev)
+		sess.observeSpace(row.ID, row.Rev)
 	}
 	var parent *string
 	if in.Parent != "" {
-		got, err := resolveMind(ctx, s.deps.Minds, in.Parent)
+		got, err := resolveSpace(ctx, s.deps.Spaces, in.Parent)
 		if err != nil {
 			return fail(err), nil
 		}
 		parent = &got.ID
 	}
-	text := mindTreeText(rows, parent)
+	text := spaceTreeText(rows, parent)
 	if text == "" {
-		text = "0 minds"
+		text = "0 spaces"
 	}
 	count := 0
 	for _, row := range rows {
@@ -63,7 +63,7 @@ func (s *Server) listMinds(ctx context.Context, req *mcpsdk.CallToolRequest) (*m
 			count++
 		}
 	}
-	return ok(text, map[string]any{"minds": text, "total": count}), nil
+	return ok(text, map[string]any{"spaces": text, "total": count}), nil
 }
 
 func (s *Server) listTags(ctx context.Context, _ *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
@@ -81,9 +81,9 @@ func (s *Server) listTags(ctx context.Context, _ *mcpsdk.CallToolRequest) (*mcps
 	return ok(fmt.Sprintf("%d tags", len(out)), map[string]any{"tags": out}), nil
 }
 
-func (s *Server) listMemories(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) listNotes(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
-		Mind               string `json:"mind"`
+		Space              string `json:"space"`
 		IncludeDescendants bool   `json:"includeDescendants"`
 		Tag                string `json:"tag"`
 		Status             string `json:"status"`
@@ -105,13 +105,13 @@ func (s *Server) listMemories(ctx context.Context, req *mcpsdk.CallToolRequest) 
 	if err != nil {
 		return fail(err), nil
 	}
-	filter := memory.ListFilter{IncludeDescendants: in.IncludeDescendants, Status: in.Status, Pinned: in.Pinned, HasSchedule: in.HasSchedule, Query: in.Query, Order: in.Order, Limit: limit, Cursor: in.Cursor}
-	if in.Mind != "" {
-		id, err := optionalMind(ctx, s.deps.Minds, in.Mind)
+	filter := note.ListFilter{IncludeDescendants: in.IncludeDescendants, Status: in.Status, Pinned: in.Pinned, HasSchedule: in.HasSchedule, Query: in.Query, Order: in.Order, Limit: limit, Cursor: in.Cursor}
+	if in.Space != "" {
+		id, err := optionalSpace(ctx, s.deps.Spaces, in.Space)
 		if err != nil {
 			return fail(err), nil
 		}
-		filter.MindID = id
+		filter.SpaceID = id
 	}
 	if in.Tag != "" {
 		if s.deps.Tags == nil {
@@ -139,21 +139,21 @@ func (s *Server) listMemories(ctx context.Context, req *mcpsdk.CallToolRequest) 
 	if err != nil {
 		return fail(err), nil
 	}
-	summaries, err := s.summaries(ctx, page.Memories)
+	summaries, err := s.summaries(ctx, page.Notes)
 	if err != nil {
 		return fail(err), nil
 	}
-	out := map[string]any{"memories": summaries, "total": page.Total}
+	out := map[string]any{"notes": summaries, "total": page.Total}
 	if page.NextCursor != "" {
 		out["nextCursor"] = page.NextCursor
 	}
-	return ok(fmt.Sprintf("%d memories", page.Total), out), nil
+	return ok(fmt.Sprintf("%d notes", page.Total), out), nil
 }
 
-func (s *Server) searchMemories(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) searchNotes(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		Query string `json:"query"`
-		Mind  string `json:"mind"`
+		Space string `json:"space"`
 		Tag   string `json:"tag"`
 		Limit int    `json:"limit"`
 	}
@@ -167,9 +167,9 @@ func (s *Server) searchMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 	if err != nil {
 		return fail(err), nil
 	}
-	var mindID *string
-	if in.Mind != "" {
-		mindID, err = optionalMind(ctx, s.deps.Minds, in.Mind)
+	var spaceID *string
+	if in.Space != "" {
+		spaceID, err = optionalSpace(ctx, s.deps.Spaces, in.Space)
 		if err != nil {
 			return fail(err), nil
 		}
@@ -186,13 +186,13 @@ func (s *Server) searchMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 		tagIDs = []string{got.ID}
 	}
 	if s.deps.Search == nil {
-		page, err := s.deps.Memories.List(ctx, memory.ListFilter{MindID: mindID, TagIDs: tagIDs, Limit: MaxLimit})
+		page, err := s.deps.Notes.List(ctx, note.ListFilter{SpaceID: spaceID, TagIDs: tagIDs, Limit: MaxLimit})
 		if err != nil {
 			return fail(err), nil
 		}
 		needle := strings.ToLower(in.Query)
 		hits := make([]map[string]any, 0, limit)
-		for _, item := range page.Memories {
+		for _, item := range page.Notes {
 			blob := strings.ToLower(item.Title + " " + item.Snippet)
 			if !strings.Contains(blob, needle) {
 				continue
@@ -207,15 +207,15 @@ func (s *Server) searchMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 	}
 	var result search.Result
 	hits := make([]map[string]any, 0, limit)
-	snapshots := make([]memory.Memory, 0, limit)
+	snapshots := make([]note.Note, 0, limit)
 	read := func(ctx context.Context) error {
 		var err error
-		result, err = s.deps.Search.Search(ctx, in.Query, search.Filter{MindID: mindID, TagIDs: tagIDs, Limit: limit})
+		result, err = s.deps.Search.Search(ctx, in.Query, search.Filter{SpaceID: spaceID, TagIDs: tagIDs, Limit: limit})
 		if err != nil {
 			return err
 		}
 		for _, hit := range result.Hits {
-			got, err := s.deps.Memories.Get(ctx, hit.MemoryID, memory.Include{Note: true})
+			got, err := s.deps.Notes.Get(ctx, hit.NoteID, note.Include{Content: true})
 			if fault.IsCode(err, fault.CodeNotFound) {
 				continue
 			}
@@ -223,16 +223,16 @@ func (s *Server) searchMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 				return err
 			}
 			// Hydrate the returned entity from the same snapshot as its revision.
-			snippet := got.Memory.Note
+			snippet := got.Note.Content
 			if s.deps.Within != nil {
 				snippet = hit.Snippet
 			}
-			row := map[string]any{"id": got.Memory.ID, "title": got.Memory.Title, "rev": got.Memory.Rev, "score": hit.Score, "snippet": clipSnippet(snippet)}
+			row := map[string]any{"id": got.Note.ID, "title": got.Note.Title, "rev": got.Note.Rev, "score": hit.Score, "snippet": clipSnippet(snippet)}
 			if len(hit.MatchedIn) > 0 {
 				row["matchedIn"] = hit.MatchedIn
 			}
 			hits = append(hits, row)
-			snapshots = append(snapshots, got.Memory)
+			snapshots = append(snapshots, got.Note)
 		}
 		return nil
 	}
@@ -255,7 +255,7 @@ func (s *Server) searchMemories(ctx context.Context, req *mcpsdk.CallToolRequest
 	return ok(fmt.Sprintf("%d hits", len(hits)), out), nil
 }
 
-func (s *Server) getMemory(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+func (s *Server) getNote(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		ID      string   `json:"id"`
 		Include []string `json:"include"`
@@ -268,18 +268,18 @@ func (s *Server) getMemory(ctx context.Context, req *mcpsdk.CallToolRequest) (*m
 	}
 	wanted := map[string]bool{}
 	if len(in.Include) == 0 {
-		wanted["note"], wanted["checklist"], wanted["schedule"] = true, true, true
+		wanted["content"], wanted["checklist"], wanted["schedule"] = true, true, true
 	} else {
 		for _, name := range in.Include {
 			wanted[name] = true
 		}
 	}
-	got, err := s.session(req).Get(ctx, in.ID, memory.Include{Note: wanted["note"], Checklist: wanted["checklist"], Completions: wanted["completions"], Tags: true})
+	got, err := s.session(req).Get(ctx, in.ID, note.Include{Content: wanted["content"], Checklist: wanted["checklist"], Completions: wanted["completions"], Tags: true})
 	if err != nil {
 		return fail(err), nil
 	}
-	if !wanted["note"] {
-		got.Memory.Note = ""
+	if !wanted["content"] {
+		got.Note.Content = ""
 	}
 	var tagNames []string
 	if s.deps.Tags != nil {
@@ -319,15 +319,15 @@ func (s *Server) getMemory(ctx context.Context, req *mcpsdk.CallToolRequest) (*m
 	if placed != nil {
 		placePtr = &placed.row
 	}
-	body := memoryJSON(got.Memory, got.Checklist, tagNames, schedPtr, rule, placePtr, files, got.Completions)
-	return ok(got.Memory.Title, body), nil
+	body := noteJSON(got.Note, got.Checklist, tagNames, schedPtr, rule, placePtr, files, got.Completions)
+	return ok(got.Note.Title, body), nil
 }
 
 func (s *Server) listOccurrences(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 	var in struct {
 		From             string `json:"from"`
 		To               string `json:"to"`
-		Mind             string `json:"mind"`
+		Space            string `json:"space"`
 		IncludeCompleted bool   `json:"includeCompleted"`
 		Limit            int    `json:"limit"`
 	}
@@ -355,20 +355,20 @@ func (s *Server) listOccurrences(ctx context.Context, req *mcpsdk.CallToolReques
 	if s.deps.Schedules == nil {
 		return fail(fault.Unavailable("schedule backend is not wired")), nil
 	}
-	var mindID *string
-	if in.Mind != "" {
-		mindID, err = optionalMind(ctx, s.deps.Minds, in.Mind)
+	var spaceID *string
+	if in.Space != "" {
+		spaceID, err = optionalSpace(ctx, s.deps.Spaces, in.Space)
 		if err != nil {
 			return fail(err), nil
 		}
 	}
-	rows, err := s.deps.Schedules.ListOccurrences(ctx, *from, *to, mindID, in.IncludeCompleted, limit)
+	rows, err := s.deps.Schedules.ListOccurrences(ctx, *from, *to, spaceID, in.IncludeCompleted, limit)
 	if err != nil {
 		return fail(err), nil
 	}
 	out := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		item := map[string]any{"id": row.MemoryID, "title": row.Title, "at": row.OccurrenceAt.UTC().Format(time.RFC3339), "completed": row.Completed, "overdue": row.Overdue}
+		item := map[string]any{"id": row.NoteID, "title": row.Title, "at": row.OccurrenceAt.UTC().Format(time.RFC3339), "completed": row.Completed, "overdue": row.Overdue}
 		if row.AllDay {
 			item["allDay"] = true
 		}
@@ -531,10 +531,10 @@ func (s *Server) lookupPlace(ctx context.Context, id string) (*placeLookup, erro
 	return &placeLookup{row: row}, nil
 }
 
-func (s *Server) summaries(ctx context.Context, items []memory.Summary) ([]map[string]any, error) {
+func (s *Server) summaries(ctx context.Context, items []note.Summary) ([]map[string]any, error) {
 	names := map[string]string{}
-	if s.deps.Minds != nil {
-		rows, err := s.deps.Minds.List(ctx)
+	if s.deps.Spaces != nil {
+		rows, err := s.deps.Spaces.List(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -554,9 +554,9 @@ func (s *Server) summaries(ctx context.Context, items []memory.Summary) ([]map[s
 	}
 	out := make([]map[string]any, 0, len(items))
 	for _, item := range items {
-		mindName := ""
-		if item.MindID != nil {
-			mindName = names[*item.MindID]
+		spaceName := ""
+		if item.SpaceID != nil {
+			spaceName = names[*item.SpaceID]
 		}
 		labels := make([]string, 0, len(item.TagIDs))
 		for _, id := range item.TagIDs {
@@ -566,7 +566,7 @@ func (s *Server) summaries(ctx context.Context, items []memory.Summary) ([]map[s
 				labels = append(labels, id)
 			}
 		}
-		out = append(out, memorySummary(item, mindName, labels))
+		out = append(out, noteSummary(item, spaceName, labels))
 	}
 	return out, nil
 }

@@ -9,8 +9,8 @@ const packagesDir = resolve(rootDir, "../../packages");
 
 const sparkyFeatures = [
   "shell",
-  "memories",
-  "minds",
+  "notes",
+  "spaces",
   "schedule",
   "calendar",
   "attachments",
@@ -60,7 +60,7 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(rootDir, "src/renderer"),
-    server: { port: 5174 },
+    server: { port: 5174, strictPort: true },
     plugins: [
       solid({
         include: [

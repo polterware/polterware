@@ -60,6 +60,6 @@ test("settings: round-trip, MCP off test, and token rotation against the real co
   expect(violation).toContain("must be mon or sun");
 
   await settings.getByRole("button", { name: "Search", exact: true }).click();
-  await expect(settings).toContainText("Search matches words in your memories.");
+  await expect(settings).toContainText("Search matches words in your notes.");
   await expect(settings).toContainText("Semantic search is unavailable.");
 });

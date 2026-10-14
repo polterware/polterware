@@ -9,9 +9,9 @@ import (
 
 func (r Review) Completions(ctx context.Context, from, to time.Time) ([]review.Completion, error) {
 	rows, err := r.q(ctx, false).QueryContext(ctx, `
-		SELECT memory_id, completed_at FROM completions
+		SELECT note_id, completed_at FROM completions
 		WHERE completed_at >= ? AND completed_at < ?
-		ORDER BY completed_at, memory_id`, formatTime(from), formatTime(to))
+		ORDER BY completed_at, note_id`, formatTime(from), formatTime(to))
 	if err != nil {
 		return nil, err
 	}
@@ -20,7 +20,7 @@ func (r Review) Completions(ctx context.Context, from, to time.Time) ([]review.C
 	for rows.Next() {
 		var c review.Completion
 		var at string
-		if err := rows.Scan(&c.MemoryID, &at); err != nil {
+		if err := rows.Scan(&c.NoteID, &at); err != nil {
 			return nil, err
 		}
 		c.At = mustTime(at)

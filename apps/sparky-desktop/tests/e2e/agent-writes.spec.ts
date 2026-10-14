@@ -7,11 +7,11 @@ for (const transport of ["stdio", "http"] as const) {
     await sparky.skipOnboarding();
     await page.getByRole("button", { name: "Inbox", exact: true }).click();
     await page.evaluate(() => window.sparky.settings.set({ keys: ["agents.mcpEnabled"], settings: { agentsMcpEnabled: true } }));
-    const title = `Agent ${transport} memory`;
+    const title = `Agent ${transport} note`;
     const result = await driver(sparky, transport, title);
     expect(result.isError ?? false).toBe(false);
     await expect(page.getByRole("main")).toContainText(title);
-    const persisted = await page.evaluate(async query => (await window.sparky.memories.list({ query })).memories, title);
+    const persisted = await page.evaluate(async query => (await window.sparky.notes.list({ query })).notes, title);
     expect(persisted).toHaveLength(1);
   });
 }

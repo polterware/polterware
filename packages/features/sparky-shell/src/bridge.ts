@@ -9,8 +9,8 @@ type Namespace<S extends { method: object }> = {
 };
 /** Structural subset of window.sparky. No renderer transport or application imports. */
 export type ShellBridge = {
-  memories: Namespace<typeof Contracts.MemoryService>;
-  minds: Namespace<typeof Contracts.MindService>;
+  notes: Namespace<typeof Contracts.NoteService>;
+  spaces: Namespace<typeof Contracts.SpaceService>;
   tags: Namespace<typeof Contracts.TagService>;
   reminders: Namespace<typeof Contracts.ReminderService>;
   search: Namespace<typeof Contracts.SearchService>;
@@ -23,8 +23,8 @@ export type ShellBridge = {
 };
 
 /** The frozen bridge returns protobuf JSON; validate it once before feature code reads fields. */
-export type ShellWireBridge = Omit<ShellBridge, "memories" | "minds" | "tags" | "reminders" | "search"> & {
-  [K in "memories" | "minds" | "tags" | "reminders" | "search"]: {
+export type ShellWireBridge = Omit<ShellBridge, "notes" | "spaces" | "tags" | "reminders" | "search"> & {
+  [K in "notes" | "spaces" | "tags" | "reminders" | "search"]: {
     [M in keyof ShellBridge[K]]: (input?: JsonValue) => Promise<JsonValue>;
   };
 };
@@ -39,8 +39,8 @@ function bind<S extends DescService>(source: Record<string, (input?: JsonValue) 
 export function createShellBridge(wire: ShellWireBridge): ShellBridge {
   return {
     ...wire,
-    memories: bind(wire.memories, Contracts.MemoryService),
-    minds: bind(wire.minds, Contracts.MindService),
+    notes: bind(wire.notes, Contracts.NoteService),
+    spaces: bind(wire.spaces, Contracts.SpaceService),
     tags: bind(wire.tags, Contracts.TagService),
     reminders: bind(wire.reminders, Contracts.ReminderService),
     search: bind(wire.search, Contracts.SearchService),

@@ -11,7 +11,7 @@ export const OFFLINE_MESSAGE = "Online map tiles are turned off. Places stay on 
 
 export type Honesty = "live" | "queued" | "failed" | "unavailable";
 export type PlaceJSON = {
-  memoryId?: string;
+  noteId?: string;
   name?: string;
   lat?: number;
   lng?: number;
@@ -20,10 +20,10 @@ export type PlaceJSON = {
   active?: boolean;
   updatedAt?: string;
 };
-export type MemoryJSON = {
+export type NoteJSON = {
   id?: string;
   title?: string;
-  note?: string;
+  content?: string;
   status?: string;
   rev?: string;
   place?: PlaceJSON;
@@ -41,7 +41,7 @@ export type PlaceDraft = {
   event: "enter" | "exit";
 };
 export type MapPlaceRow = {
-  memoryId: string;
+  noteId: string;
   title: string;
   name: string;
   lat: number;
@@ -98,12 +98,12 @@ export function draftFromPlace(place?: PlaceJSON | null): PlaceDraft {
   };
 }
 
-export function placeFromDraft(memoryId: string, draft: PlaceDraft): PlaceJSON | undefined {
+export function placeFromDraft(noteId: string, draft: PlaceDraft): PlaceJSON | undefined {
   const lat = parseCoordinate(draft.lat, "lat");
   const lng = parseCoordinate(draft.lng, "lng");
   if (lat === undefined || lng === undefined) return undefined;
   return {
-    memoryId,
+    noteId,
     name: draft.name.trim() || undefined,
     lat,
     lng,

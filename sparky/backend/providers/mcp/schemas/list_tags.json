@@ -1,6 +1,6 @@
 {
   "name": "list_tags",
-  "description": "Tags with color and memory counts.",
+  "description": "Tags with color and note counts.",
   "inputSchema": {
     "type": "object",
     "properties": {}

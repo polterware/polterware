@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file sparky/v1/attachment.proto.
  */
 export const file_sparky_v1_attachment: GenFile = /*@__PURE__*/
-  fileDesc("ChpzcGFya3kvdjEvYXR0YWNobWVudC5wcm90bxIJc3Bhcmt5LnYxItkCCgpBdHRhY2htZW50EgoKAmlkGAEgASgJEhEKCW1lbW9yeV9pZBgCIAEoCRIMCgRraW5kGAMgASgJEhEKBG5hbWUYBCABKAlIAIgBARIRCgRtaW1lGAUgASgJSAGIAQESFwoKc2l6ZV9ieXRlcxgGIAEoA0gCiAEBEhMKBnNoYTI1NhgHIAEoCUgDiAEBEhUKCHJlbF9wYXRoGAggASgJSASIAQESEAoDdXJsGAkgASgJSAWIAQESEgoFdGl0bGUYCiABKAlIBogBARISCgpzb3J0X29yZGVyGAsgASgFEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgcKBV9uYW1lQgcKBV9taW1lQg0KC19zaXplX2J5dGVzQgkKB19zaGEyNTZCCwoJX3JlbF9wYXRoQgYKBF91cmxCCAoGX3RpdGxlInsKF0ltcG9ydEF0dGFjaG1lbnRSZXF1ZXN0EhEKCW1lbW9yeV9pZBgBIAEoCRITCgtzb3VyY2VfcGF0aBgCIAEoCRIMCgRuYW1lGAMgASgJEhkKDGV4cGVjdGVkX3JldhgEIAEoA0gAiAEBQg8KDV9leHBlY3RlZF9yZXYiRQoYSW1wb3J0QXR0YWNobWVudFJlc3BvbnNlEikKCmF0dGFjaG1lbnQYASABKAsyFS5zcGFya3kudjEuQXR0YWNobWVudCJrCg5BZGRMaW5rUmVxdWVzdBIRCgltZW1vcnlfaWQYASABKAkSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJEhkKDGV4cGVjdGVkX3JldhgEIAEoA0gAiAEBQg8KDV9leHBlY3RlZF9yZXYiPAoPQWRkTGlua1Jlc3BvbnNlEikKCmF0dGFjaG1lbnQYASABKAsyFS5zcGFya3kudjEuQXR0YWNobWVudCIrChZMaXN0QXR0YWNobWVudHNSZXF1ZXN0EhEKCW1lbW9yeV9pZBgBIAEoCSJFChdMaXN0QXR0YWNobWVudHNSZXNwb25zZRIqCgthdHRhY2htZW50cxgBIAMoCzIVLnNwYXJreS52MS5BdHRhY2htZW50IiUKF0RlbGV0ZUF0dGFjaG1lbnRSZXF1ZXN0EgoKAmlkGAEgASgJIhoKGERlbGV0ZUF0dGFjaG1lbnRSZXNwb25zZSJDChlSZW9yZGVyQXR0YWNobWVudHNSZXF1ZXN0EhEKCW1lbW9yeV9pZBgBIAEoCRITCgtvcmRlcmVkX2lkcxgCIAMoCSJIChpSZW9yZGVyQXR0YWNobWVudHNSZXNwb25zZRIqCgthdHRhY2htZW50cxgBIAMoCzIVLnNwYXJreS52MS5BdHRhY2htZW50IicKGU9wZW5BdHRhY2htZW50SW5mb1JlcXVlc3QSCgoCaWQYASABKAkiaQoaT3BlbkF0dGFjaG1lbnRJbmZvUmVzcG9uc2USCgoCaWQYASABKAkSFQoNYWJzb2x1dGVfcGF0aBgCIAEoCRIMCgRtaW1lGAMgASgJEgwKBG5hbWUYBCABKAkSDAoEa2luZBgFIAEoCTKDBAoRQXR0YWNobWVudFNlcnZpY2USWQoOSW1wb3J0RnJvbVBhdGgSIi5zcGFya3kudjEuSW1wb3J0QXR0YWNobWVudFJlcXVlc3QaIy5zcGFya3kudjEuSW1wb3J0QXR0YWNobWVudFJlc3BvbnNlEkAKB0FkZExpbmsSGS5zcGFya3kudjEuQWRkTGlua1JlcXVlc3QaGi5zcGFya3kudjEuQWRkTGlua1Jlc3BvbnNlEk0KBExpc3QSIS5zcGFya3kudjEuTGlzdEF0dGFjaG1lbnRzUmVxdWVzdBoiLnNwYXJreS52MS5MaXN0QXR0YWNobWVudHNSZXNwb25zZRJRCgZEZWxldGUSIi5zcGFya3kudjEuRGVsZXRlQXR0YWNobWVudFJlcXVlc3QaIy5zcGFya3kudjEuRGVsZXRlQXR0YWNobWVudFJlc3BvbnNlElYKB1Jlb3JkZXISJC5zcGFya3kudjEuUmVvcmRlckF0dGFjaG1lbnRzUmVxdWVzdBolLnNwYXJreS52MS5SZW9yZGVyQXR0YWNobWVudHNSZXNwb25zZRJXCghPcGVuSW5mbxIkLnNwYXJreS52MS5PcGVuQXR0YWNobWVudEluZm9SZXF1ZXN0GiUuc3Bhcmt5LnYxLk9wZW5BdHRhY2htZW50SW5mb1Jlc3BvbnNlQrYBCg1jb20uc3Bhcmt5LnYxQg9BdHRhY2htZW50UHJvdG9QAVpPZ2l0aHViLmNvbS9wb2x0ZXJ3YXJlL3BvbHRlcndhcmUvc3Bhcmt5L2JhY2tlbmQvcGxhdGZvcm0vZ2VuL3NwYXJreS92MTtzcGFya3l2MaICA1NYWKoCCVNwYXJreS5WMcoCCVNwYXJreVxWMeICFVNwYXJreVxWMVxHUEJNZXRhZGF0YeoCClNwYXJreTo6VjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChpzcGFya3kvdjEvYXR0YWNobWVudC5wcm90bxIJc3Bhcmt5LnYxItcCCgpBdHRhY2htZW50EgoKAmlkGAEgASgJEg8KB25vdGVfaWQYAiABKAkSDAoEa2luZBgDIAEoCRIRCgRuYW1lGAQgASgJSACIAQESEQoEbWltZRgFIAEoCUgBiAEBEhcKCnNpemVfYnl0ZXMYBiABKANIAogBARITCgZzaGEyNTYYByABKAlIA4gBARIVCghyZWxfcGF0aBgIIAEoCUgEiAEBEhAKA3VybBgJIAEoCUgFiAEBEhIKBXRpdGxlGAogASgJSAaIAQESEgoKc29ydF9vcmRlchgLIAEoBRIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIHCgVfbmFtZUIHCgVfbWltZUINCgtfc2l6ZV9ieXRlc0IJCgdfc2hhMjU2QgsKCV9yZWxfcGF0aEIGCgRfdXJsQggKBl90aXRsZSJ5ChdJbXBvcnRBdHRhY2htZW50UmVxdWVzdBIPCgdub3RlX2lkGAEgASgJEhMKC3NvdXJjZV9wYXRoGAIgASgJEgwKBG5hbWUYAyABKAkSGQoMZXhwZWN0ZWRfcmV2GAQgASgDSACIAQFCDwoNX2V4cGVjdGVkX3JldiJFChhJbXBvcnRBdHRhY2htZW50UmVzcG9uc2USKQoKYXR0YWNobWVudBgBIAEoCzIVLnNwYXJreS52MS5BdHRhY2htZW50ImkKDkFkZExpbmtSZXF1ZXN0Eg8KB25vdGVfaWQYASABKAkSCwoDdXJsGAIgASgJEg0KBXRpdGxlGAMgASgJEhkKDGV4cGVjdGVkX3JldhgEIAEoA0gAiAEBQg8KDV9leHBlY3RlZF9yZXYiPAoPQWRkTGlua1Jlc3BvbnNlEikKCmF0dGFjaG1lbnQYASABKAsyFS5zcGFya3kudjEuQXR0YWNobWVudCIpChZMaXN0QXR0YWNobWVudHNSZXF1ZXN0Eg8KB25vdGVfaWQYASABKAkiRQoXTGlzdEF0dGFjaG1lbnRzUmVzcG9uc2USKgoLYXR0YWNobWVudHMYASADKAsyFS5zcGFya3kudjEuQXR0YWNobWVudCIlChdEZWxldGVBdHRhY2htZW50UmVxdWVzdBIKCgJpZBgBIAEoCSIaChhEZWxldGVBdHRhY2htZW50UmVzcG9uc2UiQQoZUmVvcmRlckF0dGFjaG1lbnRzUmVxdWVzdBIPCgdub3RlX2lkGAEgASgJEhMKC29yZGVyZWRfaWRzGAIgAygJIkgKGlJlb3JkZXJBdHRhY2htZW50c1Jlc3BvbnNlEioKC2F0dGFjaG1lbnRzGAEgAygLMhUuc3Bhcmt5LnYxLkF0dGFjaG1lbnQiJwoZT3BlbkF0dGFjaG1lbnRJbmZvUmVxdWVzdBIKCgJpZBgBIAEoCSJpChpPcGVuQXR0YWNobWVudEluZm9SZXNwb25zZRIKCgJpZBgBIAEoCRIVCg1hYnNvbHV0ZV9wYXRoGAIgASgJEgwKBG1pbWUYAyABKAkSDAoEbmFtZRgEIAEoCRIMCgRraW5kGAUgASgJMoMEChFBdHRhY2htZW50U2VydmljZRJZCg5JbXBvcnRGcm9tUGF0aBIiLnNwYXJreS52MS5JbXBvcnRBdHRhY2htZW50UmVxdWVzdBojLnNwYXJreS52MS5JbXBvcnRBdHRhY2htZW50UmVzcG9uc2USQAoHQWRkTGluaxIZLnNwYXJreS52MS5BZGRMaW5rUmVxdWVzdBoaLnNwYXJreS52MS5BZGRMaW5rUmVzcG9uc2USTQoETGlzdBIhLnNwYXJreS52MS5MaXN0QXR0YWNobWVudHNSZXF1ZXN0GiIuc3Bhcmt5LnYxLkxpc3RBdHRhY2htZW50c1Jlc3BvbnNlElEKBkRlbGV0ZRIiLnNwYXJreS52MS5EZWxldGVBdHRhY2htZW50UmVxdWVzdBojLnNwYXJreS52MS5EZWxldGVBdHRhY2htZW50UmVzcG9uc2USVgoHUmVvcmRlchIkLnNwYXJreS52MS5SZW9yZGVyQXR0YWNobWVudHNSZXF1ZXN0GiUuc3Bhcmt5LnYxLlJlb3JkZXJBdHRhY2htZW50c1Jlc3BvbnNlElcKCE9wZW5JbmZvEiQuc3Bhcmt5LnYxLk9wZW5BdHRhY2htZW50SW5mb1JlcXVlc3QaJS5zcGFya3kudjEuT3BlbkF0dGFjaG1lbnRJbmZvUmVzcG9uc2VCtgEKDWNvbS5zcGFya3kudjFCD0F0dGFjaG1lbnRQcm90b1ABWk9naXRodWIuY29tL3BvbHRlcndhcmUvcG9sdGVyd2FyZS9zcGFya3kvYmFja2VuZC9wbGF0Zm9ybS9nZW4vc3Bhcmt5L3YxO3NwYXJreXYxogIDU1hYqgIJU3Bhcmt5LlYxygIJU3Bhcmt5XFYx4gIVU3Bhcmt5XFYxXEdQQk1ldGFkYXRh6gIKU3Bhcmt5OjpWMWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message sparky.v1.Attachment
@@ -24,9 +24,9 @@ export type Attachment = Message<"sparky.v1.Attachment"> & {
   id: string;
 
   /**
-   * @generated from field: string memory_id = 2;
+   * @generated from field: string note_id = 2;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: string kind = 3;
@@ -91,9 +91,9 @@ export const AttachmentSchema: GenMessage<Attachment> = /*@__PURE__*/
  */
 export type ImportAttachmentRequest = Message<"sparky.v1.ImportAttachmentRequest"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: string source_path = 2;
@@ -140,9 +140,9 @@ export const ImportAttachmentResponseSchema: GenMessage<ImportAttachmentResponse
  */
 export type AddLinkRequest = Message<"sparky.v1.AddLinkRequest"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: string url = 2;
@@ -189,9 +189,9 @@ export const AddLinkResponseSchema: GenMessage<AddLinkResponse> = /*@__PURE__*/
  */
 export type ListAttachmentsRequest = Message<"sparky.v1.ListAttachmentsRequest"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 };
 
 /**
@@ -253,9 +253,9 @@ export const DeleteAttachmentResponseSchema: GenMessage<DeleteAttachmentResponse
  */
 export type ReorderAttachmentsRequest = Message<"sparky.v1.ReorderAttachmentsRequest"> & {
   /**
-   * @generated from field: string memory_id = 1;
+   * @generated from field: string note_id = 1;
    */
-  memoryId: string;
+  noteId: string;
 
   /**
    * @generated from field: repeated string ordered_ids = 2;

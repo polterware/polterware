@@ -43,7 +43,7 @@ const (
 
 // SearchServiceClient is a client for the sparky.v1.SearchService service.
 type SearchServiceClient interface {
-	Search(context.Context, *connect.Request[v1.SearchMemoriesRequest]) (*connect.Response[v1.SearchMemoriesResponse], error)
+	Search(context.Context, *connect.Request[v1.SearchNotesRequest]) (*connect.Response[v1.SearchNotesResponse], error)
 	Status(context.Context, *connect.Request[v1.SearchStatusRequest]) (*connect.Response[v1.SearchStatusResponse], error)
 	Reindex(context.Context, *connect.Request[v1.ReindexRequest]) (*connect.Response[v1.ReindexResponse], error)
 }
@@ -59,7 +59,7 @@ func NewSearchServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	searchServiceMethods := v1.File_sparky_v1_search_proto.Services().ByName("SearchService").Methods()
 	return &searchServiceClient{
-		search: connect.NewClient[v1.SearchMemoriesRequest, v1.SearchMemoriesResponse](
+		search: connect.NewClient[v1.SearchNotesRequest, v1.SearchNotesResponse](
 			httpClient,
 			baseURL+SearchServiceSearchProcedure,
 			connect.WithSchema(searchServiceMethods.ByName("Search")),
@@ -82,13 +82,13 @@ func NewSearchServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // searchServiceClient implements SearchServiceClient.
 type searchServiceClient struct {
-	search  *connect.Client[v1.SearchMemoriesRequest, v1.SearchMemoriesResponse]
+	search  *connect.Client[v1.SearchNotesRequest, v1.SearchNotesResponse]
 	status  *connect.Client[v1.SearchStatusRequest, v1.SearchStatusResponse]
 	reindex *connect.Client[v1.ReindexRequest, v1.ReindexResponse]
 }
 
 // Search calls sparky.v1.SearchService.Search.
-func (c *searchServiceClient) Search(ctx context.Context, req *connect.Request[v1.SearchMemoriesRequest]) (*connect.Response[v1.SearchMemoriesResponse], error) {
+func (c *searchServiceClient) Search(ctx context.Context, req *connect.Request[v1.SearchNotesRequest]) (*connect.Response[v1.SearchNotesResponse], error) {
 	return c.search.CallUnary(ctx, req)
 }
 
@@ -104,7 +104,7 @@ func (c *searchServiceClient) Reindex(ctx context.Context, req *connect.Request[
 
 // SearchServiceHandler is an implementation of the sparky.v1.SearchService service.
 type SearchServiceHandler interface {
-	Search(context.Context, *connect.Request[v1.SearchMemoriesRequest]) (*connect.Response[v1.SearchMemoriesResponse], error)
+	Search(context.Context, *connect.Request[v1.SearchNotesRequest]) (*connect.Response[v1.SearchNotesResponse], error)
 	Status(context.Context, *connect.Request[v1.SearchStatusRequest]) (*connect.Response[v1.SearchStatusResponse], error)
 	Reindex(context.Context, *connect.Request[v1.ReindexRequest]) (*connect.Response[v1.ReindexResponse], error)
 }
@@ -151,7 +151,7 @@ func NewSearchServiceHandler(svc SearchServiceHandler, opts ...connect.HandlerOp
 // UnimplementedSearchServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedSearchServiceHandler struct{}
 
-func (UnimplementedSearchServiceHandler) Search(context.Context, *connect.Request[v1.SearchMemoriesRequest]) (*connect.Response[v1.SearchMemoriesResponse], error) {
+func (UnimplementedSearchServiceHandler) Search(context.Context, *connect.Request[v1.SearchNotesRequest]) (*connect.Response[v1.SearchNotesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sparky.v1.SearchService.Search is not implemented"))
 }
 

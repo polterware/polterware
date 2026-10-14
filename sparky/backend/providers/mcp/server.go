@@ -17,19 +17,19 @@ type Server struct {
 	sdk      *mcpsdk.Server
 	handler  http.Handler
 	mu       sync.Mutex
-	sessions map[string]*MemorySession
+	sessions map[string]*NoteSession
 }
 
 // New registers the compact catalog on a stateful SDK server.
 func New(deps Deps) (*Server, error) {
-	if deps.Memories == nil || deps.Minds == nil {
-		return nil, fmt.Errorf("MCP requires memory and mind services")
+	if deps.Notes == nil || deps.Spaces == nil {
+		return nil, fmt.Errorf("MCP requires note and space services")
 	}
 	version := deps.Version
 	if version == "" {
 		version = defaultMCPVer
 	}
-	s := &Server{deps: deps, sessions: make(map[string]*MemorySession)}
+	s := &Server{deps: deps, sessions: make(map[string]*NoteSession)}
 	s.sdk = mcpsdk.NewServer(&mcpsdk.Implementation{Name: ServerName, Version: version}, nil)
 	tools, err := Catalog()
 	if err != nil {
@@ -94,16 +94,16 @@ func (s *Server) fileAttachAllowed(ctx context.Context) (bool, error) {
 	return doc.AgentsAllowFileAttach, nil
 }
 
-func (s *Server) session(req *mcpsdk.CallToolRequest) *MemorySession {
+func (s *Server) session(req *mcpsdk.CallToolRequest) *NoteSession {
 	if req == nil {
 		return s.sessionFor(nil)
 	}
 	return s.sessionFor(req.Session)
 }
 
-func (s *Server) sessionFor(transport *mcpsdk.ServerSession) *MemorySession {
+func (s *Server) sessionFor(transport *mcpsdk.ServerSession) *NoteSession {
 	if transport == nil {
-		return NewMemorySession(s.deps.Memories, "unknown")
+		return NewNoteSession(s.deps.Notes, "unknown")
 	}
 	key := fmt.Sprintf("%p", transport)
 	name := "unknown"
@@ -114,7 +114,7 @@ func (s *Server) sessionFor(transport *mcpsdk.ServerSession) *MemorySession {
 	defer s.mu.Unlock()
 	sess := s.sessions[key]
 	if sess == nil {
-		sess = NewMemorySession(s.deps.Memories, name)
+		sess = NewNoteSession(s.deps.Notes, name)
 		s.sessions[key] = sess
 		go func() {
 			_ = transport.Wait() // closes on DELETE, expiration, or transport termination
@@ -129,22 +129,22 @@ func (s *Server) sessionFor(transport *mcpsdk.ServerSession) *MemorySession {
 func (s *Server) handlers() map[string]mcpsdk.ToolHandler {
 	return map[string]mcpsdk.ToolHandler{
 		"get_current_time":  s.getCurrentTime,
-		"list_minds":        s.listMinds,
+		"list_spaces":       s.listSpaces,
 		"list_tags":         s.listTags,
-		"list_memories":     s.listMemories,
-		"search_memories":   s.searchMemories,
-		"get_memory":        s.getMemory,
+		"list_notes":        s.listNotes,
+		"search_notes":      s.searchNotes,
+		"get_note":          s.getNote,
 		"list_occurrences":  s.listOccurrences,
 		"get_review":        s.getReview,
 		"list_activity":     s.listActivity,
-		"create_memories":   s.createMemories,
-		"update_memories":   s.updateMemories,
-		"set_memory_status": s.setMemoryStatus,
+		"create_notes":      s.createNotes,
+		"update_notes":      s.updateNotes,
+		"set_note_status":   s.setNoteStatus,
 		"toggle_check_item": s.toggleCheckItem,
-		"delete_memories":   s.deleteMemories,
-		"create_mind":       s.createMind,
-		"update_mind":       s.updateMind,
-		"delete_mind":       s.deleteMind,
+		"delete_notes":      s.deleteNotes,
+		"create_space":      s.createSpace,
+		"update_space":      s.updateSpace,
+		"delete_space":      s.deleteSpace,
 		"add_attachments":   s.addAttachments,
 	}
 }

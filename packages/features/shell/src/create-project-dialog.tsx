@@ -3,8 +3,7 @@ import {
   A11yDialog,
   Button,
   Field,
-  Input,
-} from "@polterware/frontend-design-system";
+  Input, FormStack } from "@polterware/frontend-design-system";
 import {
   EnvironmentKindChips,
   type CreateProjectEnvironmentKind,
@@ -99,7 +98,7 @@ export function CreateProjectDialog(props: {
         </>
       }
     >
-      <div class="grid gap-5">
+      <FormStack>
         <Field label="Project name">
           <Input
             size="md"
@@ -122,7 +121,7 @@ export function CreateProjectDialog(props: {
           </legend>
           <EnvironmentKindChips value={envs()} onChange={setEnvs} />
         </fieldset>
-      </div>
+      </FormStack>
     </A11yDialog>
   );
 }

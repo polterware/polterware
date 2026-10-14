@@ -2,7 +2,7 @@ import Foundation
 
 enum Command {
     case serve
-    case armIn(seconds: Double, memory: String, title: String, body: String, category: String)
+    case armIn(seconds: Double, note: String, title: String, body: String, category: String)
     case armPlan
     case measurePending(Int)
     case dumpPending
@@ -15,7 +15,7 @@ enum Command {
     case registerLoginItem
     case unregisterLoginItem
     case registrationStatus
-    case simulateAction(action: String, memory: String, identifier: String)
+    case simulateAction(action: String, note: String, identifier: String)
 }
 
 struct CommandParseError: Error, CustomStringConvertible {
@@ -55,7 +55,7 @@ func parseCommand() throws -> Command {
         }
         return .armIn(
             seconds: seconds,
-            memory: values["--memory"] ?? "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            note: values["--note"] ?? "01ARZ3NDEKTSV4RRFFQ69G5FAV",
             title: values["--title"] ?? "Sparky",
             body: values["--body"] ?? "",
             category: values["--category"] ?? "reminder"
@@ -103,7 +103,7 @@ func parseCommand() throws -> Command {
     if let action = values["--simulate-action"] {
         return .simulateAction(
             action: action,
-            memory: values["--memory"] ?? "",
+            note: values["--note"] ?? "",
             identifier: values["--identifier"] ?? ""
         )
     }

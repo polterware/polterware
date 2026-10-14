@@ -36,10 +36,10 @@ func TestAgentBudgetAppliesWhileSourceGrows(t *testing.T) {
 			t.Fatal(err)
 		}
 	}}
-	if _, err := store.ImportFile(ctx, testMemoryID, testAttachmentID, source); err == nil {
+	if _, err := store.ImportFile(ctx, testNoteID, testAttachmentID, source); err == nil {
 		t.Fatal("growing source escaped its caller's copy budget")
 	}
-	entries, err := os.ReadDir(filepath.Join(root, "attachments", testMemoryID))
+	entries, err := os.ReadDir(filepath.Join(root, "attachments", testNoteID))
 	if err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}

@@ -22,7 +22,7 @@ const (
 // Links have URL set and RelPath nil. Files have RelPath set and URL nil.
 type Attachment struct {
 	ID        string
-	MemoryID  string
+	NoteID    string
 	Kind      string
 	Name      *string
 	Mime      *string

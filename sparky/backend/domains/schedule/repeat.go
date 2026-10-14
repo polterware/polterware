@@ -56,11 +56,11 @@ func nativeRepeats(r Rule, hour, minute int) []DateComponents {
 	}
 }
 
-func repeatID(memoryID string, weekdaySlot bool, appleWD int) string {
+func repeatID(noteID string, weekdaySlot bool, appleWD int) string {
 	if weekdaySlot {
-		return "rem:" + memoryID + ":wd" + strconv.Itoa(appleWD)
+		return "rem:" + noteID + ":wd" + strconv.Itoa(appleWD)
 	}
-	return "rem:" + memoryID + ":repeat"
+	return "rem:" + noteID + ":repeat"
 }
 
 func nextWeekdayFire(now time.Time, rule Rule, rep DateComponents) (time.Time, time.Time, bool) {

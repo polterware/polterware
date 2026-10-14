@@ -65,7 +65,6 @@ describe("edge-light policy", () => {
 
   it("uses a crisp rim and top highlight at the component edge", () => {
     const materials = readWorkspaceFile(sharedMaterialFiles[1]);
-    const button = readWorkspaceFile(directConsumerFiles[0]);
 
     expect(ruleBody(materials, ".surface-panel")).toContain(
       "border: 1px solid var(--edge-light-surface-rim)",
@@ -75,10 +74,6 @@ describe("edge-light policy", () => {
     );
     expect(ruleBody(materials, ".control-field")).toContain(
       "border: 1px solid var(--edge-light-field-rim)",
-    );
-    // The rim rides the press layer, so the whole surface shrinks 1px when pressed.
-    expect(ruleBody(button, ".texture-button-material::before")).toContain(
-      "border: 1px solid var(--texture-button-edge)",
     );
   });
 

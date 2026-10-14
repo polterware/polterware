@@ -1,13 +1,13 @@
 import { test, expect } from "../fixtures";
 
-test("create a memory by clicking an empty calendar slot", async ({ sparky, page }) => {
+test("create a note by clicking an empty calendar slot", async ({ sparky, page }) => {
   await page.getByRole("button", { name: "Skip onboarding", exact: true }).click().catch(() => {});
   await page.evaluate(() => window.sparky.settings.set({ keys: ["calendar.weekStart"], settings: { calendarWeekStart: "sun" } }));
   await page.getByRole("button", { name: "Calendar", exact: true }).click();
   await expect(page.locator("[data-calendar]")).toBeVisible({ timeout: 30000 });
   await expect.poll(() => page.evaluate(async () => (await window.sparky.settings.get({})).settings?.calendarWeekStart)).toBe("sun");
   await page.getByRole("button", { name: /Add at 09:00/ }).first().click();
-  await expect(page.locator("[data-memory-title]")).toHaveValue("Untitled memory");
+  await expect(page.locator("[data-note-title]")).toHaveValue("Untitled note");
   const persisted = await page.evaluate(async () => {
     const bridge = (window as unknown as { sparky: { schedule: { listOccurrences(input: object): Promise<{ occurrences: { title: string; tz: string }[] }> } } }).sparky;
     const from = new Date();
@@ -16,8 +16,8 @@ test("create a memory by clicking an empty calendar slot", async ({ sparky, page
     to.setDate(to.getDate() + 1);
     return bridge.schedule.listOccurrences({ from: from.toISOString(), to: to.toISOString(), includeCompleted: true });
   });
-  expect(persisted.occurrences.some(item => item.title === "Untitled memory")).toBe(true);
-  expect(persisted.occurrences.find(item => item.title === "Untitled memory")?.tz).toBeTruthy();
+  expect(persisted.occurrences.some(item => item.title === "Untitled note")).toBe(true);
+  expect(persisted.occurrences.find(item => item.title === "Untitled note")?.tz).toBeTruthy();
 });
 
 test("calendar: roving focus, native toolbar arrows and Enter activation", async ({ sparky, page }) => {
@@ -45,7 +45,7 @@ test("calendar: roving focus, native toolbar arrows and Enter activation", async
   await expect(calendar).toHaveAttribute("data-calendar-view", "month");
   await main.getByRole("tab", { name: "Day", exact: true }).press("Space");
   await calendar.getByRole("button", { name: /Add at 09:00/ }).press("Enter");
-  await expect(page.locator("[data-memory-title]")).toHaveValue("Untitled memory");
+  await expect(page.locator("[data-note-title]")).toHaveValue("Untitled note");
   await page.keyboard.press("Meta+j");
   const occurrence = grid.locator("[data-occurrence]").first();
   await expect(occurrence).toBeVisible();
@@ -53,5 +53,5 @@ test("calendar: roving focus, native toolbar arrows and Enter activation", async
   await page.keyboard.press("ArrowDown");
   await expect(occurrence).not.toBeFocused();
   await occurrence.press("Enter");
-  await expect(page.locator("[data-memory-title]")).toHaveValue("Untitled memory");
+  await expect(page.locator("[data-note-title]")).toHaveValue("Untitled note");
 });

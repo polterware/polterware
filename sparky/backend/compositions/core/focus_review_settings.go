@@ -37,7 +37,7 @@ func (h focusHandler) RecordSession(ctx context.Context, r *connect.Request[v1.R
 		return nil, unavailable("focus")
 	}
 	in := r.Msg
-	s, err := h.s.RecordSession(ctx, caller(ctx), focus.Session{MemoryID: stringPtr(in.MemoryId), Phase: in.Phase, PlannedS: int(in.PlannedS), ElapsedS: int(in.ElapsedS), State: in.State, StartedAt: instant(in.StartedAt), EndedAt: instant(in.EndedAt)})
+	s, err := h.s.RecordSession(ctx, caller(ctx), focus.Session{NoteID: stringPtr(in.NoteId), Phase: in.Phase, PlannedS: int(in.PlannedS), ElapsedS: int(in.ElapsedS), State: in.State, StartedAt: instant(in.StartedAt), EndedAt: instant(in.EndedAt)})
 	return response(&v1.RecordFocusSessionResponse{Session: sessionProto(s)}, err)
 }
 func (h focusHandler) ListSessions(ctx context.Context, r *connect.Request[v1.ListFocusSessionsRequest]) (*connect.Response[v1.ListFocusSessionsResponse], error) {

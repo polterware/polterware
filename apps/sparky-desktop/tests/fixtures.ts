@@ -52,7 +52,7 @@ export const test = base.extend<{ sparky: Sparky; page: Page }>({
       page.on("pageerror", error => errors.push(error.message));
       await use({ app, page, directory, database, startedAt, core, killCore,
         async skipOnboarding() { await expect(page.getByRole("dialog", { name: "Welcome to Sparky" })).toBeVisible(); await page.getByRole("button", { name: "Skip onboarding", exact: true }).click(); },
-        async seed(count) { await page.evaluate(async n => { for (let i = 0; i < n; i++) await window.sparky.memories.create({ title: `Performance memory ${String(i).padStart(5, "0")}`, note: `Benchmark group ${i % 100}` }); }, count); },
+        async seed(count) { await page.evaluate(async n => { for (let i = 0; i < n; i++) await window.sparky.notes.create({ title: `Performance note ${String(i).padStart(5, "0")}`, content: `Benchmark group ${i % 100}` }); }, count); },
       });
       if (profiling) {
         const milestones = {

@@ -58,7 +58,7 @@ describe("ArchitectureNodeCard", () => {
     ));
 
     expect(html).toContain('aria-label="Actions for API"');
-    expect(html).toContain("data-dither-icon");
+    expect(html).toContain("data-icon-tile");
     expect(html).toContain("Observed");
     expect(html).not.toContain("All environments");
     expect(html).not.toContain("preview");
@@ -149,7 +149,7 @@ describe("ArchitectureNodeCard", () => {
 
     expect(css).toMatch(/background-color 120ms var\(--ease-standard\)/);
     expect(css).toMatch(/color 120ms var\(--ease-standard\)/);
-    expect(css).toContain(".architecture-node-card .pw-dither-icon");
+    expect(css).toContain(".architecture-node-card .pw-icon-tile");
     expect(selectedRule).toContain("outline: 2px solid var(--color-primary)");
     expect(selectedRule).not.toContain("transition");
   });

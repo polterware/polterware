@@ -1,4 +1,4 @@
-import { A11yDialog, ControlButton, Field, Input, Select, SwitchRow } from "@polterware/frontend-design-system";
+import { A11yDialog, ControlButton, Field, FormStack, Input, Select, SwitchRow } from "@polterware/frontend-design-system";
 import { createSignal, Match, Show, Switch } from "solid-js";
 import type { AuthMode, ConnectPayload, SavedServerPublic } from "../api";
 
@@ -110,7 +110,7 @@ export function ConnectionDialog(props: {
         </>
       }
     >
-      <div class="vitals-form">
+      <FormStack>
         <Field label="Label" for="vitals-label">
           <Input id="vitals-label" value={label()} placeholder="prod-1" onInput={(event) => setLabel(event.currentTarget.value)} />
         </Field>
@@ -174,7 +174,7 @@ export function ConnectionDialog(props: {
             label="Save server"
           />
         </Show>
-      </div>
+      </FormStack>
     </A11yDialog>
   );
 }

@@ -45,6 +45,7 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(rootDir, "src/renderer"),
+    server: { port: 5173, strictPort: true },
     plugins: [
       solid({
         include: [
