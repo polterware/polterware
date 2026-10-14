@@ -1,6 +1,6 @@
 .sparky-shell { min-width: 0; }
 .sparky-workspace { display: flex; flex: 1; min-height: 0; -webkit-app-region: drag; }
-.sparky-sidebar { display: flex; flex-direction: column; gap: 8px; width: 208px; min-width: 160px; overflow: auto; padding: var(--titlebar-height, 44px) 8px 8px; -webkit-app-region: drag; }
+.sparky-sidebar { display: flex; flex-direction: column; gap: 8px; width: 100%; height: 100%; min-width: 0; overflow: hidden; padding: var(--titlebar-height, 44px) 8px 8px; -webkit-app-region: drag; }
 .sparky-sidebar .pw-menu-rows { display: flex; flex-direction: column; gap: 4px; }
 .sparky-sidebar { position: relative; }
 .sparky-history-nav { position: absolute; top: 10px; right: 8px; display: flex; align-items: center; gap: 2px; -webkit-app-region: no-drag; }
@@ -11,6 +11,8 @@
 .sparky-sidebar-footer > button { -webkit-app-region: no-drag; }
 .sparky-sidebar :is(button, a, input, [role="tree"]) { -webkit-app-region: no-drag; }
 .sparky-main.pw-shell-main-frame { display: flex; flex: 1; min-width: 0; min-height: 0; outline: none; padding: 8px 8px 8px 0; }
+.sparky-main.pw-shell-main-frame { padding-left: 0; }
+.pw-resizable-sidebar[data-collapsed] ~ * .sparky-main, .pw-resizable-sidebar-layout:has(> .pw-resizable-sidebar[data-collapsed]) .sparky-main.pw-shell-main-frame { padding-left: 8px; }
 .sparky-main .pw-main-surface { -webkit-app-region: no-drag; }
 .sparky-main .pw-detail-panel__collection-header,
 .sparky-main .pw-page-header {
@@ -25,11 +27,7 @@
 .sparky-settings-layout > section { min-block-size: 0; min-width: 0; overflow: hidden; border-radius: calc(var(--radius-dialog) - 0.5rem); display: flex; flex-direction: column; }
 .sparky-settings-content { flex: 1; min-height: 0; overflow: auto; padding: 24px 32px 32px; }
 @media (max-width: 720px) {
-  .sparky-sidebar { width: 160px; }
   .sparky-settings-layout { grid-template-columns: 144px minmax(0, 1fr); }
-}
-@media (max-width: 960px) {
-  .sparky-sidebar { width: 184px; }
 }
 
 /* Each setting is its own card inside a section. */
@@ -54,5 +52,34 @@
 .sparky-sidebar .pw-tree__row:focus-visible,
 .sparky-sidebar [role="treeitem"]:focus-visible { outline: none; }
 /* Spaces tree: no visible title, just a divider above it. The label stays for assistive tech. */
-.sparky-sidebar .pw-tree { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--color-border-subtle); }
+/* The divider belongs to the fixed navigation so it stays put while the Spaces tree scrolls. */
+.sparky-sidebar > nav { padding-bottom: 12px; border-bottom: 1px solid var(--color-border-subtle); }
+.sparky-sidebar .pw-tree { margin-top: 0; padding-top: 4px; }
 .sparky-sidebar .pw-tree > h3 { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.sparky-sidebar .pw-tree { min-width: 0; }
+.sparky-sidebar .pw-tree__row { min-width: 0; }
+.sparky-workspace .pw-resizable-sidebar__main { display: flex; }
+.sparky-workspace .sparky-main { height: 100%; }
+
+/* Hovering a Space shades its whole region (row, notes and nested Spaces); the innermost hovered Space wins. */
+.sparky-sidebar .pw-tree [data-part="branch"] { border-radius: var(--radius-item); transition: background-color var(--spring-moderate-duration) var(--spring-moderate-ease); }
+.sparky-sidebar .pw-tree [data-part="branch"]:hover:not(:has([data-part="branch"]:hover)) { background: var(--color-surface-hover); }
+.sparky-sidebar .pw-tree [data-part="branch"]:hover:not(:has([data-part="branch"]:hover)) > .pw-tree__row[data-selected] { background: var(--color-surface-selected); }
+
+/* Long titles truncate at the sidebar edge instead of widening the tree. */
+.sparky-sidebar .pw-tree { grid-template-columns: minmax(0, 1fr); width: 100%; }
+.sparky-sidebar .pw-tree [data-part="tree"], .sparky-sidebar .pw-tree [data-part="branch"], .sparky-sidebar .pw-tree__children { min-width: 0; max-width: 100%; }
+
+/* The Spaces tree scrolls on its own; the footer stays put and the list fades out above it. */
+.sparky-sidebar-tree { flex: 1 1 0; min-height: 0; overflow-x: hidden; overflow-y: auto; padding-bottom: 24px; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); scrollbar-width: none; }
+.sparky-sidebar-tree::-webkit-scrollbar { display: none; }
+.sparky-sidebar-footer { flex: none; padding-top: 8px; }
+.sparky-sidebar-tree[data-scrolled] { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+.sparky-sidebar-tree[data-at-end] { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28px); mask-image: linear-gradient(to bottom, transparent, #000 28px); }
+.sparky-sidebar-tree:not([data-scrolled])[data-at-end] { -webkit-mask-image: none; mask-image: none; }
+.sparky-sidebar .pw-tree__row > :not(.pw-tree__text, .pw-tree__trailing) { flex: none; }
+
+/* Per-Space open button: shown on hover or keyboard focus, at the row's right edge. */
+.sparky-space-open { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-text-muted); cursor: pointer; opacity: 0; }
+.pw-tree__row:hover .sparky-space-open, .sparky-space-open:focus-visible { opacity: 1; }
+.sparky-space-open:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }

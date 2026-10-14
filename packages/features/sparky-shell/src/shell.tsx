@@ -1,11 +1,11 @@
 import { createEffect, createMemo, createResource, createSignal, ErrorBoundary, For, on, onCleanup, onMount, Show, type Component } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import {
-  A11yDialog, Activity, Badge, ChevronLeft, ChevronRight, Bell, Bot, Button, CalendarClock, Cog, Cpu, Database, Hammer, Input, Layers, Clock, DetailPanel, DesignSystemProvider,
+  A11yDialog, ResizableSidebar, Activity, Badge, ChevronLeft, ChevronRight, Bell, Bot, Button, CalendarClock, Cog, Cpu, Database, Hammer, Input, Layers, Clock, DetailPanel, DesignSystemProvider,
   Dialog, IconTile, Folder, HelpCircle, Inbox, MapPin, MenuItem, MenuList, PageEmpty, PageError,
   PageHeader, PageLoading, PageOffline, Popover, Search, Settings, StatusChip, X, ToastRegion, TreeView, pushToast, type TreeViewNode,
 } from "@polterware/frontend-design-system";
-import { MainFrame, MainSurfaceFrame, ShellRoot, SidebarFrame, SidebarItem } from "@polterware/frontend-shell";
+import { MainFrame, MainSurfaceFrame, ShellRoot, SidebarItem } from "@polterware/frontend-shell";
 import type { MessageShape } from "@bufbuild/protobuf";
 import type { SpaceSchema } from "@polterware/sparky-contracts";
 import type { ShellBridge } from "./bridge";
@@ -271,7 +271,8 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
       createShortcutLabel={id => () => id === "shell.toggle_detail" ? "⌘J" : ""}>
       <ShellRoot glass={false} class="sparky-shell">
         <div class="sparky-workspace">
-          <SidebarFrame class="sparky-sidebar" aria-label="Sidebar">
+          <ResizableSidebar class="pw-shell-sidebar" defaultWidth={232} minWidth={184} maxWidth={320} collapseThreshold={112}
+            storageKey="sparky.shell.sidebar.sizes" ariaLabel="Sidebar" sidebar={<div class="sparky-sidebar">
             <div class="sparky-history-nav">
               <button type="button" aria-label="Go back" disabled={history().index <= 0} onClick={() => moveHistory(-1)}><ChevronLeft size={14} /></button>
               <button type="button" aria-label="Go forward" disabled={history().index >= history().entries.length - 1} onClick={() => moveHistory(1)}><ChevronRight size={14} /></button>
@@ -309,7 +310,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
                 </MenuList>
               </Popover>
             </div>
-          </SidebarFrame>
+          </div>}>
           <MainFrame as="main" glass={false} class="sparky-main" ref={main} tabIndex={-1} aria-label={title()}>
             <MainSurfaceFrame as="div">
               <Show when={core.state() !== "loading"} fallback={<PageLoading label="Starting Sparky…" />}>
@@ -332,6 +333,7 @@ export function SparkyShell(props: { features: readonly SparkyFeature[]; bridge?
               </Show>
             </MainSurfaceFrame>
           </MainFrame>
+          </ResizableSidebar>
         </div>
       </ShellRoot>
       <ToastRegion />

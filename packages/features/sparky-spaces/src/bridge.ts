@@ -43,6 +43,18 @@ export async function loadNoteCounts(bridge: ShellBridge, ids: readonly string[]
   return Object.fromEntries(pairs);
 }
 
+export type SpaceNoteLink = { id: string; title: string };
+
+export async function loadSpaceNotes(bridge: ShellBridge, ids: readonly string[]): Promise<Record<string, SpaceNoteLink[]>> {
+  const pairs = await Promise.all(
+    ids.map(async (spaceId) => {
+      const listed = await bridge.notes.list({ spaceId, includeDescendants: false, limit: 100, order: "updated" });
+      return [spaceId, (listed.notes ?? []).map((note) => ({ id: note.id ?? "", title: note.title || "Untitled" })).filter((note) => note.id)] as const;
+    }),
+  );
+  return Object.fromEntries(pairs);
+}
+
 export async function loadDeletePreview(bridge: ShellBridge, spaces: readonly SpaceNode[], spaceId: string): Promise<DeletePreview> {
   const deletedSpaceIds = cascadeDeleteIds(spaces, spaceId);
   const listed = await bridge.notes.list({ spaceId, includeDescendants: true, limit: 1 });

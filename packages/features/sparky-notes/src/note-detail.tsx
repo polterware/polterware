@@ -91,10 +91,8 @@ function NotePageBody(props: { note: NoteRecord; store: NotesStore; sections: De
         <AuroraCover palette={auroraForId(id())} class="!h-28 !rounded-[var(--radius-card)]" />
         <span class="absolute bottom-3 left-4 inline-flex text-[var(--color-bg)]" aria-hidden="true"><FileText size={32} /></span>
       </div>
-      <div class="flex min-h-0 w-full flex-1 flex-col gap-4 pb-4 pt-4">
-        <div class="flex items-center justify-between gap-3">
-          <TagPicker tags={store.tags()} selectedIds={props.note.tagIds ?? []}
-            onChange={ids => store.editTags(id(), ids)} onCreate={name => store.createTag(name)} />
+      <div class="mx-auto flex min-h-0 w-full max-w-[720px] flex-1 flex-col gap-4 pb-4 pt-4">
+        <div class="flex items-center justify-end gap-3">
           <div class="flex shrink-0 items-center gap-2">
             <span role="status" aria-live="polite" class="text-xs text-[var(--color-text-muted)]">{state() === "live" ? "Saved" : state() === "queued" ? "Changes queued" : state() === "saving" ? "Saving…" : state() === "conflict" ? "Edit conflict" : "Save failed"}</span>
             <Button
@@ -121,6 +119,10 @@ function NotePageBody(props: { note: NoteRecord; store: NotesStore; sections: De
         <Input aria-label="Title" placeholder="Untitled" class="!h-auto !border-0 !bg-transparent !pl-8 !pr-0 !py-1 !text-[36px] !font-semibold !leading-tight !shadow-none !outline-none !ring-0 focus:!outline-none focus-visible:!outline-none focus-visible:!shadow-none focus-visible:!ring-0 focus:!border-0" id={`note-title-${id()}`} data-note-title value={props.note.title}
           onInput={event => props.edit({ title: event.currentTarget.value })} onBlur={() => void store.flush(id())}
           onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); editor?.querySelector<HTMLElement>(".ProseMirror")?.focus(); } }} />
+        <div class="pl-8">
+          <TagPicker tags={store.tags()} selectedIds={props.note.tagIds ?? []}
+          onChange={ids => store.editTags(id(), ids)} onCreate={name => store.createTag(name)} />
+        </div>
         <div ref={editor} class="pw-note-editor flex min-h-0 flex-1 flex-col [&_.pw-md-editor]:min-h-0 [&_.pw-md-editor__surface]:flex [&_.pw-md-editor__surface]:flex-col [&_.ProseMirror]:flex-1 [&_.ProseMirror]:!outline-none [&_.ProseMirror]:!shadow-none [&_.ProseMirror:focus-visible]:!outline-none">
           <MarkdownEditor aria-label="Note content" placeholder="Write something…" value={body()} onChange={changeBody}
             renderAttachment={attachments ? (attachmentId, block) => attachments.render(id(), attachmentId, block) : undefined}

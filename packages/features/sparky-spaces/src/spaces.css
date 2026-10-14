@@ -105,3 +105,6 @@ ul[aria-label="Notes"] > li {
 .sparky-space-folder:has([data-drop-target="true"]) .sparky-space-folder__tab-line {
   stroke: var(--color-border-strong);
 }
+
+/* Notes sit one step deeper than the Spaces that hold them. */
+.pw-tree__row[data-value^="note:"] { padding-inline-start: 28px; }

@@ -1,5 +1,7 @@
 import { Show, createEffect, createMemo, createResource, createSignal, onCleanup, onMount } from "solid-js";
 import {
+  ExternalLink,
+  FileText,
   IconTile,
   PICKER_ICONS,
   TreeView,
@@ -10,8 +12,9 @@ import {
 import { Dynamic } from "solid-js/web";
 import { useSparkyShell } from "@polterware/feature-sparky-shell";
 import type { Space } from "@polterware/sparky-contracts";
-import { draggedNoteId, hasDraggedNote, loadNoteCounts, loadSpaces, spacesBridge, moveNoteToSpace, parentPatch, toSpaceNode, wireRev } from "./bridge";
+import { draggedNoteId, hasDraggedNote, loadSpaceNotes, loadSpaces, spacesBridge, moveNoteToSpace, parentPatch, toSpaceNode, wireRev } from "./bridge";
 import { bumpSpaces, spacesRevision } from "./session";
+import "./spaces.css";
 import {
   buildSpaceTree,
   canMoveSpace,
@@ -34,19 +37,41 @@ export function SpaceMark(props: { color: string; icon: string; size?: 16 | 20 |
   );
 }
 
-function labeledNodes(nodes: SpaceTreeNode[], counts: Record<string, number>): TreeViewNode[] {
-  return nodes.map((node) => ({
-    id: node.id,
-    label: node.name,
-    icon: <SpaceMark color={node.color} icon={node.icon} size={16} />,
-    trailing: String(counts[node.id] ?? 0),
-    children: node.children.length ? labeledNodes(node.children, counts) : undefined,
-  }));
+const NOTE_PREFIX = "note:";
+
+function labeledNodes(nodes: SpaceTreeNode[], notes: Record<string, { id: string; title: string }[]>, open: (spaceId: string) => void): TreeViewNode[] {
+  return nodes.map((node) => {
+    const children: TreeViewNode[] = [
+      ...labeledNodes(node.children, notes, open),
+      ...(notes[node.id] ?? []).map((note) => ({ id: `${NOTE_PREFIX}${node.id}:${note.id}`, label: note.title, icon: <FileText size={16} /> })),
+    ];
+    return {
+      id: node.id,
+      label: node.name,
+      icon: <SpaceMark color={node.color} icon={node.icon} size={16} />,
+      trailing: (
+        <button
+          type="button"
+          class="sparky-space-open"
+          aria-label={`Open ${node.name}`}
+          title={`Open ${node.name}`}
+          draggable={false}
+          onClick={(event) => { event.stopPropagation(); open(node.id); }}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <ExternalLink size={12} />
+        </button>
+      ),
+      children: children.length ? children : undefined,
+    };
+  });
 }
 
 function rowId(target: EventTarget | null): string | undefined {
   const element = target instanceof Element ? target.closest("[data-value], [data-space-id]") : null;
-  return element?.getAttribute("data-value") ?? element?.getAttribute("data-space-id") ?? undefined;
+  const id = element?.getAttribute("data-value") ?? element?.getAttribute("data-space-id") ?? undefined;
+  // A note row stands for the Space that holds it.
+  return id?.startsWith(NOTE_PREFIX) ? id.split(":")[1] : id;
 }
 
 export function SpacesSidebarTree() {
@@ -54,12 +79,12 @@ export function SpacesSidebarTree() {
   const [spaces] = createResource(spacesRevision, async () => loadSpaces(spacesBridge()));
   const nodes = createMemo(() => (spaces() ?? []).map(toSpaceNode));
   const tree = createMemo(() => buildSpaceTree(nodes()));
-  const [counts] = createResource(
+  const [spaceNotes] = createResource(
     () => {
       const list = spaces();
       return list ? `${spacesRevision()}:${list.map((space) => space.id).join(",")}` : false;
     },
-    async () => loadNoteCounts(spacesBridge(), (spaces() ?? []).map((space) => space.id)),
+    async () => loadSpaceNotes(spacesBridge(), (spaces() ?? []).map((space) => space.id)),
   );
   const [expanded, setExpanded] = createSignal<string[]>(readExpandedSpaceIds(localStorage));
   const [dragging, setDragging] = createSignal<string>();
@@ -81,7 +106,7 @@ export function SpacesSidebarTree() {
 
   createEffect(() => {
     tree();
-    counts();
+    spaceNotes();
     root?.querySelectorAll<HTMLElement>("[data-part='item'], [data-part='branch-control']").forEach((row) => {
       row.setAttribute("draggable", "true");
     });
@@ -132,7 +157,12 @@ export function SpacesSidebarTree() {
   return (
     <div
       ref={root}
-      class="flex min-h-0 flex-col gap-2"
+      onScroll={(event) => {
+        const el = event.currentTarget;
+        el.toggleAttribute("data-scrolled", el.scrollTop > 0);
+        el.toggleAttribute("data-at-end", el.scrollTop + el.clientHeight >= el.scrollHeight - 1);
+      }}
+      class="sparky-sidebar-tree flex min-h-0 flex-col gap-2"
       onKeyDown={(event) => void onTreeKey(event)}
       onDragStart={(event) => {
         const id = rowId(event.target);
@@ -169,13 +199,17 @@ export function SpacesSidebarTree() {
           <Show when={tree().length}>
             <TreeView
               label="Spaces"
-              nodes={labeledNodes(tree(), counts() ?? {})}
+              nodes={labeledNodes(tree(), spaceNotes() ?? {}, (id) => shell.navigate(`/space/${encodeURIComponent(id)}`))}
+              indicator={false}
+              guides={false}
               expandedValue={expanded()}
               selectedValue={selectedId() ? [selectedId()] : []}
               onExpandedChange={(event) => setExpanded(event.expandedValue)}
               onSelectionChange={(event) => {
                 const id = event.selectedValue[0];
-                if (id) shell.navigate(`/space/${encodeURIComponent(id)}`);
+                if (!id) return;
+                // A Space row only expands; its open button navigates to the Space page.
+                if (id.startsWith(NOTE_PREFIX)) shell.navigate(`/note/${encodeURIComponent(id.slice(id.lastIndexOf(":") + 1))}`);
               }}
             />
           </Show>
