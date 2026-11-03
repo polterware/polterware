@@ -1,0 +1,377 @@
+/* Edge light + surface panels — SSOT utilities also mirrored in
+   packages/configuration/tailwind/base.css so shell/app always have them.
+   See DESIGN.md Materials · edge light · surface-panel. */
+
+:root {
+  --edge-light-field-highlight: rgb(255 255 255 / 0.1);
+  --edge-light-field-rim: rgb(255 255 255 / 0.1);
+  --edge-light-surface-highlight: rgb(255 255 255 / 0.1);
+  --edge-light-surface-rim: rgb(255 255 255 / 0.1);
+  --material-fade-edge-bottom: linear-gradient(to bottom, var(--color-surface) 0%, var(--color-surface) 48%, color-mix(in srgb, var(--color-surface) 45%, transparent) 68%, color-mix(in srgb, var(--color-surface) 18%, transparent) 86%, transparent 100%);
+  --material-fade-edge-top: linear-gradient(to top, var(--color-surface) 0%, var(--color-surface) 48%, color-mix(in srgb, var(--color-surface) 45%, transparent) 68%, color-mix(in srgb, var(--color-surface) 18%, transparent) 86%, transparent 100%);
+  --material-fade-edge-toolbar-trail: linear-gradient(to bottom, var(--color-surface) 0%, color-mix(in srgb, var(--color-surface) 52%, transparent) 30%, color-mix(in srgb, var(--color-surface) 18%, transparent) 65%, transparent 100%);
+  /* Card rings: opaque alternating dark/light hairlines stepped inward from the rim (Card texture). */
+  --card-ring-dark-outer: #1d1d1d;
+  --card-ring-light: #323232;
+  --card-ring-dark-inner: #191919;
+  --card-ring-light-inner: #2e2e2e;
+  --field-height-sm: 32px;
+  --field-height-md: 36px;
+  /* Input wells are recessed and lit by the control rim (tokens mirrored from base.css). */
+  --color-field-background: #171717;
+  --color-field-background-hover: #1b1b1b;
+  --field-frame: transparent;
+  --field-fill-top: #1a1a1a;
+  --field-fill-bottom: #171717;
+  --field-fill-hover-top: #1e1e1e;
+  --field-fill-hover-bottom: #1b1b1b;
+  --field-rings: var(--material-control);
+  /* Texture tones for chips and badges: frame, lit rim, gradient face, ink. Opaque. */
+  --tone-neutral-frame: #141414;
+  --tone-neutral-rim: #4c4c4c;
+  --tone-neutral-top: #262626;
+  --tone-neutral-bottom: #3b3b3b;
+  --tone-neutral-ink: var(--color-text-secondary);
+  --tone-brand-frame: #1a1a1a;
+  --tone-brand-rim: #ffffff;
+  --tone-brand-top: #e5e5e5;
+  --tone-brand-bottom: #fafafa;
+  --tone-brand-ink: #333333;
+  --tone-success-frame: #14301d;
+  --tone-success-rim: #6ee7a0;
+  --tone-success-top: #2f7a4a;
+  --tone-success-bottom: #3a9a5c;
+  --tone-success-ink: #effff4;
+  --tone-warn-frame: #5e3f0e;
+  --tone-warn-rim: #fcd34d;
+  --tone-warn-top: #a8741a;
+  --tone-warn-bottom: #c28a22;
+  --tone-warn-ink: #fff8e6;
+  --tone-danger-frame: #5e2323;
+  --tone-danger-rim: #f87171;
+  --tone-danger-top: #a64545;
+  --tone-danger-bottom: #b83c3c;
+  --tone-danger-ink: #fff1f1;
+  --tone-info-frame: #1c3560;
+  --tone-info-rim: #93c5fd;
+  --tone-info-top: #2f5fa8;
+  --tone-info-bottom: #3b74c4;
+  --tone-info-ink: #eef5ff;
+  --card-fill-top: var(--color-surface-subtle);
+  --card-fill-bottom: var(--color-surface-subtle);
+  --card-fill: linear-gradient(to bottom, var(--card-fill-top), var(--card-fill-bottom));
+  --card-rings: var(--material-edge-quiet);
+}
+
+/**
+ * Scroll fade: masks a scroller's top and bottom edge only while content continues past it.
+ * A mask, not a painted trail, so it fits any fill (cards, lifted cards, light theme).
+ * Scroll-driven: without overflow the timeline is inactive and both edges stay 0px.
+ * Tables inside an opted-in host scroll in their own viewport, so they fade too.
+ */
+@property --scroll-fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --scroll-fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.pw-scroll-fade,
+.pw-scroll-fade .pw-data-table-scroll {
+  --scroll-fade-size: 24px;
+  --material-fade-edge-mask: linear-gradient(to bottom, transparent 0, #000 var(--scroll-fade-top), #000 calc(100% - var(--scroll-fade-bottom)), transparent 100%);
+  mask-image: var(--material-fade-edge-mask);
+  animation: pw-scroll-fade-top linear both, pw-scroll-fade-bottom linear both;
+  animation-timeline: scroll(self), scroll(self);
+  animation-range: 0 var(--scroll-fade-size), calc(100% - var(--scroll-fade-size)) 100%;
+}
+
+@keyframes pw-scroll-fade-top {
+  from { --scroll-fade-top: 0px; }
+  to { --scroll-fade-top: var(--scroll-fade-size); }
+}
+
+@keyframes pw-scroll-fade-bottom {
+  from { --scroll-fade-bottom: var(--scroll-fade-size); }
+  to { --scroll-fade-bottom: 0px; }
+}
+
+/**
+ * Inline fade: masks the end of a clipped single line only when text continues past it
+ * (truncated table cells). Same scroll-timeline technique, on the inline axis: without
+ * overflow the timeline is inactive and the edge stays 0px.
+ */
+@property --inline-fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.pw-inline-fade {
+  --inline-fade-size: 24px;
+  --material-fade-edge-inline-mask: linear-gradient(to right, #000 calc(100% - var(--inline-fade-end)), transparent 100%);
+  mask-image: var(--material-fade-edge-inline-mask);
+  animation: pw-inline-fade-end linear both;
+  animation-timeline: scroll(self inline);
+  /* Clipped cells never scroll, so any overflow keeps the full fade. */
+  animation-range: 0 100%;
+}
+
+@keyframes pw-inline-fade-end {
+  from { --inline-fade-end: var(--inline-fade-size); }
+  to { --inline-fade-end: 0px; }
+}
+
+/* Opaque scrim whose left edge fades, so trailing text reads as cut under a control. */
+.pw-fade-inline-start {
+  --inline-fade-start: 28px;
+  --material-fade-edge-inline-start: linear-gradient(to right, transparent, #000 var(--inline-fade-start));
+  -webkit-mask-image: var(--material-fade-edge-inline-start);
+  mask-image: var(--material-fade-edge-inline-start);
+}
+
+/* base.css collapses animation durations under reduced motion; scroll timelines need auto. */
+@media (prefers-reduced-motion: reduce) {
+  .pw-scroll-fade,
+  .pw-scroll-fade .pw-data-table-scroll,
+  .pw-inline-fade {
+    animation-duration: auto !important;
+  }
+}
+
+/**
+ * Full edge-light border for large host surfaces (MainSurface, elevated quiet panels).
+ * The real border keeps the rim visible without painting inside the surface.
+ */
+.edge-light-surface {
+  border: 1px solid var(--edge-light-surface-rim);
+  border-top-color: var(--edge-light-surface-highlight);
+}
+
+/** Top catch light only — denser nested cards that already have a border. */
+.edge-light-surface-top {
+  border-top-color: var(--edge-light-surface-highlight);
+}
+
+/**
+ * Canonical product surface chrome (use for most elevated UI).
+ * = fill + radius + tokenized edge-light surface border.
+ */
+.surface-panel {
+  border: 0 solid var(--field-frame);
+  border-radius: var(--radius-surface);
+  background: var(--color-surface);
+  box-shadow: var(--material-raised);
+}
+
+/* Content groups retain the main surface frame with a smaller radius and lighter fill. */
+.surface-panel.surface-panel--nested {
+  border-radius: var(--radius-card);
+  background: var(--color-surface-subtle);
+  box-shadow: var(--material-hairline);
+}
+
+
+/**
+ * Floating overlays (dialogs, command palette, large popovers).
+ * Same edge-light as MainSurface + quiet outer lift over the shell.
+ */
+.surface-panel-float {
+  border: 0 solid var(--field-frame);
+  border-radius: var(--radius-surface);
+  background: var(--card-fill);
+  box-shadow:
+    var(--material-float),
+    0 20px 56px var(--color-shadow-float);
+}
+
+/**
+ * Form controls + compact menus — mirrored from base.css (DESIGN.md Control field / Menu).
+ */
+.control-field {
+  border: 0 solid var(--field-frame);
+  border-radius: var(--radius-control);
+  /* Recessed well, a step darker than the card it sits in, lit by the control rim. */
+  background: var(--color-field-background);
+  color: var(--color-text-primary);
+  box-shadow: var(--material-control);
+  transition:
+    background var(--duration-control) var(--ease-standard),
+    border-color var(--duration-control) var(--ease-standard);
+}
+
+/* Form fields stay quiet on focus — no outline ring (caret / value change is enough). */
+.control-field:focus,
+.control-field:focus-visible {
+  outline: none;
+}
+
+.control-field::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.control-field:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--color-field-background-hover);
+}
+
+.control-field:disabled,
+.control-field[aria-disabled="true"] {
+  background: var(--color-surface);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.control-field-sm {
+  height: var(--control-height-sm);
+  padding-inline: 0.5rem;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.control-field-md {
+  height: var(--control-height-md);
+  padding-inline: 0.625rem;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+/* Inputs and selects (marked .pw-field-control) are taller than the buttons that share the chrome. */
+/* Recessed well with the control edge; focus draws an inner ring in the primary colour. */
+.pw-field-control {
+  border: 0 solid var(--field-frame);
+  border-radius: 12px;
+  background: linear-gradient(to bottom, var(--field-fill-top), var(--field-fill-bottom));
+  box-shadow: var(--field-rings);
+}
+.pw-field-control:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: linear-gradient(to bottom, var(--field-fill-hover-top), var(--field-fill-hover-bottom));
+}
+.pw-field-control:focus,
+.pw-field-control:focus-visible,
+.pw-field-control[data-state="open"] {
+  /* The frame has no width (the lit edge sits at the outer edge), so focus is an inner ring. */
+  box-shadow: inset 0 0 0 1px var(--color-primary), 0 1px 2px var(--material-drop-strong);
+}
+.pw-field-control.control-field-sm { height: var(--field-height-sm); border-radius: 6px; }
+.pw-field-control.control-field-md { height: var(--field-height-md); }
+
+.control-field-area {
+  min-height: 4rem;
+  padding: 0.5rem 0.625rem;
+  font-size: 13px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.menu-panel {
+  border: 0 solid var(--field-frame);
+  border-radius: var(--radius-menu);
+  background: var(--card-fill);
+  overflow: hidden;
+  box-shadow: var(--material-float);
+}
+
+/**
+ * Dropdown / menu floating stack (Ark Menu).
+ * Zag copies Content z-index onto Positioner as --z-index.
+ */
+.pw-dropdown-positioner {
+  z-index: var(--z-dropdown, 105);
+}
+
+.pw-dropdown-panel {
+  z-index: var(--z-dropdown, 105);
+}
+
+/* Shared framed texture: buttons add interaction states; cards keep a stable face. */
+.pw-texture-button,
+.pw-texture-group,
+.card-texture-framed {
+  /* Lit material: a near-flat opaque face, no painted frame, the edge drawn by --material-control. */
+  --tx-frame: var(--field-frame);
+  --tx-outer-top: var(--tx-face-top);
+  --tx-outer-bottom: var(--tx-face-bottom);
+  --tx-face-top: #303030;
+  --tx-face-bottom: #2b2b2b;
+  --tx-face-hover-top: #383838;
+  --tx-face-hover-bottom: #333333;
+  --tx-face-active-top: #2b2b2b;
+  --tx-face-active-bottom: #2b2b2b;
+  --tx-ink: var(--color-text-primary);
+
+  position: relative;
+  isolation: isolate;
+  border: 1px solid var(--tx-frame);
+  background: linear-gradient(to bottom, var(--tx-outer-top), var(--tx-outer-bottom));
+  color: var(--tx-ink);
+  transition: filter var(--duration-control) var(--ease-standard);
+}
+
+.pw-texture-button {
+  box-shadow: var(--material-control);
+}
+
+.pw-button.pw-texture-button::before,
+.pw-texture-button::before,
+.card-texture-framed::before {
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+  border-radius: var(--tx-face-radius, 10px);
+  background: linear-gradient(to bottom, var(--tx-face-top), var(--tx-face-bottom));
+  content: "";
+  pointer-events: none;
+  transition: background var(--duration-control) var(--ease-standard);
+}
+
+/* Buttons paint one face over the whole border box, so hover and press never reveal a second ring.
+   The face covers the button's own inset edge, so it carries the lit edge itself. */
+.pw-button.pw-texture-button::before,
+.pw-texture-button::before {
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: var(--tx-face-edge, var(--material-edge));
+}
+
+.card-texture-framed:not([data-texture="compact"]) {
+  /* Large content surfaces use a quieter palette than compact texture buttons. */
+  --tx-frame: var(--field-frame);
+  --tx-face-top: var(--color-surface);
+  --tx-face-bottom: color-mix(in srgb, var(--color-surface) 85%, var(--color-surface-subtle));
+  --tx-face-radius: calc(var(--radius-card) - 2px);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-rings), 0 1px 2px var(--material-drop);
+}
+
+/* Compact controls: the field gradient and one rim, without the button metal or the four card rings. */
+.card-texture-framed[data-texture="compact"] {
+  --tx-frame: var(--field-frame);
+  --tx-face-top: var(--field-fill-top);
+  --tx-face-bottom: var(--field-fill-bottom);
+  border-radius: 12px;
+  --tx-face-radius: 10px;
+  box-shadow: var(--material-control);
+}
+
+/** Nested product card — same as base.css .card-panel (design-system Card). */
+.card-panel,
+.card-texture {
+  border: 0 solid var(--field-frame);
+  border-radius: var(--radius-card);
+  background: var(--card-fill);
+  /* The lit rim and top edge, then the raised drop (`--card-lift` overrides it). */
+  box-shadow:
+    var(--card-rings),
+    var(--card-lift, 0 2px 4px var(--color-shadow), 0 1px 2px var(--color-shadow));
+}
+
+/* The card's edge is drawn outside its box, so a cover fills the top edge to edge inside the 1px frame. */
+.card-panel > .pw-aurora-cover {
+  margin: 0;
+  border-radius: calc(var(--radius-card) - 1px) calc(var(--radius-card) - 1px) 0 0;
+}

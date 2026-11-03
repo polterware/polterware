@@ -1,0 +1,18 @@
+Polterware
+Copyright 2026 Erick Barcelos
+
+Licensed under the Apache License, Version 2.0 (LICENSE).
+
+Third-party code in this repository:
+
+- packages/frontend/bot-avatars: bot-avatars by Jakub Antalik, MIT License
+  (packages/frontend/bot-avatars/LICENSE).
+- .agents/skills/typesafe-ai: the TypeSafe AI skill, MIT License
+  (.agents/skills/typesafe-ai/LICENSE).
+- packages/features/architecture/src/domain/service-marks.tsx: service marks from
+  Simple Icons (CC0 1.0). The marks remain trademarks of their owners.
+
+Release builds also bundle Sparkle (https://sparkle-project.org, MIT-style license),
+fetched by tooling/updater. desktop-gpui bundles the assets of polterware-ui
+(https://github.com/polterware/ui): Hugeicons Free (MIT), Inter and JetBrains Mono
+(SIL Open Font License 1.1).

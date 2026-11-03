@@ -1,0 +1,11 @@
+/* Icon swap (icon-swap.tsx): both glyphs share one fixed grid cell. */
+.pw-icon-swap {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+}
+
+.pw-icon-swap__glyph {
+  display: inline-flex;
+  grid-area: 1 / 1;
+}

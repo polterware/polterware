@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+      - run: (cd schemas && buf lint)
+      - run: (cd schemas/vendor/dispatch && buf lint)
+      - run: (cd backend && go vet ./...)
+      - run: (cd backend && go test ./...)
+
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm design:lint
+      - run: pnpm test
+
+  gpui:
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: desktop-gpui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop-gpui
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets
+      - run: cargo test

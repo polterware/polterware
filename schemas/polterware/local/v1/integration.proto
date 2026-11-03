@@ -1,0 +1,125 @@
+syntax = "proto3";
+package polterware.local.v1;
+option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
+
+message CliProvider {
+  string id = 1;
+  string name = 2;
+  string binary = 3;
+  repeated string auth_commands = 4;
+  string description = 5;
+  string category = 6;
+}
+
+message IntegrationConnection {
+  string id = 1;
+  string project_id = 2;
+  string provider_id = 3;
+  string status = 4;
+  string label = 5;
+  string environment_id = 6;
+  string last_sync_at = 7;
+  string summary = 8;
+  string cli_command = 9;
+  string sync_interval = 10;
+  string freshness = 11;
+  string error_message = 12;
+}
+
+message IntegrationResource {
+  string id = 1;
+  string connection_id = 2;
+  string name = 3;
+  string kind = 4;
+  string external_id = 5;
+  string environment_id = 6;
+  string status = 7;
+}
+
+message IntegrationSyncRun {
+  string id = 1;
+  string connection_id = 2;
+  string started_at = 3;
+  string finished_at = 4;
+  string result = 5;
+  int32 imported = 6;
+  int32 changed = 7;
+  string message = 8;
+}
+
+message ListCliProvidersRequest {}
+message ListCliProvidersResponse { repeated CliProvider providers = 1; }
+message ListIntegrationConnectionsRequest { string project_id = 1; }
+message ListIntegrationConnectionsResponse { repeated IntegrationConnection connections = 1; }
+message SaveIntegrationConnectionRequest { IntegrationConnection connection = 1; }
+message SaveIntegrationConnectionResponse { IntegrationConnection connection = 1; }
+message ListIntegrationResourcesRequest { string project_id = 1; }
+message ListIntegrationResourcesResponse { repeated IntegrationResource resources = 1; }
+message ListIntegrationSyncRunsRequest { string project_id = 1; }
+message ListIntegrationSyncRunsResponse { repeated IntegrationSyncRun runs = 1; }
+message SaveIntegrationSyncRunRequest { IntegrationSyncRun run = 1; }
+message SaveIntegrationSyncRunResponse { IntegrationSyncRun run = 1; }
+
+message ProbeCliProviderRequest { string provider_id = 1; }
+message ProbeCliProviderResponse {
+  string provider_id = 1;
+  bool available = 2;
+  string binary_path = 3;
+  string status = 4; // cli-unavailable | ready | connected | failed
+  string account_label = 5;
+  string message = 6;
+}
+
+message BeginCliAuthRequest { string provider_id = 1; }
+message BeginCliAuthResponse {
+  string provider_id = 1;
+  string auth_command = 2;
+  string docs_url = 3;
+  string message = 4;
+}
+
+message SyncIntegrationConnectionRequest { string connection_id = 1; }
+message SyncIntegrationConnectionResponse { IntegrationSyncRun run = 1; }
+
+// DeployTarget is a project, app, site, or service on a platform that a
+// deploy can link to. detected is true when the node's checkout declares it.
+message DeployTarget {
+  string name = 1;
+  string id = 2;
+  string kind = 3;
+  string url = 4;
+  bool detected = 5;
+}
+message ListDeployTargetsRequest {
+  string project_id = 1;
+  string provider = 2;
+  // node_id picks the checkout whose files are read; empty reads none.
+  string node_id = 3;
+}
+message ListDeployTargetsResponse {
+  repeated DeployTarget targets = 1;
+  // message says why the list is short, such as a CLI that is not installed.
+  string message = 2;
+}
+message CheckDeploysRequest {
+  string project_id = 1;
+  // node_id limits the check to one node; empty checks the project.
+  string node_id = 2;
+  // force checks links checked in the last minute too.
+  bool force = 3;
+}
+message CheckDeploysResponse { int32 checked = 1; }
+
+service IntegrationService {
+  rpc ListCliProviders(ListCliProvidersRequest) returns (ListCliProvidersResponse);
+  rpc ListIntegrationConnections(ListIntegrationConnectionsRequest) returns (ListIntegrationConnectionsResponse);
+  rpc SaveIntegrationConnection(SaveIntegrationConnectionRequest) returns (SaveIntegrationConnectionResponse);
+  rpc ListIntegrationResources(ListIntegrationResourcesRequest) returns (ListIntegrationResourcesResponse);
+  rpc ListIntegrationSyncRuns(ListIntegrationSyncRunsRequest) returns (ListIntegrationSyncRunsResponse);
+  rpc SaveIntegrationSyncRun(SaveIntegrationSyncRunRequest) returns (SaveIntegrationSyncRunResponse);
+  rpc SyncIntegrationConnection(SyncIntegrationConnectionRequest) returns (SyncIntegrationConnectionResponse);
+  rpc ProbeCliProvider(ProbeCliProviderRequest) returns (ProbeCliProviderResponse);
+  rpc BeginCliAuth(BeginCliAuthRequest) returns (BeginCliAuthResponse);
+  rpc ListDeployTargets(ListDeployTargetsRequest) returns (ListDeployTargetsResponse);
+  rpc CheckDeploys(CheckDeploysRequest) returns (CheckDeploysResponse);
+}

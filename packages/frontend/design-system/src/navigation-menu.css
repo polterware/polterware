@@ -1,0 +1,264 @@
+/**
+ * NavigationMenu (navigation-menu.tsx). Ark measures the open content and publishes
+ * --viewport-width / --viewport-height on the shared viewport; the panel springs between
+ * sizes on the moderate tier, so switching items reads as one surface morphing. The
+ * viewport enters with a short fade and slide; each content fades in as it swaps.
+ */
+
+.pw-navmenu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pw-navmenu-list {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pw-navmenu-item {
+  display: flex;
+}
+
+.pw-navmenu-pill {
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-surface-active);
+}
+
+.pw-navmenu-trigger {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-full, 999px);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 450;
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+  transition: color var(--duration-control) var(--ease-standard);
+}
+
+.pw-navmenu-trigger:hover,
+.pw-navmenu-trigger[data-state="open"],
+.pw-navmenu-trigger[aria-current="page"],
+.pw-navmenu-trigger[data-current] {
+  color: var(--color-text-primary);
+}
+
+.pw-navmenu-trigger:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.pw-navmenu-chevron {
+  color: var(--color-text-muted);
+  transition: transform var(--spring-moderate-duration, 160ms) var(--spring-moderate-ease, ease-out);
+}
+
+.pw-navmenu-trigger[data-state="open"] .pw-navmenu-chevron {
+  transform: rotate(180deg);
+}
+
+.pw-navmenu-positioner {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  z-index: var(--z-dropdown, 105);
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+
+.pw-navmenu-positioner[data-align="center"] {
+  justify-content: center;
+}
+
+.pw-navmenu-positioner[data-align="end"] {
+  justify-content: flex-end;
+}
+
+.pw-navmenu-viewport {
+  position: relative;
+  /* The positioner is only as wide as the nav; the panel keeps its measured size. */
+  flex: none;
+  width: var(--viewport-width);
+  height: var(--viewport-height);
+  pointer-events: auto;
+  transform-origin: top center;
+  transition:
+    width var(--spring-moderate-duration, 160ms) var(--spring-moderate-ease, ease-out),
+    height var(--spring-moderate-duration, 160ms) var(--spring-moderate-ease, ease-out);
+}
+
+.pw-navmenu-viewport[data-state="open"] {
+  animation: pw-navmenu-enter var(--spring-moderate-duration, 160ms) var(--spring-moderate-ease, ease-out);
+}
+
+.pw-navmenu-viewport[data-state="closed"] {
+  animation: pw-navmenu-exit var(--spring-moderate-exit-duration, 120ms) ease-in forwards;
+}
+
+/* Contents stack at the corner so the viewport can measure and morph between them. */
+.pw-navmenu-viewport .pw-navmenu-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.pw-navmenu-content[data-state="open"] {
+  animation: pw-navmenu-content-enter var(--spring-slow-duration, 240ms) var(--ease-standard, ease-out);
+}
+
+@keyframes pw-navmenu-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0) scale(0.985);
+  }
+}
+
+@keyframes pw-navmenu-exit {
+  to {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0) scale(0.99);
+  }
+}
+
+@keyframes pw-navmenu-content-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Plain links inside a content. */
+.pw-navmenu-link {
+  display: block;
+  border-radius: var(--radius-item);
+  color: var(--color-text-secondary);
+  outline: none;
+  transition: color var(--duration-control) var(--ease-standard), background var(--duration-control) var(--ease-standard);
+}
+
+.pw-navmenu-link:hover,
+.pw-navmenu-link:focus-visible {
+  color: var(--color-text-primary);
+  background: var(--color-surface-hover);
+}
+
+/* Preview panel (xAI-style): rows on the left, live preview on the right. */
+.pw-navmenu-preview {
+  display: grid;
+  grid-template-columns: 272px 420px;
+  gap: 12px;
+  padding: 12px;
+}
+
+.pw-navmenu-preview-rows {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pw-navmenu-row-pill {
+  border-radius: var(--radius-item);
+  background: var(--color-surface-raised);
+}
+
+.pw-navmenu-preview-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius-item);
+  color: var(--color-text-secondary);
+  outline: none;
+}
+
+.pw-navmenu-preview-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.pw-navmenu-row-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.pw-navmenu-row-title svg {
+  color: var(--color-text-muted);
+}
+
+.pw-navmenu-preview-row[data-active] .pw-navmenu-row-title svg {
+  color: var(--color-brand);
+}
+
+.pw-navmenu-row-description {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
+.pw-navmenu-preview-pane {
+  position: relative;
+  min-height: 300px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--color-app-background);
+}
+
+.pw-navmenu-preview-frame {
+  position: absolute;
+  inset: 0;
+  animation: pw-navmenu-content-enter var(--spring-slow-duration, 240ms) var(--ease-standard, ease-out);
+}
+
+.pw-navmenu-preview-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px 4px;
+  border-top: 1px solid var(--color-border-subtle);
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-navmenu-viewport {
+    transition: none;
+  }
+
+  .pw-navmenu-viewport[data-state="open"],
+  .pw-navmenu-content[data-state="open"],
+  .pw-navmenu-preview-frame {
+    animation: pw-navmenu-content-enter var(--duration-fast, 120ms) ease-out !important;
+  }
+
+  .pw-navmenu-viewport[data-state="closed"] {
+    animation: pw-navmenu-exit-fade var(--duration-fast, 120ms) ease-in forwards !important;
+  }
+}
+
+@keyframes pw-navmenu-exit-fade {
+  to {
+    opacity: 0;
+  }
+}

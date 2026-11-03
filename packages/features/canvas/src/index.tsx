@@ -1,0 +1,257 @@
+import { For, Show, createEffect, createMemo, createResource, createSignal, on, onCleanup, onMount } from "solid-js";
+import {
+  Archive, ArchivedList, Button, Card, Composer, DropdownMenu, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuTrigger, Eye, IconTile,
+  MoreHorizontal, PageEmpty, PageError, PageLoading,
+  PageToolbar, Pencil, PinOff, Plus, SchemeIcon, SearchBar, buttonClassName,
+  ToolbarIconButton, pushToast, requestConfirm, type ArchivedListItem,
+} from "@polterware/frontend-design-system";
+import { CanvasEditor } from "./editor";
+import { CanvasMinimap } from "./minimap";
+import { toDocument, type CanvasPort, type CanvasRecord, type CanvasType } from "./model";
+import type { ArchitectureDocument } from "@polterware/frontend-canvas";
+export type { CanvasPort, CanvasRecord, CanvasPatch, CanvasType } from "./model";
+export { readCanvas, readTypes } from "./model";
+export { STRUCTURE_CANVAS_NAME, drawStructure, isStructureCanvas, type StructureSource } from "./structure-canvas";
+export type { StoreEntity } from "./references";
+import type { StoreEntity } from "./references";
+
+/** `openCanvasId` reopens the canvas the user last had open; `onOpenCanvasChange` reports opening and closing. */
+export type CanvasNavigation = {
+  openCanvasId?: string;
+  onOpenCanvasChange?: (canvasId: string | undefined) => void;
+  /** Reports the open canvas's name (the title bar's breadcrumb), and undefined once none is open. */
+  onOpenCanvasName?: (name: string | undefined) => void;
+  /** A new value closes the open canvas and shows the list (the Canvas item chosen again). */
+  homeKey?: number;
+};
+
+export function CanvasView(props: { projectId: string; port: CanvasPort; entities?: readonly StoreEntity[] } & CanvasNavigation) {
+  return <Show when={props.projectId} keyed>{(projectId) => <CanvasProject projectId={projectId} port={props.port} entities={props.entities} openCanvasId={props.openCanvasId} onOpenCanvasChange={props.onOpenCanvasChange} onOpenCanvasName={props.onOpenCanvasName} homeKey={props.homeKey} />}</Show>;
+}
+
+function CanvasProject(props: { projectId: string; port: CanvasPort; entities?: readonly StoreEntity[] } & CanvasNavigation) {
+  const [data, { refetch }] = createResource(async () => {
+    try {
+      const [canvases, types] = await Promise.all([props.port.list(props.projectId), props.port.types()]);
+      return { canvases, types, loadError: "" };
+    } catch (error) {
+      return { canvases: [], types: [], loadError: error instanceof Error ? error.message : String(error) };
+    }
+  });
+  const [selected, setSelectedCanvas] = createSignal<{ canvas: CanvasRecord; document: ArchitectureDocument; definition: CanvasType }>();
+  const setSelected = (value: { canvas: CanvasRecord; document: ArchitectureDocument; definition: CanvasType } | undefined) => {
+    setSelectedCanvas(value);
+    props.onOpenCanvasChange?.(value?.canvas.id);
+  };
+  createEffect(() => props.onOpenCanvasName?.(selected()?.canvas.name));
+  onCleanup(() => props.onOpenCanvasName?.(undefined));
+  // Reopen the last open canvas once the list loads, when it still exists.
+  let restored = false;
+  createEffect(() => {
+    const loaded = data();
+    if (restored || !loaded) return;
+    restored = true;
+    const id = props.openCanvasId;
+    if (id && loaded.canvases.some((canvas) => canvas.id === id)) void open(id);
+  });
+  // The editor saves as it unmounts, so closing it from outside keeps every edit.
+  createEffect(on(() => props.homeKey, () => {
+    if (!selected()) return;
+    setSelected(undefined);
+    void refetch();
+  }, { defer: true }));
+  const [dialog, setDialog] = createSignal<"create" | "rename">();
+  const [showArchived, setShowArchived] = createSignal(false);
+  const [archived, { refetch: refetchArchived }] = createResource(
+    () => (showArchived() ? props.projectId : undefined),
+    async (projectId) => props.port.listArchived(projectId),
+  );
+  const archivedRows = createMemo<ArchivedListItem[]>(() =>
+    (archived() ?? []).map((canvas) => ({ id: canvas.id, title: canvas.name, detail: "Canvas", archivedAt: formatArchived(canvas.archivedAt) })));
+  const [target, setTarget] = createSignal<CanvasRecord>();
+  const [busy, setBusy] = createSignal(false);
+  const [error, setError] = createSignal("");
+  const [query, setQuery] = createSignal("");
+  const visibleCanvases = createMemo(() => {
+    const needle = query().trim().toLowerCase();
+    if (!needle) return data()?.canvases ?? [];
+    return (data()?.canvases ?? []).filter((canvas) => canvas.name.toLowerCase().includes(needle));
+  });
+  async function run(action: () => Promise<void>) {
+    setBusy(true); setError("");
+    try { await action(); }
+    catch (error) { setError(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(false); }
+  }
+  async function open(id: string) {
+    await run(async () => {
+      const canvas = await props.port.get(props.projectId, id);
+      const definition = data()?.types.find((type) => type.type === canvas.type);
+      if (!definition) throw new Error("The server did not report this canvas type. Reload types before editing.");
+      setSelected({ canvas, document: toDocument(canvas), definition });
+    });
+  }
+  function showDialog(kind: "create" | "rename", canvas?: CanvasRecord) {
+    setTarget(canvas); setError(""); setDialog(kind);
+  }
+  /** The composer's submit: false keeps it open with the name, and the refusal shows as a toast. */
+  async function submit(draft: { title: string }): Promise<boolean> {
+    const value = draft.title.trim();
+    if (!value) return false;
+    setBusy(true);
+    try {
+      if (dialog() === "create") {
+        // The core reports one generalist canvas type.
+        const definition = data()?.types[0];
+        if (!definition) throw new Error("The server reported no canvas type.");
+        const canvas = await props.port.create(props.projectId, value, definition.type);
+        setSelected({ canvas, document: toDocument(canvas), definition });
+      } else if (dialog() === "rename" && target()) {
+        await props.port.update(props.projectId, target()!.id, { name: value });
+      }
+      setDialog(undefined); await refetch();
+      return true;
+    } catch (cause) {
+      pushToast(cause instanceof Error ? cause.message : String(cause), "danger");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+  /** Archive at once and offer Undo: archiving is reversible, so it needs no confirm. */
+  function archive(canvas: CanvasRecord) {
+    void run(async () => {
+      await props.port.setArchived(props.projectId, canvas.id, true);
+      await refetch();
+      pushToast(`Archived “${canvas.name}”`, "default", {
+        action: { label: "Undo", onClick: () => void restore(canvas.id, canvas.name, false) },
+      });
+    });
+  }
+  function restore(id: string, name: string, announce = true) {
+    return run(async () => {
+      await props.port.setArchived(props.projectId, id, false);
+      await Promise.all([refetch(), showArchived() ? refetchArchived() : undefined]);
+      if (announce) pushToast(`Restored “${name}”`);
+    });
+  }
+  async function deletePermanently(item: ArchivedListItem) {
+    const confirmed = await requestConfirm({
+      title: `Delete “${item.title}” permanently?`,
+      description: "The canvas, its shapes, and its layout are removed from this project.",
+      recovery: "This cannot be undone.",
+      confirmLabel: "Delete permanently",
+    });
+    if (!confirmed) return;
+    await run(async () => {
+      await props.port.remove(props.projectId, item.id);
+      await refetchArchived();
+      pushToast(`Deleted “${item.title}”`);
+    });
+  }
+  return <Show when={selected()} keyed fallback={<div class="flex h-full min-h-0 flex-col">
+    <PageToolbar.Root>
+      <PageToolbar.Leading>{null}</PageToolbar.Leading>
+      <PageToolbar.Actions>
+        <Show when={!showArchived()}><SearchBar placeholder="Search canvases" value={query()} onInput={setQuery} aria-label="Search canvases" /></Show>
+        <Button variant="texture" size="icon" aria-label={showArchived() ? "Back to canvases" : "Archived canvases"} aria-pressed={showArchived()} selected={showArchived()} onClick={() => setShowArchived((value) => !value)}><Archive size={14} /></Button>
+        <Show when={!showArchived()}>
+          <ToolbarIconButton label="New canvas" disabled={busy() || !data()?.types.length} onClick={() => showDialog("create")}><Plus size={14} /></ToolbarIconButton>
+        </Show></PageToolbar.Actions>
+    </PageToolbar.Root>
+    <Show when={showArchived()}>
+      <div class="min-h-0 flex-1 overflow-auto pw-scroll-fade">
+        <Show when={!archived.loading} fallback={<PageLoading layout="table" label="Loading archived canvases…" />}>
+          <ArchivedList items={archivedRows()} label="Archived canvases" icon={<SchemeIcon size={16} />} busy={busy()}
+            onRestore={(item) => void restore(item.id, item.title)} onDelete={(item) => void deletePermanently(item)} />
+        </Show>
+      </div>
+    </Show>
+    <Show when={data.loading}><PageLoading layout="table" label="Loading canvases…" /></Show>
+    <Show when={data()?.loadError}><PageError message={data()!.loadError} onRetry={() => void refetch()} /></Show>
+    <Show when={error() && !dialog()}><PageError message={error()} onRetry={() => { setError(""); void refetch(); }} /></Show>
+    <Show when={!showArchived() && data()?.loadError === "" && data()}>{(loaded) => <div class="min-h-0 flex-1 overflow-auto pw-scroll-fade">
+      <Show when={loaded().types.length} fallback={<PageEmpty title="Canvas is unavailable" mood="sad" />}>
+        <Show when={visibleCanvases().length} fallback={<PageEmpty title={query() ? "No matches" : "No canvases yet"} mood={query() ? "lost" : "sleeping"} action={!query() ? <Button variant="secondary" onClick={() => showDialog("create")}><Plus size={14} />New canvas</Button> : undefined} />}>
+          <ul role="list" aria-label="Canvases" class="pw-canvas-grid">
+            <For each={visibleCanvases()}>{(canvas) => <li>
+              <CanvasCard canvas={canvas} definition={loaded().types.find((type) => type.type === canvas.type)} entities={props.entities} busy={busy()}
+                onOpen={() => void open(canvas.id)} onRename={() => showDialog("rename", canvas)} onArchive={() => archive(canvas)}
+                onToggleAgents={() => void run(async () => { await props.port.update(props.projectId, canvas.id, { agentVisible: !canvas.agentVisible }); await refetch(); })} />
+            </li>}</For>
+          </ul>
+        </Show>
+      </Show>
+    </div>}</Show>
+    {/* New canvas and Rename take the shared composer, with the name as its large title. */}
+    <Composer
+      open={!!dialog()}
+      crumbs={dialog() === "create" ? ["Canvas", "New canvas"] : ["Canvas", target()?.name ?? "", "Rename canvas"]}
+      titlePlaceholder="Canvas name"
+      initial={dialog() === "rename" ? { title: target()?.name ?? "" } : undefined}
+      createMore={false}
+      submitLabel={dialog() === "create" ? "Create canvas" : "Save"}
+      onClose={() => { if (!busy()) setDialog(undefined); }}
+      onSubmit={submit}
+    />
+  </div>}>{(value) => <CanvasEditor canvas={value.canvas} document={value.document} definition={value.definition} port={props.port} entities={props.entities} onBack={() => { setSelected(undefined); void refetch(); }} />}</Show>;
+}
+
+/** One canvas in the grid: the minimap fills the card and the title row floats over it. */
+function CanvasCard(props: {
+  canvas: CanvasRecord; definition?: CanvasType; entities?: readonly StoreEntity[]; busy: boolean;
+  onOpen: () => void; onRename: () => void; onArchive: () => void; onToggleAgents: () => void;
+}) {
+  // The miniature keeps its content above the floating title row.
+  const [reserve, setReserve] = createSignal(96);
+  let card!: HTMLDivElement;
+  let head!: HTMLDivElement;
+  onMount(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setReserve(card.clientHeight - head.offsetTop + 8));
+    observer.observe(card);
+    onCleanup(() => observer.disconnect());
+  });
+  return <Card variant="texture" class="pw-canvas-card" ref={(element) => {
+    card = element;
+    element.tabIndex = 0;
+    element.setAttribute("role", "button");
+    element.setAttribute("aria-label", `Open canvas ${props.canvas.name}`);
+    // The menu trigger lives inside the card; stopping propagation would also starve Ark's delegated handlers.
+    const inMenu = (event: Event) => event.target instanceof Element && event.target.closest(".pw-canvas-card-menu") !== null;
+    element.onclick = (event) => { if (!inMenu(event)) props.onOpen(); };
+    element.onkeydown = (event) => {
+      if (inMenu(event)) return;
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault(); props.onOpen();
+    };
+  }}>
+    <div class="pw-canvas-card-preview" aria-hidden="true">
+      <CanvasMinimap canvas={props.canvas} definition={props.definition} entities={props.entities} reserveBottom={reserve()} />
+    </div>
+    <div ref={head} class="pw-canvas-card-head">
+      <IconTile size={24} seed={props.canvas.id} class="shrink-0"><SchemeIcon size={14} /></IconTile>
+      <h2 class="truncate text-[14px] font-medium text-[var(--color-text-primary)]">{props.canvas.name}</h2>
+      <Show when={props.canvas.agentVisible}><span class="pw-canvas-card-flag" role="img" aria-label="Agent-visible" title="Agent-visible"><Eye size={14} aria-hidden="true" /></span></Show>
+      <span class="pw-canvas-card-menu">
+        <DropdownMenu positioning={{ placement: "bottom-end" }}>
+          <DropdownMenuTrigger aria-label={`Actions for ${props.canvas.name}`} disabled={props.busy} class={buttonClassName("texture", "icon")}><MoreHorizontal size={14} aria-hidden="true" /></DropdownMenuTrigger>
+          <DropdownMenuContent class="min-w-40">
+            <DropdownMenuItem value="open" onSelect={props.onOpen}><SchemeIcon size={14} aria-hidden="true" />Open</DropdownMenuItem>
+            <DropdownMenuItem value="rename" onSelect={props.onRename}><Pencil size={14} aria-hidden="true" />Rename</DropdownMenuItem>
+            <DropdownMenuItem value="agent-visible" onSelect={props.onToggleAgents}>{props.canvas.agentVisible ? <PinOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}{props.canvas.agentVisible ? "Hide from agents" : "Make agent-visible"}</DropdownMenuItem>
+            <DropdownMenuItem value="archive" onSelect={props.onArchive}><Archive size={14} aria-hidden="true" />Archive</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </span>
+    </div>
+  </Card>;
+}
+
+/** Archive dates read as a short local date; an unreadable stamp shows as is. */
+function formatArchived(stamp: string | undefined): string {
+  if (!stamp) return "—";
+  const date = new Date(stamp);
+  return Number.isNaN(date.getTime()) ? stamp : date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}

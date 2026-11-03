@@ -1,0 +1,5 @@
+{
+  "extends": "../../packages/configuration/typescript/tsconfig.base.json",
+  "compilerOptions": { "jsx": "preserve", "jsxImportSource": "solid-js", "noEmit": true, "types": ["vite/client"] },
+  "include": ["src"]
+}

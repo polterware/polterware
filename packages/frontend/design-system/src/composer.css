@@ -1,0 +1,113 @@
+/* Composer: the create dialog. Borderless fields on the dialog surface; space, not
+   dividers, separates the title, the description, the pills, and the reason. */
+.pw-composer__body {
+  padding: 18px 24px 8px;
+}
+
+/* Expand sits left of the dialog's Close, which is a 2rem button placed 1rem from the top right:
+   the same center line, 4px apart. */
+.pw-composer__expand {
+  position: absolute;
+  top: calc(1rem + (2rem - var(--control-height-sm)) / 2);
+  right: calc(3rem + 4px);
+  z-index: 10;
+}
+
+/* The title keeps clear of Close (and Expand). */
+.pw-composer--expandable .pw-composer__title {
+  padding-right: 72px;
+}
+
+.pw-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pw-composer__title,
+.pw-composer__description,
+.pw-composer__field-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  outline: none;
+}
+
+.pw-composer__title {
+  /* Wraps instead of scrolling sideways, and keeps clear of Close at the top right. */
+  padding-right: 32px;
+  resize: none;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+  field-sizing: content;
+}
+
+.pw-composer__description {
+  min-height: 60px;
+  max-height: 280px;
+  resize: none;
+  color: var(--color-text-secondary);
+  font-size: 13.5px;
+  line-height: 1.5;
+  field-sizing: content;
+}
+
+.pw-composer__title::placeholder,
+.pw-composer__description::placeholder,
+.pw-composer__field-input::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.pw-composer__title:focus-visible,
+.pw-composer__description:focus-visible,
+.pw-composer__field-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.pw-composer__properties {
+  padding-top: 4px;
+}
+
+.pw-composer__field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+  font-size: 12.5px;
+}
+
+.pw-composer__field-label {
+  flex: none;
+  color: var(--color-text-muted);
+  font-weight: 550;
+}
+
+.pw-composer__field-input {
+  color: var(--color-text-secondary);
+}
+
+.pw-composer__footer-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pw-composer__create-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+}

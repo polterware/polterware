@@ -1,0 +1,363 @@
+/* RailPage: the page structure of docs, decisions, cards, facts, and runs (classes keep the pw-document prefix). */
+/*
+ * Document page, organized like an issue page: a 44px header with Back and the actions, a 654px text column
+ * centered in the room the rail leaves, and a 376px properties rail on the right edge. The page
+ * scrolls as one, unless `splitScroll` gives the column and the rail a scroll each.
+ */
+.pw-document {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+/* Back and the actions, spaced apart (justify-between). */
+.pw-document__header {
+  display: flex;
+  height: var(--page-header-height);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.pw-document__trail,
+.pw-document__actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.pw-document__status {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/*
+ * Pinned above the scroll, so content never passes under it. Its row mirrors the scroll's (the
+ * same padding, gap, and a spacer that holds the rail's room), so it stays lined up with the
+ * centered column while the rail comes and goes.
+ */
+.pw-document__lead {
+  display: flex;
+  min-width: 0;
+  flex-shrink: 0;
+  gap: 48px;
+  padding: 12px 62px;
+}
+
+.pw-document__lead-inner {
+  display: flex;
+  min-width: 0;
+  max-width: 654px;
+  flex: 1 1 654px;
+  align-items: center;
+  margin-inline: auto;
+}
+
+.pw-document__lead-spacer {
+  width: 376px;
+  flex: 0 0 376px;
+}
+
+/* With a lead, the rail starts level with the content below it instead of a document title. */
+.pw-document:has(> .pw-document__lead) .pw-document__rail {
+  padding-top: 8px;
+}
+
+.pw-document__scroll {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  align-items: flex-start;
+  gap: 48px;
+  /* The rail's content leaves past the right edge while its width closes; never a sideways scroll. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 62px 64px;
+}
+
+.pw-document__column {
+  display: flex;
+  min-width: 0;
+  max-width: 654px;
+  flex: 1 1 654px;
+  flex-direction: column;
+  /* Centered in the room the rail leaves, so it glides to the middle as the rail's width closes. */
+  margin-inline: auto;
+}
+
+/* A wide column (a run's log) has a longer measure, still centered. */
+.pw-document[data-wide="true"] .pw-document__column,
+.pw-document[data-wide="true"] .pw-document__lead-inner {
+  max-width: 880px;
+  flex-basis: 880px;
+}
+
+/* Title: 24/32/600 with no field chrome. */
+.pw-document__title {
+  width: 100%;
+  margin: 32px 0 8px;
+  padding: 0;
+  color: var(--color-text-primary);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.16px;
+  line-height: 32px;
+}
+
+/*
+ * Document fields edit in place with no field chrome: the title, and any ghost field
+ * (`.pw-document__ghost-field`) such as a summary or an inline property. The shared Input and
+ * Textarea keep their focus and keyboard behaviour; hover and focus change nothing, so the
+ * field reads as the page's own text. The state rules outrank the field's gradient hover.
+ */
+.pw-document__title.control-field,
+.pw-document__ghost-field.control-field {
+  height: auto;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.pw-document__title.pw-field-control:is(:hover, :focus, :focus-visible):not(:disabled):not([aria-disabled="true"]),
+.pw-document__ghost-field.pw-field-control:is(:hover, :focus, :focus-visible):not(:disabled):not([aria-disabled="true"]) {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The title as a field keeps the title's type and place. */
+.pw-document__title.control-field {
+  width: 100%;
+  margin: 32px 0 8px;
+  padding: 0;
+  color: var(--color-text-primary);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.16px;
+  line-height: 32px;
+}
+
+.pw-document__ghost-field.control-field {
+  margin: 0;
+  padding: 2px 6px;
+  border-radius: var(--radius-item);
+  color: inherit;
+  font: inherit;
+  resize: none;
+  field-sizing: content;
+}
+
+/* A ghost title keeps the title's type and place, padded like the other ghost fields. */
+.pw-document__ghost-field.pw-document__title.control-field {
+  margin: 32px 0 8px;
+  padding: 0 6px;
+  color: var(--color-text-primary);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.16px;
+  line-height: 32px;
+}
+
+.pw-document__ghost-field.control-field::placeholder {
+  color: var(--color-text-muted);
+}
+
+.pw-document__body {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24px;
+}
+
+/* Rail: no frame or fill, sticky beside the text. */
+.pw-document__rail {
+  position: sticky;
+  top: 0;
+  display: flex;
+  width: 376px;
+  flex: 0 0 376px;
+  flex-direction: column;
+  padding-top: 48px;
+}
+
+/* Keeps the rail's text at full width while its width closes, so nothing rewraps mid-motion. */
+.pw-document__rail-inner {
+  display: flex;
+  width: 100%;
+  min-width: 376px;
+  flex-direction: column;
+}
+
+.pw-document[data-narrow="true"] .pw-document__rail-inner {
+  min-width: 0;
+}
+
+.pw-document__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 0 0 10px 4px;
+}
+
+.pw-document__group-title {
+  margin: 0;
+  padding: 0 8px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* A group title with an icon tile: the tile, the title, and an aside at the end. */
+.pw-document__group-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.pw-document__group-title--tiled {
+  flex: 1 1 auto;
+  padding: 0;
+  color: var(--color-text-primary);
+}
+
+/* A collapsible group's heading is its toggle; the chevron turns while it is closed. */
+.pw-document__group-toggle {
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pw-document__group-toggle:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: 2px;
+}
+
+.pw-document__group-chevron {
+  flex: none;
+  color: var(--color-text-muted);
+  transition: transform var(--duration-control) var(--ease-standard);
+}
+
+.pw-document__group[data-open="false"] .pw-document__group-chevron {
+  transform: rotate(-90deg);
+}
+
+.pw-document__group-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.pw-document__group-aside {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.pw-document__group-body,
+.pw-document__group-actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.pw-document__rail-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 8px 0;
+  box-shadow: inset 0 0.5px 0 0 var(--color-border-default);
+}
+
+/*
+ * Split scroll: the column and the rail each scroll on their own, so a long log never carries the
+ * properties away. The column spans the room the rail leaves, so its scroll reaches its margins,
+ * and centers its content at the same measure.
+ */
+.pw-document[data-split-scroll="true"] .pw-document__scroll {
+  align-items: stretch;
+  overflow-y: hidden;
+  padding-bottom: 0;
+}
+
+.pw-document[data-split-scroll="true"] .pw-document__column {
+  max-width: none;
+  flex: 1 1 0;
+  margin-inline: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 64px;
+}
+
+.pw-document[data-split-scroll="true"] .pw-document__column > * {
+  width: 100%;
+  max-width: 654px;
+  margin-inline: auto;
+}
+
+.pw-document[data-split-scroll="true"][data-wide="true"] .pw-document__column > * {
+  max-width: 880px;
+}
+
+.pw-document[data-split-scroll="true"]:not([data-narrow="true"]) .pw-document__rail {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 64px;
+}
+
+/*
+ * A card rail: the properties sit on the card material beside the column, its padding taken from the rail's width.
+ * It hugs the page's edge 8px in, like the narrow drawer, past the scroll's 62px side padding.
+ */
+.pw-document[data-rail-card="true"]:not([data-narrow="true"]) .pw-document__rail {
+  margin-block: 0 8px;
+  margin-right: -54px;
+  padding: 16px 8px 8px;
+  border-radius: var(--radius-card);
+  background: var(--card-fill);
+  box-shadow:
+    var(--card-rings),
+    0 2px 4px var(--color-shadow),
+    0 1px 2px var(--color-shadow);
+}
+
+.pw-document[data-rail-card="true"]:not([data-narrow="true"]) .pw-document__rail-inner {
+  min-width: 360px;
+}
+
+/* Narrow pages: the rail opens as a drawer over the text, on the floating material. */
+.pw-document[data-narrow="true"] .pw-document__rail {
+  position: absolute;
+  z-index: 20;
+  top: 52px;
+  right: 8px;
+  bottom: 8px;
+  width: min(376px, calc(100% - 16px));
+  overflow-y: auto;
+  padding: 16px 8px;
+  border-radius: var(--radius-card);
+  background: var(--card-fill);
+  box-shadow: var(--material-float);
+}
+

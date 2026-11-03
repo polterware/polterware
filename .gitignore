@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+dist/bin/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+apps/polterware-desktop/dist/
+apps/polterware-desktop/dist-electron/
+apps/polterware-desktop/out/
+apps/polterware-desktop/release/
+packages/*/dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+
+# Polter runtime state
+.polter/
+
+# Go
+*.exe
+*.test
+*.out
+vendor/
+backend/**/dist/
+dist/polter-*
+
+# Generated (committed stubs may exist; full gen is local)
+# packages/generated is generated — allow tracking of package.json only via force if needed
+
+# Buf / protoc
+*.pb.go.bak
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.playwright-mcp/
+
+# Generated gallery props (tooling/docs-props.mjs)
+apps/gallery/src/generated/
+
+# Downloaded Sparkle distribution, headers, and compiled native bridge
+tooling/updater/vendor/
+tooling/updater/build/
+
+# GPUI Desktop build output
+/desktop-gpui/target/
+__pycache__/

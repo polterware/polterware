@@ -1,0 +1,11 @@
+.pw-date-time-picker { display: inline-flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; color: var(--color-text-primary); text-align: left; }
+.pw-date-time-picker__value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pw-date-time-picker__value[data-empty] { color: var(--color-text-muted); }
+.pw-date-time-picker__body { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+.pw-date-time-picker__time { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; }
+.pw-date-time-picker__time-label { color: var(--color-text-muted); font-size: 12.5px; }
+.pw-date-time-picker__time-fields { display: inline-flex; align-items: center; gap: 4px; color: var(--color-text-muted); }
+.pw-date-time-picker__time-field { width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.pw-date-time-picker__clear { align-self: flex-start; }
+.pw-date-time-picker__time-field.pw-date-time-picker__time-field.control-field:focus,
+.pw-date-time-picker__time-field.pw-date-time-picker__time-field.control-field:focus-visible { outline: none !important; box-shadow: none !important; border-color: transparent !important; }

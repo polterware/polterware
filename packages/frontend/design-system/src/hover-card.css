@@ -1,0 +1,34 @@
+/* No-paint clock: Ark unmounts on animationend, so it outlasts the JS exit tween
+ * (popup-motion.ts), which owns the visible enter/exit. */
+@keyframes pw-hover-card-presence {
+  from {
+    --pw-hover-card-presence-clock: 0;
+  }
+  to {
+    --pw-hover-card-presence-clock: 1;
+  }
+}
+
+.pw-hover-card-trigger {
+  display: block;
+  min-width: 0;
+}
+
+.pw-hover-card-positioner {
+  z-index: var(--z-dropdown, 105);
+}
+
+/* A preview, not a dialog: the card radius instead of the float surface's. */
+.pw-hover-card.surface-panel-float {
+  border-radius: var(--radius-card);
+}
+
+.pw-hover-card {
+  z-index: var(--z-dropdown, 105);
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  outline: none;
+  transform-origin: var(--transform-origin, top left);
+  animation: pw-hover-card-presence var(--duration-fast, 120ms) forwards;
+}

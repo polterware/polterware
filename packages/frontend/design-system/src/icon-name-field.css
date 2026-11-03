@@ -1,0 +1,6 @@
+.pw-icon-name-field { display: flex; align-items: center; gap: 8px; }
+.pw-icon-name-field > :last-child { flex: 1 1 auto; min-width: 0; }
+.pw-icon-name-field__trigger { display: inline-flex; align-items: center; justify-content: center; flex: none; width: var(--control-height-md); min-width: var(--control-height-md); padding: 0; cursor: pointer; }
+.pw-icon-name-field__popover { display: grid; }
+.pw-icon-name-field__colors { padding: 12px 12px 0; }
+.pw-icon-name-field__colors > label, .pw-icon-name-field__colors [data-part="label"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

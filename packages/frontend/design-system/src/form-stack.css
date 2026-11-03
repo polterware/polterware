@@ -1,0 +1,6 @@
+/* Vertical stack of Fields: label → control is tight (Field, 6px); field → field gets the 14px here. */
+.pw-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}

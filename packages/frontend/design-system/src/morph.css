@@ -1,0 +1,100 @@
+/* Morph (morph.tsx): a trigger that turns into a panel. Geometry and opacity are JS springs. */
+
+.pw-morph-anchor {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.pw-morph-anchor > .pw-morph-trigger {
+  width: 100%;
+  min-width: 0;
+  /* A label stays on one line; a row of triggers wraps instead. */
+  white-space: nowrap;
+}
+
+/* The panel stands in for the trigger until the exit morph ends. */
+.pw-morph-anchor[data-morphed] {
+  visibility: hidden;
+}
+
+/* A hint explains an action in a sentence, so it wraps instead of the one-line tooltip. */
+.pw-tooltip-content.pw-morph-hint {
+  max-width: min(260px, calc(100vw - 16px));
+  white-space: normal;
+  text-align: left;
+}
+
+/* The layer only groups the card and Cancel for keys and focus; both are placed fixed. */
+.pw-morph-layer {
+  position: fixed;
+  z-index: var(--z-dropdown, 105);
+  top: 0;
+  left: 0;
+}
+
+/* Cancel sits on the trigger's rect (set in JS), outside the card. */
+.pw-morph-cancel {
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+}
+
+.pw-morph-panel {
+  --pw-morph-radius: var(--radius-menu);
+  position: fixed;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  will-change: transform, width, height;
+}
+
+/* The surface holds the card on top and, under it, the trigger's slot where Cancel sits. */
+.pw-morph-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+}
+
+.pw-morph-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 14px 12px;
+  border-radius: calc(var(--radius-menu) - 6px);
+  background: var(--color-surface-subtle);
+  box-shadow: var(--card-rings);
+}
+
+.pw-morph-slot {
+  flex: none;
+}
+
+.pw-morph-title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.pw-morph-body {
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* The confirm closes the card, full width under the content; Cancel is outside, below. */
+.pw-morph-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.pw-morph-footer > * {
+  width: 100%;
+}

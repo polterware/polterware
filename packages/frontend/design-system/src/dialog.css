@@ -1,0 +1,150 @@
+/**
+ * Dialog open/close motion (Ark presence).
+ * Exit keyframes run as default; open state uses [data-expanded] / [data-state=open].
+ *
+ * Slow spring tier (spring-css.ts, sampled from springs.ts): the panel fades and scales
+ * 0.97 -> 1 on the spring; the exit is the tier's quicker tween. Reduced motion fades only.
+ *
+ * Size scale (data-size):
+ * - sm — compact forms / confirms (create project)
+ * - md — medium forms (default when size omitted)
+ * - lg — create dialogs with template grids
+ * - xl — dense catalogs (Add to Architecture)
+ */
+
+/* Every dialog shares the generous Settings radius; inner panels subtract their inset. */
+.pw-dialog-content.surface-panel-float {
+  border-radius: var(--radius-dialog);
+}
+
+/* Base = md (safe default). Catalog is opt-in via data-size="xl". */
+.pw-dialog-content {
+  width: min(36rem, calc(100vw - 2.5rem));
+  max-width: min(36rem, calc(100vw - 2.5rem));
+  height: auto;
+  min-height: 0;
+  max-height: min(90vh, 720px);
+}
+
+.pw-dialog-content[data-size="sm"] {
+  width: min(30rem, calc(100vw - 2.5rem));
+  max-width: min(30rem, calc(100vw - 2.5rem));
+  height: auto;
+  min-height: 0;
+  max-height: min(90vh, 640px);
+}
+
+.pw-dialog-content[data-size="md"] {
+  width: min(36rem, calc(100vw - 2.5rem));
+  max-width: min(36rem, calc(100vw - 2.5rem));
+  height: auto;
+  min-height: 0;
+  max-height: min(90vh, 720px);
+}
+
+.pw-dialog-content[data-size="lg"] {
+  width: min(44rem, calc(100vw - 2.5rem));
+  max-width: min(44rem, calc(100vw - 2.5rem));
+  height: auto;
+  min-height: 0;
+  max-height: min(85vh, 760px);
+}
+
+.pw-dialog-content[data-size="xl"] {
+  width: min(72rem, calc(100vw - 2.5rem));
+  max-width: min(72rem, calc(100vw - 2.5rem));
+  height: min(78vh, 760px);
+  max-height: min(92vh, 900px);
+  min-height: min(78vh, 760px);
+}
+
+/* Two actions (Cancel and the action) sit together on the right; with three or more, the dismiss action (first child) moves left. */
+.pw-dialog-footer > :first-child:not(:only-child):not(:nth-last-child(2)) {
+  margin-inline-end: auto;
+}
+
+@keyframes pw-dialog-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pw-dialog-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Opacity is its own animation below: a spring overshoot must not push it past 1. */
+@keyframes pw-dialog-content-in {
+  from {
+    transform: scale(0.97);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes pw-dialog-content-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.pw-dialog-overlay {
+  /* Exit (closing / unmount hold) */
+  animation: pw-dialog-overlay-out var(--spring-slow-exit-duration, var(--duration-control))
+    var(--ease-standard) forwards;
+}
+
+.pw-dialog-overlay[data-expanded],
+.pw-dialog-overlay[data-state="open"] {
+  animation: pw-dialog-overlay-in var(--spring-slow-duration, var(--duration-enter))
+    var(--ease-standard) forwards;
+}
+
+.pw-dialog-content {
+  transform-origin: center center;
+  animation: pw-dialog-content-out var(--spring-slow-exit-duration, var(--duration-control))
+    var(--ease-standard) forwards;
+}
+
+.pw-dialog-content[data-expanded],
+.pw-dialog-content[data-state="open"] {
+  animation:
+    pw-dialog-content-in var(--spring-slow-duration, var(--duration-enter))
+      var(--spring-slow-ease, var(--ease-enter)) forwards,
+    pw-dialog-overlay-in var(--spring-slow-duration, var(--duration-enter))
+      var(--ease-standard) forwards;
+}
+
+/*
+ * Reduced motion fades instead of scaling. base.css collapses animation durations, so
+ * the fade keeps its own (and Ark still receives animationend).
+ */
+@media (prefers-reduced-motion: reduce) {
+  .pw-dialog-content {
+    animation-name: pw-dialog-overlay-out;
+  }
+
+  .pw-dialog-content[data-expanded],
+  .pw-dialog-content[data-state="open"] {
+    animation-name: pw-dialog-overlay-in;
+  }
+
+  .pw-dialog-overlay,
+  .pw-dialog-content {
+    animation-duration: var(--duration-fast) !important;
+  }
+}

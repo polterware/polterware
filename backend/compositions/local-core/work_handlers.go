@@ -1,0 +1,624 @@
+package localcore
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"connectrpc.com/connect"
+
+	"github.com/polterware/polterware/backend/compositions/wedge"
+	"github.com/polterware/polterware/backend/domains/agentrun"
+	"github.com/polterware/polterware/backend/domains/polter"
+	"github.com/polterware/polterware/backend/domains/structure"
+	"github.com/polterware/polterware/backend/domains/work"
+	localv1 "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1"
+	"github.com/polterware/polterware/backend/platform/ids"
+)
+
+func (core *Core) ListWorkCards(_ context.Context, request *connect.Request[localv1.ListWorkCardsRequest]) (*connect.Response[localv1.ListWorkCardsResponse], error) {
+	if request.Msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	snapshot, err := core.Store.LoadWorkSnapshot(request.Msg.ProjectId)
+	if err != nil {
+		return nil, internal(err)
+	}
+	resolved, err := wedge.LoadNodeScopes(core.Store, request.Msg.ProjectId, wedge.ScopeRefs(request.Msg.ScopeNode, request.Msg.ScopeNodes), request.Msg.ScopeExact)
+	if err != nil {
+		return nil, invalid(err.Error())
+	}
+	cards := make([]*localv1.WorkCard, 0, len(snapshot.Cards))
+	for _, card := range wedge.FilterCardsByScope(resolved, snapshot.Cards) {
+		if card.Status == work.CardActive {
+			cards = append(cards, workCardProto(card))
+		}
+	}
+	return connect.NewResponse(&localv1.ListWorkCardsResponse{Cards: cards}), nil
+}
+
+func (core *Core) ListStructure(ctx context.Context, request *connect.Request[localv1.ListStructureRequest]) (*connect.Response[localv1.ListStructureResponse], error) {
+	if request.Msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	if point := strings.TrimSpace(request.Msg.AsOf); point != "" {
+		rows, err := wedge.StructureAt(ctx, core.Store, request.Msg.ProjectId, point)
+		if err != nil {
+			return nil, invalid(err.Error())
+		}
+		nodes := make([]*localv1.StructureNode, 0, len(rows))
+		for _, row := range rows {
+			node := structureNodeProto(row)
+			node.Status = structure.StatusProposed
+			nodes = append(nodes, node)
+		}
+		return connect.NewResponse(&localv1.ListStructureResponse{Nodes: nodes, Historical: true}), nil
+	}
+	snapshot, err := core.Store.LoadWorkSnapshot(request.Msg.ProjectId)
+	if err != nil {
+		return nil, internal(err)
+	}
+	rows := wedge.StructureRows(core.Store, snapshot)
+	nodes := make([]*localv1.StructureNode, 0, len(rows))
+	for _, row := range rows {
+		nodes = append(nodes, structureNodeProto(row))
+	}
+	return connect.NewResponse(&localv1.ListStructureResponse{Nodes: nodes}), nil
+}
+
+func (core *Core) ListStructureHistory(_ context.Context, request *connect.Request[localv1.ListStructureHistoryRequest]) (*connect.Response[localv1.ListStructureHistoryResponse], error) {
+	if request.Msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	entries, err := wedge.StructureHistory(core.Store, request.Msg.ProjectId)
+	if err != nil {
+		return nil, internal(err)
+	}
+	out := make([]*localv1.StructureHistoryEntry, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, &localv1.StructureHistoryEntry{
+			BatchId: entry.BatchID, At: entry.At.UTC().Format(time.RFC3339), AgentRunId: entry.AgentRunID,
+			NodeOps: int32(entry.NodeOps), Summary: entry.Summary,
+		})
+	}
+	return connect.NewResponse(&localv1.ListStructureHistoryResponse{Entries: out}), nil
+}
+
+func (core *Core) ListAgentSessions(_ context.Context, request *connect.Request[localv1.ListAgentSessionsRequest]) (*connect.Response[localv1.ListAgentSessionsResponse], error) {
+	if request.Msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	sessions, handoffs, branch, err := wedge.AgentSessions(core.Store, request.Msg.ProjectId)
+	if err != nil {
+		return nil, internal(err)
+	}
+	res := &localv1.ListAgentSessionsResponse{Branch: branch}
+	for _, session := range sessions {
+		out := &localv1.AgentSession{RunId: session.RunID, Agent: session.Agent, Task: session.Task}
+		if !session.StartedAt.IsZero() {
+			out.StartedAt = session.StartedAt.UTC().Format(time.RFC3339)
+		}
+		for _, claim := range session.Claims {
+			out.Claims = append(out.Claims, &localv1.SessionClaim{
+				Slug: claim.Slug, Number: int32(claim.Number), Title: claim.Title, Scope: claim.Scope,
+			})
+		}
+		res.Sessions = append(res.Sessions, out)
+	}
+	for _, h := range handoffs {
+		res.Handoffs = append(res.Handoffs, &localv1.SessionHandoff{
+			Slug: h.Slug, Branch: h.Branch, Goal: h.Goal, Done: h.Done, InProgress: h.InProgress,
+			Next: h.Next, Agent: h.Agent, At: h.At.UTC().Format(time.RFC3339),
+		})
+	}
+	return connect.NewResponse(res), nil
+}
+
+func (core *Core) LintPolter(_ context.Context, request *connect.Request[localv1.LintPolterRequest]) (*connect.Response[localv1.LintPolterResponse], error) {
+	// Without a project only syntax is checked.
+	var refs *polter.References
+	if id := request.Msg.ProjectId; id != "" {
+		var err error
+		if refs, err = wedge.PolterReferences(core.Store, id); err != nil {
+			return nil, internal(err)
+		}
+	}
+	_, diags := polter.Lint(request.Msg.Text, refs)
+	return connect.NewResponse(&localv1.LintPolterResponse{Diagnostics: diagnosticsProto(diags)}), nil
+}
+
+func (core *Core) QueryPolter(_ context.Context, request *connect.Request[localv1.QueryPolterRequest]) (*connect.Response[localv1.QueryPolterResponse], error) {
+	if request.Msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	scope, err := wedge.ResolveScopeRefs(core.Store, request.Msg.ProjectId, wedge.ScopeRefs(request.Msg.ScopeNode, request.Msg.ScopeNodes), request.Msg.ScopeExact)
+	if err != nil {
+		return nil, invalid(err.Error())
+	}
+	text, err := wedge.QueryPolterScoped(core.Store, request.Msg.ProjectId, request.Msg.Query, scope)
+	if err != nil {
+		return nil, invalid(err.Error())
+	}
+	return connect.NewResponse(&localv1.QueryPolterResponse{Text: text}), nil
+}
+
+func (core *Core) EndSession(_ context.Context, request *connect.Request[localv1.EndSessionRequest]) (*connect.Response[localv1.EndSessionResponse], error) {
+	session := core.sessions.end(request.Msg.SessionId)
+	if session == nil {
+		return connect.NewResponse(&localv1.EndSessionResponse{}), nil
+	}
+	count := len(session.Runs)
+	session.Close(core.Store)
+	return connect.NewResponse(&localv1.EndSessionResponse{CompletedRuns: int32(count)}), nil
+}
+
+// invalidPolter is InvalidArgument with the line-numbered diagnostics as an
+// ApplyPolterResponse error detail, so clients can print them one per line.
+func invalidPolter(diags []polter.Diagnostic) error {
+	err := invalid(diagnosticsMessage(diags))
+	var connectErr *connect.Error
+	if errors.As(err, &connectErr) {
+		if detail, detailErr := connect.NewErrorDetail(&localv1.ApplyPolterResponse{Diagnostics: diagnosticsProto(diags)}); detailErr == nil {
+			connectErr.AddDetail(detail)
+		}
+	}
+	return err
+}
+
+func diagnosticsProto(diags []polter.Diagnostic) []*localv1.PolterDiagnostic {
+	out := make([]*localv1.PolterDiagnostic, 0, len(diags))
+	for _, d := range diags {
+		out = append(out, &localv1.PolterDiagnostic{Line: int32(d.Line), Severity: d.Severity, Message: d.Message})
+	}
+	return out
+}
+
+func (core *Core) ApplyPolter(_ context.Context, request *connect.Request[localv1.ApplyPolterRequest]) (*connect.Response[localv1.ApplyPolterResponse], error) {
+	msg := request.Msg
+	if msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	change := msg.GetChange()
+	in := wedge.ApplyInput{
+		ProjectID:  msg.ProjectId,
+		Text:       msg.Text,
+		DryRun:     msg.DryRun,
+		Summary:    change.GetSummary(),
+		Rationale:  change.GetRationale(),
+		AgentRunID: change.GetAgentRunId(),
+	}
+	result, err := core.applyAs(clientOf(request.Header()), msg.SessionId, msg.SessionLabel, "desktop.work.apply", in)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(applyResponse(result)), nil
+}
+
+// applyAs applies Polter text for a client: the Desktop writes as a human
+// under desktopTool and never claims; agent clients (the CLI) write as an
+// agent, join their session run when session_id is set, and otherwise open a
+// run labelled with the client. Errors are already Connect errors.
+func (core *Core) applyAs(client, sessionID, sessionLabel, desktopTool string, in wedge.ApplyInput) (wedge.ApplyResult, error) {
+	if client == "desktop" {
+		// The Desktop never claims: coordination lines have no agent.
+		in.ActorKind = agentrun.ActorKindHuman
+		in.Tool = desktopTool
+	} else {
+		in.Agent = strings.TrimSpace(sessionLabel)
+		in.AutoStartLabel = client
+	}
+	var result wedge.ApplyResult
+	var err error
+	if sessionID != "" && client != "desktop" {
+		err = core.sessions.apply(sessionID, sessionLabel, func(session *wedge.SessionRuns) error {
+			var applyErr error
+			in.AutoStartLabel = ""
+			result, applyErr = wedge.ApplyInSession(core.Store, session, in)
+			return applyErr
+		})
+	} else {
+		result, err = wedge.ApplyPolter(core.Store, in)
+	}
+	if errors.Is(err, wedge.ErrPolterInvalid) {
+		return result, invalidPolter(result.Diagnostics)
+	}
+	if err != nil {
+		return result, mapAuditedErr(err)
+	}
+	return result, nil
+}
+
+func (core *Core) WriteHandoff(_ context.Context, request *connect.Request[localv1.WriteHandoffRequest]) (*connect.Response[localv1.WriteHandoffResponse], error) {
+	msg := request.Msg
+	if msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	change := msg.GetChange()
+	agent := strings.TrimSpace(msg.Agent)
+	if agent == "" {
+		agent = strings.TrimSpace(msg.SessionLabel)
+	}
+	in := wedge.HandoffInput{
+		ProjectID: msg.ProjectId,
+		CardSlug:  msg.CardSlug,
+		Note:      msg.Note,
+		Agent:     agent,
+		Summary:   change.GetSummary(),
+		Rationale: change.GetRationale(),
+	}
+	in.Apply.AgentRunID = change.GetAgentRunId()
+	client := clientOf(request.Header())
+	if client == "desktop" {
+		in.Apply.ActorKind = agentrun.ActorKindHuman
+		in.Apply.Tool = "desktop.work.handoff"
+	} else {
+		in.Apply.AutoStartLabel = client
+		in.Apply.Tool = "polter.handoff"
+	}
+	applyIn, hints, err := wedge.ComposeHandoff(core.Store, in)
+	if err != nil {
+		return nil, invalid(err.Error())
+	}
+	var result wedge.ApplyResult
+	if msg.SessionId != "" && client != "desktop" {
+		err = core.sessions.apply(msg.SessionId, msg.SessionLabel, func(session *wedge.SessionRuns) error {
+			var applyErr error
+			applyIn.AutoStartLabel = ""
+			result, applyErr = wedge.ApplyInSession(core.Store, session, applyIn)
+			return applyErr
+		})
+	} else {
+		result, err = wedge.ApplyPolter(core.Store, applyIn)
+	}
+	result.Diagnostics = append(hints, result.Diagnostics...)
+	if errors.Is(err, wedge.ErrPolterInvalid) {
+		return nil, invalidPolter(result.Diagnostics)
+	}
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
+	applied := applyResponse(result)
+	return connect.NewResponse(&localv1.WriteHandoffResponse{
+		Applied:     applied.Applied,
+		Ops:         applied.Ops,
+		Summary:     applied.Summary,
+		Diagnostics: applied.Diagnostics,
+		AgentRunId:  applied.AgentRunId,
+		BatchId:     applied.BatchId,
+	}), nil
+}
+
+func applyResponse(result wedge.ApplyResult) *localv1.ApplyPolterResponse {
+	response := &localv1.ApplyPolterResponse{
+		Applied:    result.Applied,
+		AgentRunId: result.AgentRunID,
+		BatchId:    result.BatchID,
+	}
+	if len(result.Ops) > 0 {
+		response.Ops = strings.Split(strings.TrimSuffix(polter.FormatPlan(result.Ops), "\n"), "\n")
+		response.Summary = polter.Summarize(result.Ops)
+	}
+	response.Diagnostics = diagnosticsProto(result.Diagnostics)
+	return response
+}
+
+// diagnosticsMessage joins error diagnostics into one line-numbered message.
+func diagnosticsMessage(diags []polter.Diagnostic) string {
+	var lines []string
+	for _, d := range diags {
+		if d.Severity == polter.SeverityError {
+			lines = append(lines, fmt.Sprintf("line %d: %s", d.Line, d.Message))
+		}
+	}
+	if len(lines) == 0 {
+		return wedge.ErrPolterInvalid.Error()
+	}
+	return strings.Join(lines, "; ")
+}
+
+func structureNodeProto(row structure.Row) *localv1.StructureNode {
+	out := &localv1.StructureNode{
+		Id:            row.ID,
+		ParentId:      row.ParentID,
+		Level:         row.Level,
+		Slug:          row.Slug,
+		Path:          row.Path,
+		Title:         row.Title,
+		Intent:        row.Intent,
+		Decisions:     row.Decisions,
+		Status:        row.Derived,
+		ChildCount:    int32(row.ChildCount),
+		FeatureCount:  int32(row.FeatureCount),
+		OpenQuestions: int32(row.OpenQuestions),
+		Repo:          row.Repo,
+		Folder:        row.Folder,
+		Kind:          row.Kind,
+		Tech:          row.Tech,
+		MigrationFrom: row.MigrationFrom,
+		MigrationTo:   row.MigrationTo,
+	}
+	for _, deploy := range row.Deploys {
+		item := &localv1.NodeDeployment{
+			Id:            deploy.ID,
+			EnvironmentId: deploy.EnvironmentID,
+			Environment:   deploy.Environment,
+			Provider:      deploy.Provider,
+			Resource:      deploy.Resource,
+			TargetId:      deploy.TargetID,
+			Url:           deploy.URL,
+		}
+		if check := deploy.Check; check != nil {
+			item.State, item.StateSummary, item.StateUrl, item.CheckedAt = check.State, check.Summary, check.URL, check.CheckedAt
+		}
+		out.Deploys = append(out.Deploys, item)
+	}
+	return out
+}
+
+func workCardProto(card work.Card) *localv1.WorkCard {
+	out := &localv1.WorkCard{
+		Id:          card.ID,
+		ProjectId:   card.ProjectID,
+		Slug:        card.Slug,
+		Title:       card.Title,
+		Intent:      card.Intent,
+		Stage:       card.Stage,
+		Owner:       card.Owner,
+		Under:       card.Under,
+		Kind:        card.Kind,
+		Decisions:   card.Decisions,
+		MilestoneId: card.MilestoneID,
+		CreatedAt:   card.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:   card.UpdatedAt.Format(time.RFC3339),
+	}
+	for _, task := range card.Tasks {
+		// The Board shows the scope with its checkout, as a claim stores it.
+		row := &localv1.WorkTask{Id: task.ID, Number: int32(task.Number), Title: task.Title, State: task.State, Scope: work.QualifyScope(task.Repo, task.Scope)}
+		if task.Claim != nil {
+			row.ClaimHolder = task.Claim.Holder
+		}
+		out.Tasks = append(out.Tasks, row)
+	}
+	for _, q := range card.Questions {
+		if q.State != work.QuestionRemoved {
+			out.Questions = append(out.Questions, &localv1.WorkQuestion{Id: q.ID, Text: q.Text, Blocking: q.Blocking, Options: q.Options, State: q.State, Answer: q.Answer})
+		}
+	}
+	for _, inv := range card.Invariants {
+		if inv.State == work.InvariantActive {
+			out.Invariants = append(out.Invariants, &localv1.WorkInvariant{Id: inv.ID, Text: inv.Text})
+		}
+	}
+	return out
+}
+
+func (core *Core) ExportProjections(_ context.Context, request *connect.Request[localv1.ExportProjectionsRequest]) (*connect.Response[localv1.ExportProjectionsResponse], error) {
+	if request.Msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	files, err := wedge.ExportProjections(core.Store, request.Msg.ProjectId, request.Msg.DryRun)
+	if err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&localv1.ExportProjectionsResponse{Files: projectionFilesProto(files)}), nil
+}
+
+// FileContext serves the context hook: the brief of the node that holds a
+// file, once per session.
+func (core *Core) FileContext(_ context.Context, request *connect.Request[localv1.FileContextRequest]) (*connect.Response[localv1.FileContextResponse], error) {
+	if request.Msg.ProjectId == "" || strings.TrimSpace(request.Msg.File) == "" {
+		return nil, invalid("project id and file are required")
+	}
+	text, nodePath, err := wedge.FileContext(core.Store, request.Msg.ProjectId, request.Msg.SessionId, request.Msg.File)
+	if err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&localv1.FileContextResponse{Text: text, NodePath: nodePath}), nil
+}
+
+func (core *Core) ListMilestones(_ context.Context, request *connect.Request[localv1.ListMilestonesRequest]) (*connect.Response[localv1.ListMilestonesResponse], error) {
+	if request.Msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	milestones, err := core.Store.ListMilestones(request.Msg.ProjectId)
+	if err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&localv1.ListMilestonesResponse{Milestones: milestonesProto(milestones)}), nil
+}
+
+func (core *Core) CreateMilestone(_ context.Context, request *connect.Request[localv1.CreateMilestoneRequest]) (*connect.Response[localv1.CreateMilestoneResponse], error) {
+	msg := request.Msg
+	if msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	draft := work.Milestone{Name: msg.Name, Goal: msg.Goal, ExitCriteria: msg.ExitCriteria, TargetDate: msg.TargetDate, State: msg.State}
+	existing, err := core.Store.ListMilestones(msg.ProjectId)
+	if err != nil {
+		return nil, internal(err)
+	}
+	if _, err := work.PrepareMilestoneCreate(draft, existing); err != nil {
+		return nil, mapMilestoneErr(err)
+	}
+	env, err := changeEnvelopeFromProto(msg.GetChange())
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
+	saved, err := core.writeMilestone(request.Header(), msg.ProjectId, "create", env, func(run agentrun.Run, batchID string) ([]string, any, error) {
+		created, err := core.Store.CreateMilestone(msg.ProjectId, run.ID, batchID, draft)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []string{created.ID}, created, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&localv1.CreateMilestoneResponse{Milestone: milestoneProto(saved)}), nil
+}
+
+func (core *Core) UpdateMilestone(_ context.Context, request *connect.Request[localv1.UpdateMilestoneRequest]) (*connect.Response[localv1.UpdateMilestoneResponse], error) {
+	msg := request.Msg
+	if msg.ProjectId == "" || msg.Id == "" {
+		return nil, invalid("project id and milestone id are required")
+	}
+	draft := work.Milestone{ID: msg.Id, Name: msg.Name, Goal: msg.Goal, ExitCriteria: msg.ExitCriteria, TargetDate: msg.TargetDate, State: msg.State}
+	existing, err := core.Store.ListMilestones(msg.ProjectId)
+	if err != nil {
+		return nil, internal(err)
+	}
+	if _, _, err := work.PrepareMilestoneUpdate(draft, existing); err != nil {
+		return nil, mapMilestoneErr(err)
+	}
+	env, err := changeEnvelopeFromProto(msg.GetChange())
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
+	saved, err := core.writeMilestone(request.Header(), msg.ProjectId, "update", env, func(run agentrun.Run, batchID string) ([]string, any, error) {
+		updated, err := core.Store.UpdateMilestone(msg.ProjectId, run.ID, batchID, draft)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []string{updated.ID}, updated, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&localv1.UpdateMilestoneResponse{Milestone: milestoneProto(saved)}), nil
+}
+
+func (core *Core) ArchiveMilestone(_ context.Context, request *connect.Request[localv1.ArchiveMilestoneRequest]) (*connect.Response[localv1.ArchiveMilestoneResponse], error) {
+	msg := request.Msg
+	if msg.ProjectId == "" || msg.Id == "" {
+		return nil, invalid("project id and milestone id are required")
+	}
+	env, err := changeEnvelopeFromProto(msg.GetChange())
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
+	action := "archive"
+	if !msg.Archived {
+		action = "restore"
+	}
+	saved, err := core.writeMilestone(request.Header(), msg.ProjectId, action, env, func(run agentrun.Run, batchID string) ([]string, any, error) {
+		item, err := core.Store.SetMilestoneArchived(msg.ProjectId, run.ID, batchID, msg.Id, msg.Archived)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []string{item.ID}, item, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&localv1.ArchiveMilestoneResponse{Milestone: milestoneProto(saved)}), nil
+}
+
+func (core *Core) ReorderMilestones(_ context.Context, request *connect.Request[localv1.ReorderMilestonesRequest]) (*connect.Response[localv1.ReorderMilestonesResponse], error) {
+	msg := request.Msg
+	if msg.ProjectId == "" {
+		return nil, invalid("project id is required")
+	}
+	env, err := changeEnvelopeFromProto(msg.GetChange())
+	if err != nil {
+		return nil, mapAuditedErr(err)
+	}
+	result, err := core.auditMilestone(request.Header(), msg.ProjectId, "reorder", env, func(run agentrun.Run, batchID string) ([]string, any, error) {
+		milestones, err := core.Store.ReorderMilestones(msg.ProjectId, run.ID, batchID, msg.MilestoneIds)
+		if err != nil {
+			return nil, nil, err
+		}
+		return msg.MilestoneIds, milestones, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	milestones, ok := result.([]work.Milestone)
+	if !ok {
+		return nil, internal(fmt.Errorf("milestone reorder returned %T", result))
+	}
+	return connect.NewResponse(&localv1.ReorderMilestonesResponse{Milestones: milestonesProto(milestones)}), nil
+}
+
+func (core *Core) writeMilestone(header http.Header, projectID, action string, env wedge.ChangeEnvelope, mutate func(agentrun.Run, string) ([]string, any, error)) (work.Milestone, error) {
+	result, err := core.auditMilestone(header, projectID, action, env, mutate)
+	if err != nil {
+		return work.Milestone{}, err
+	}
+	milestone, ok := result.(work.Milestone)
+	if !ok || milestone.ID == "" {
+		return work.Milestone{}, internal(fmt.Errorf("milestone write returned %T", result))
+	}
+	return milestone, nil
+}
+
+// auditMilestone runs one milestone write as an audited change. Milestones are
+// created in the Desktop; another client writes as an agent.
+func (core *Core) auditMilestone(header http.Header, projectID, action string, env wedge.ChangeEnvelope, mutate func(agentrun.Run, string) ([]string, any, error)) (any, error) {
+	kind := agentrun.ActorKindHuman
+	tool := "desktop.work.milestone." + action
+	if client := clientOf(header); client != "desktop" {
+		kind = agentrun.ActorKindAgent
+		tool = "polter.milestone." + action
+		if strings.TrimSpace(env.AgentRunID) == "" {
+			env.AutoStartLabel = client
+		}
+	}
+	env.ProjectID = projectID
+	env.BatchID = ids.NewULID()
+	written, err := wedge.ExecuteAuditedWrite(core.Store, env, kind, tool, func(run agentrun.Run) ([]string, any, error) {
+		return mutate(run, env.BatchID)
+	})
+	if err != nil {
+		return nil, mapMilestoneErr(err)
+	}
+	return written.Result, nil
+}
+
+func mapMilestoneErr(err error) error {
+	if err == nil {
+		return nil
+	}
+	switch {
+	case errors.Is(err, work.ErrMilestoneNameRequired),
+		errors.Is(err, work.ErrMilestoneNameLength),
+		errors.Is(err, work.ErrMilestoneNameTaken),
+		errors.Is(err, work.ErrMilestoneGoalLength),
+		errors.Is(err, work.ErrMilestoneState),
+		errors.Is(err, work.ErrMilestoneTargetDate),
+		errors.Is(err, work.ErrMilestoneOrder):
+		return invalid(err.Error())
+	case errors.Is(err, work.ErrMilestoneNotFound), errors.Is(err, sql.ErrNoRows):
+		return connect.NewError(connect.CodeNotFound, err)
+	default:
+		return mapAuditedErr(err)
+	}
+}
+
+func milestonesProto(milestones []work.Milestone) []*localv1.Milestone {
+	out := make([]*localv1.Milestone, 0, len(milestones))
+	for _, item := range milestones {
+		out = append(out, milestoneProto(item))
+	}
+	return out
+}
+
+func milestoneProto(item work.Milestone) *localv1.Milestone {
+	return &localv1.Milestone{
+		Id:           item.ID,
+		ProjectId:    item.ProjectID,
+		Slug:         item.Slug,
+		Name:         item.Name,
+		Goal:         item.Goal,
+		ExitCriteria: item.ExitCriteria,
+		TargetDate:   item.TargetDate,
+		State:        item.State,
+		Position:     int32(item.Position),
+		ArchivedAt:   item.ArchivedAt,
+		CreatedAt:    item.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:    item.UpdatedAt.UTC().Format(time.RFC3339),
+	}
+}

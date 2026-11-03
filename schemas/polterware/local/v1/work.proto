@@ -1,0 +1,677 @@
+syntax = "proto3";
+package polterware.local.v1;
+option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
+
+import "polterware/local/v1/agentrun.proto";
+
+// Work model (Decision 0006): cards with tasks, questions, and invariants.
+message WorkTask {
+  string id = 1;
+  int32 number = 2;
+  string title = 3;
+  // state is "open", "done", or "dropped".
+  string state = 4;
+  string scope = 5;
+  // claim_holder is the agent label holding the task's claim; empty when free.
+  string claim_holder = 6;
+}
+
+message WorkQuestion {
+  string id = 1;
+  string text = 2;
+  bool blocking = 3;
+  repeated string options = 4;
+  // state is "open" or "answered".
+  string state = 5;
+  string answer = 6;
+}
+
+message WorkInvariant {
+  string id = 1;
+  string text = 2;
+}
+
+message WorkCard {
+  string id = 1;
+  string project_id = 2;
+  string slug = 3;
+  string title = 4;
+  string intent = 5;
+  // stage is "shape", "plan", "build", "verify", or "delivered".
+  string stage = 6;
+  string owner = 7;
+  string under = 8;
+  repeated string decisions = 9;
+  string created_at = 10;
+  string updated_at = 11;
+  repeated WorkTask tasks = 12;
+  repeated WorkQuestion questions = 13;
+  repeated WorkInvariant invariants = 14;
+  // kind is "feature" or "architecture" (a structural Structure change).
+  string kind = 15;
+  // milestone_id is the milestone the card ships in; empty is the Backlog.
+  string milestone_id = 16;
+}
+
+message PolterDiagnostic {
+  int32 line = 1;
+  string severity = 2;
+  string message = 3;
+}
+
+// ListWorkCards returns active cards with their tasks, open or answered
+// questions, and active invariants, ordered by position.
+// Scope fields on a request narrow the read to one or more Structure nodes (id or
+// path). Each node contributes itself, its descendants and, unless scope_exact,
+// its ancestors; the read keeps the union. scope_node is the legacy single
+// node and is merged with scope_nodes. Empty is the whole project. Unscoped
+// entities stay visible under any scope.
+message ListWorkCardsRequest {
+  string project_id = 1;
+  string scope_node = 2;
+  bool scope_exact = 3;
+  repeated string scope_nodes = 4;
+}
+message ListWorkCardsResponse { repeated WorkCard cards = 1; }
+
+// ApplyPolter plans Polter format text against the store and, unless dry_run,
+// applies it in one transaction as one audited change.
+message ApplyPolterRequest {
+  string project_id = 1;
+  string text = 2;
+  bool dry_run = 3;
+  // Required unless dry_run; frontmatter summary/rationale fill empty fields.
+  ChangeEnvelope change = 4;
+  // session_id joins an agent session's run (Claude Code session id); without
+  // it and without change.agent_run_id, an agent client opens a one-off run.
+  string session_id = 5;
+  // session_label is the agent label claim, done, and release lines act for.
+  // It applies with or without session_id; the Desktop ignores it.
+  string session_label = 6;
+}
+message ApplyPolterResponse {
+  bool applied = 1;
+  // One terraform-style line per operation (`+`, `~`, `-`).
+  repeated string ops = 2;
+  string summary = 3;
+  repeated PolterDiagnostic diagnostics = 4;
+  string agent_run_id = 5;
+  string batch_id = 6;
+}
+
+// LintPolter checks syntax, plus references and similarity hints when
+// project_id is set.
+message LintPolterRequest {
+  string project_id = 1;
+  string text = 2;
+}
+message LintPolterResponse { repeated PolterDiagnostic diagnostics = 1; }
+
+// QueryPolter answers the Polter query language in text: "brief <target>"
+// and "search <terms>" for agents, plus "cards", "card <slug>", "status",
+// "inbox", "handoff <slug>", "structure", and the rest of polterware format.
+// "status" is the short session-start summary.
+message QueryPolterRequest {
+  string project_id = 1;
+  string query = 2;
+  string scope_node = 3;
+  bool scope_exact = 4;
+  // scope_nodes is merged with scope_node. The answer is the union.
+  repeated string scope_nodes = 5;
+}
+message QueryPolterResponse { string text = 1; }
+
+// WriteHandoff builds a handoff record for one card (branch and touched
+// files come from the local Git repository) and applies it as Polter text.
+message WriteHandoffRequest {
+  string project_id = 1;
+  string card_slug = 2;
+  string note = 3;
+  string agent = 4;
+  string session_id = 5;
+  string session_label = 6;
+  ChangeEnvelope change = 7;
+}
+message WriteHandoffResponse {
+  bool applied = 1;
+  repeated string ops = 2;
+  string summary = 3;
+  repeated PolterDiagnostic diagnostics = 4;
+  string agent_run_id = 5;
+  string batch_id = 6;
+}
+
+// EndSession completes the runs an agent session opened.
+message EndSessionRequest { string session_id = 1; }
+message EndSessionResponse { int32 completed_runs = 1; }
+
+// InboxItem is one derived item that needs a person: a Decision (open
+// question) or Setup (a deploy whose provider CLI is not connected).
+message InboxItem {
+  // id is the short id people type; it is stable while the item is the same.
+  string id = 1;
+  // kind is "conflict", "decision", or "setup".
+  string kind = 2;
+  bool blocking = 3;
+  string title = 4;
+  string detail = 5;
+  repeated string options = 6;
+  // where is the card slug and task, or the deploy.
+  string where = 7;
+  string source = 8;
+  // state is "open" or "deferred".
+  string state = 9;
+  // actions are the item's action ids, primary first: decide, delegate,
+  // defer, ignore.
+  repeated string actions = 10;
+  reserved 11;
+  reserved "scope_node_id";
+  // scope_node_ids are the item's own contexts; empty when it follows its source.
+  repeated string scope_node_ids = 12;
+  // details are the item's facts, such as a setup item's provider.
+  map<string, string> details = 13;
+}
+
+// RoutedInboxItem is an item a person handed to agents (delegate);
+// `polterware status` shows it until the source changes.
+message RoutedInboxItem {
+  InboxItem item = 1;
+  string action = 2;
+}
+
+// ListInbox derives the project's Inbox: open items (blocking first), then
+// deferred ones. Reading it writes nothing.
+message ListInboxRequest {
+  string project_id = 1;
+  string scope_node = 2;
+  bool scope_exact = 3;
+  // scope_nodes is merged with scope_node. The inbox is the union.
+  repeated string scope_nodes = 4;
+}
+
+// SetScopeRequest replaces an entity's contexts with nodes (ids or paths); an
+// empty list clears them (the whole project). kind is "decision", "fact",
+// "rule", or "item" (a derived Inbox item, identified by its item key).
+message SetScopeRequest {
+  string project_id = 1;
+  string kind = 2;
+  string id = 3;
+  reserved 4;
+  reserved "node";
+  repeated string nodes = 5;
+}
+message SetScopeResponse {}
+message ListInboxResponse {
+  repeated InboxItem items = 1;
+  repeated RoutedInboxItem routed = 2;
+  int32 open_count = 3;
+  int32 blocking_count = 4;
+}
+
+// ResolveInboxItem applies one action. decide writes `? question -> answer`
+// as Polter text; link stores a commit-to-task link (answer is a task ref
+// slug#T2 for a commit, or a commit sha for a task); reopen opens the task
+// again; the rest record a disposition.
+message ResolveInboxItemRequest {
+  string project_id = 1;
+  string item_id = 2;
+  string action = 3;
+  string answer = 4;
+  // session_label is the acting agent; the Desktop acts as "desktop".
+  string session_label = 5;
+}
+message ResolveInboxItemResponse {
+  InboxItem item = 1;
+  string action = 2;
+  // ops is set for decide: the Polter operations it applied.
+  repeated string ops = 3;
+  repeated PolterDiagnostic diagnostics = 4;
+}
+
+// NodeDeployment is where one Structure node is deployed in one environment.
+// provider is a catalog id. resource names the remote target. Credentials
+// are never stored.
+message NodeDeployment {
+  string id = 1;
+  string environment_id = 2;
+  // environment is the environment name, for display.
+  string environment = 3;
+  string provider = 4;
+  string resource = 5;
+  // target_id is the platform's own id for the resource, empty until linked.
+  string target_id = 6;
+  // url is the resource's page on the platform's dashboard.
+  string url = 7;
+  // state is the latest check: ok, building, failed, stopped, or unknown;
+  // empty when never checked.
+  string state = 8;
+  string state_summary = 9;
+  // state_url opens the latest deploy (a deployment, run, or pipeline page).
+  string state_url = 10;
+  string checked_at = 11;
+}
+
+// StructureNode is a system, domain, or component. status is derived:
+// proposed, in_progress, or delivered.
+message StructureNode {
+  string id = 1;
+  string parent_id = 2;
+  string level = 3;
+  string slug = 4;
+  string path = 5;
+  string title = 6;
+  string intent = 7;
+  repeated string decisions = 8;
+  // invariants became Rules with the node as a context.
+  reserved 9;
+  reserved "invariants";
+  string status = 10;
+  int32 child_count = 11;
+  int32 feature_count = 12;
+  int32 open_questions = 13;
+  // repo is a project_repos name; empty is the project root checkout.
+  string repo = 14;
+  // folder is a directory inside that checkout. path stays the node identity.
+  string folder = 15;
+  // migration_from and migration_to are both empty unless the node is moving
+  // between designs.
+  string migration_from = 16;
+  string migration_to = 17;
+  reserved 18;
+  reserved "uses";
+  // deploys lists this node's links, one per environment.
+  repeated NodeDeployment deploys = 19;
+  // kind is what a component is (a canvas component kind); empty on other levels.
+  string kind = 20;
+  // tech is the free-text technology, such as Go or Postgres.
+  string tech = 21;
+}
+
+// ListStructure reads the live graph, or the graph replayed at as_of (an RFC3339
+// date, a YYYY-MM-DD day, a change batch id, or a commit sha). A past graph
+// has no derived status: every node reports "proposed" and historical is true.
+message ListStructureRequest {
+  string project_id = 1;
+  string as_of = 2;
+}
+message ListStructureResponse {
+  repeated StructureNode nodes = 1;
+  reserved 2;
+  reserved "drift_slugs";
+  bool historical = 3;
+}
+
+// StructureHistoryEntry is one applied change batch that touched Structure nodes.
+message StructureHistoryEntry {
+  string batch_id = 1;
+  string at = 2;
+  string agent_run_id = 3;
+  int32 node_ops = 4;
+  // summary is the first node title or path the batch touched.
+  string summary = 5;
+}
+message SessionClaim {
+  string slug = 1;
+  int32 number = 2;
+  string title = 3;
+  string scope = 4;
+}
+
+// AgentSession is one agent working now: an open agent run plus the claims
+// its label holds. run_id is empty for a label that holds claims without an
+// open run.
+message AgentSession {
+  string run_id = 1;
+  string agent = 2;
+  string task = 3;
+  string started_at = 4;
+  repeated SessionClaim claims = 5;
+}
+
+message SessionHandoff {
+  string slug = 1;
+  string branch = 2;
+  string goal = 3;
+  string done = 4;
+  string in_progress = 5;
+  string next = 6;
+  string agent = 7;
+  string at = 8;
+}
+
+// ListAgentSessions returns live sessions and the newest handoffs. branch is
+// the project checkout's branch, shared by every session.
+message ListAgentSessionsRequest { string project_id = 1; }
+message ListAgentSessionsResponse {
+  repeated AgentSession sessions = 1;
+  repeated SessionHandoff handoffs = 2;
+  string branch = 3;
+}
+
+message ListStructureHistoryRequest { string project_id = 1; }
+message ListStructureHistoryResponse { repeated StructureHistoryEntry entries = 1; }
+
+// ExportProjections writes Decision files into docs/decision/ of each governing checkout
+// and the generated AGENTS.md block of every checkout. The store stays the
+// source of truth; nothing is read back from the files.
+message ExportProjectionsRequest {
+  string project_id = 1;
+  bool dry_run = 2;
+}
+
+// ProjectionFile is one file export wrote, kept, removed, or skipped.
+// action: write, unchanged, remove, or skip. path is relative to the checkout;
+// repo is empty for the project root.
+message ProjectionFile {
+  string repo = 1;
+  string path = 2;
+  string action = 3;
+  string reason = 4;
+}
+
+message ExportProjectionsResponse { repeated ProjectionFile files = 1; }
+
+// FileContext returns the brief of the Structure node that holds file, for the
+// context hook. A session gets each node's brief once (again when it
+// changed); session_id "" always gets it. text is empty when no node holds
+// the file or the session already has its brief.
+message FileContextRequest {
+  string project_id = 1;
+  string session_id = 2;
+  string file = 3;
+}
+message FileContextResponse {
+  string text = 1;
+  string node_path = 2;
+}
+
+// SetAgentsSync turns on or off rewriting the generated AGENTS.md block of
+// every checkout after project state changes (Decision files stay on
+// ExportProjections). Turning it on syncs at once and returns those files.
+message SetAgentsSyncRequest {
+  string project_id = 1;
+  bool enabled = 2;
+}
+message SetAgentsSyncResponse {
+  bool enabled = 1;
+  repeated ProjectionFile files = 2;
+}
+
+// Feature flow (slice 9): Intent creates a card in shape, Shape shows its
+// impact, and the contract (shape → plan) and plan (plan → build) gates move
+// the stage. An open blocking question stops a gate; other checks are hints.
+message FeatureTouch {
+  string path = 1;
+  string level = 2;
+  string title = 3;
+}
+
+// from is "card" or the node path that cites the decision; status is empty
+// when no Decision matches the reference.
+message FeatureDecision {
+  string ref = 1;
+  string id = 2;
+  string title = 3;
+  string status = 4;
+  string from = 5;
+}
+
+message FeatureInvariant {
+  string text = 1;
+  string from = 2;
+}
+
+// route is "inbox", "deferred", "delegated", or "answered".
+message FeatureQuestion {
+  string id = 1;
+  string text = 2;
+  bool blocking = 3;
+  repeated string options = 4;
+  string route = 5;
+  string answer = 6;
+}
+
+// step is "shape", "contract", or "plan"; severity is "error" or "hint".
+message FeatureCheck {
+  string step = 1;
+  string severity = 2;
+  string message = 3;
+}
+
+message FeatureReview {
+  WorkCard card = 1;
+  // under_path is set when the card's under: names a node.
+  string under_path = 2;
+  string under_title = 3;
+  // suggested lists component paths for a card without under:.
+  repeated string suggested = 4;
+  repeated FeatureTouch touches = 5;
+  repeated FeatureDecision decisions = 6;
+  repeated FeatureInvariant inherited = 7;
+  repeated FeatureQuestion questions = 8;
+  repeated FeatureCheck checks = 9;
+}
+
+message ReviewFeatureRequest {
+  string project_id = 1;
+  string slug = 2;
+}
+message ReviewFeatureResponse { FeatureReview review = 1; }
+
+// CreateFeature writes a card in shape from an intent. title defaults to the
+// intent's first sentence; under is written only when set.
+message CreateFeatureRequest {
+  string project_id = 1;
+  string intent = 2;
+  string title = 3;
+  string under = 4;
+  // Empty summary or rationale fall back to a generated envelope.
+  ChangeEnvelope change = 5;
+  string session_id = 6;
+  string session_label = 7;
+  // kind is "feature" (default) or "architecture".
+  string kind = 8;
+}
+message CreateFeatureResponse {
+  string slug = 1;
+  ApplyPolterResponse apply = 2;
+  FeatureReview review = 3;
+}
+
+// AdvanceFeature passes one gate: step "contract" (shape → plan) or "plan"
+// (plan → build). A refused gate is InvalidArgument with diagnostics.
+message AdvanceFeatureRequest {
+  string project_id = 1;
+  string slug = 2;
+  string step = 3;
+  ChangeEnvelope change = 4;
+  string session_id = 5;
+  string session_label = 6;
+}
+message AdvanceFeatureResponse {
+  string stage = 1;
+  ApplyPolterResponse apply = 2;
+  FeatureReview review = 3;
+}
+
+// VerifyFeature reads whether a card (slug) or task (slug#T2) is finished.
+// status is "pass", "fail", "info", or "manual". It never writes.
+message VerifyFeatureRequest {
+  string project_id = 1;
+  string target = 2;
+}
+message VerifyCheck {
+  string status = 1;
+  string message = 2;
+}
+message VerifyFeatureResponse {
+  string target = 1;
+  bool passed = 2;
+  repeated VerifyCheck checks = 3;
+}
+
+// Milestone groups the cards that ship together. A card belongs to at most
+// one milestone (WorkCard.milestone_id); a card with none is in the Backlog.
+// More than one milestone may be active. The slug is what a card's
+// milestone: line names, and it never changes.
+message Milestone {
+  string id = 1;
+  string project_id = 2;
+  string slug = 3;
+  string name = 4;
+  string goal = 5;
+  repeated string exit_criteria = 6;
+  // target_date is YYYY-MM-DD or empty.
+  string target_date = 7;
+  // state is planned, active, or done.
+  string state = 8;
+  int32 position = 9;
+  // archived_at is empty while the milestone is listed.
+  string archived_at = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+// ListMilestones returns every milestone in position order, archived ones
+// included (archived_at set).
+message ListMilestonesRequest { string project_id = 1; }
+message ListMilestonesResponse { repeated Milestone milestones = 1; }
+
+// CreateMilestone appends a milestone. An empty state is planned; the slug is
+// derived from the name.
+message CreateMilestoneRequest {
+  string project_id = 1;
+  string name = 2;
+  string goal = 3;
+  repeated string exit_criteria = 4;
+  string target_date = 5;
+  string state = 6;
+  ChangeEnvelope change = 7;
+}
+message CreateMilestoneResponse { Milestone milestone = 1; }
+
+// UpdateMilestone replaces name, goal, exit criteria, target date, and state.
+message UpdateMilestoneRequest {
+  string project_id = 1;
+  string id = 2;
+  string name = 3;
+  string goal = 4;
+  repeated string exit_criteria = 5;
+  string target_date = 6;
+  string state = 7;
+  ChangeEnvelope change = 8;
+}
+message UpdateMilestoneResponse { Milestone milestone = 1; }
+
+// ArchiveMilestone archives or restores a milestone; its cards keep it.
+message ArchiveMilestoneRequest {
+  string project_id = 1;
+  string id = 2;
+  bool archived = 3;
+  ChangeEnvelope change = 4;
+}
+message ArchiveMilestoneResponse { Milestone milestone = 1; }
+
+// ReorderMilestones sets positions from milestone_ids, which must list each
+// unarchived milestone once.
+message ReorderMilestonesRequest {
+  string project_id = 1;
+  repeated string milestone_ids = 2;
+  ChangeEnvelope change = 3;
+}
+message ReorderMilestonesResponse { repeated Milestone milestones = 1; }
+
+// Rule is a short imperative constraint agents read before they work.
+// scope_node_ids are the Structure nodes it applies to (and every node below
+// them); none is the whole project.
+message Rule {
+  string id = 1;
+  string slug = 2;
+  string statement = 3;
+  repeated string scope_node_ids = 4;
+  // scope_paths are the same nodes as paths, sorted.
+  repeated string scope_paths = 5;
+}
+
+message ListRulesRequest {
+  string project_id = 1;
+  // scope_nodes keeps the Rules with a context inside them, plus the
+  // project-wide ones.
+  repeated string scope_nodes = 2;
+  bool scope_exact = 3;
+}
+message ListRulesResponse { repeated Rule rules = 1; }
+
+// CardCommit is one commit of a card's task: linked by an agent or a person,
+// or cited in its subject (slug#T2) and read from a checkout.
+message CardCommit {
+  int32 task_number = 1;
+  // sha is the full commit hash; short_sha its first seven characters.
+  string sha = 2;
+  string short_sha = 3;
+  string subject = 4;
+  // url is the commit on GitHub when its checkout has a GitHub remote; else empty.
+  string url = 5;
+  // committed_at is RFC3339; empty when unknown.
+  string committed_at = 6;
+  // repo is the checkout name; empty for the project directory.
+  string repo = 7;
+  // cited is true for a commit found by its subject, which has no stored link to remove.
+  bool cited = 8;
+}
+
+message ListCardCommitsRequest {
+  string project_id = 1;
+  string slug = 2;
+}
+message ListCardCommitsResponse {
+  repeated CardCommit commits = 1;
+}
+
+// LinkTaskCommit links a commit (a sha or a prefix of one) to a task, given as slug#T2.
+message LinkTaskCommitRequest {
+  string project_id = 1;
+  string task = 2;
+  string sha = 3;
+}
+message LinkTaskCommitResponse {
+  CardCommit commit = 1;
+}
+
+message UnlinkTaskCommitRequest {
+  string project_id = 1;
+  string task = 2;
+  string sha = 3;
+}
+message UnlinkTaskCommitResponse {}
+
+service WorkService {
+  rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
+  rpc ListWorkCards(ListWorkCardsRequest) returns (ListWorkCardsResponse);
+  rpc ListStructure(ListStructureRequest) returns (ListStructureResponse);
+  rpc ListStructureHistory(ListStructureHistoryRequest) returns (ListStructureHistoryResponse);
+  rpc ListAgentSessions(ListAgentSessionsRequest) returns (ListAgentSessionsResponse);
+  rpc ApplyPolter(ApplyPolterRequest) returns (ApplyPolterResponse);
+  rpc LintPolter(LintPolterRequest) returns (LintPolterResponse);
+  rpc QueryPolter(QueryPolterRequest) returns (QueryPolterResponse);
+  rpc WriteHandoff(WriteHandoffRequest) returns (WriteHandoffResponse);
+  rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
+  rpc ListInbox(ListInboxRequest) returns (ListInboxResponse);
+  rpc ResolveInboxItem(ResolveInboxItemRequest) returns (ResolveInboxItemResponse);
+  rpc SetScope(SetScopeRequest) returns (SetScopeResponse);
+  rpc ExportProjections(ExportProjectionsRequest) returns (ExportProjectionsResponse);
+  rpc SetAgentsSync(SetAgentsSyncRequest) returns (SetAgentsSyncResponse);
+  rpc FileContext(FileContextRequest) returns (FileContextResponse);
+  rpc ReviewFeature(ReviewFeatureRequest) returns (ReviewFeatureResponse);
+  rpc CreateFeature(CreateFeatureRequest) returns (CreateFeatureResponse);
+  rpc AdvanceFeature(AdvanceFeatureRequest) returns (AdvanceFeatureResponse);
+  rpc VerifyFeature(VerifyFeatureRequest) returns (VerifyFeatureResponse);
+  rpc ListCardCommits(ListCardCommitsRequest) returns (ListCardCommitsResponse);
+  rpc LinkTaskCommit(LinkTaskCommitRequest) returns (LinkTaskCommitResponse);
+  rpc UnlinkTaskCommit(UnlinkTaskCommitRequest) returns (UnlinkTaskCommitResponse);
+  rpc ListMilestones(ListMilestonesRequest) returns (ListMilestonesResponse);
+  rpc CreateMilestone(CreateMilestoneRequest) returns (CreateMilestoneResponse);
+  rpc UpdateMilestone(UpdateMilestoneRequest) returns (UpdateMilestoneResponse);
+  rpc ArchiveMilestone(ArchiveMilestoneRequest) returns (ArchiveMilestoneResponse);
+  rpc ReorderMilestones(ReorderMilestonesRequest) returns (ReorderMilestonesResponse);
+}

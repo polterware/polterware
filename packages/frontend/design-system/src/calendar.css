@@ -1,0 +1,41 @@
+.pw-calendar-picker { width: 252px; font-size: 12px; color: var(--color-text-secondary); }
+.pw-calendar-picker__content { display: flex; flex-direction: column; gap: 8px; outline: none; }
+.pw-calendar-picker__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.pw-calendar-picker__title {
+  display: inline-flex; align-items: center; height: var(--control-height-sm); padding: 0 8px;
+  border-radius: var(--radius-control); color: var(--color-text-primary); font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+.pw-calendar-picker__title:hover { background: var(--color-surface-hover); }
+.pw-calendar-picker__nav { display: flex; align-items: center; gap: 2px; }
+.pw-calendar-picker__nav-button {
+  display: inline-flex; align-items: center; justify-content: center; width: var(--control-height-sm); height: var(--control-height-sm);
+  border-radius: var(--radius-control); color: var(--color-text-secondary); cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.pw-calendar-picker__nav-button:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.pw-calendar-picker__nav-button[data-disabled] { color: var(--color-text-disabled); pointer-events: none; }
+.pw-calendar-picker__table { width: 100%; border-collapse: separate; border-spacing: 0 2px; table-layout: fixed; }
+.pw-calendar-picker__weekday { height: 24px; color: var(--color-text-muted); font-size: 11px; font-weight: 500; text-align: center; }
+.pw-calendar-picker__cell { padding: 0; text-align: center; }
+.pw-calendar-picker__day {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+  border-radius: var(--radius-item); color: var(--color-text-primary); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.pw-calendar-picker__day--wide { width: 100%; height: 36px; }
+.pw-calendar-picker__day:hover { background: var(--color-surface-hover); }
+.pw-calendar-picker__day[data-today] { color: var(--color-brand); }
+.pw-calendar-picker__day[data-selected] { background: var(--color-surface-selected); font-weight: 600; }
+.pw-calendar-picker__day[data-outside-range] { color: var(--color-text-muted); }
+.pw-calendar-picker__day[data-disabled], .pw-calendar-picker__day[data-unavailable] { color: var(--color-text-disabled); pointer-events: none; }
+.pw-calendar-picker__day[data-focus-visible] { outline: 2px solid var(--color-border-strong); outline-offset: -2px; }
+.pw-calendar-picker__today {
+  align-self: flex-start; height: var(--control-height-sm); padding: 0 8px; border-radius: var(--radius-control);
+  color: var(--color-text-secondary); font-size: 12px; cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.pw-calendar-picker__today:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+@media (prefers-reduced-motion: reduce) {
+  .pw-calendar-picker__title, .pw-calendar-picker__nav-button, .pw-calendar-picker__day, .pw-calendar-picker__today { transition-duration: 1ms; }
+}

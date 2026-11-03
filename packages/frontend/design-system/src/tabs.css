@@ -1,0 +1,285 @@
+/* Segmented pill tabs — quiet dark operator (DESIGN.md) */
+
+/**
+ * Page toolbar: first row of MainSurface section indexes.
+ * One explicit left slot · actions right. No page title row above.
+ */
+.pw-page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-height: var(--page-header-height);
+  /* Spacing only under tabs — no hairline divider to content */
+  padding: 8px 8px 4px;
+  border-bottom: none;
+}
+
+/*
+ * Floating toolbar: no band of its own. Where a toolbar sits beside a PageContent (or heads a DetailPanel collection),
+ * it pulls the content up under itself with a negative margin and lets clicks through its empty space, so its
+ * controls float over the content as it scrolls. The content's first child starts below the toolbar
+ * (--pw-content-overlay); an ActiveFilterBar, when shown, takes that place instead.
+ */
+:where(*):has(> .pw-page-toolbar):has(> .pw-page-content),
+.pw-detail-panel-root:has(> .pw-detail-panel__collection-header .pw-page-toolbar) {
+  --pw-toolbar-overlay: 44px;
+  --pw-content-overlay: 44px;
+}
+
+:where(*):has(> .pw-page-toolbar):has(> .pw-page-content):has(.pw-active-filter-bar),
+.pw-detail-panel-root:has(> .pw-detail-panel__collection-header .pw-page-toolbar):has(.pw-active-filter-bar) {
+  --pw-content-overlay: 0px;
+}
+
+/* Zero specificity, so toolbars placed by their page (the absolute Canvas top bar) keep their own position. */
+:where(.pw-page-toolbar) {
+  position: relative;
+  z-index: 6;
+  margin-bottom: calc(-1 * var(--pw-toolbar-overlay, 0px));
+  pointer-events: none;
+}
+
+.pw-page-toolbar > *,
+.pw-page-toolbar :is(.pw-page-toolbar-tabs, .pw-page-toolbar-leading, .pw-page-toolbar-center, .pw-page-toolbar-actions) {
+  pointer-events: none;
+}
+
+.pw-page-toolbar :is(.pw-page-toolbar-tabs, .pw-page-toolbar-leading, .pw-page-toolbar-center, .pw-page-toolbar-actions) > * {
+  pointer-events: auto;
+}
+
+/* With a middle slot the toolbar spaces its three groups apart (justify-between): the
+   middle group sits between the tabs and the actions, exactly centered only when they match. */
+.pw-page-toolbar:has(> .pw-page-toolbar-center) > .pw-page-toolbar-leading {
+  flex: 0 1 auto;
+}
+
+.pw-page-toolbar-center {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: center;
+}
+
+.pw-page-content > :first-child {
+  margin-top: var(--pw-content-overlay, 0px);
+}
+
+.pw-page-toolbar-tabs,
+.pw-page-toolbar-leading {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+/* Flat surfaces without a tab rail — same type metrics as .pw-tab--active. */
+.pw-page-toolbar-title {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  /* Small inset so the label isn’t flush to the edge. */
+  padding: 5px 6px;
+  margin-inline-start: 0;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  /* Same axes as the active tab label (wght 550, opsz 18). */
+  font-variation-settings: var(--font-variation-semibold);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.pw-page-toolbar-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Keys here read a touch low next to the tab track; seat them 1px higher (position only). */
+.pw-page-toolbar-actions > .pw-control-button {
+  margin-bottom: 2px;
+}
+
+/* Standalone tablist (inside PageToolbar or alone): a recessed texture track, like the switch,
+ * with the active tab as a raised face gliding inside. Positioned: it is the coordinate
+ * space of the gliding pills (tabs.tsx, fluid-hover.tsx). */
+.pw-tabs {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 2px;
+  border: 0 solid var(--field-frame);
+  border-radius: 14px;
+  /* A recessed track: the inset chip rim, no drop, so only the active pill reads as raised. */
+  background: linear-gradient(to bottom, var(--field-fill-top), var(--field-fill-bottom));
+  box-shadow: var(--material-well);
+}
+
+.pw-tab {
+  appearance: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(var(--control-height-md) - 6px);
+  padding: 2px 12px;
+  margin: 0;
+  border-radius: 11px;
+  /* Transparent rim keeps the tab the same size as the active pill that sits behind it. */
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+
+/* Tabs sit above the pills. */
+.pw-tab-item {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+/* The one active pill: glides between tabs on spring.moderate. */
+.pw-fluid-hover-highlight.pw-tab-indicator {
+  /* Lit material: the near-flat face of a small control and its 0.5px rim, no thick frame. */
+  border: 0 solid var(--field-frame);
+  border-radius: 11px;
+  background: linear-gradient(to bottom, var(--material-face-top), var(--material-face-bottom));
+  box-shadow: var(--material-control);
+}
+
+/* The one hover pill: born at the active pill, follows pointer and keyboard focus. */
+.pw-fluid-hover-highlight.pw-tab-hover {
+  border-radius: 11px;
+  background: var(--color-surface-hover);
+}
+
+/* Weight without reflow: a hidden copy at the active weight reserves the width. */
+.pw-tab__label {
+  display: inline-grid;
+}
+
+.pw-tab__label-sizer,
+.pw-tab__label-text {
+  grid-area: 1 / 1;
+}
+
+.pw-tab__label-sizer {
+  visibility: hidden;
+  font-variation-settings: var(--font-variation-semibold);
+}
+
+.pw-tab__label-text {
+  font-variation-settings: var(--font-variation-medium);
+  transition: font-variation-settings var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+
+.pw-tab--active .pw-tab__label-text {
+  font-variation-settings: var(--font-variation-semibold);
+}
+
+.pw-tab--closable {
+  padding-right: 30px;
+}
+
+.pw-tab-close {
+  appearance: none;
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.pw-tab-close:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.pw-tab-close:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: 1px;
+}
+
+/* Inactive — muted text only; the shared hover pill lights the tab under the pointer. */
+.pw-tab[data-fluid-hover-active]:not(.pw-tab--active):not(.pw-tab--disabled) {
+  color: var(--color-text-secondary);
+}
+
+/* Active — primary text over the gliding pill. */
+.pw-tab--active {
+  color: var(--color-text-primary);
+}
+
+/* Icon-only tabs (e.g. Grid / Table view switch) */
+.pw-tab--icon {
+  min-width: calc(var(--control-height-md) - 6px);
+  min-height: calc(var(--control-height-md) - 6px);
+  padding: 3px;
+  gap: 0;
+}
+
+.pw-tab--icon svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.pw-tab:focus {
+  outline: none;
+}
+
+.pw-tab:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: 2px;
+}
+
+.pw-tab--disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-tab {
+    transition: none;
+  }
+}
+
+/* A tab count sits inline after the label instead of floating on the corner. */
+.pw-floating-count-badge.pw-tab__count {
+  position: static;
+  margin-left: 6px;
+  transform: none;
+}

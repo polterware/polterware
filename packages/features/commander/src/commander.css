@@ -1,0 +1,80 @@
+/*
+ * Shared Commander panel (in-app palette + global window).
+ * Uses default surface-panel-float (opaque --color-surface + float shadow).
+ */
+.pw-dialog-content.commander-panel {
+  /* The Composer's (lg) width, with a fixed height so filtering never resizes the frame. */
+  width: min(44rem, calc(100vw - 2.5rem)) !important;
+  max-width: min(44rem, calc(100vw - 2.5rem)) !important;
+  height: min(26rem, calc(100vh - 2.5rem)) !important;
+  max-height: min(26rem, calc(100vh - 2.5rem)) !important;
+  min-height: 0 !important;
+}
+
+/* A run lists nothing, so the panel fits its prompt, pills, and Start run like the Composer. */
+.pw-dialog-content.commander-panel:has(.commander-run-footer) {
+  height: auto !important;
+}
+
+/* Run an agent's Route, Milestone, and Card, under the search row. */
+/* Opens and closes with a measured-height collapse when the query reads as a run. */
+.commander-run-pills-region {
+  flex-shrink: 0;
+}
+
+.commander-run-pills-region {
+  padding: 10px 24px 8px;
+  -webkit-app-region: no-drag;
+}
+
+/* Shared search row, laid out like the Composer's title: same padding on in-app and global.
+   No divider under it: the results fade at their top edge as they scroll. */
+.commander-search-row {
+  padding: 18px 24px 0;
+}
+
+/* The Composer's title: 18px semibold, clear of Close at the top right. */
+.commander-search-input {
+  padding: 0 32px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* A run's one action, in the Composer's footer (shared dialog footer classes). */
+.commander-run-footer {
+  -webkit-app-region: no-drag;
+}
+
+/* Palette search is borderless inside the float (DESIGN.md). No focus ring. */
+.commander-search-input,
+.commander-search-input:focus,
+.commander-search-input:focus-visible {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  -webkit-app-region: no-drag;
+}
+
+.commander-search-row__trailing {
+  -webkit-app-region: no-drag;
+}
+
+.commander-action {
+  -webkit-app-region: no-drag;
+}
+
+/* The results' one gliding highlight (fluid hover); rows carry no hover fill. */
+.commander-result-highlight {
+  border-radius: var(--radius-item);
+}
+
+/* Results flush to panel edge; padding matches both hosts (no dialog px-5). */
+.commander-results-scroll {
+  box-sizing: border-box;
+  width: 100%;
+  margin-inline: 0;
+  padding-inline: 0.5rem;
+  overscroll-behavior: contain;
+  -webkit-app-region: no-drag;
+}

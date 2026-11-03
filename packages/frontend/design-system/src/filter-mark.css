@@ -1,0 +1,52 @@
+.pw-filter-mark {
+  --pw-filter-mark-color: var(--color-text-disabled);
+
+  display: inline-block;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  background: var(--pw-filter-mark-color);
+}
+
+.pw-filter-mark--circle {
+  border-radius: 999px;
+}
+
+.pw-filter-mark--square {
+  border-radius: 1px;
+}
+
+.pw-filter-mark--diamond {
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.pw-filter-mark--outline {
+  background: transparent;
+  border: 1.5px solid var(--pw-filter-mark-color);
+}
+
+.pw-filter-mark[data-tone="healthy"],
+.pw-filter-mark[data-tone="ok"] {
+  --pw-filter-mark-color: var(--color-brand);
+}
+
+.pw-filter-mark[data-tone="degraded"],
+.pw-filter-mark[data-tone="warn"] {
+  --pw-filter-mark-color: var(--color-warning);
+}
+
+.pw-filter-mark[data-tone="down"],
+.pw-filter-mark[data-tone="danger"] {
+  --pw-filter-mark-color: var(--color-danger);
+}
+
+.pw-filter-mark[data-tone="unknown"],
+.pw-filter-mark[data-tone="muted"] {
+  --pw-filter-mark-color: var(--color-text-disabled);
+}
+
+.pw-filter-mark[data-tone="syncing"] {
+  --pw-filter-mark-color: var(--color-info);
+}

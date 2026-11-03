@@ -1,0 +1,182 @@
+/* Sidebar nav items — quiet hover/active transitions (DESIGN.md) */
+
+.pw-sidebar-nav {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  /* Sections (Now, Project, Agents) stand apart; items inside a section keep the tight 2px pitch. */
+  gap: 20px;
+  overflow: auto;
+  padding: 4px 8px;
+}
+
+.pw-sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Section label: a 28px row in sentence case, quieter than the items below it. */
+.pw-sidebar-group-label {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  margin: 0;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* A collapsible label: the chevron shows on hover or focus, and stays while collapsed. */
+.pw-sidebar-group-toggle {
+  appearance: none;
+  gap: 4px;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+
+.pw-sidebar-group-toggle:hover,
+.pw-sidebar-group-toggle:focus-visible {
+  color: var(--color-text-primary);
+}
+
+.pw-sidebar-group-chevron {
+  flex-shrink: 0;
+  visibility: hidden;
+  transition: transform var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+
+.pw-sidebar-group-toggle:hover .pw-sidebar-group-chevron,
+.pw-sidebar-group-toggle:focus-visible .pw-sidebar-group-chevron,
+.pw-sidebar-group[data-collapsed="true"] .pw-sidebar-group-chevron {
+  visibility: visible;
+}
+
+.pw-sidebar-group[data-collapsed="true"] .pw-sidebar-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.pw-sidebar-item {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  /* Rows: 28px on a ~30px pitch. */
+  min-height: 28px;
+  padding: 0 9px 0 8px;
+  margin: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast, 120ms) var(--ease-standard, ease),
+    background-color var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+
+.pw-sidebar-item:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.pw-sidebar-item:active {
+  background: var(--color-surface-active);
+  color: var(--color-text-primary);
+}
+
+.pw-sidebar-item--active {
+  background: var(--color-surface-selected);
+  color: var(--color-text-primary);
+}
+
+.pw-sidebar-item--active:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.pw-sidebar-item--active:active {
+  background: var(--color-surface-active);
+  color: var(--color-text-primary);
+}
+
+.pw-sidebar-item--nav,
+.pw-sidebar-item--nav:hover,
+.pw-sidebar-item--nav:active,
+.pw-sidebar-item--nav.pw-sidebar-item--active {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+.pw-sidebar-item--nav:hover {
+  color: var(--color-text-muted);
+}
+
+.pw-sidebar-item--nav[data-fluid-hover-active],
+.pw-sidebar-item--nav.pw-sidebar-item--active {
+  color: var(--color-text-primary);
+}
+
+.pw-sidebar-active {
+  border-radius: 8px;
+  background: var(--color-surface-selected);
+}
+
+.pw-sidebar-hover {
+  border-radius: 8px;
+}
+
+.pw-sidebar-item:focus {
+  outline: none;
+}
+
+.pw-sidebar-item:focus-visible {
+  outline: 2px solid var(--color-border-strong);
+  outline-offset: 1px;
+}
+
+.pw-sidebar-item-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: currentColor;
+}
+
+.pw-sidebar-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.pw-sidebar-item-count {
+  --count-badge-size: 18px;
+  --count-badge-padding: 0 6px;
+  --count-badge-radius: var(--radius-item);
+  --count-badge-font-size: 10px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.pw-sidebar-item--footer {
+  flex: 1 1 auto;
+  min-width: 0;
+}

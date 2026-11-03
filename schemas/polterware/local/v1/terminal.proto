@@ -1,0 +1,63 @@
+syntax = "proto3";
+package polterware.local.v1;
+option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
+
+message TerminalSession {
+  string id = 1;
+  string project_id = 2;
+  string target_id = 3;
+  string status = 4;
+  string shell = 5;
+  string cwd = 6;
+  string started_at = 7;
+  int32 cols = 8;
+  int32 rows = 9;
+}
+
+message CreateTerminalSessionRequest {
+  string project_id = 1;
+  string target_id = 2;
+  string shell = 3;
+  string cwd = 4;
+  int32 cols = 5;
+  int32 rows = 6;
+}
+message CreateTerminalSessionResponse { TerminalSession session = 1; }
+
+message WriteTerminalSessionRequest {
+  string id = 1;
+  bytes data = 2;
+}
+message WriteTerminalSessionResponse {}
+
+message ResizeTerminalSessionRequest {
+  string id = 1;
+  int32 cols = 2;
+  int32 rows = 3;
+}
+message ResizeTerminalSessionResponse { TerminalSession session = 1; }
+
+message CloseTerminalSessionRequest { string id = 1; }
+message CloseTerminalSessionResponse { TerminalSession session = 1; }
+
+message ReadTerminalOutputRequest {
+  string id = 1;
+  int64 offset = 2;
+}
+message ReadTerminalOutputResponse {
+  bytes data = 1;
+  int64 next_offset = 2;
+  bool closed = 3;
+}
+
+message ListTerminalSessionsRequest { string project_id = 1; }
+message ListTerminalSessionsResponse { repeated TerminalSession sessions = 1; }
+
+service TerminalService {
+  rpc CreateTerminalSession(CreateTerminalSessionRequest) returns (CreateTerminalSessionResponse);
+  rpc WriteTerminalSession(WriteTerminalSessionRequest) returns (WriteTerminalSessionResponse);
+  rpc ResizeTerminalSession(ResizeTerminalSessionRequest) returns (ResizeTerminalSessionResponse);
+  rpc CloseTerminalSession(CloseTerminalSessionRequest) returns (CloseTerminalSessionResponse);
+  rpc ReadTerminalOutput(ReadTerminalOutputRequest) returns (ReadTerminalOutputResponse);
+  rpc ListTerminalSessions(ListTerminalSessionsRequest) returns (ListTerminalSessionsResponse);
+}

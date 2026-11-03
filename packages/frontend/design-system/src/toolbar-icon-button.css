@@ -1,0 +1,9 @@
+.pw-toolbar-icon-button__tooltip {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.pw-toolbar-icon-button__tooltip-label {
+  min-width: 0;
+}

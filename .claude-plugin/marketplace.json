@@ -1,0 +1,11 @@
+{
+  "name": "polterware",
+  "owner": { "name": "Polterware" },
+  "plugins": [
+    {
+      "name": "polterware",
+      "source": "./plugins/polterware",
+      "description": "Write Polterware Work cards in Polter format, lint .pw.md files, and audit each session as one AgentRun."
+    }
+  ]
+}

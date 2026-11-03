@@ -1,0 +1,19 @@
+/* Commander overlay search — borderless field, no focus ring. */
+
+.pw-commander-search-input,
+.pw-commander-search-input:focus,
+.pw-commander-search-input:focus-visible,
+.pw-popover-search-input,
+.pw-popover-search-input:focus,
+.pw-popover-search-input:focus-visible {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+
+.pw-commander-body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+}
