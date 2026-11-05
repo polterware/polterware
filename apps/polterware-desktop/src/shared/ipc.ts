@@ -48,6 +48,12 @@ export const IPC_CHANNELS = {
     showMainWindow: "commander:show-main-window",
     runCommand: "commander:run-command",
   },
+  /** The comparisons with the GPUI Desktop; Main answers only under POLTERWARE_TOUR or POLTERWARE_BENCH. */
+  instrument: {
+    shot: "instrument:shot",
+    mark: "instrument:mark",
+    done: "instrument:done",
+  },
   dispatch: {
     available: "dispatch:available",
     listRuns: "dispatch:list-runs",
@@ -199,6 +205,9 @@ export type AppIpcRequests = {
   [IPC_CHANNELS.commander.hideOverlay]: undefined;
   [IPC_CHANNELS.commander.showMainWindow]: undefined;
   [IPC_CHANNELS.commander.runCommand]: { id: string };
+  [IPC_CHANNELS.instrument.shot]: { name: string };
+  [IPC_CHANNELS.instrument.mark]: { event: string };
+  [IPC_CHANNELS.instrument.done]: undefined;
 } & Record<CoreIpcChannel | DispatchIpcChannel, JsonObject | undefined>;
 
 export type AppIpcResponses = {
@@ -229,4 +238,7 @@ export type AppIpcResponses = {
   [IPC_CHANNELS.commander.hideOverlay]: void;
   [IPC_CHANNELS.commander.showMainWindow]: void;
   [IPC_CHANNELS.commander.runCommand]: void;
+  [IPC_CHANNELS.instrument.shot]: boolean;
+  [IPC_CHANNELS.instrument.mark]: boolean;
+  [IPC_CHANNELS.instrument.done]: boolean;
 } & Record<CoreIpcChannel | DispatchIpcChannel, JsonObject>;

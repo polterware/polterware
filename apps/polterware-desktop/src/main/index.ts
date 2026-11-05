@@ -14,6 +14,7 @@ import {
   applyMainWindowAppearance,
 } from "./window.js";
 import { registerPolterwareIpcHandlers } from "./ipc.js";
+import { createInstrumentController } from "./instrument.js";
 import { createCoreClients, waitForHealth, type CoreClients } from "./core/client.js";
 import { createCoreDomainControllers } from "./core/controllers/domain.js";
 import { createDispatchClient } from "./dispatch/client.js";
@@ -36,6 +37,9 @@ nativeTheme.themeSource = "dark";
 // Keep userData where it was before the app was named Polterware: <appData>/polterware, the directory shared with the
 // CLI database. Deriving it from the app name would move preferences and split them from the core's directory.
 app.setPath("userData", join(app.getPath("appData"), "polterware"));
+// The GPUI comparisons run on a profile of their own, so a tour starts from a fresh window and
+// never touches the user's preferences.
+if (process.env.POLTERWARE_USER_DATA?.trim()) app.setPath("userData", process.env.POLTERWARE_USER_DATA.trim());
 
 function configureLogging() {
   log.initialize();
@@ -262,6 +266,7 @@ async function bootstrap() {
     coreLifecycle: coreLifecycleController,
     core: afterCoreStartup(createCoreDomainControllers(clients), coreStartupSettled),
     dispatch: createDispatchClient({ openExternal: (url) => shell.openExternal(url) }),
+    instrument: createInstrumentController(getMainWindow),
   });
   applyGlobalCommanderAccelerator(shortcutPreferences.getGlobalCommanderAccelerator());
   createMainWindow({

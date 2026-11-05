@@ -46,7 +46,7 @@ Polterware Dispatch, which delegates a task to a coding-agent CLI by difficulty 
 
 - Go local authority: the single `polterware` binary (`backend/runtimes/cli`: commands, `serve`, `mcp`) and retained domains only. `go.work` holds `backend` alone.
 - Desktop: Polterware, `apps/polterware-desktop`, with thin Electron Main, typed preload bridge, and Solid renderer, until the GPUI Desktop reaches parity.
-- GPUI Desktop: `desktop-gpui`, its own Cargo workspace on `polterware-ui` (no third-party GPUI kit), a client of the core over Connect-JSON that never opens SQLite. What it lacks, in porting order, is in `docs/future.md`.
+- GPUI Desktop: `desktop-gpui`, its own Cargo workspace on `polterware-ui` (interface work follows that library's `AGENTS.md`, Building interface: general components there, the Electron app's look on its tokens and materials, gpui-kit's behavior; no third-party GPUI kit as a dependency), a client of the core over Connect-JSON that never opens SQLite. What it lacks, in porting order, is in `docs/future.md`.
 - Features: `packages/features/<feature>`.
 - Shared frontend: `packages/frontend`.
 - Contracts: `schemas` to generated Go code in `backend/platform/gen` and TypeScript in `packages/contracts`.

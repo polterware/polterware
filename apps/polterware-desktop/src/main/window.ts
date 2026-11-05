@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { getSelectedAppIconPath } from "./electron-app-icons.js";
 import { attachDesktopContextMenu } from "./desktop-context-menu.js";
 import { attachDesktopInputGuards } from "./desktop-input-guards.js";
+import { instrumentEnv } from "./instrument.js";
 import {
   canOpenExternalUrl,
   isAllowedRendererUrl,
@@ -81,6 +82,9 @@ function configureWindowSecurity(window: BrowserWindow): void {
 function loadRenderer(window: BrowserWindow, surface?: "commander"): void {
   const reduceTransparencyParam = mainWindowReduceTransparency ? "1" : "0";
   const rendererUrl = process.env["ELECTRON_RENDERER_URL"];
+  // The main window walks the GPUI comparison tour or reports startup (`instrument.ts`).
+  const tour = !surface && Boolean(instrumentEnv.tourDir);
+  const bench = !surface && Boolean(instrumentEnv.benchFile);
 
   if (!app.isPackaged && rendererUrl) {
     const url = new URL(rendererUrl);
@@ -88,6 +92,8 @@ function loadRenderer(window: BrowserWindow, surface?: "commander"): void {
       url.searchParams.set("surface", surface);
     }
     url.searchParams.set("reduceTransparency", reduceTransparencyParam);
+    if (tour) url.searchParams.set("tour", "1");
+    if (bench) url.searchParams.set("bench", "1");
     void window.loadURL(url.toString());
     return;
   }
@@ -95,6 +101,8 @@ function loadRenderer(window: BrowserWindow, surface?: "commander"): void {
   const search = new URLSearchParams();
   if (surface) search.set("surface", surface);
   search.set("reduceTransparency", reduceTransparencyParam);
+  if (tour) search.set("tour", "1");
+  if (bench) search.set("bench", "1");
   void window.loadFile(join(__dirname, "../renderer/index.html"), {
     search: search.toString(),
   });

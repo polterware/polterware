@@ -18,6 +18,8 @@ export default defineConfig({
     resolve: {
       preserveSymlinks: false,
       alias: {
+        // The subpath before the package root, so Vite does not read it as a file suffix.
+        "@polterware/contracts/dispatch": resolve(rootDir, "../../packages/contracts/src/dispatch.ts"),
         "@polterware/contracts": resolve(rootDir, "../../packages/contracts/src/index.ts"),
       },
     },

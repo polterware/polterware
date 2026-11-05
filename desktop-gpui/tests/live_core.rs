@@ -4,6 +4,8 @@
 //! and each one's Inbox, and finds the same core again. The core exits on its own when idle.
 
 use polterware_gpui::client;
+use polterware_gpui::contracts::{ListInboxRequest, ListProjectsRequest, WatchChangesRequest};
+use polterware_gpui::prefs::Idle;
 
 #[test]
 fn starts_and_reads_a_core() {
@@ -16,10 +18,30 @@ fn starts_and_reads_a_core() {
     unsafe { std::env::set_var("POLTERWARE_BIN", &binary) };
     let dir = std::env::temp_dir().join(format!("pw-gpui-live-{}", std::process::id()));
     let db = dir.join("local.db");
-    let core = client::start(&db).expect("the core starts");
-    let projects = client::list_projects(&core).expect("projects");
+    // Ten minutes idle, so the core exits on its own.
+    let core = client::start(&db, Idle::TenMinutes.flag()).expect("the core starts");
+    let projects = core
+        .project()
+        .list_projects(&ListProjectsRequest::default())
+        .expect("projects")
+        .projects;
     for project in &projects {
-        client::list_inbox(&core, &project.id).expect("inbox");
+        core.work()
+            .list_inbox(&ListInboxRequest {
+                project_id: project.id.clone(),
+                ..ListInboxRequest::default()
+            })
+            .expect("inbox");
     }
+    // The change stream opens with the current seq and no kinds.
+    let mut changes = core
+        .change()
+        .watch_changes(&WatchChangesRequest::default())
+        .expect("the change stream opens");
+    let first = changes
+        .next()
+        .expect("a first event")
+        .expect("a readable event");
+    assert!(first.kinds.is_empty(), "{first:?}");
     assert_eq!(client::discover(&db).expect("the core is found"), core);
 }

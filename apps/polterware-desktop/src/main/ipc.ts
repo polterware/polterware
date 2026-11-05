@@ -78,6 +78,12 @@ export interface PolterwareIpcControllers {
   };
   core?: CoreDomainControllers;
   dispatch?: DispatchControllers;
+  /** The GPUI comparisons (`instrument.ts`); each call answers false outside them. */
+  instrument?: {
+    shot(name: string): Promise<boolean>;
+    mark(event: string): boolean;
+    done(): boolean;
+  };
 }
 
 function missing(channel: string): never {
@@ -331,6 +337,18 @@ export function createPolterwareIpcHandlers(controllers: PolterwareIpcController
         throw new Error("Commander command id is required.");
       }
       controllers.commander.runCommand(id);
+    },
+    [IPC_CHANNELS.instrument.shot]: async (_event, payload) => {
+      if (!controllers.instrument) missing(IPC_CHANNELS.instrument.shot);
+      return controllers.instrument.shot(typeof payload?.name === "string" ? payload.name : "");
+    },
+    [IPC_CHANNELS.instrument.mark]: async (_event, payload) => {
+      if (!controllers.instrument) missing(IPC_CHANNELS.instrument.mark);
+      return controllers.instrument.mark(typeof payload?.event === "string" ? payload.event : "");
+    },
+    [IPC_CHANNELS.instrument.done]: async () => {
+      if (!controllers.instrument) missing(IPC_CHANNELS.instrument.done);
+      return controllers.instrument.done();
     },
     [IPC_CHANNELS.core.healthCheck]: coreHandler(controllers, "healthCheck"),
     [IPC_CHANNELS.core.getStoreHealth]: coreHandler(controllers, "getStoreHealth"),

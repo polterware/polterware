@@ -70,6 +70,13 @@ export function createPolterwareBridge(ipc: BridgeIpc) {
       config: (payload: JsonObject) => ipc.invoke(IPC_CHANNELS.dispatch.config, payload),
       open: (url: string) => ipc.invoke(IPC_CHANNELS.dispatch.open, { url }),
     },
+    // The GPUI comparisons: a tour stop's capture, a startup milestone, and the end of a tour.
+    // Main answers false unless POLTERWARE_TOUR or POLTERWARE_BENCH is set.
+    instrument: {
+      shot: (name: string) => ipc.invoke(IPC_CHANNELS.instrument.shot, { name }),
+      mark: (event: string) => ipc.invoke(IPC_CHANNELS.instrument.mark, { event }),
+      done: () => ipc.invoke(IPC_CHANNELS.instrument.done),
+    },
     commander: {
       hideOverlay: () => ipc.invoke(IPC_CHANNELS.commander.hideOverlay),
       showMainWindow: () => ipc.invoke(IPC_CHANNELS.commander.showMainWindow),

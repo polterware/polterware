@@ -54,6 +54,7 @@ import {
 } from "@polterware/feature-shell";
 import { StructureView, STRUCTURE_SCOPE, type StructureRecordKind } from "@polterware/feature-architecture";
 import { CanvasWorkspace, drawStructureCanvas, rememberOpenCanvas } from "./canvas-workspace";
+import { benchRequested, runTour, tourRequested } from "./instrument-tour";
 import type { CardDraft, ComposeRequest, DecisionDraft, DocDraft, KnowledgeEditDraft, MilestoneAction, RecordEditTarget, RuleDraft } from "@polterware/feature-knowledge";
 import type { ChangeEnvelope } from "@polterware/feature-knowledge/change-envelope";
 import { hydrateAppearancePreferences, hydrateShortcutPreferences, settingsTabScope } from "@polterware/feature-settings/boot";
@@ -390,6 +391,32 @@ export function App() {
     loadedProjectId = projectId;
     void refreshWorkspace(projectId);
   });
+
+  // The comparisons with the GPUI Desktop (instrument-tour.ts); inert without tour=1 or bench=1.
+  if (benchRequested()) {
+    let marked = false;
+    createEffect(() => {
+      if (marked || loading() || workspace().projects.length === 0) return;
+      marked = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => void window.polterware.instrument.mark("projects-ready")));
+    });
+  }
+  if (tourRequested()) {
+    onMount(() => {
+      void runTour({
+        ready: () => !loading() && workspace().projects.length > 0,
+        projects: () => workspace().projects.map((project) => ({ id: project.projectId, name: project.name })),
+        home: goProjectsHome,
+        enterProject: selectProject,
+        section: (section) => navigateSection(section),
+        projectSettings: (open) =>
+          applyRoute(open ? openDialog(route(), { type: "project-settings" }) : closeDialog(route()), "silent"),
+        commander: setPaletteOpen,
+        appSettings: (open) =>
+          applyRoute(open ? openDialog(route(), { type: "settings", tab: "agents-mcp" }) : closeDialog(route()), "silent"),
+      });
+    });
+  }
 
   onMount(() => {
     void bootstrapProjects();
