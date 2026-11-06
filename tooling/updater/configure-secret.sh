@@ -2,8 +2,10 @@
 # Run only after explicitly authorizing export of the Polterware key to this repository.
 set -euo pipefail
 UPDATER="$(cd "$(dirname "$0")" && pwd)"
-REPO="$(node -p 'require(process.argv[1]).repository' "$UPDATER/config.cjs")"
-EXPECTED="$(node -p 'require(process.argv[1]).publicKey' "$UPDATER/config.cjs")"
+# shellcheck source=sparkle.env
+source "$UPDATER/sparkle.env"
+REPO="$SPARKLE_REPOSITORY"
+EXPECTED="$SPARKLE_PUBLIC_KEY"
 PUBLIC="$("$UPDATER/vendor/bin/generate_keys" --account polterware -p)"
 [[ "$PUBLIC" == "$EXPECTED" ]] || { echo 'Keychain public key does not match app configuration.' >&2; exit 1; }
 umask 077

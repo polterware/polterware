@@ -1,7 +1,0 @@
-export type * from "./types";
-export {
-  INTEGRATION_MOCKS,
-  INTEGRATION_RESOURCE_MOCKS,
-  INTEGRATION_SYNC_RUN_MOCKS,
-  CATALOG_PROVIDER_MOCKS,
-} from "./data";

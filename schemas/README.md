@@ -10,7 +10,7 @@ The active Protobuf contracts describe the reduced local core:
 - Terminal (Connect auth PTY only)
 - Health and Maintenance
 
-Generation targets Go messages and Connect-Go handlers under `backend/platform/gen` and TypeScript messages under `packages/contracts/src/gen`. Electron Main owns the Connect clients; the renderer reaches them only through the typed preload bridge.
+Generation targets Go messages and Connect-Go handlers under `backend/platform/gen` (`buf generate`) and the Desktop's Rust messages and clients under `app/src/contracts` (`tooling/gen-contracts`, from `buf build`); `bash tooling/generate.sh` runs both.
 
 ```bash
 cd schemas

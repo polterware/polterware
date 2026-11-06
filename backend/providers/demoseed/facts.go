@@ -14,7 +14,7 @@ func seedFacts(store *storepkg.Store) error {
 		fact canon.Fact
 	}{
 		{canon.Fact{ID: "fact-pnpm", Statement: "The workspace uses pnpm.", TruthClass: canon.TruthDeclared, Source: "package.json"}},
-		{canon.Fact{ID: "fact-electron", Statement: "The Desktop is an Electron app.", TruthClass: canon.TruthDeclared, Source: "package.json"}},
+		{canon.Fact{ID: "fact-gpui", Statement: "The Desktop is a GPUI app.", TruthClass: canon.TruthDeclared, Source: "app/Cargo.toml"}},
 		{canon.Fact{ID: "fact-sqlite", Statement: "Project state lives in a local SQLite database.", TruthClass: canon.TruthDeclared, Source: "go.mod"}},
 		{canon.Fact{ID: "fact-commit-citations", Statement: "Card commits are read from the commits that cite a task.", TruthClass: canon.TruthVerified, Source: "go test", Actor: "claude-code"}},
 		{canon.Fact{ID: "fact-no-network", Statement: "Imports never call the network.", TruthClass: canon.TruthDeclared, Source: "Decision 0002"}},

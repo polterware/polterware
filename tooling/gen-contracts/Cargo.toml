@@ -1,0 +1,11 @@
+[package]
+name = "gen-contracts"
+description = "Generates the Desktop's Rust contracts from the Protobuf schemas."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+serde_json = "1.0"

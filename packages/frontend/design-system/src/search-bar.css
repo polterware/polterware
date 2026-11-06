@@ -1,5 +1,0 @@
-/* Toolbar search — no focus ring (global :focus-visible outline suppressed). */
-.pw-search-bar-input:focus,
-.pw-search-bar-input:focus-visible {
-  outline: none;
-}

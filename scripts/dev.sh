@@ -15,4 +15,5 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
-exec pnpm dev:polterware
+# The Desktop starts or attaches to the core itself (go run from this checkout).
+exec cargo run -p polterware-gpui

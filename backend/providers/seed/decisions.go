@@ -23,7 +23,7 @@ polterware-web remains an active product repository and owns both the public Pol
 
 ### new: Product positioning and wedge
 
-Category: Project Context and Change Intelligence for AI Coding. Stack: Desktop Electron and Solid, Go core, SQLite. The wedge is the Polterware Project Model with facts, the Rules agents follow, the Context Compiler, stable MCP reads, card commits, AgentRun audit, audited MCP writes, and the CLI. Not the product: an IDP or software catalog, AI memory as positioning, the architecture canvas as the thesis, generic RAG marketing, an Operations control plane.
+Category: Project Context and Change Intelligence for AI Coding. Stack: Desktop in Rust on GPUI, Go core, SQLite. The wedge is the Polterware Project Model with facts, the Rules agents follow, the Context Compiler, stable MCP reads, card commits, AgentRun audit, audited MCP writes, and the CLI. Not the product: an IDP or software catalog, AI memory as positioning, the architecture canvas as the thesis, generic RAG marketing, an Operations control plane.
 
 ### new: Post-wedge Cloud and enrichment boundary
 
@@ -43,7 +43,7 @@ Domain and component are Structure nodes with contract lines. A feature stays a 
 
 ### new: Checkouts on Structure nodes and projections into checkouts
 
-A node names its checkout and folder. A task may name its checkout, and a claim scope carries it, so scopes in different checkouts never overlap. Projections are written from the store and never read back: each Decision becomes a file in its governing checkout and one generated block in each checkout AGENTS.md. Edits made in a checkout are not imported; the next export replaces them. The renderer never touches the filesystem.
+A node names its checkout and folder. A task may name its checkout, and a claim scope carries it, so scopes in different checkouts never overlap. Projections are written from the store and never read back: each Decision becomes a file in its governing checkout and one generated block in each checkout AGENTS.md. Edits made in a checkout are not imported; the next export replaces them. The Desktop never writes the checkouts.
 
 ### new: Decision lifecycle
 

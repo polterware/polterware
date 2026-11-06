@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 UPDATER="$(cd "$(dirname "$0")" && pwd)"
-VERSION="$(node -p 'require(process.argv[1]).version' "$UPDATER/config.cjs")"
-DIGEST="$(node -p 'require(process.argv[1]).archiveSha256' "$UPDATER/config.cjs")"
+# shellcheck source=sparkle.env
+source "$UPDATER/sparkle.env"
 mkdir -p "$UPDATER/vendor"
-ARCHIVE="$UPDATER/vendor/Sparkle-$VERSION.tar.xz"
+ARCHIVE="$UPDATER/vendor/Sparkle-$SPARKLE_VERSION.tar.xz"
 if [[ ! -f "$ARCHIVE" ]]; then
-  curl --fail --location --retry 3 "https://github.com/sparkle-project/Sparkle/releases/download/$VERSION/Sparkle-$VERSION.tar.xz" -o "$ARCHIVE.tmp"
+  curl --fail --location --retry 3 "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz" -o "$ARCHIVE.tmp"
   mv "$ARCHIVE.tmp" "$ARCHIVE"
 fi
-printf '%s  %s\n' "$DIGEST" "$ARCHIVE" | shasum -a 256 -c -
+printf '%s  %s\n' "$SPARKLE_SHA256" "$ARCHIVE" | shasum -a 256 -c -
 # Always extract from the verified archive rather than trusting a previously unpacked copy.
 tar -xJf "$ARCHIVE" -C "$UPDATER/vendor"

@@ -18,61 +18,26 @@ rationale: Polterware is managed with its own build, so its structure and roadma
 # desktop: Desktop
 level: domain · decisions: Decision-0002
 
-Electron Main, a typed preload bridge, and a Solid renderer over the local core.
+The GPUI app, a client of the local core over Connect-JSON.
 
-! The renderer reads and writes only through window.polterware
+! The Desktop reads and writes only through the core
 
-# desktop/main: Electron Main
-level: component · under: desktop · path: apps/polterware-desktop/src/main · kind: desktop · tech: Electron · repo: main
+# desktop/app: GPUI app
+level: component · under: desktop · path: app/src · kind: desktop · tech: Rust, GPUI · repo: main
 
-Thin process: window security, IPC, core supervision, updater.
+Product surfaces built on the shared polterware-ui library, the core client, and the updater.
 
-# desktop/preload: Preload bridge
-level: component · under: desktop · path: apps/polterware-desktop/src/preload · kind: desktop · tech: Electron · repo: main
-
-The typed window.polterware surface.
-
-# desktop/renderer: Solid renderer
-level: component · under: desktop · path: apps/polterware-desktop/src/renderer · kind: frontend · tech: Solid · repo: main
-
-Product surfaces built from the shared design system and feature packages.
-
-! Use shared design-system controls, never hand-rolled chrome
-
-# frontend: Shared frontend
-level: domain
-
-Feature packages and the shared frontend infrastructure the Desktop renderer is assembled from.
-
-# frontend/features: Feature packages
-level: component · under: frontend · path: packages/features · kind: frontend · tech: Solid · repo: main
-
-Shell, Structure, Work and Decisions, Reality, Integrations, Settings, and Commander, one package each.
-
-# frontend/design-system: Design system
-level: component · under: frontend · path: packages/frontend/design-system · kind: frontend · tech: Solid · repo: main
-
-Shared controls, overlays, tables, and the design tokens in DESIGN.md.
-
-# frontend/canvas: Canvas
-level: component · under: frontend · path: packages/frontend/canvas · kind: frontend · tech: TypeScript · repo: main
-
-The graph canvas the Structure map is drawn on.
-
-# frontend/state: State and platform
-level: component · under: frontend · path: packages/frontend/state · kind: frontend · tech: TypeScript · repo: main
-
-Reactive state and the platform adapters the renderer reads through.
+! Use the shared polterware-ui controls, never hand-rolled chrome
 
 # contracts: Contracts
 level: domain
 
-One schema source for the Go server and the TypeScript clients.
+One schema source for the Go server and the Rust clients.
 
 # contracts/generated: Schemas and generated code
 level: component · under: contracts · path: schemas · kind: spec · tech: Protobuf · repo: main
 
-Protobuf schemas, generated Go in backend/platform/gen and TypeScript in packages/contracts.
+Protobuf schemas, generated Go in backend/platform/gen and Rust in app/src/contracts.
 
 # core: Local core
 level: domain · decisions: Decision-0007
@@ -227,20 +192,20 @@ level: component · under: cloud · decisions: Decision-0005{cloud} · kind: spe
 Architecture drafts for sync, hosted MCP, and the Judge.
 
 ## navigation-swap: Navigation swap
-stage: delivered · under: desktop/renderer
+stage: delivered · under: desktop/app
 
 Sidebar surfaces Inbox, Structure, Work, Decisions, Reality, Agents, Integrations, with Settings in the footer.
 
-- [x] Sidebar and routes §packages/features/shell/*§
+- [x] Sidebar and routes §app/src/views/*§
 - [x] Legacy routes redirect
 - [x] Commander and docs updated
 
 ## work-board: Work board
-stage: delivered · under: desktop/renderer · decisions: Decision-0006
+stage: delivered · under: desktop/app · decisions: Decision-0006
 
 Five stage columns (Shape, Plan, Build, Verify, Delivered) read from the Work tables.
 
-- [x] Board reads WorkService.ListWorkCards §packages/features/knowledge/*§
+- [x] Board reads WorkService.ListWorkCards §app/src/views/milestones.rs§
 - [x] Stage change, create, and remove go through ApplyPolter
 - [x] Specs table over the same cards
 
@@ -401,40 +366,13 @@ in_progress: reviewing the seeded project in the app
 next: open the packaged app and connect the agents
 touched: backend/providers/seed/seed.go
 
-## detail-panel-cold-load: Detail panel cold load
-stage: build · under: desktop/renderer
+## release-workflow: Desktop release workflow
+stage: plan · under: desktop/app
 
-On a cold load the detail panel never reveals when loading turns to ready.
+Build and publish the GPUI bundle from a release tag, with its signed update feed.
 
-- [ ] Fix the loading to ready transition §packages/frontend/state/*§
-- [ ] Turn the it.fails detail-panel test into a passing test
-
-## design-lint-opacity: Design lint opacity violations
-stage: plan · under: desktop/renderer
-
-pnpm design:lint fails with 13 opacity violations that predate the test sweep.
-
-- [ ] Remove alpha from boot-splash.css
-- [ ] Remove alpha from template-card.css
-- [ ] Remove alpha from markdown-editor.css
-- [ ] pnpm design:lint passes
-! Structural surfaces and text are opaque
-
-## renderer-persist-load-tests: Renderer persist and load tests
-stage: plan · under: desktop/renderer
-
-Cover request payload shapes and partial failure in the workspace loader and persister.
-
-- [ ] persist.ts payload shapes with a mocked core client §apps/polterware-desktop/src/renderer/workspace/*§
-- [ ] load.ts partial-failure behavior
-- [ ] Smoke test that the contracts exports the Desktop uses exist §packages/contracts/*§
-
-## structure-views-naming: Structure Views naming
-stage: plan · under: desktop/renderer
-
-Structure Views and some toasts still say Architecture.
-
-- [ ] Rename Architecture strings in Structure Views and toasts §packages/features/architecture/*§
+- [ ] Run tooling/release/bundle.sh on a polterware-v<version> tag
+- [ ] Sign the Sparkle appcast and attach the DMG and ZIP to a draft release
 
 ## structure-upper-levels: Creating the upper Structure levels
 stage: shape · under: core/work · decisions: Decision-0008
@@ -451,7 +389,7 @@ Decide whether Polterware owns tasks or reads them from an issue tracker.
 ? Does Polterware own tasks or read them from GitHub Issues or Linear? (own | read and link | both)
 
 ## default-route: Default route
-stage: shape · under: desktop/renderer
+stage: shape · under: desktop/app
 
 The default route is Inbox today; docs/future.md asks whether Work should be the default.
 

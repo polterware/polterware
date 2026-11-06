@@ -1,4 +1,0 @@
-/* Inbox uses shared table chrome; deferred items stay visibly quieter. */
-.pw-inbox-row--deferred .pw-data-table-primary-title {
-  color: var(--color-text-muted);
-}

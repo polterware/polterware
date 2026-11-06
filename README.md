@@ -4,7 +4,7 @@ Polterware is a local-first project context and change-intelligence tool for AI 
 
 ## Current product
 
-A local SQLite-backed Desktop over a single Go binary, `polterware`. The shipped Desktop is Electron + Solid (`apps/polterware-desktop`); its GPUI successor is `desktop-gpui`, which replaces it once it reaches parity. Project navigation:
+A local SQLite-backed Desktop over a single Go binary, `polterware`. The Desktop is a native GPUI app in Rust (`app`), on the shared [polterware/ui](https://github.com/polterware/ui) library. Project navigation:
 
 - **Inbox** — items that need a person: Conflicts an agent raised against a Rule or Decision, failed deploys, open card questions, and deploys whose provider CLI is not connected
 - **Milestones** — the Roadmap of boards; each milestone is a Board (cards by stage: Idea, Planned, In progress, In review, Done) and a List of the same cards
@@ -17,7 +17,7 @@ A local SQLite-backed Desktop over a single Go binary, `polterware`. The shipped
 
 Agents talk to Polterware in the Polter format (markdown that writes Work cards, Structure nodes, and decisions) through the CLI or MCP (`polter.apply`, `polter.query`, `polter.format`, plus `doc.upsert`). Every write carries a summary and rationale and lands in one change history.
 
-One local core process (`polterware serve`) per database is the only process that opens SQLite. Electron Main, the GPUI app, the CLI, and the MCP bridge attach to it or start it. The renderer reads and writes only through `window.polterware`. Provider credentials stay in the OS or CLI credential store and are never persisted in SQLite.
+One local core process (`polterware serve`) per database is the only process that opens SQLite. The Desktop, the CLI, and the MCP bridge attach to it or start it; the Desktop reads and writes only through the core, over Connect-JSON. Provider credentials stay in the OS or CLI credential store and are never persisted in SQLite.
 
 Only the local deployment mode exists. Cloud, Jev, and other unshipped direction are listed in [docs/future.md](docs/future.md).
 
@@ -47,36 +47,28 @@ Run the same command again to update.
 
 ## Repository
 
-- `apps/polterware-desktop` — Electron Main, preload bridge, and Solid renderer
-- `desktop-gpui` — the GPUI Desktop (Rust, on [polterware/ui](https://github.com/polterware/ui)), reading the core over Connect-JSON
-- `apps/gallery` — the design system gallery
-- `packages/features` — product surfaces
-- `packages/frontend` — shared design system, canvas, and state
+- `app` — the Desktop (Rust, GPUI, on [polterware/ui](https://github.com/polterware/ui)), reading the core over Connect-JSON; its icon is `app/resources/polterware.icon`
 - `backend` — Go runtime (single `polterware` binary: CLI, `serve`, `mcp`)
-- `schemas` — Protobuf contracts and generated Go/TypeScript messages; `schemas/vendor/dispatch` holds Dispatch's contracts, synced by `tooling/sync-dispatch-proto.sh`
+- `schemas` — Protobuf contracts, generated into Go (`backend/platform/gen`) and the Desktop's Rust contracts (`tooling/gen-contracts`); `schemas/vendor/dispatch` holds Dispatch's contracts, synced by `tooling/sync-dispatch-proto.sh`
 - `DESIGN.md` — visual and interaction contract
 - `docs/future.md` — planned work, not implemented
 
 ## Development
 
+The root is a Cargo workspace (`app`, `tooling/gen-contracts`); the Go core is in `backend`.
+
 ```bash
-pnpm install
-pnpm dev:polterware       # the Electron Desktop
-pnpm dev:gallery          # the design system gallery
-cargo run --manifest-path desktop-gpui/Cargo.toml   # the GPUI Desktop
+cargo run -p polterware-gpui      # the Desktop (or ./scripts/dev.sh)
+./scripts/dev.sh --core-only      # the local core alone
+bash tooling/generate.sh          # regenerate Go and Rust contracts from schemas/
 ```
 
-The Desktop `dev` builds its local core first and starts it with the app. The same `<task>[:<app>]` pattern applies to `build`, `preview`, `typecheck`, and `test`. Dev ports are fixed: Polterware 5173, gallery 5177. For standalone core development:
+From a checkout, the Desktop builds and starts its local core with `go run`. Static checks:
 
 ```bash
-pnpm dev:core
-```
-
-Static checks:
-
-```bash
-pnpm typecheck
-pnpm design:lint
+cargo fmt --check
+cargo clippy --all-targets
+cargo test
 cd schemas && buf lint
 cd ../backend && go vet ./...
 git diff --check
@@ -84,9 +76,7 @@ git diff --check
 
 ## Desktop releases
 
-`bash tooling/release/dist-mac.sh polterware` (or `pnpm dist:polterware:mac`) builds an ad-hoc signed macOS arm64 DMG and ZIP under the app's `release/<version>` with `SHA256SUMS`, a bundle verification, and a build report.
-
-Pushing a tag `polterware-v<version>` (for example `polterware-v0.1.0-alpha.1`) runs the release workflow, which attaches the artifacts to a draft GitHub release; a version with a suffix is marked as a pre-release. Nothing is published automatically. Builds are not notarized, so macOS asks for confirmation on first open, and updates are manual: there is no auto-update feed.
+`bash tooling/release/bundle.sh` builds an ad-hoc signed macOS arm64 `Polterware.app` with the core, the icon, and Sparkle, plus its DMG, ZIP, and `SHA256SUMS`, under `target/release-bundle/<version>` (the workspace version in `Cargo.toml`). There is no release workflow: releases are built and published by hand. Builds are not notarized, so macOS asks for confirmation on first open.
 
 ## Ecosystem
 
@@ -94,7 +84,7 @@ Polterware is both the umbrella and the main app, with [Polterware Dispatch](htt
 
 ## Open source and Cloud
 
-This repository is the public product: Desktop, local runtime, contracts, and shared UI. Polterware Cloud is a separate managed service on a private control plane and is not implemented here. The public website and future Web App live in `polterware-web`.
+This repository is the public product: Desktop, local runtime, and contracts. Polterware Cloud is a separate managed service on a private control plane and is not implemented here. The public website and future Web App live in `polterware-web`.
 
 ## Contributing and security
 

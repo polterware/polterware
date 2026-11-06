@@ -28,33 +28,23 @@ jobs:
       - run: (cd backend && go vet ./...)
       - run: (cd backend && go test ./...)
 
-  node:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm design:lint
-      - run: pnpm test
-
-  gpui:
+  rust:
     runs-on: macos-26
-    defaults:
-      run:
-        working-directory: desktop-gpui
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: desktop-gpui
       - run: cargo fmt --check
       - run: cargo clippy --all-targets
       - run: cargo test
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+      - name: Generated contracts are current
+        run: |
+          (cd schemas && buf build -o /tmp/descriptor.json#format=json)
+          (cd schemas/vendor/dispatch && buf build -o /tmp/dispatch-descriptor.json#format=json)
+          cargo run --quiet -p gen-contracts -- /tmp/descriptor.json app/src/contracts --check
+          cargo run --quiet -p gen-contracts -- /tmp/dispatch-descriptor.json app/src/dispatch/contracts --client crate::dispatch::Dispatch --check

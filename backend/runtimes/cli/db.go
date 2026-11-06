@@ -6,7 +6,7 @@ import (
 )
 
 // defaultDB is the database shared with the Desktop: <user config dir>/polterware/local.db
-// (Electron's appData on macOS, Linux, and Windows).
+// (the Desktop's app data directory on macOS, Linux, and Windows).
 func defaultDB() string {
 	dir, err := os.UserConfigDir()
 	if err != nil {

@@ -3,7 +3,6 @@
 ```bash
 cd backend
 go build -o ../dist/polterware ./runtimes/cli
-# or: pnpm build:cli
 
 ../dist/polterware -db /tmp/polterware-test.db init --name Demo --path /path/to/repo
 ../dist/polterware -db /tmp/polterware-test.db scan --project <id>

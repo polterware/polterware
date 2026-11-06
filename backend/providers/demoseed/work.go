@@ -49,7 +49,7 @@ Read HEAD, branch, and recent commits so delivered tasks match commits on main.
 - [x] T1 Read HEAD and branch from the local checkout  ` + "`backend/providers/git/*`" + `
 - [x] T2 Link commits to tasks by citation
 - [ ] T3 Link a commit by hand from the card  ` + "`backend/domains/inbox/*`" + `
-- [ ] T4 Show linked commits on the task  ` + "`packages/features/knowledge/*`" + `
+- [ ] T4 Show linked commits on the task  ` + "`app/src/views/card_page.rs`" + `
 - [-] T5 Import tags as releases
 ? Include merge commits? [blocking] (yes | no | first-parent)
 ! No network calls while reading Git

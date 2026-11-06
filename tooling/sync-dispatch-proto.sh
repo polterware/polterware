@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Copies the protos polterware/dispatch owns into this repository: its services into
-# schemas/vendor/dispatch (TypeScript for the Desktop's Dispatch client) and
+# schemas/vendor/dispatch (the Desktop's Dispatch client contracts) and
 # DispatchHostService into schemas/polterware/local/v1 (served by the backend), then
 # regenerates. --check only reports whether the copies differ.
 #

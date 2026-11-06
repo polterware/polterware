@@ -12,12 +12,14 @@ The active product is a local SQLite-backed Desktop with the local `polterware` 
 
 ## Development
 
-Use the pnpm version declared in the root `package.json`.
+The repository is Rust (the Desktop, a Cargo workspace at the root) and Go (the core in `backend`), with no JavaScript.
 
 ```bash
-pnpm install
-pnpm typecheck
-pnpm design:lint
+cargo fmt --check
+cargo clippy --all-targets
+cargo test
+(cd backend && go vet ./... && go test ./...)
+(cd schemas && buf lint)
 ```
 
 Keep changes focused, preserve the public/private boundary, and add risk-proportional validation for behavior changes.
