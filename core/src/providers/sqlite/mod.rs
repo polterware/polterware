@@ -10,12 +10,25 @@
 //! transaction uses `unchecked_transaction`, and the SQLite connection is held
 //! behind the caller's lock.
 
+mod agent_access;
+mod agent_run;
 mod canon;
+mod canon_facts;
+mod canvas;
+mod commit_links;
+mod conflicts;
+mod context;
+mod decision;
 mod entities;
 mod health;
 mod hook_context;
 mod hook_switches;
+mod inbox;
+mod milestones;
+mod polter_facts;
 mod repos;
+mod rules;
+mod saved_filters;
 mod scope;
 mod store;
 mod structure;
