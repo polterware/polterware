@@ -137,13 +137,24 @@ pub struct ResolveInboxResult {
 
 /// Applies one action. Decide writes `? text -> answer` through the Polter
 /// apply path, and every other action appends a disposition.
+///
+/// The result comes back alongside the error, as Go returns it: a refused
+/// decide still carries the apply result (its diagnostics say why), and a
+/// caller mistake on decide carries the item. On an unknown item or action the
+/// result is the zero value.
 pub fn resolve_inbox(
     store: &storepkg::Store,
     input: &ResolveInboxInput,
-) -> anyhow::Result<ResolveInboxResult> {
-    let current = list_inbox(store, &input.project_id)?;
+) -> (ResolveInboxResult, Option<anyhow::Error>) {
+    let current = match list_inbox(store, &input.project_id) {
+        Ok(current) => current,
+        Err(err) => return (ResolveInboxResult::default(), Some(err)),
+    };
     let Some(item) = current.find(&input.item_id) else {
-        return Err(UnknownInboxItem(input.item_id.trim().to_string()).into());
+        return (
+            ResolveInboxResult::default(),
+            Some(UnknownInboxItem(input.item_id.trim().to_string()).into()),
+        );
     };
     if !inbox::valid_action(&item, &input.action) {
         let labels: Vec<String> = item
@@ -151,13 +162,18 @@ pub fn resolve_inbox(
             .iter()
             .map(|action| inbox::action_label(action))
             .collect();
-        return Err(inbox_input(format!(
-            "cannot {} a {} item: use {}",
-            inbox::action_label(&input.action),
-            item.kind,
-            labels.join(", ")
-        ))
-        .into());
+        return (
+            ResolveInboxResult::default(),
+            Some(
+                inbox_input(format!(
+                    "cannot {} a {} item: use {}",
+                    inbox::action_label(&input.action),
+                    item.kind,
+                    labels.join(", ")
+                ))
+                .into(),
+            ),
+        );
     }
     let mut result = ResolveInboxResult {
         item: item.clone(),
@@ -167,22 +183,25 @@ pub fn resolve_inbox(
     let actor = input.actor.trim().to_string();
 
     if input.action == inbox::ACTION_DECIDE {
-        let text = decide_text(&item, &input.answer)?;
+        let text = match decide_text(&item, &input.answer) {
+            Ok(text) => text,
+            Err(err) => return (result, Some(err.into())),
+        };
         let mut apply = input.apply.clone();
         apply.project_id = input.project_id.clone();
         apply.text = text;
         return match apply_polter(store, apply) {
             Ok(applied) => {
                 result.apply = Some(applied);
-                Ok(result)
+                (result, None)
             }
             Err(failure) => {
                 result.apply = Some(*failure.result);
-                Err(failure.error.into())
+                (result, Some(failure.error.into()))
             }
         };
     }
-    store.insert_inbox_disposition(
+    let disposition = store.insert_inbox_disposition(
         &input.project_id,
         inbox::Disposition {
             key: item.key.clone(),
@@ -191,8 +210,11 @@ pub fn resolve_inbox(
             note: String::new(),
             created_at: OffsetDateTime::now_utc(),
         },
-    )?;
-    Ok(result)
+    );
+    match disposition {
+        Ok(()) => (result, None),
+        Err(err) => (result, Some(err.into())),
+    }
 }
 
 /// The Polter text that answers a Decision item's question or decides a
@@ -348,30 +370,37 @@ stage: plan
 
         // Wrong action for the kind, and a decide without an answer, are caller
         // errors.
-        let err =
-            resolve(&blocking.id, inbox::ACTION_IGNORE, "").expect_err("ignore on a decision");
+        let (_, err) = resolve(&blocking.id, inbox::ACTION_IGNORE, "");
+        let err = err.expect("ignore on a decision");
         assert!(
             err.downcast_ref::<InboxInputError>().is_some(),
             "ignore on a decision: {err}"
         );
-        let err =
-            resolve(&blocking.id, inbox::ACTION_DECIDE, "").expect_err("decide without answer");
+        let (result, err) = resolve(&blocking.id, inbox::ACTION_DECIDE, "");
+        let err = err.expect("decide without answer");
         assert!(
             err.downcast_ref::<InboxInputError>().is_some(),
             "decide without answer: {err}"
         );
-        let err = resolve("i00000000", inbox::ACTION_DEFER, "").expect_err("unknown item");
+        // The item comes back with the caller mistake, as Go returns it.
+        assert_eq!(result.item.id, blocking.id);
+        assert_eq!(result.action, inbox::ACTION_DECIDE);
+        assert!(result.apply.is_none(), "nothing was written");
+        let (result, err) = resolve("i00000000", inbox::ACTION_DEFER, "");
+        let err = err.expect("unknown item");
         assert!(
             err.downcast_ref::<UnknownInboxItem>().is_some(),
             "unknown item: {err}"
         );
+        assert_eq!(result, ResolveInboxResult::default());
         assert_eq!(
             err.to_string(),
             "unknown inbox item: list them with polterware inbox (i00000000)"
         );
 
         // Decide writes `? text -> answer` through apply; the item closes.
-        let decided = resolve(&blocking.id, inbox::ACTION_DECIDE, "first-parent").expect("decide");
+        let (decided, err) = resolve(&blocking.id, inbox::ACTION_DECIDE, "first-parent");
+        assert!(err.is_none(), "decide: {err:?}");
         let applied = decided.apply.clone().expect("apply result");
         assert!(applied.applied, "decide: {decided:?}");
         let snapshot = store.load_work_snapshot(&project_id).expect("snapshot");
@@ -386,7 +415,8 @@ stage: plan
 
         // Delegate routes the other question to agents through status.
         let other = find_kind(store, &project_id, inbox::KIND_DECISION).expect("second decision");
-        resolve(&other.id, inbox::ACTION_DELEGATE, "").expect("delegate");
+        let (_, err) = resolve(&other.id, inbox::ACTION_DELEGATE, "");
+        assert!(err.is_none(), "delegate: {err:?}");
         let status = inbox::status_lines(&list_inbox(store, &project_id).expect("inbox"));
         assert!(
             status.contains("delegated: How many commits back?"),
@@ -407,13 +437,71 @@ stage: plan
     }
 
     #[test]
+    fn a_failed_decide_returns_the_apply_result_with_the_error() {
+        let temp = TempStore::named("work.db");
+        let store = &temp.store;
+        let project_id = seed(store);
+        let blocking = list_inbox(store, &project_id).expect("inbox").items[0].clone();
+
+        // A read-only connection still derives the Inbox, and the decide's write
+        // is refused: the apply result comes back with the error, as in Go.
+        store
+            .db
+            .execute_batch("PRAGMA query_only = ON")
+            .expect("read-only");
+        let (result, error) = resolve_inbox(
+            store,
+            &ResolveInboxInput {
+                project_id: project_id.clone(),
+                item_id: blocking.id.clone(),
+                action: inbox::ACTION_DECIDE.to_string(),
+                answer: "first-parent".to_string(),
+                actor: "desktop".to_string(),
+                apply: ApplyInput {
+                    actor_kind: agentrun::ACTOR_KIND_HUMAN.to_string(),
+                    tool: "desktop.inbox.resolve".to_string(),
+                    ..ApplyInput::default()
+                },
+            },
+        );
+        store
+            .db
+            .execute_batch("PRAGMA query_only = OFF")
+            .expect("writable");
+        assert!(error.is_some(), "the write should be refused");
+        assert_eq!(result.item.id, blocking.id);
+        assert_eq!(result.action, inbox::ACTION_DECIDE);
+        let applied = result.apply.expect("the apply result comes with the error");
+        assert!(!applied.applied, "nothing was written");
+
+        // The item is still open, so a writable store decides it.
+        let (decided, error) = resolve_inbox(
+            store,
+            &ResolveInboxInput {
+                project_id: project_id.clone(),
+                item_id: blocking.id.clone(),
+                action: inbox::ACTION_DECIDE.to_string(),
+                answer: "first-parent".to_string(),
+                actor: "desktop".to_string(),
+                apply: ApplyInput {
+                    actor_kind: agentrun::ACTOR_KIND_HUMAN.to_string(),
+                    tool: "desktop.inbox.resolve".to_string(),
+                    ..ApplyInput::default()
+                },
+            },
+        );
+        assert!(error.is_none(), "decide: {error:?}");
+        assert!(decided.apply.expect("apply result").applied);
+    }
+
+    #[test]
     fn inbox_defer() {
         let temp = TempStore::named("work.db");
         let store = &temp.store;
         let project_id = seed(store);
         let listed = list_inbox(store, &project_id).expect("inbox");
         let blocking = listed.items[0].clone();
-        resolve_inbox(
+        let (resolved, err) = resolve_inbox(
             store,
             &ResolveInboxInput {
                 project_id: project_id.clone(),
@@ -422,8 +510,9 @@ stage: plan
                 actor: "desktop".to_string(),
                 ..ResolveInboxInput::default()
             },
-        )
-        .expect("defer");
+        );
+        assert!(err.is_none(), "defer: {err:?}");
+        assert_eq!(resolved.item.id, blocking.id);
 
         let listed = list_inbox(store, &project_id).expect("inbox");
         assert_eq!(
