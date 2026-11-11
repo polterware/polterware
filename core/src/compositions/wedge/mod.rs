@@ -1,1 +1,43 @@
 //! Port of `backend/compositions/wedge`.
+
+mod audited;
+mod brief;
+mod canvas_query;
+mod commits;
+mod context;
+mod deploys;
+mod export;
+mod feature;
+mod handoff;
+mod inbox;
+mod init;
+mod path;
+mod repos;
+mod scope;
+mod session;
+mod sessions;
+mod show;
+mod structure;
+mod structure_history;
+mod work;
+
+pub use audited::*;
+pub use brief::*;
+pub use canvas_query::*;
+pub use commits::*;
+pub use context::*;
+pub use deploys::*;
+pub use export::*;
+pub use feature::*;
+pub use handoff::*;
+pub use inbox::*;
+pub use init::*;
+pub use path::*;
+pub use repos::*;
+pub use scope::*;
+pub use session::*;
+pub use sessions::*;
+pub use show::*;
+pub use structure::*;
+pub use structure_history::*;
+pub use work::*;
