@@ -11,7 +11,7 @@ use rusqlite::Connection;
 
 pub use hooks::{
     ChangeRecorder, PendingTx, SQLITE_DELETE, change_recorder, load_project_columns,
-    project_column_index, row_project_id, set_change_recorder,
+    project_column_index, register_hooks, row_project_id, set_change_recorder,
 };
 pub use migrate::{applied_versions, migrate, migration_versions};
 
@@ -35,7 +35,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Opens the SQLite store at `path` with the core's pragmas: foreign keys on,
 /// WAL journaling, and a five-second busy timeout. `:memory:` opens a private
-/// in-memory database.
+/// in-memory database. The connection tracks the writes committed on it for the
+/// change bus (`register_hooks`).
 pub fn open(path: impl AsRef<Path>) -> Result<Connection> {
     let path = path.as_ref();
     if path != Path::new(":memory:")
@@ -54,6 +55,7 @@ pub fn open(path: impl AsRef<Path>) -> Result<Connection> {
     conn.execute_batch(
         "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;",
     )?;
+    register_hooks(&conn);
     Ok(conn)
 }
 

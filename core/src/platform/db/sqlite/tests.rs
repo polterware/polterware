@@ -12,6 +12,10 @@ use super::*;
 /// What the change recorder received: written tables and project ids.
 type Recordings = Arc<Mutex<Vec<(Vec<String>, Vec<String>)>>>;
 
+/// Serializes the tests that install the process-wide change recorder, so one
+/// does not clear another's while it runs.
+static RECORDER_LOCK: Mutex<()> = Mutex::new(());
+
 fn migration_body(name: &str) -> &'static str {
     MIGRATIONS
         .iter()
@@ -661,6 +665,9 @@ fn entity_contexts_migration() {
 
 #[test]
 fn pending_tx_records_committed_tables_and_projects() {
+    let _guard = RECORDER_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let mut db = open(":memory:").expect("open");
     migrate(&mut db).expect("migrate");
     load_project_columns(&db).expect("load project columns");
@@ -704,20 +711,80 @@ fn pending_tx_records_committed_tables_and_projects() {
 
     set_change_recorder(None);
     let seen = seen.lock().expect("recorder sink");
-    assert_eq!(seen.len(), 1);
-    assert_eq!(
-        seen[0].0,
-        vec!["work_cards".to_string(), "work_tasks".to_string()]
+    let recorded = (
+        vec!["work_cards".to_string(), "work_tasks".to_string()],
+        vec!["proj-a".to_string()],
     );
-    assert_eq!(seen[0].1, vec!["proj-a".to_string()]);
+    assert!(seen.contains(&recorded), "recording missing: {seen:?}");
 }
 
 #[test]
 fn pending_tx_records_nothing_without_a_recorder() {
+    let _guard = RECORDER_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let mut db = open(":memory:").expect("open");
     migrate(&mut db).expect("migrate");
     set_change_recorder(None);
     let mut tx = PendingTx::new();
     tx.pre_update("main", "work_cards", Some("proj-a"));
     assert!(!tx.commit());
+}
+
+#[test]
+fn open_registers_the_change_hooks() {
+    let _guard = RECORDER_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
+    let mut db = open(":memory:").expect("open");
+    migrate(&mut db).expect("migrate");
+    load_project_columns(&db).expect("load project columns");
+    db.execute_batch(
+        "INSERT INTO projects(id,name,created_at,updated_at,status,archived_at)
+            VALUES('proj-hook','Hook','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','active','');
+         INSERT INTO projects(id,name,created_at,updated_at,status,archived_at)
+            VALUES('proj-rollback','Rollback','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','active','');",
+    )
+    .expect("projects");
+
+    let seen: Recordings = Arc::new(Mutex::new(Vec::new()));
+    let sink = Arc::clone(&seen);
+    set_change_recorder(Some(Arc::new(move |tables, projects| {
+        sink.lock()
+            .expect("recorder sink")
+            .push((tables.to_vec(), projects.to_vec()));
+    })));
+
+    db.execute(
+        "INSERT INTO knowledge_items(id,project_id,title,body,kind,doc_type,created_at,updated_at)
+            VALUES('row','proj-hook','Title','Body','doc','doc','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')",
+        [],
+    )
+    .expect("insert");
+    // A rolled-back transaction records nothing.
+    {
+        let tx = db.unchecked_transaction().expect("begin");
+        tx.execute(
+            "INSERT INTO knowledge_items(id,project_id,title,body,kind,doc_type,created_at,updated_at)
+                VALUES('gone','proj-rollback','Title','Body','doc','doc','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')",
+            [],
+        )
+        .expect("insert");
+    }
+    set_change_recorder(None);
+
+    let seen = seen.lock().expect("recorder sink");
+    assert!(
+        seen.iter().any(
+            |(tables, projects)| tables.iter().any(|table| table == "knowledge_items")
+                && projects.iter().any(|project| project == "proj-hook")
+        ),
+        "the commit hook did not record the write: {seen:?}"
+    );
+    assert!(
+        !seen
+            .iter()
+            .any(|(_, projects)| projects.iter().any(|project| project == "proj-rollback")),
+        "a rolled back write was recorded: {seen:?}"
+    );
 }

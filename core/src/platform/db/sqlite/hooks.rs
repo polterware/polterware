@@ -1,12 +1,11 @@
 //! Change tracking for the change bus (Decision 0007).
 //!
-//! The Go package installs a process-wide connection hook that collects, per
-//! connection, the tables a transaction wrote and the project ids found in the
-//! written rows, then calls a [`ChangeRecorder`] once per commit. rusqlite only
-//! exposes SQLite's pre-update, commit, and rollback hooks with its `hooks`
-//! feature, which the crate's manifest does not enable, so the accumulation
-//! lives in [`PendingTx`]: the store layer feeds it each written row
-//! (`pre_update`) and calls `commit`/`reset` with the transaction.
+//! Each connection opened by [`super::open`] registers SQLite's pre-update,
+//! commit, and rollback hooks ([`register_hooks`]). The pre-update hook
+//! accumulates, per connection, the tables a transaction wrote and the project
+//! ids found in the written rows; the commit hook calls a [`ChangeRecorder`]
+//! once per commit, before the commit is visible to other connections; the
+//! rollback hook drops what the rolled-back transaction recorded.
 //!
 //! [`PendingTx::pre_update`] and [`load_project_columns`] keep the Go behavior:
 //! only the `main` database counts, `schema_migrations` is ignored, and the
@@ -16,6 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 use rusqlite::Connection;
+use rusqlite::hooks::PreUpdateCase;
 
 use super::Result;
 
@@ -149,4 +149,44 @@ impl PendingTx {
         self.tables.clear();
         self.projects.clear();
     }
+}
+
+/// Registers the change-tracking hooks on one connection, as the Go package's
+/// connection hook does for every connection of the process.
+pub fn register_hooks(conn: &Connection) {
+    let pending = Arc::new(Mutex::new(PendingTx::new()));
+
+    let pre_update = Arc::clone(&pending);
+    conn.preupdate_hook(Some(
+        move |_action, database_name: &str, table_name: &str, case: &PreUpdateCase| {
+            let project_id = case_project_id(table_name, case);
+            guard(&pre_update).pre_update(database_name, table_name, project_id.as_deref());
+        },
+    ));
+
+    let commit = Arc::clone(&pending);
+    conn.commit_hook(Some(move || {
+        guard(&commit).commit();
+        // The recorder only records; it never rolls the commit back.
+        false
+    }));
+
+    let rollback = Arc::clone(&pending);
+    conn.rollback_hook(Some(move || guard(&rollback).reset()));
+}
+
+/// Reads the project id column of the written row, when the table has one
+/// (`projects.id` counts as the project id of that row). Delete reads the old
+/// row; an insert or an update reads the new one.
+fn case_project_id(table: &str, case: &PreUpdateCase) -> Option<String> {
+    let index = i32::try_from(project_column_index(table)?).ok()?;
+    let value = match case {
+        PreUpdateCase::Insert(accessor) => accessor.get_new_column_value(index).ok()?,
+        PreUpdateCase::Delete(accessor) => accessor.get_old_column_value(index).ok()?,
+        PreUpdateCase::Update {
+            new_value_accessor, ..
+        } => new_value_accessor.get_new_column_value(index).ok()?,
+        PreUpdateCase::Unknown => return None,
+    };
+    value.as_str().ok().map(str::to_owned)
 }
