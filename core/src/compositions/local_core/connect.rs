@@ -13,20 +13,25 @@
 //! the generated files.
 //!
 //! The HTTP layer is axum. A server-stream handler produces its messages into a
-//! [`StreamSender`]; today the frames are collected and sent when the handler
-//! returns, because `axum::body::Body::from_stream` needs a `futures_core`
-//! `Stream`, which `core/Cargo.toml` does not depend on (see the report). The
-//! `StreamSender` shape is the one incremental delivery will keep.
+//! [`StreamSender`] that another thread drains while it runs: each message
+//! becomes one envelope as the handler sends it, so the client reads the
+//! messages while the stream is open, as connect-go delivers them. The
+//! end-of-stream envelope is the last frame, written after the handler
+//! returns. Dropping the response (a client that leaves) closes the channel,
+//! so the handler's next send fails and it unwinds.
 
+use std::pin::Pin;
 use std::sync::Arc;
 
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
+use futures_util::stream::{self, Stream, StreamExt};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use tokio::sync::mpsc;
+use tokio::sync::mpsc::error::{SendError, TrySendError};
+use tokio::sync::{mpsc, oneshot};
 
 use super::lifecycle::client_of;
 use super::server::Core;
@@ -220,21 +225,71 @@ impl<Req> ConnectRequest<Req> {
     }
 }
 
-/// Where a server-stream handler sends its messages.
-pub type StreamSender<T> = mpsc::Sender<T>;
+/// Where a server-stream handler sends its messages. A handler that runs long
+/// (a change watch) keeps the handle and sends each message as it happens; it
+/// stops when [`StreamSender::is_closed`] turns true, after the client left.
+pub struct StreamSender<T> {
+    sender: mpsc::Sender<T>,
+}
 
-/// A server stream's frames, already enveloped, in order.
+impl<T> StreamSender<T> {
+    fn new(sender: mpsc::Sender<T>) -> StreamSender<T> {
+        StreamSender { sender }
+    }
+
+    /// Sends without waiting for room; the error says why the message was not
+    /// queued.
+    pub fn try_send(&self, message: T) -> Result<(), TrySendError<T>> {
+        self.sender.try_send(message)
+    }
+
+    /// Waits for room and sends. A handler that must not drop an event uses it.
+    pub fn blocking_send(&self, message: T) -> Result<(), SendError<T>> {
+        self.sender.blocking_send(message)
+    }
+
+    /// Whether the client is gone: the response was dropped, so nothing reads
+    /// the stream any more.
+    pub fn is_closed(&self) -> bool {
+        self.sender.is_closed()
+    }
+}
+
+impl<T> Clone for StreamSender<T> {
+    fn clone(&self) -> StreamSender<T> {
+        StreamSender {
+            sender: self.sender.clone(),
+        }
+    }
+}
+
+/// A server stream in flight: its envelopes, in order, as the handler writes
+/// them. The end-of-stream envelope is always the last frame.
 pub struct StreamBody {
-    pub frames: Vec<Vec<u8>>,
+    pub frames: Pin<Box<dyn Stream<Item = Vec<u8>> + Send>>,
+}
+
+impl StreamBody {
+    /// A stream that answers one end-of-stream envelope carrying `error`, for a
+    /// call that failed before its handler ran.
+    pub fn failed(error: ConnectError) -> StreamBody {
+        StreamBody::one(end_stream(Some(&error)))
+    }
+
+    /// A stream of one frame.
+    fn one(frame: Vec<u8>) -> StreamBody {
+        StreamBody {
+            frames: Box::pin(stream::iter(vec![frame])),
+        }
+    }
 }
 
 /// A unary handler: the JSON request body in, the JSON response body out.
 pub type UnaryHandler =
     Arc<dyn Fn(Arc<Core>, &[u8], &HeaderMap) -> Result<Vec<u8>, ConnectError> + Send + Sync>;
 
-/// A server-stream handler: the JSON request body in, the enveloped frames out.
-pub type StreamHandler =
-    Arc<dyn Fn(Arc<Core>, &[u8], &HeaderMap) -> Result<StreamBody, ConnectError> + Send + Sync>;
+/// A server-stream handler: the JSON request body in, the stream out.
+pub type StreamHandler = Arc<dyn Fn(Arc<Core>, &[u8], &HeaderMap) -> StreamBody + Send + Sync>;
 
 /// One route of one service.
 #[derive(Clone)]
@@ -314,7 +369,12 @@ where
 }
 
 /// Wraps a typed server-stream handler: every message it sends becomes one
-/// envelope, and the stream ends with Connect's end-of-stream message.
+/// envelope, written as soon as it is sent, and the stream ends with Connect's
+/// end-of-stream message once the handler returns.
+///
+/// The handler runs on its own thread because it may block between messages
+/// (a watch waits for the next change). The frames are read while it runs, so
+/// nothing waits for it to finish.
 pub fn server_stream<Req, Res, F>(handler: F) -> StreamHandler
 where
     Req: DeserializeOwned + Default + Send + 'static,
@@ -324,37 +384,93 @@ where
         + Sync
         + 'static,
 {
+    let handler = Arc::new(handler);
     Arc::new(
-        move |core: Arc<Core>,
-              body: &[u8],
-              headers: &HeaderMap|
-              -> Result<StreamBody, ConnectError> {
-            let payload = decode_stream_request(body)?;
+        move |core: Arc<Core>, body: &[u8], headers: &HeaderMap| -> StreamBody {
+            let payload = match decode_stream_request(body) {
+                Ok(payload) => payload.to_vec(),
+                Err(err) => return StreamBody::failed(err),
+            };
             let message: Req = if payload.is_empty() {
                 Req::default()
             } else {
-                decode(payload)?
+                match decode(&payload) {
+                    Ok(message) => message,
+                    Err(err) => return StreamBody::failed(err),
+                }
             };
-            let (sender, mut receiver) = mpsc::channel(STREAM_BUFFER);
-            let result = handler(
-                core,
-                ConnectRequest {
-                    headers: headers.clone(),
-                    message,
-                },
-                sender,
-            );
-            let mut frames = Vec::new();
-            while let Ok(message) = receiver.try_recv() {
-                frames.push(envelope(0, &encode(&message)?));
+            let (sender, messages) = mpsc::channel(STREAM_BUFFER);
+            let sender = StreamSender::new(sender);
+            let (done, finished) = oneshot::channel();
+            let handler = Arc::clone(&handler);
+            let request = ConnectRequest {
+                headers: headers.clone(),
+                message,
+            };
+            let spawned = std::thread::Builder::new()
+                .name("connect-stream".to_string())
+                .spawn(move || {
+                    let result = handler(core, request, sender);
+                    // The client may have left; the result is then dropped.
+                    let _ = done.send(result);
+                });
+            if let Err(err) = spawned {
+                return StreamBody::failed(ConnectError::internal(format!(
+                    "start stream handler: {err}"
+                )));
             }
-            match result {
-                Ok(()) => frames.push(end_stream(None)),
-                Err(err) => frames.push(end_stream(Some(&err))),
+            StreamBody {
+                frames: Box::pin(frames(messages, finished)),
             }
-            Ok(StreamBody { frames })
         },
     )
+}
+
+/// The stream's frames: one envelope per message, then the end-of-stream frame
+/// carrying what the handler returned.
+fn frames<Res>(
+    messages: mpsc::Receiver<Res>,
+    finished: oneshot::Receiver<Result<(), ConnectError>>,
+) -> impl Stream<Item = Vec<u8>> + Send
+where
+    Res: Serialize + Send + 'static,
+{
+    /// The channel is done once the handler stopped; the end frame follows.
+    enum State<Res> {
+        Open {
+            messages: mpsc::Receiver<Res>,
+            finished: oneshot::Receiver<Result<(), ConnectError>>,
+        },
+        Ended,
+    }
+
+    stream::unfold(State::Open { messages, finished }, |state| async move {
+        let (mut messages, finished) = match state {
+            State::Open { messages, finished } => (messages, finished),
+            State::Ended => return None,
+        };
+        match messages.recv().await {
+            Some(message) => {
+                let frame = match encode(&message) {
+                    Ok(payload) => envelope(0, &payload),
+                    Err(err) => return Some((end_stream(Some(&err)), State::Ended)),
+                };
+                Some((frame, State::Open { messages, finished }))
+            }
+            None => {
+                let result = finished.await.unwrap_or_else(|_| {
+                    Err(ConnectError::internal(
+                        "stream handler ended without a result",
+                    ))
+                });
+                let frame = match result {
+                    Ok(()) => end_stream(None),
+                    Err(err) => end_stream(Some(&err)),
+                };
+                Some((frame, State::Ended))
+            }
+        }
+    })
 }
 
 /// A Connect envelope: the flag byte, the length as a big-endian `u32`, and the
@@ -772,24 +888,13 @@ async fn serve(core: Arc<Core>, route: Arc<Route>, request: Request) -> Response
             if route.auth
                 && let Err(err) = authorize(&core, &headers)
             {
-                return stream_response(&StreamBody {
-                    frames: vec![end_stream(Some(&err))],
-                });
+                return stream_response(StreamBody::failed(err));
             }
             let body = match read_body(request).await {
                 Ok(body) => body,
-                Err(err) => {
-                    return stream_response(&StreamBody {
-                        frames: vec![end_stream(Some(&err))],
-                    });
-                }
+                Err(err) => return stream_response(StreamBody::failed(err)),
             };
-            match handler(core, &body, &headers) {
-                Ok(frames) => stream_response(&frames),
-                Err(err) => stream_response(&StreamBody {
-                    frames: vec![end_stream(Some(&err))],
-                }),
-            }
+            stream_response(handler(core, &body, &headers))
         }
     }
 }
@@ -824,20 +929,18 @@ fn unsupported(accept_post: &'static str) -> Response {
     response
 }
 
-/// A server stream's answer: the enveloped frames.
-fn stream_response(body: &StreamBody) -> Response {
-    let mut bytes = Vec::new();
-    for frame in &body.frames {
-        bytes.extend_from_slice(frame);
-    }
-    let mut response = Response::new(Body::from(bytes));
+/// A server stream's answer: the frames as the handler produces them, with the
+/// end-of-stream frame last.
+fn stream_response(body: StreamBody) -> Response {
+    let frames = body.frames.map(Ok::<Vec<u8>, std::io::Error>);
+    let mut response = Response::new(Body::from_stream(frames));
     let out = response.headers_mut();
     out.insert(
         header::CONTENT_TYPE,
         HeaderValue::from_static(CONNECT_JSON_CONTENT_TYPE),
     );
     out.insert(
-        header::HeaderName::from_static("connect-accept-encoding"),
+        axum::http::HeaderName::from_static("connect-accept-encoding"),
         HeaderValue::from_static(ACCEPT_ENCODING),
     );
     response
@@ -847,6 +950,7 @@ fn stream_response(body: &StreamBody) -> Response {
 mod tests {
     use super::*;
     use crate::local_v1;
+    use std::time::Duration;
 
     #[test]
     fn codes_carry_connect_names_and_statuses() {
@@ -1002,6 +1106,83 @@ mod tests {
         );
         assert_eq!(decode_stream_request(&[]).unwrap(), b"");
         assert!(decode_stream_request(&[0, 0]).is_err());
+    }
+
+    fn runtime() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("runtime")
+    }
+
+    fn watch_message(seq: i64) -> local_v1::WatchChangesResponse {
+        local_v1::WatchChangesResponse {
+            seq,
+            ..local_v1::WatchChangesResponse::default()
+        }
+    }
+
+    #[test]
+    fn a_stream_yields_each_message_before_the_handler_finishes() {
+        let runtime = runtime();
+        let (sender, receiver) = mpsc::channel(8);
+        let (done, finished) = oneshot::channel();
+        let mut stream = Box::pin(frames(receiver, finished));
+
+        let sender = StreamSender::new(sender);
+        sender.try_send(watch_message(1)).expect("room for one");
+        let first = runtime
+            .block_on(stream.next())
+            .expect("a frame while the handler still runs");
+        let length = u32::from_be_bytes([first[1], first[2], first[3], first[4]]) as usize;
+        assert_eq!(first[0], 0);
+        assert_eq!(
+            std::str::from_utf8(&first[5..5 + length]).unwrap(),
+            r#"{"seq":"1"}"#
+        );
+
+        // Nothing else is written while the handler keeps its end open.
+        let waiting = runtime.block_on(async {
+            tokio::time::timeout(Duration::from_millis(50), stream.next()).await
+        });
+        assert!(
+            waiting.is_err(),
+            "the stream waited for the handler, as it must"
+        );
+
+        drop(sender);
+        done.send(Ok(())).expect("the stream is still read");
+        let last = runtime.block_on(stream.next()).expect("an end stream");
+        assert_eq!(last, end_stream(None));
+        assert!(
+            runtime.block_on(stream.next()).is_none(),
+            "nothing after the end"
+        );
+    }
+
+    #[test]
+    fn a_stream_ends_with_the_error_its_handler_returned() {
+        let runtime = runtime();
+        let (sender, receiver) = mpsc::channel::<local_v1::WatchChangesResponse>(8);
+        let (done, finished) = oneshot::channel();
+        let mut stream = Box::pin(frames(receiver, finished));
+
+        let sender = StreamSender::new(sender);
+        sender.try_send(watch_message(2)).expect("room for one");
+        drop(sender);
+        done.send(Err(ConnectError::invalid("watch refused")))
+            .expect("the stream is still read");
+
+        let first = runtime.block_on(stream.next()).expect("the message");
+        assert_eq!(first[0], 0);
+        let last = runtime.block_on(stream.next()).expect("an end stream");
+        assert_eq!(last[0], END_STREAM_FLAG);
+        let length = u32::from_be_bytes([last[1], last[2], last[3], last[4]]) as usize;
+        assert_eq!(
+            std::str::from_utf8(&last[5..5 + length]).unwrap(),
+            r#"{"error":{"code":"invalid_argument","message":"watch refused"}}"#
+        );
+        assert!(runtime.block_on(stream.next()).is_none());
     }
 
     #[test]

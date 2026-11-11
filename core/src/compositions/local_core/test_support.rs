@@ -4,13 +4,14 @@
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::Value;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
 
-use super::server::{Core, Server, listen, serve_connect};
+use super::connect::Route;
+use super::server::{Core, Server, listen, serve_routes};
 use crate::providers::sqlite::Store;
 
 /// The tests install the process-wide change recorder, so one core runs at a
@@ -34,6 +35,12 @@ pub struct Harness {
 impl Harness {
     /// Starts a core and serves it on an ephemeral loopback port.
     pub fn start() -> Harness {
+        Harness::start_with(super::routes())
+    }
+
+    /// Starts a core and serves an explicit route table, so a test can stand a
+    /// handler in for one it does not own.
+    pub fn start_with(routes: Vec<Route>) -> Harness {
         let one = ONE_CORE.lock().unwrap_or_else(|poison| poison.into_inner());
         let dir = tempfile::tempdir().expect("temp dir");
         let store = Store::new(dir.path().join("core.db")).expect("open store");
@@ -47,7 +54,7 @@ impl Harness {
             .expect("runtime");
         let server = {
             let _entered = runtime.enter();
-            serve_connect(listener, Arc::clone(&core))
+            serve_routes(listener, Arc::clone(&core), routes)
         };
         Harness {
             core,
@@ -79,11 +86,7 @@ impl Harness {
         content_type: Option<&str>,
         body: &[u8],
     ) -> Reply {
-        let address = self
-            .endpoint
-            .strip_prefix("http://")
-            .unwrap_or(&self.endpoint)
-            .to_string();
+        let address = self.address();
         let mut stream = TcpStream::connect(&address).expect("connect to the core");
         stream
             .set_read_timeout(Some(Duration::from_secs(10)))
@@ -91,6 +94,63 @@ impl Harness {
         stream
             .set_write_timeout(Some(Duration::from_secs(10)))
             .expect("write timeout");
+        let head = Self::head(method, path, &address, token, content_type, body.len());
+        stream.write_all(head.as_bytes()).expect("write head");
+        stream.write_all(body).expect("write body");
+        let mut raw = Vec::new();
+        let _ = stream.read_to_end(&mut raw);
+        parse(&raw)
+    }
+
+    /// Opens a server stream and answers its frames while it is still open.
+    pub fn open_stream(&self, path: &str, token: Option<&str>, body: &[u8]) -> OpenStream {
+        let address = self.address();
+        let mut stream = TcpStream::connect(&address).expect("connect to the core");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(10)))
+            .expect("read timeout");
+        stream
+            .set_write_timeout(Some(Duration::from_secs(10)))
+            .expect("write timeout");
+        let head = Self::head(
+            "POST",
+            path,
+            &address,
+            token,
+            Some("application/connect+json"),
+            body.len(),
+        );
+        stream.write_all(head.as_bytes()).expect("write head");
+        stream.write_all(body).expect("write body");
+        let mut raw = Vec::new();
+        loop {
+            if let Some(split) = raw.windows(4).position(|window| window == b"\r\n\r\n") {
+                let head = String::from_utf8_lossy(&raw[..split]).into_owned();
+                let rest = raw[split + 4..].to_vec();
+                return OpenStream::new(stream, &head, rest);
+            }
+            let mut buffer = [0u8; 4096];
+            let count = stream.read(&mut buffer).expect("read the response head");
+            assert!(count > 0, "the core closed before its response head");
+            raw.extend_from_slice(&buffer[..count]);
+        }
+    }
+
+    fn address(&self) -> String {
+        self.endpoint
+            .strip_prefix("http://")
+            .unwrap_or(&self.endpoint)
+            .to_string()
+    }
+
+    fn head(
+        method: &str,
+        path: &str,
+        address: &str,
+        token: Option<&str>,
+        content_type: Option<&str>,
+        length: usize,
+    ) -> String {
         let mut head =
             format!("{method} {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n");
         if let Some(token) = token {
@@ -99,12 +159,8 @@ impl Harness {
         if let Some(content_type) = content_type {
             head.push_str(&format!("Content-Type: {content_type}\r\n"));
         }
-        head.push_str(&format!("Content-Length: {}\r\n\r\n", body.len()));
-        stream.write_all(head.as_bytes()).expect("write head");
-        stream.write_all(body).expect("write body");
-        let mut raw = Vec::new();
-        let _ = stream.read_to_end(&mut raw);
-        parse(&raw)
+        head.push_str(&format!("Content-Length: {length}\r\n\r\n"));
+        head
     }
 
     /// Waits until the core reports that it stopped, or `limit` passes.
@@ -249,6 +305,150 @@ fn dechunk(body: &[u8]) -> Vec<u8> {
         rest = &rest[(size + 2).min(rest.len())..];
     }
     out
+}
+
+/// A server stream read frame by frame over a real connection, so a test sees
+/// each envelope as the core writes it, before the stream ends. Dropping it
+/// closes the connection, as a client that leaves does.
+pub struct OpenStream {
+    stream: TcpStream,
+    /// Bytes read from the socket that are not yet de-chunked.
+    raw: Vec<u8>,
+    /// Body bytes that are not yet a whole Connect envelope.
+    body: Vec<u8>,
+    chunked: bool,
+    status: u16,
+    content_type: String,
+    ended: bool,
+}
+
+impl OpenStream {
+    fn new(stream: TcpStream, head: &str, rest: Vec<u8>) -> OpenStream {
+        let mut status = 0;
+        let mut content_type = String::new();
+        let mut chunked = false;
+        for (index, line) in head.split("\r\n").enumerate() {
+            if index == 0 {
+                status = line
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|value| value.parse().ok())
+                    .unwrap_or(0);
+                continue;
+            }
+            let Some((name, value)) = line.split_once(':') else {
+                continue;
+            };
+            match name.trim().to_ascii_lowercase().as_str() {
+                "content-type" => content_type = value.trim().to_string(),
+                "transfer-encoding" => chunked = value.trim().eq_ignore_ascii_case("chunked"),
+                _ => {}
+            }
+        }
+        let mut open = OpenStream {
+            stream,
+            raw: Vec::new(),
+            body: Vec::new(),
+            chunked,
+            status,
+            content_type,
+            ended: false,
+        };
+        if chunked {
+            open.raw = rest;
+            open.decode();
+        } else {
+            open.body = rest;
+        }
+        open
+    }
+
+    /// The response status.
+    pub fn status(&self) -> u16 {
+        self.status
+    }
+
+    /// The response content type.
+    pub fn content_type(&self) -> &str {
+        &self.content_type
+    }
+
+    /// The next envelope, waiting at most `limit` for it; `None` once the
+    /// stream ended or the wait passed.
+    pub fn next_frame(&mut self, limit: Duration) -> Option<(u8, Vec<u8>)> {
+        let deadline = Instant::now() + limit;
+        loop {
+            if let Some(frame) = take_frame(&mut self.body) {
+                return Some(frame);
+            }
+            if self.ended {
+                return None;
+            }
+            let now = Instant::now();
+            if now >= deadline {
+                return None;
+            }
+            self.stream.set_read_timeout(Some(deadline - now)).ok()?;
+            let mut buffer = [0u8; 4096];
+            match self.stream.read(&mut buffer) {
+                Ok(0) => self.ended = true,
+                Ok(count) => {
+                    if self.chunked {
+                        self.raw.extend_from_slice(&buffer[..count]);
+                        self.decode();
+                    } else {
+                        self.body.extend_from_slice(&buffer[..count]);
+                    }
+                }
+                Err(err)
+                    if matches!(
+                        err.kind(),
+                        std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                    ) =>
+                {
+                    return None;
+                }
+                Err(_) => self.ended = true,
+            }
+        }
+    }
+
+    /// Moves every whole chunk in `raw` into `body`.
+    fn decode(&mut self) {
+        while !self.ended {
+            let Some(end) = self.raw.windows(2).position(|window| window == b"\r\n") else {
+                return;
+            };
+            let size = String::from_utf8_lossy(&self.raw[..end]).into_owned();
+            let size = usize::from_str_radix(size.trim(), 16).unwrap_or(0);
+            if size == 0 {
+                self.ended = true;
+                self.raw.clear();
+                return;
+            }
+            let start = end + 2;
+            if self.raw.len() < start + size + 2 {
+                return;
+            }
+            self.body.extend_from_slice(&self.raw[start..start + size]);
+            self.raw.drain(..start + size + 2);
+        }
+    }
+}
+
+/// One Connect envelope out of `body`, if a whole one is there.
+fn take_frame(body: &mut Vec<u8>) -> Option<(u8, Vec<u8>)> {
+    if body.len() < 5 {
+        return None;
+    }
+    let length = u32::from_be_bytes([body[1], body[2], body[3], body[4]]) as usize;
+    if body.len() < 5 + length {
+        return None;
+    }
+    let flags = body[0];
+    let payload = body[5..5 + length].to_vec();
+    body.drain(..5 + length);
+    Some((flags, payload))
 }
 
 /// A project whose only repository is cloned at `root`, as Go's

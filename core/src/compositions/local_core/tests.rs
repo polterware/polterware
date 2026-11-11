@@ -2,13 +2,15 @@
 //! checks the routes answer on, and the replay of the fixtures captured from
 //! the Go core.
 
-use std::time::Duration;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
-use super::connect::{Code, END_STREAM_FLAG};
+use super::connect::{Code, ConnectError, ConnectRequest, END_STREAM_FLAG, Route, StreamSender};
 use super::lifecycle;
-use super::server;
+use super::server::{self, Core};
 use super::test_support::{Harness, TEST_TOKEN, mask};
 use crate::local_v1;
+use crate::providers::sqlite::format_rfc3339_nano;
 
 const PROJECT_SERVICE: &str = "/polterware.local.v1.ProjectService";
 const MAINTENANCE_SERVICE: &str = "/polterware.local.v1.MaintenanceService";
@@ -346,6 +348,140 @@ fn watch(harness: &Harness, after_seq: &str) -> Vec<serde_json::Value> {
         .collect()
 }
 
+const WATCH_PATH: &str = "/polterware.local.v1.ChangeService/WatchChanges";
+
+/// Everything the package serves, with the loop `lifecycle.go` keeps open in
+/// place of the port's handler: `lifecycle::watch_changes` answers the sequence
+/// and the backlog and returns, so a test that needs a stream which stays open
+/// serves this table until that loop lands in the handler file.
+fn live_watch_routes() -> Vec<Route> {
+    let mut routes = super::routes();
+    routes.retain(|route| route.path != WATCH_PATH);
+    routes.push(Route::server_stream(WATCH_PATH, live_watch));
+    routes
+}
+
+/// The loop `lifecycle.go` keeps open: the sequence the stream starts at, the
+/// backlog after it, and then every change until the client leaves or the core
+/// stops.
+fn live_watch(
+    core: Arc<Core>,
+    request: ConnectRequest<local_v1::WatchChangesRequest>,
+    out: StreamSender<local_v1::WatchChangesResponse>,
+) -> Result<(), ConnectError> {
+    core.begin_stream();
+    let mut stopped = core.done();
+    let mut subscription = core.bus.subscribe(request.message.after_seq);
+    let send = |message: local_v1::WatchChangesResponse| -> Result<(), ConnectError> {
+        out.try_send(message).map_err(|err| {
+            ConnectError::new(Code::ResourceExhausted, format!("stream closed: {err}"))
+        })
+    };
+    let result = (|| {
+        send(local_v1::WatchChangesResponse {
+            seq: subscription.current,
+            resync: subscription.resync,
+            at: format_rfc3339_nano(time::OffsetDateTime::now_utc()),
+            ..local_v1::WatchChangesResponse::default()
+        })?;
+        for change in &subscription.backlog {
+            send(lifecycle::change_proto(change))?;
+        }
+        loop {
+            if out.is_closed() || *stopped.borrow() {
+                return Ok(());
+            }
+            if let Some(change) = subscription.recv_timeout(Duration::from_millis(20)) {
+                send(lifecycle::change_proto(&change))?;
+            }
+        }
+    })();
+    subscription.cancel();
+    core.end_stream();
+    result
+}
+
+#[test]
+fn a_watch_stream_pushes_a_change_before_it_ends() {
+    let harness = Harness::start_with(live_watch_routes());
+    let body = super::connect::envelope(0, br#"{"afterSeq":"0"}"#);
+    let mut stream = harness.open_stream(WATCH_PATH, Some(TEST_TOKEN), &body);
+    assert_eq!(stream.status(), 200);
+    assert_eq!(stream.content_type(), "application/connect+json");
+
+    let (flags, payload) = stream
+        .next_frame(Duration::from_secs(5))
+        .expect("the stream answers its first message while it is open");
+    assert_eq!(flags, 0, "the first frame carries a message, not the end");
+    let first: serde_json::Value = serde_json::from_slice(&payload).expect("JSON");
+    assert!(first["at"].is_string(), "{first}");
+
+    // A write on another connection becomes an event the open stream pushes.
+    let save = harness.unary(
+        &format!("{PROJECT_SERVICE}/SaveProject"),
+        Some(TEST_TOKEN),
+        r#"{"project":{"id":"proj-live","name":"Live"}}"#,
+    );
+    assert_eq!(save.status, 200, "{}", save.text());
+    harness.core.bus.flush();
+
+    let change = loop {
+        let (flags, payload) = stream
+            .next_frame(Duration::from_secs(5))
+            .expect("a change arrives while the stream is open");
+        assert_eq!(flags, 0, "the stream must not end before the change");
+        let value: serde_json::Value = serde_json::from_slice(&payload).expect("JSON");
+        if value["kinds"]
+            .as_array()
+            .is_some_and(|kinds| kinds.iter().any(|kind| kind == "projects"))
+        {
+            break value;
+        }
+    };
+    assert!(
+        change["origins"]
+            .as_array()
+            .is_some_and(|origins| origins.iter().any(|origin| origin == "desktop")),
+        "a Desktop write is named as its origin: {change}"
+    );
+
+    // Stopping the core ends the handler; the end-of-stream frame comes last.
+    harness.core.stop();
+    let mut last = None;
+    while let Some(frame) = stream.next_frame(Duration::from_secs(5)) {
+        last = Some(frame);
+    }
+    let (flags, payload) = last.expect("an end-of-stream frame");
+    assert_eq!(flags, END_STREAM_FLAG);
+    assert_eq!(payload, b"{}", "a clean end carries the empty message");
+}
+
+#[test]
+fn a_client_that_leaves_cancels_the_stream_handler() {
+    let harness = Harness::start_with(live_watch_routes());
+    let body = super::connect::envelope(0, br#"{"afterSeq":"0"}"#);
+    let mut stream = harness.open_stream(WATCH_PATH, Some(TEST_TOKEN), &body);
+    assert!(stream.next_frame(Duration::from_secs(5)).is_some());
+    assert_eq!(
+        harness.core.bus.subscribers(),
+        1,
+        "the watch subscribes to the bus"
+    );
+
+    drop(stream);
+
+    // The response is gone, so the handler sees its stream closed and returns.
+    let started = Instant::now();
+    while harness.core.bus.subscribers() > 0 && started.elapsed() < Duration::from_secs(3) {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert_eq!(
+        harness.core.bus.subscribers(),
+        0,
+        "a client that leaves must cancel its handler"
+    );
+}
+
 #[test]
 fn the_package_routes_every_service_method_once() {
     let routes = super::routes();
@@ -519,8 +655,9 @@ fn fixtures_captured_from_the_go_core_replay_against_this_one() {
                     String::from_utf8_lossy(payload)
                 );
             }
-            // The Go core held its stream open for the live changes; the port
-            // ends it, because a response cannot be delivered while it runs yet.
+            // The Go core held its stream open for the live changes; the
+            // handler still answers the backlog and returns, so the stream ends
+            // after the frames the fixtures captured.
             for (flags, _) in &got[frames.len()..] {
                 assert_eq!(
                     *flags, END_STREAM_FLAG,
