@@ -10,7 +10,7 @@ use crate::domains::agentrun;
 use crate::domains::canon;
 use crate::domains::inbox;
 use crate::local_v1;
-use crate::providers::sqlite::{self, SCOPE_ITEM, Store};
+use crate::providers::sqlite::{self, SCOPE_ITEM};
 
 use super::connect::{Code, ConnectError, ConnectRequest, Route};
 use super::lifecycle::client_of;
@@ -100,10 +100,10 @@ pub fn resolve_inbox_item(
         in_.apply.tool = "polter.inbox".to_string();
     }
     let store = core.store();
-    let result = match wedge::resolve_inbox(&store, &in_) {
-        Ok(result) => result,
-        Err(err) => return Err(resolve_inbox_error(&store, &in_, err)),
-    };
+    let (result, error) = wedge::resolve_inbox(&store, &in_);
+    if let Some(err) = error {
+        return Err(resolve_inbox_error(err, &result));
+    }
     let mut out = local_v1::ResolveInboxItemResponse {
         item: Some(inbox_item_proto(&result.item)),
         action: result.action.clone(),
@@ -121,12 +121,9 @@ pub fn resolve_inbox_item(
 /// Maps a failed resolve, as `ResolveInboxItem` maps it: an unknown item is
 /// NotFound, a caller mistake or a refused canon write InvalidArgument, refused
 /// Polter text InvalidArgument with its diagnostics, and the rest as the
-/// audited write maps them.
-fn resolve_inbox_error(
-    store: &Store,
-    in_: &wedge::ResolveInboxInput,
-    err: anyhow::Error,
-) -> ConnectError {
+/// audited write maps them. The result the resolve returned alongside the error
+/// carries the refused decide's diagnostics.
+fn resolve_inbox_error(err: anyhow::Error, result: &wedge::ResolveInboxResult) -> ConnectError {
     if err.downcast_ref::<wedge::UnknownInboxItem>().is_some() {
         return ConnectError::new(Code::NotFound, err.to_string());
     }
@@ -136,13 +133,12 @@ fn resolve_inbox_error(
     if let Some(failure) = err.downcast_ref::<wedge::Error>() {
         match failure {
             wedge::Error::PolterInvalid => {
-                // Go reports the refused decide's diagnostics; this wedge port
-                // returns only the sentinel, so the refused write is rebuilt to
-                // read them back (invalid text writes nothing).
-                return match refused_decide(store, in_) {
-                    Some(result) => invalid_polter(&result.diagnostics),
-                    None => invalid_polter(&[]),
-                };
+                // Go reports the refused write's diagnostics, and only when the
+                // apply result came back with the error.
+                if let Some(applied) = &result.apply {
+                    return invalid_polter(&applied.diagnostics);
+                }
+                return map_apply_err(failure);
             }
             wedge::Error::Sqlite(inner) => return map_sqlite_err(inner),
             other => return map_apply_err(other),
@@ -166,24 +162,6 @@ fn is_canon_input_refusal(err: &sqlite::Error) -> bool {
         err,
         sqlite::Error::Canon(canon::Error::VerifiedRequiresActor | canon::Error::UnknownFact)
     )
-}
-
-/// Rebuilds the decide a refused resolve attempted, to read the diagnostics the
-/// apply result carried in Go.
-fn refused_decide(store: &Store, in_: &wedge::ResolveInboxInput) -> Option<wedge::ApplyResult> {
-    if in_.action != inbox::ACTION_DECIDE {
-        return None;
-    }
-    let current = wedge::list_inbox(store, &in_.project_id).ok()?;
-    let item = current.find(&in_.item_id)?;
-    let text = wedge::decide_text(&item, &in_.answer).ok()?;
-    let mut apply = in_.apply.clone();
-    apply.project_id = in_.project_id.clone();
-    apply.text = text;
-    match wedge::apply_polter(store, apply) {
-        Ok(result) => Some(result),
-        Err(failure) => Some(*failure.result),
-    }
 }
 
 fn inbox_item_proto(item: &inbox::Item) -> local_v1::InboxItem {
@@ -211,12 +189,45 @@ mod tests {
 
     use super::super::connect::Code;
     use super::*;
+    use crate::domains::polter;
 
     fn request<T>(message: T) -> ConnectRequest<T> {
         ConnectRequest {
             headers: HeaderMap::new(),
             message,
         }
+    }
+
+    #[test]
+    fn a_refused_decide_reports_the_diagnostics_its_apply_returned() {
+        // Go returns the apply result alongside the refused decide, and the
+        // handler reads the diagnostics from it instead of rebuilding the write.
+        let result = wedge::ResolveInboxResult {
+            apply: Some(wedge::ApplyResult {
+                diagnostics: vec![polter::Diagnostic::error(4, "unknown card \"plans\"")],
+                ..wedge::ApplyResult::default()
+            }),
+            ..wedge::ResolveInboxResult::default()
+        };
+        let error = resolve_inbox_error(wedge::Error::PolterInvalid.into(), &result);
+        assert_eq!(error.code, Code::InvalidArgument);
+        assert_eq!(error.message, "line 4: unknown card \"plans\"");
+        assert_eq!(error.details.len(), 1);
+        assert!(
+            error
+                .json()
+                .contains(r#""type":"polterware.local.v1.ApplyPolterResponse""#),
+            "{}",
+            error.json()
+        );
+
+        // Without an apply result the sentinel falls through to the audited
+        // write's mapping, as Go's default arm does.
+        let error = resolve_inbox_error(
+            wedge::Error::PolterInvalid.into(),
+            &wedge::ResolveInboxResult::default(),
+        );
+        assert_eq!(error.code, Code::Internal);
     }
 
     #[test]

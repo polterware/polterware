@@ -758,10 +758,73 @@ fn map_agentrun_err(err: &agentrun::Error) -> ConnectError {
 }
 
 /// The port of `invalidPolter`: InvalidArgument with the line-numbered
-/// diagnostics message. The Go core also attaches the diagnostics as an error
-/// detail; the port's [`ConnectError`] carries no details (see the report).
+/// diagnostics message and the diagnostics as an `ApplyPolterResponse` error
+/// detail, so clients can print them one per line.
 pub(super) fn invalid_polter(diags: &[polter::Diagnostic]) -> ConnectError {
-    invalid(diagnostics_message(diags))
+    invalid(diagnostics_message(diags)).with_detail(apply_polter_detail(diags))
+}
+
+/// The type of the message the detail carries, as connect-go writes it: the
+/// last segment of `type.googleapis.com/polterware.local.v1.ApplyPolterResponse`.
+const APPLY_POLTER_RESPONSE_TYPE: &str = "polterware.local.v1.ApplyPolterResponse";
+
+/// The error detail of refused Polter text: an `ApplyPolterResponse` with the
+/// diagnostics, as `connect.NewErrorDetail(&localv1.ApplyPolterResponse{…})`
+/// builds it.
+fn apply_polter_detail(diags: &[polter::Diagnostic]) -> super::connect::ErrorDetail {
+    let message = local_v1::ApplyPolterResponse {
+        diagnostics: diagnostics_proto(diags),
+        ..local_v1::ApplyPolterResponse::default()
+    };
+    // connect-go emits the message's protojson as `debug`, and leaves it out
+    // when it cannot marshal the message.
+    let debug = super::connect::encode(&message)
+        .ok()
+        .and_then(|bytes| String::from_utf8(bytes).ok());
+    super::connect::ErrorDetail {
+        type_name: APPLY_POLTER_RESPONSE_TYPE.to_string(),
+        value: apply_polter_response_bytes(&message.diagnostics),
+        debug,
+    }
+}
+
+/// The protobuf wire bytes `anypb.New` stores for an `ApplyPolterResponse`
+/// carrying only diagnostics: field 4 is the repeated `PolterDiagnostic`, whose
+/// fields are the line (`int32`), the severity, and the message.
+fn apply_polter_response_bytes(diags: &[local_v1::PolterDiagnostic]) -> Vec<u8> {
+    let mut out = Vec::new();
+    for diag in diags {
+        let mut message = Vec::new();
+        if diag.line != 0 {
+            put_varint(&mut message, 1 << 3);
+            put_varint(&mut message, diag.line as i64 as u64);
+        }
+        put_string(&mut message, 2, &diag.severity);
+        put_string(&mut message, 3, &diag.message);
+        put_varint(&mut out, (4 << 3) | 2);
+        put_varint(&mut out, message.len() as u64);
+        out.extend_from_slice(&message);
+    }
+    out
+}
+
+/// A protobuf varint.
+fn put_varint(out: &mut Vec<u8>, mut value: u64) {
+    while value >= 0x80 {
+        out.push((value as u8) | 0x80);
+        value >>= 7;
+    }
+    out.push(value as u8);
+}
+
+/// A length-delimited string field; proto3 leaves an empty one out.
+fn put_string(out: &mut Vec<u8>, field: u64, value: &str) {
+    if value.is_empty() {
+        return;
+    }
+    put_varint(out, (field << 3) | 2);
+    put_varint(out, value.len() as u64);
+    out.extend_from_slice(value.as_bytes());
 }
 
 pub(super) fn diagnostics_proto(diags: &[polter::Diagnostic]) -> Vec<local_v1::PolterDiagnostic> {
@@ -962,6 +1025,45 @@ mod tests {
             },
         )
         .expect("init project")
+    }
+
+    #[test]
+    fn refused_polter_text_carries_its_diagnostics_as_a_connect_detail() {
+        let diags = vec![
+            polter::Diagnostic::error(7, "unknown milestone \"nope\""),
+            polter::Diagnostic {
+                line: 0,
+                severity: "warning".to_string(),
+                message: "second".to_string(),
+            },
+        ];
+        let error = invalid_polter(&diags);
+        assert_eq!(error.code, Code::InvalidArgument);
+        // The bytes connect-go writes for this error: the type name, the
+        // protobuf bytes in unpadded base64, and the protojson debug form.
+        assert_eq!(
+            error.json(),
+            concat!(
+                r#"{"code":"invalid_argument","message":"line 7: unknown milestone \"nope\"","#,
+                r#""details":[{"type":"polterware.local.v1.ApplyPolterResponse","#,
+                r#""value":"IiMIBxIFZXJyb3IaGHVua25vd24gbWlsZXN0b25lICJub3BlIiIREgd3YXJuaW5nGgZzZWNvbmQ","#,
+                r#""debug":{"diagnostics":[{"line":7,"severity":"error","message":"unknown milestone \"nope\""},"#,
+                r#"{"severity":"warning","message":"second"}]}}]}"#
+            )
+        );
+    }
+
+    #[test]
+    fn refused_polter_text_without_diagnostics_still_carries_the_detail() {
+        let error = invalid_polter(&[]);
+        assert_eq!(error.message, "polter text has errors");
+        assert_eq!(
+            error.json(),
+            concat!(
+                r#"{"code":"invalid_argument","message":"polter text has errors","#,
+                r#""details":[{"type":"polterware.local.v1.ApplyPolterResponse","value":"","debug":{}}]}"#
+            )
+        );
     }
 
     const CHANGE_SUMMARY: &str = "Plan import";

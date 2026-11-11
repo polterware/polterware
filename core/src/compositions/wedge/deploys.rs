@@ -686,7 +686,7 @@ mod tests {
         );
 
         // Dismissing a failure hides it; a later failing deploy is a new item.
-        resolve_inbox(
+        let (_, err) = resolve_inbox(
             store,
             &ResolveInboxInput {
                 project_id: project.id.clone(),
@@ -695,8 +695,8 @@ mod tests {
                 actor: "desktop".to_string(),
                 ..ResolveInboxInput::default()
             },
-        )
-        .expect("dismiss");
+        );
+        assert!(err.is_none(), "dismiss: {err:?}");
         assert!(failures().is_empty(), "dismissed failure is back");
         CHECK_STATUS.lock().expect("status").url = "https://web-2.vercel.app".to_string();
         check_deploys(

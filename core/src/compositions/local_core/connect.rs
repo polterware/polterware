@@ -4,9 +4,12 @@
 //! answer `application/connect+json` with enveloped messages: a flag byte, the
 //! length as a big-endian `u32`, then the payload; the last envelope carries the
 //! end-of-stream message (`{}` on success, the error otherwise). Errors are
-//! Connect's JSON shape (`code`, `message`) with the status Connect maps the
-//! code to, and bodies are protojson exactly as `connectrpc.com/connect` writes
-//! them: lowerCamelCase field names, zero values left out, `int64` as a string.
+//! Connect's JSON shape (`code`, `message`, and `details` when there are any)
+//! with the status Connect maps the code to, and bodies are protojson exactly
+//! as `connectrpc.com/connect` writes them: lowerCamelCase field names, zero
+//! values left out, `int64` as a string. A detail is written as connect-go
+//! writes it: the message's type name, its protobuf bytes in unpadded standard
+//! base64, and its protojson form as `debug`.
 //!
 //! The generated messages of `crate::local_v1` are serde types that emit zero
 //! values, so [`encode`] normalizes the JSON they produce instead of changing
@@ -27,6 +30,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
+use base64::Engine as _;
 use futures_util::stream::{self, Stream, StreamExt};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -151,11 +155,42 @@ impl Code {
     }
 }
 
-/// A Connect error: the code, and the message the client reads.
+/// One error detail, as connect-go's JSON writes it: the message's type name
+/// (the last segment of its type URL), its protobuf bytes in unpadded standard
+/// base64, and its protojson form as `debug`, which connect-go leaves out when
+/// it cannot marshal the message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ErrorDetail {
+    pub type_name: String,
+    pub value: Vec<u8>,
+    pub debug: Option<String>,
+}
+
+impl ErrorDetail {
+    /// The detail as Connect's JSON body writes it.
+    pub fn json(&self) -> String {
+        let mut out = format!(
+            "{{\"type\":{},\"value\":{}}}",
+            quote(&self.type_name),
+            quote(&base64::engine::general_purpose::STANDARD_NO_PAD.encode(&self.value))
+        );
+        if let Some(debug) = &self.debug {
+            // `debug` is raw protojson, as connect-go embeds it.
+            out.pop();
+            out.push_str(",\"debug\":");
+            out.push_str(debug);
+            out.push('}');
+        }
+        out
+    }
+}
+
+/// A Connect error: the code, the message the client reads, and any details.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConnectError {
     pub code: Code,
     pub message: String,
+    pub details: Vec<ErrorDetail>,
 }
 
 impl ConnectError {
@@ -163,7 +198,14 @@ impl ConnectError {
         ConnectError {
             code,
             message: message.into(),
+            details: Vec::new(),
         }
+    }
+
+    /// The error with one more detail, as `connect.Error.AddDetail` adds it.
+    pub fn with_detail(mut self, detail: ErrorDetail) -> ConnectError {
+        self.details.push(detail);
+        self
     }
 
     /// The port of the package's `invalid`.
@@ -194,13 +236,22 @@ impl ConnectError {
         ConnectError::new(Code::Unauthenticated, message)
     }
 
-    /// The error as Connect's JSON body: `{"code":"…","message":"…"}`.
+    /// The error as Connect's JSON body:
+    /// `{"code":"…","message":"…","details":[…]}`.
     pub fn json(&self) -> String {
-        format!(
+        let mut out = format!(
             "{{\"code\":{},\"message\":{}}}",
             quote(self.code.name()),
             quote(&self.message)
-        )
+        );
+        if !self.details.is_empty() {
+            let details: Vec<String> = self.details.iter().map(ErrorDetail::json).collect();
+            out.pop();
+            out.push_str(",\"details\":[");
+            out.push_str(&details.join(","));
+            out.push_str("]}");
+        }
+        out
     }
 }
 
@@ -978,6 +1029,37 @@ mod tests {
         assert_eq!(
             quoted.json(),
             r#"{"code":"internal","message":"a \"quoted\" reason\n"}"#
+        );
+    }
+
+    #[test]
+    fn errors_carry_connect_details() {
+        let error = ConnectError::invalid("polter text has errors")
+            .with_detail(ErrorDetail {
+                type_name: "polterware.local.v1.ApplyPolterResponse".to_string(),
+                value: b"hi".to_vec(),
+                debug: Some(r#"{"diagnostics":[]}"#.to_string()),
+            })
+            .with_detail(ErrorDetail {
+                type_name: "acme.Foo".to_string(),
+                value: vec![0xff, 0xfe],
+                debug: None,
+            });
+        assert_eq!(
+            error.json(),
+            concat!(
+                r#"{"code":"invalid_argument","message":"polter text has errors","details":["#,
+                r#"{"type":"polterware.local.v1.ApplyPolterResponse","value":"aGk","debug":{"diagnostics":[]}},"#,
+                r#"{"type":"acme.Foo","value":"//4"}]}"#
+            )
+        );
+        // A stream's end-of-stream frame carries the same error.
+        let frame = end_stream(Some(&error));
+        let length = u32::from_be_bytes([frame[1], frame[2], frame[3], frame[4]]) as usize;
+        assert!(
+            std::str::from_utf8(&frame[5..5 + length])
+                .unwrap()
+                .contains(r#""details":[{"type":"polterware.local.v1.ApplyPolterResponse""#)
         );
     }
 
