@@ -179,11 +179,21 @@ impl Server {
 /// Serves every route on `listener`, and starts the background deploy check.
 /// Runs on the caller's tokio runtime.
 pub fn serve_connect(listener: std::net::TcpListener, core: Arc<Core>) -> Server {
+    serve_routes(listener, core, super::routes())
+}
+
+/// Serves an explicit route table, so a test can stand a handler in for one it
+/// does not own. Everything else is [`serve_connect`].
+pub fn serve_routes(
+    listener: std::net::TcpListener,
+    core: Arc<Core>,
+    routes: Vec<Route>,
+) -> Server {
     super::deploy_checks::watch_deploys(&core);
     listener
         .set_nonblocking(true)
         .expect("the core listener turns non-blocking");
-    let router = router(core);
+    let router = router_with(core, routes);
     let (shutdown, stopped) = oneshot::channel();
     let handle = tokio::spawn(async move {
         let listener = match tokio::net::TcpListener::from_std(listener) {
@@ -204,7 +214,12 @@ pub fn serve_connect(listener: std::net::TcpListener, core: Arc<Core>) -> Server
 
 /// Every route of every service in `polterware/local/v1`, plus `/mcp`.
 pub fn router(core: Arc<Core>) -> axum::Router {
-    let mut router = connect::router(Arc::clone(&core), super::routes());
+    router_with(core, super::routes())
+}
+
+/// A router of an explicit route table, plus `/mcp`.
+pub fn router_with(core: Arc<Core>, routes: Vec<Route>) -> axum::Router {
+    let mut router = connect::router(Arc::clone(&core), routes);
     let sessions = Arc::clone(&core.mcp);
     router = router.route(
         "/mcp",
