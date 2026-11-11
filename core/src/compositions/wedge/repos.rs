@@ -3,7 +3,6 @@
 //! Repositories belong to Structure components by name: the ones the project
 //! registers, which clone on this machine, and which one a run works in.
 
-use std::path::Path;
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -15,6 +14,8 @@ use crate::providers::{git, sqlite};
 
 #[allow(unused_imports)]
 use super::*;
+
+use super::path::{absolute_path, clean_path, expand_path, path_base};
 
 /// The errors `repos.go` returns, one per Go `fmt.Errorf` site plus the store.
 #[derive(Debug, thiserror::Error)]
@@ -89,7 +90,7 @@ static REPO_NAME_UNSAFE: LazyLock<Regex> =
 /// Proposes a repository name: the GitHub repository's, else the folder's, as
 /// a lowercase slug.
 pub(super) fn repo_name_for(remote: &str, dir: &str) -> String {
-    let mut base = base_path(dir);
+    let mut base = path_base(dir);
     if !remote.is_empty() {
         let start = remote.rfind('/').map_or(0, |index| index + 1);
         base = remote[start..].to_string();
@@ -152,7 +153,7 @@ pub(super) fn absolute_dir(path: &str) -> ReposResult<String> {
     if expanded.is_empty() {
         return Err(ReposError::message("repository folder is empty"));
     }
-    let abs = abs_path(&expanded);
+    let abs = absolute_path(&expanded);
     let info = match std::fs::metadata(&abs) {
         Ok(info) => info,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
@@ -177,9 +178,6 @@ pub(super) fn same_path(a: &str, b: &str) -> bool {
 /// Rewrites each node's `dir: <folder>` line to `repo: <name>`, the repository
 /// cloned there (created when the project has none). A dry run creates nothing
 /// and returns the names it would create.
-// Used by `work.rs`'s apply pipeline; that file still carries private copies
-// until the dedupe pass, so this build sees it as unused.
-#[allow(dead_code)]
 pub(super) fn resolve_node_dirs(
     store: &sqlite::Store,
     project_id: &str,
@@ -222,7 +220,6 @@ pub(super) fn resolve_node_dirs(
 
 /// Removes the repositories a write unlinked from its last node, so a
 /// repository lives only while a component uses it.
-#[allow(dead_code)]
 pub(super) fn prune_repositories(
     store: &sqlite::Store,
     project_id: &str,
@@ -358,7 +355,8 @@ pub fn run_node(
     if dir.is_empty() {
         return Ok((structure::Node::default(), false));
     }
-    let (node, ok) = node_for_path(store, &snapshot, dir)?;
+    let (node, ok) = super::brief::node_for_path(store, &snapshot, dir)
+        .map_err(|err| ReposError::message(err.to_string()))?;
     if ok {
         return Ok((node, true));
     }
@@ -382,188 +380,6 @@ pub fn run_node(
         }
     }
     Ok((found, count == 1))
-}
-
-/// Finds the Structure node whose checkout holds a file: the node with the
-/// longest `path:` prefix in the file's checkout (the project root, or a
-/// registered repository). The file is absolute, relative to the project root,
-/// or written as `repo:path`.
-// TODO(dedupe): the public `NodeForPath` lands with `brief.rs`; this copy goes
-// away when that file is ported.
-fn node_for_path(
-    store: &sqlite::Store,
-    snapshot: &work::Snapshot,
-    file: &str,
-) -> ReposResult<(structure::Node, bool)> {
-    let file = file.trim();
-    if file.is_empty() {
-        return Ok((structure::Node::default(), false));
-    }
-    let repos = project_checkouts(store, &snapshot.project_id)?;
-    let mut repo = String::new();
-    let mut rel;
-    if Path::new(file).is_absolute() {
-        // The deepest checkout that holds the file wins: a repo may sit inside
-        // another.
-        let target = clean_path(file);
-        let mut best: i64 = -1;
-        let mut inside_rel = String::new();
-        for item in &repos {
-            if item.root.is_empty() {
-                continue;
-            }
-            let root = clean_path(&item.root);
-            let Some(inside) = relative_path(&root, &target) else {
-                continue;
-            };
-            if inside == ".." || inside.starts_with("../") || (root.len() as i64) <= best {
-                continue;
-            }
-            best = root.len() as i64;
-            repo = item.name.clone();
-            inside_rel = inside;
-        }
-        if best < 0 {
-            return Ok((structure::Node::default(), false));
-        }
-        rel = inside_rel;
-    } else {
-        rel = file.to_string();
-        if let Some((name, rest)) = file.split_once(':') {
-            for item in &repos {
-                if item.name == name {
-                    repo = name.to_string();
-                    rel = rest.to_string();
-                }
-            }
-        }
-    }
-    let rel = filepath_clean_slash(&rel);
-    let mut found = structure::Node::default();
-    let mut ok = false;
-    for node in with_default_repo(&snapshot.nodes, &repos) {
-        // A relative path with no repo: prefix may sit in any repository.
-        if node.status == structure::NODE_REMOVED
-            || node.folder.is_empty()
-            || (!repo.is_empty() && node.repo != repo)
-        {
-            continue;
-        }
-        let folder = filepath_clean_slash(&node.folder)
-            .trim_matches('/')
-            .to_string();
-        if rel != folder && !rel.starts_with(&format!("{folder}/")) {
-            continue;
-        }
-        if !ok || folder.len() > node.folder.trim_matches('/').len() {
-            found = node;
-            ok = true;
-        }
-    }
-    Ok((found, ok))
-}
-
-/// Go's `filepath.ToSlash(filepath.Clean(path))`.
-fn filepath_clean_slash(path: &str) -> String {
-    clean_path(path)
-}
-
-/// Go's `filepath.Rel(base, target)`, with None for the cases it errors on.
-fn relative_path(base: &str, target: &str) -> Option<String> {
-    let base_parts: Vec<&str> = base.split('/').filter(|part| !part.is_empty()).collect();
-    let target_parts: Vec<&str> = target.split('/').filter(|part| !part.is_empty()).collect();
-    let mut common = 0;
-    while common < base_parts.len()
-        && common < target_parts.len()
-        && base_parts[common] == target_parts[common]
-    {
-        common += 1;
-    }
-    let mut parts: Vec<&str> = vec![".."; base_parts.len() - common];
-    parts.extend_from_slice(&target_parts[common..]);
-    if parts.is_empty() {
-        return Some(".".to_string());
-    }
-    Some(parts.join("/"))
-}
-
-/// Expands a leading `~` to the user home directory.
-// TODO(dedupe): the public `ExpandPath` lands with `path.rs`; this private copy
-// goes away when that file is ported.
-fn expand_path(path: &str) -> String {
-    let path = path.trim();
-    if path.is_empty() {
-        return String::new();
-    }
-    let home = || {
-        let home = std::env::var_os("HOME")?;
-        let home = home.to_string_lossy().into_owned();
-        if home.is_empty() { None } else { Some(home) }
-    };
-    if path == "~" {
-        return home().unwrap_or_default();
-    }
-    if let Some(rest) = path.strip_prefix("~/") {
-        return match home() {
-            Some(home) => clean_path(&format!("{home}/{rest}")),
-            None => path.to_string(),
-        };
-    }
-    path.to_string()
-}
-
-/// Go's `filepath.Clean`: lexical, with no filesystem access.
-fn clean_path(path: &str) -> String {
-    if path.is_empty() {
-        return ".".to_string();
-    }
-    let rooted = path.starts_with('/');
-    let mut parts: Vec<&str> = Vec::new();
-    for part in path.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => {
-                if parts.last().is_some_and(|last| *last != "..") {
-                    parts.pop();
-                } else if !rooted {
-                    parts.push("..");
-                }
-            }
-            other => parts.push(other),
-        }
-    }
-    let joined = parts.join("/");
-    if rooted {
-        format!("/{joined}")
-    } else if joined.is_empty() {
-        ".".to_string()
-    } else {
-        joined
-    }
-}
-
-/// Go's `filepath.Abs`: clean, joined to the working directory when relative.
-fn abs_path(path: &str) -> String {
-    if path.starts_with('/') {
-        return clean_path(path);
-    }
-    let cwd = std::env::current_dir().unwrap_or_default();
-    clean_path(&format!("{}/{}", cwd.to_string_lossy(), path))
-}
-
-/// Go's `filepath.Base`.
-fn base_path(path: &str) -> String {
-    if path.is_empty() {
-        return ".".to_string();
-    }
-    let trimmed = path.trim_end_matches('/');
-    if trimmed.is_empty() {
-        return "/".to_string();
-    }
-    match trimmed.rfind('/') {
-        Some(index) => trimmed[index + 1..].to_string(),
-        None => trimmed.to_string(),
-    }
 }
 
 #[cfg(test)]
@@ -678,16 +494,5 @@ stage: build · under: api
         }
         let (_, ok) = run_node(store, &project.id, "", &root).expect("node");
         assert!(!ok, "a root shared by two components names neither");
-    }
-
-    #[test]
-    fn paths_clean_like_go() {
-        assert_eq!(clean_path(""), ".");
-        assert_eq!(clean_path("/a//b/./c/.."), "/a/b");
-        assert_eq!(clean_path("a/../../b"), "../b");
-        assert_eq!(clean_path("/.."), "/");
-        assert_eq!(base_path("/a/b/"), "b");
-        assert_eq!(base_path("/"), "/");
-        assert_eq!(base_path(""), ".");
     }
 }

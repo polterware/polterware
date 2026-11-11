@@ -10,7 +10,7 @@ use crate::domains::polter;
 use crate::domains::work;
 use crate::providers::sqlite as storepkg;
 
-use super::brief::helpers;
+use super::work::{ApplyInput, apply_polter};
 
 /// Means the id matches no current Inbox item.
 pub const ERR_UNKNOWN_INBOX_ITEM: &str = "unknown inbox item: list them with polterware inbox";
@@ -171,11 +171,15 @@ pub fn resolve_inbox(
         let mut apply = input.apply.clone();
         apply.project_id = input.project_id.clone();
         apply.text = text;
-        let (applied, outcome) = helpers::apply_polter(store, &apply);
-        result.apply = Some(applied);
-        return match outcome {
-            Ok(()) => Ok(result),
-            Err(err) => Err(err),
+        return match apply_polter(store, apply) {
+            Ok(applied) => {
+                result.apply = Some(applied);
+                Ok(result)
+            }
+            Err(failure) => {
+                result.apply = Some(*failure.result);
+                Err(failure.error.into())
+            }
         };
     }
     store.insert_inbox_disposition(
@@ -232,7 +236,7 @@ pub fn decide_text(item: &inbox::Item, answer: &str) -> Result<String, InboxInpu
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use super::super::brief::helpers::{ApplyInput, InitInput};
+    use super::super::init::{InitInput, init_project};
     use super::*;
     use crate::domains::{agentrun, canon};
     use crate::providers::sqlite::test_support::TempStore;
@@ -251,17 +255,17 @@ stage: plan
 "#;
 
     fn seed(store: &storepkg::Store) -> String {
-        let project = helpers::init_project(
+        let project = init_project(
             store,
-            &InitInput {
+            InitInput {
                 name: "Demo".to_string(),
                 ..InitInput::default()
             },
         )
         .expect("init project");
-        let (result, outcome) = helpers::apply_polter(
+        let applied = apply_polter(
             store,
-            &ApplyInput {
+            ApplyInput {
                 project_id: project.id.clone(),
                 text: INBOX_ROADMAP.to_string(),
                 auto_start_label: "cli".to_string(),
@@ -269,10 +273,9 @@ stage: plan
             },
         );
         assert!(
-            outcome.is_ok(),
-            "{:?} {:?}",
-            outcome.err(),
-            result.diagnostics
+            applied.is_ok(),
+            "{:?}",
+            applied.err().map(|failure| failure.to_string())
         );
         project.id
     }

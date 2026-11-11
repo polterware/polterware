@@ -3,12 +3,11 @@
 #[allow(unused_imports)]
 use super::*;
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 
 use crate::domains::inbox;
-use crate::domains::polter;
 use crate::domains::structure;
 use crate::domains::work;
 use crate::providers::sqlite::{
@@ -34,7 +33,8 @@ pub(crate) fn inbox_scoped(
     scope: &structure::MultiScope,
 ) -> sqlite::Result<inbox::Result> {
     let project_id = snapshot.project_id.clone();
-    let result = list_inbox(store, snapshot)?;
+    let result = super::inbox::list_inbox_for(store, snapshot)
+        .map_err(|err| sqlite::Error::message(err.to_string()))?;
     if !scope.active() {
         return Ok(result);
     }
@@ -297,78 +297,6 @@ fn change_in_scope(
         }
     }
     false
-}
-
-/// Derives the project's Inbox. It only reads.
-pub(crate) fn list_inbox(
-    store: &Store,
-    snapshot: &work::Snapshot,
-) -> sqlite::Result<inbox::Result> {
-    let mut conflicts: Vec<inbox::Conflict> = Vec::new();
-    for conflict in &snapshot.conflicts {
-        if conflict.state != work::CONFLICT_OPEN {
-            continue;
-        }
-        let (rule, decision_title) = polter::conflict_against(conflict, snapshot);
-        let mut details = BTreeMap::new();
-        details.insert("conflict".to_string(), conflict.slug.clone());
-        let mut against: Vec<String> = Vec::new();
-        if !rule.id.is_empty() {
-            details.insert("rule_id".to_string(), rule.id.clone());
-            details.insert("rule".to_string(), rule.statement.clone());
-            against.push(format!("Rule: {}", rule.statement));
-        }
-        if !decision_title.is_empty() {
-            details.insert("decision_id".to_string(), conflict.decision.clone());
-            details.insert("decision".to_string(), decision_title.clone());
-            against.push(format!("Decision: {decision_title}"));
-        }
-        conflicts.push(inbox::Conflict {
-            slug: conflict.slug.clone(),
-            request: conflict.request.clone(),
-            against: against.join("; "),
-            card_slug: conflict.card_slug.clone(),
-            options: conflict.options.clone(),
-            details,
-        });
-    }
-    let mut questions: Vec<inbox::Question> = Vec::new();
-    for card in &snapshot.cards {
-        if card.status != work::CARD_ACTIVE {
-            continue;
-        }
-        for question in &card.questions {
-            if question.state != work::QUESTION_OPEN {
-                continue;
-            }
-            questions.push(inbox::Question {
-                id: question.id.clone(),
-                card_slug: card.slug.clone(),
-                text: question.text.clone(),
-                blocking: question.blocking,
-                options: question.options.clone(),
-            });
-        }
-    }
-    let links = store.list_node_deploy_links(&snapshot.project_id)?;
-    let connections = store.list_connections(&snapshot.project_id)?;
-    let probes: Vec<inbox::ProviderConnection> = connections
-        .into_iter()
-        .map(|connection| inbox::ProviderConnection {
-            provider_id: connection.provider_id,
-            environment_id: connection.environment_id,
-            status: connection.status,
-        })
-        .collect();
-    let dispositions = store.list_inbox_dispositions(&snapshot.project_id)?;
-    let mut deploys = inbox::failed_deploys(&links);
-    deploys.extend(inbox::unconnected_deploys(&links, &probes));
-    Ok(inbox::derive(
-        &conflicts,
-        &questions,
-        &deploys,
-        &dispositions,
-    ))
 }
 
 #[cfg(test)]

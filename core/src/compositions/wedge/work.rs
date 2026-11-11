@@ -3,29 +3,24 @@
 #[allow(unused_imports)]
 use super::*;
 
-use std::collections::{HashMap, HashSet};
-use std::path::Path;
-use std::sync::LazyLock;
+use std::collections::HashSet;
 
-use regex::Regex;
 use serde_json::Value;
 use time::OffsetDateTime;
-use time::format_description::well_known::Rfc3339;
-use time::macros::format_description;
 
 use crate::domains::agentrun;
-use crate::domains::canvas;
 use crate::domains::decision;
 use crate::domains::inbox;
-use crate::domains::knowledge;
 use crate::domains::polter;
 use crate::domains::projects;
 use crate::domains::structure;
 use crate::domains::work;
 use crate::platform::ids;
-use crate::providers::cli;
 use crate::providers::git as gitpkg;
 use crate::providers::sqlite::{self, Store};
+
+use super::path::{absolute_path, clean_path, relative_path};
+use super::repos::{project_checkouts, prune_repositories, resolve_node_dirs};
 
 /// The errors this package returns, one per Go sentinel plus the store and
 /// domain errors its reads pass through.
@@ -51,6 +46,8 @@ pub enum Error {
     ChangeIncompleteFrontmatter,
     #[error(transparent)]
     Sqlite(#[from] sqlite::Error),
+    #[error(transparent)]
+    Repos(#[from] super::repos::ReposError),
     #[error(transparent)]
     AgentRun(#[from] agentrun::Error),
     #[error(transparent)]
@@ -109,7 +106,7 @@ pub fn resolve_project(store: &Store, id: &str, dir: &str) -> Result<projects::P
             .get_project(id)
             .map_err(|_| Error::Message(format!("unknown project {}", polter::go_quote(id))));
     }
-    let dir = absolute_path(dir)?;
+    let dir = absolute_path(dir);
     let items = store.list_projects(false)?;
     // The project whose repository clone holds dir most deeply wins.
     let mut best: Option<projects::Project> = None;
@@ -230,7 +227,7 @@ pub fn apply_polter(
         error,
     };
     let (text, proposed) = resolve_node_dirs(store, &in_.project_id, &in_.text, in_.dry_run)
-        .map_err(|error| fail(&result, error))?;
+        .map_err(|error| fail(&result, error.into()))?;
     let mut snapshot = store
         .load_work_snapshot(&in_.project_id)
         .map_err(|error| fail(&result, error.into()))?;
@@ -291,7 +288,7 @@ pub fn apply_polter(
     result.applied = true;
     result.agent_run_id = written.agent_run_id;
     if let Err(error) = prune_repositories(store, &in_.project_id, &result.ops) {
-        return Err(fail(&result, error));
+        return Err(fail(&result, error.into()));
     }
     Ok(result)
 }
@@ -331,13 +328,20 @@ pub fn query_polter_scoped(
             let result = super::scope::inbox_scoped(store, &snapshot, scope)?;
             Ok(inbox::list(&result))
         }
-        polter::QUERY_BRIEF => query_brief(store, &snapshot, scope, &query.slug, query.budget),
-        polter::QUERY_SEARCH => query_search(store, &snapshot, scope, &query.slug, query.budget),
-        polter::QUERY_SHOW => query_show(store, &snapshot, &query.slug),
-        polter::QUERY_COMMITS => query_commits(store, project_id, &query.slug),
+        polter::QUERY_BRIEF => {
+            query_brief(store, &snapshot, scope, &query.slug, query.budget).map_err(message_error)
+        }
+        polter::QUERY_SEARCH => {
+            query_search(store, &snapshot, scope, &query.slug, query.budget).map_err(message_error)
+        }
+        polter::QUERY_SHOW => query_show(store, &snapshot, &query.slug).map_err(message_error),
+        polter::QUERY_COMMITS => {
+            query_commits(store, project_id, &query.slug).map_err(message_error)
+        }
         polter::QUERY_CONFLICTS => Ok(polter::encode_conflicts(&snapshot)),
         polter::QUERY_DEPLOYS => {
             deploys_text(store, project_id, &query.slug, OffsetDateTime::now_utc())
+                .map_err(message_error)
         }
         polter::QUERY_CONFLICT => {
             let Some(conflict) = snapshot.conflict(&query.slug) else {
@@ -362,8 +366,12 @@ pub fn query_polter_scoped(
                 &polter::nodes_citing(&snapshot.nodes, &target),
             ))
         }
-        polter::QUERY_FEATURE | polter::QUERY_VERIFY => query_feature(store, &snapshot, &query),
-        polter::QUERY_CANVAS => query_canvas(store, project_id, &query.slug, scope),
+        polter::QUERY_FEATURE | polter::QUERY_VERIFY => {
+            query_feature(store, &snapshot, &query).map_err(message_error)
+        }
+        polter::QUERY_CANVAS => {
+            query_canvas(store, project_id, &query.slug, scope).map_err(message_error)
+        }
         polter::QUERY_MILESTONES => Ok(polter::encode_milestones(&snapshot)),
         polter::QUERY_ROADMAP => Ok(polter::encode_roadmap(&snapshot)),
         polter::QUERY_STRUCTURE => {
@@ -425,14 +433,12 @@ fn query_status(store: &Store, snapshot: &work::Snapshot, scope: &structure::Mul
         &sqlite::format_rfc3339(OffsetDateTime::now_utc() - time::Duration::hours(24)),
     ));
     let view = project_git(store, &snapshot.project_id);
-    let card = match select_work_card(snapshot, "", &view.branch) {
-        Ok(card) => card,
-        Err((slugs, _)) => {
-            return polter::encode_status_unresolved(&view.branch, &slugs)
-                + &polter::encode_status_claims("", snapshot)
-                + &inbox_lines;
-        }
-    };
+    let (card, slugs, unresolved) = select_work_card(snapshot, "", &view.branch);
+    if unresolved.is_some() {
+        return polter::encode_status_unresolved(&view.branch, &slugs)
+            + &polter::encode_status_claims("", snapshot)
+            + &inbox_lines;
+    }
     let current = if !view.branch.is_empty() && view.branch != "HEAD" {
         card.latest_handoff(&view.branch).cloned()
     } else {
@@ -442,6 +448,11 @@ fn query_status(store: &Store, snapshot: &work::Snapshot, scope: &structure::Mul
     polter::encode_status(&card, &view.branch, stage, current.as_ref())
         + &polter::encode_status_claims(&card.slug, snapshot)
         + &inbox_lines
+}
+
+/// Folds a sibling read's error into this file's error, keeping its text.
+fn message_error(err: impl std::fmt::Display) -> Error {
+    Error::Message(err.to_string())
 }
 
 /// Keeps lint output, then plan diagnostics that lint did not already report
@@ -463,1031 +474,13 @@ fn merge_diagnostics(
 }
 
 /// The first value that is not blank, trimmed; empty when every value is.
-fn first_non_empty(values: &[&str]) -> String {
+pub(super) fn first_non_empty(values: &[&str]) -> String {
     for value in values {
         if !value.trim().is_empty() {
             return value.trim().to_string();
         }
     }
     String::new()
-}
-
-/// The first value that is not blank; unlike [`first_non_empty`] it is not
-/// trimmed, which is how `deploys.go`'s `firstNonEmptyText` reads.
-fn first_non_empty_text(values: &[&str]) -> String {
-    for value in values {
-        if !value.trim().is_empty() {
-            return value.to_string();
-        }
-    }
-    String::new()
-}
-
-// ---------------------------------------------------------------------------
-// TODO(dedupe): private copies of helpers the sibling files of this package own
-// (`repos.go`, `brief.go`, `show.go`, `commits.go`, `feature.go`,
-// `canvas_query.go`, `deploys.go`, `handoff.go`). They exist so this file
-// compiles next to those files' ports and are deleted once the copies merge.
-// ---------------------------------------------------------------------------
-
-/// One repository cloned on this machine.
-struct GitCheckout {
-    name: String,
-    root: String,
-}
-
-/// Lists the project's repositories that have a clone here.
-fn project_checkouts(store: &Store, project_id: &str) -> Result<Vec<GitCheckout>> {
-    let repos = store.list_repositories(project_id)?;
-    let mut out = Vec::new();
-    for repo in repos {
-        let path = expand_path(&repo.local_path);
-        if !path.is_empty() {
-            out.push(GitCheckout {
-                name: repo.name,
-                root: path,
-            });
-        }
-    }
-    Ok(out)
-}
-
-static REPO_NAME_UNSAFE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"[^a-z0-9]+").expect("the repository name pattern"));
-
-/// The GitHub-level identity of a clone's origin (github.com/owner/repo), empty
-/// when it has no GitHub remote.
-fn repository_remote(dir: &str) -> String {
-    match gitpkg::github_repo(dir) {
-        Some(owner_repo) => format!("github.com/{owner_repo}"),
-        None => String::new(),
-    }
-}
-
-/// Proposes a repository name: the GitHub repository's, else the folder's, as a
-/// lowercase slug.
-fn repo_name_for(remote: &str, dir: &str) -> String {
-    let mut base = path_base(dir);
-    if !remote.is_empty() {
-        base = remote[remote.rfind('/').map_or(0, |i| i + 1)..].to_string();
-    }
-    let mut name = REPO_NAME_UNSAFE
-        .replace_all(&base.to_lowercase(), "-")
-        .trim_matches('-')
-        .to_string();
-    if name.len() > 32 {
-        name = name[..32].trim_matches('-').to_string();
-    }
-    if name.is_empty() {
-        name = "repo".to_string();
-    }
-    name
-}
-
-/// Returns the project's repository for a local folder: the one cloned there,
-/// else the one with the same GitHub remote (its clone path becomes `dir`),
-/// else a new one named after the remote or the folder.
-fn ensure_repository(store: &Store, project_id: &str, dir: &str) -> Result<projects::Repository> {
-    let abs = absolute_dir(dir)?;
-    let existing = store.list_repositories(project_id)?;
-    for repo in &existing {
-        if !repo.local_path.is_empty() && same_path(&expand_path(&repo.local_path), &abs) {
-            return Ok(repo.clone());
-        }
-    }
-    let remote = repository_remote(&abs);
-    for repo in &existing {
-        if !remote.is_empty() && repo.remote == remote {
-            let mut repo = repo.clone();
-            repo.local_path = abs.clone();
-            store.save_repository(repo.clone())?;
-            return Ok(repo);
-        }
-    }
-    let base = repo_name_for(&remote, &abs);
-    let taken: HashSet<&str> = existing.iter().map(|repo| repo.name.as_str()).collect();
-    let mut name = base.clone();
-    let mut i = 2;
-    while taken.contains(name.as_str()) {
-        let stripped = base
-            .strip_suffix(&format!("-{}", i - 1))
-            .unwrap_or(&base)
-            .to_string();
-        name = format!("{stripped}-{i}");
-        i += 1;
-    }
-    let repo = projects::new_repository(&ids::new_ulid(), project_id, &name, &remote, &abs)
-        .map_err(|err| Error::Message(err.to_string()))?;
-    store.save_repository(repo.clone())?;
-    Ok(repo)
-}
-
-fn absolute_dir(path: &str) -> Result<String> {
-    let expanded = expand_path(path);
-    if expanded.is_empty() {
-        return Err(Error::Message("repository folder is empty".to_string()));
-    }
-    let abs = absolute_path(&expanded)?;
-    match std::fs::metadata(&abs) {
-        Ok(info) if !info.is_dir() => Err(Error::Message(format!(
-            "repository folder {abs} is not a directory"
-        ))),
-        Ok(_) => Ok(abs),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Err(Error::Message(format!(
-            "repository folder {abs} does not exist"
-        ))),
-        Err(err) => Err(Error::Message(err.to_string())),
-    }
-}
-
-fn same_path(a: &str, b: &str) -> bool {
-    clean_path(a) == clean_path(b)
-}
-
-/// Rewrites each node's `dir: <folder>` line to `repo: <name>`, the repository
-/// cloned there (created when the project has none). A dry run creates nothing
-/// and returns the names it would create.
-fn resolve_node_dirs(
-    store: &Store,
-    project_id: &str,
-    text: &str,
-    dry_run: bool,
-) -> Result<(String, Vec<String>)> {
-    let (doc, _) = polter::decode(text);
-    let mut lines: Vec<String> = text.split('\n').map(str::to_string).collect();
-    let mut proposed: Vec<String> = Vec::new();
-    for node in &doc.nodes {
-        for entry in &node.meta {
-            if entry.key != "dir" || entry.line < 1 || entry.line as usize > lines.len() {
-                continue;
-            }
-            let name = if dry_run {
-                let abs = absolute_dir(&entry.value)?;
-                let mut name = repo_name_for(&repository_remote(&abs), &abs);
-                for repo in store.list_repositories(project_id)? {
-                    if same_path(&expand_path(&repo.local_path), &abs) {
-                        name = repo.name;
-                    }
-                }
-                proposed.push(name.clone());
-                name
-            } else {
-                ensure_repository(store, project_id, &entry.value)?.name
-            };
-            let index = (entry.line - 1) as usize;
-            let line = lines[index].clone();
-            if let Some(start) = line.find("dir:") {
-                let rest = &line[start + "dir:".len()..];
-                let end = rest.find(" · ").unwrap_or(rest.len());
-                lines[index] = format!("{}repo: {}{}", &line[..start], name, &rest[end..]);
-            }
-        }
-    }
-    Ok((lines.join("\n"), proposed))
-}
-
-/// Removes the repositories a write unlinked from its last node, so a
-/// repository lives only while a component uses it.
-fn prune_repositories(store: &Store, project_id: &str, ops: &[work::Op]) -> Result<()> {
-    for op in ops {
-        if op.entity != work::ENTITY_NODE {
-            continue;
-        }
-        if let Some(name) = op.before.get("repo").and_then(Value::as_str)
-            && !name.is_empty()
-        {
-            store.delete_unused_repository(project_id, name)?;
-        }
-    }
-    Ok(())
-}
-
-/// Returns nodes where a node naming no repository belongs to the project's
-/// only one, so a one-repository project needs no `repo:` lines.
-fn with_default_repo(nodes: &[structure::Node], checkouts: &[GitCheckout]) -> Vec<structure::Node> {
-    if checkouts.len() != 1 {
-        return nodes.to_vec();
-    }
-    nodes
-        .iter()
-        .map(|node| {
-            let mut node = node.clone();
-            if node.repo.is_empty() {
-                node.repo = checkouts[0].name.clone();
-            }
-            node
-        })
-        .collect()
-}
-
-/// Finds the Structure node whose checkout holds a file: the node with the
-/// longest `path:` prefix in the file's checkout (the project root, or a
-/// registered repository). The file is absolute, relative to the project root,
-/// or written as `repo:path`. `None` when no node claims it.
-fn node_for_path(
-    store: &Store,
-    snapshot: &work::Snapshot,
-    file: &str,
-) -> Result<Option<structure::Node>> {
-    let file = file.trim();
-    if file.is_empty() {
-        return Ok(None);
-    }
-    let repos = project_checkouts(store, &snapshot.project_id)?;
-    let mut repo = String::new();
-    let mut rel;
-    if Path::new(file).is_absolute() {
-        // The deepest checkout that holds the file wins: a repo may sit inside
-        // another.
-        let mut best: isize = -1;
-        let mut best_rel = String::new();
-        for item in &repos {
-            if item.root.is_empty() {
-                continue;
-            }
-            let Some(inside) = relative_path(&clean_path(&item.root), &clean_path(file)) else {
-                continue;
-            };
-            if inside == ".." || inside.starts_with("../") || item.root.len() as isize <= best {
-                continue;
-            }
-            best = item.root.len() as isize;
-            repo = item.name.clone();
-            best_rel = inside;
-        }
-        if best < 0 {
-            return Ok(None);
-        }
-        rel = best_rel;
-    } else {
-        rel = file.to_string();
-        if let Some((name, rest)) = file.split_once(':')
-            && repos.iter().any(|item| item.name == name)
-        {
-            repo = name.to_string();
-            rel = rest.to_string();
-        }
-    }
-    let rel = slash_path(&clean_path(&rel));
-    let mut found = structure::Node::default();
-    let mut ok = false;
-    for node in with_default_repo(&snapshot.nodes, &repos) {
-        // A relative path with no `repo:` prefix may sit in any repository.
-        if node.status == structure::NODE_REMOVED
-            || node.folder.is_empty()
-            || (!repo.is_empty() && node.repo != repo)
-        {
-            continue;
-        }
-        let folder = slash_path(&clean_path(&node.folder))
-            .trim_matches('/')
-            .to_string();
-        if rel != folder && !rel.starts_with(&format!("{folder}/")) {
-            continue;
-        }
-        if !ok || folder.len() > found.folder.trim_matches('/').len() {
-            found = node;
-            ok = true;
-        }
-    }
-    Ok(if ok { Some(found) } else { None })
-}
-
-/// Loads the in-scope docs and agent-visible canvases next to the snapshot.
-/// Canvas nodes linked to Structure carry the node's title.
-fn brief_input(
-    store: &Store,
-    snapshot: &work::Snapshot,
-    scope: &structure::MultiScope,
-) -> Result<polter::BriefInput> {
-    let resolved = store.load_scopes(&snapshot.project_id, scope)?;
-    let items = store.list_knowledge(&snapshot.project_id, knowledge::KIND_DOC)?;
-    let scopes = store.scope_map(&snapshot.project_id, sqlite::SCOPE_KNOWLEDGE)?;
-    let mut in_ = polter::BriefInput {
-        snapshot: snapshot.clone(),
-        ..polter::BriefInput::default()
-    };
-    for item in items {
-        let ids = scopes.get(&item.id).cloned().unwrap_or_default();
-        if !resolved.matches_any(&ids) {
-            continue;
-        }
-        in_.docs.push(polter::Doc {
-            id: item.id,
-            title: item.title,
-            doc_type: item.doc_type,
-            scope_node_ids: ids,
-            body: item.body,
-        });
-    }
-    for mut item in store.list_canvases(&snapshot.project_id)? {
-        if !item.agent_visible || !resolved.matches(&item.scope_node_id) {
-            continue;
-        }
-        item.graph = canvas::with_structure(&item.graph, &snapshot.nodes);
-        in_.canvases.push(item);
-    }
-    Ok(in_)
-}
-
-/// Renders the brief of a card, a Structure node, or a file. A target that is
-/// neither a card nor a node is read as a file path and briefed as the node
-/// whose checkout holds it.
-fn query_brief(
-    store: &Store,
-    snapshot: &work::Snapshot,
-    scope: &structure::MultiScope,
-    target: &str,
-    budget: i32,
-) -> Result<String> {
-    let in_ = brief_input(store, snapshot, scope)?;
-    match polter::brief(&in_, target, budget) {
-        Ok(text) => Ok(text),
-        Err(polter::BriefError::UnknownTarget(_)) => {
-            let Some(node) = node_for_path(store, snapshot, target)? else {
-                return Err(Error::Message(
-                    polter::BriefError::UnknownTarget(trimmed(target)).to_string(),
-                ));
-            };
-            let text = polter::brief(&in_, &node.path, budget)
-                .map_err(|err| Error::Message(err.to_string()))?;
-            Ok(format!(
-                "file {} is under {}\n{text}",
-                target.trim(),
-                node.path
-            ))
-        }
-    }
-}
-
-fn query_search(
-    store: &Store,
-    snapshot: &work::Snapshot,
-    scope: &structure::MultiScope,
-    terms: &str,
-    budget: i32,
-) -> Result<String> {
-    let in_ = brief_input(store, snapshot, scope)?;
-    Ok(polter::search(&in_, terms, budget))
-}
-
-static RUN_DATE: LazyLock<&[time::format_description::FormatItem<'static>]> =
-    LazyLock::new(|| format_description!("[year]-[month]-[day] [hour]:[minute]"));
-static STEP_TIME: LazyLock<&[time::format_description::FormatItem<'static>]> =
-    LazyLock::new(|| format_description!("[hour]:[minute]"));
-
-/// Renders one record by id as text: a card (by slug), a Decision (by ref or
-/// id), a fact or Rule (by slug or id), a doc with its body, a Canon entity, or
-/// an AgentRun with its steps.
-fn query_show(store: &Store, snapshot: &work::Snapshot, id: &str) -> Result<String> {
-    let id = id.trim();
-    if let Some(card) = snapshot.card(id) {
-        return Ok(polter::encode_card(card));
-    }
-    if let Some(target) = decision::find(&snapshot.decisions, id) {
-        return Ok(polter::encode_decision(
-            &target,
-            &snapshot.decisions,
-            &polter::nodes_citing(&snapshot.nodes, &target),
-        ));
-    }
-    for fact in &snapshot.facts {
-        if fact.fact.id != id && (fact.slug.is_empty() || fact.slug != id) {
-            continue;
-        }
-        let mut out = format!(
-            "fact {} [{}] {}\n",
-            fact.fact.id, fact.fact.truth_class, fact.fact.statement
-        );
-        if !fact.slug.is_empty() {
-            out.push_str(&format!("slug: {}\n", fact.slug));
-        }
-        if !fact.scopes.is_empty() {
-            out.push_str(&format!("scope: {}\n", fact.scopes.join(", ")));
-        }
-        out.push_str(&format!(
-            "source: {} · actor: {}\n",
-            fact.fact.source, fact.fact.actor
-        ));
-        return Ok(out);
-    }
-    for rule in &snapshot.rules {
-        if rule.id != id && (rule.slug.is_empty() || rule.slug != id) {
-            continue;
-        }
-        let text = format!("rule {} {}\n", rule.handle(), rule.statement);
-        if !rule.scopes.is_empty() {
-            return Ok(format!("{text}scope: {}\n", rule.scopes.join(", ")));
-        }
-        return Ok(format!("{text}scope: whole project\n"));
-    }
-    if let Ok(item) = store.get_knowledge(id)
-        && item.project_id == snapshot.project_id
-        && !item.archived()
-    {
-        let scopes = store.scope_map(&snapshot.project_id, sqlite::SCOPE_KNOWLEDGE)?;
-        let mut text = format!("doc {} {}\n", item.id, polter::go_quote(&item.title));
-        let mut paths: Vec<String> = Vec::new();
-        let contexts = scopes.get(&item.id).cloned().unwrap_or_default();
-        for node in &snapshot.nodes {
-            if contexts.contains(&node.id) {
-                paths.push(node.path.clone());
-            }
-        }
-        if !paths.is_empty() {
-            paths.sort();
-            text.push_str(&format!("scope: {}\n", paths.join(", ")));
-        }
-        if !item.tags.is_empty() {
-            text.push_str(&format!("tags: {}\n", item.tags.join(", ")));
-        }
-        return Ok(format!("{text}\n{}\n", item.body.trim_end_matches('\n')));
-    }
-    if let Ok(entity) = store.get_canon_entity(id)
-        && entity.project_id == snapshot.project_id
-    {
-        return Ok(format!(
-            "entity {} [{}] {}\nref: {}/{} · truth: {} · source: {}\n",
-            entity.id,
-            entity.kind,
-            entity.title,
-            entity.ref_kind,
-            entity.ref_id,
-            entity.truth_class,
-            entity.source
-        ));
-    }
-    if let Ok(record) = store.get_agent_run_record(id)
-        && record.run.project_id == snapshot.project_id
-    {
-        let run = &record.run;
-        let started = run.created_at.format(&*RUN_DATE).unwrap_or_default();
-        let mut out = format!(
-            "run {} [{}] {}\nagent: {} · actor: {} · started {started}\n",
-            run.id, run.status, run.task, run.agent_label, run.actor_kind
-        );
-        for step in &record.steps {
-            let at = step.created_at.format(&*STEP_TIME).unwrap_or_default();
-            out.push_str(&format!("- {at} {}: {}\n", step.kind, step.summary));
-        }
-        return Ok(out);
-    }
-    Err(Error::Message(format!(
-        "unknown id {}: show takes a card slug, a Decision ref, a fact, rule, doc, entity, or run id (search <terms> finds them)",
-        polter::go_quote(id)
-    )))
-}
-
-/// One commit of a card's task, for the card page.
-#[derive(Debug, Clone, PartialEq)]
-struct CardCommit {
-    task_number: i32,
-    repo: String,
-    sha: String,
-    subject: String,
-    url: String,
-    committed_at: OffsetDateTime,
-    /// True for a commit found by its subject (`slug#T2`), with no stored link.
-    cited: bool,
-}
-
-impl Default for CardCommit {
-    fn default() -> Self {
-        Self {
-            task_number: 0,
-            repo: String::new(),
-            sha: String::new(),
-            subject: String::new(),
-            url: String::new(),
-            committed_at: OffsetDateTime::UNIX_EPOCH,
-            cited: false,
-        }
-    }
-}
-
-impl CardCommit {
-    /// The first seven characters of the sha.
-    fn short_sha(&self) -> &str {
-        if self.sha.len() > 7 {
-            &self.sha[..7]
-        } else {
-            &self.sha
-        }
-    }
-}
-
-/// Lists a card's commits, newest first: the ones linked to its tasks, then the
-/// ones whose subject cites a task (`slug#T2`) in a checkout's recent history.
-fn card_commits(store: &Store, project_id: &str, slug: &str) -> Result<Vec<CardCommit>> {
-    let snapshot = store.load_work_snapshot(project_id)?;
-    let Some(card) = snapshot.card(slug) else {
-        return Err(Error::Message(format!(
-            "commit input: unknown card {}",
-            polter::go_quote(slug)
-        )));
-    };
-    let mut numbers: HashMap<String, i32> = HashMap::new();
-    for task in &card.tasks {
-        numbers.insert(task.id.clone(), task.number);
-    }
-    let links = store.list_commit_links(project_id)?;
-    let mut seen: HashSet<String> = HashSet::new();
-    let key = |number: i32, sha: &str| format!("{number}:{sha}");
-    let mut out: Vec<CardCommit> = Vec::new();
-    for link in &links {
-        let Some(number) = numbers.get(&link.task_id).copied() else {
-            continue;
-        };
-        seen.insert(key(number, &link.sha));
-        out.push(CardCommit {
-            task_number: number,
-            repo: link.repo.clone(),
-            sha: link.sha.clone(),
-            subject: link.subject.clone(),
-            url: link.url.clone(),
-            committed_at: link.committed_at,
-            cited: false,
-        });
-    }
-    let checkouts = project_checkouts(store, project_id)?;
-    for co in &checkouts {
-        let meta = gitpkg::read_metadata(&co.root);
-        if !meta.available {
-            continue;
-        }
-        let owner_repo = gitpkg::github_repo(&co.root);
-        for commit in &meta.commits {
-            for task in polter::match_explicit_tasks(&commit.subject, std::slice::from_ref(card)) {
-                let Some(number) = numbers.get(&task.id).copied() else {
-                    continue;
-                };
-                if seen.contains(&key(number, &commit.sha)) {
-                    continue;
-                }
-                seen.insert(key(number, &commit.sha));
-                let mut found = CardCommit {
-                    task_number: number,
-                    repo: co.name.clone(),
-                    sha: commit.sha.clone(),
-                    subject: commit.subject.clone(),
-                    cited: true,
-                    ..CardCommit::default()
-                };
-                if let Some(owner_repo) = &owner_repo {
-                    found.url = gitpkg::github_commit_url(owner_repo, &commit.sha);
-                }
-                if let Some(when) = gitpkg::commit_time(&co.root, &commit.sha) {
-                    found.committed_at = when;
-                }
-                out.push(found);
-            }
-        }
-    }
-    out.sort_by(|a, b| b.committed_at.cmp(&a.committed_at));
-    Ok(out)
-}
-
-/// Lists a card's commits, one line each: task, short sha, subject, and the
-/// GitHub URL when there is one.
-fn query_commits(store: &Store, project_id: &str, slug: &str) -> Result<String> {
-    let commits = card_commits(store, project_id, slug)?;
-    if commits.is_empty() {
-        return Ok(format!(
-            "no commits for {slug}: cite `{slug}#T2` in a commit subject, or run polterware task done {slug}#T2 --commit <sha>\n"
-        ));
-    }
-    let mut out = format!("{} commits for {slug}\n", commits.len());
-    for commit in &commits {
-        let mut line = format!(
-            "- T{} {} {}",
-            commit.task_number,
-            commit.short_sha(),
-            commit.subject
-        );
-        if !commit.url.is_empty() {
-            line.push(' ');
-            line.push_str(&commit.url);
-        }
-        out.push_str(&line);
-        out.push('\n');
-    }
-    Ok(out)
-}
-
-/// The Shape impact and flow checks of one card.
-fn review_feature(
-    store: &Store,
-    snapshot: &work::Snapshot,
-    slug: &str,
-) -> Result<polter::FeatureReview> {
-    let references = polter_references_from_snapshot(store, snapshot)?;
-    polter::review_feature(
-        snapshot,
-        slug,
-        &references.decisions,
-        &question_routes(store, snapshot),
-    )
-    .map_err(Error::Message)
-}
-
-/// Maps open question ids to where they wait: the Inbox, deferred, or delegated
-/// to agents. A failed Inbox read leaves every question in the Inbox.
-fn question_routes(store: &Store, snapshot: &work::Snapshot) -> HashMap<String, String> {
-    let mut routes: HashMap<String, String> = HashMap::new();
-    let Ok(result) = super::scope::list_inbox(store, snapshot) else {
-        return routes;
-    };
-    const PREFIX: &str = "decision:";
-    for item in &result.items {
-        if let Some(id) = item.key.strip_prefix(PREFIX)
-            && item.state == inbox::STATE_DEFERRED
-        {
-            routes.insert(id.to_string(), polter::ROUTE_DEFERRED.to_string());
-        }
-    }
-    for routed in &result.routed {
-        if let Some(id) = routed.item.key.strip_prefix(PREFIX)
-            && routed.action == inbox::ACTION_DELEGATE
-        {
-            routes.insert(id.to_string(), polter::ROUTE_DELEGATED.to_string());
-        }
-    }
-    routes
-}
-
-/// Reads whether a card or one task (`slug#T2`) is finished. It never writes
-/// and never moves the stored stage.
-fn verify_feature(store: &Store, project_id: &str, target: &str) -> Result<polter::VerifyResult> {
-    let mut slug = target.trim().to_string();
-    let mut number = 0;
-    if slug.contains('#') || slug.contains(' ') {
-        let reference = polter::parse_task_ref(&slug).map_err(Error::Message)?;
-        slug = reference.slug;
-        number = reference.number;
-    }
-    let snapshot = store.load_work_snapshot(project_id)?;
-    let review = review_feature(store, &snapshot, &slug)?;
-    let mut contract: Vec<polter::ReviewInvariant> = review
-        .card
-        .invariants
-        .iter()
-        .filter(|invariant| invariant.state == work::INVARIANT_ACTIVE)
-        .map(|invariant| polter::ReviewInvariant {
-            text: invariant.text.clone(),
-            from: "card".to_string(),
-        })
-        .collect();
-    contract.extend(review.inherited.iter().cloned());
-    polter::verify_feature(&polter::VerifyInput {
-        card: review.card,
-        task: number,
-        delivered: project_git(store, project_id).delivered,
-        contract,
-    })
-    .map_err(Error::Message)
-}
-
-/// Answers "feature <slug> [step]" and "verify <target>".
-fn query_feature(
-    store: &Store,
-    snapshot: &work::Snapshot,
-    query: &polter::Query,
-) -> Result<String> {
-    if query.kind == polter::QUERY_VERIFY {
-        let result = verify_feature(store, &snapshot.project_id, &query.slug)?;
-        return Ok(polter::encode_verify(&result));
-    }
-    let review = review_feature(store, snapshot, &query.slug)?;
-    let mut step = query.step.as_str();
-    if step.is_empty() {
-        step = polter::FEATURE_STEP_SHAPE;
-    }
-    if !polter::valid_feature_step(step) {
-        return Err(Error::Message(format!(
-            "unknown step {}: use shape, contract, or plan",
-            polter::go_quote(step)
-        )));
-    }
-    Ok(polter::encode_feature_review(&review, step))
-}
-
-/// Lists agent-visible canvases, or returns one of them as a Mermaid flowchart.
-/// A canvas with `agent_visible` false is omitted from the list and answers as
-/// unknown, including when the caller names its id.
-fn query_canvas(
-    store: &Store,
-    project_id: &str,
-    reference: &str,
-    scope: &structure::MultiScope,
-) -> Result<String> {
-    let items = store.list_canvases(project_id)?;
-    let resolved = store.load_scopes(project_id, scope)?;
-    let visible: Vec<canvas::Canvas> = items
-        .into_iter()
-        .filter(|item| item.agent_visible && resolved.matches(&item.scope_node_id))
-        .collect();
-    let nodes = store.structure_nodes(project_id)?;
-    let reference = reference.trim();
-    if reference.is_empty() {
-        return Ok(format_agent_canvases(&visible, &nodes));
-    }
-    let item = find_agent_canvas(&visible, reference)?;
-    Ok(canvas::export_mermaid(
-        &canvas::with_structure(&item.graph, &nodes),
-        &item.layout_json,
-    ))
-}
-
-fn format_agent_canvases(items: &[canvas::Canvas], nodes: &[structure::Node]) -> String {
-    if items.is_empty() {
-        return "no canvases\n".to_string();
-    }
-    let paths: HashMap<&str, &str> = nodes
-        .iter()
-        .map(|node| (node.id.as_str(), node.path.as_str()))
-        .collect();
-    let mut out = String::from("id  scope  name\n");
-    for item in items {
-        let scope = if item.scope_node_id.is_empty() {
-            "-".to_string()
-        } else {
-            paths
-                .get(item.scope_node_id.as_str())
-                .map(|path| (*path).to_string())
-                .unwrap_or_else(|| item.scope_node_id.clone())
-        };
-        out.push_str(&format!("{}  {}  {}\n", item.id, scope, item.name));
-    }
-    out
-}
-
-fn find_agent_canvas(items: &[canvas::Canvas], reference: &str) -> Result<canvas::Canvas> {
-    let mut by_id: Option<&canvas::Canvas> = None;
-    let mut by_name: Vec<&canvas::Canvas> = Vec::new();
-    for item in items {
-        if item.id == reference {
-            by_id = Some(item);
-        }
-        if item.name == reference {
-            by_name.push(item);
-        }
-    }
-    if let Some(item) = by_id {
-        return Ok(item.clone());
-    }
-    match by_name.len() {
-        1 => Ok(by_name[0].clone()),
-        0 => Err(Error::Message(format!(
-            "unknown canvas {}: list canvases with polterware query canvas",
-            polter::go_quote(reference)
-        ))),
-        n => Err(Error::Message(format!(
-            "canvas name {} matches {n} canvases: use an id",
-            polter::go_quote(reference)
-        ))),
-    }
-}
-
-/// Lists a project's deploy links, or one node's, one per line: where it runs,
-/// the platform's target, the latest check and its age, and the links.
-fn deploys_text(
-    store: &Store,
-    project_id: &str,
-    node_reference: &str,
-    now: OffsetDateTime,
-) -> Result<String> {
-    let node_id = deploy_node_id(store, project_id, node_reference)?;
-    let links = store.list_node_deploy_links(project_id)?;
-    let mut out = String::new();
-    for link in &links {
-        if !node_id.is_empty() && link.node_id != node_id {
-            continue;
-        }
-        out.push_str(&deploy_line(link, now));
-        out.push('\n');
-    }
-    if out.is_empty() {
-        return Ok(
-            "no deploys: link one with deploys: env=provider:resource on a component\n".to_string(),
-        );
-    }
-    Ok(out)
-}
-
-/// Resolves a node id or Structure path; empty stays empty.
-fn deploy_node_id(store: &Store, project_id: &str, reference: &str) -> Result<String> {
-    let reference = reference.trim().trim_matches('/').to_string();
-    if reference.is_empty() {
-        return Ok(String::new());
-    }
-    for node in store.structure_nodes(project_id)? {
-        if node.status != structure::NODE_REMOVED
-            && (node.id == reference || node.path == reference)
-        {
-            return Ok(node.id);
-        }
-    }
-    Err(Error::Message(format!(
-        "unknown Structure node {:?}: list them with polterware structure",
-        reference
-    )))
-}
-
-/// One link as agents read it:
-/// `web production: vercel polterware-web@prj_1, failed 10m ago (error), <dashboard>`.
-fn deploy_line(link: &inbox::DeployLink, now: OffsetDateTime) -> String {
-    let env = first_non_empty_text(&[&link.environment, &link.environment_id]);
-    let mut target = link.resource.clone();
-    if !link.target_id.is_empty() && link.target_id != link.resource {
-        target.push('@');
-        target.push_str(&link.target_id);
-    }
-    let mut line = format!("{} {}: {} {}", link.node_path, env, link.provider, target);
-    if link.state.is_empty() {
-        line.push_str(", not checked");
-    } else {
-        line.push_str(", ");
-        line.push_str(&link.state);
-        if let Ok(at) = OffsetDateTime::parse(&link.checked_at, &Rfc3339) {
-            line.push(' ');
-            line.push_str(&ago(now - at));
-            line.push_str(" ago");
-        }
-        if !link.summary.is_empty() {
-            line.push_str(" (");
-            line.push_str(&link.summary);
-            line.push(')');
-        }
-    }
-    if !link.url.is_empty() {
-        line.push_str(", ");
-        line.push_str(&link.url);
-    }
-    if link.state == cli::STATE_FAILED && !link.state_url.is_empty() && link.state_url != link.url {
-        line.push_str(", ");
-        line.push_str(&link.state_url);
-    }
-    line
-}
-
-fn ago(d: time::Duration) -> String {
-    if d < time::Duration::minutes(1) {
-        "<1m".to_string()
-    } else if d < time::Duration::hours(1) {
-        format!("{}m", d.whole_minutes())
-    } else if d < time::Duration::hours(48) {
-        format!("{}h", d.whole_hours())
-    } else {
-        format!("{}d", d.whole_hours() / 24)
-    }
-}
-
-/// Picks the card a handoff or status command is about. `slug` wins. Otherwise
-/// the only active card that already has a handoff on `branch`, otherwise the
-/// only active card. The error carries the active cards when the choice is
-/// ambiguous.
-fn select_work_card(
-    snapshot: &work::Snapshot,
-    slug: &str,
-    branch: &str,
-) -> std::result::Result<work::Card, (Vec<String>, Error)> {
-    let active: Vec<&work::Card> = snapshot
-        .cards
-        .iter()
-        .filter(|card| card.status == work::CARD_ACTIVE)
-        .collect();
-    let slugs: Vec<String> = active.iter().map(|card| card.slug.clone()).collect();
-    let slug = slug.trim();
-    if !slug.is_empty() {
-        let Some(card) = snapshot.card(slug) else {
-            return Err((
-                slugs,
-                Error::Message(format!(
-                    "unknown card {}: list cards with polterware query cards",
-                    polter::go_quote(slug)
-                )),
-            ));
-        };
-        if card.status != work::CARD_ACTIVE {
-            return Err((
-                slugs,
-                Error::Message(format!(
-                    "unknown card {}: list cards with polterware query cards",
-                    polter::go_quote(slug)
-                )),
-            ));
-        }
-        return Ok(card.clone());
-    }
-    if !branch.is_empty() && branch != "HEAD" {
-        let on_branch: Vec<&&work::Card> = active
-            .iter()
-            .filter(|card| card.latest_handoff(branch).is_some())
-            .collect();
-        if on_branch.len() == 1 {
-            return Ok((*on_branch[0]).clone());
-        }
-    }
-    if active.len() == 1 {
-        return Ok(active[0].clone());
-    }
-    if active.is_empty() {
-        return Err((
-            Vec::new(),
-            Error::Message("no active card: create one with polterware apply".to_string()),
-        ));
-    }
-    Err((
-        slugs.clone(),
-        Error::Message(format!("pass --card <slug>: {}", slugs.join(", "))),
-    ))
-}
-
-/// The absolute, cleaned form of a path; a relative one resolves against the
-/// working directory, as Go's `filepath.Abs` does.
-fn absolute_path(path: &str) -> Result<String> {
-    let path = path.trim();
-    if Path::new(path).is_absolute() {
-        return Ok(clean_path(path));
-    }
-    let cwd = std::env::current_dir().map_err(|err| Error::Message(err.to_string()))?;
-    Ok(clean_path(&cwd.join(path).to_string_lossy()))
-}
-
-/// The last element of a path (`filepath.Base`).
-fn path_base(path: &str) -> String {
-    if path.is_empty() {
-        return ".".to_string();
-    }
-    let trimmed = path.trim_end_matches('/');
-    if trimmed.is_empty() {
-        return "/".to_string();
-    }
-    trimmed.rsplit('/').next().unwrap_or(trimmed).to_string()
-}
-
-/// A lexical `filepath.Clean`: no empty or `.` parts, and `..` resolved.
-fn clean_path(path: &str) -> String {
-    let absolute = path.starts_with('/');
-    let mut out: Vec<&str> = Vec::new();
-    for part in path.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => match out.last() {
-                Some(last) if *last != ".." => {
-                    out.pop();
-                }
-                _ => {
-                    if !absolute {
-                        out.push("..");
-                    }
-                }
-            },
-            other => out.push(other),
-        }
-    }
-    let joined = out.join("/");
-    if absolute {
-        format!("/{joined}")
-    } else if joined.is_empty() {
-        ".".to_string()
-    } else {
-        joined
-    }
-}
-
-/// The relative path of `target` from `root`, as `filepath.Rel` spells it.
-fn relative_path(root: &str, target: &str) -> Option<String> {
-    let root_parts: Vec<&str> = root.split('/').filter(|part| !part.is_empty()).collect();
-    let target_parts: Vec<&str> = target.split('/').filter(|part| !part.is_empty()).collect();
-    if root.starts_with('/') != target.starts_with('/') {
-        return None;
-    }
-    let mut i = 0;
-    while i < root_parts.len() && i < target_parts.len() && root_parts[i] == target_parts[i] {
-        i += 1;
-    }
-    let mut parts: Vec<String> = Vec::new();
-    for _ in i..root_parts.len() {
-        parts.push("..".to_string());
-    }
-    for part in &target_parts[i..] {
-        parts.push((*part).to_string());
-    }
-    if parts.is_empty() {
-        Some(".".to_string())
-    } else {
-        Some(parts.join("/"))
-    }
-}
-
-/// A path with forward slashes (`filepath.ToSlash`).
-fn slash_path(path: &str) -> String {
-    path.replace('\\', "/")
-}
-
-fn trimmed(value: &str) -> String {
-    value.trim().to_string()
 }
 
 #[cfg(test)]
@@ -1513,44 +506,15 @@ Import HEAD, branch and recent commits as evidence.
 
     /// The project `InitProject` registers for a name and no folder: a project
     /// row, its settings, and its default local environment.
-    ///
-    /// TODO(dedupe): private copy of `init.go`'s `InitProject`; the sibling
-    /// module exports the same once the port lands.
     pub(crate) fn init_test_project(store: &Store, name: &str) -> projects::Project {
-        let project = projects::new_project(&ids::new_ulid(), name).expect("project");
-        store.save_project(project.clone()).expect("save project");
-        if store.get_project_settings(&project.id).is_err() {
-            store
-                .save_project_settings(projects::Settings {
-                    project_id: project.id.clone(),
-                    ..projects::Settings::default()
-                })
-                .expect("save settings");
-        }
-        let envs = store.list_environments(&project.id).expect("environments");
-        if envs.is_empty() {
-            let mut env = projects::new_environment(
-                &format!("{}-local", project.id),
-                &project.id,
-                "local",
-                "local",
-            )
-            .expect("environment");
-            env.is_default = true;
-            env.protection = "relaxed".to_string();
-            env.description = "local environment".to_string();
-            store
-                .save_environment(env.clone())
-                .expect("save environment");
-            store
-                .save_project_settings(projects::Settings {
-                    project_id: project.id.clone(),
-                    default_environment_id: env.id,
-                    ..projects::Settings::default()
-                })
-                .expect("save settings");
-        }
-        project
+        super::init::init_project(
+            store,
+            super::init::InitInput {
+                name: name.to_string(),
+                ..super::init::InitInput::default()
+            },
+        )
+        .expect("project")
     }
 
     /// Links a local folder as the project's repository, as Go's test helper

@@ -12,6 +12,8 @@ use crate::domains::structure;
 use crate::providers::git;
 use crate::providers::sqlite::{self, Store};
 
+use super::repos::project_checkouts;
+
 static COMMIT_SHA: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[0-9a-fA-F]{7,40}$").expect("the commit sha pattern"));
 
@@ -49,7 +51,8 @@ fn resolve_commit_point(
             return Ok(point.to_string());
         }
     }
-    let checkouts = project_checkouts(store, project_id)?;
+    let checkouts = project_checkouts(store, project_id)
+        .map_err(|err| sqlite::Error::message(err.to_string()))?;
     for co in &checkouts {
         if let Some(committed) = git::commit_time(&co.root, point) {
             return Ok(sqlite::format_rfc3339(committed));
@@ -95,30 +98,6 @@ pub(crate) fn encode_structure_history(entries: &[structure::HistoryEntry]) -> S
 
 fn structure_error(error: structure::Error) -> sqlite::Error {
     sqlite::Error::message(error.to_string())
-}
-
-/// One repository cloned on this machine.
-struct GitCheckout {
-    #[allow(dead_code)]
-    name: String,
-    root: String,
-}
-
-// TODO(dedupe): private copy of `repos.go`'s `projectCheckouts` and `gitCheckout`;
-// the sibling module exports the same once the port lands.
-fn project_checkouts(store: &Store, project_id: &str) -> sqlite::Result<Vec<GitCheckout>> {
-    let repos = store.list_repositories(project_id)?;
-    let mut out = Vec::new();
-    for repo in repos {
-        let path = expand_path(&repo.local_path);
-        if !path.is_empty() {
-            out.push(GitCheckout {
-                name: repo.name,
-                root: path,
-            });
-        }
-    }
-    Ok(out)
 }
 
 #[cfg(test)]
