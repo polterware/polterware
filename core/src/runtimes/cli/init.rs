@@ -1,0 +1,9 @@
+//! Port of `backend/runtimes/cli/init.go`: registering a project.
+//!
+//! The command is stubbed until this file is ported.
+
+use super::output::{CliResult, not_ported};
+
+pub fn run_init(_db_path: &str, _args: &[String]) -> CliResult {
+    not_ported("init")
+}
