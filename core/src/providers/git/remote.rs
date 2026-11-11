@@ -50,11 +50,26 @@ mod tests {
     #[test]
     fn parse_github_remote_cases() {
         let cases = [
-            ("git@github.com:polterware/polterware.git", Some("polterware/polterware")),
-            ("https://github.com/polterware/polterware", Some("polterware/polterware")),
-            ("https://github.com/polterware/polterware.git", Some("polterware/polterware")),
-            ("ssh://git@github.com/polterware/polterware.git", Some("polterware/polterware")),
-            ("https://token@github.com/polterware/polterware/", Some("polterware/polterware")),
+            (
+                "git@github.com:polterware/polterware.git",
+                Some("polterware/polterware"),
+            ),
+            (
+                "https://github.com/polterware/polterware",
+                Some("polterware/polterware"),
+            ),
+            (
+                "https://github.com/polterware/polterware.git",
+                Some("polterware/polterware"),
+            ),
+            (
+                "ssh://git@github.com/polterware/polterware.git",
+                Some("polterware/polterware"),
+            ),
+            (
+                "https://token@github.com/polterware/polterware/",
+                Some("polterware/polterware"),
+            ),
             ("git@gitlab.com:polterware/polterware.git", None),
             ("https://github.com/polterware", None),
             ("", None),

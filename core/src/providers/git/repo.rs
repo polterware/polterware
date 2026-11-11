@@ -106,7 +106,9 @@ pub fn observe(root: &str) -> Observation {
     }
     let mut obs = Observation {
         available: true,
-        branch: git.out(&["rev-parse", "--abbrev-ref", "HEAD"]).unwrap_or_default(),
+        branch: git
+            .out(&["rev-parse", "--abbrev-ref", "HEAD"])
+            .unwrap_or_default(),
         ..Observation::default()
     };
     let mut files: Vec<String> = Vec::new();
@@ -145,7 +147,13 @@ pub fn read_metadata(root: &str) -> Metadata {
         meta.branch = branch;
     }
     let limit = RECENT_COMMIT_LIMIT.to_string();
-    let log_args = ["log", "-n", limit.as_str(), "--first-parent", "--format=%H%x1f%s"];
+    let log_args = [
+        "log",
+        "-n",
+        limit.as_str(),
+        "--first-parent",
+        "--format=%H%x1f%s",
+    ];
     if let Some(log) = git.out(&log_args).filter(|log| !log.is_empty()) {
         meta.commits = log.split('\n').filter_map(commit_line).collect();
     }
@@ -161,7 +169,10 @@ pub fn delivery_base(root: &str) -> Option<String> {
     }
     let git = Git::new(root, READ_DEADLINE);
     for reference in ["refs/heads/main", "refs/heads/master"] {
-        if git.out(&["rev-parse", "--verify", "--quiet", reference]).is_some() {
+        if git
+            .out(&["rev-parse", "--verify", "--quiet", reference])
+            .is_some()
+        {
             return Some(reference.to_string());
         }
     }
@@ -181,7 +192,9 @@ pub fn ancestors_of(root: &str, base: &str, shas: &[String]) -> HashMap<String, 
         if sha.is_empty() || out.contains_key(sha) {
             continue;
         }
-        let ancestor = git.out(&["merge-base", "--is-ancestor", sha, base]).is_some();
+        let ancestor = git
+            .out(&["merge-base", "--is-ancestor", sha, base])
+            .is_some();
         out.insert(sha.to_string(), ancestor);
     }
     out
