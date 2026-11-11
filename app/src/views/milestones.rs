@@ -11,12 +11,13 @@
 //!
 //! A board's toolbar goes back to the Roadmap, switches Board and List, and searches and
 //! filters its cards (by stage, and by open questions). The Board holds the five stage
-//! columns: a card drags to another column, a move back asking why, and its Tasks open in a
-//! Morph where they are checked off; a column's "+" opens the app's shared Composer for a new
-//! card there, on the board's milestone, and so does C anywhere on Milestones. The List groups the
-//! cards by stage (each group's "+" adds one), orders them by when they changed, and its
-//! headers sort by title, stage, or change; picked cards move to a stage or a milestone, or
-//! archive under one reason. Space peeks at the marked card; a row or a card opens its page.
+//! columns: a card drags to another column, a move back takes it there at once, and its Tasks
+//! open in a Morph where they are checked off; a column's "+" opens the app's shared Composer
+//! for a new card there, on the board's milestone, and so does C anywhere on Milestones. The
+//! List groups the cards by stage (each group's "+" adds one), orders them by when they
+//! changed, and its headers sort by title, stage, or change; picked cards move to a stage or a
+//! milestone, or archive once confirmed. Space peeks at the marked card; a row or a card opens
+//! its page.
 
 use std::collections::BTreeSet;
 use std::rc::Rc;
@@ -118,13 +119,6 @@ enum Ask {
         name: String,
         cards: usize,
     },
-    /// A move back to `stage`, which asks why; a board drop waits on it.
-    MoveBack {
-        slugs: Vec<String>,
-        stage: Stage,
-        what: String,
-        settle: Option<Rc<BoardMove>>,
-    },
     ArchiveCards {
         slugs: Vec<String>,
     },
@@ -158,7 +152,6 @@ pub struct MilestonesView {
     ask: Option<Ask>,
     ask_focus: FocusHandle,
     ask_focus_due: bool,
-    reason: Entity<TextInput>,
     peek: Option<String>,
     peek_presence: DialogPresence,
     peek_focus: FocusHandle,
@@ -272,8 +265,6 @@ impl MilestonesView {
         cx.observe(&menu, |_, _, cx| cx.notify()).detach();
         let composer = cx.new(Composer::new);
         cx.subscribe(&composer, Self::composed).detach();
-        let reason = cx.new(|cx| TextInput::new(cx).inline());
-        cx.observe(&reason, |_, _, cx| cx.notify()).detach();
         cx.observe(&state, |_, _, cx| cx.notify()).detach();
         let host = cx.weak_entity();
         let page = cx.new(|cx| CardPage::new(state.clone(), host, cx));
@@ -291,7 +282,6 @@ impl MilestonesView {
             ask: None,
             ask_focus: cx.focus_handle(),
             ask_focus_due: false,
-            reason,
             peek: None,
             peek_presence: DialogPresence::new(),
             peek_focus: cx.focus_handle(),
@@ -503,21 +493,14 @@ impl MilestonesView {
     // Questions before a write.
 
     fn ask(&mut self, ask: Ask, cx: &mut Context<Self>) {
-        self.reason.update(cx, |field, cx| field.set_text("", cx));
         self.ask = Some(ask);
         self.ask_focus_due = true;
         cx.notify();
     }
 
-    /// Cancel: a board drop that waited on the answer goes back.
+    /// Cancel: the question closes and nothing is written.
     fn dismiss_ask(&mut self, cx: &mut Context<Self>) {
-        if let Some(Ask::MoveBack {
-            settle: Some(change),
-            ..
-        }) = self.ask.take()
-        {
-            change.settle(false, cx);
-        }
+        self.ask = None;
         cx.notify();
     }
 
@@ -525,25 +508,18 @@ impl MilestonesView {
         let Some(ask) = self.ask.take() else {
             return;
         };
-        let reason = self.reason.read(cx).text().trim().to_string();
         match ask {
             Ask::ArchiveMilestone { id, .. } => {
                 self.state.update(cx, |state, cx| {
                     state.milestone_action(MilestoneAction::Archive { id }, |_, _| {}, cx);
                 });
             }
-            Ask::MoveBack {
-                slugs,
-                stage,
-                settle,
-                ..
-            } => self.move_cards(slugs, stage, reason, settle, cx),
             Ask::ArchiveCards { slugs } => {
                 let view = cx.entity().downgrade();
                 self.state.update(cx, |state, cx| {
                     state.archive_cards(
                         slugs,
-                        reason,
+                        String::new(),
                         move |ok, cx| {
                             if ok {
                                 let _ = view.update(cx, |this, cx| {
@@ -558,7 +534,7 @@ impl MilestonesView {
             }
             Ask::RemoveCard { slug, .. } => {
                 self.state
-                    .update(cx, |state, cx| state.remove_card(slug, reason, cx));
+                    .update(cx, |state, cx| state.remove_card(slug, String::new(), cx));
             }
         }
         cx.notify();
@@ -569,7 +545,6 @@ impl MilestonesView {
         &mut self,
         slugs: Vec<String>,
         stage: Stage,
-        reason: String,
         settle: Option<Rc<BoardMove>>,
         cx: &mut Context<Self>,
     ) {
@@ -579,14 +554,14 @@ impl MilestonesView {
                 (Some(change), [slug]) => state.set_card_stage(
                     slug.clone(),
                     stage,
-                    reason,
+                    String::new(),
                     move |ok, cx| change.settle(ok, cx),
                     cx,
                 ),
                 _ => state.set_cards_stage(
                     slugs,
                     stage,
-                    reason,
+                    String::new(),
                     move |ok, cx| {
                         if ok {
                             let _ = view.update(cx, |this, cx| {
@@ -600,7 +575,7 @@ impl MilestonesView {
             });
     }
 
-    /// Moves `slugs` to `stage`, asking why first when that takes one of them back.
+    /// Moves `slugs` to `stage`.
     fn request_stage(
         &mut self,
         slugs: Vec<String>,
@@ -608,31 +583,7 @@ impl MilestonesView {
         settle: Option<Rc<BoardMove>>,
         cx: &mut Context<Self>,
     ) {
-        let Some(work) = self.work(cx) else {
-            if let Some(change) = settle {
-                change.settle(false, cx);
-            }
-            return;
-        };
-        let cards = work.cards.iter().filter(|card| slugs.contains(&card.slug));
-        if work::moves_back(cards, stage) {
-            let what = if settle.is_some() {
-                "the card".to_string()
-            } else {
-                work::card_count(slugs.len())
-            };
-            self.ask(
-                Ask::MoveBack {
-                    slugs,
-                    stage,
-                    what,
-                    settle,
-                },
-                cx,
-            );
-        } else {
-            self.move_cards(slugs, stage, String::new(), settle, cx);
-        }
+        self.move_cards(slugs, stage, settle, cx);
     }
 
     /// The question open, as a dialog over the page.
@@ -652,13 +603,11 @@ impl MilestonesView {
         let confirm: polterware_ui::Handler = Rc::new(move |_, cx: &mut App| {
             let _ = view.update(cx, |this, cx| this.answer(cx));
         });
-        let archive_reason = |what: String| {
+        let archive_ask = |what: String| {
             (
                 format!("Archive {what}?"),
-                "Say why, so Activity and agents know it was dropped on purpose. Restore brings it back."
-                    .to_string(),
+                "It leaves the board and the lists. You can restore it later.".to_string(),
                 "Archive",
-                "Why archive it?",
             )
         };
         let dialog = match &ask {
@@ -678,23 +627,15 @@ impl MilestonesView {
             .danger()
             .focus(&self.ask_focus),
             ask => {
-                let (title, description, label, placeholder) = match ask {
-                    Ask::MoveBack { stage, what, .. } => (
-                        format!("Move {what} back to {}?", stage.label()),
-                        "Moving back reopens work. Say why, so Activity and agents know what changed."
-                            .to_string(),
-                        "Move back",
-                        "Why move it back?",
-                    ),
-                    Ask::ArchiveCards { slugs } => archive_reason(work::card_count(slugs.len())),
-                    Ask::RemoveCard { title, .. } => archive_reason(format!("“{title}”")),
+                let (title, description, label) = match ask {
+                    Ask::ArchiveCards { slugs } => archive_ask(work::card_count(slugs.len())),
+                    Ask::RemoveCard { title, .. } => archive_ask(format!("“{title}”")),
                     Ask::ArchiveMilestone { .. } => unreachable!("asked above"),
                 };
-                self.reason
-                    .update(cx, |field, _| field.set_placeholder(placeholder));
-                ConfirmDialog::new("milestones-reason", title, description)
+                ConfirmDialog::new("milestones-archive", title, description)
                     .confirm_label(label)
-                    .reason(&self.reason)
+                    .danger()
+                    .focus(&self.ask_focus)
             }
         };
         let dialog = dialog.on_cancel(close.clone()).on_confirm(confirm);
@@ -706,26 +647,11 @@ impl MilestonesView {
         self.ask(Ask::RemoveCard { slug, title }, cx);
     }
 
-    /// Asks why the open card's stage moves back, or moves it, from its page.
+    /// Moves the open card's stage, from its page.
     pub(crate) fn ask_stage(&mut self, slug: String, stage: Stage, cx: &mut Context<Self>) {
-        let Some(work) = self.work(cx) else {
-            return;
-        };
-        if work::moves_back(work.card(&slug), stage) {
-            self.ask(
-                Ask::MoveBack {
-                    slugs: vec![slug],
-                    stage,
-                    what: "the card".into(),
-                    settle: None,
-                },
-                cx,
-            );
-        } else {
-            self.state.update(cx, |state, cx| {
-                state.set_card_stage(slug, stage, String::new(), |_, _| {}, cx);
-            });
-        }
+        self.state.update(cx, |state, cx| {
+            state.set_card_stage(slug, stage, String::new(), |_, _| {}, cx);
+        });
     }
 
     // The Roadmap.

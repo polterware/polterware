@@ -187,12 +187,6 @@ pub fn task_status(task: &WorkTask) -> String {
     }
 }
 
-/// Whether moving these cards to `stage` takes any of them back a stage, which asks why
-/// (`stageBackReason`).
-pub fn moves_back<'a>(cards: impl IntoIterator<Item = &'a WorkCard>, stage: Stage) -> bool {
-    cards.into_iter().any(|card| Stage::of(card) > stage)
-}
-
 /// The Polter handle a title makes (`cardSlugFromTitle`): kebab case, at most 48 letters.
 pub fn card_slug_from_title(title: &str) -> String {
     let mut slug = String::new();
@@ -830,10 +824,7 @@ mod tests {
     }
 
     #[test]
-    fn moving_a_card_back_asks_why_and_a_gate_reads_its_checks() {
-        let cards = [card("a", "verify", ""), card("b", "shape", "")];
-        assert!(moves_back(&cards, Stage::Build));
-        assert!(!moves_back(&cards[1..], Stage::Build));
+    fn a_gate_reads_its_checks() {
         assert_eq!(
             next_gate(Stage::Shape).map(|gate| gate.step),
             Some("contract")
