@@ -8,8 +8,8 @@ use crate::domains::polter;
 use crate::domains::work;
 use crate::providers::sqlite as storepkg;
 
-use super::brief::helpers::{self, ApplyInput};
 use super::inbox::list_inbox_for;
+use super::work::{ApplyInput, polter_references, project_git};
 
 /// The Shape impact and flow checks of one card.
 pub fn review_feature(
@@ -26,7 +26,7 @@ pub(super) fn review_feature_for(
     snapshot: &work::Snapshot,
     slug: &str,
 ) -> anyhow::Result<polter::FeatureReview> {
-    let refs = helpers::polter_references(store, snapshot)?;
+    let refs = polter_references(store, &snapshot.project_id)?;
     let routes = question_routes(store, snapshot);
     polter::review_feature(snapshot, slug, &refs.decisions, &routes)
         .map_err(|err| anyhow::anyhow!("{err}"))
@@ -159,14 +159,13 @@ pub fn verify_feature(
     polter::verify_feature(&polter::VerifyInput {
         card: review.card,
         task: number,
-        delivered: helpers::project_git(store, project_id).delivered,
+        delivered: project_git(store, project_id).delivered,
         contract,
     })
     .map_err(|err| anyhow::anyhow!("{err}"))
 }
 
 /// Answers "feature <slug> [step]" and "verify <target>".
-#[allow(dead_code)] // Called by the work.go query router, ported separately.
 pub(super) fn query_feature(
     store: &storepkg::Store,
     snapshot: &work::Snapshot,
@@ -194,20 +193,17 @@ pub(super) fn query_feature(
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use super::super::brief::helpers::InitInput;
+    use super::super::init::{InitInput, init_project};
     use super::*;
     use crate::providers::sqlite::test_support::TempStore;
 
     fn apply(store: &storepkg::Store, mut input: ApplyInput) {
         input.auto_start_label = "cli".to_string();
-        let (result, outcome) = helpers::apply_polter(store, &input);
-        assert!(
-            outcome.is_ok(),
-            "apply {:?}: {:?} {:?}",
-            input.text,
-            outcome.err(),
-            result.diagnostics
-        );
+        let text = input.text.clone();
+        match super::super::work::apply_polter(store, input) {
+            Ok(result) => assert!(result.diagnostics.is_empty(), "apply {text:?}: {result:?}"),
+            Err(failure) => panic!("apply {text:?}: {failure} {:?}", failure.result.diagnostics),
+        }
     }
 
     fn apply_text(store: &storepkg::Store, project_id: &str, summary: &str, text: &str) {
@@ -233,9 +229,9 @@ mod tests {
     fn feature_flow_end_to_end() {
         let temp = TempStore::named("feature.db");
         let store = &temp.store;
-        let project = helpers::init_project(
+        let project = init_project(
             store,
-            &InitInput {
+            InitInput {
                 name: "Demo".to_string(),
                 ..InitInput::default()
             },

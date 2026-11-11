@@ -80,4 +80,64 @@ mod tests {
         let err = compile_context(&store, ContextInput::default()).unwrap_err();
         assert_eq!(err.to_string(), "project_id is required");
     }
+
+    /// A project started from a folder links it as its only component and
+    /// compiles a context package for it.
+    #[test]
+    fn init_scan_context() {
+        use crate::compositions::wedge::init::{InitInput, init_project};
+
+        let root_dir = tempfile::tempdir().expect("root");
+        let root = root_dir.path().to_string_lossy().into_owned();
+        for (name, body) in [
+            ("go.mod", "module github.com/acme/demo\n\ngo 1.23\n"),
+            ("README.md", "# Demo\n"),
+            (
+                "package.json",
+                r#"{"name":"demo","dependencies":{"left-pad":"1.0.0"}}"#,
+            ),
+        ] {
+            std::fs::write(root_dir.path().join(name), body).expect("write");
+        }
+
+        let TempStore { store, .. } = TempStore::new();
+        let project = init_project(
+            &store,
+            InitInput {
+                name: "Demo".to_string(),
+                dir: root.clone(),
+                ..InitInput::default()
+            },
+        )
+        .expect("init project");
+
+        let repos = store.list_repositories(&project.id).expect("repositories");
+        assert_eq!(repos.len(), 1, "repos = {repos:?}");
+        assert_eq!(
+            repos[0].local_path, root,
+            "init links the folder as the only repository"
+        );
+        let snapshot = store.load_work_snapshot(&project.id).expect("snapshot");
+        assert_eq!(snapshot.nodes.len(), 1, "nodes = {:?}", snapshot.nodes);
+        assert_eq!(snapshot.nodes[0].level, "component");
+        assert_eq!(
+            snapshot.nodes[0].repo, repos[0].name,
+            "init creates one component on the repository"
+        );
+        let envs = store.list_environments(&project.id).expect("environments");
+        assert!(
+            envs.len() == 1 && envs[0].is_default,
+            "expected a default local env: {envs:?}"
+        );
+
+        let pkg = compile_context(
+            &store,
+            ContextInput {
+                project_id: project.id.clone(),
+                ..ContextInput::default()
+            },
+        )
+        .expect("compile");
+        assert_eq!(pkg.project_id, project.id, "context project mismatch");
+    }
 }

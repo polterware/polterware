@@ -10,7 +10,7 @@ use crate::domains::work;
 use crate::providers::git as gitpkg;
 use crate::providers::sqlite as storepkg;
 
-use super::brief::helpers;
+use super::repos::project_checkouts;
 
 /// One commit of a card's task, for the card page.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,7 +94,7 @@ pub fn card_commits(
             cited: false,
         });
     }
-    let checkouts = helpers::project_checkouts(store, project_id)?;
+    let checkouts = project_checkouts(store, project_id)?;
     for checkout in &checkouts {
         let meta = gitpkg::read_metadata(&checkout.root);
         if !meta.available {
@@ -145,7 +145,7 @@ pub fn link_task_commit(
     if sha.is_empty() {
         return Err(commit_input("link needs a commit sha").into());
     }
-    let checkouts = helpers::project_checkouts(store, project_id)?;
+    let checkouts = project_checkouts(store, project_id)?;
     for checkout in &checkouts {
         let Some(detail) = gitpkg::read_commit(&checkout.root, sha) else {
             continue;
@@ -228,7 +228,9 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use super::super::brief::helpers::{self, ApplyInput, InitInput};
+    use super::super::init::{InitInput, init_project};
+    use super::super::repos::ensure_repository;
+    use super::super::work::{ApplyInput, apply_polter};
     use super::*;
     use crate::providers::sqlite::test_support::TempStore;
 
@@ -258,15 +260,15 @@ mod tests {
     }
 
     fn init_with_repo(store: &storepkg::Store, name: &str, root: &str) -> String {
-        let project = helpers::init_project(
+        let project = init_project(
             store,
-            &InitInput {
+            InitInput {
                 name: name.to_string(),
                 ..InitInput::default()
             },
         )
         .expect("init project");
-        helpers::ensure_repository(store, &project.id, root).expect("ensure repository");
+        ensure_repository(store, &project.id, root).expect("ensure repository");
         project.id
     }
 
@@ -306,9 +308,9 @@ mod tests {
         let store = &temp.store;
         let project_id = init_with_repo(store, "Demo", &root);
         let card = "---\npolter: 1\nsummary: Add login\nrationale: test\n---\n\n## login: Login\nstage: build\n- [x] T1 Session table\n- [x] T2 Login route\n";
-        let (result, outcome) = helpers::apply_polter(
+        let applied = apply_polter(
             store,
-            &ApplyInput {
+            ApplyInput {
                 project_id: project_id.clone(),
                 text: card.to_string(),
                 auto_start_label: "cli".to_string(),
@@ -316,10 +318,9 @@ mod tests {
             },
         );
         assert!(
-            outcome.is_ok(),
-            "{:?} {:?}",
-            outcome.err(),
-            result.diagnostics
+            applied.is_ok(),
+            "{:?}",
+            applied.err().map(|failure| failure.to_string())
         );
 
         let commits = card_commits(store, &project_id, "login").expect("cited");

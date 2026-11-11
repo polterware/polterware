@@ -17,6 +17,8 @@ use crate::providers::{cli, sqlite};
 #[allow(unused_imports)]
 use super::*;
 
+use super::path::expand_path;
+
 /// How soon a link may be checked again without force.
 pub const DEPLOY_CHECK_GAP: Duration = Duration::from_secs(60);
 
@@ -431,31 +433,6 @@ fn ago(duration: Duration) -> String {
     }
 }
 
-/// Expands a leading `~` to the user home directory.
-// TODO(dedupe): the public `ExpandPath` lands with `path.rs`; this private copy
-// goes away when that file is ported.
-fn expand_path(path: &str) -> String {
-    let path = path.trim();
-    if path.is_empty() {
-        return String::new();
-    }
-    let home = || {
-        let home = std::env::var_os("HOME")?;
-        let home = home.to_string_lossy().into_owned();
-        if home.is_empty() { None } else { Some(home) }
-    };
-    if path == "~" {
-        return home().unwrap_or_default();
-    }
-    match path.strip_prefix("~/") {
-        Some(rest) => match home() {
-            Some(home) => format!("{}/{}", home.trim_end_matches('/'), rest),
-            None => path.to_string(),
-        },
-        None => path.to_string(),
-    }
-}
-
 fn first_line(text: &str) -> String {
     let line = text.trim().split('\n').next().unwrap_or_default();
     if line.len() > 200 {
@@ -487,7 +464,7 @@ mod tests {
     use super::super::inbox::{ResolveInboxInput, list_inbox, resolve_inbox};
     use super::super::work::{ApplyInput, apply_polter};
     use super::super::{InitInput, init_project};
-    use crate::domains::{inbox, projects};
+    use crate::domains::{inbox, integrations, projects};
     use crate::providers::sqlite::test_support::TempStore;
 
     use super::*;
@@ -770,6 +747,225 @@ mod tests {
         assert_eq!(
             text,
             "no deploys: link one with deploys: env=provider:resource on a component\n"
+        );
+    }
+
+    /// The Structure node at `path`.
+    fn node_by_path(store: &sqlite::Store, project_id: &str, path: &str) -> structure::Node {
+        let snapshot = store.load_work_snapshot(project_id).expect("snapshot");
+        snapshot
+            .nodes
+            .into_iter()
+            .find(|node| node.path == path)
+            .unwrap_or_else(|| panic!("missing node {path}"))
+    }
+
+    /// The Inbox item a deploy key names.
+    fn deploy_item(result: inbox::Result, key: &str) -> Option<inbox::Item> {
+        result.items.into_iter().find(|item| item.key == key)
+    }
+
+    /// A `deploys:` line is stored per environment, survives an apply that
+    /// leaves it out, is replaced as a set when written again, and raises a
+    /// Setup item for every platform whose CLI is not connected.
+    #[test]
+    fn deploy_links_persist_and_raise_setup_items() {
+        let holder = TempStore::named("work.db");
+        let store = &holder.store;
+        let project = init_project(
+            store,
+            InitInput {
+                name: "Demo".to_string(),
+                ..InitInput::default()
+            },
+        )
+        .expect("project");
+        let prod = projects::new_environment(
+            &format!("{}-prod", project.id),
+            &project.id,
+            "production",
+            "production",
+        )
+        .expect("environment");
+        store.save_environment(prod.clone()).expect("environment");
+        let local_id = format!("{}-local", project.id);
+        let text = r#"---
+polter: 1
+summary: Link the web component
+rationale: Record where it deploys
+---
+
+# app: App
+level: domain
+
+# app/web: Web
+level: component
+under: app
+deploys: production=vercel:web, local=docker:api
+"#;
+        let apply = |body: &str| {
+            apply_polter(
+                store,
+                ApplyInput {
+                    project_id: project.id.clone(),
+                    text: body.to_string(),
+                    auto_start_label: "cli".to_string(),
+                    ..ApplyInput::default()
+                },
+            )
+        };
+        let result = apply(text).expect("apply");
+        assert!(result.applied, "expected the links to be written");
+
+        let web = node_by_path(store, &project.id, "app/web");
+        assert_eq!(web.deploys.len(), 2, "deploys = {:?}", web.deploys);
+        let local = &web.deploys[0];
+        assert_eq!(
+            (
+                local.provider.as_str(),
+                local.environment_id.as_str(),
+                local.resource.as_str()
+            ),
+            ("docker", local_id.as_str(), "api"),
+            "deploys = {:?}",
+            web.deploys
+        );
+        let production = &web.deploys[1];
+        assert_eq!(
+            (
+                production.provider.as_str(),
+                production.environment_id.as_str(),
+                production.resource.as_str(),
+                production.environment.as_str()
+            ),
+            ("vercel", prod.id.as_str(), "web", "production"),
+            "deploys = {:?}",
+            web.deploys
+        );
+        let vercel_id = production.id.clone();
+
+        let again = apply(text).expect("apply");
+        assert!(
+            !again.applied && again.ops.is_empty(),
+            "re-apply should be a no-op: {:?}",
+            again.ops
+        );
+        let omit = r#"---
+polter: 1
+summary: Leave the links
+rationale: An absent deploys line changes nothing
+---
+
+# app/web: Web
+"#;
+        let again = apply(omit).expect("apply");
+        assert!(
+            !again.applied && again.ops.is_empty(),
+            "omit should be a no-op: {:?}",
+            again.ops
+        );
+
+        let bad = "---\npolter: 1\nsummary: Bad provider\nrationale: Should fail\n---\n# app/web: Web\ndeploys: production=heroku:web\n";
+        assert!(apply(bad).is_err(), "unknown provider should be rejected");
+        assert_eq!(
+            node_by_path(store, &project.id, "app/web").deploys.len(),
+            2,
+            "rejected text must leave the links"
+        );
+
+        let listed = list_inbox(store, &project.id).expect("inbox");
+        let web_id = web.id.clone();
+        let prod_key = inbox::deploy_key(&web_id, &prod.id);
+        let item = deploy_item(listed, &prod_key).expect("vercel setup item");
+        assert_eq!(item.kind, inbox::KIND_SETUP);
+        assert_eq!(item.title, "Connect vercel for app/web in production");
+        assert_eq!(item.detail, "vercel");
+        let local_key = inbox::deploy_key(&web_id, &local_id);
+        let local_item = deploy_item(list_inbox(store, &project.id).expect("inbox"), &local_key)
+            .expect("docker setup item");
+        assert_eq!(local_item.title, "Connect docker for app/web in local");
+
+        store
+            .save_connection(integrations::Connection {
+                id: "conn-docker".to_string(),
+                project_id: project.id.clone(),
+                provider_id: "docker".to_string(),
+                status: inbox::PROVIDER_STATUS_CONNECTED.to_string(),
+                label: "docker".to_string(),
+                ..integrations::Connection::default()
+            })
+            .expect("connection");
+        let listed = list_inbox(store, &project.id).expect("inbox");
+        assert!(
+            deploy_item(listed, &local_key).is_none(),
+            "a connected docker CLI should clear the local item"
+        );
+        let listed = list_inbox(store, &project.id).expect("inbox");
+        assert!(
+            deploy_item(listed, &prod_key).is_some(),
+            "vercel stays open until its CLI is connected"
+        );
+
+        store
+            .save_connection(integrations::Connection {
+                id: "conn-vercel-local".to_string(),
+                project_id: project.id.clone(),
+                provider_id: "vercel".to_string(),
+                status: inbox::PROVIDER_STATUS_CONNECTED.to_string(),
+                label: "vercel".to_string(),
+                environment_id: local_id.clone(),
+                ..integrations::Connection::default()
+            })
+            .expect("connection");
+        assert!(
+            deploy_item(list_inbox(store, &project.id).expect("inbox"), &prod_key).is_some(),
+            "a connection for another environment does not cover production"
+        );
+
+        store
+            .save_connection(integrations::Connection {
+                id: "conn-vercel".to_string(),
+                project_id: project.id.clone(),
+                provider_id: "vercel".to_string(),
+                status: inbox::PROVIDER_STATUS_CONNECTED.to_string(),
+                label: "vercel-global".to_string(),
+                ..integrations::Connection::default()
+            })
+            .expect("connection");
+        assert!(
+            deploy_item(list_inbox(store, &project.id).expect("inbox"), &prod_key).is_none(),
+            "connected vercel should clear the item"
+        );
+
+        let replaced = r#"---
+polter: 1
+summary: Keep production only
+rationale: A present deploys line replaces the set
+---
+
+# app/web: Web
+deploys: production=vercel:web
+"#;
+        assert!(apply(replaced).expect("apply").applied);
+        let web = node_by_path(store, &project.id, "app/web");
+        assert_eq!(web.deploys.len(), 1, "replaced = {:?}", web.deploys);
+        assert_eq!(
+            (web.deploys[0].id.as_str(), web.deploys[0].provider.as_str()),
+            (vercel_id.as_str(), "vercel"),
+            "replaced = {:?}, want id {vercel_id}",
+            web.deploys
+        );
+
+        let cleared = "---\npolter: 1\nsummary: Clear links\nrationale: Empty deploys clears\n---\n\n# app/web: Web\ndeploys:\n";
+        assert!(apply(cleared).expect("apply").applied);
+        assert!(
+            node_by_path(store, &project.id, "app/web")
+                .deploys
+                .is_empty()
+        );
+        assert!(
+            deploy_item(list_inbox(store, &project.id).expect("inbox"), &prod_key).is_none(),
+            "cleared links should leave the inbox"
         );
     }
 }

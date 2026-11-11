@@ -5,7 +5,7 @@ use crate::domains::polter;
 use crate::domains::work;
 use crate::providers::sqlite as storepkg;
 
-use super::brief::helpers::{self, ApplyInput, ApplyResult};
+use super::work::{ApplyInput, ApplyResult, apply_polter, first_non_empty, project_git};
 
 /// One `polterware handoff` call. The core fills branch and touched files from
 /// Git, then writes Polter text through the apply path.
@@ -24,10 +24,8 @@ pub struct HandoffInput {
 /// Picks the card a handoff or status command is about. `slug` wins. Otherwise
 /// the only active card that already has a handoff on `branch`, otherwise the
 /// only active card. The returned slugs list the active cards when the choice
-/// is ambiguous, and the error is set when it is.
-///
-/// TODO(dedupe): `work.go`'s status read calls this too; it keeps Go's shape of
-/// (card, slugs, error).
+/// is ambiguous, and the error is set when it is. Go's `(card, slugs, error)`
+/// shape, which the status read shares.
 #[allow(clippy::type_complexity)]
 pub fn select_work_card(
     snapshot: &work::Snapshot,
@@ -88,7 +86,7 @@ pub fn compose_handoff(
     store: &storepkg::Store,
     input: &HandoffInput,
 ) -> (ApplyInput, Vec<polter::Diagnostic>, Option<anyhow::Error>) {
-    let view = helpers::project_git(store, &input.project_id);
+    let view = project_git(store, &input.project_id);
     if !view.available || view.branch.is_empty() || view.branch == "HEAD" {
         return (
             ApplyInput::default(),
@@ -114,27 +112,26 @@ pub fn compose_handoff(
     let node = polter::HandoffNode {
         line: 0,
         branch: view.branch.clone(),
-        agent: one_line(&helpers::first_non_empty(&[&input.agent, "cli"])),
-        goal: one_line(&helpers::first_non_empty(&[&note.goal, &card.intent])),
-        done: one_line(&helpers::first_non_empty(&[
+        agent: one_line(&first_non_empty(&[&input.agent, "cli"])),
+        goal: one_line(&first_non_empty(&[&note.goal, &card.intent])),
+        done: one_line(&first_non_empty(&[
             &note.done,
             &join_task_titles(&card, work::TASK_DONE),
         ])),
         in_progress: one_line(&note.in_progress),
-        next: one_line(&helpers::first_non_empty(&[
+        next: one_line(&first_non_empty(&[
             &note.next,
             &join_task_titles(&card, work::TASK_OPEN),
         ])),
         touched,
     };
     let default_summary = format!("Handoff for {}", card.slug);
-    let summary = helpers::first_non_empty(&[
+    let summary = first_non_empty(&[
         &input.summary,
         &input.apply.summary,
         default_summary.as_str(),
     ]);
-    let rationale =
-        helpers::first_non_empty(&[&input.rationale, &input.apply.rationale, "Session handoff"]);
+    let rationale = first_non_empty(&[&input.rationale, &input.apply.rationale, "Session handoff"]);
     let text = polter::format(&polter::Document {
         summary: summary.clone(),
         rationale: rationale.clone(),
@@ -182,10 +179,18 @@ pub fn write_handoff(
             Err(err),
         );
     }
-    let (mut result, outcome) = helpers::apply_polter(store, &apply);
+    let mut result = match apply_polter(store, apply) {
+        Ok(result) => result,
+        Err(failure) => {
+            let mut result = *failure.result;
+            hints.append(&mut result.diagnostics);
+            result.diagnostics = hints;
+            return (result, Err(failure.error.into()));
+        }
+    };
     hints.append(&mut result.diagnostics);
     result.diagnostics = hints;
-    (result, outcome)
+    (result, Ok(()))
 }
 
 /// Folds every run of whitespace into one space.

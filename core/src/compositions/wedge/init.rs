@@ -9,6 +9,7 @@ use crate::domains::agentrun;
 use crate::domains::projects;
 use crate::providers::sqlite;
 
+use super::path::path_base;
 use super::repos::{absolute_dir, repo_name_for};
 use super::work::{ApplyInput, apply_polter};
 #[allow(unused_imports)]
@@ -101,7 +102,7 @@ fn link_initial_component(store: &sqlite::Store, project_id: &str, dir: &str) ->
     let text = format!(
         "---\npolter: 1\n---\n\n# {}: {}\nlevel: component\ndir: {dir}\n",
         slug,
-        base_name(dir)
+        path_base(dir)
     );
     apply_polter(
         store,
@@ -123,18 +124,6 @@ fn new_project_id() -> InitResult<String> {
     let mut buf = [0u8; 4];
     rand::rng().fill_bytes(&mut buf);
     Ok(format!("proj-{}", hex::encode(buf)))
-}
-
-/// Go's `filepath.Base`.
-fn base_name(path: &str) -> String {
-    let trimmed = path.trim_end_matches('/');
-    if trimmed.is_empty() {
-        return "/".to_string();
-    }
-    match trimmed.rfind('/') {
-        Some(index) => trimmed[index + 1..].to_string(),
-        None => trimmed.to_string(),
-    }
 }
 
 #[cfg(test)]
