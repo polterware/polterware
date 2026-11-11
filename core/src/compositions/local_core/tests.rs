@@ -208,15 +208,18 @@ fn a_route_answers_each_connect_check() {
     let wrong_method = harness.request("GET", &list, Some(TEST_TOKEN), None, b"");
     assert_eq!(wrong_method.status, 405);
 
-    let unported = harness.unary(
+    // Every route is ported now, so a call without a project reaches the
+    // handler and fails its validation instead of answering `unimplemented`.
+    let missing_project = harness.unary(
         &format!("{WORK_SERVICE}/ListWorkCards"),
         Some(TEST_TOKEN),
         "{}",
     );
-    assert_eq!(unported.status, 501);
-    assert_eq!(
-        unported.text(),
-        r#"{"code":"unimplemented","message":"polterware.local.v1.WorkService.ListWorkCards is not implemented"}"#
+    assert_eq!(missing_project.status, 400);
+    assert!(
+        missing_project.text().contains("project id is required"),
+        "{}",
+        missing_project.text()
     );
 }
 
