@@ -8,15 +8,16 @@
 //! a doc's Context. Labels holds the tags, and a doc's rail ends with Archive.
 //!
 //! The title and the body save 800ms after the last keystroke (`createDocumentAutosave`),
-//! a tag at once, each under its own summary and no reason; Open review, Replace, and
-//! Archive change intent, so they ask why first. Context is a `TokenPicker` of the domains and
-//! components (`ContextPicker`), written at once with no change (`setScope`).
+//! a tag at once, each under its own summary and no reason; Open review moves a decision to
+//! Under review at once, and Replace and Archive are confirmed, with no reason asked. Context is
+//! a `TokenPicker` of the domains and components (`ContextPicker`), written at once with no
+//! change (`setScope`).
 
 use std::rc::Rc;
 use std::time::Duration;
 
 use gpui::{
-    AnyElement, App, AppContext as _, Context, Entity, Focusable, FontWeight, IntoElement, Render,
+    AnyElement, App, AppContext as _, Context, Entity, Focusable, FocusHandle, FontWeight, IntoElement, Render,
     Subscription, Window, div, prelude::*, px,
 };
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
@@ -51,10 +52,9 @@ const SELECT_WIDTH: f32 = 260.0;
 /// `ActorIcon size={20}`.
 const ACTOR_SIZE: f32 = 20.0;
 
-/// A move that changes intent, waiting for its reason.
+/// A question asked before a write.
 #[derive(Clone, Debug, PartialEq)]
 enum Ask {
-    Review,
     Replace { by: String, by_title: String },
     Archive,
 }
@@ -198,18 +198,6 @@ pub fn document_changes(changes: &[ProjectChange]) -> Vec<DocumentChange> {
     out
 }
 
-/// `polterValue`: a Polter metadata value on one line, without the separators a line splits
-/// on.
-fn polter_value(value: &str) -> String {
-    value
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .replace(" · ", ", ")
-        .replace(" • ", ", ")
-        .replace(" - ", " – ")
-}
-
 /// The tags docs and decisions already use, offered when one is added.
 fn tag_suggestions(items: &[KnowledgeItem]) -> Vec<String> {
     let mut tags: Vec<String> = items
@@ -232,8 +220,8 @@ pub struct KnowledgePage {
     context: Entity<PropertyPills>,
     /// What the Context tokens were set from: the record, its nodes, and the project's.
     context_for: Option<(String, Vec<String>, Vec<StructureNode>)>,
-    reason: Entity<TextInput>,
     ask: Option<Ask>,
+    ask_focus: FocusHandle,
     /// Whether the rail shows, kept across pages as the web keeps it, and the narrow page's
     /// drawer.
     rail: Entity<RailState>,
@@ -289,25 +277,6 @@ impl KnowledgePage {
                 .update(cx, |state, cx| state.set_knowledge_scope(id, nodes, cx));
         })
         .detach();
-        let confirm = cx.weak_entity();
-        let cancel = cx.weak_entity();
-        let reason = cx.new(|cx| {
-            TextInput::new(cx)
-                .wrap()
-                .on_submit(move |_, window, cx| {
-                    let confirm = confirm.clone();
-                    window.defer(cx, move |_, cx| {
-                        let _ = confirm.update(cx, |this, cx| this.answer(cx));
-                    });
-                })
-                .on_cancel(move |window, cx| {
-                    let cancel = cancel.clone();
-                    window.defer(cx, move |_, cx| {
-                        let _ = cancel.update(cx, |this, cx| this.dismiss(cx));
-                    });
-                })
-        });
-        cx.observe(&reason, |_, _, cx| cx.notify()).detach();
         let replace = cx.new(ListPopover::new);
         cx.observe(&replace, |_, _, cx| cx.notify()).detach();
         cx.observe(&state, |_, _, cx| cx.notify()).detach();
@@ -319,8 +288,8 @@ impl KnowledgePage {
             tags,
             context,
             context_for: None,
-            reason,
             ask: None,
+            ask_focus: cx.focus_handle(),
             rail: cx.new(|_| RailState::new(true)),
             replace,
             replace_anchor: AnchorSlot::default(),
@@ -490,8 +459,7 @@ impl KnowledgePage {
 
     fn ask(&mut self, ask: Ask, window: &mut Window, cx: &mut Context<Self>) {
         self.ask = Some(ask);
-        self.reason.update(cx, |field, cx| field.set_text("", cx));
-        self.reason.read(cx).focus_handle(cx).focus(window);
+        self.ask_focus.focus(window);
         cx.notify();
     }
 
@@ -500,47 +468,31 @@ impl KnowledgePage {
         cx.notify();
     }
 
-    /// Writes the asked move with its reason; a blank reason writes nothing.
+    /// Writes the asked move, with no reason: a person may leave it empty.
     fn answer(&mut self, cx: &mut Context<Self>) {
-        let reason = self.reason.read(cx).text().trim().to_string();
         let (Some(ask), Some(item)) = (
             self.ask.clone(),
             self.record.clone().and_then(|id| self.item(&id, cx)),
         ) else {
             return;
         };
-        if reason.is_empty() {
-            return;
-        }
         self.ask = None;
         let title = item.title.clone();
         self.state.update(cx, |state, cx| match ask {
-            Ask::Review => state.move_decision(
-                format!(
-                    "### {}\nstatus: challenged · reason: {}",
-                    item.id,
-                    polter_value(&reason)
-                ),
-                format!("Open review of decision: {title}"),
-                reason,
-                cx,
-            ),
             Ask::Replace { by, by_title } => state.move_decision(
-                format!(
-                    "### {by}\nsupersedes: {} · reason: {}",
-                    item.id,
-                    polter_value(&reason)
-                ),
+                format!("### {by}\nsupersedes: {}", item.id),
                 format!("Replace {title} with {by_title}"),
-                reason,
+                String::new(),
                 cx,
             ),
-            Ask::Archive => state.archive_knowledge(item.id.clone(), title, reason, cx),
+            Ask::Archive => {
+                state.archive_knowledge(item.id.clone(), title, String::new(), cx)
+            }
         });
         cx.notify();
     }
 
-    /// A move that needs no reason: Activate, or Keep active after a review.
+    /// A move that needs no question: Activate, or Keep active after a review.
     fn activate(&mut self, item: &KnowledgeItem, keep: bool, cx: &mut Context<Self>) {
         let summary = if keep {
             format!("Keep decision active after review: {}", item.title)
@@ -548,6 +500,17 @@ impl KnowledgePage {
             format!("Activate decision: {}", item.title)
         };
         let block = format!("### {}\nstatus: active", item.id);
+        self.state.update(cx, |state, cx| {
+            state.move_decision(block, summary, String::new(), cx)
+        });
+    }
+
+    /// Opens a review of a decision: it reads Under review until someone keeps or replaces it.
+    fn challenge(&mut self, item: &KnowledgeItem, cx: &mut Context<Self>) {
+        // The core asks a challenge to name why it is under review; the Desktop leaves it empty
+        // rather than asking a person for a reason.
+        let block = format!("### {}\nstatus: challenged · reason:", item.id);
+        let summary = format!("Open review of decision: {}", item.title);
         self.state.update(cx, |state, cx| {
             state.move_decision(block, summary, String::new(), cx)
         });
@@ -627,9 +590,9 @@ impl KnowledgePage {
                     .size(ButtonSize::Sm)
                     .label(label)
                     .disabled(pending)
-                    .on_click(move |window, cx| {
+                    .on_click(move |_, cx| {
                         let _ = page.update(cx, |this, cx| match state {
-                            "active" => this.ask(Ask::Review, window, cx),
+                            "active" => this.challenge(&item, cx),
                             _ => this.activate(&item, state == "challenged", cx),
                         });
                     })
@@ -660,40 +623,35 @@ impl KnowledgePage {
         let ask = self.ask.as_ref()?;
         let theme = *Theme::global(cx);
         let title = &item.title;
-        let (heading, description, label, placeholder) = match ask {
-            Ask::Review => (
-                format!("Open a review of “{title}”?"),
-                "It stays under review until someone keeps or replaces it. Say what is wrong with it.".to_string(),
-                "Open review",
-                "What should the review look at?",
-            ),
+        let (heading, description, label) = match ask {
             Ask::Replace { by_title, .. } => (
                 format!("Replace “{title}”?"),
-                format!("{by_title} replaces it. Say why."),
+                format!("{by_title} becomes the decision in force."),
                 "Replace",
-                "Why replace it?",
             ),
             Ask::Archive => (
                 format!("Archive “{title}”?"),
-                "Say why, so Activity and agents know it was dropped on purpose. Restore brings it back.".to_string(),
+                "It leaves the lists and agent reads. Restore brings it back.".to_string(),
                 "Archive",
-                "Why archive it?",
             ),
         };
-        self.reason
-            .update(cx, |field, _| field.set_placeholder(placeholder));
         let page = cx.weak_entity();
         let dismiss = page.clone();
         let close: polterware_ui::Handler = Rc::new(move |_, cx: &mut App| {
             let _ = dismiss.update(cx, |this, cx| this.dismiss(cx));
         });
-        let dialog = ConfirmDialog::new("knowledge-reason", heading, description)
+        let dialog = ConfirmDialog::new("knowledge-confirm", heading, description)
             .confirm_label(label)
-            .reason(&self.reason)
+            .focus(&self.ask_focus)
             .on_cancel(close.clone())
             .on_confirm(Rc::new(move |_, cx: &mut App| {
                 let _ = page.update(cx, |this, cx| this.answer(cx));
             }));
+        let dialog = if matches!(ask, Ask::Archive) {
+            dialog.danger()
+        } else {
+            dialog
+        };
         Some(window_layer(modal_layer(1.0, true, close, dialog, &theme)))
     }
 }
@@ -1048,14 +1006,6 @@ mod tests {
         assert_eq!(lines.len(), 2);
         assert_eq!(lines[0].actor, "Someone");
         assert_eq!(lines[1].rationale, "Fix");
-    }
-
-    #[test]
-    fn a_reason_stays_on_its_polter_line() {
-        assert_eq!(
-            polter_value("Too  slow\n- see · notes"),
-            "Too slow – see, notes"
-        );
     }
 
     #[test]
