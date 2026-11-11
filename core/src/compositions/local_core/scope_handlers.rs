@@ -1,14 +1,19 @@
 //! Port of `backend/compositions/local-core/scope_handlers.go`.
 //!
-//! The handlers are not ported yet: each answers Connect `unimplemented`, worded as
-//! the generated `Unimplemented…Handler` of `localv1connect` words it.
+//! Sets the Structure contexts of a Decision, a doc, a Fact, a Rule, or a
+//! derived Inbox item; none clears them, which means the whole project.
 
 use std::sync::Arc;
 
+use crate::compositions::wedge;
+use crate::domains::polter;
 use crate::local_v1;
+use crate::providers::sqlite::{
+    SCOPE_DECISION, SCOPE_FACT, SCOPE_ITEM, SCOPE_KNOWLEDGE, SCOPE_RULE,
+};
 
 use super::connect::{ConnectError, ConnectRequest, Route};
-use super::server::Core;
+use super::server::{Core, internal, invalid};
 
 pub fn routes() -> Vec<Route> {
     vec![Route::unary(
@@ -17,12 +22,44 @@ pub fn routes() -> Vec<Route> {
     )]
 }
 
-/// `polterware.local.v1.WorkService.SetScope`, not ported yet.
+/// `polterware.local.v1.WorkService.SetScope`.
 pub fn set_scope(
-    _core: Arc<Core>,
-    _request: ConnectRequest<local_v1::SetScopeRequest>,
+    core: Arc<Core>,
+    request: ConnectRequest<local_v1::SetScopeRequest>,
 ) -> Result<local_v1::SetScopeResponse, ConnectError> {
-    Err(ConnectError::unimplemented(
-        "polterware.local.v1.WorkService.SetScope is not implemented",
-    ))
+    let msg = request.message;
+    if msg.project_id.is_empty() {
+        return Err(invalid("project id is required"));
+    }
+    if msg.id.trim().is_empty() {
+        return Err(invalid("id is required"));
+    }
+    match msg.kind.as_str() {
+        SCOPE_DECISION | SCOPE_KNOWLEDGE | SCOPE_FACT | SCOPE_RULE | SCOPE_ITEM => {}
+        _ => {
+            return Err(invalid(format!(
+                "unknown scope kind {}: use decision, knowledge, fact, rule, or item",
+                polter::go_quote(&msg.kind)
+            )));
+        }
+    }
+    let store = core.store();
+    // The nodes replace the entity's contexts; none clears them (the whole
+    // project).
+    let scope = wedge::resolve_scope_refs(&store, &msg.project_id, &msg.nodes, false)
+        .map_err(|err| invalid(err.to_string()))?;
+    let mut id = msg.id.clone();
+    if msg.kind == SCOPE_RULE {
+        // A Rule is named by its slug as often as by its id.
+        let rules = store.list_rules(&msg.project_id).map_err(internal)?;
+        for rule in &rules {
+            if !rule.slug.is_empty() && rule.slug == id {
+                id = rule.id.clone();
+            }
+        }
+    }
+    store
+        .set_scope(&msg.project_id, &msg.kind, &id, &scope.node_ids)
+        .map_err(|err| invalid(err.to_string()))?;
+    Ok(local_v1::SetScopeResponse::default())
 }
