@@ -59,7 +59,9 @@ pub(super) fn diagnostics(name: &str, ds: &[local_v1::PolterDiagnostic], lines: 
         }
     }
 }
-fn detail_diagnostics(err: &coreclient::Error) -> Option<Vec<local_v1::PolterDiagnostic>> {
+pub(super) fn detail_diagnostics(
+    err: &coreclient::Error,
+) -> Option<Vec<local_v1::PolterDiagnostic>> {
     use base64::Engine;
     let coreclient::Error::Connect { details, .. } = err else {
         return None;

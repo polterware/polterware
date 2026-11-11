@@ -6,9 +6,23 @@ use super::{
 };
 use crate::local_v1;
 use crate::platform::coreclient::CALL_TIMEOUT;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::io::Read;
 const USAGE: &str = "usage: polterware hook session-start [--label name] | session-end | lint | context | status | stop";
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HookSpecificOutput<'a> {
+    additional_context: &'a str,
+    hook_event_name: &'a str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HookOutput<'a> {
+    hook_specific_output: HookSpecificOutput<'a>,
+}
+
 #[derive(Default, Deserialize)]
 struct Input {
     #[serde(rename = "session_id")]
@@ -134,12 +148,31 @@ pub fn run_hook(db: &str, args: &[String]) -> CliResult {
     }
 }
 fn emit(event: &str, text: &str) {
-    println!(
-        "{{\"hookSpecificOutput\":{{\"hookEventName\":{},\"additionalContext\":{}}}}}",
-        serde_json::to_string(event).unwrap_or_default(),
-        serde_json::to_string(text).unwrap_or_default()
-    )
+    println!("{}", encode_hook_output(event, text));
+}
+
+fn encode_hook_output(event: &str, text: &str) -> String {
+    let payload = HookOutput {
+        hook_specific_output: HookSpecificOutput {
+            additional_context: text,
+            hook_event_name: event,
+        },
+    };
+    serde_json::to_string(&payload).unwrap_or_default()
 }
 fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hook_output_preserves_go_json_field_order() {
+        assert_eq!(
+            encode_hook_output("SessionStart", "context\n"),
+            r#"{"hookSpecificOutput":{"additionalContext":"context\n","hookEventName":"SessionStart"}}"#
+        );
+    }
 }
