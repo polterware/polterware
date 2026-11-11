@@ -10,8 +10,6 @@ use crate::domains::structure;
 use crate::domains::{canvas, knowledge, polter, work};
 use crate::providers::sqlite as storepkg;
 
-pub use helpers::{ApplyInput, ApplyResult};
-
 /// Renders the brief of a card, a Structure node, or a file. A target that is
 /// neither a card nor a node is read as a file path and briefed as the node
 /// whose checkout holds it.
@@ -593,42 +591,6 @@ pub(super) mod helpers {
         String::new()
     }
 
-    /// One `polterware apply` / `polter.apply` call.
-    /// TODO(dedupe): `work.go` owns `ApplyInput`.
-    #[derive(Debug, Clone, Default, PartialEq)]
-    pub struct ApplyInput {
-        pub project_id: String,
-        pub text: String,
-        pub dry_run: bool,
-        /// `summary` and `rationale` override the text's frontmatter.
-        pub summary: String,
-        pub rationale: String,
-        pub agent_run_id: String,
-        /// Opens a run for this write when `agent_run_id` is empty.
-        pub auto_start_label: String,
-        /// `actor_kind` and `tool` default to an agent write through
-        /// "polter.apply"; the Desktop passes a human actor and its own tool.
-        pub actor_kind: String,
-        pub tool: String,
-        /// The session agent label that claim, done, and release lines act for.
-        pub agent: String,
-    }
-
-    /// TODO(dedupe): `work.go` owns `ApplyResult`.
-    #[derive(Debug, Clone, Default, PartialEq)]
-    pub struct ApplyResult {
-        pub project_id: String,
-        pub ops: Vec<work::Op>,
-        pub diagnostics: Vec<Diagnostic>,
-        pub applied: bool,
-        pub agent_run_id: String,
-        pub batch_id: String,
-        /// The resolved change envelope (flags over frontmatter), filled even on
-        /// a dry run.
-        pub summary: String,
-        pub rationale: String,
-    }
-
     /// The justified mutation envelope shared by MCP and Desktop.
     /// TODO(dedupe): `audited.go` owns it.
     #[derive(Debug, Clone, Default, PartialEq)]
@@ -738,18 +700,21 @@ pub(super) mod helpers {
     /// audited write. On [`ERR_POLTER_INVALID`] the result carries the
     /// diagnostics.
     /// TODO(dedupe): `work.go` owns `ApplyPolter`.
+    pub use crate::compositions::wedge::{ApplyInput, ApplyResult};
+
+    /// Delegates to `work.rs`'s `apply_polter`, keeping this module's
+    /// (result, outcome) shape for its callers.
     pub fn apply_polter(
         store: &sqlite::Store,
         input: &ApplyInput,
     ) -> (ApplyResult, anyhow::Result<()>) {
-        let mut result = ApplyResult {
-            project_id: input.project_id.clone(),
-            ..ApplyResult::default()
-        };
-        let outcome = apply_polter_inner(store, input, &mut result);
-        (result, outcome)
+        match crate::compositions::wedge::apply_polter(store, input.clone()) {
+            Ok(result) => (result, Ok(())),
+            Err(failure) => (*failure.result, Err(failure.error.into())),
+        }
     }
 
+    #[allow(dead_code)]
     fn apply_polter_inner(
         store: &sqlite::Store,
         input: &ApplyInput,
