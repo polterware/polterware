@@ -236,38 +236,73 @@ pub fn shutdown(
 
 /// Streams change events until the client leaves or the core stops.
 ///
-/// A stream answers the current sequence, the backlog after `after_seq`, and
-/// then its changes. Until `connect.rs` can deliver a response while it runs
-/// (it needs a `futures_core` stream), the handler answers the first two and
-/// the stream ends, so the client reconnects and picks the changes up from the
-/// backlog.
+/// A stream answers the current sequence (and whether the client must resync),
+/// the backlog after `after_seq`, and then every coalesced change until the
+/// client leaves or the core stops, as `lifecycle.go` does.
 pub fn watch_changes(
     core: Arc<Core>,
     request: ConnectRequest<local_v1::WatchChangesRequest>,
     out: StreamSender<local_v1::WatchChangesResponse>,
 ) -> Result<(), ConnectError> {
     core.begin_stream();
-    let mut subscription = core.bus.subscribe(request.message.after_seq);
-    let send = |message: local_v1::WatchChangesResponse| -> Result<(), ConnectError> {
-        out.try_send(message).map_err(|err| {
-            ConnectError::new(Code::ResourceExhausted, format!("stream closed: {err}"))
-        })
-    };
-    let result = (|| {
-        send(local_v1::WatchChangesResponse {
-            seq: subscription.current,
-            resync: subscription.resync,
-            at: now_stamp(),
-            ..local_v1::WatchChangesResponse::default()
-        })?;
-        for change in &subscription.backlog {
-            send(change_proto(change))?;
-        }
-        Ok(())
-    })();
-    subscription.cancel();
+    let result = stream_changes(&core, request.message.after_seq, &out);
     core.end_stream();
     result
+}
+
+/// How often an open watch looks at the core and the client while it waits for
+/// the next change.
+///
+/// Go's `select` wakes on the context, the stop channel, and the event channel
+/// at once. The bus wakes its subscribers on a change only, so a stopping core
+/// and a client that left are noticed between waits; `recv_timeout` then waits
+/// on the bus without polling it.
+const WATCH_POLL: Duration = Duration::from_millis(20);
+
+/// The loop `lifecycle.go` keeps open: the sequence the stream starts at, the
+/// backlog after it, and then its changes.
+fn stream_changes(
+    core: &Core,
+    after_seq: i64,
+    out: &StreamSender<local_v1::WatchChangesResponse>,
+) -> Result<(), ConnectError> {
+    let stopped = core.done();
+    let mut subscription = core.bus.subscribe(after_seq);
+    let result = (|| {
+        send_change(
+            out,
+            local_v1::WatchChangesResponse {
+                seq: subscription.current,
+                resync: subscription.resync,
+                at: now_stamp(),
+                ..local_v1::WatchChangesResponse::default()
+            },
+        )?;
+        for change in &subscription.backlog {
+            send_change(out, change_proto(change))?;
+        }
+        loop {
+            if out.is_closed() || *stopped.borrow() {
+                return Ok(());
+            }
+            if let Some(change) = subscription.recv_timeout(WATCH_POLL) {
+                send_change(out, change_proto(&change))?;
+            }
+        }
+    })();
+    subscription.cancel();
+    result
+}
+
+/// Sends one message of a watch. A client that left, or one that fell further
+/// behind than the queue holds, answers `resource_exhausted`, and the handler
+/// returns as it does when Go's `stream.Send` fails.
+fn send_change(
+    out: &StreamSender<local_v1::WatchChangesResponse>,
+    message: local_v1::WatchChangesResponse,
+) -> Result<(), ConnectError> {
+    out.try_send(message)
+        .map_err(|err| ConnectError::new(Code::ResourceExhausted, format!("stream closed: {err}")))
 }
 
 pub fn change_proto(change: &events::Change) -> local_v1::WatchChangesResponse {

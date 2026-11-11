@@ -2,21 +2,19 @@
 //! checks the routes answer on, and the replay of the fixtures captured from
 //! the Go core.
 
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use super::connect::{Code, ConnectError, ConnectRequest, END_STREAM_FLAG, Route, StreamSender};
+use super::connect::{Code, END_STREAM_FLAG};
 use super::lifecycle;
-use super::server::{self, Core};
-use super::test_support::{Harness, TEST_TOKEN, mask};
+use super::server;
+use super::test_support::{Harness, OpenStream, TEST_TOKEN, mask};
 use crate::local_v1;
-use crate::providers::sqlite::format_rfc3339_nano;
 
 const PROJECT_SERVICE: &str = "/polterware.local.v1.ProjectService";
 const MAINTENANCE_SERVICE: &str = "/polterware.local.v1.MaintenanceService";
 const HEALTH_SERVICE: &str = "/polterware.local.v1.HealthService";
-const CHANGE_SERVICE: &str = "/polterware.local.v1.ChangeService";
 const WORK_SERVICE: &str = "/polterware.local.v1.WorkService";
+const WATCH_PATH: &str = "/polterware.local.v1.ChangeService/WatchChanges";
 
 #[test]
 fn mint_token_is_random_hex() {
@@ -245,28 +243,49 @@ fn a_health_check_reports_the_code_names_and_statuses() {
     assert_eq!(reply.error_code(), "not_found");
 }
 
+/// The messages a watcher resuming after `after_seq` receives, up to `count`,
+/// before the test's client leaves.
+///
+/// A watch stays open for the changes that follow, as the Go core keeps it
+/// open, so a test reads what it needs from the connection and drops it.
+fn watch(harness: &Harness, after_seq: &str, count: usize) -> Vec<serde_json::Value> {
+    let body = super::connect::envelope(0, format!("{{\"afterSeq\":\"{after_seq}\"}}").as_bytes());
+    let mut stream = harness.open_stream(WATCH_PATH, Some(TEST_TOKEN), &body);
+    let mut events = Vec::new();
+    while events.len() < count {
+        let Some((flags, payload)) = stream.next_frame(Duration::from_secs(5)) else {
+            break;
+        };
+        assert_ne!(flags, END_STREAM_FLAG, "the stream ended early");
+        events.push(serde_json::from_slice(&payload).unwrap_or(serde_json::Value::Null));
+    }
+    events
+}
+
 #[test]
 fn a_stream_answers_the_sequence_it_starts_at() {
     let harness = Harness::start();
     let body = super::connect::envelope(0, br#"{"afterSeq":"0"}"#);
-    let reply = harness.request(
-        "POST",
-        &format!("{CHANGE_SERVICE}/WatchChanges"),
-        Some(TEST_TOKEN),
-        Some("application/connect+json"),
-        &body,
-    );
-    assert_eq!(reply.status, 200);
-    assert_eq!(reply.content_type, "application/connect+json");
-    assert_eq!(reply.accept_encoding, "gzip");
-    let frames = reply.frames();
-    assert!(!frames.is_empty(), "a stream must answer its first message");
-    assert_eq!(frames[0].0, 0);
-    let first = serde_json::from_slice::<serde_json::Value>(&frames[0].1).expect("JSON");
+    let mut stream = harness.open_stream(WATCH_PATH, Some(TEST_TOKEN), &body);
+    assert_eq!(stream.status(), 200);
+    assert_eq!(stream.content_type(), "application/connect+json");
+    let (flags, payload) = stream
+        .next_frame(Duration::from_secs(5))
+        .expect("a stream must answer its first message while it is open");
+    assert_eq!(flags, 0, "the first frame carries a message, not the end");
+    let first: serde_json::Value = serde_json::from_slice(&payload).expect("JSON");
     assert!(first["at"].is_string(), "{first}");
-    let last = frames.last().expect("an end-of-stream message");
-    assert_eq!(last.0, END_STREAM_FLAG);
-    assert_eq!(last.1, b"{}", "a clean end carries the empty message");
+
+    // The stream stays open for the changes after it, so the core stopping is
+    // what ends it, with a clean end-of-stream message.
+    harness.core.stop();
+    let mut last = None;
+    while let Some(frame) = stream.next_frame(Duration::from_secs(5)) {
+        last = Some(frame);
+    }
+    let (flags, payload) = last.expect("an end-of-stream message");
+    assert_eq!(flags, END_STREAM_FLAG);
+    assert_eq!(payload, b"{}", "a clean end carries the empty message");
 }
 
 #[test]
@@ -275,7 +294,7 @@ fn a_stream_without_the_token_answers_its_error_as_the_end_stream() {
     let body = super::connect::envelope(0, b"{}");
     let reply = harness.request(
         "POST",
-        &format!("{CHANGE_SERVICE}/WatchChanges"),
+        WATCH_PATH,
         None,
         Some("application/connect+json"),
         &body,
@@ -285,6 +304,7 @@ fn a_stream_without_the_token_answers_its_error_as_the_end_stream() {
         "a stream reports its error in the stream"
     );
     assert_eq!(reply.content_type, "application/connect+json");
+    assert_eq!(reply.accept_encoding, "gzip");
     let frames = reply.frames();
     assert_eq!(frames.len(), 1);
     assert_eq!(frames[0].0, END_STREAM_FLAG);
@@ -315,7 +335,18 @@ fn a_change_reaches_a_watcher() {
     save("proj-watch-b");
 
     // The stream replays the change that came after the watcher's sequence.
-    let events = watch(&harness, &start.to_string());
+    let events = watch(&harness, &start.to_string(), 2);
+    assert_eq!(
+        events.len(),
+        2,
+        "the sequence the stream starts at, then the change: {events:?}"
+    );
+    let expected_seq = (start + 1).to_string();
+    assert_eq!(
+        events[0]["seq"].as_str(),
+        Some(expected_seq.as_str()),
+        "protojson writes int64 as a string: {events:?}"
+    );
     assert!(
         events.iter().any(|event| event["kinds"]
             .as_array()
@@ -330,80 +361,29 @@ fn a_change_reaches_a_watcher() {
     );
 }
 
-/// The messages a watcher resuming after `after_seq` receives.
-fn watch(harness: &Harness, after_seq: &str) -> Vec<serde_json::Value> {
-    let body = super::connect::envelope(0, format!("{{\"afterSeq\":\"{after_seq}\"}}").as_bytes());
-    let reply = harness.request(
-        "POST",
-        &format!("{CHANGE_SERVICE}/WatchChanges"),
+#[test]
+fn a_watcher_ahead_of_the_sequence_is_told_to_resync() {
+    let harness = Harness::start();
+    let reply = harness.unary(
+        &format!("{PROJECT_SERVICE}/SaveProject"),
         Some(TEST_TOKEN),
-        Some("application/connect+json"),
-        &body,
+        r#"{"project":{"id":"proj-resync","name":"Resync"}}"#,
     );
-    reply
-        .frames()
-        .into_iter()
-        .filter(|(flags, _)| *flags != END_STREAM_FLAG)
-        .map(|(_, payload)| serde_json::from_slice(&payload).unwrap_or(serde_json::Value::Null))
-        .collect()
-}
+    assert_eq!(reply.status, 200, "{}", reply.text());
+    harness.core.bus.flush();
+    let current = harness.core.bus.subscribe(0).current;
+    assert!(current > 0);
 
-const WATCH_PATH: &str = "/polterware.local.v1.ChangeService/WatchChanges";
-
-/// Everything the package serves, with the loop `lifecycle.go` keeps open in
-/// place of the port's handler: `lifecycle::watch_changes` answers the sequence
-/// and the backlog and returns, so a test that needs a stream which stays open
-/// serves this table until that loop lands in the handler file.
-fn live_watch_routes() -> Vec<Route> {
-    let mut routes = super::routes();
-    routes.retain(|route| route.path != WATCH_PATH);
-    routes.push(Route::server_stream(WATCH_PATH, live_watch));
-    routes
-}
-
-/// The loop `lifecycle.go` keeps open: the sequence the stream starts at, the
-/// backlog after it, and then every change until the client leaves or the core
-/// stops.
-fn live_watch(
-    core: Arc<Core>,
-    request: ConnectRequest<local_v1::WatchChangesRequest>,
-    out: StreamSender<local_v1::WatchChangesResponse>,
-) -> Result<(), ConnectError> {
-    core.begin_stream();
-    let mut stopped = core.done();
-    let mut subscription = core.bus.subscribe(request.message.after_seq);
-    let send = |message: local_v1::WatchChangesResponse| -> Result<(), ConnectError> {
-        out.try_send(message).map_err(|err| {
-            ConnectError::new(Code::ResourceExhausted, format!("stream closed: {err}"))
-        })
-    };
-    let result = (|| {
-        send(local_v1::WatchChangesResponse {
-            seq: subscription.current,
-            resync: subscription.resync,
-            at: format_rfc3339_nano(time::OffsetDateTime::now_utc()),
-            ..local_v1::WatchChangesResponse::default()
-        })?;
-        for change in &subscription.backlog {
-            send(lifecycle::change_proto(change))?;
-        }
-        loop {
-            if out.is_closed() || *stopped.borrow() {
-                return Ok(());
-            }
-            if let Some(change) = subscription.recv_timeout(Duration::from_millis(20)) {
-                send(lifecycle::change_proto(&change))?;
-            }
-        }
-    })();
-    subscription.cancel();
-    core.end_stream();
-    result
+    // A client that saw a previous core's sequence must reload everything.
+    let events = watch(&harness, &(current + 5).to_string(), 1);
+    assert_eq!(events.len(), 1, "{events:?}");
+    assert_eq!(events[0]["resync"], true, "{events:?}");
+    assert!(events[0]["kinds"].is_null(), "{events:?}");
 }
 
 #[test]
 fn a_watch_stream_pushes_a_change_before_it_ends() {
-    let harness = Harness::start_with(live_watch_routes());
+    let harness = Harness::start();
     let body = super::connect::envelope(0, br#"{"afterSeq":"0"}"#);
     let mut stream = harness.open_stream(WATCH_PATH, Some(TEST_TOKEN), &body);
     assert_eq!(stream.status(), 200);
@@ -458,7 +438,7 @@ fn a_watch_stream_pushes_a_change_before_it_ends() {
 
 #[test]
 fn a_client_that_leaves_cancels_the_stream_handler() {
-    let harness = Harness::start_with(live_watch_routes());
+    let harness = Harness::start();
     let body = super::connect::envelope(0, br#"{"afterSeq":"0"}"#);
     let mut stream = harness.open_stream(WATCH_PATH, Some(TEST_TOKEN), &body);
     assert!(stream.next_frame(Duration::from_secs(5)).is_some());
@@ -582,23 +562,6 @@ fn fixtures_captured_from_the_go_core_replay_against_this_one() {
                 .as_bytes()
                 .to_vec(),
         };
-        let reply = harness.request(method, path, token, Some(content_type), &body);
-        assert_eq!(
-            i64::from(reply.status),
-            case["status"].as_i64().unwrap_or_default(),
-            "{name}: status, body {}",
-            reply.text()
-        );
-        assert_eq!(
-            reply.content_type,
-            case["response_content_type"].as_str().unwrap_or_default(),
-            "{name}: content type"
-        );
-        if let Some(allow) = case["allow"].as_str()
-            && !allow.is_empty()
-        {
-            assert_eq!(reply.allow(), allow, "{name}: Allow");
-        }
         let masked: Vec<String> = case["masked"]
             .as_array()
             .map(|keys| {
@@ -616,18 +579,22 @@ fn fixtures_captured_from_the_go_core_replay_against_this_one() {
                     })
                     .unwrap_or_default()
             });
-        if let Some(expected) = case["response"].as_str()
-            && !expected.is_empty()
-        {
-            let mut want: serde_json::Value =
-                serde_json::from_str(expected).unwrap_or(serde_json::Value::Null);
-            let mut got = reply.json();
-            mask(&mut want, &masked);
-            mask(&mut got, &masked);
-            assert_eq!(got, want, "{name}: body {}", reply.text());
-        }
+        // A watch stays open for the changes after the frames captured here, as
+        // the Go core keeps it open, so its cases are read frame by frame and
+        // the client leaves once it has them.
         if let Some(frames) = case["frames"].as_array() {
-            let got = reply.frames();
+            let mut stream = harness.open_stream(path, token, &body);
+            assert_eq!(
+                i64::from(stream.status()),
+                case["status"].as_i64().unwrap_or_default(),
+                "{name}: status"
+            );
+            assert_eq!(
+                stream.content_type(),
+                case["response_content_type"].as_str().unwrap_or_default(),
+                "{name}: content type"
+            );
+            let got = read_frames(&mut stream, frames.len());
             assert!(
                 got.len() >= frames.len(),
                 "{name}: {} frames, wanted at least {}",
@@ -655,15 +622,47 @@ fn fixtures_captured_from_the_go_core_replay_against_this_one() {
                     String::from_utf8_lossy(payload)
                 );
             }
-            // The Go core held its stream open for the live changes; the
-            // handler still answers the backlog and returns, so the stream ends
-            // after the frames the fixtures captured.
-            for (flags, _) in &got[frames.len()..] {
-                assert_eq!(
-                    *flags, END_STREAM_FLAG,
-                    "{name}: a trailing frame ends the stream"
-                );
-            }
+            continue;
+        }
+        let reply = harness.request(method, path, token, Some(content_type), &body);
+        assert_eq!(
+            i64::from(reply.status),
+            case["status"].as_i64().unwrap_or_default(),
+            "{name}: status, body {}",
+            reply.text()
+        );
+        assert_eq!(
+            reply.content_type,
+            case["response_content_type"].as_str().unwrap_or_default(),
+            "{name}: content type"
+        );
+        if let Some(allow) = case["allow"].as_str()
+            && !allow.is_empty()
+        {
+            assert_eq!(reply.allow(), allow, "{name}: Allow");
+        }
+        if let Some(expected) = case["response"].as_str()
+            && !expected.is_empty()
+        {
+            let mut want: serde_json::Value =
+                serde_json::from_str(expected).unwrap_or(serde_json::Value::Null);
+            let mut got = reply.json();
+            mask(&mut want, &masked);
+            mask(&mut got, &masked);
+            assert_eq!(got, want, "{name}: body {}", reply.text());
         }
     }
+}
+
+/// The first `count` frames of an open stream, waiting at most five seconds for
+/// each.
+fn read_frames(stream: &mut OpenStream, count: usize) -> Vec<(u8, Vec<u8>)> {
+    let mut frames = Vec::new();
+    while frames.len() < count {
+        match stream.next_frame(Duration::from_secs(5)) {
+            Some(frame) => frames.push(frame),
+            None => break,
+        }
+    }
+    frames
 }
