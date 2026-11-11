@@ -10,7 +10,8 @@ use serde_json::json;
 use crate::domains::{decision, work};
 use crate::platform::ids;
 
-use super::model::{CONFLICT_HEADING_PREFIX, Diagnostic, Document, SEVERITY_ERROR, go_quote};
+use super::model::{CONFLICT_HEADING_PREFIX, Document, go_quote};
+use super::plan::Planner;
 
 /// Reads "a | b | c" into its trimmed, non-empty parts.
 pub fn split_options(value: &str) -> Vec<String> {
@@ -24,38 +25,31 @@ pub fn split_options(value: &str) -> Vec<String> {
 
 /// Writes the Conflict blocks. A new slug raises one: it needs the request and
 /// the Rule or Decision it goes against. A known slug updates it; `answer:`
-/// decides it and `status: withdrawn` drops it.
-///
-/// `rules` is the planner's live Rule list; `snapshot` supplies the Decisions,
-/// cards, and stored Conflicts, and gains the ones this text raises.
-pub fn plan_conflicts(
-    doc: &Document,
-    rules: &[work::Rule],
-    snapshot: &mut work::Snapshot,
-    diags: &mut Vec<Diagnostic>,
-    ops: &mut Vec<work::Op>,
-) {
+/// decides it and `status: withdrawn` drops it. The planner's live Rule list
+/// names the law, and its snapshot gains the Conflicts this text raises.
+pub fn plan_conflicts(p: &mut Planner, doc: &Document) {
     for node in &doc.conflicts {
-        let mut already_failed = failed(diags, node.line);
+        let mut already_failed = p.failed(node.line);
         for entry in &node.meta {
-            already_failed = already_failed || failed(diags, entry.line);
+            already_failed = already_failed || p.failed(entry.line);
         }
         if already_failed {
             continue;
         }
         let mut fields = work::Fields::new();
         if let Some(reference) = node.meta_value("rule").filter(|value| !value.is_empty()) {
-            let Some(rule) = rules
+            let Some(rule) = p
+                .rules
                 .iter()
                 .find(|rule| rule.id == reference || rule.slug == reference)
             else {
-                diags.push(Diagnostic::error(
+                p.errorf(
                     node.line,
                     format!(
                         "unknown rule {}: use a Rule slug or id (polterware query rules)",
                         go_quote(reference)
                     ),
-                ));
+                );
                 continue;
             };
             fields.insert("rule_id".into(), json!(rule.id));
@@ -64,24 +58,21 @@ pub fn plan_conflicts(
             .meta_value("decision")
             .filter(|value| !value.is_empty())
         {
-            let Some(found) = decision::find(&snapshot.decisions, reference) else {
-                diags.push(Diagnostic::error(
+            let Some(found) = decision::find(&p.snapshot.decisions, reference) else {
+                p.errorf(
                     node.line,
                     format!(
                         "unknown decision {}: use a Decision number or id",
                         go_quote(reference)
                     ),
-                ));
+                );
                 continue;
             };
             fields.insert("decision_id".into(), json!(found.id));
         }
         if let Some(slug) = node.meta_value("card").filter(|value| !value.is_empty()) {
-            if snapshot.card(slug).is_none() {
-                diags.push(Diagnostic::error(
-                    node.line,
-                    format!("unknown card {}", go_quote(slug)),
-                ));
+            if p.snapshot.card(slug).is_none() {
+                p.errorf(node.line, format!("unknown card {}", go_quote(slug)));
                 continue;
             }
             fields.insert("card".into(), json!(slug));
@@ -91,50 +82,50 @@ pub fn plan_conflicts(
         }
         let answer = node.meta_value("answer").map(str::to_string);
         let status = node.meta_value("status").map(str::to_string);
-        let current = snapshot.conflict(&node.reference).cloned();
+        let current = p.snapshot.conflict(&node.reference).cloned();
         let Some(current) = current else {
             if node.request.is_empty() {
-                diags.push(Diagnostic::error(
+                p.errorf(
                     node.line,
                     format!(
                         "unknown conflict {}: add the request (#### conflict {}: Request)",
                         go_quote(&node.reference),
                         node.reference
                     ),
-                ));
+                );
                 continue;
             }
             if !fields.contains_key("rule_id") && !fields.contains_key("decision_id") {
-                diags.push(Diagnostic::error(
+                p.errorf(
                     node.line,
                     format!(
                         "conflict {} needs the rule: or decision: it goes against",
                         go_quote(&node.reference)
                     ),
-                ));
+                );
                 continue;
             }
             if answer.is_some() || status.as_deref() == Some(work::CONFLICT_WITHDRAWN) {
-                diags.push(Diagnostic::error(
+                p.errorf(
                     node.line,
                     format!(
                         "unknown conflict {}: raise it before deciding or withdrawing it",
                         go_quote(&node.reference)
                     ),
-                ));
+                );
                 continue;
             }
             fields.insert("slug".into(), json!(node.reference));
             fields.insert("request".into(), json!(node.request));
             let id = ids::new_ulid();
-            snapshot.conflicts.push(work::Conflict {
+            p.snapshot.conflicts.push(work::Conflict {
                 id: id.clone(),
                 slug: node.reference.clone(),
                 request: node.request.clone(),
                 state: work::CONFLICT_OPEN.to_string(),
                 ..work::Conflict::default()
             });
-            ops.push(work::Op {
+            p.ops.push(work::Op {
                 entity: work::ENTITY_CONFLICT.into(),
                 kind: work::OP_CREATE.into(),
                 entity_id: id,
@@ -153,10 +144,7 @@ pub fn plan_conflicts(
         let mut kind = work::OP_UPDATE;
         if let Some(answer) = &answer {
             if answer.is_empty() {
-                diags.push(Diagnostic::error(
-                    node.line,
-                    "answer: is empty: write the decision".to_string(),
-                ));
+                p.errorf(node.line, "answer: is empty: write the decision");
                 continue;
             }
             fields.insert("answer".into(), json!(answer));
@@ -178,7 +166,7 @@ pub fn plan_conflicts(
         if fields.is_empty() {
             continue;
         }
-        ops.push(work::Op {
+        p.ops.push(work::Op {
             entity: work::ENTITY_CONFLICT.into(),
             kind: kind.into(),
             entity_id: current.id.clone(),
@@ -287,19 +275,12 @@ pub fn encode_status_conflicts(snapshot: &work::Snapshot, since: &str) -> String
     out
 }
 
-/// Reports whether a diagnostic on `line` is an error.
-fn failed(diags: &[Diagnostic], line: i32) -> bool {
-    diags
-        .iter()
-        .any(|diag| diag.line == line && diag.severity == SEVERITY_ERROR)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::domains::polter::decode::decode;
     use crate::domains::polter::encode::HEADER;
-    use crate::domains::polter::model::has_errors;
+    use crate::domains::polter::model::{Diagnostic, has_errors};
 
     fn conflict_snapshot() -> work::Snapshot {
         work::Snapshot {
@@ -318,11 +299,11 @@ mod tests {
     fn plan_text(snapshot: &mut work::Snapshot, text: &str) -> (Vec<work::Op>, Vec<Diagnostic>) {
         let (doc, diags) = decode(text);
         assert!(!has_errors(&diags), "decode: {diags:?}");
-        let rules = snapshot.rules.clone();
-        let mut diags = diags;
-        let mut ops = Vec::new();
-        plan_conflicts(&doc, &rules, snapshot, &mut diags, &mut ops);
-        (ops, diags)
+        let mut planner = Planner::new(snapshot, "");
+        planner.diags = diags;
+        plan_conflicts(&mut planner, &doc);
+        *snapshot = planner.snapshot;
+        (planner.ops, planner.diags)
     }
 
     #[test]

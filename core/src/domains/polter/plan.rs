@@ -28,37 +28,7 @@ pub fn plan_as(
     snapshot: &work::Snapshot,
     holder: &str,
 ) -> (Vec<work::Op>, Vec<Diagnostic>) {
-    let mut p = Planner {
-        snapshot: snapshot.clone(),
-        ops: Vec::new(),
-        diags: Vec::new(),
-        next_position: snapshot.cards.len() as i32,
-        next_node: snapshot.nodes.len() as i32,
-        holder: holder.trim().to_string(),
-        nodes: HashMap::new(),
-        rules: snapshot.rules.clone(),
-        claims: HashMap::new(),
-        task_state: HashMap::new(),
-        removed_cards: HashSet::new(),
-    };
-    for node in &snapshot.nodes {
-        p.nodes.insert(node.path.clone(), node.clone());
-    }
-    for card in &snapshot.cards {
-        for task in &card.tasks {
-            if let Some(claim) = &task.claim {
-                p.claims.insert(
-                    task.id.clone(),
-                    HeldClaim {
-                        claim: claim.clone(),
-                        card_slug: card.slug.clone(),
-                        card_id: card.id.clone(),
-                        number: task.number,
-                    },
-                );
-            }
-        }
-    }
+    let mut p = Planner::new(snapshot, holder);
     p.diags
         .extend(check_graph(doc, &snapshot.nodes, &snapshot.cards));
     p.diags.extend(check_repos(doc, &snapshot.repos));
@@ -70,28 +40,15 @@ pub fn plan_as(
             None => p.create_card(node),
         }
     }
-    p.plan_decisions(doc);
-    p.plan_facts(doc);
-    p.plan_rules(doc);
-    p.plan_conflicts(doc);
+    // The Decision, Fact, Rule, and Conflict planners live in their own
+    // submodules, next to the code each one mirrors in the Go package. They take
+    // the planner's own state so a text plans in the same order Go runs it.
+    plan_decisions(&mut p, doc);
+    plan_facts(&mut p, doc);
+    plan_rules(&mut p, doc);
+    plan_conflicts(&mut p, doc);
     (p.ops, p.diags)
 }
-
-/// The Decision, Fact, Rule, and Conflict planners live in the `decisions`,
-/// `facts`, `rules`, and `conflicts` submodules, which are filled by their own
-/// ports. They add inherent methods on [`Planner`], and an inherent method wins
-/// over a trait method, so these empty defaults stand in only until they land.
-///
-/// TODO(integration): delete this trait once those submodules are merged.
-trait SubPlans {
-    fn plan_decisions(&mut self, _doc: &Document) {}
-    fn plan_facts(&mut self, _doc: &Document) {}
-    fn plan_rules(&mut self, _doc: &Document) {}
-    fn plan_conflicts(&mut self, _doc: &Document) {}
-    fn node_rules(&mut self, _node: &StructureNode, _stored: &mut structure::Node) {}
-}
-
-impl SubPlans for Planner {}
 
 /// The one index of active claims, by task id.
 #[derive(Debug, Clone, PartialEq)]
@@ -125,6 +82,43 @@ pub struct Planner {
 }
 
 impl Planner {
+    /// The state one plan starts from `snapshot`: its nodes by path, its active
+    /// claims by task id, and its Rules, with the ids the text will assign.
+    pub(crate) fn new(snapshot: &work::Snapshot, holder: &str) -> Self {
+        let mut p = Self {
+            snapshot: snapshot.clone(),
+            ops: Vec::new(),
+            diags: Vec::new(),
+            next_position: snapshot.cards.len() as i32,
+            next_node: snapshot.nodes.len() as i32,
+            holder: holder.trim().to_string(),
+            nodes: HashMap::new(),
+            rules: snapshot.rules.clone(),
+            claims: HashMap::new(),
+            task_state: HashMap::new(),
+            removed_cards: HashSet::new(),
+        };
+        for node in &snapshot.nodes {
+            p.nodes.insert(node.path.clone(), node.clone());
+        }
+        for card in &snapshot.cards {
+            for task in &card.tasks {
+                if let Some(claim) = &task.claim {
+                    p.claims.insert(
+                        task.id.clone(),
+                        HeldClaim {
+                            claim: claim.clone(),
+                            card_slug: card.slug.clone(),
+                            card_id: card.id.clone(),
+                            number: task.number,
+                        },
+                    );
+                }
+            }
+        }
+        p
+    }
+
     /// Adds an error diagnostic at `line`.
     pub fn errorf(&mut self, line: i32, message: impl Into<String>) {
         self.diags.push(Diagnostic::error(line, message));
@@ -149,24 +143,6 @@ impl Planner {
         node.meta
             .iter()
             .any(|entry| entry.key == "deploys" && self.failed(entry.line))
-    }
-
-    /// Reports each path that is not an active Structure node.
-    pub fn check_scopes(&mut self, line: i32, paths: &[String]) -> bool {
-        let mut ok = true;
-        for path in paths {
-            if !scope_is_active(&self.nodes, path) {
-                self.errorf(
-                    line,
-                    format!(
-                        "unknown scope {}: use a Structure node path",
-                        go_quote(path)
-                    ),
-                );
-                ok = false;
-            }
-        }
-        ok
     }
 
     fn plan_nodes(&mut self, doc: &Document) {
@@ -335,9 +311,8 @@ impl Planner {
             ..work::Op::default()
         });
         self.next_node += 1;
-        let mut created = created;
         self.nodes.insert(path.clone(), created.clone());
-        self.node_rules(node, &mut created);
+        node_rules(self, node, &created);
         self.nodes.insert(path, created);
     }
 
@@ -585,7 +560,7 @@ impl Planner {
         }
         existing.migration_from = migration_from;
         existing.migration_to = migration_to;
-        self.node_rules(node, &mut existing);
+        node_rules(self, node, &existing);
         self.nodes.insert(path, existing);
     }
 
@@ -1561,11 +1536,6 @@ fn checkout_meta_line(node: &StructureNode) -> i32 {
     node.line
 }
 
-/// The line of the node's `deploys:` entry, or the node heading.
-fn deploys_line(node: &StructureNode) -> i32 {
-    meta_line(node, "deploys")
-}
-
 /// The line of the card's `key:` entry, or the card heading.
 fn card_meta_line(node: &CardNode, key: &str) -> i32 {
     for entry in &node.meta {
@@ -1574,100 +1544,6 @@ fn card_meta_line(node: &CardNode, key: &str) -> i32 {
         }
     }
     node.line
-}
-
-/// The line of the node's `key:` entry, or the node heading.
-fn meta_line(node: &StructureNode, key: &str) -> i32 {
-    for entry in &node.meta {
-        if entry.key == key {
-            return entry.line;
-        }
-    }
-    node.line
-}
-
-// TODO(dedupe): `resolve_deploys`, `deploys_line`, `same_deploys`, and
-// `assign_deploy_ids` belong to `deploys.go`, whose Rust port lands in a later
-// submodule; these private copies go when it does.
-fn resolve_deploys(
-    node: &StructureNode,
-    existing: &[structure::Deployment],
-    envs: &[work::NamedEnvironment],
-) -> Result<(Vec<structure::Deployment>, bool), String> {
-    let Some(value) = node.meta_value("deploys") else {
-        return Ok((existing.to_vec(), false));
-    };
-    let specs = parse_deploys(value)?;
-    let mut next: Vec<structure::Deployment> = Vec::with_capacity(specs.len());
-    for spec in specs {
-        let env = resolve_environment(envs, &spec.env)?;
-        let mut target = spec.target.clone();
-        // A line without @target keeps the link's target while it names the
-        // same resource.
-        for current in existing {
-            if target.is_empty()
-                && current.environment_id == env.id
-                && current.provider == spec.provider
-                && current.resource == spec.resource
-            {
-                target = current.target_id.clone();
-            }
-        }
-        next.push(structure::Deployment {
-            environment_id: env.id,
-            environment: env.name,
-            provider: spec.provider,
-            resource: spec.resource,
-            target_id: target,
-            ..structure::Deployment::default()
-        });
-    }
-    Ok((assign_deploy_ids(existing, next), true))
-}
-
-fn assign_deploy_ids(
-    existing: &[structure::Deployment],
-    next: Vec<structure::Deployment>,
-) -> Vec<structure::Deployment> {
-    let mut by_env: HashMap<String, String> = HashMap::new();
-    for deploy in existing {
-        if !deploy.id.is_empty() {
-            by_env.insert(deploy.environment_id.clone(), deploy.id.clone());
-        }
-    }
-    let mut out = next;
-    out.sort_by(|a, b| a.environment_id.cmp(&b.environment_id));
-    for deploy in &mut out {
-        if !deploy.id.is_empty() {
-            continue;
-        }
-        if let Some(id) = by_env.get(&deploy.environment_id) {
-            deploy.id = id.clone();
-            continue;
-        }
-        deploy.id = ids::new_ulid();
-    }
-    out
-}
-
-fn same_deploys(a: &[structure::Deployment], b: &[structure::Deployment]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-    let mut left = a.to_vec();
-    let mut right = b.to_vec();
-    left.sort_by(|x, y| x.environment_id.cmp(&y.environment_id));
-    right.sort_by(|x, y| x.environment_id.cmp(&y.environment_id));
-    for (left, right) in left.iter().zip(right.iter()) {
-        if left.environment_id != right.environment_id
-            || left.provider != right.provider
-            || left.resource != right.resource
-            || left.target_id != right.target_id
-        {
-            return false;
-        }
-    }
-    true
 }
 
 /// Renders ops terraform-style, one line each.
@@ -2334,40 +2210,6 @@ mod tests {
         );
     }
 
-    /// Port of `EncodeStatusClaims`, which lives with the handoff port.
-    // TODO(dedupe): goes when the handoff submodule lands.
-    fn status_claims(current: &str, snapshot: &work::Snapshot) -> String {
-        let mut mine = String::new();
-        let mut others = String::new();
-        for card in &snapshot.cards {
-            if card.status != work::CARD_ACTIVE {
-                continue;
-            }
-            for task in &card.tasks {
-                let Some(claim) = &task.claim else {
-                    continue;
-                };
-                let scope = if claim.scope.is_empty() {
-                    String::new()
-                } else {
-                    format!(" ({})", claim.scope)
-                };
-                if card.slug == current {
-                    mine.push_str(&format!(
-                        "claim: T{} {}{scope}\n",
-                        task.number, claim.holder
-                    ));
-                } else {
-                    others.push_str(&format!(
-                        "claimed: {} T{} {}{scope}\n",
-                        card.slug, task.number, claim.holder
-                    ));
-                }
-            }
-        }
-        mine + &others
-    }
-
     #[test]
     fn claim_status_lines() {
         let mut snapshot = claim_snapshot();
@@ -2375,7 +2217,7 @@ mod tests {
             holder: "codex".to_string(),
             ..work::Claim::default()
         });
-        let status = status_claims("git-import", &snapshot);
+        let status = encode_status_claims("git-import", &snapshot);
         assert_eq!(
             status,
             "claim: T3 codex\nclaimed: canon-core T1 claude (backend/*)\n"

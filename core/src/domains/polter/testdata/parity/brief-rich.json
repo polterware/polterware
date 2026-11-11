@@ -1,0 +1,315 @@
+{
+  "budget": 900,
+  "docs": [
+    {
+      "ID": "doc-1",
+      "Title": "Local core",
+      "DocType": "doc",
+      "ScopeNodeIDs": [
+        "n-core"
+      ],
+      "Body": "One process owns SQLite."
+    },
+    {
+      "ID": "doc-2",
+      "Title": "Elsewhere",
+      "DocType": "doc",
+      "ScopeNodeIDs": null,
+      "Body": "Unrelated."
+    }
+  ],
+  "expected": "## decode\n## plan diagnostics\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n## rich-card: Rich card\nstage: build · under: core/api · milestone: beta\nkind: api · tech: Go · repo: api · path: cmd/api\ndeploys: production=vercel:api (failed: error · https://api-1.vercel.app), local=docker:api (ok)\nEverything a brief reads.\n\nRules:\n- Version the API. (from core/api)\n- Never call the network. (from core)\n- Keep changes small. (whole project)\n\n- [ ] T1 First task [repo: api] `src/*`\n? Ship it? [blocking] (yes | no)\nhandoff codex on feat/rich: next: T2\n\n! Keep the API stable\n\nDecisions:\n- Decision-0002 [active] Import\nprinciples: SQLite · Context\n\nFacts:\n- declared: One process owns SQLite.\n\nmilestone beta: Public beta · active · target 2026-12-01\ngoal: Ship the beta.\nexit: No P0 bugs\n\nDocs:\n- Local core\n",
+  "name": "brief-rich",
+  "snapshot": {
+    "Cards": [
+      {
+        "CreatedAt": "0001-01-01T00:00:00Z",
+        "Decisions": [
+          "Decision-0002"
+        ],
+        "Handoffs": [
+          {
+            "Agent": "codex",
+            "Branch": "feat/rich",
+            "CardID": "c9",
+            "CreatedAt": "0001-01-01T00:00:00Z",
+            "Done": "T1",
+            "Goal": "Finish",
+            "ID": "h9",
+            "InProgress": "",
+            "Next": "T2",
+            "ProjectID": "p1",
+            "Touched": [
+              "core/src/domains/polter/plan.rs"
+            ]
+          }
+        ],
+        "ID": "c9",
+        "Intent": "Everything a brief reads.",
+        "Invariants": [
+          {
+            "CardID": "c9",
+            "ID": "i9",
+            "Position": 0,
+            "State": "active",
+            "Text": "Keep the API stable"
+          }
+        ],
+        "Kind": "feature",
+        "Milestone": "beta",
+        "MilestoneID": "m1",
+        "Owner": "erick",
+        "Position": 0,
+        "ProjectID": "p1",
+        "Questions": [
+          {
+            "Answer": "",
+            "Blocking": true,
+            "CardID": "c9",
+            "ID": "q9",
+            "Options": [
+              "yes",
+              "no"
+            ],
+            "Position": 0,
+            "State": "open",
+            "Text": "Ship it?"
+          }
+        ],
+        "Slug": "rich-card",
+        "Stage": "build",
+        "Status": "active",
+        "Tasks": [
+          {
+            "CardID": "c9",
+            "Claim": null,
+            "ID": "t9",
+            "Number": 1,
+            "Position": 0,
+            "Repo": "api",
+            "Scope": "src/*",
+            "State": "open",
+            "Title": "First task"
+          },
+          {
+            "CardID": "c9",
+            "Claim": null,
+            "ID": "t10",
+            "Number": 2,
+            "Position": 1,
+            "Repo": "",
+            "Scope": "",
+            "State": "done",
+            "Title": "Second task"
+          }
+        ],
+        "Title": "Rich card",
+        "Under": "core/api",
+        "UpdatedAt": "0001-01-01T00:00:00Z"
+      }
+    ],
+    "Conflicts": [
+      {
+        "Answer": "",
+        "CardSlug": "",
+        "CreatedAt": "",
+        "DecidedAt": "",
+        "Decision": "",
+        "ID": "k1",
+        "Options": [
+          "Keep local",
+          "Allow Redis"
+        ],
+        "Request": "Add a Redis cache",
+        "RuleID": "r1",
+        "Slug": "use-redis",
+        "State": "open"
+      }
+    ],
+    "Decisions": [
+      {
+        "Body": "",
+        "ID": "a1",
+        "Scopes": null,
+        "Status": "active",
+        "Title": "Decision 0001: SQLite"
+      },
+      {
+        "Body": "",
+        "ID": "a2",
+        "Scopes": [
+          "core"
+        ],
+        "Status": "active",
+        "Title": "Decision 0002: Import"
+      },
+      {
+        "Body": "",
+        "ID": "a3",
+        "Scopes": null,
+        "Status": "proposed",
+        "Title": "Decision 0003: Context"
+      },
+      {
+        "Body": "",
+        "ID": "a4",
+        "Scopes": null,
+        "Status": "superseded",
+        "Title": "Decision 0004: Old",
+        "supersededBy": "a2"
+      }
+    ],
+    "Environments": [
+      {
+        "ID": "env-local",
+        "Name": "local"
+      },
+      {
+        "ID": "env-prod",
+        "Name": "production"
+      }
+    ],
+    "Facts": [
+      {
+        "Actor": "",
+        "CreatedAt": "0001-01-01T00:00:00Z",
+        "EntityID": "",
+        "ID": "fact-1",
+        "ObservedAt": "0001-01-01T00:00:00Z",
+        "ProjectID": "",
+        "Scopes": [
+          "core"
+        ],
+        "Slug": "local-core",
+        "Source": "",
+        "Statement": "One process owns SQLite.",
+        "TruthClass": "declared",
+        "UpdatedAt": "0001-01-01T00:00:00Z"
+      }
+    ],
+    "Milestones": [
+      {
+        "ArchivedAt": "",
+        "CreatedAt": "0001-01-01T00:00:00Z",
+        "ExitCriteria": [
+          "No P0 bugs"
+        ],
+        "Goal": "Ship the beta.",
+        "ID": "m1",
+        "Name": "Public beta",
+        "Position": 0,
+        "ProjectID": "p1",
+        "Slug": "beta",
+        "State": "active",
+        "TargetDate": "2026-12-01",
+        "UpdatedAt": "0001-01-01T00:00:00Z"
+      }
+    ],
+    "Nodes": [
+      {
+        "Decisions": null,
+        "Deploys": null,
+        "Folder": "",
+        "ID": "n-core",
+        "Intent": "The domain layer.",
+        "Kind": "",
+        "Level": "domain",
+        "MigrationFrom": "",
+        "MigrationTo": "",
+        "ParentID": "",
+        "Path": "core",
+        "Position": 0,
+        "ProjectID": "p1",
+        "Repo": "",
+        "Slug": "core",
+        "Status": "active",
+        "Tech": "",
+        "Title": "Core"
+      },
+      {
+        "Decisions": null,
+        "Deploys": [
+          {
+            "check": {
+              "checked_at": "",
+              "state": "failed",
+              "summary": "error",
+              "url": "https://api-1.vercel.app"
+            },
+            "environment": "production",
+            "environment_id": "env-prod",
+            "id": "d1",
+            "provider": "vercel",
+            "resource": "api",
+            "target_id": "prj_1"
+          },
+          {
+            "check": {
+              "checked_at": "",
+              "state": "ok",
+              "summary": "",
+              "url": ""
+            },
+            "environment": "local",
+            "environment_id": "env-local",
+            "id": "d2",
+            "provider": "docker",
+            "resource": "api"
+          }
+        ],
+        "Folder": "cmd/api",
+        "ID": "n-api",
+        "Intent": "The HTTP edge.",
+        "Kind": "api",
+        "Level": "component",
+        "MigrationFrom": "",
+        "MigrationTo": "",
+        "ParentID": "n-core",
+        "Path": "core/api",
+        "Position": 1,
+        "ProjectID": "p1",
+        "Repo": "api",
+        "Slug": "api",
+        "Status": "active",
+        "Tech": "Go",
+        "Title": "API"
+      }
+    ],
+    "ProjectID": "p1",
+    "Repos": [
+      "api"
+    ],
+    "Rules": [
+      {
+        "ID": "r1",
+        "Position": 0,
+        "Scopes": [
+          "core"
+        ],
+        "Slug": "no-network",
+        "Statement": "Never call the network.",
+        "Status": "active"
+      },
+      {
+        "ID": "r2",
+        "Position": 1,
+        "Scopes": null,
+        "Slug": "small-prs",
+        "Statement": "Keep changes small.",
+        "Status": "active"
+      },
+      {
+        "ID": "r3",
+        "Position": 2,
+        "Scopes": [
+          "core/api"
+        ],
+        "Slug": "api-v1",
+        "Statement": "Version the API.",
+        "Status": "active"
+      }
+    ]
+  },
+  "target": "rich-card",
+  "text": "---\npolter: 1\n---\n\n## rich-card: Rich card\nstage: build · under: core/api · decisions: Decision-0002 · milestone: beta\n\nEverything a brief reads.\n\n- [ ] T1 First task `src/*`\n? Ship it? [blocking] (yes | no)\n! Keep the API stable\n"
+}

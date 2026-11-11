@@ -5,6 +5,9 @@ use std::collections::HashMap;
 
 use crate::domains::structure;
 
+use super::model::go_quote;
+use super::plan::Planner;
+
 /// Reads a `scope:` value: Structure node paths separated by commas.
 ///
 /// Blanks and duplicates are dropped and the list is sorted, so two writes of
@@ -24,14 +27,31 @@ pub fn parse_scopes(value: &str) -> Vec<String> {
 }
 
 /// Reports whether `path` names an active Structure node.
-///
-/// Go declares the planner's `checkScopes` in the same file; the planner lands
-/// with `plan`, so the check is a free function it calls with
-/// `unknown scope "<path>": use a Structure node path`.
-pub fn scope_is_active(nodes: &HashMap<String, structure::Node>, path: &str) -> bool {
+pub(crate) fn scope_is_active(nodes: &HashMap<String, structure::Node>, path: &str) -> bool {
     nodes
         .get(path)
         .is_some_and(|node| node.status != structure::NODE_REMOVED)
+}
+
+impl Planner {
+    /// Reports each path that is not an active Structure node as an error on
+    /// `line`, and answers whether every path held.
+    pub(crate) fn check_scopes(&mut self, line: i32, paths: &[String]) -> bool {
+        let mut ok = true;
+        for path in paths {
+            if !scope_is_active(&self.nodes, path) {
+                self.errorf(
+                    line,
+                    format!(
+                        "unknown scope {}: use a Structure node path",
+                        go_quote(path)
+                    ),
+                );
+                ok = false;
+            }
+        }
+        ok
+    }
 }
 
 #[cfg(test)]

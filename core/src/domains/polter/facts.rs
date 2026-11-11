@@ -3,30 +3,23 @@
 //! `plan_facts` is a planner step: it diffs the `#### slug: Statement` blocks
 //! against the project's Facts and appends the ops and diagnostics it plans.
 
-use std::collections::HashMap;
-
 use serde_json::json;
 
-use crate::domains::{canon, structure, work};
+use crate::domains::{canon, work};
 
-use super::model::{Diagnostic, Document, SEVERITY_ERROR, go_quote};
-use super::scopes::{parse_scopes, scope_is_active};
+use super::model::{Document, go_quote};
+use super::plan::Planner;
+use super::scopes::parse_scopes;
 
 /// Plans the Fact blocks: a new slug creates a Fact (it needs a statement), a
 /// known slug or id updates it, and `kind:` and `scope:` replace the stored
 /// values.
-pub fn plan_facts(
-    doc: &Document,
-    facts: &[work::Fact],
-    nodes: &HashMap<String, structure::Node>,
-    diags: &mut Vec<Diagnostic>,
-    ops: &mut Vec<work::Op>,
-) {
-    let mut state: Vec<work::Fact> = facts.to_vec();
+pub fn plan_facts(p: &mut Planner, doc: &Document) {
+    let mut state: Vec<work::Fact> = p.snapshot.facts.clone();
     for node in &doc.facts {
-        let mut already_failed = failed(diags, node.line);
+        let mut already_failed = p.failed(node.line);
         for entry in &node.meta {
-            already_failed = already_failed || failed(diags, entry.line);
+            already_failed = already_failed || p.failed(entry.line);
         }
         if already_failed {
             continue;
@@ -44,13 +37,13 @@ pub fn plan_facts(
         let mut before = work::Fields::new();
         if index.is_none() {
             if node.statement.is_empty() {
-                diags.push(Diagnostic::error(
+                p.errorf(
                     node.line,
                     format!(
                         "unknown fact {}: add a statement (#### slug: Statement)",
                         go_quote(&node.reference)
                     ),
-                ));
+                );
                 continue;
             }
             current = work::Fact {
@@ -73,13 +66,13 @@ pub fn plan_facts(
         }
         if let Some(kind) = node.meta_value("kind") {
             if !canon::valid_fact_truth_class(kind) {
-                diags.push(Diagnostic::error(
+                p.errorf(
                     node.meta_line("kind"),
                     format!(
                         "unknown fact kind {}: use declared|inferred|verified",
                         go_quote(kind)
                     ),
-                ));
+                );
                 continue;
             }
             if kind != current.fact.truth_class.as_str() {
@@ -90,7 +83,7 @@ pub fn plan_facts(
         }
         if let Some(value) = node.meta_value("scope") {
             let scopes = parse_scopes(value);
-            if !check_scopes(diags, nodes, node.meta_line("scope"), scopes.as_slice()) {
+            if !p.check_scopes(node.meta_line("scope"), scopes.as_slice()) {
                 continue;
             }
             if scopes != current.scopes {
@@ -112,7 +105,7 @@ pub fn plan_facts(
                 work::OP_UPDATE
             }
         };
-        ops.push(work::Op {
+        p.ops.push(work::Op {
             entity: work::ENTITY_FACT.into(),
             kind: kind.into(),
             entity_id: current.fact.id.clone(),
@@ -125,45 +118,17 @@ pub fn plan_facts(
     }
 }
 
-/// Reports whether a diagnostic on `line` is an error.
-fn failed(diags: &[Diagnostic], line: i32) -> bool {
-    diags
-        .iter()
-        .any(|diag| diag.line == line && diag.severity == SEVERITY_ERROR)
-}
-
-/// Reports each path that is not an active Structure node.
-///
-/// TODO(dedupe): the planner keeps one `checkScopes`; this copy waits for
-/// `plan.rs` to land.
-fn check_scopes(
-    diags: &mut Vec<Diagnostic>,
-    nodes: &HashMap<String, structure::Node>,
-    line: i32,
-    paths: &[String],
-) -> bool {
-    let mut ok = true;
-    for path in paths {
-        if !scope_is_active(nodes, path) {
-            diags.push(Diagnostic::error(
-                line,
-                format!(
-                    "unknown scope {}: use a Structure node path",
-                    go_quote(path)
-                ),
-            ));
-            ok = false;
-        }
-    }
-    ok
-}
-
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
+    use crate::domains::structure;
+
     use super::*;
     use crate::domains::polter::decode::decode;
     use crate::domains::polter::encode::{HEADER, format};
     use crate::domains::polter::model::has_errors;
+    use crate::domains::polter::model::{Diagnostic, SEVERITY_ERROR};
 
     fn fact_snapshot() -> work::Snapshot {
         work::Snapshot {
@@ -186,10 +151,15 @@ mod tests {
     ) -> (Vec<work::Op>, Vec<Diagnostic>) {
         let (doc, diags) = decode(text);
         assert!(!has_errors(&diags), "decode: {diags:?}");
-        let mut diags = diags;
-        let mut ops = Vec::new();
-        plan_facts(&doc, facts, nodes, &mut diags, &mut ops);
-        (ops, diags)
+        let snapshot = work::Snapshot {
+            facts: facts.to_vec(),
+            nodes: nodes.values().cloned().collect(),
+            ..work::Snapshot::default()
+        };
+        let mut planner = Planner::new(&snapshot, "");
+        planner.diags = diags;
+        plan_facts(&mut planner, &doc);
+        (planner.ops, planner.diags)
     }
 
     fn nodes_of(snapshot: &work::Snapshot) -> HashMap<String, structure::Node> {
@@ -287,6 +257,16 @@ mod tests {
             );
             let want = if kind.is_empty() { "declared" } else { kind };
             assert_eq!(ops[0].fields["kind"], json!(want), "kind");
+            let plan = super::super::plan::format_plan(&ops);
+            assert!(
+                plan.starts_with(&format!("+ fact {} \"Local core\"", ops[0].entity_id)),
+                "plan = {plan:?}"
+            );
+            assert_eq!(
+                super::super::plan::summarize(&ops),
+                "1 op (1 fact)",
+                "summary"
+            );
         }
         let facts = [work::Fact {
             fact: canon::Fact {

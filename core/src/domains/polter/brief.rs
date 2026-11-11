@@ -9,6 +9,7 @@ use std::fmt;
 
 use crate::domains::{canvas, context, decision, structure, work};
 
+use super::structure_encode::{checkout_line, kind_tech_line};
 use super::*;
 
 /// The error [`brief`] returns when a target is neither a card slug nor a
@@ -493,58 +494,6 @@ impl BriefBuilder<'_> {
     }
 }
 
-/// `kind: cli · tech: Go`, or empty when the node has neither.
-// TODO(dedupe): a private copy of `kind_tech_line`, which lives in
-// `structure_encode.rs` (Go declares it in `structure_encode.go`).
-fn kind_tech_line(node: &structure::Node) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    if !node.kind.is_empty() {
-        parts.push(format!("kind: {}", node.kind));
-    }
-    if !node.tech.is_empty() {
-        parts.push(format!("tech: {}", node.tech));
-    }
-    parts.join(" · ")
-}
-
-/// `repo: api · path: src/auth`, or empty when the node sits at the root of the
-/// project checkout.
-// TODO(dedupe): a private copy of `checkout_line`, which lives in
-// `structure_encode.rs` (Go declares it in `structure_encode.go`).
-fn checkout_line(node: &structure::Node) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    if !node.repo.is_empty() {
-        parts.push(format!("repo: {}", node.repo));
-    }
-    if !node.folder.is_empty() {
-        parts.push(format!("path: {}", node.folder));
-    }
-    parts.join(" · ")
-}
-
-/// The active Rules that hold for a node path: its own, its ancestors'
-/// (nearest first), then the project-wide ones, each once and in stored order
-/// within a level.
-// TODO(dedupe): `rules_for` belongs to `rules.rs` (port of `rules.go`).
-fn rules_for(rules: &[work::Rule], chain: &[String]) -> (Vec<Vec<work::Rule>>, Vec<work::Rule>) {
-    let mut seen: HashSet<String> = HashSet::new();
-    let mut own: Vec<Vec<work::Rule>> = vec![Vec::new(); chain.len()];
-    for (i, path) in chain.iter().enumerate() {
-        for rule in rules {
-            if !seen.contains(&rule.id) && rule.scopes.iter().any(|scope| scope == path) {
-                seen.insert(rule.id.clone());
-                own[i].push(rule.clone());
-            }
-        }
-    }
-    let project = rules
-        .iter()
-        .filter(|rule| rule.scopes.is_empty())
-        .cloned()
-        .collect();
-    (own, project)
-}
-
 /// Adds a decision once, leaving out the superseded ones.
 fn push_decision(
     item: decision::Decision,
@@ -569,16 +518,6 @@ fn cite_decisions(
         if let Some(found) = decision::find(all, reference) {
             push_decision(found, picked, seen);
         }
-    }
-}
-
-/// The Polter reference agents read for a decision: its number, or its id.
-// TODO(dedupe): `decision_handle` belongs to `decisions.rs` (port of
-// `decisions.go`).
-fn decision_handle(item: &decision::Decision) -> String {
-    match decision::number(&item.title) {
-        Some(number) => decision::decision_ref(number),
-        None => item.id.clone(),
     }
 }
 
@@ -1228,6 +1167,48 @@ Docs:
             text.starts_with("# auth: Auth\nlevel: component · repo: api · path: src/auth\n"),
             "brief = {text}"
         );
+    }
+
+    #[test]
+    fn brief_names_where_a_node_runs_and_how_it_went() {
+        let node = structure::Node {
+            deploys: vec![
+                structure::Deployment {
+                    environment: "production".into(),
+                    provider: "vercel".into(),
+                    resource: "web".into(),
+                    check: Some(structure::DeployCheck {
+                        state: "failed".into(),
+                        summary: "error".into(),
+                        url: "https://web-1.vercel.app".into(),
+                        ..structure::DeployCheck::default()
+                    }),
+                    ..structure::Deployment::default()
+                },
+                structure::Deployment {
+                    environment: "local".into(),
+                    provider: "docker".into(),
+                    resource: "api".into(),
+                    check: Some(structure::DeployCheck {
+                        state: "ok".into(),
+                        ..structure::DeployCheck::default()
+                    }),
+                    ..structure::Deployment::default()
+                },
+                structure::Deployment {
+                    environment: "staging".into(),
+                    provider: "fly".into(),
+                    resource: "api-staging".into(),
+                    ..structure::Deployment::default()
+                },
+            ],
+            ..structure::Node::default()
+        };
+        assert_eq!(
+            deploys_brief_line(Some(&node)),
+            "deploys: production=vercel:web (failed: error · https://web-1.vercel.app), local=docker:api (ok), staging=fly:api-staging"
+        );
+        assert_eq!(deploys_brief_line(None), "", "no node, no line");
     }
 
     #[test]

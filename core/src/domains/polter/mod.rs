@@ -4,11 +4,11 @@
 //! is pure (no store) so the CLI, MCP, the Desktop (through the core), and
 //! Cloud share the same code.
 //!
-//! This module ports the format foundation: decode, encode, structure encode,
-//! the format spec, the graph checks, scopes, coordination, lint, hints, and
-//! commit references. The planners (`Plan`, `Brief`, the feature flow,
-//! milestones, decisions, rules, conflicts, facts, deploys, handoff notes) are
-//! added by later submodules and read the shared types from [`model`].
+//! This module ports the whole package: decode, encode, structure encode, the
+//! format spec, the graph checks, scopes, coordination, lint, hints, commit
+//! references, and the planners (`Plan`, `Brief`, the feature flow, milestones,
+//! decisions, rules, conflicts, facts, deploys, handoff notes), which read the
+//! shared types from [`model`].
 
 mod brief;
 mod commitref;
@@ -35,6 +35,9 @@ mod scopes;
 mod search;
 mod structure_encode;
 mod verify;
+
+#[cfg(test)]
+mod parity_tests;
 
 pub use brief::*;
 pub use commitref::*;

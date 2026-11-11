@@ -2,8 +2,8 @@
 //! graph checks, and similarity hints.
 //!
 //! Go declares `stageHints` in `feature.go` and `HandoffHints` with `GitView` in
-//! `handoff.go`; the planners that own those files land later, so the two hint
-//! passes they export live here and are reused.
+//! `handoff.go`; the passes they feed (`FeatureReview`, the handoff encoders)
+//! read them here, and `lint` runs them with the rest of the reference checks.
 
 use std::collections::{HashMap, HashSet};
 
