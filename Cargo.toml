@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["app", "tooling/gen-contracts"]
+members = ["app", "core", "tooling/gen-contracts"]
 
 [workspace.package]
 version = "0.1.1"
