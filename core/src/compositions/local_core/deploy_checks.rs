@@ -1,19 +1,57 @@
 //! Port of `backend/compositions/local-core/deploy_checks.go`.
 //!
-//! The handlers are not ported yet: each answers Connect `unimplemented`, worded as
-//! the generated `Unimplemented…Handler` of `localv1connect` words it.
+//! The background deploy check and the two deploy handlers: what a deploy can
+//! link to, and asking the platforms again.
 
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
+use time::OffsetDateTime;
+
+use crate::compositions::wedge;
 use crate::local_v1;
 
 use super::connect::{ConnectError, ConnectRequest, Route};
-use super::server::Core;
+use super::server::{Core, internal, invalid};
 
-/// `watchDeploys`, the background deploy check: a first pass shortly after the
-/// core starts, then one every ten minutes while it runs. It lands with the
-/// deploy port; `serve_connect` starts it where the Go core does.
-pub fn watch_deploys(_core: &Arc<Core>) {}
+/// A first pass shortly after the core starts, then one on this interval while
+/// it runs. Each pass checks only links that are due.
+const DEPLOY_CHECK_FIRST: Duration = Duration::from_secs(30);
+const DEPLOY_CHECK_EVERY: Duration = Duration::from_secs(10 * 60);
+
+/// How often the timer wakes to see whether the core stopped.
+const STOP_POLL: Duration = Duration::from_millis(250);
+
+/// Checks every project's deploys on a timer until the core stops. The writes
+/// reach clients as change events, and failures raise Inbox items.
+pub fn watch_deploys(core: &Arc<Core>) {
+    let core = Arc::clone(core);
+    std::thread::spawn(move || {
+        let mut wait = DEPLOY_CHECK_FIRST;
+        loop {
+            if !wait_or_stopped(&core, wait) {
+                return;
+            }
+            let _ = wedge::check_all_deploys(&core.store(), OffsetDateTime::now_utc());
+            wait = DEPLOY_CHECK_EVERY;
+        }
+    });
+}
+
+/// Sleeps `wait`, answering false when the core stopped first.
+fn wait_or_stopped(core: &Core, wait: Duration) -> bool {
+    let deadline = Instant::now() + wait;
+    loop {
+        if *core.done().borrow() {
+            return false;
+        }
+        let now = Instant::now();
+        if now >= deadline {
+            return true;
+        }
+        std::thread::sleep((deadline - now).min(STOP_POLL));
+    }
+}
 
 pub fn routes() -> Vec<Route> {
     vec![
@@ -28,22 +66,90 @@ pub fn routes() -> Vec<Route> {
     ]
 }
 
-/// `polterware.local.v1.IntegrationService.ListDeployTargets`, not ported yet.
 pub fn list_deploy_targets(
-    _core: Arc<Core>,
-    _request: ConnectRequest<local_v1::ListDeployTargetsRequest>,
+    core: Arc<Core>,
+    request: ConnectRequest<local_v1::ListDeployTargetsRequest>,
 ) -> Result<local_v1::ListDeployTargetsResponse, ConnectError> {
-    Err(ConnectError::unimplemented(
-        "polterware.local.v1.IntegrationService.ListDeployTargets is not implemented",
-    ))
+    let message = request.message;
+    if message.project_id.is_empty() || message.provider.is_empty() {
+        return Err(invalid("project id and provider are required"));
+    }
+    let result = wedge::deploy_targets(
+        &core.store(),
+        &message.project_id,
+        &message.node_id,
+        &message.provider,
+    )
+    .map_err(|err| invalid(err.to_string()))?;
+    Ok(local_v1::ListDeployTargetsResponse {
+        message: result.message,
+        targets: result
+            .targets
+            .iter()
+            .map(|target| local_v1::DeployTarget {
+                name: target.name.clone(),
+                id: target.id.clone(),
+                kind: target.kind.clone(),
+                url: target.url.clone(),
+                detected: target.detected,
+            })
+            .collect(),
+    })
 }
 
-/// `polterware.local.v1.IntegrationService.CheckDeploys`, not ported yet.
 pub fn check_deploys(
-    _core: Arc<Core>,
-    _request: ConnectRequest<local_v1::CheckDeploysRequest>,
+    core: Arc<Core>,
+    request: ConnectRequest<local_v1::CheckDeploysRequest>,
 ) -> Result<local_v1::CheckDeploysResponse, ConnectError> {
-    Err(ConnectError::unimplemented(
-        "polterware.local.v1.IntegrationService.CheckDeploys is not implemented",
-    ))
+    let message = request.message;
+    if message.project_id.is_empty() {
+        return Err(invalid("project id is required"));
+    }
+    let checked = wedge::check_deploys(
+        &core.store(),
+        wedge::CheckDeploysInput {
+            project_id: message.project_id,
+            node_id: message.node_id,
+            force: message.force,
+            now: None,
+        },
+    )
+    .map_err(internal)?;
+    Ok(local_v1::CheckDeploysResponse {
+        checked: checked.len() as i32,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::compositions::local_core::test_support::Harness;
+    use axum::http::HeaderMap;
+
+    #[test]
+    fn the_deploy_handlers_require_their_keys() {
+        let harness = Harness::start();
+        let error = list_deploy_targets(
+            Arc::clone(&harness.core),
+            ConnectRequest {
+                headers: HeaderMap::new(),
+                message: local_v1::ListDeployTargetsRequest {
+                    project_id: "proj-1".to_string(),
+                    ..local_v1::ListDeployTargetsRequest::default()
+                },
+            },
+        )
+        .expect_err("provider is required");
+        assert_eq!(error.message, "project id and provider are required");
+
+        let error = check_deploys(
+            Arc::clone(&harness.core),
+            ConnectRequest {
+                headers: HeaderMap::new(),
+                message: local_v1::CheckDeploysRequest::default(),
+            },
+        )
+        .expect_err("project is required");
+        assert_eq!(error.message, "project id is required");
+    }
 }
