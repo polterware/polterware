@@ -137,7 +137,7 @@ impl super::Store {
     ) -> Result<()> {
         let existing = self.get_canvas(project_id, id)?;
         if !existing.archived() {
-            return Err(canvas_error(canvas::Error::NotArchived));
+            return Err(canvas::Error::NotArchived.into());
         }
         let tx = self.db.unchecked_transaction()?;
         let now = format_rfc3339(OffsetDateTime::now_utc());
@@ -168,7 +168,7 @@ impl super::Store {
         op: &str,
         insert: bool,
     ) -> Result<canvas::Canvas> {
-        let mut prepared = canvas::prepare(item).map_err(canvas_error)?;
+        let mut prepared = canvas::prepare(item)?;
         if prepared.id.is_empty() {
             prepared.id = ids::new_ulid();
         }
@@ -177,7 +177,7 @@ impl super::Store {
         } else {
             batch_id.to_string()
         };
-        let graph_json = canvas::marshal_graph(&prepared.graph).map_err(canvas_error)?;
+        let graph_json = canvas::marshal_graph(&prepared.graph)?;
         let visible = i64::from(prepared.agent_visible);
         let tx = self.db.unchecked_transaction()?;
         require_structure_node(&tx, &prepared.project_id, &prepared.scope_node_id)?;
@@ -240,7 +240,7 @@ fn require_structure_node(q: &Connection, project_id: &str, node_id: &str) -> Re
     );
     match found {
         Ok(_) => Ok(()),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Err(canvas_error(canvas::Error::UnknownScope)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Err(canvas::Error::UnknownScope.into()),
         Err(err) => Err(err.into()),
     }
 }
@@ -308,18 +308,13 @@ fn scan_canvas(row: &Row<'_>) -> Result<canvas::Canvas> {
         name: row.get(2)?,
         r#type: row.get(3)?,
         agent_visible: visible != 0,
-        graph: canvas::unmarshal_graph(&graph_raw).map_err(canvas_error)?,
+        graph: canvas::unmarshal_graph(&graph_raw)?,
         layout_json: row.get(6)?,
         scope_node_id: row.get(7)?,
         created_at: parse_rfc3339(&created),
         updated_at: parse_rfc3339(&updated),
         archived_at: parse_optional_rfc3339(&archived),
     })
-}
-
-/// Maps a canvas error to the store's error, keeping Go's message.
-fn canvas_error(err: canvas::Error) -> Error {
-    Error::message(err.to_string())
 }
 
 #[cfg(test)]
@@ -503,6 +498,10 @@ mod tests {
         let err = reopened
             .delete_canvas("proj-canvas", &created.id, "run-1", "batch-3")
             .expect_err("delete of an active canvas");
+        assert!(
+            matches!(err, Error::Canvas(canvas::Error::NotArchived)),
+            "err = {err:?}"
+        );
         assert_eq!(
             err.to_string(),
             "archive the canvas before deleting it permanently"
@@ -576,6 +575,10 @@ mod tests {
             )
             .expect_err("invalid graph");
         assert!(
+            matches!(err, Error::Canvas(canvas::Error::InvalidGraph(_))),
+            "invalid graph err = {err:?}"
+        );
+        assert!(
             err.to_string().starts_with("invalid canvas graph: "),
             "invalid graph err = {err}"
         );
@@ -593,6 +596,10 @@ mod tests {
                 "batch-scope",
             )
             .expect_err("unknown scope");
+        assert!(
+            matches!(err, Error::Canvas(canvas::Error::UnknownScope)),
+            "err = {err:?}"
+        );
         assert_eq!(err.to_string(), "unknown scope node");
 
         let rows: i64 = store

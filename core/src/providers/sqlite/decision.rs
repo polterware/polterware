@@ -5,11 +5,12 @@
 //! `change_ops` row.
 
 use rusqlite::{Connection, params};
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use crate::domains::decision;
 use crate::domains::work;
 
+use super::work::{field_str, field_text};
 use super::{Error, Result};
 
 impl super::Store {
@@ -155,17 +156,6 @@ pub(super) fn apply_decision_op(
         params![op.entity_id, project_id, "decision", title, body, "", ""],
     )?;
     Ok(())
-}
-
-fn field_str(fields: &Map<String, Value>, key: &str) -> String {
-    field_text(fields, key).unwrap_or_default()
-}
-
-fn field_text(fields: &Map<String, Value>, key: &str) -> Option<String> {
-    match fields.get(key) {
-        Some(Value::String(text)) => Some(text.clone()),
-        _ => None,
-    }
 }
 
 #[cfg(test)]

@@ -12,7 +12,7 @@ use rusqlite::{Connection, Params, Row, ToSql, params, params_from_iter};
 use serde_json::{Map, Value};
 use time::OffsetDateTime;
 
-use crate::domains::{canon, integrations, structure, work};
+use crate::domains::{structure, work};
 use crate::platform::ids;
 
 use super::commit_links::reindex_work_card_fts;
@@ -36,7 +36,7 @@ pub(crate) enum ColumnValue {
 }
 
 impl ColumnValue {
-    fn text(value: impl Into<String>) -> ColumnValue {
+    pub(crate) fn text(value: impl Into<String>) -> ColumnValue {
         ColumnValue::Text(value.into())
     }
 
@@ -108,14 +108,14 @@ pub(crate) fn go_json_strings(values: &[String]) -> String {
 }
 
 /// A string field of an op, or the empty string when it is absent or of
-/// another type.
-fn field_str(fields: &Map<String, Value>, key: &str) -> String {
+/// another type: Go's `op.Fields[key].(string)` in every writer.
+pub(crate) fn field_str(fields: &Map<String, Value>, key: &str) -> String {
     field_text(fields, key).unwrap_or_default()
 }
 
 /// A string field that was present as a string, like a Go type assertion that
 /// reports whether it held.
-fn field_text(fields: &Map<String, Value>, key: &str) -> Option<String> {
+pub(crate) fn field_text(fields: &Map<String, Value>, key: &str) -> Option<String> {
     match fields.get(key) {
         Some(Value::String(text)) => Some(text.clone()),
         _ => None,
@@ -123,8 +123,21 @@ fn field_text(fields: &Map<String, Value>, key: &str) -> Option<String> {
 }
 
 /// The column value of an absent field is `NULL`, like indexing a Go map.
-fn field_column(fields: &Map<String, Value>, key: &str) -> Result<ColumnValue> {
+pub(crate) fn field_column(fields: &Map<String, Value>, key: &str) -> Result<ColumnValue> {
     column_value(fields.get(key).unwrap_or(&Value::Null))
+}
+
+/// Reads a `scope` field: the Structure node paths it names, or nothing when
+/// the value is not a list of strings, like Go's `op.Fields["scope"].([]string)`.
+pub(crate) fn scope_paths(value: &Value) -> Option<Vec<String>> {
+    let Value::Array(items) = value else {
+        return None;
+    };
+    let mut paths = Vec::with_capacity(items.len());
+    for item in items {
+        paths.push(item.as_str()?.to_string());
+    }
+    Some(paths)
 }
 
 impl super::Store {
@@ -196,7 +209,7 @@ impl super::Store {
         snapshot.repos = self.load_repo_names(project_id)?;
         snapshot.milestones = self.list_milestones(project_id)?;
         snapshot.decisions = self.load_decisions(project_id)?;
-        snapshot.facts = load_polter_facts(self, project_id)?;
+        snapshot.facts = self.load_polter_facts(project_id)?;
         snapshot.rules = self.load_rules(project_id)?;
         snapshot.conflicts = self.load_conflicts(project_id)?;
         if snapshot.cards.is_empty() {
@@ -446,8 +459,8 @@ impl super::Store {
 fn apply_work_op(tx: &Connection, project_id: &str, op: &work::Op, now: &str) -> Result<()> {
     match op.entity.as_str() {
         work::ENTITY_CLAIM => return apply_claim_op(tx, project_id, op, now),
-        work::ENTITY_NODE => return apply_structure_op(tx, project_id, op, now),
-        work::ENTITY_FACT => return apply_fact_op(tx, project_id, op, now),
+        work::ENTITY_NODE => return super::structure::apply_structure_op(tx, project_id, op, now),
+        work::ENTITY_FACT => return super::polter_facts::apply_fact_op(tx, project_id, op, now),
         work::ENTITY_RULE => return apply_rule_op(tx, project_id, op, now),
         work::ENTITY_CONFLICT => return apply_conflict_op(tx, project_id, op, now),
         work::ENTITY_DECISION => return apply_decision_op(tx, project_id, op, now),
@@ -642,363 +655,6 @@ fn apply_claim_op(tx: &Connection, project_id: &str, op: &work::Op, now: &str) -
             op.kind
         ))),
     }
-}
-
-// TODO(dedupe): private copy of `applyStructureOp` and its helpers from
-// `backend/providers/sqlite/structure.go`, which its own run ports to
-// `structure.rs`. Fold both into one writer once they meet.
-fn apply_structure_op(tx: &Connection, project_id: &str, op: &work::Op, now: &str) -> Result<()> {
-    let deploys = op.fields.get("deploys");
-    let parent = field_str(&op.fields, "parent_id");
-    match op.kind.as_str() {
-        work::OP_CREATE => {
-            let decisions = field_column(&op.fields, "decisions")?;
-            tx.execute(
-                r#"INSERT INTO structure_nodes(id,project_id,parent_id,level,slug,path,title,intent,status,decisions_json,position,repo,folder,kind,tech,migration_from,migration_to,created_at,updated_at)
-			VALUES(?,?,NULLIF(?,''),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"#,
-                params_from_iter([
-                    ColumnValue::text(op.entity_id.as_str()),
-                    ColumnValue::text(project_id),
-                    ColumnValue::text(parent),
-                    field_column(&op.fields, "level")?,
-                    field_column(&op.fields, "slug")?,
-                    field_column(&op.fields, "path")?,
-                    field_column(&op.fields, "title")?,
-                    field_column(&op.fields, "intent")?,
-                    field_column(&op.fields, "status")?,
-                    decisions,
-                    field_column(&op.fields, "position")?,
-                    field_column(&op.fields, "repo")?,
-                    field_column(&op.fields, "folder")?,
-                    field_column(&op.fields, "kind")?,
-                    field_column(&op.fields, "tech")?,
-                    field_column(&op.fields, "migration_from")?,
-                    field_column(&op.fields, "migration_to")?,
-                    ColumnValue::text(now),
-                    ColumnValue::text(now),
-                ]
-                .iter()),
-            )?;
-        }
-        work::OP_UPDATE | work::OP_REMOVE => {
-            update_structure_node(tx, op, now)?;
-        }
-        _ => {
-            return Err(Error::message(format!("unknown op {:?}", op.kind)));
-        }
-    }
-    let Some(deploys) = deploys else {
-        return Ok(());
-    };
-    apply_node_deploys(tx, project_id, &op.entity_id, deploys, now)
-}
-
-/// Replaces the node's links with `value`. An empty list clears them. Provider
-/// is checked again so a hand-built op cannot store an unknown catalog id or a
-/// credential.
-fn apply_node_deploys(
-    tx: &Connection,
-    project_id: &str,
-    node_id: &str,
-    value: &Value,
-    now: &str,
-) -> Result<()> {
-    let Some(deploys) = structure::deployments_from(value) else {
-        return Err(Error::message("invalid deploys"));
-    };
-    let mut existing: HashMap<String, structure::Deployment> = HashMap::new();
-    {
-        let mut stmt = tx.prepare(
-            r#"SELECT id,environment_id,provider,resource,target_id FROM node_deployments WHERE node_id=?"#,
-        )?;
-        let mut rows = stmt.query(params![node_id])?;
-        while let Some(row) = rows.next()? {
-            let deploy = structure::Deployment {
-                id: row.get(0)?,
-                environment_id: row.get(1)?,
-                provider: row.get(2)?,
-                resource: row.get(3)?,
-                target_id: row.get(4)?,
-                ..structure::Deployment::default()
-            };
-            existing.insert(deploy.environment_id.clone(), deploy);
-        }
-    }
-    let mut seen: HashSet<String> = HashSet::new();
-    for deploy in deploys {
-        if !integrations::known_provider(&deploy.provider) {
-            return Err(Error::message(format!(
-                "unknown provider {:?}",
-                deploy.provider
-            )));
-        }
-        if deploy.environment_id.is_empty()
-            || deploy.resource.trim().is_empty()
-            || deploy.resource.contains('\r')
-            || deploy.resource.contains('\n')
-        {
-            return Err(Error::message(
-                "deployment needs an environment and a resource",
-            ));
-        }
-        let lowered = deploy.resource.to_lowercase();
-        if lowered.contains("begin private") || lowered.contains("begin rsa") {
-            return Err(Error::message(
-                "deployment resource must not be a credential",
-            ));
-        }
-        seen.insert(deploy.environment_id.clone());
-        match existing.get(&deploy.environment_id) {
-            Some(current)
-                if current.provider == deploy.provider
-                    && current.resource == deploy.resource
-                    && current.target_id == deploy.target_id =>
-            {
-                continue;
-            }
-            Some(current) => {
-                // Another resource is another target: its dashboard link and
-                // last check go until the next check.
-                tx.execute(
-                    r#"UPDATE node_deployments SET provider=?, resource=?, target_id=?, target_url='', updated_at=? WHERE id=?"#,
-                    params![
-                        deploy.provider,
-                        deploy.resource,
-                        deploy.target_id,
-                        now,
-                        current.id
-                    ],
-                )?;
-                tx.execute(
-                    r#"DELETE FROM deploy_checks WHERE deployment_id=?"#,
-                    params![current.id],
-                )?;
-                continue;
-            }
-            None => {}
-        }
-        let id = if deploy.id.is_empty() {
-            ids::new_ulid()
-        } else {
-            deploy.id.clone()
-        };
-        tx.execute(
-            r#"INSERT INTO node_deployments(id,project_id,node_id,environment_id,provider,resource,target_id,created_at,updated_at)
-			VALUES(?,?,?,?,?,?,?,?,?)"#,
-            params![
-                id,
-                project_id,
-                node_id,
-                deploy.environment_id,
-                deploy.provider,
-                deploy.resource,
-                deploy.target_id,
-                now,
-                now
-            ],
-        )?;
-    }
-    for (environment, deploy) in &existing {
-        if seen.contains(environment) {
-            continue;
-        }
-        tx.execute(
-            r#"DELETE FROM deploy_checks WHERE deployment_id=?"#,
-            params![deploy.id],
-        )?;
-        tx.execute(
-            r#"DELETE FROM node_deployments WHERE id=?"#,
-            params![deploy.id],
-        )?;
-    }
-    Ok(())
-}
-
-/// Updates the columns of a node op; `deploys` is written apart.
-fn update_structure_node(tx: &Connection, op: &work::Op, now: &str) -> Result<()> {
-    let mut sets: Vec<String> = Vec::new();
-    let mut values: Vec<ColumnValue> = Vec::new();
-    for (field, value) in &op.fields {
-        match field.as_str() {
-            "deploys" => continue,
-            "parent_id" => {
-                sets.push("parent_id=NULLIF(?,'')".to_string());
-                values.push(column_value(value)?);
-            }
-            "decisions" => {
-                sets.push("decisions_json=?".to_string());
-                values.push(column_value(value)?);
-            }
-            "slug" | "path" | "title" | "intent" | "level" | "status" | "position" | "repo"
-            | "folder" | "kind" | "tech" | "migration_from" | "migration_to" => {
-                sets.push(format!("{field}=?"));
-                values.push(column_value(value)?);
-            }
-            _ => {
-                return Err(Error::message(format!("unknown field {field:?}")));
-            }
-        }
-    }
-    if sets.is_empty() {
-        return Ok(());
-    }
-    sets.push("updated_at=?".to_string());
-    values.push(ColumnValue::text(now));
-    values.push(ColumnValue::text(op.entity_id.as_str()));
-    let query = format!("UPDATE structure_nodes SET {} WHERE id=?", sets.join(","));
-    tx.execute(&query, params_from_iter(values.iter()))?;
-    Ok(())
-}
-
-// TODO(dedupe): private copy of `applyFactOp`, `upsertCanonFact`,
-// `scanCanonFact`, `ListCanonFacts`, and `loadPolterFacts` from
-// `backend/providers/sqlite/{polter_facts,canon_facts}.go`, which their own
-// runs port to `polter_facts.rs` and `canon_facts.rs`. The snapshot's reader is
-// a free function here because the other run owns the `Store` method.
-fn apply_fact_op(tx: &Connection, project_id: &str, op: &work::Op, now: &str) -> Result<()> {
-    let timestamp = parse_rfc3339(now);
-    let mut fact = canon::Fact {
-        id: op.entity_id.clone(),
-        project_id: project_id.to_string(),
-        truth_class: canon::TRUTH_DECLARED.to_string(),
-        source: "polter".to_string(),
-        actor: "agent".to_string(),
-        observed_at: timestamp,
-        created_at: timestamp,
-        ..canon::Fact::default()
-    };
-    if op.kind == work::OP_UPDATE {
-        fact = tx
-            .query_row(
-                r#"SELECT id,project_id,statement,truth_class,source,actor,observed_at,entity_id,created_at,updated_at FROM canon_facts WHERE id=? AND project_id=?"#,
-                params![op.entity_id, project_id],
-                scan_canon_fact,
-            )
-            .map_err(|err| {
-                Error::message(format!("fact {} not found: {err}", op.entity_id))
-            })?;
-    } else if op.kind != work::OP_CREATE {
-        return Err(Error::message("facts cannot be removed through Polter"));
-    }
-    if let Some(value) = field_text(&op.fields, "statement") {
-        fact.statement = value;
-    }
-    if let Some(value) = field_text(&op.fields, "kind") {
-        fact.truth_class = value;
-    }
-    if let Some(value) = field_text(&op.fields, "actor") {
-        fact.actor = value;
-    }
-    fact.updated_at = timestamp;
-    canon::validate_fact(&fact)?;
-    upsert_canon_fact(tx, &fact)?;
-    if let Some(slug) = field_text(&op.fields, "slug") {
-        tx.execute(
-            r#"UPDATE canon_facts SET slug=? WHERE id=? AND project_id=?"#,
-            params![slug, op.entity_id, project_id],
-        )?;
-    }
-    if let Some(Value::Array(paths)) = op.fields.get("scope") {
-        let paths: Vec<String> = paths
-            .iter()
-            .map(|path| path.as_str().unwrap_or_default().to_string())
-            .collect();
-        set_context_paths(tx, project_id, &op.entity_id, &paths)?;
-    }
-    Ok(())
-}
-
-fn scan_canon_fact(row: &Row<'_>) -> rusqlite::Result<canon::Fact> {
-    let observed: String = row.get(6)?;
-    let entity_id: Option<String> = row.get(7)?;
-    let created: String = row.get(8)?;
-    let updated: String = row.get(9)?;
-    Ok(canon::Fact {
-        id: row.get(0)?,
-        project_id: row.get(1)?,
-        statement: row.get(2)?,
-        truth_class: row.get(3)?,
-        source: row.get(4)?,
-        actor: row.get(5)?,
-        observed_at: parse_rfc3339(&observed),
-        entity_id: entity_id.unwrap_or_default(),
-        created_at: parse_rfc3339(&created),
-        updated_at: parse_rfc3339(&updated),
-    })
-}
-
-fn upsert_canon_fact(tx: &Connection, fact: &canon::Fact) -> Result<()> {
-    tx.execute(
-        r#"INSERT INTO canon_facts(
-		id,project_id,statement,truth_class,source,actor,observed_at,entity_id,created_at,updated_at
-	) VALUES(?,?,?,?,?,?,?,?,?,?)
-	ON CONFLICT(id) DO UPDATE SET
-		statement=excluded.statement,
-		truth_class=excluded.truth_class,
-		source=excluded.source,
-		actor=excluded.actor,
-		observed_at=excluded.observed_at,
-		entity_id=excluded.entity_id,
-		updated_at=excluded.updated_at"#,
-        params![
-            fact.id,
-            fact.project_id,
-            fact.statement,
-            fact.truth_class,
-            fact.source,
-            fact.actor,
-            format_rfc3339(fact.observed_at),
-            nullable(&fact.entity_id),
-            format_rfc3339(fact.created_at),
-            format_rfc3339(fact.updated_at),
-        ],
-    )?;
-    Ok(())
-}
-
-fn list_canon_facts(store: &super::Store, project_id: &str) -> Result<Vec<canon::Fact>> {
-    let mut facts = Vec::new();
-    store.each_row(
-        r#"SELECT id,project_id,statement,truth_class,source,actor,observed_at,entity_id,created_at,updated_at
-		FROM canon_facts WHERE project_id=? ORDER BY observed_at DESC, created_at DESC"#,
-        params![project_id],
-        |row| {
-            facts.push(scan_canon_fact(row)?);
-            Ok(())
-        },
-    )?;
-    Ok(facts)
-}
-
-/// Returns the project's facts with their Polter slug and context paths.
-fn load_polter_facts(store: &super::Store, project_id: &str) -> Result<Vec<work::Fact>> {
-    let facts = list_canon_facts(store, project_id)?;
-    let mut result: Vec<work::Fact> = Vec::with_capacity(facts.len());
-    let mut index: HashMap<String, usize> = HashMap::new();
-    for fact in facts {
-        index.insert(fact.id.clone(), result.len());
-        result.push(work::Fact {
-            fact,
-            ..work::Fact::default()
-        });
-    }
-    let contexts = store.context_paths(project_id)?;
-    for fact in &mut result {
-        fact.scopes = contexts.get(&fact.fact.id).cloned().unwrap_or_default();
-    }
-    store.each_row(
-        r#"SELECT id,COALESCE(slug,'') FROM canon_facts WHERE project_id=?"#,
-        params![project_id],
-        |row| {
-            let id: String = row.get(0)?;
-            let slug: String = row.get(1)?;
-            if let Some(&position) = index.get(&id) {
-                result[position].slug = slug;
-            } // A concurrent insert belongs to the next snapshot.
-            Ok(())
-        },
-    )?;
-    Ok(result)
 }
 
 #[cfg(test)]

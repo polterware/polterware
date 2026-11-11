@@ -7,14 +7,11 @@
 use std::collections::HashMap;
 
 use rusqlite::params;
-use time::OffsetDateTime;
-use time::UtcOffset;
-use time::format_description::well_known::Rfc3339;
 
 use crate::domains::inbox;
 use crate::platform::ids;
 
-use super::{Result, parse_rfc3339};
+use super::{Result, format_rfc3339_nano, parse_rfc3339};
 
 impl super::Store {
     /// Appends one disposition row. Rows are never updated.
@@ -133,18 +130,10 @@ impl super::Store {
     }
 }
 
-/// Formats a stamp the way Go's `time.RFC3339Nano` does: UTC, with the
-/// fraction kept only when it is not zero and without trailing zeros.
-fn format_rfc3339_nano(value: OffsetDateTime) -> String {
-    value
-        .to_offset(UtcOffset::UTC)
-        .format(&Rfc3339)
-        .expect("RFC3339 formatting cannot fail")
-}
-
 #[cfg(test)]
 mod tests {
     use rusqlite::params;
+    use time::OffsetDateTime;
 
     use crate::domains::inbox;
     use crate::providers::sqlite::test_support::{TempStore, save_project};

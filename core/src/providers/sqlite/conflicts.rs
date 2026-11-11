@@ -4,11 +4,11 @@
 //! raises one instead of acting against the law, and a person decides it.
 
 use rusqlite::{Connection, params};
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use crate::domains::work;
 
-use super::work::{ColumnValue, column_value};
+use super::work::{ColumnValue, column_value, field_str, field_text};
 use super::{Error, Result};
 
 impl super::Store {
@@ -123,17 +123,6 @@ fn conflict_column(field: &str) -> Option<&'static str> {
         "options" => Some("options_json"),
         "state" => Some("state"),
         "answer" => Some("answer"),
-        _ => None,
-    }
-}
-
-fn field_str(fields: &Map<String, Value>, key: &str) -> String {
-    field_text(fields, key).unwrap_or_default()
-}
-
-fn field_text(fields: &Map<String, Value>, key: &str) -> Option<String> {
-    match fields.get(key) {
-        Some(Value::String(text)) => Some(text.clone()),
         _ => None,
     }
 }

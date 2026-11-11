@@ -12,6 +12,7 @@ use crate::domains::work;
 
 use super::canon_facts::{scan_canon_fact, upsert_canon_fact};
 use super::scope::set_context_paths;
+use super::work::scope_paths;
 use super::{Error, Result, parse_rfc3339};
 
 impl super::Store {
@@ -48,8 +49,7 @@ impl super::Store {
 }
 
 /// Writes the canon store in the same transaction as change_ops. The Work apply
-/// in `work.rs`, its own run, calls it.
-#[allow(dead_code)]
+/// in `work.rs` calls it.
 pub(crate) fn apply_fact_op(
     tx: &Connection,
     project_id: &str,
@@ -96,26 +96,10 @@ pub(crate) fn apply_fact_op(
             params![slug, op.entity_id, project_id],
         )?;
     }
-    if let Some(paths) = op.fields.get("scope").and_then(paths_of) {
+    if let Some(paths) = op.fields.get("scope").and_then(scope_paths) {
         set_context_paths(tx, project_id, &op.entity_id, &paths)?;
     }
     Ok(())
-}
-
-/// Reads a `scope` field: a list of Structure node paths, or nothing when the
-/// value is not a list.
-#[allow(dead_code)]
-fn paths_of(value: &Value) -> Option<Vec<String>> {
-    match value {
-        Value::Array(items) => {
-            let mut out = Vec::with_capacity(items.len());
-            for item in items {
-                out.push(item.as_str()?.to_string());
-            }
-            Some(out)
-        }
-        _ => None,
-    }
 }
 
 #[cfg(test)]

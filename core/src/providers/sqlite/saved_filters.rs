@@ -28,7 +28,7 @@ impl super::Store {
     /// the new payload. Saved filters are UI preferences, so no change ops are
     /// written.
     pub fn save_saved_filter(&self, filter: filters::SavedFilter) -> Result<filters::SavedFilter> {
-        let mut prepared = filters::prepare_save(filter).map_err(filter_error)?;
+        let mut prepared = filters::prepare_save(filter)?;
         let tx = self.db.unchecked_transaction()?;
 
         let existing = query_saved_filters(&tx, &prepared.project_id, &prepared.surface)?;
@@ -56,7 +56,7 @@ impl super::Store {
             r#"INSERT INTO saved_filters(id,project_id,surface,name,payload_json,position,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)"#,
             params![
                 &prepared.id,
-                nullable_project_id(&prepared.project_id),
+                nullable(&prepared.project_id),
                 &prepared.surface,
                 &prepared.name,
                 &prepared.payload_json,
@@ -67,7 +67,7 @@ impl super::Store {
         );
         if let Err(err) = inserted {
             if err.to_string().contains("FOREIGN KEY constraint failed") {
-                return Err(filter_error(filters::SavedFilterError::ProjectNotFound));
+                return Err(filters::SavedFilterError::ProjectNotFound.into());
             }
             return Err(err.into());
         }
@@ -84,7 +84,7 @@ impl super::Store {
             .db
             .execute(r#"DELETE FROM saved_filters WHERE id=?"#, params![id])?;
         if removed == 0 {
-            return Err(filter_error(filters::SavedFilterError::NotFound));
+            return Err(filters::SavedFilterError::NotFound.into());
         }
         Ok(())
     }
@@ -116,20 +116,6 @@ fn query_saved_filters(
         });
     }
     Ok(out)
-}
-
-/// A nullable project id: the app-level surface stores no project.
-fn nullable_project_id(project_id: &str) -> Option<&str> {
-    if project_id.is_empty() {
-        None
-    } else {
-        Some(project_id)
-    }
-}
-
-/// Maps a saved filter error to the store's error, keeping Go's message.
-fn filter_error(err: filters::SavedFilterError) -> Error {
-    Error::message(err.to_string())
 }
 
 #[cfg(test)]
@@ -238,6 +224,10 @@ mod tests {
         let err = store
             .save_saved_filter(filter("proj-a", "work", "Bad", "{}"))
             .expect_err("bad payload");
+        assert!(
+            matches!(err, Error::Filters(filters::SavedFilterError::Payload)),
+            "err = {err:?}"
+        );
         assert_eq!(
             err.to_string(),
             "saved filter payload must be a JSON object with an integer version"
@@ -245,12 +235,23 @@ mod tests {
         let err = store
             .save_saved_filter(filter("missing", "work", "Ghost", r#"{"version":1}"#))
             .expect_err("unknown project");
+        assert!(
+            matches!(
+                err,
+                Error::Filters(filters::SavedFilterError::ProjectNotFound)
+            ),
+            "err = {err:?}"
+        );
         assert_eq!(err.to_string(), "saved filter project not found");
 
         store.delete_saved_filter(&mine.id).expect("delete");
         let err = store
             .delete_saved_filter(&mine.id)
             .expect_err("second delete");
+        assert!(
+            matches!(err, Error::Filters(filters::SavedFilterError::NotFound)),
+            "err = {err:?}"
+        );
         assert_eq!(err.to_string(), "saved filter not found");
         let listed = store.list_saved_filters("proj-a", "work").expect("after");
         assert_eq!(listed.len(), 1);

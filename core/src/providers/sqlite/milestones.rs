@@ -33,7 +33,7 @@ impl super::Store {
         let existing = query_milestones(&tx, project_id)?;
         let mut item = item;
         item.project_id = project_id.to_string();
-        let mut prepared = work::prepare_milestone_create(item, &existing).map_err(work_error)?;
+        let mut prepared = work::prepare_milestone_create(item, &existing)?;
         if prepared.id.is_empty() {
             prepared.id = ids::new_ulid();
         }
@@ -102,8 +102,7 @@ impl super::Store {
     ) -> Result<work::Milestone> {
         let tx = self.db.unchecked_transaction()?;
         let existing = query_milestones(&tx, project_id)?;
-        let (next, changed) =
-            work::prepare_milestone_update(item, &existing).map_err(work_error)?;
+        let (next, changed) = work::prepare_milestone_update(item, &existing)?;
         if !changed {
             return Ok(next);
         }
@@ -184,7 +183,7 @@ impl super::Store {
         let tx = self.db.unchecked_transaction()?;
         let existing = query_milestones(&tx, project_id)?;
         let Some(target) = existing.iter().find(|item| item.id == id).cloned() else {
-            return Err(Error::message(work::Error::NotFound.to_string()));
+            return Err(work::Error::NotFound.into());
         };
         if target.archived_at.is_empty() != archived {
             return Ok(target);
@@ -233,7 +232,7 @@ impl super::Store {
             .filter(|item| item.archived_at.is_empty())
             .cloned()
             .collect();
-        let next = work::reorder_milestones(&listed, ordered_ids).map_err(work_error)?;
+        let next = work::reorder_milestones(&listed, ordered_ids)?;
         if !work::milestone_positions_changed(&listed, &next) {
             return Ok(all);
         }
@@ -379,15 +378,9 @@ fn insert_milestone_op(
 /// The name is the one unique key a person can hit: the slug is derived.
 fn milestone_constraint_error(err: &rusqlite::Error) -> Option<Error> {
     if err.to_string().contains("milestones.name") {
-        return Some(Error::message(work::Error::NameTaken.to_string()));
+        return Some(work::Error::NameTaken.into());
     }
     None
-}
-
-/// The domain errors keep their messages; the store has no sentinel of its own
-/// for them.
-fn work_error(err: work::Error) -> Error {
-    Error::message(err.to_string())
 }
 
 fn non_nil_strings(values: &[String]) -> Vec<String> {
@@ -400,6 +393,7 @@ mod tests {
     use time::OffsetDateTime;
 
     use crate::domains::work;
+    use crate::providers::sqlite::Error;
     use crate::providers::sqlite::test_support::{TempStore, save_project};
 
     fn now() -> OffsetDateTime {
@@ -502,6 +496,10 @@ mod tests {
         let err = store
             .set_milestone_archived("proj", "", "batch-5", "missing", true)
             .expect_err("missing milestone");
+        assert!(
+            matches!(err, Error::Work(work::Error::NotFound)),
+            "err = {err:?}"
+        );
         assert_eq!(err.to_string(), "milestone not found");
     }
 

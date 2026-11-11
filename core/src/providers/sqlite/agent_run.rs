@@ -10,8 +10,6 @@ use rusqlite::params;
 use rusqlite::params_from_iter;
 use rusqlite::types::Value;
 use time::OffsetDateTime;
-use time::UtcOffset;
-use time::format_description::well_known::Rfc3339;
 
 use crate::domains::agentrun;
 
@@ -59,9 +57,7 @@ impl super::Store {
         );
         match found {
             Ok(run) => Ok(run),
-            Err(rusqlite::Error::QueryReturnedNoRows) => {
-                Err(run_error(agentrun::Error::UnknownRun))
-            }
+            Err(rusqlite::Error::QueryReturnedNoRows) => Err(agentrun::Error::UnknownRun.into()),
             Err(err) => Err(err.into()),
         }
     }
@@ -80,7 +76,7 @@ impl super::Store {
             ],
         )?;
         if updated == 0 {
-            return Err(run_error(agentrun::Error::UnknownRun));
+            return Err(agentrun::Error::UnknownRun.into());
         }
         Ok(())
     }
@@ -245,8 +241,8 @@ impl super::Store {
         build: impl FnOnce(&agentrun::Run) -> StdResult<agentrun::Step, agentrun::Error>,
     ) -> Result<()> {
         let run = self.get_agent_run(run_id)?;
-        agentrun::can_append(&run).map_err(run_error)?;
-        let step = build(&run).map_err(run_error)?;
+        agentrun::can_append(&run)?;
+        let step = build(&run)?;
         self.append_agent_run_step(step)
     }
 }
@@ -308,23 +304,6 @@ fn parse_agent_run_time(value: &str) -> OffsetDateTime {
         return OffsetDateTime::UNIX_EPOCH;
     }
     parse_rfc3339(value)
-}
-
-/// Formats a stamp the way Go's `time.RFC3339Nano` layout does: UTC, with the
-/// fraction trimmed of trailing zeros (absent when there is none).
-///
-/// TODO(dedupe): private copy; the foundation's `format_rfc3339` drops the
-/// fraction, and a step's order depends on it.
-fn format_rfc3339_nano(value: OffsetDateTime) -> String {
-    value
-        .to_offset(UtcOffset::UTC)
-        .format(&Rfc3339)
-        .expect("RFC3339 formatting cannot fail")
-}
-
-/// Maps an agent run error to the store's error, keeping Go's message.
-fn run_error(err: agentrun::Error) -> Error {
-    Error::message(err.to_string())
 }
 
 #[cfg(test)]
@@ -461,6 +440,10 @@ mod tests {
             .store
             .get_agent_run("missing")
             .expect_err("want error for an unknown run");
+        assert!(
+            matches!(err, Error::AgentRun(agentrun::Error::UnknownRun)),
+            "err = {err:?}"
+        );
         assert_eq!(err.to_string(), "unknown agent run");
     }
 }
