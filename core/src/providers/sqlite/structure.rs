@@ -6,14 +6,14 @@
 
 use std::collections::HashMap;
 
-use rusqlite::types::Value as SqlValue;
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, params, params_from_iter};
 use serde_json::Value as Json;
 
 use crate::domains::structure;
 use crate::domains::work;
 use crate::platform::ids;
 
+use super::work::{ColumnValue, column_value, field_column, field_str};
 use super::{Error, Result};
 
 impl super::Store {
@@ -94,8 +94,7 @@ impl super::Store {
     }
 }
 
-// The Work apply in `work.rs`, its own run, calls the entry points below.
-#[allow(dead_code)]
+// The Work apply in `work.rs` calls the entry point below.
 pub(crate) fn apply_structure_op(
     tx: &Connection,
     project_id: &str,
@@ -103,54 +102,33 @@ pub(crate) fn apply_structure_op(
     now: &str,
 ) -> Result<()> {
     let deploys = op.fields.get("deploys").cloned();
-    let has_deploys = deploys.is_some();
-    let parent = op
-        .fields
-        .get("parent_id")
-        .and_then(Json::as_str)
-        .unwrap_or("");
     match op.kind.as_str() {
         work::OP_CREATE => {
-            let decisions = column_value(op.fields.get("decisions"))?;
-            let repo = op.fields.get("repo").and_then(Json::as_str).unwrap_or("");
-            let folder = op.fields.get("folder").and_then(Json::as_str).unwrap_or("");
-            let kind = op.fields.get("kind").and_then(Json::as_str).unwrap_or("");
-            let tech = op.fields.get("tech").and_then(Json::as_str).unwrap_or("");
-            let migration_from = op
-                .fields
-                .get("migration_from")
-                .and_then(Json::as_str)
-                .unwrap_or("");
-            let migration_to = op
-                .fields
-                .get("migration_to")
-                .and_then(Json::as_str)
-                .unwrap_or("");
             let values = vec![
-                SqlValue::Text(op.entity_id.clone()),
-                SqlValue::Text(project_id.to_string()),
-                SqlValue::Text(parent.to_string()),
-                column_value(op.fields.get("level"))?,
-                column_value(op.fields.get("slug"))?,
-                column_value(op.fields.get("path"))?,
-                column_value(op.fields.get("title"))?,
-                column_value(op.fields.get("intent"))?,
-                column_value(op.fields.get("status"))?,
-                decisions,
-                column_value(op.fields.get("position"))?,
-                SqlValue::Text(repo.to_string()),
-                SqlValue::Text(folder.to_string()),
-                SqlValue::Text(kind.to_string()),
-                SqlValue::Text(tech.to_string()),
-                SqlValue::Text(migration_from.to_string()),
-                SqlValue::Text(migration_to.to_string()),
-                SqlValue::Text(now.to_string()),
-                SqlValue::Text(now.to_string()),
+                ColumnValue::text(op.entity_id.as_str()),
+                ColumnValue::text(project_id),
+                ColumnValue::text(field_str(&op.fields, "parent_id")),
+                field_column(&op.fields, "level")?,
+                field_column(&op.fields, "slug")?,
+                field_column(&op.fields, "path")?,
+                field_column(&op.fields, "title")?,
+                field_column(&op.fields, "intent")?,
+                field_column(&op.fields, "status")?,
+                field_column(&op.fields, "decisions")?,
+                field_column(&op.fields, "position")?,
+                ColumnValue::text(field_str(&op.fields, "repo")),
+                ColumnValue::text(field_str(&op.fields, "folder")),
+                ColumnValue::text(field_str(&op.fields, "kind")),
+                ColumnValue::text(field_str(&op.fields, "tech")),
+                ColumnValue::text(field_str(&op.fields, "migration_from")),
+                ColumnValue::text(field_str(&op.fields, "migration_to")),
+                ColumnValue::text(now),
+                ColumnValue::text(now),
             ];
             tx.execute(
                 r#"INSERT INTO structure_nodes(id,project_id,parent_id,level,slug,path,title,intent,status,decisions_json,position,repo,folder,kind,tech,migration_from,migration_to,created_at,updated_at)
 			VALUES(?,?,NULLIF(?,''),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"#,
-                rusqlite::params_from_iter(values),
+                params_from_iter(values.iter()),
             )?;
         }
         work::OP_UPDATE | work::OP_REMOVE => {
@@ -162,14 +140,12 @@ pub(crate) fn apply_structure_op(
         }
         other => return Err(Error::message(format!("unknown op {other:?}"))),
     }
-    if !has_deploys {
-        return Ok(());
+    match deploys {
+        Some(value) => apply_node_deploys(tx, project_id, &op.entity_id, &value, now),
+        None => Ok(()),
     }
-    let value = deploys.unwrap_or(Json::Null);
-    apply_node_deploys(tx, project_id, &op.entity_id, &value, now)
 }
 
-#[allow(dead_code)]
 fn without_field(fields: &work::Fields, key: &str) -> work::Fields {
     let mut out = work::Fields::new();
     for (name, value) in fields {
@@ -184,7 +160,6 @@ fn without_field(fields: &work::Fields, key: &str) -> work::Fields {
 /// Replaces the node's links with `value`. An empty list clears them. The
 /// provider is checked again so a hand-built op cannot store an unknown catalog
 /// id or a credential.
-#[allow(dead_code)]
 fn apply_node_deploys(
     tx: &Connection,
     project_id: &str,
@@ -300,24 +275,23 @@ fn apply_node_deploys(
     Ok(())
 }
 
-#[allow(dead_code)]
 fn update_structure_node(tx: &Connection, op: &work::Op, now: &str) -> Result<()> {
     let mut sets: Vec<String> = Vec::new();
-    let mut values: Vec<SqlValue> = Vec::new();
+    let mut values: Vec<ColumnValue> = Vec::new();
     for (field, value) in &op.fields {
         match field.as_str() {
             "parent_id" => {
                 sets.push("parent_id=NULLIF(?,'')".to_string());
-                values.push(column_value(Some(value))?);
+                values.push(column_value(value)?);
             }
             "decisions" => {
                 sets.push("decisions_json=?".to_string());
-                values.push(column_value(Some(value))?);
+                values.push(column_value(value)?);
             }
             "slug" | "path" | "title" | "intent" | "level" | "status" | "position" | "repo"
             | "folder" | "kind" | "tech" | "migration_from" | "migration_to" => {
                 sets.push(format!("{field}=?"));
-                values.push(column_value(Some(value))?);
+                values.push(column_value(value)?);
             }
             other => return Err(Error::message(format!("unknown field {other:?}"))),
         }
@@ -326,38 +300,11 @@ fn update_structure_node(tx: &Connection, op: &work::Op, now: &str) -> Result<()
         return Ok(());
     }
     sets.push("updated_at=?".to_string());
-    values.push(SqlValue::Text(now.to_string()));
-    values.push(SqlValue::Text(op.entity_id.clone()));
+    values.push(ColumnValue::text(now.to_string()));
+    values.push(ColumnValue::text(op.entity_id.clone()));
     let query = format!("UPDATE structure_nodes SET {} WHERE id=?", sets.join(","));
     tx.execute(&query, rusqlite::params_from_iter(values))?;
     Ok(())
-}
-
-/// Reads a planned op's field into a SQLite value the way Go's `columnValue`
-/// does: a string list becomes its JSON text, a bool becomes 0 or 1, and any
-/// other value is stored as it comes.
-// TODO(dedupe): `work.go`'s `columnValue`; `work.rs` owns the original.
-#[allow(dead_code)]
-fn column_value(value: Option<&Json>) -> Result<SqlValue> {
-    match value {
-        None | Some(Json::Null) => Ok(SqlValue::Null),
-        Some(Json::Array(_)) | Some(Json::Object(_)) => {
-            let body = serde_json::to_string(value.expect("the value is present"))
-                .map_err(|err| Error::message(err.to_string()))?;
-            Ok(SqlValue::Text(body))
-        }
-        Some(Json::Bool(flag)) => Ok(SqlValue::Integer(i64::from(*flag))),
-        Some(Json::Number(number)) => {
-            if let Some(value) = number.as_i64() {
-                return Ok(SqlValue::Integer(value));
-            }
-            match number.as_f64() {
-                Some(value) => Ok(SqlValue::Real(value)),
-                None => Ok(SqlValue::Null),
-            }
-        }
-        Some(Json::String(text)) => Ok(SqlValue::Text(text.clone())),
-    }
 }
 
 #[cfg(test)]

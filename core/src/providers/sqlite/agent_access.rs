@@ -5,7 +5,6 @@
 
 use rusqlite::params;
 use time::OffsetDateTime;
-use time::format_description::well_known::Rfc3339;
 
 use crate::domains::agentaccess;
 
@@ -38,7 +37,7 @@ impl super::Store {
                 &call.result_summary,
                 ok,
                 &call.source,
-                format_stamp(call.created_at),
+                format_rfc3339_zone(call.created_at),
             ],
         )?;
         Ok(())
@@ -69,19 +68,6 @@ impl super::Store {
         }
         Ok(out)
     }
-}
-
-/// Formats a stamp the way Go's `time.RFC3339` layout does at this call site:
-/// the time's own zone, second precision. Go's `Time.Format` does not convert
-/// to UTC.
-///
-/// TODO(dedupe): private copy; no shared helper keeps the time's zone.
-fn format_stamp(value: OffsetDateTime) -> String {
-    value
-        .replace_nanosecond(0)
-        .expect("a nanosecond is always in range")
-        .format(&Rfc3339)
-        .expect("RFC3339 formatting cannot fail")
 }
 
 #[cfg(test)]

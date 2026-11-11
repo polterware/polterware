@@ -715,6 +715,13 @@ mod tests {
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].id, item_id);
         assert_eq!(fts_rows(store, item_id), 0, "archived item stayed indexed");
+        let hits = store
+            .search_knowledge("proj-a", "doc", "", 20)
+            .expect("search");
+        assert!(
+            hits.iter().all(|hit| hit.item.id != item_id),
+            "archived item stayed in search: {hits:?}"
+        );
 
         // An import that rewrites an archived row keeps it out of search.
         store.save_knowledge(archived).expect("rewrite");

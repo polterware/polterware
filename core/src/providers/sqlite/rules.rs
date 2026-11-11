@@ -4,10 +4,11 @@
 //! of Structure node contexts (none is the whole project).
 
 use rusqlite::{Connection, params};
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 use crate::domains::work;
 
+use super::work::{field_str, field_text, scope_paths};
 use super::{Error, Result};
 
 impl super::Store {
@@ -53,7 +54,7 @@ pub(super) fn apply_rule_op(
 ) -> Result<()> {
     match op.kind.as_str() {
         work::OP_CREATE => {
-            let statement = field_string(&op.fields, "statement");
+            let statement = field_str(&op.fields, "statement");
             let slug = match op.fields.get("slug") {
                 Some(Value::String(value)) if !value.is_empty() => Some(value.clone()),
                 _ => None,
@@ -89,7 +90,7 @@ pub(super) fn apply_rule_op(
                     op.entity_id
                 )));
             }
-            if let Some(value) = field_string_opt(&op.fields, "statement") {
+            if let Some(value) = field_text(&op.fields, "statement") {
                 tx.execute(
                     r#"UPDATE rules SET statement=?, updated_at=? WHERE id=?"#,
                     params![value, now, op.entity_id],
@@ -98,7 +99,7 @@ pub(super) fn apply_rule_op(
             let mut status = String::new();
             if op.kind == work::OP_REMOVE {
                 status = work::RULE_REMOVED.to_string();
-            } else if let Some(value) = field_string_opt(&op.fields, "status") {
+            } else if let Some(value) = field_text(&op.fields, "status") {
                 status = value;
             }
             if !status.is_empty() {
@@ -113,32 +114,10 @@ pub(super) fn apply_rule_op(
             return Err(Error::message(format!("unknown rule op {:?}", op.kind)));
         }
     }
-    if let Some(Value::Array(paths)) = op.fields.get("scope") {
-        let paths = string_list(paths);
+    if let Some(paths) = op.fields.get("scope").and_then(scope_paths) {
         super::set_context_paths(tx, project_id, &op.entity_id, &paths)?;
     }
     Ok(())
-}
-
-/// A string field of an op, or the empty string when it is absent.
-fn field_string(fields: &Map<String, Value>, key: &str) -> String {
-    field_string_opt(fields, key).unwrap_or_default()
-}
-
-/// A string field of an op that was present as a string.
-fn field_string_opt(fields: &Map<String, Value>, key: &str) -> Option<String> {
-    match fields.get(key) {
-        Some(Value::String(value)) => Some(value.clone()),
-        _ => None,
-    }
-}
-
-/// Reads a JSON string list, dropping entries that are not strings.
-fn string_list(values: &[Value]) -> Vec<String> {
-    values
-        .iter()
-        .filter_map(|value| value.as_str().map(str::to_string))
-        .collect()
 }
 
 #[cfg(test)]

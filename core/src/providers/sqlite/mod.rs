@@ -34,6 +34,7 @@ mod store;
 mod structure;
 mod work;
 
+pub use agent_run::{ChangeRow, change_limit};
 pub use scope::*;
 pub use store::*;
 
@@ -43,7 +44,8 @@ use time::format_description::well_known::Rfc3339;
 
 /// The errors the store returns: SQLite's own, the platform database's, and
 /// the domain errors the Go package returns as sentinels, plus the plain
-/// messages its validation raises.
+/// messages its validation raises. A variant is here when a Go caller compares
+/// the error against that domain's sentinel with `errors.Is`.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
@@ -54,6 +56,14 @@ pub enum Error {
     Knowledge(#[from] crate::domains::knowledge::KnowledgeError),
     #[error(transparent)]
     Canon(#[from] crate::domains::canon::Error),
+    #[error(transparent)]
+    Canvas(#[from] crate::domains::canvas::Error),
+    #[error(transparent)]
+    Filters(#[from] crate::domains::filters::SavedFilterError),
+    #[error(transparent)]
+    AgentRun(#[from] crate::domains::agentrun::Error),
+    #[error(transparent)]
+    Work(#[from] crate::domains::work::Error),
     #[error("{0}")]
     Message(String),
 }
@@ -77,8 +87,29 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 /// Formats a time the way Go's `time.RFC3339` layout does: UTC, second
 /// precision, with no fractional seconds.
 pub fn format_rfc3339(value: OffsetDateTime) -> String {
+    format_rfc3339_seconds(value.to_offset(UtcOffset::UTC))
+}
+
+/// Formats a time the way Go's `time.RFC3339` layout does at a call site that
+/// keeps the time's own zone: second precision, and no conversion, because
+/// Go's `Time.Format` does not convert to UTC.
+pub fn format_rfc3339_zone(value: OffsetDateTime) -> String {
+    format_rfc3339_seconds(value)
+}
+
+/// Formats a time the way Go's `time.RFC3339Nano` layout does: UTC, with the
+/// fraction trimmed of trailing zeros (absent when there is none). A step's
+/// order depends on it, so the fraction is never dropped.
+pub fn format_rfc3339_nano(value: OffsetDateTime) -> String {
     value
         .to_offset(UtcOffset::UTC)
+        .format(&Rfc3339)
+        .expect("RFC3339 formatting cannot fail")
+}
+
+/// A stamp at second precision, in the value's own zone.
+fn format_rfc3339_seconds(value: OffsetDateTime) -> String {
+    value
         .replace_nanosecond(0)
         .expect("a nanosecond is always in range")
         .format(&Rfc3339)
@@ -109,6 +140,49 @@ pub fn parse_optional_rfc3339(value: &str) -> Option<OffsetDateTime> {
 /// A nullable text column: an empty value is stored as `NULL`.
 pub fn nullable(value: &str) -> Option<&str> {
     if value.is_empty() { None } else { Some(value) }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_package_exports_what_other_packages_use() {
+        // The Go package exports these, so the port re-exports them at the
+        // package root: compositions read the change history rows, resolve a
+        // scope, and name the scope kinds without reaching into a private
+        // module.
+        use crate::providers::sqlite::{
+            ChangeRow, NodeScope, SCOPE_DECISION, SCOPE_FACT, SCOPE_ITEM, SCOPE_KNOWLEDGE,
+            SCOPE_RULE, change_limit,
+        };
+
+        let row = ChangeRow {
+            step_id: "step".to_string(),
+            agent_run_id: "run".to_string(),
+            project_id: "project".to_string(),
+            actor_kind: "agent".to_string(),
+            agent_label: "codex".to_string(),
+            run_status: "open".to_string(),
+            run_task: "task".to_string(),
+            summary: "summary".to_string(),
+            payload_json: "{}".to_string(),
+            created_at: time::OffsetDateTime::UNIX_EPOCH,
+        };
+        assert_eq!(row.step_id, "step");
+        assert_eq!(change_limit(0), 50);
+        assert_eq!(change_limit(201), 50);
+        assert_eq!(change_limit(10), 10);
+        let _scope = NodeScope::default();
+        assert_eq!(
+            [
+                SCOPE_DECISION,
+                SCOPE_FACT,
+                SCOPE_RULE,
+                SCOPE_KNOWLEDGE,
+                SCOPE_ITEM
+            ],
+            ["decision", "fact", "rule", "knowledge", "item"]
+        );
+    }
 }
 
 #[cfg(test)]
