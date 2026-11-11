@@ -1,0 +1,30 @@
+Polter format v1: markdown that writes Work cards. One apply is one audited change.
+
+---
+polter: 1
+summary: One line saying what changes
+rationale: Why it changes
+---
+
+## git-import: Git metadata import
+stage: build · under: core/import · milestone: beta · decisions: Decision-0007
+
+Intent: what we want and why.
+
+- [ ] T1 Read commits per checkout `backend/import/*`
+- [x] T2 Stamp revision on facts
+? Include merge commits? [blocking] (yes | no)
+! No network calls during import
+
+handoff:
+branch: feat/git-import
+next: wire into import
+
+Rules:
+- `## slug: Title` is a card; the lowercase-kebab slug is its identity. Stages: shape, plan, build, verify, delivered. under: is a Structure component path; milestone: is a milestone slug (empty is the Backlog).
+- Tasks: [ ] open, [x] done, [-] dropped; T<n> and a trailing `scope` glob are optional. `?` is a question (`? Question -> answer` answers it), `!` an invariant.
+- handoff: needs branch:; it also takes goal, done, in_progress, next, touched, agent.
+- Claim a task before editing it: `claim: T2`; `done: T2` finishes it, `release: T2` lets go.
+- A text changes only what it mentions. Remove with status: removed, [-], or a trailing [removed].
+- Read `polterware brief <slug|path|file>` before you edit; its Rules: bind you; raise a Conflict when a request breaks one. Find with `polterware search <terms>`. Start with `polterware status`; end with a handoff.
+- More: `polterware format structure|rules|decisions|facts|feature|conflicts`. Check with `polterware lint <file>`; write with `polterware apply <file|-> [--dry-run]`.
