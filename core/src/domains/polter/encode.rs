@@ -418,7 +418,7 @@ pub fn open_questions(card: &work::Card) -> i32 {
         .count() as i32
 }
 
-fn write_decision(out: &mut String, decision: &DecisionNode) {
+pub(crate) fn write_decision(out: &mut String, decision: &DecisionNode) {
     if !decision.title.is_empty() {
         out.push_str(&format!("### {}: {}\n", decision.reference, decision.title));
     } else {

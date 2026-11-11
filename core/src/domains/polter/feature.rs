@@ -8,6 +8,7 @@ use std::collections::HashMap;
 
 use crate::domains::{decision, structure, work};
 
+use super::hints::{WordSet, card_words};
 use super::*;
 
 // The feature flow steps (`FEATURE_STEP_SHAPE`, `FEATURE_STEP_CONTRACT`,
@@ -59,6 +60,7 @@ pub struct ReviewDecision {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ReviewInvariant {
     pub text: String,
+    /// The node path the invariant came from, or `card` for the card's own.
     pub from: String,
 }
 
@@ -926,131 +928,6 @@ fn is_punct(c: char) -> bool {
     }
     let (low, high, stride) = PUNCT_RANGES[index - 1];
     r <= high && (r - low).is_multiple_of(stride)
-}
-
-/// A normalized bag of meaningful words.
-///
-/// TODO(dedupe): the same set lives in `hints.rs`; it is private there, so the
-/// copy stays here until one of them is shared.
-#[derive(Debug, Clone, Default)]
-struct WordSet(std::collections::HashSet<String>);
-
-impl WordSet {
-    fn new(text: &str) -> Self {
-        let mut words = std::collections::HashSet::new();
-        for word in work::normalize_text(text).split_whitespace() {
-            if is_stop_word(word) {
-                continue;
-            }
-            words.insert(singular(word));
-        }
-        Self(words)
-    }
-
-    fn add(&mut self, other: &WordSet) {
-        for word in &other.0 {
-            self.0.insert(word.clone());
-        }
-    }
-
-    fn shared(&self, other: &WordSet) -> usize {
-        self.0.intersection(&other.0).count()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Reports the Jaccard score when two sets are close enough to hint: at
-    /// least half their union shared, and two shared words unless they are
-    /// equal.
-    fn similar(&self, other: &WordSet) -> Option<f64> {
-        let shared = self.shared(other);
-        if shared == 0 {
-            return None;
-        }
-        let score = shared as f64 / (self.0.len() + other.0.len() - shared) as f64;
-        if score >= 0.5 && (shared >= 2 || score == 1.0) {
-            return Some(score);
-        }
-        None
-    }
-}
-
-/// The words of a card's slug and title.
-///
-/// TODO(dedupe): a copy of `hints::card_words`, private there.
-fn card_words(slug: &str, title: &str) -> WordSet {
-    let mut words = WordSet::new(title);
-    words.add(&WordSet::new(&slug.replace('-', " ")));
-    words
-}
-
-/// TODO(dedupe): a copy of `hints::singular`, private there.
-fn singular(word: &str) -> String {
-    let len = word.len();
-    if len > 4 && word.ends_with("ies") {
-        return format!("{}y", &word[..len - 3]);
-    }
-    if len > 3
-        && word.ends_with('s')
-        && !word.ends_with("ss")
-        && !word.ends_with("us")
-        && !word.ends_with("is")
-    {
-        return word[..len - 1].to_string();
-    }
-    word.to_string()
-}
-
-/// TODO(dedupe): a copy of `hints::is_stop_word`, private there.
-fn is_stop_word(word: &str) -> bool {
-    matches!(
-        word,
-        "a" | "an"
-            | "and"
-            | "are"
-            | "as"
-            | "at"
-            | "be"
-            | "by"
-            | "can"
-            | "do"
-            | "does"
-            | "for"
-            | "from"
-            | "has"
-            | "have"
-            | "how"
-            | "if"
-            | "in"
-            | "into"
-            | "is"
-            | "it"
-            | "its"
-            | "not"
-            | "of"
-            | "on"
-            | "or"
-            | "should"
-            | "so"
-            | "that"
-            | "the"
-            | "this"
-            | "to"
-            | "we"
-            | "what"
-            | "when"
-            | "where"
-            | "which"
-            | "who"
-            | "why"
-            | "will"
-            | "with"
-            | "add"
-            | "new"
-            | "support"
-    )
 }
 
 #[cfg(test)]

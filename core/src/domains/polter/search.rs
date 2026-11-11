@@ -64,7 +64,7 @@ pub fn search(input: &BriefInput, terms: &str, budget: i32) -> String {
         if matches(&[item.title.as_str(), item.body.as_str()]) {
             lines.push(format!(
                 "decision {}  {}  {}",
-                search_decision_handle(item),
+                decision_handle(item),
                 decision::normalize(&item.status),
                 go_quote(&decision::strip_number(&item.title))
             ));
@@ -127,16 +127,6 @@ fn excerpt_around(body: &str, words: &[String]) -> String {
         excerpt.insert(0, '…');
     }
     excerpt
-}
-
-/// The Polter reference agents read for a decision: its number, or its id.
-// TODO(dedupe): `search_decision_handle` is a private copy of `decision_handle`,
-// which belongs to `decisions.rs` (port of `decisions.go`).
-fn search_decision_handle(item: &decision::Decision) -> String {
-    match decision::number(&item.title) {
-        Some(number) => decision::decision_ref(number),
-        None => item.id.clone(),
-    }
 }
 
 #[cfg(test)]

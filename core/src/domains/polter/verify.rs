@@ -5,6 +5,7 @@
 
 use crate::domains::work;
 
+use super::feature::ReviewInvariant;
 use super::*;
 
 /// The verify check statuses. Only fail makes the result fail; manual lines are
@@ -13,17 +14,6 @@ pub const VERIFY_PASS: &str = "pass";
 pub const VERIFY_FAIL: &str = "fail";
 pub const VERIFY_INFO: &str = "info";
 pub const VERIFY_MANUAL: &str = "manual";
-
-/// One active invariant inherited from a node. Go declares this in
-/// `feature.go`, next to the review it feeds; `verify` reads it as the card's
-/// contract.
-// TODO(dedupe): shares its name with the `feature` submodule's type.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ReviewInvariant {
-    pub text: String,
-    /// The node path the invariant came from, or `card` for the card's own.
-    pub from: String,
-}
 
 /// What verify reads for one card, or one task when `task > 0`.
 #[derive(Debug, Clone, Default, PartialEq)]

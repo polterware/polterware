@@ -181,7 +181,7 @@ fn migration_suffix(node: &structure::Node) -> String {
 }
 
 /// `kind: database · tech: Postgres`, or empty when the node has neither.
-fn kind_tech_line(node: &structure::Node) -> String {
+pub(crate) fn kind_tech_line(node: &structure::Node) -> String {
     let mut parts: Vec<String> = Vec::new();
     if !node.kind.is_empty() {
         parts.push(format!("kind: {}", node.kind));
@@ -194,7 +194,7 @@ fn kind_tech_line(node: &structure::Node) -> String {
 
 /// `repo: api · path: src/auth`, or empty when the node sits at the root of the
 /// project checkout.
-fn checkout_line(node: &structure::Node) -> String {
+pub(crate) fn checkout_line(node: &structure::Node) -> String {
     let mut parts: Vec<String> = Vec::new();
     if !node.repo.is_empty() {
         parts.push(format!("repo: {}", node.repo));

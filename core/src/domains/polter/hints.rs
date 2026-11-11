@@ -106,7 +106,7 @@ fn has_invariant(card: &work::Card, text: &str) -> bool {
         .any(|invariant| work::normalize_text(&invariant.text) == key)
 }
 
-fn card_words(slug: &str, title: &str) -> WordSet {
+pub(crate) fn card_words(slug: &str, title: &str) -> WordSet {
     let mut words = WordSet::new(title);
     words.add(&WordSet::new(&slug.replace('-', " ")));
     words
@@ -226,10 +226,10 @@ fn suggest_under(node: &CardNode, cards: &[&work::Card]) -> Option<String> {
 
 /// A normalized bag of meaningful words.
 #[derive(Debug, Clone, Default)]
-struct WordSet(HashSet<String>);
+pub(crate) struct WordSet(HashSet<String>);
 
 impl WordSet {
-    fn new(text: &str) -> Self {
+    pub(crate) fn new(text: &str) -> Self {
         let mut words = HashSet::new();
         for word in work::normalize_text(text).split_whitespace() {
             if is_stop_word(word) {
@@ -240,20 +240,25 @@ impl WordSet {
         Self(words)
     }
 
-    fn add(&mut self, other: &WordSet) {
+    pub(crate) fn add(&mut self, other: &WordSet) {
         for word in &other.0 {
             self.0.insert(word.clone());
         }
     }
 
-    fn shared(&self, other: &WordSet) -> usize {
+    pub(crate) fn shared(&self, other: &WordSet) -> usize {
         self.0.intersection(&other.0).count()
+    }
+
+    /// Reports whether the set holds no meaningful word.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     /// Reports the Jaccard score when two sets are close enough to hint: at
     /// least half their union shared, and two shared words unless they are
     /// equal.
-    fn similar(&self, other: &WordSet) -> Option<f64> {
+    pub(crate) fn similar(&self, other: &WordSet) -> Option<f64> {
         let shared = self.shared(other);
         if shared == 0 {
             return None;
@@ -266,7 +271,7 @@ impl WordSet {
     }
 }
 
-fn singular(word: &str) -> String {
+pub(crate) fn singular(word: &str) -> String {
     let len = word.len();
     if len > 4 && word.ends_with("ies") {
         return format!("{}y", &word[..len - 3]);
@@ -282,7 +287,7 @@ fn singular(word: &str) -> String {
     word.to_string()
 }
 
-fn is_stop_word(word: &str) -> bool {
+pub(crate) fn is_stop_word(word: &str) -> bool {
     matches!(
         word,
         "a" | "an"

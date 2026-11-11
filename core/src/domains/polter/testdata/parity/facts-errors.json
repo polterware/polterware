@@ -1,0 +1,61 @@
+{
+  "budget": 700,
+  "docs": null,
+  "expected": "## decode\n7:error:unknown fact kind \"observed\": use declared|inferred|verified\n## plan diagnostics\n5:error:unknown fact \"missing\": add a statement (#### slug: Statement)\n7:error:unknown fact kind \"observed\": use declared|inferred|verified\n9:error:unknown scope \"nowhere\": use a Structure node path\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n# core: Core\nlevel: domain\n",
+  "name": "facts-errors",
+  "snapshot": {
+    "Cards": null,
+    "Conflicts": null,
+    "Decisions": null,
+    "Environments": null,
+    "Facts": null,
+    "Milestones": null,
+    "Nodes": [
+      {
+        "Decisions": null,
+        "Deploys": null,
+        "Folder": "",
+        "ID": "n-core",
+        "Intent": "",
+        "Kind": "",
+        "Level": "domain",
+        "MigrationFrom": "",
+        "MigrationTo": "",
+        "ParentID": "",
+        "Path": "core",
+        "Position": 0,
+        "ProjectID": "p1",
+        "Repo": "",
+        "Slug": "core",
+        "Status": "active",
+        "Tech": "",
+        "Title": "Core"
+      },
+      {
+        "Decisions": null,
+        "Deploys": null,
+        "Folder": "cmd/api",
+        "ID": "n-api",
+        "Intent": "",
+        "Kind": "api",
+        "Level": "component",
+        "MigrationFrom": "",
+        "MigrationTo": "",
+        "ParentID": "n-core",
+        "Path": "core/api",
+        "Position": 1,
+        "ProjectID": "p1",
+        "Repo": "api",
+        "Slug": "api",
+        "Status": "active",
+        "Tech": "Go",
+        "Title": "API"
+      }
+    ],
+    "ProjectID": "p1",
+    "Repos": null,
+    "Rules": null
+  },
+  "target": "core",
+  "text": "---\npolter: 1\n---\n\n#### missing\n#### bad-kind: A statement\nkind: observed\n#### bad-scope: Another statement\nscope: nowhere\n"
+}

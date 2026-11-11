@@ -1,0 +1,43 @@
+{
+  "budget": 700,
+  "docs": null,
+  "expected": "## decode\n14:error:unknown level \"system\": use domain|component\n## plan diagnostics\n9:error:unknown node \"app/web\": check the path\n13:error:unknown level \"system\": use domain|component\n16:error:node \"loose\" needs level: use domain|component\n7:error:checkout on domain \"core\": only components have a repo or path (write repo: and path: to clear them)\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n# core: Core\nlevel: domain\n",
+  "name": "structure-errors",
+  "snapshot": {
+    "Cards": null,
+    "Conflicts": null,
+    "Decisions": null,
+    "Environments": null,
+    "Facts": null,
+    "Milestones": null,
+    "Nodes": [
+      {
+        "Decisions": null,
+        "Deploys": null,
+        "Folder": "",
+        "ID": "n-core",
+        "Intent": "",
+        "Kind": "",
+        "Level": "domain",
+        "MigrationFrom": "",
+        "MigrationTo": "",
+        "ParentID": "",
+        "Path": "core",
+        "Position": 0,
+        "ProjectID": "",
+        "Repo": "",
+        "Slug": "core",
+        "Status": "active",
+        "Tech": "",
+        "Title": "Core"
+      }
+    ],
+    "ProjectID": "p1",
+    "Repos": [
+      "api"
+    ],
+    "Rules": null
+  },
+  "target": "core",
+  "text": "---\npolter: 1\n---\n\n# core: Core\nlevel: domain\nrepo: api\n\n# app/web: Web\nlevel: component\nunder: nowhere\n\n# weird: Weird\nlevel: system\n\n# loose: Loose\nkind: cli\n"
+}

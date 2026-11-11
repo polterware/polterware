@@ -2,9 +2,9 @@
 //! lifecycle text, and the list encoders.
 //!
 //! `plan_decisions` is one step of the planner `plan` runs after its nodes and
-//! cards: it takes the project's Decisions and its Structure nodes by path (the
-//! planner's live map, including nodes this text creates) and appends the ops
-//! and diagnostics it plans.
+//! cards: it moves the planner's Decisions, reads its Structure nodes by path
+//! (including nodes this text creates), and appends the ops and diagnostics it
+//! plans.
 
 use std::collections::HashMap;
 
@@ -13,45 +13,30 @@ use serde_json::json;
 use crate::domains::{decision, structure, work};
 use crate::platform::ids;
 
-use super::model::{
-    DECISION_NEW_REF, DecisionNode, Diagnostic, Document, SEVERITY_ERROR, go_quote,
-};
-use super::scopes::{parse_scopes, scope_is_active};
+use super::model::{DECISION_NEW_REF, DecisionNode, Document, go_quote};
+use super::plan::Planner;
+use super::scopes::parse_scopes;
 
 /// Plans the `###` decision blocks. Existing decisions move through the
 /// lifecycle; `new` proposes one; `supersedes:` on the newer decision marks the
-/// older one superseded in the same batch.
-///
-/// `decisions` is the project's stored Decisions and `nodes` its Structure nodes
-/// by path; `diags` already holds the diagnostics of the earlier planning steps
-/// (a failed line is skipped) and both `diags` and `ops` grow in place.
-pub fn plan_decisions(
-    doc: &Document,
-    decisions: &[decision::Decision],
-    nodes: &HashMap<String, structure::Node>,
-    diags: &mut Vec<Diagnostic>,
-    ops: &mut Vec<work::Op>,
-) {
+/// older one superseded in the same batch. A line the earlier planning steps
+/// already failed is skipped.
+pub fn plan_decisions(p: &mut Planner, doc: &Document) {
     if doc.decisions.is_empty() {
         return;
     }
-    let mut batch = DecisionBatch {
-        stored: decisions,
-        nodes,
-        changed: Vec::new(),
-        diags,
-        ops,
-    };
+    // `state` tracks the decisions this text changes, by id.
+    let mut state: HashMap<String, decision::Decision> = HashMap::new();
     for node in &doc.decisions {
-        if batch.failed(node.line) {
+        if p.failed(node.line) {
             continue;
         }
         if node.reference.eq_ignore_ascii_case(DECISION_NEW_REF) {
-            batch.create(node);
+            create_decision(p, node, &mut state);
             continue;
         }
-        let Some(current) = decision::find(&batch.list(), &node.reference) else {
-            batch.errorf(
+        let Some(current) = decision::find(&decision_list(p, &state), &node.reference) else {
+            p.errorf(
                 node.line,
                 format!(
                     "unknown decision {}: use a Decision number, id, or ### new: Title to propose one",
@@ -60,8 +45,34 @@ pub fn plan_decisions(
             );
             continue;
         };
-        batch.update(node, &current);
+        update_decision(p, node, &current, &mut state);
     }
+}
+
+/// The decisions as the text has left them: the stored order, each changed one
+/// substituted, then the ones this text created.
+fn decision_list(
+    p: &Planner,
+    state: &HashMap<String, decision::Decision>,
+) -> Vec<decision::Decision> {
+    let mut out: Vec<decision::Decision> = Vec::with_capacity(p.snapshot.decisions.len() + 1);
+    for stored in &p.snapshot.decisions {
+        match state.get(&stored.id) {
+            Some(changed) => out.push(changed.clone()),
+            None => out.push(stored.clone()),
+        }
+    }
+    for changed in state.values() {
+        if !out.iter().any(|entry| entry.id == changed.id) {
+            out.push(changed.clone());
+        }
+    }
+    out
+}
+
+/// Records a changed decision, by id.
+fn set_decision(state: &mut HashMap<String, decision::Decision>, changed: decision::Decision) {
+    state.insert(changed.id.clone(), changed);
 }
 
 /// Reads a decision's contexts.
@@ -73,162 +84,126 @@ struct ScopeRead {
     ok: bool,
 }
 
-/// The decisions one text changes, by id, in the order they were changed. Go
-/// keeps the same state in a map plus a `list` closure.
-struct DecisionBatch<'a> {
-    stored: &'a [decision::Decision],
-    nodes: &'a HashMap<String, structure::Node>,
-    changed: Vec<(String, decision::Decision)>,
-    diags: &'a mut Vec<Diagnostic>,
-    ops: &'a mut Vec<work::Op>,
+/// Proposes one decision. `new` gives it the next number.
+fn create_decision(
+    p: &mut Planner,
+    node: &DecisionNode,
+    state: &mut HashMap<String, decision::Decision>,
+) {
+    if node.title.is_empty() {
+        p.errorf(
+            node.line,
+            "a new decision needs a title: write \"### new: Title\"".to_string(),
+        );
+        return;
+    }
+    let all = decision_list(p, state);
+    let mut title = node.title.clone();
+    if let Some(number) = decision::number(&title) {
+        for existing in &all {
+            if let Some(other) = decision::number(&existing.title)
+                && other == number
+            {
+                p.errorf(
+                    node.line,
+                    format!(
+                        "Decision number {} is taken by {}: omit the number and it is assigned",
+                        number,
+                        go_quote(&existing.title)
+                    ),
+                );
+                return;
+            }
+        }
+    } else {
+        let next = decision::next_number(&all);
+        title = decision::title_for(next, &title);
+    }
+    let status = match node.meta_value("status") {
+        Some(status) => status.to_string(),
+        None if node.meta_value("supersedes").is_some() => decision::STATE_ACTIVE.to_string(),
+        None => decision::STATE_PROPOSED.to_string(),
+    };
+    let supersedes = node.meta_value("supersedes").map(str::to_string);
+    if status != decision::STATE_PROPOSED && status != decision::STATE_ACTIVE {
+        p.errorf(
+            node.line,
+            format!("a new decision starts proposed or active, not {status}"),
+        );
+        return;
+    }
+    if supersedes.is_some() && status != decision::STATE_ACTIVE {
+        p.errorf(
+            node.line,
+            "supersedes needs status: active on the new decision".to_string(),
+        );
+        return;
+    }
+    let trigger = node.meta_value("trigger").unwrap_or_default().to_string();
+    let reason = node.meta_value("reason").unwrap_or_default().to_string();
+    let scopes = decision_scopes(p, node);
+    if !scopes.ok {
+        return;
+    }
+    let id = ids::new_ulid();
+    let created = decision::Decision {
+        id: id.clone(),
+        title: title.clone(),
+        status: status.clone(),
+        scopes: scopes.scopes.clone(),
+        meta: decision::Meta {
+            review_trigger: trigger.clone(),
+            ..decision::Meta::default()
+        },
+        ..decision::Decision::default()
+    };
+    let mut fields = work::Fields::new();
+    fields.insert("title".into(), json!(title));
+    fields.insert("body".into(), json!(node.body));
+    fields.insert("status".into(), json!(status));
+    fields.insert("review_trigger".into(), json!(trigger));
+    fields.insert("scope".into(), json!(scopes.scopes));
+    p.ops.push(work::Op {
+        entity: work::ENTITY_DECISION.into(),
+        kind: work::OP_CREATE.into(),
+        entity_id: id,
+        card_slug: title.clone(),
+        label: title,
+        fields,
+        ..work::Op::default()
+    });
+    set_decision(state, created.clone());
+    if let Some(supersedes) = &supersedes {
+        supersede(p, state, node, supersedes, &created, &reason);
+    }
 }
 
-impl DecisionBatch<'_> {
-    /// The decisions as the text has left them: the stored order, each changed
-    /// one substituted, then the ones this text created.
-    fn list(&self) -> Vec<decision::Decision> {
-        let mut out: Vec<decision::Decision> = Vec::with_capacity(self.stored.len() + 1);
-        for stored in self.stored {
-            match self.changed.iter().find(|entry| entry.0 == stored.id) {
-                Some((_, changed)) => out.push(changed.clone()),
-                None => out.push(stored.clone()),
-            }
-        }
-        for (_, changed) in &self.changed {
-            if !out.iter().any(|entry| entry.id == changed.id) {
-                out.push(changed.clone());
-            }
-        }
-        out
+/// Moves one decision through the lifecycle and, when asked, supersedes another.
+fn update_decision(
+    p: &mut Planner,
+    node: &DecisionNode,
+    current: &decision::Decision,
+    state: &mut HashMap<String, decision::Decision>,
+) {
+    let mut fields = work::Fields::new();
+    let mut before = work::Fields::new();
+    let mut updated = current.clone();
+    let has_status = node.meta_value("status").is_some();
+    let supersedes = node.meta_value("supersedes").map(str::to_string);
+    let reason = node.meta_value("reason").map(str::to_string);
+    let mut status = node.meta_value("status").map(str::to_string);
+    if status.is_none()
+        && supersedes.is_some()
+        && decision::normalize(&current.status) == decision::STATE_PROPOSED
+    {
+        status = Some(decision::STATE_ACTIVE.to_string());
     }
-
-    fn set(&mut self, changed: decision::Decision) {
-        let id = changed.id.clone();
-        match self.changed.iter_mut().find(|entry| entry.0 == id) {
-            Some((_, slot)) => *slot = changed,
-            None => self.changed.push((id, changed)),
-        }
-    }
-
-    fn errorf(&mut self, line: i32, message: String) {
-        self.diags.push(Diagnostic::error(line, message));
-    }
-
-    fn failed(&self, line: i32) -> bool {
-        self.diags
-            .iter()
-            .any(|diag| diag.line == line && diag.severity == SEVERITY_ERROR)
-    }
-
-    fn create(&mut self, node: &DecisionNode) {
-        if node.title.is_empty() {
-            self.errorf(
-                node.line,
-                "a new decision needs a title: write \"### new: Title\"".to_string(),
-            );
-            return;
-        }
-        let all = self.list();
-        let mut title = node.title.clone();
-        if let Some(number) = decision::number(&title) {
-            for existing in &all {
-                if let Some(other) = decision::number(&existing.title)
-                    && other == number
-                {
-                    self.errorf(
-                        node.line,
-                        format!(
-                            "Decision number {} is taken by {}: omit the number and it is assigned",
-                            number,
-                            go_quote(&existing.title)
-                        ),
-                    );
-                    return;
-                }
-            }
-        } else {
-            let next = decision::next_number(&all);
-            title = decision::title_for(next, &title);
-        }
-        let status = match node.meta_value("status") {
-            Some(status) => status.to_string(),
-            None if node.meta_value("supersedes").is_some() => decision::STATE_ACTIVE.to_string(),
-            None => decision::STATE_PROPOSED.to_string(),
-        };
-        let supersedes = node.meta_value("supersedes").map(str::to_string);
-        if status != decision::STATE_PROPOSED && status != decision::STATE_ACTIVE {
-            self.errorf(
-                node.line,
-                format!("a new decision starts proposed or active, not {status}"),
-            );
-            return;
-        }
-        if supersedes.is_some() && status != decision::STATE_ACTIVE {
-            self.errorf(
-                node.line,
-                "supersedes needs status: active on the new decision".to_string(),
-            );
-            return;
-        }
-        let trigger = node.meta_value("trigger").unwrap_or_default().to_string();
-        let reason = node.meta_value("reason").unwrap_or_default().to_string();
-        let scopes = self.decision_scopes(node);
-        if !scopes.ok {
-            return;
-        }
-        let id = ids::new_ulid();
-        let created = decision::Decision {
-            id: id.clone(),
-            title: title.clone(),
-            status: status.clone(),
-            scopes: scopes.scopes.clone(),
-            meta: decision::Meta {
-                review_trigger: trigger.clone(),
-                ..decision::Meta::default()
-            },
-            ..decision::Decision::default()
-        };
-        let mut fields = work::Fields::new();
-        fields.insert("title".into(), json!(title));
-        fields.insert("body".into(), json!(node.body));
-        fields.insert("status".into(), json!(status));
-        fields.insert("review_trigger".into(), json!(trigger));
-        fields.insert("scope".into(), json!(scopes.scopes));
-        self.ops.push(work::Op {
-            entity: work::ENTITY_DECISION.into(),
-            kind: work::OP_CREATE.into(),
-            entity_id: id,
-            card_slug: title.clone(),
-            label: title,
-            fields,
-            ..work::Op::default()
-        });
-        self.set(created.clone());
-        if let Some(supersedes) = &supersedes {
-            self.supersede(node, supersedes, &created, &reason);
-        }
-    }
-
-    fn update(&mut self, node: &DecisionNode, current: &decision::Decision) {
-        let mut fields = work::Fields::new();
-        let mut before = work::Fields::new();
-        let mut updated = current.clone();
-        let has_status = node.meta_value("status").is_some();
-        let supersedes = node.meta_value("supersedes").map(str::to_string);
-        let reason = node.meta_value("reason").map(str::to_string);
-        let mut status = node.meta_value("status").map(str::to_string);
-        if status.is_none()
-            && supersedes.is_some()
-            && decision::normalize(&current.status) == decision::STATE_PROPOSED
-        {
-            status = Some(decision::STATE_ACTIVE.to_string());
-        }
-        let current_state = decision::normalize(&current.status);
-        if let Some(status) = &status
-            && status.as_str() != current_state
-        {
-            if status.as_str() == decision::STATE_SUPERSEDED {
-                self.errorf(
+    let current_state = decision::normalize(&current.status);
+    if let Some(status) = &status
+        && status.as_str() != current_state
+    {
+        if status.as_str() == decision::STATE_SUPERSEDED {
+            p.errorf(
                     node.line,
                     format!(
                         "{} is superseded by naming it in the newer decision: write supersedes: {} there",
@@ -236,275 +211,254 @@ impl DecisionBatch<'_> {
                         decision_handle(current)
                     ),
                 );
-                return;
-            }
-            if !decision::can_transition(&current.status, status) {
-                self.errorf(
-                    node.line,
-                    format!(
-                        "{} cannot move {} → {}: {}",
-                        current.title,
-                        current_state,
-                        status,
-                        transition_hint(&current.status)
-                    ),
-                );
-                return;
-            }
-            if status.as_str() == decision::STATE_CHALLENGED
-                && reason.as_deref().unwrap_or_default().trim().is_empty()
-                && reason.is_none()
-            {
-                self.errorf(
-                    node.line,
-                    format!(
-                        "challenging {} needs a reason: add reason: <why it is under review>",
-                        current.title
-                    ),
-                );
-                return;
-            }
-            set_field(
-                &mut fields,
-                &mut before,
-                "status",
-                json!(current_state),
-                json!(status),
-            );
-            updated.status = status.clone();
+            return;
         }
-        if supersedes.is_some() && decision::normalize(&updated.status) != decision::STATE_ACTIVE {
-            self.errorf(
+        if !decision::can_transition(&current.status, status) {
+            p.errorf(
                 node.line,
                 format!(
-                    "{} must be active to supersede another decision",
+                    "{} cannot move {} → {}: {}",
+                    current.title,
+                    current_state,
+                    status,
+                    transition_hint(&current.status)
+                ),
+            );
+            return;
+        }
+        if status.as_str() == decision::STATE_CHALLENGED
+            && reason.as_deref().unwrap_or_default().trim().is_empty()
+            && reason.is_none()
+        {
+            p.errorf(
+                node.line,
+                format!(
+                    "challenging {} needs a reason: add reason: <why it is under review>",
                     current.title
                 ),
             );
             return;
         }
-        if let Some(trigger) = node.meta_value("trigger")
-            && trigger != current.meta.review_trigger.as_str()
-        {
-            set_field(
-                &mut fields,
-                &mut before,
-                "review_trigger",
-                json!(current.meta.review_trigger),
-                json!(trigger),
-            );
-            updated.meta.review_trigger = trigger.to_string();
-        }
-        let scopes = self.decision_scopes(node);
-        if !scopes.ok {
-            return;
-        }
-        if scopes.has && scopes.scopes != current.scopes {
-            set_field(
-                &mut fields,
-                &mut before,
-                "scope",
-                json!(current.scopes),
-                json!(scopes.scopes),
-            );
-            updated.scopes = scopes.scopes;
-        }
-        if let Some(reason) = &reason
-            && has_status
-            && reason.as_str() != current.meta.status_reason
-        {
-            set_field(
-                &mut fields,
-                &mut before,
-                "status_reason",
-                json!(current.meta.status_reason),
-                json!(reason),
-            );
-            updated.meta.status_reason = reason.clone();
-        }
-        if node.body_set {
-            set_field(
-                &mut fields,
-                &mut before,
-                "body",
-                json!(""),
-                json!(node.body),
-            );
-        }
-        if !node.title.is_empty() && node.title != current.title {
-            set_field(
-                &mut fields,
-                &mut before,
-                "title",
-                json!(current.title),
-                json!(node.title),
-            );
-            updated.title = node.title.clone();
-        }
-        if !fields.is_empty() {
-            self.ops.push(work::Op {
-                entity: work::ENTITY_DECISION.into(),
-                kind: work::OP_UPDATE.into(),
-                entity_id: current.id.clone(),
-                card_slug: current.title.clone(),
-                label: updated.title.clone(),
-                fields,
-                before,
-                ..work::Op::default()
-            });
-            self.set(updated.clone());
-        }
-        if let Some(supersedes) = &supersedes {
-            let reason = reason.unwrap_or_default();
-            self.supersede(node, supersedes, &updated, &reason);
-        }
+        set_field(
+            &mut fields,
+            &mut before,
+            "status",
+            json!(current_state),
+            json!(status),
+        );
+        updated.status = status.clone();
     }
-
-    /// Marks the decision named by `target` as superseded by `newer`.
-    fn supersede(
-        &mut self,
-        node: &DecisionNode,
-        target: &str,
-        newer: &decision::Decision,
-        reason: &str,
-    ) {
-        let all = self.list();
-        let Some(old) = decision::find(&all, target) else {
-            self.errorf(
-                node.line,
-                format!(
-                    "unknown decision {} in supersedes: no Decision with that number or id",
-                    go_quote(target)
-                ),
-            );
-            return;
-        };
-        if decision::normalize(&old.status) == decision::STATE_SUPERSEDED {
-            if old.meta.superseded_by != newer.id {
-                self.errorf(
-                    node.line,
-                    format!(
-                        "{} is already superseded: cite its successor instead",
-                        old.title
-                    ),
-                );
-            }
-            return;
-        }
-        if !decision::can_transition(&old.status, decision::STATE_SUPERSEDED) {
-            self.errorf(
-                node.line,
-                format!(
-                    "{} is {} and cannot be superseded: activate it first",
-                    old.title,
-                    decision::normalize(&old.status)
-                ),
-            );
-            return;
-        }
-        if let Err(err) = decision::check_supersede(&all, &old.id, &newer.id) {
-            self.errorf(node.line, err.to_string());
-            return;
-        }
-        let mut fields = work::Fields::new();
-        fields.insert("status".into(), json!(decision::STATE_SUPERSEDED));
-        fields.insert("superseded_by".into(), json!(newer.id));
-        let mut before = work::Fields::new();
-        before.insert("status".into(), json!(decision::normalize(&old.status)));
-        before.insert("superseded_by".into(), json!(old.meta.superseded_by));
-        if !reason.is_empty() {
-            fields.insert("status_reason".into(), json!(reason));
-            before.insert("status_reason".into(), json!(old.meta.status_reason));
-        }
-        let mut superseded = old.clone();
-        superseded.status = decision::STATE_SUPERSEDED.to_string();
-        superseded.meta.superseded_by = newer.id.clone();
-        self.set(superseded);
-        self.ops.push(work::Op {
+    if supersedes.is_some() && decision::normalize(&updated.status) != decision::STATE_ACTIVE {
+        p.errorf(
+            node.line,
+            format!(
+                "{} must be active to supersede another decision",
+                current.title
+            ),
+        );
+        return;
+    }
+    if let Some(trigger) = node.meta_value("trigger")
+        && trigger != current.meta.review_trigger.as_str()
+    {
+        set_field(
+            &mut fields,
+            &mut before,
+            "review_trigger",
+            json!(current.meta.review_trigger),
+            json!(trigger),
+        );
+        updated.meta.review_trigger = trigger.to_string();
+    }
+    let scopes = decision_scopes(p, node);
+    if !scopes.ok {
+        return;
+    }
+    if scopes.has && scopes.scopes != current.scopes {
+        set_field(
+            &mut fields,
+            &mut before,
+            "scope",
+            json!(current.scopes),
+            json!(scopes.scopes),
+        );
+        updated.scopes = scopes.scopes;
+    }
+    if let Some(reason) = &reason
+        && has_status
+        && reason.as_str() != current.meta.status_reason
+    {
+        set_field(
+            &mut fields,
+            &mut before,
+            "status_reason",
+            json!(current.meta.status_reason),
+            json!(reason),
+        );
+        updated.meta.status_reason = reason.clone();
+    }
+    if node.body_set {
+        set_field(
+            &mut fields,
+            &mut before,
+            "body",
+            json!(""),
+            json!(node.body),
+        );
+    }
+    if !node.title.is_empty() && node.title != current.title {
+        set_field(
+            &mut fields,
+            &mut before,
+            "title",
+            json!(current.title),
+            json!(node.title),
+        );
+        updated.title = node.title.clone();
+    }
+    if !fields.is_empty() {
+        p.ops.push(work::Op {
             entity: work::ENTITY_DECISION.into(),
             kind: work::OP_UPDATE.into(),
-            entity_id: old.id,
-            card_slug: old.title.clone(),
-            label: old.title,
+            entity_id: current.id.clone(),
+            card_slug: current.title.clone(),
+            label: updated.title.clone(),
             fields,
             before,
             ..work::Op::default()
         });
+        set_decision(state, updated.clone());
     }
+    if let Some(supersedes) = &supersedes {
+        let reason = reason.unwrap_or_default();
+        supersede(p, state, node, supersedes, &updated, &reason);
+    }
+}
 
-    /// Reads a decision's contexts from `scope:` (a list of node paths) and
-    /// `level: principle` (no contexts: the whole project). `has` is false when
-    /// the text names neither, so an update keeps the stored contexts.
-    fn decision_scopes(&mut self, node: &DecisionNode) -> ScopeRead {
-        let value = node.meta_value("scope");
-        let level = node.meta_value("level");
-        let principle =
-            level.is_some_and(|level| level.trim().eq_ignore_ascii_case(decision::LEVEL_PRINCIPLE));
-        let scopes = value.map(parse_scopes).unwrap_or_default();
-        if principle && !scopes.is_empty() {
-            self.errorf(
+/// Marks the decision named by `target` as superseded by `newer`.
+fn supersede(
+    p: &mut Planner,
+    state: &mut HashMap<String, decision::Decision>,
+    node: &DecisionNode,
+    target: &str,
+    newer: &decision::Decision,
+    reason: &str,
+) {
+    let all = decision_list(p, state);
+    let Some(old) = decision::find(&all, target) else {
+        p.errorf(
+            node.line,
+            format!(
+                "unknown decision {} in supersedes: no Decision with that number or id",
+                go_quote(target)
+            ),
+        );
+        return;
+    };
+    if decision::normalize(&old.status) == decision::STATE_SUPERSEDED {
+        if old.meta.superseded_by != newer.id {
+            p.errorf(
                 node.line,
-                "level: principle applies to the whole project: drop scope: or level:".to_string(),
+                format!(
+                    "{} is already superseded: cite its successor instead",
+                    old.title
+                ),
             );
-            return ScopeRead {
-                scopes: Vec::new(),
-                has: false,
-                ok: false,
-            };
         }
-        if principle {
-            return ScopeRead {
-                scopes: Vec::new(),
-                has: true,
-                ok: true,
-            };
-        }
-        if value.is_none() {
-            return ScopeRead {
-                scopes: Vec::new(),
-                has: false,
-                ok: true,
-            };
-        }
-        let line = node
-            .meta
-            .iter()
-            .rev()
-            .find(|entry| entry.key == "scope")
-            .map_or(node.line, |entry| entry.line);
-        if !self.check_scopes(line, &scopes) {
-            return ScopeRead {
-                scopes: Vec::new(),
-                has: false,
-                ok: false,
-            };
-        }
-        ScopeRead {
-            scopes,
+        return;
+    }
+    if !decision::can_transition(&old.status, decision::STATE_SUPERSEDED) {
+        p.errorf(
+            node.line,
+            format!(
+                "{} is {} and cannot be superseded: activate it first",
+                old.title,
+                decision::normalize(&old.status)
+            ),
+        );
+        return;
+    }
+    if let Err(err) = decision::check_supersede(&all, &old.id, &newer.id) {
+        p.errorf(node.line, err.to_string());
+        return;
+    }
+    let mut fields = work::Fields::new();
+    fields.insert("status".into(), json!(decision::STATE_SUPERSEDED));
+    fields.insert("superseded_by".into(), json!(newer.id));
+    let mut before = work::Fields::new();
+    before.insert("status".into(), json!(decision::normalize(&old.status)));
+    before.insert("superseded_by".into(), json!(old.meta.superseded_by));
+    if !reason.is_empty() {
+        fields.insert("status_reason".into(), json!(reason));
+        before.insert("status_reason".into(), json!(old.meta.status_reason));
+    }
+    let mut superseded = old.clone();
+    superseded.status = decision::STATE_SUPERSEDED.to_string();
+    superseded.meta.superseded_by = newer.id.clone();
+    set_decision(state, superseded);
+    p.ops.push(work::Op {
+        entity: work::ENTITY_DECISION.into(),
+        kind: work::OP_UPDATE.into(),
+        entity_id: old.id,
+        card_slug: old.title.clone(),
+        label: old.title,
+        fields,
+        before,
+        ..work::Op::default()
+    });
+}
+
+/// Reads a decision's contexts from `scope:` (a list of node paths) and
+/// `level: principle` (no contexts: the whole project). `has` is false when
+/// the text names neither, so an update keeps the stored contexts.
+fn decision_scopes(p: &mut Planner, node: &DecisionNode) -> ScopeRead {
+    let value = node.meta_value("scope");
+    let level = node.meta_value("level");
+    let principle =
+        level.is_some_and(|level| level.trim().eq_ignore_ascii_case(decision::LEVEL_PRINCIPLE));
+    let scopes = value.map(parse_scopes).unwrap_or_default();
+    if principle && !scopes.is_empty() {
+        p.errorf(
+            node.line,
+            "level: principle applies to the whole project: drop scope: or level:".to_string(),
+        );
+        return ScopeRead {
+            scopes: Vec::new(),
+            has: false,
+            ok: false,
+        };
+    }
+    if principle {
+        return ScopeRead {
+            scopes: Vec::new(),
             has: true,
             ok: true,
-        }
+        };
     }
-
-    /// Reports each path that is not an active Structure node.
-    ///
-    /// TODO(dedupe): the planner keeps one `checkScopes`; this copy waits for
-    /// `plan.rs` to land.
-    fn check_scopes(&mut self, line: i32, paths: &[String]) -> bool {
-        let mut ok = true;
-        for path in paths {
-            if !scope_is_active(self.nodes, path) {
-                self.errorf(
-                    line,
-                    format!(
-                        "unknown scope {}: use a Structure node path",
-                        go_quote(path)
-                    ),
-                );
-                ok = false;
-            }
-        }
-        ok
+    if value.is_none() {
+        return ScopeRead {
+            scopes: Vec::new(),
+            has: false,
+            ok: true,
+        };
+    }
+    let line = node
+        .meta
+        .iter()
+        .rev()
+        .find(|entry| entry.key == "scope")
+        .map_or(node.line, |entry| entry.line);
+    if !p.check_scopes(line, &scopes) {
+        return ScopeRead {
+            scopes: Vec::new(),
+            has: false,
+            ok: false,
+        };
+    }
+    ScopeRead {
+        scopes,
+        has: true,
+        ok: true,
     }
 }
 
@@ -620,7 +574,7 @@ pub fn encode_decision(
     let mut out = String::new();
     out.push_str(super::encode::HEADER);
     out.push('\n');
-    write_decision_node(&mut out, &node);
+    super::encode::write_decision(&mut out, &node);
     let mut notes: Vec<String> = Vec::new();
     for entry in all {
         if entry.meta.superseded_by == target.id {
@@ -639,35 +593,6 @@ pub fn encode_decision(
         out.push('\n');
     }
     out
-}
-
-/// The `### ref: Title` block of one decision.
-///
-/// TODO(dedupe): `encode.rs` keeps the private `write_decision` this copies; it
-/// is not reachable from a sibling module.
-fn write_decision_node(out: &mut String, decision: &DecisionNode) {
-    if decision.title.is_empty() {
-        out.push_str(&format!("### {}\n", decision.reference));
-    } else {
-        out.push_str(&format!("### {}: {}\n", decision.reference, decision.title));
-    }
-    let mut meta: Vec<String> = Vec::new();
-    for key in super::model::DECISION_META_KEYS {
-        if let Some(value) = decision.meta_value(key)
-            && !value.is_empty()
-        {
-            meta.push(format!("{key}: {value}"));
-        }
-    }
-    if !meta.is_empty() {
-        out.push_str(&meta.join(" · "));
-        out.push('\n');
-    }
-    if !decision.body.is_empty() {
-        out.push('\n');
-        out.push_str(&decision.body);
-        out.push('\n');
-    }
 }
 
 /// Returns the paths of active Structure nodes whose decisions: cite `target`.
@@ -739,7 +664,7 @@ pub fn flatten(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::super::model::has_errors;
+    use super::super::model::{Diagnostic, has_errors};
     use super::*;
     use crate::domains::polter::decode::{decode, has_diag};
     use crate::domains::polter::lint::{DecisionRef, References, lint};
@@ -803,15 +728,10 @@ mod tests {
         let (doc, diags) = decode(&format!("---\npolter: 1\n---\n{body}"));
         assert!(!has_errors(&diags), "decode: {diags:?}");
         let snapshot = decision_snapshot();
-        let nodes: HashMap<String, structure::Node> = snapshot
-            .nodes
-            .iter()
-            .map(|node| (node.path.clone(), node.clone()))
-            .collect();
-        let mut diags = diags;
-        let mut ops = Vec::new();
-        plan_decisions(&doc, &snapshot.decisions, &nodes, &mut diags, &mut ops);
-        (ops, diags)
+        let mut planner = Planner::new(&snapshot, "");
+        planner.diags = diags;
+        plan_decisions(&mut planner, &doc);
+        (planner.ops, planner.diags)
     }
 
     #[test]
