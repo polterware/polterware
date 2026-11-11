@@ -50,6 +50,11 @@ pub enum Error {
     /// A formatted message, as Go's `fmt.Errorf` returns it.
     #[error("{0}")]
     Message(String),
+    #[error("{message}")]
+    Connect {
+        message: String,
+        details: Vec<serde_json::Value>,
+    },
     #[error("{0}")]
     Io(#[from] io::Error),
     #[error("{0}")]
@@ -333,6 +338,7 @@ fn post(
          {CLIENT_HEADER}: {client}\r\n\
          Content-Length: {length}\r\n\
          Connection: close\r\n\r\n",
+        route = route.trim_start_matches('/'),
         token = core.token,
         length = body.len(),
     );
@@ -393,6 +399,7 @@ fn split_response(response: &[u8]) -> Result<(u16, Vec<u8>)> {
 struct ConnectError {
     code: String,
     message: String,
+    details: Vec<serde_json::Value>,
 }
 
 fn status_error(status: u16, body: &[u8]) -> Error {
@@ -402,7 +409,10 @@ fn status_error(status: u16, body: &[u8]) -> Error {
         (false, true) => error.code,
         (true, true) => format!("HTTP {status}"),
     };
-    Error::Message(message)
+    Error::Connect {
+        message,
+        details: error.details,
+    }
 }
 
 /// Signals `pid` to terminate, as Go's `syscall.Kill(pid, syscall.SIGTERM)`
