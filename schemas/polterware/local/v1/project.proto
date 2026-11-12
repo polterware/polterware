@@ -1,6 +1,5 @@
 syntax = "proto3";
 package polterware.local.v1;
-option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";
 
 // Project is a name plus its environments; it has no folder of its own.
 // Repositories belong to its Structure components.

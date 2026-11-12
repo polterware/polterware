@@ -7,7 +7,7 @@ cd "$ROOT"
 if [[ "${1:-}" == "--core-only" ]]; then
   DB_PATH="${POLTERWARE_DEV_DB:-$ROOT/.data/dev-local.db}"
   mkdir -p "$(dirname "$DB_PATH")"
-  exec go run ./backend/runtimes/cli -db "$DB_PATH" serve
+  exec cargo run -p polterware-core --bin polterware -- -db "$DB_PATH" serve
 fi
 
 if [[ $# -gt 0 ]]; then
@@ -15,5 +15,9 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
-# The Desktop starts or attaches to the core itself (go run from this checkout).
+# Build the core where the Desktop looks for it.
+cargo build -p polterware-core --bin polterware
+mkdir -p dist
+cp target/debug/polterware dist/polterware
+export POLTERWARE_BIN="$ROOT/dist/polterware"
 exec cargo run -p polterware-gpui

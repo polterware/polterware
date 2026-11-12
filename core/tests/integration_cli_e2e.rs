@@ -26,7 +26,7 @@ impl CliHarness {
     }
 
     fn command(&self, args: &[&str]) -> Command {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_polterware-rs"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_polterware"));
         command
             .arg("-db")
             .arg(&self.db)

@@ -453,8 +453,7 @@ mod tests {
 
     /// The Claude Code plugin skill embeds the core verbatim; keep them in
     /// sync.
-    const PLUGIN_SKILL: &str =
-        include_str!("../../../../backend/providers/agentsetup/plugin/skills/polter/SKILL.md");
+    const PLUGIN_SKILL: &str = include_str!("../../../plugin/skills/polter/SKILL.md");
 
     #[test]
     fn spec_core_matches_its_declared_size() {
@@ -479,7 +478,7 @@ mod tests {
     fn the_plugin_skill_embeds_the_spec() {
         assert!(
             PLUGIN_SKILL.contains(SPEC_CORE),
-            "backend/providers/agentsetup/plugin/skills/polter/SKILL.md does not contain polter.SpecCore verbatim; copy the SpecCore text into its markdown fence"
+            "core/plugin/skills/polter/SKILL.md does not contain polter.SpecCore verbatim; copy the SpecCore text into its markdown fence"
         );
     }
 

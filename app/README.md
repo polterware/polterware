@@ -1,13 +1,14 @@
 # Polterware GPUI Desktop
 
-The Polterware Desktop in GPUI, on the shared library [polterware/ui](https://github.com/polterware/ui), and a client of the local Go core. It replaced the Electron Desktop, whose last source is the `polterware-old` checkout: where this README says "as Electron's", that app is the reference.
+The Polterware Desktop in GPUI, on the shared library [polterware/ui](https://github.com/polterware/ui), and a client of the local Rust core. It replaced the Electron Desktop, whose last source is the `polterware-old` checkout: where this README says "as Electron's", that app is the reference.
 
 It finds the core that owns the database through `<db dir>/run/core.json` and reads it over Connect-JSON (`src/client.rs`: unary calls and server streams such as `ChangeService.WatchChanges`). It never opens SQLite. The messages and a client per service (`core.work().list_inbox(&request)`) are generated from `schemas/` into `src/contracts` by `tooling/gen-contracts`, which `bash tooling/generate.sh` runs; do not edit them by hand. The database is `POLTERWARE_DB`, else `~/Library/Application Support/polterware/local.db`. When no core runs, Start the core runs `polterware serve` detached, with the binary from `POLTERWARE_BIN`, the installed app, or this checkout's `dist/polterware`.
 
 ## Run
 
 ```bash
-(cd backend && go build -o ../dist/polterware ./runtimes/cli)
+cargo build -p polterware-core --bin polterware
+mkdir -p dist && cp target/debug/polterware dist/polterware
 cargo run -p polterware-gpui
 ```
 

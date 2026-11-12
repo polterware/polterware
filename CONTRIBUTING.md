@@ -12,13 +12,12 @@ The active product is a local SQLite-backed Desktop with the local `polterware` 
 
 ## Development
 
-The repository is Rust (the Desktop, a Cargo workspace at the root) and Go (the core in `backend`), with no JavaScript.
+The repository is Rust (the Desktop and core, in a Cargo workspace at the root), with no JavaScript.
 
 ```bash
 cargo fmt --check
 cargo clippy --all-targets
 cargo test
-(cd backend && go vet ./... && go test ./...)
 (cd schemas && buf lint)
 ```
 

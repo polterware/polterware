@@ -1,9 +1,6 @@
 //! The embedded Claude Code plugin and the local marketplace that carries it.
 //!
-//! The canonical copy lives at `backend/providers/agentsetup/plugin`, because
-//! the Go plugin is embedded from there and `plugins/polterware` is a symlink
-//! to it for the repository marketplace. This module includes the same files,
-//! so there is one copy.
+//! The canonical copy lives at `core/plugin`; `plugins/polterware` links to it.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -16,12 +13,9 @@ pub const PLUGIN_NAME: &str = "polterware";
 pub const MARKETPLACE_NAME: &str = "polterware-local";
 pub const PLUGIN_ID: &str = "polterware@polterware-local";
 
-const PLUGIN_MANIFEST: &str =
-    include_str!("../../../../backend/providers/agentsetup/plugin/.claude-plugin/plugin.json");
-const PLUGIN_HOOKS: &str =
-    include_str!("../../../../backend/providers/agentsetup/plugin/hooks/hooks.json");
-const PLUGIN_SKILL: &str =
-    include_str!("../../../../backend/providers/agentsetup/plugin/skills/polter/SKILL.md");
+const PLUGIN_MANIFEST: &str = include_str!("../../../plugin/.claude-plugin/plugin.json");
+const PLUGIN_HOOKS: &str = include_str!("../../../plugin/hooks/hooks.json");
+const PLUGIN_SKILL: &str = include_str!("../../../plugin/skills/polter/SKILL.md");
 
 /// Every embedded plugin file, keyed by its path under `plugin/`.
 pub(crate) const PLUGIN_FILES: [(&str, &str); 3] = [
@@ -202,8 +196,7 @@ mod tests {
     fn embedded_files_are_the_repository_copy() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
         let on_disk =
-            fs::read(root.join("backend/providers/agentsetup/plugin/skills/polter/SKILL.md"))
-                .expect("repository skill");
+            fs::read(root.join("core/plugin/skills/polter/SKILL.md")).expect("repository skill");
         assert_eq!(on_disk, skill_file(), "the skill has one copy");
     }
 }
