@@ -7,7 +7,8 @@
 //! This module holds the whole codec: decode, encode, structure encode, the
 //! format spec, the graph checks, scopes, coordination, lint, hints, commit
 //! references, and the planners (`Plan`, `Brief`, the feature flow, milestones,
-//! decisions, rules, conflicts, facts, deploys, handoff notes), which read the
+//! rules and the retired blocks that point at them, conflicts, deploys, handoff
+//! notes), which read the
 //! shared types from [`model`].
 
 mod brief;

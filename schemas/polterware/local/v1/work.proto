@@ -175,7 +175,7 @@ message InboxItem {
   reserved "scope_node_id";
   // scope_node_ids are the item's own contexts; empty when it follows its source.
   repeated string scope_node_ids = 12;
-  // details are the item's facts, such as a setup item's provider.
+  // details carry the item's fields, such as a setup item's provider.
   map<string, string> details = 13;
 }
 
@@ -393,8 +393,8 @@ message FileContextResponse {
 }
 
 // SetAgentsSync turns on or off rewriting the generated AGENTS.md block of
-// every checkout after project state changes (Decision files stay on
-// ExportProjections). Turning it on syncs at once and returns those files.
+// every checkout after project state changes (ExportProjections stays the
+// on-demand export). Turning it on syncs at once and returns those files.
 message SetAgentsSyncRequest {
   string project_id = 1;
   bool enabled = 2;
@@ -603,8 +603,8 @@ message ReorderMilestonesResponse { repeated Milestone milestones = 1; }
 
 // Rule is the only law: a short imperative constraint agents read before they
 // work. scope_node_ids are the Structure nodes it applies to (and every node
-// below them); none is the whole project. why is optional Markdown (the old
-// Decision body). Only active and under_review Rules bind.
+// below them); none is the whole project. why is optional Markdown. Only
+// active and under_review Rules bind.
 message Rule {
   string id = 1;
   string slug = 2;

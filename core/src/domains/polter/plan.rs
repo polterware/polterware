@@ -259,7 +259,10 @@ impl Planner {
             );
             return;
         }
-        let decisions = node.meta_value("decisions").unwrap_or_default();
+        let decisions = node
+            .meta_value("rules")
+            .or_else(|| node.meta_value("decisions"))
+            .unwrap_or_default();
         let repo = node.meta_value("repo").unwrap_or_default();
         let folder = node.meta_value("path").unwrap_or_default();
         let kind = node.meta_value("kind").unwrap_or_default();
@@ -404,7 +407,10 @@ impl Planner {
                 s(&path),
             );
         }
-        if let Some(decisions) = node.meta_value("decisions") {
+        if let Some(decisions) = node
+            .meta_value("rules")
+            .or_else(|| node.meta_value("decisions"))
+        {
             let list = split_list(decisions);
             if list != existing.decisions {
                 set_field(
@@ -676,7 +682,10 @@ impl Planner {
             .unwrap_or_else(|| work::STAGE_SHAPE.to_string());
         let owner = node.meta_value("owner").unwrap_or_default();
         let under = node.meta_value("under").unwrap_or_default();
-        let decisions = node.meta_value("decisions").unwrap_or_default();
+        let decisions = node
+            .meta_value("rules")
+            .or_else(|| node.meta_value("decisions"))
+            .unwrap_or_default();
         let kind = node
             .meta_value("kind")
             .map(str::to_string)
@@ -820,19 +829,23 @@ impl Planner {
                         set_field(&mut fields, &mut before, key, s(&card.milestone_id), s(&id));
                     }
                 }
-                "decisions" => {
-                    let list = split_list(value);
-                    if list != card.decisions {
-                        set_field(
-                            &mut fields,
-                            &mut before,
-                            key,
-                            json!(card.decisions),
-                            json!(list),
-                        );
-                    }
-                }
                 _ => {}
+            }
+        }
+        // The retired `decisions:` key carries the same list as `rules:`.
+        if let Some(value) = node
+            .meta_value("rules")
+            .or_else(|| node.meta_value("decisions"))
+        {
+            let list = split_list(value);
+            if list != card.decisions {
+                set_field(
+                    &mut fields,
+                    &mut before,
+                    "decisions",
+                    json!(card.decisions),
+                    json!(list),
+                );
             }
         }
         if !fields.is_empty() {

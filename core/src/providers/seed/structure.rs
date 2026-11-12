@@ -65,14 +65,14 @@ One clean baseline schema and the commit hooks that emit change events.
 # core/work: Work model and Polter codec
 level: component · under: core · path: backend/domains/polter · kind: service · tech: Go · repo: main
 
-Work cards, tasks, questions, invariants, decisions, claims, and the Polter grammar.
+Work cards, tasks, questions, invariants, Rules, claims, and the Polter grammar.
 
 ! Polter text is never stored as a blob
 
-# core/facts: Facts
+# core/canon: Canon graph
 level: component · under: core · path: backend/domains/canon · kind: service · tech: Go · repo: main
 
-Project facts and the truth class each one carries.
+The project graph: entities, their relationships, and the derived layout.
 
 # core/git: Git history
 level: component · under: core · path: backend/providers/git · kind: service · tech: Go · repo: main
@@ -98,10 +98,10 @@ level: component · under: core · path: backend/domains/structure · kind: serv
 
 Domain and component nodes, their derived status, and history.
 
-# core/decisions: Decision lifecycle
-level: component · under: core · path: backend/domains/decision · kind: service · tech: Go · repo: main
+# core/rules: Rule lifecycle
+level: component · under: core · path: backend/domains/rule · kind: service · tech: Go · repo: main
 
-Decision states and the supersede chain.
+Rule states, replacement, and the scope each one holds for.
 
 ! A challenge is never automatic
 
@@ -137,7 +137,7 @@ The single polterware binary: commands, serve, and mcp.
 # cli/commands: CLI commands
 level: component · under: cli · path: backend/runtimes/cli · kind: cli · tech: Go · repo: main
 
-Thin core clients: apply, query, status, handoff, structure, brief, search, decision, feature, export.
+Thin core clients: apply, query, status, handoff, structure, brief, search, rules, feature, export.
 
 # cli/coreclient: Core client
 level: component · under: cli · path: backend/platform/coreclient · kind: cli · tech: Go · repo: main
@@ -193,7 +193,7 @@ Architecture drafts for sync, hosted MCP, and the Judge.
 ## navigation-swap: Navigation swap
 stage: delivered · under: desktop/app
 
-Sidebar surfaces Inbox, Structure, Work, Decisions, Reality, Agents, Integrations, with Settings in the footer.
+Sidebar surfaces Inbox, Milestones, Structure, Canvas, Knowledge, Activity, with Settings in the footer.
 
 - [x] Sidebar and routes §app/src/views/*§
 - [x] Legacy routes redirect
@@ -306,14 +306,14 @@ A stepper from Intent through Shape and Contract to Plan, with gates.
 - [x] polterware feature and verify commands
 - [x] Oracle impact shown at Shape
 
-## decision-lifecycle: Decision lifecycle
+## rule-lifecycle: Rule lifecycle
 stage: verify · under: core/work
 
-Proposed, active, challenged, superseded, with history kept.
+Proposed, active, under review, replaced, and removed, with history kept.
 
-- [x] Lifecycle states and supersede chain §backend/domains/decision/*§
-- [x] Decisions tabs and Decision detail actions
-- [x] polterware decision commands
+- [x] Lifecycle states and the replacement chain §backend/domains/work/*§
+- [x] Rules page and Rule detail actions
+- [x] polterware query rules
 ! A challenge is never automatic
 
 ## architecture-evolution: Architecture evolution
@@ -354,7 +354,7 @@ Run Polterware on its own repository from a local build, and judge every seeded 
 - [ ] Open the packaged app and confirm it starts and attaches to the core
 - [ ] Connect Cursor, Claude Code, and Codex to the built CLI
 - [ ] Sign and notarize the macOS build
-? Which seeded cards and Decision statuses are wrong?
+? Which seeded cards and Rule statuses are wrong?
 
 handoff:
 branch: feat/structure-grounded-sdd
@@ -397,7 +397,7 @@ The default route is Inbox today; docs/future.md asks whether Work should be the
 ## pretooluse-enforcement: Light enforcement with PreToolUse
 stage: shape · under: agents/setup
 
-Tell an agent that a file is governed by a decision, before it edits.
+Tell an agent that a file is governed by a Rule, before it edits.
 
 ! Advisory first, never blocking
 
@@ -419,9 +419,9 @@ Measure duplicate and commit-link misses on real use before adding local embeddi
 ## cloud-judge: Cloud Judge
 stage: shape · under: cloud/docs
 
-Jev as a Cloud-only Judge: decision detector, invariant guard, handoff verification.
+Jev as a Cloud-only Judge: Rule conflict detector, invariant guard, handoff verification.
 
-! Never in the Desktop or the local binary without a new Decision
+! Never in the Desktop or the local binary without a new Rule
 ? Which first check headlines the Guard plan?
 
 ## cloud-sync: Cloud sync

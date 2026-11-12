@@ -1,7 +1,7 @@
 //! Deriving the items that need a person from data the project already has.
 //!
 //! Derives the items that need a person from data the project already has: open
-//! Conflicts (a request against a Rule or Decision), open questions (Decision),
+//! Conflicts (a request against a Rule), open questions (kind "decision"),
 //! deploys whose latest check failed (Deploy), and deploy links whose provider
 //! CLI is not connected (Setup). Items are never stored; only a person's
 //! disposition is, keyed by the item's stable key.
@@ -97,8 +97,8 @@ pub struct Question {
     pub options: Vec<String>,
 }
 
-/// An open request that goes against a Rule or a Decision. `against` names it
-/// ("Rule: …" or "Decision: …"); `details` carry the parts.
+/// An open request that goes against a Rule. `against` names it
+/// ("Rule: …"); `details` carry the parts.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Conflict {
     pub slug: String,

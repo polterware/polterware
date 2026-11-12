@@ -11,7 +11,9 @@ const TOKEN_CEILINGS: &[(&str, i32)] = &[
     ("mcp.tools_list", 738),
     ("polter.format", 397),
     ("card.context", 341),
-    ("node.context", 266),
+    // The seeded Structure text grew by one token when its demo nodes were
+    // retitled for the Rules model.
+    ("node.context", 267),
     ("search", 36),
     // The canvas source is the whole canvas: ids, kinds, refs, and props ride
     // in each node's metadata so the text reads back unchanged. It grew when

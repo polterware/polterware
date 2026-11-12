@@ -1,7 +1,6 @@
 //! The archive handlers for knowledge items and canvases.
 //!
-//! Archiving and restoring one knowledge item or one canvas. A Decision is
-//! refused: it moves through its lifecycle instead. The error mapping and the
+//! Archiving and restoring one knowledge item or one canvas. The error mapping and the
 //! timestamp both live beside their first callers, in
 //! [`super::audited_write::map_archive_err`] and
 //! [`super::server::archived_stamp`].
@@ -33,8 +32,7 @@ pub fn routes() -> Vec<Route> {
     ]
 }
 
-/// Archives or restores one knowledge item. Decisions are refused: they move
-/// through their lifecycle instead.
+/// Archives or restores one knowledge item.
 pub fn set_knowledge_archived(
     core: Arc<Core>,
     request: ConnectRequest<local_v1::SetKnowledgeArchivedRequest>,

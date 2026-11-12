@@ -105,7 +105,7 @@ fn check_references(doc: &Document, references: &References) -> Vec<Diagnostic> 
     let mut diags = Vec::new();
     for card in &doc.cards {
         for entry in &card.meta {
-            if entry.key != "decisions" {
+            if entry.key != "rules" && entry.key != "decisions" {
                 continue;
             }
             for reference in split_list(&entry.value) {
@@ -184,8 +184,8 @@ pub fn parse_decision_number(value: &str) -> Option<i64> {
     digits.parse().ok()
 }
 
-/// Reports whether a `decisions:` entry names the Rule with `id` and
-/// `statement`, by id or by Decision number.
+/// Reports whether a `rules:` entry (or the retired `decisions:` key) names the
+/// Rule with `id` and `title`, by id or by a migrated number.
 pub fn cites_decision(reference: &str, id: &str, title: &str) -> bool {
     let reference = reference.trim();
     if reference.to_lowercase() == id.to_lowercase() {

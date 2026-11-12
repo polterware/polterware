@@ -776,17 +776,10 @@ impl InboxView {
 
         let mut sections: Vec<AnyElement> = Vec::new();
 
-        if item.kind == "conflict" && (detail("rule").is_some() || detail("decision").is_some()) {
+        if item.kind == "conflict" && detail("rule").is_some() {
             let mut rows = Vec::new();
             if let Some(rule) = detail("rule") {
                 rows.push(detail_property("Rule", SharedString::from(rule), cx));
-            }
-            if let Some(decision) = detail("decision") {
-                rows.push(detail_property(
-                    "Decision",
-                    SharedString::from(decision),
-                    cx,
-                ));
             }
             sections.push(
                 detail_section(
@@ -1081,7 +1074,7 @@ impl InboxView {
                         .label(if pending {
                             "Saving\u{2026}"
                         } else {
-                            "Record decision"
+                            "Record answer"
                         })
                         .full_width()
                         .disabled(!answer_ready || pending)

@@ -191,14 +191,15 @@ pub fn conflict_text(slug: &str, answer: &str, summary: &str, rationale: &str) -
     )
 }
 
-/// Names what a Conflict goes against: the Rule's statement and the Decision's
-/// title, empty when it names none or the record is gone.
+/// Names what a Conflict goes against: the Rule's statement and the statement
+/// of the Rule behind a migrated reference, empty when it names none or the
+/// record is gone.
 pub fn conflict_against(
     conflict: &work::Conflict,
     snapshot: &work::Snapshot,
 ) -> (work::Rule, String) {
     let mut rule = work::Rule::default();
-    let mut decision_title = String::new();
+    let mut cited_rule = String::new();
     for candidate in &snapshot.rules {
         if candidate.id == conflict.rule_id {
             rule = candidate.clone();
@@ -206,10 +207,10 @@ pub fn conflict_against(
     }
     for candidate in &snapshot.rules {
         if candidate.id == conflict.decision {
-            decision_title = candidate.statement.clone();
+            cited_rule = candidate.statement.clone();
         }
     }
-    (rule, decision_title)
+    (rule, cited_rule)
 }
 
 /// Renders one Conflict as a Polter block with its state, what it goes against,
@@ -219,12 +220,12 @@ pub fn encode_conflict(conflict: &work::Conflict, snapshot: &work::Snapshot) -> 
         "#### {CONFLICT_HEADING_PREFIX}{}: {}\nstate: {}\n",
         conflict.slug, conflict.request, conflict.state
     );
-    let (rule, decision_title) = conflict_against(conflict, snapshot);
+    let (rule, cited_rule) = conflict_against(conflict, snapshot);
     if !rule.id.is_empty() {
         out.push_str(&format!("rule: {} ({})\n", rule.handle(), rule.statement));
     }
-    if !decision_title.is_empty() {
-        out.push_str(&format!("rule: {decision_title}\n"));
+    if !cited_rule.is_empty() {
+        out.push_str(&format!("rule: {cited_rule}\n"));
     }
     if !conflict.card_slug.is_empty() {
         out.push_str(&format!("card: {}\n", conflict.card_slug));

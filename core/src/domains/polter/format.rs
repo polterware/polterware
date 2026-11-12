@@ -21,12 +21,12 @@ pub const SPEC_CORE: &str = concat!(
     "---\n",
     "\n",
     "## git-import: Git metadata import\n",
-    "stage: build · under: core/import · milestone: beta · decisions: Decision-0007\n",
+    "stage: build · under: core/import · milestone: beta · rules: local-only\n",
     "\n",
     "Intent: what we want and why.\n",
     "\n",
     "- [ ] T1 Read commits per checkout `backend/import/*`\n",
-    "- [x] T2 Stamp revision on facts\n",
+    "- [x] T2 Stamp revision on each commit\n",
     "? Include merge commits? [blocking] (yes | no)\n",
     "! No network calls during import\n",
     "\n",
@@ -83,7 +83,7 @@ pub fn spec_topics() -> [(&'static str, &'static str); 5] {
                 "why: The core reads the local store only.\n",
                 "Offline installs and tests must not need a network.\n",
                 "\n",
-                "- `#### rule slug: Statement` creates a Rule or updates it by its lowercase-kebab slug (or id). A Rule is one short imperative constraint, and the only law: a card cites Rules, not decisions.\n",
+                "- `#### rule slug: Statement` creates a Rule or updates it by its lowercase-kebab slug (or id). A Rule is one short imperative constraint, and the only law.\n",
                 "- `scope:` lists the Structure node paths it holds for, comma separated; a node's Rules also hold for every node below it. None (or empty) is the whole project.\n",
                 "- `why:` is the optional Markdown reason; the lines after it are its body, so it may span lines, and the body ends at the next `#` to `####` heading (a `#####` or `######` heading stays text). It does not enter the brief.\n",
                 "- `status:` is proposed, active, under review (under_review), replaced, or removed. Proposed does not bind; active and under review do; removed retires the Rule.\n",
@@ -133,7 +133,7 @@ pub fn spec_topics() -> [(&'static str, &'static str); 5] {
                 "- The spec is three sections: `behavior:` says what the feature does, `edge-cases:` the cases it must handle, and `plan:` its architecture, APIs, and files touched. Each keeps the lines after it as a Markdown body, so it may span lines. A body runs until the next section, a `#` or `##` heading, or a `#### rule` / `#### conflict` block: `###` to `######` headings, `!` lines, `?` questions, and `- [ ]` tasks inside it stay text, so write the tasks, questions, and invariants before the sections. The `!` invariants are the acceptance criteria.\n",
                 "- The contract gate needs a non-empty behavior: and the plan gate a non-empty plan: plus an open task; the gate names what is missing.\n",
                 "- Confirm what you checked: `confirm: ! <criterion>` on the card (one acceptance criterion) or `confirm: rule <slug or id>` (one Rule) stores the confirmation; `polterware feature confirm <slug> --criterion \"...\"` and `--rule <slug>` are the shortcuts. `polterware verify <slug>` lists a confirmed item as pass and the rest as check, and a card in the verify stage with unconfirmed items raises one Inbox item.\n",
-                "- A card also takes owner: and decisions: (comma-separated refs). Tasks take `[repo: api]`; a scope may carry its checkout: `api:src/auth/*`.\n",
+                "- A card also takes owner: and rules: (comma-separated Rule slugs or ids). Tasks take `[repo: api]`; a scope may carry its checkout: `api:src/auth/*`.\n",
                 "- Claims: `claim: T2` in a card or `polterware task claim slug#T2`. The holder is the session agent; a task or overlapping scope held by another agent is refused. Scopes in different checkouts never overlap.\n",
                 "- handoff: records one session on branch: with goal, done, in_progress, next, touched (comma separated), and agent. End a session with `polterware handoff --card <slug> --note \"...\"`.\n",
                 "- Milestones are created in the Desktop; `polterware query milestones` lists them and `query roadmap` the active ones with their goal and cards.\n",
@@ -464,6 +464,25 @@ mod tests {
             "SpecTopicNames lists every topic"
         );
         assert!(format_spec("nope").is_err(), "an unknown topic must fail");
+    }
+
+    #[test]
+    fn the_spec_names_no_retired_record() {
+        let mut texts = vec![SPEC_CORE.to_string()];
+        texts.extend(
+            SPEC_TOPIC_NAMES
+                .iter()
+                .map(|name| format_spec(name).expect("a known topic")),
+        );
+        for text in texts {
+            let lower = text.to_lowercase();
+            for word in ["decision", "principle", "fact"] {
+                assert!(
+                    !lower.contains(word),
+                    "the format spec names the retired {word} record:\n{text}"
+                );
+            }
+        }
     }
 
     #[test]

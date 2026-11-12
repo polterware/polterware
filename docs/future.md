@@ -4,10 +4,10 @@ Status: direction only. **Nothing in this file is implemented.** It is the only 
 
 Category: **Project Context & Change Intelligence for AI Coding.** Polterware keeps the project state (what it is, what was decided, what is in progress, what was delivered) identical for any agent and any person, checked against the repositories.
 
-## Principles every item must respect
+## Constraints every item must respect
 
 - One project model. No parallel architecture, documentation, or agent models.
-- Structured before inferred. Import deterministic facts (manifests, Git, OpenAPI, Terraform, Docker) before asking an LLM. Inferred knowledge stays `inferred` until a recorded human decision promotes it.
+- Structured before inferred. Import deterministic observations (manifests, Git, OpenAPI, Terraform, Docker) before asking an LLM. Inferred knowledge stays `inferred` until a person records that it is promoted.
 - Provenance before confidence. Every claim says where it came from, when, and what supports it.
 - Local value without Cloud. Cloud adds continuity and collaboration; it never gates local features.
 - People and agents share the same model, contracts, and audit semantics.
@@ -31,7 +31,7 @@ Category: **Project Context & Change Intelligence for AI Coding.** Polterware ke
 1. **Manual Git verification** (never run end to end). Session: `status` prints the branch; outside a work tree it still runs; `delivered` prints only when the stored stage is `delivered` and `HEAD` is an ancestor of local `main`/`master`; `handoff` compares `touched:` and `branch:` with the local diff.
 2. **Two-week continuity measure.** How often context had to be re-explained, whether the agent started from the right point, whether the operator opened `status` unprompted.
 3. **Broader deterministic import and scan reconcile.** More source families; prune on re-scan so drift stays honest.
-4. **Provider observations (read path).** Connected CLIs/APIs become facts, not a control plane.
+4. **Provider observations (read path).** Connected CLIs/APIs become observations, not a control plane.
 5. **Architecture as Code export.** Versionable YAML/JSON/Markdown projection of the relevant model. No proprietary DSL.
 6. **Context profiles and secret filtering.** Intent-shaped packages; strip secrets before MCP or Desktop packages.
 7. **Richer Drift UI.** Findings open the entity, Rule, or doc in the shared DetailPanel.
@@ -66,15 +66,15 @@ Open: sync operation granularity, long-offline replicas, log compaction, GitLab 
 
 TypeSafe Jev returns typed judgments with probabilities (Choice, Noul, Score), cheap enough to run on every push, PR, handoff, and apply. Code finds candidates, Jev selects, a threshold decides between acting, suggesting, and sending to the Inbox. Output stays `inferred` until a person or gate confirms. Sending diffs to a third party needs per-repository opt-in and a retention policy.
 
-Candidate checks, strongest first: Rule detector and invariant guard (one request per diff); handoff verification (does the diff support what the agent said?); commit ↔ task linking without an explicit reference; duplicate or contradictory Rule/question; automatic challenge when a fact meets a Rule's review trigger; Inbox routing (owner, blocking, priority); Oracle packing under a token budget.
+Candidate checks, strongest first: Rule detector and invariant guard (one request per diff); handoff verification (does the diff support what the agent said?); commit ↔ task linking without an explicit reference; duplicate or contradictory Rule/question; automatic challenge when a statement meets a Rule's review trigger; Inbox routing (owner, blocking, priority); Oracle packing under a token budget.
 
-Optional later: bring-your-own LLM key enrichment (`inferred`, promoted by a human), only if a Decision allows keys in the product.
+Optional later: bring-your-own LLM key enrichment (`inferred`, promoted by a human), only if a Rule allows keys in the product.
 
 ## Research and validation (hypotheses, no experiment run)
 
 - H1: coding agents vary meaningfully across repeated runs of the same task.
 - H2: typed actions, contracts, and external verification reduce unwanted variance.
-- H3: explicit decisions and evidence reduce changes incompatible with architecture and requirements.
+- H3: explicit Rules and evidence reduce changes incompatible with architecture and requirements.
 - H4: selected context capsules reduce tokens or time without material loss of success.
 - H5: engineering packs reduce relevant defects in complex scenarios.
 
@@ -146,7 +146,7 @@ Open: branch naming scheme and whether it is configurable; where worktrees live 
 ## Larger ideas not yet decided
 
 - **Behavioral runtime.** Project and task contracts, typed actions, and an execution state machine that mediates effects where an integration can. Enforcement is only possible where the agent host lets Polterware mediate; elsewhere it stays advisory.
-- **Engineering knowledge library.** Versioned sources, principles, applicability conditions, and checks. No paper becomes policy automatically. Context capsules select facts, Rule statements, gaps, and source paths under a token budget.
+- **Engineering knowledge library.** Versioned sources, Rule statements, applicability conditions, and checks. No paper becomes policy automatically. Context capsules select Rule statements, gaps, and source paths under a token budget.
 - **Rule ownership.** Authority classes (human-only, delegated, agent-local), a delegation budget, and Rule Inbox routing. Humans choose architecture, method, and test strategy; active Rules and invariants bind the agent.
 - **Compact agent encodings.** The brief, the layered format, and the context hook ship; encodings such as TOON are untried and must beat plain text in `token_budget_test` before they replace it. Anti-ideas: dumping the architecture into the prompt, a vector store as truth.
 - **Multi-repo answers.** Cross-repository questions resolved from linked entities and evidence across projects, without cloning the other repository; federation only with Cloud.

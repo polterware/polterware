@@ -357,7 +357,7 @@ pub fn encode_rules(rules: &[work::Rule], status: &str) -> String {
     out
 }
 
-/// Returns the paths of active Structure nodes whose `decisions:` cite `rule`.
+/// Returns the paths of active Structure nodes that cite `rule` in `rules:`.
 pub fn nodes_citing_rule(nodes: &[structure::Node], rule: &work::Rule) -> Vec<String> {
     let mut paths = Vec::new();
     for node in nodes {

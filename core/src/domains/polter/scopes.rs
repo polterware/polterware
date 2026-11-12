@@ -1,5 +1,5 @@
 //! The `scope:` value shared by
-//! Rules, Decisions, Facts, and derived items.
+//! Rules and derived items.
 
 use std::collections::HashMap;
 
