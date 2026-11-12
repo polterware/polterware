@@ -17,8 +17,8 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use gpui::{
-    AnyElement, App, AppContext as _, Context, Entity, Focusable, FocusHandle, FontWeight, IntoElement, Render,
-    Subscription, Window, div, prelude::*, px,
+    AnyElement, App, AppContext as _, Context, Entity, FocusHandle, Focusable, FontWeight,
+    IntoElement, Render, Subscription, Window, div, prelude::*, px,
 };
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
 use polterware_ui::chip::chip_rounded;
@@ -485,9 +485,7 @@ impl KnowledgePage {
                 String::new(),
                 cx,
             ),
-            Ask::Archive => {
-                state.archive_knowledge(item.id.clone(), title, String::new(), cx)
-            }
+            Ask::Archive => state.archive_knowledge(item.id.clone(), title, String::new(), cx),
         });
         cx.notify();
     }

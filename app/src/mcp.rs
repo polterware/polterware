@@ -3,7 +3,7 @@
 //! stdin held open so the stdio server stays parked), the command and Cursor config a client
 //! pastes, and `polterware setup mcp list|add|remove`, which registers this binary with the
 //! clients this computer has. A client registers the binary itself, so setting one up needs
-//! the built CLI; without it the helper runs through `go run`, as the Electron Desktop's does.
+//! the built CLI; without it the helper runs through `cargo run` from this checkout.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -55,7 +55,7 @@ impl McpClient {
     }
 }
 
-/// How the helper starts: the built CLI, else `go run` from this checkout.
+/// How the helper starts: the built CLI, else `cargo run` from this checkout.
 struct Launch {
     program: PathBuf,
     args: Vec<String>,
@@ -63,7 +63,7 @@ struct Launch {
     display: String,
 }
 
-/// This checkout's root, where `go run ./backend/runtimes/cli` builds the CLI.
+/// This checkout's root, where `cargo run -p polterware-core --bin polterware` builds the CLI.
 fn repository_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -82,16 +82,23 @@ fn launch(db: &Path) -> Launch {
             cwd: None,
         },
         None => Launch {
-            program: "go".into(),
+            program: "cargo".into(),
             args: vec![
                 "run".into(),
-                "./backend/runtimes/cli".into(),
+                "-q".into(),
+                "-p".into(),
+                "polterware-core".into(),
+                "--bin".into(),
+                "polterware".into(),
+                "--".into(),
                 "-db".into(),
                 db_text,
                 "mcp".into(),
             ],
             cwd: Some(repository_root()),
-            display: format!("go run ./backend/runtimes/cli -db {quoted} mcp"),
+            display: format!(
+                "cargo run -q -p polterware-core --bin polterware -- -db {quoted} mcp"
+            ),
         },
     }
 }
@@ -105,8 +112,8 @@ fn cursor_config(db: &Path) -> String {
             "args": ["-db", db, "mcp"],
         }),
         None => serde_json::json!({
-            "command": "go",
-            "args": ["run", "./backend/runtimes/cli", "-db", db, "mcp"],
+            "command": "cargo",
+            "args": ["run", "-q", "-p", "polterware-core", "--bin", "polterware", "--", "-db", db, "mcp"],
             "cwd": repository_root().display().to_string(),
         }),
     };

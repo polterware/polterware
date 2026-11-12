@@ -22,7 +22,6 @@ build/
 vendor/
 # Dispatch's contracts, vendored on purpose (tooling/sync-dispatch-proto.sh).
 !schemas/vendor/
-backend/**/dist/
 dist/polter-*
 
 # Buf / protoc
