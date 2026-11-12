@@ -572,7 +572,7 @@ impl Render for AppView {
         let backdrop = if app.reduce_transparency() {
             theme.color_app_background
         } else {
-            two_coats(theme.color_shell_glass)
+            theme.color_shell_glass
         };
         // The frame after the one that first draws project rows has been presented.
         if matches!(app.route(), Route::Projects)
@@ -638,7 +638,9 @@ impl Render for AppView {
             .font_family(theme.font_sans)
             .text_size(px(theme.font_size_md))
             .on_key_down(cx.listener(Self::create_shortcut))
-            .on_action(cx.listener(|_, _: &CloseWindow, window, _| window.remove_window()))
+            // As a Mac app does, closing the window (⌘W) hides the app: it stays in the Dock
+            // with the window as it was, and Quit (⌘Q) is what ends it.
+            .on_action(cx.listener(|_, _: &CloseWindow, _, cx| cx.hide()))
             .on_action(cx.listener(|this, _: &ToggleCommander, _, cx| {
                 this.update_state(cx, |state| {
                     let open = state.commander_open();
@@ -750,17 +752,5 @@ impl Render for AppView {
             ));
         }
         root
-    }
-}
-
-/// `.pw-shell-titlebar`, `.pw-shell-sidebar`, and `.pw-shell-main-frame` each paint the shell
-/// glass again over `.pw-shell-root`'s, so the material shows through two coats of it. One
-/// fill with the alpha of both stands in for them: GPUI adds the alphas of fills drawn over
-/// each other, which would leave the second coat opaque.
-fn two_coats(glass: gpui::Rgba) -> gpui::Rgba {
-    let clear = 1.0 - glass.a;
-    gpui::Rgba {
-        a: 1.0 - clear * clear,
-        ..glass
     }
 }

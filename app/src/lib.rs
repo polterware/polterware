@@ -35,82 +35,89 @@ const REM: f32 = 13.0;
 
 /// Opens the Polterware window and runs the app until it quits.
 pub fn run() {
-    Application::new()
-        .with_assets(IconAssets)
-        .run(|cx: &mut App| {
-            dock_icon::install();
-            cx.activate(true);
-            theme::set_root_rem(REM);
-            cx.set_global(Theme::dark());
-            polterware_ui::init(cx);
-            register_key_bindings(cx);
-            if updater::start().is_ok() {
-                cx.on_action(|_: &CheckForUpdates, _| updater::check());
+    let app = Application::new().with_assets(IconAssets);
+    // A click on the Dock icon brings back the window that closing hid.
+    app.on_reopen(|cx| cx.activate(true));
+    app.run(|cx: &mut App| {
+        dock_icon::install();
+        cx.activate(true);
+        theme::set_root_rem(REM);
+        cx.set_global(Theme::dark());
+        polterware_ui::init(cx);
+        register_key_bindings(cx);
+        if updater::start().is_ok() {
+            cx.on_action(|_: &CheckForUpdates, _| updater::check());
+        }
+        // Follows the Electron Desktop's `application-menu.ts` using GPUI's menu API.
+        cx.set_menus(vec![
+            Menu {
+                name: "Polterware".into(),
+                items: vec![
+                    MenuItem::action("About Polterware", About),
+                    MenuItem::separator(),
+                    MenuItem::action("Check for Updates…", CheckForUpdates),
+                    MenuItem::separator(),
+                    MenuItem::os_submenu("Services", SystemMenuType::Services),
+                    MenuItem::separator(),
+                    MenuItem::action("Hide Polterware", Hide),
+                    MenuItem::action("Hide Others", HideOthers),
+                    MenuItem::action("Show All", ShowAll),
+                    MenuItem::separator(),
+                    MenuItem::action("Quit", Quit),
+                ],
+            },
+            Menu {
+                name: "Edit".into(),
+                items: vec![
+                    MenuItem::os_action("Undo", Undo, OsAction::Undo),
+                    MenuItem::os_action("Redo", Redo, OsAction::Redo),
+                    MenuItem::separator(),
+                    MenuItem::os_action("Cut", Cut, OsAction::Cut),
+                    MenuItem::os_action("Copy", Copy, OsAction::Copy),
+                    MenuItem::os_action("Paste", Paste, OsAction::Paste),
+                    MenuItem::os_action("Select All", SelectAll, OsAction::SelectAll),
+                ],
+            },
+            Menu {
+                name: "View".into(),
+                items: vec![MenuItem::action("Toggle Full Screen", ToggleFullScreen)],
+            },
+            Menu {
+                name: "Window".into(),
+                items: vec![
+                    MenuItem::action("Minimize", Minimize),
+                    MenuItem::action("Zoom", Zoom),
+                ],
+            },
+        ]);
+        cx.on_window_closed(|cx| {
+            if cx.windows().is_empty() {
+                cx.quit();
             }
-            // Follows the Electron Desktop's `application-menu.ts` using GPUI's menu API.
-            cx.set_menus(vec![
-                Menu {
-                    name: "Polterware".into(),
-                    items: vec![
-                        MenuItem::action("About Polterware", About),
-                        MenuItem::separator(),
-                        MenuItem::action("Check for Updates…", CheckForUpdates),
-                        MenuItem::separator(),
-                        MenuItem::os_submenu("Services", SystemMenuType::Services),
-                        MenuItem::separator(),
-                        MenuItem::action("Hide Polterware", Hide),
-                        MenuItem::action("Hide Others", HideOthers),
-                        MenuItem::action("Show All", ShowAll),
-                        MenuItem::separator(),
-                        MenuItem::action("Quit", Quit),
-                    ],
-                },
-                Menu {
-                    name: "Edit".into(),
-                    items: vec![
-                        MenuItem::os_action("Undo", Undo, OsAction::Undo),
-                        MenuItem::os_action("Redo", Redo, OsAction::Redo),
-                        MenuItem::separator(),
-                        MenuItem::os_action("Cut", Cut, OsAction::Cut),
-                        MenuItem::os_action("Copy", Copy, OsAction::Copy),
-                        MenuItem::os_action("Paste", Paste, OsAction::Paste),
-                        MenuItem::os_action("Select All", SelectAll, OsAction::SelectAll),
-                    ],
-                },
-                Menu {
-                    name: "View".into(),
-                    items: vec![MenuItem::action("Toggle Full Screen", ToggleFullScreen)],
-                },
-                Menu {
-                    name: "Window".into(),
-                    items: vec![
-                        MenuItem::action("Minimize", Minimize),
-                        MenuItem::action("Zoom", Zoom),
-                    ],
-                },
-            ]);
-            cx.on_window_closed(|cx| {
-                if cx.windows().is_empty() {
-                    cx.quit();
-                }
-            })
-            .detach();
+        })
+        .detach();
 
-            // The Electron Desktop's window: 1440 by 920, at least 1180 by 760.
-            let mut options = polterware_ui::window::window_options(
-                "Polterware",
-                size(px(1440.0), px(920.0)),
-                size(px(1180.0), px(760.0)),
-                cx,
-            );
-            // `trafficLightPosition: { x: 14, y: 15 }`, as the Electron window sets them.
-            if let Some(titlebar) = options.titlebar.as_mut() {
-                titlebar.traffic_light_position = Some(gpui::point(px(14.0), px(15.0)));
-            }
-            cx.open_window(options, |window, cx| {
-                vibrancy::install(window);
-                cx.new(|cx| app::AppView::new(window, cx))
-            })
-            .expect("failed to open GPUI window");
-        });
+        // The same window as Polterware Dispatch: 1200 by 800, at least 800 by 560.
+        let mut options = polterware_ui::window::window_options(
+            "Polterware",
+            size(px(1200.0), px(800.0)),
+            size(px(800.0), px(560.0)),
+            cx,
+        );
+        // `trafficLightPosition: { x: 14, y: 15 }`, as the Electron window sets them.
+        if let Some(titlebar) = options.titlebar.as_mut() {
+            titlebar.traffic_light_position = Some(gpui::point(px(14.0), px(15.0)));
+        }
+        cx.open_window(options, |window, cx| {
+            vibrancy::install(window);
+            // The close button hides the app instead of closing its one window, so the
+            // window keeps its state until the app quits (⌘Q), as Polterware Dispatch does.
+            window.on_window_should_close(cx, |_, cx| {
+                cx.hide();
+                false
+            });
+            cx.new(|cx| app::AppView::new(window, cx))
+        })
+        .expect("failed to open GPUI window");
+    });
 }
