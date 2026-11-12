@@ -41,19 +41,19 @@ pub(crate) fn retired_tools() -> &'static [(&'static str, &'static str)] {
         ("agent_run.list", "the Activity page in the Desktop"),
         (
             "fact.upsert",
-            "polter.apply with a #### slug: Statement block (polter.format topic facts)",
+            "polter.apply with a #### rule <slug>: Statement block (polter.format topic rules)",
         ),
         (
             "evidence.upsert",
-            "nothing: evidence is retired; a Fact is a statement with its scope",
+            "nothing: evidence is retired; a Rule is a statement the code must keep",
         ),
         (
             "evidence.link",
-            "nothing: evidence is retired; a Fact is a statement with its scope",
+            "nothing: evidence is retired; a Rule is a statement the code must keep",
         ),
         (
             "knowledge.upsert",
-            "doc.upsert for docs, or polter.apply with a ### block for Decisions",
+            "doc.upsert for docs, or polter.apply with a #### rule block",
         ),
         ("knowledge.link", "doc.upsert with scope: <Structure path>"),
     ]
@@ -87,7 +87,7 @@ pub(crate) fn tool_definitions() -> Vec<Value> {
                 "type": "object",
                 "properties": {
                     "project_id": {"type": "string"},
-                    "query": {"type": "string", "description": "\"brief <slug|path|file> [budget:N]\", \"search <terms>\", \"show <id>\", \"commits <slug>\", \"conflict <slug>\", \"conflicts\", \"cards\" (default), \"card <slug>\", \"status\", \"inbox\", \"handoff <slug>\", \"structure [<path>]\", \"decisions [state]\", \"decision <id>\", \"feature <slug> [shape|contract|plan]\", \"verify <slug|slug#T2>\", \"milestones\", \"roadmap\", or \"canvas [<name|id>]\""},
+                    "query": {"type": "string", "description": "\"brief <slug|path|file> [budget:N]\", \"search <terms>\", \"show <id>\", \"commits <slug>\", \"conflict <slug>\", \"conflicts\", \"cards\" (default), \"card <slug>\", \"status\", \"inbox\", \"handoff <slug>\", \"structure [<path>]\", \"rules [status]\", \"feature <slug> [shape|contract|plan]\", \"verify <slug|slug#T2>\", \"milestones\", \"roadmap\", or \"canvas [<name|id>]\""},
                     "scope": scope_argument_schema(),
                     "scope_exact": {"type": "boolean", "description": "With scope, leave out each node's ancestors."},
                 },
@@ -96,7 +96,7 @@ pub(crate) fn tool_definitions() -> Vec<Value> {
         }),
         json!({
             "name": TOOL_POLTER_APPLY,
-            "description": "Write Work cards, Structure nodes, Decisions, and Facts from Polter text in one audited write that joins this session's run. Needs summary and rationale (frontmatter or arguments). dry_run returns the plan.",
+            "description": "Write Work cards, Structure nodes, and Rules from Polter text in one audited write that joins this session's run. Needs summary and rationale (frontmatter or arguments). dry_run returns the plan.",
             "inputSchema": {
                 "type": "object",
                 "properties": {

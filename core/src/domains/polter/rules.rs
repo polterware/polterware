@@ -15,7 +15,9 @@ use super::plan::Planner;
 use super::scopes::parse_scopes;
 
 /// Writes the Rule blocks: a new slug creates a Rule (it needs a statement), a
-/// known slug or id updates it, and `status: removed` retires it.
+/// known slug or id updates it, and `status: removed` retires it. A Rule carries
+/// an optional `why:`, one of five statuses, and `replaced-by:` naming the Rule
+/// that replaced it, which sets the status to replaced.
 pub fn plan_rules(p: &mut Planner, doc: &Document) {
     for node in &doc.rules {
         let mut already_failed = p.failed(node.line);
@@ -30,6 +32,7 @@ pub fn plan_rules(p: &mut Planner, doc: &Document) {
             .iter()
             .position(|rule| rule.id == node.reference || rule.slug == node.reference);
         let status = node.meta_value("status").map(str::to_string);
+        let why = node.why_set.then(|| node.why.clone());
         let mut scopes: Option<Vec<String>> = None;
         if let Some(value) = node.meta_value("scope") {
             let parsed = parse_scopes(value);
@@ -38,6 +41,44 @@ pub fn plan_rules(p: &mut Planner, doc: &Document) {
             }
             scopes = Some(parsed);
         }
+        // The Rule `replaced-by` names, resolved to the stored Rule so its id
+        // is written even when the text gives its slug.
+        let replaced_reference = node
+            .meta_value("replaced-by")
+            .map(str::to_string)
+            .filter(|value| !value.is_empty());
+        let replaced = match &replaced_reference {
+            Some(reference) => {
+                let found = p
+                    .rules
+                    .iter()
+                    .position(|rule| rule.id == *reference || rule.slug == *reference);
+                match found {
+                    Some(at) if p.rules[at].status == work::RULE_REMOVED => {
+                        p.errorf(
+                            node.meta_line("replaced-by"),
+                            format!(
+                                "replaced-by names a removed rule {}: use a live Rule",
+                                go_quote(reference)
+                            ),
+                        );
+                        continue;
+                    }
+                    Some(at) => Some(at),
+                    None => {
+                        p.errorf(
+                            node.meta_line("replaced-by"),
+                            format!(
+                                "replaced-by names an unknown rule {}: use the Rule's slug or id",
+                                go_quote(reference)
+                            ),
+                        );
+                        continue;
+                    }
+                }
+            }
+            None => None,
+        };
         let Some(index) = index else {
             if status.as_deref() == Some(work::RULE_REMOVED) {
                 p.errorf(
@@ -60,19 +101,50 @@ pub fn plan_rules(p: &mut Planner, doc: &Document) {
                 );
                 continue;
             }
-            let rule = work::Rule {
+            if status.as_deref() == Some(work::RULE_REPLACED) && replaced.is_none() {
+                p.errorf(
+                    node.meta_line("status"),
+                    "status: replaced needs replaced-by: <the rule that replaced it>".to_string(),
+                );
+                continue;
+            }
+            if status.as_deref() == Some(work::RULE_REPLACED) && replaced.is_none() {
+                p.errorf(
+                    node.meta_line("status"),
+                    "status: replaced needs replaced-by: <the rule that replaced it>".to_string(),
+                );
+                continue;
+            }
+            let replaced_by = replaced.map(|at| p.rules[at].id.clone());
+            let mut rule = work::Rule {
                 id: ids::new_ulid(),
                 slug: node.reference.clone(),
                 statement: node.statement.clone(),
+                why: why.clone().unwrap_or_default(),
                 scopes: scopes.clone().unwrap_or_default(),
-                status: work::RULE_ACTIVE.to_string(),
+                status: status
+                    .clone()
+                    .unwrap_or_else(|| work::RULE_ACTIVE.to_string()),
+                replaced_by: replaced_by.clone().unwrap_or_default(),
                 ..work::Rule::default()
             };
+            if replaced_by.is_some() {
+                rule.status = work::RULE_REPLACED.to_string();
+            }
             let mut fields = work::Fields::new();
             fields.insert("slug".into(), json!(rule.slug));
             fields.insert("statement".into(), json!(rule.statement));
             if let Some(scopes) = &scopes {
                 fields.insert("scope".into(), json!(scopes));
+            }
+            if let Some(why) = &why {
+                fields.insert("why".into(), json!(why));
+            }
+            if rule.status != work::RULE_ACTIVE {
+                fields.insert("status".into(), json!(rule.status));
+            }
+            if let Some(replaced_by) = &replaced_by {
+                fields.insert("replaced_by".into(), json!(replaced_by));
             }
             p.ops.push(work::Op {
                 entity: work::ENTITY_RULE.into(),
@@ -101,16 +173,65 @@ pub fn plan_rules(p: &mut Planner, doc: &Document) {
             before.insert("scope".into(), json!(current.scopes));
             current.scopes = scopes.clone();
         }
-        let mut kind = work::OP_UPDATE;
+        if let Some(why) = &why
+            && *why != current.why
+        {
+            fields.insert("why".into(), json!(why));
+            before.insert("why".into(), json!(current.why));
+            current.why = why.clone();
+        }
+        let mut new_status = current.status.clone();
+        let mut new_replaced = current.replaced_by.clone();
         if status.as_deref() == Some(work::RULE_REMOVED) {
-            kind = work::OP_REMOVE;
-            fields.insert("status".into(), json!(work::RULE_REMOVED));
+            new_status = work::RULE_REMOVED.to_string();
+            new_replaced.clear();
+        } else if let Some(at) = replaced {
+            if at == index {
+                p.errorf(
+                    node.meta_line("replaced-by"),
+                    format!(
+                        "a rule cannot replace itself: {}",
+                        go_quote(&node.reference)
+                    ),
+                );
+                continue;
+            }
+            new_replaced = p.rules[at].id.clone();
+            new_status = work::RULE_REPLACED.to_string();
+        } else if let Some(given) = &status {
+            if given == work::RULE_REPLACED {
+                if new_replaced.is_empty() {
+                    p.errorf(
+                        node.meta_line("status"),
+                        "status: replaced needs replaced-by: <the rule that replaced it>"
+                            .to_string(),
+                    );
+                    continue;
+                }
+                new_status = work::RULE_REPLACED.to_string();
+            } else {
+                new_replaced.clear();
+                new_status = given.clone();
+            }
+        }
+        if new_replaced != current.replaced_by {
+            fields.insert("replaced_by".into(), json!(new_replaced));
+            before.insert("replaced_by".into(), json!(current.replaced_by));
+            current.replaced_by = new_replaced;
+        }
+        if new_status != current.status {
+            fields.insert("status".into(), json!(new_status));
             before.insert("status".into(), json!(current.status));
-            current.status = work::RULE_REMOVED.to_string();
+            current.status = new_status;
         }
         if fields.is_empty() {
             continue;
         }
+        let kind = if current.status == work::RULE_REMOVED {
+            work::OP_REMOVE
+        } else {
+            work::OP_UPDATE
+        };
         p.ops.push(work::Op {
             entity: work::ENTITY_RULE.into(),
             kind: kind.into(),
@@ -454,6 +575,118 @@ mod tests {
             "nothing to remove: {:?}",
             planner.ops
         );
+    }
+
+    fn lifecycle_snapshot() -> work::Snapshot {
+        work::Snapshot {
+            rules: vec![
+                work::Rule {
+                    id: "r1".into(),
+                    slug: "old".into(),
+                    statement: "Keep the old law.".into(),
+                    why: "The first reason.".into(),
+                    status: work::RULE_ACTIVE.into(),
+                    ..work::Rule::default()
+                },
+                work::Rule {
+                    id: "r2".into(),
+                    slug: "new".into(),
+                    statement: "Keep the new law.".into(),
+                    status: work::RULE_ACTIVE.into(),
+                    ..work::Rule::default()
+                },
+            ],
+            ..rule_snapshot()
+        }
+    }
+
+    #[test]
+    fn a_rule_writes_its_why_status_and_replacement() {
+        let snapshot = lifecycle_snapshot();
+        let (ops, diags, rules) = plan_text(
+            &snapshot,
+            &(HEADER.to_string()
+                + "#### rule draft: Draft the law.\nstatus: proposed\nwhy: Not agreed yet.\n"),
+        );
+        assert!(!has_errors(&diags), "create: {diags:?}");
+        assert_eq!(ops[0].fields["status"], json!(work::RULE_PROPOSED));
+        assert_eq!(ops[0].fields["why"], json!("Not agreed yet."));
+        assert_eq!(rules[2].status, work::RULE_PROPOSED, "the new Rule");
+
+        let (ops, diags, rules) = plan_text(
+            &snapshot,
+            &(HEADER.to_string() + "#### rule old\nreplaced-by: new\n"),
+        );
+        assert!(!has_errors(&diags), "replace: {diags:?}");
+        assert_eq!(ops[0].fields["status"], json!(work::RULE_REPLACED));
+        assert_eq!(ops[0].fields["replaced_by"], json!("r2"), "stored id");
+        assert_eq!(rules[0].status, work::RULE_REPLACED);
+        assert_eq!(rules[0].replaced_by, "r2");
+
+        let (ops, diags, _) = plan_text(
+            &snapshot,
+            &(HEADER.to_string() + "#### rule old\nwhy: The law moved.\n"),
+        );
+        assert!(!has_errors(&diags), "why: {diags:?}");
+        assert_eq!(ops[0].fields["why"], json!("The law moved."));
+
+        let (ops, diags, _) = plan_text(&snapshot, &(HEADER.to_string() + "#### rule old\nwhy:\n"));
+        assert!(!has_errors(&diags), "clear why: {diags:?}");
+        assert_eq!(ops[0].fields["why"], json!(""), "why: clears the reason");
+    }
+
+    #[test]
+    fn rule_lifecycle_errors() {
+        let snapshot = lifecycle_snapshot();
+        for (text, fragment) in [
+            ("#### rule old\nstatus: replaced\n", "needs replaced-by"),
+            ("#### rule old\nreplaced-by: old\n", "cannot replace itself"),
+            ("#### rule old\nreplaced-by: ghost\n", "unknown rule"),
+            ("#### rule old\nreplaced-by: removed-one\n", "removed rule"),
+        ] {
+            let mut snapshot = snapshot.clone();
+            if fragment == "removed rule" {
+                snapshot.rules.push(work::Rule {
+                    id: "r3".into(),
+                    slug: "removed-one".into(),
+                    statement: "Retired.".into(),
+                    status: work::RULE_REMOVED.into(),
+                    ..work::Rule::default()
+                });
+            }
+            let (_, diags, _) = plan_text(&snapshot, &(HEADER.to_string() + text));
+            assert!(
+                has_errors(&diags) && diags.iter().any(|d| d.message.contains(fragment)),
+                "{text}: {diags:?}"
+            );
+        }
+        let (_, diags, _) = plan_text(
+            &snapshot,
+            &(HEADER.to_string() + "#### rule old\nreplaced-by: ghost\n"),
+        );
+        assert!(
+            has_errors(&diags) && diags.iter().any(|d| d.message.contains("unknown rule")),
+            "an unknown target is refused: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn only_active_and_under_review_rules_bind() {
+        let rule = |status: &str, statement: &str| work::Rule {
+            status: status.into(),
+            statement: statement.into(),
+            ..work::Rule::default()
+        };
+        let rules = vec![
+            rule(work::RULE_PROPOSED, "Proposed"),
+            rule(work::RULE_ACTIVE, "Active"),
+            rule(work::RULE_UNDER_REVIEW, "Review"),
+            rule(work::RULE_REPLACED, "Replaced"),
+            rule(work::RULE_REMOVED, "Removed"),
+        ];
+        let (_, project) = rules_for(&rules, &[]);
+        let binding: Vec<&str> = project.iter().map(|rule| rule.statement.as_str()).collect();
+        assert_eq!(binding, vec!["Active", "Review"]);
     }
 
     #[test]

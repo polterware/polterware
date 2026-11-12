@@ -5,7 +5,7 @@ use super::{
     polter::{apply, call, flags, label, parse, project, query, session},
 };
 use crate::local_v1;
-const U: &str = "usage: polterware conflict raise <slug> \"<request>\" (--rule <slug> | --decision <Decision-0003>) [--card <slug>] [--option \"<text>\"]... [--project <id>]\n       polterware conflict decide <slug> \"<answer>\" [--project <id>]\n       polterware conflict wait <slug> [--timeout 30m] [--project <id>]\n       polterware conflict withdraw <slug> [--project <id>]\n       polterware conflict list [--project <id>]";
+const U: &str = "usage: polterware conflict raise <slug> \"<request>\" --rule <slug> [--card <slug>] [--option \"<text>\"]... [--project <id>]\n       polterware conflict decide <slug> \"<answer>\" [--project <id>]\n       polterware conflict wait <slug> [--timeout 30m] [--project <id>]\n       polterware conflict withdraw <slug> [--project <id>]\n       polterware conflict list [--project <id>]";
 pub fn run_conflict(db: &str, args: &[String]) -> CliResult {
     if args.is_empty() {
         return Err(CliError::message(U));
@@ -14,7 +14,6 @@ pub fn run_conflict(db: &str, args: &[String]) -> CliResult {
     let mut f = flags("conflict");
     for (n, u) in [
         ("rule", "the Rule the request goes against (slug or id)"),
-        ("decision", "the Decision the request goes against"),
         ("card", "the card the request is about"),
     ] {
         f.string_flag(n, "", u)
@@ -85,13 +84,13 @@ pub fn run_conflict(db: &str, args: &[String]) -> CliResult {
     }
     let mut text = String::from("---\npolter: 1\n");
     if verb == "raise" {
-        if f.string_value("rule").is_empty() && f.string_value("decision").is_empty() {
+        if f.string_value("rule").is_empty() {
             return Err(CliError::message(
-                "conflict raise needs --rule or --decision: the law the request goes against",
+                "conflict raise needs --rule: the law the request goes against",
             ));
         }
         text.push_str(&format!("summary: Raise conflict {}\nrationale: The request goes against the project's law, so a person decides it\n---\n\n#### conflict {}: {}\n",p[0],p[0],p[1]));
-        for key in ["rule", "decision", "card"] {
+        for key in ["rule", "card"] {
             let value = f.string_value(key).trim();
             if !value.is_empty() {
                 text.push_str(&format!("{key}: {value}\n"))

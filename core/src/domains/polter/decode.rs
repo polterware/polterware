@@ -48,6 +48,11 @@ static TRAILING_SCOPE: LazyLock<Regex> =
 static META_KEY: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([a-z_]+):[\t\n\f\r ]*(.*)$").expect("the metadata pattern"));
 
+/// A Rule's single-line metadata key; `replaced-by:` carries a hyphen.
+static RULE_META_KEY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^([a-z][a-z-]*):[\t\n\f\r ]*(.*)$").expect("the rule metadata pattern")
+});
+
 static TRAILING_TAG: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(.*?)[\t\n\f\r ]*\[([a-zA-Z]+)\]$").expect("the tag pattern"));
 
@@ -221,6 +226,12 @@ impl Decoder {
                 self.rule_heading(n, rest.trim());
             } else if let Some(rest) = body.strip_prefix(CONFLICT_HEADING_PREFIX) {
                 self.conflict_heading(n, rest.trim());
+            } else if body.starts_with("decision ") || body == "decision" {
+                self.close_rule();
+                self.errorf(
+                    n,
+                    "decisions are Rules now: use #### rule <slug>: Statement".to_string(),
+                );
             } else {
                 self.fact_heading(n, body);
             }
@@ -260,7 +271,7 @@ impl Decoder {
         }
         if trimmed.starts_with('#') {
             self.end_handoff();
-            self.errorf(n, "unsupported heading: cards use \"## slug: title\", decisions \"### Decision-0007: title\", Facts \"#### slug: Statement\", Rules \"#### rule slug: Statement\", Conflicts \"#### conflict slug: Request\"".to_string());
+            self.errorf(n, "unsupported heading: cards use \"## slug: title\", Rules \"#### rule slug: Statement\", Conflicts \"#### conflict slug: Request\"".to_string());
             return;
         }
 
@@ -269,7 +280,7 @@ impl Decoder {
             return;
         }
         if self.rule.is_some() {
-            self.rule_line(n, trimmed);
+            self.rule_line(n, raw, trimmed);
             return;
         }
         if self.conflict.is_some() {
@@ -1436,55 +1447,111 @@ impl Decoder {
         self.in_meta = true;
     }
 
-    fn rule_line(&mut self, n: i32, line: &str) {
+    fn rule_line(&mut self, n: i32, raw: &str, line: &str) {
         if line.is_empty() {
+            if self.rule.as_ref().is_some_and(|rule| rule.why_set) {
+                self.intent.push(String::new());
+            }
+            self.in_meta = false;
             return;
         }
-        for part in META_SPLITTER.split(line) {
-            let found = META_KEY.captures(part.trim());
-            let Some(m) = found else {
-                self.errorf(
-                    n,
-                    "Rules use a heading statement and scope: or status: metadata".to_string(),
-                );
-                continue;
-            };
-            let key = m.get(1).expect("group 1").as_str().to_string();
-            let mut value = m.get(2).expect("group 2").as_str().trim().to_string();
-            match key.as_str() {
-                "scope" => {}
-                "status" => {
-                    value = value.to_lowercase();
-                    if value != work::RULE_ACTIVE && value != work::RULE_REMOVED {
+        if self.in_meta {
+            if let Some(m) = RULE_META_KEY.captures(line) {
+                let key = m.get(1).expect("group 1").as_str().to_string();
+                let mut value = m.get(2).expect("group 2").as_str().trim().to_string();
+                match key.as_str() {
+                    "scope" => {}
+                    "why" => {
+                        if let Some(node) = self.rule.as_mut() {
+                            node.why_set = true;
+                        }
+                        self.in_meta = false;
+                        if value.starts_with("```") {
+                            self.in_fence = true;
+                        }
+                        if !value.is_empty() {
+                            self.intent.push(value);
+                        }
+                        return;
+                    }
+                    "status" => {
+                        value = value.to_lowercase();
+                        if !work::valid_rule_status(&value) {
+                            self.errorf(
+                                n,
+                                format!(
+                                    "unknown rule status {}: use {}",
+                                    go_quote(&value),
+                                    work::RULE_STATUSES.join("|")
+                                ),
+                            );
+                            return;
+                        }
+                    }
+                    "replaced-by" => {
+                        if !work::valid_slug(&value) && !valid_rule_id(&value) {
+                            self.errorf(
+                                n,
+                                format!(
+                                    "invalid replaced-by {}: use the Rule's lowercase-kebab slug or its id",
+                                    go_quote(&value)
+                                ),
+                            );
+                            return;
+                        }
+                    }
+                    _ => {
                         self.errorf(
                             n,
                             format!(
-                                "unknown rule status {}: use active or removed",
-                                go_quote(&value)
+                                "unknown rule key {}: use {}",
+                                go_quote(&key),
+                                RULE_META_KEYS.join(", ")
                             ),
                         );
-                        continue;
+                        return;
                     }
                 }
-                _ => {
-                    self.errorf(
-                        n,
-                        format!("unknown rule key {}: use scope or status", go_quote(&key)),
-                    );
-                    continue;
+                if let Some(node) = self.rule.as_mut() {
+                    node.meta.push(MetaEntry::new(key, value, n));
                 }
+                return;
             }
-            if let Some(node) = self.rule.as_mut() {
-                node.meta.push(MetaEntry::new(key, value, n));
-            }
+            self.in_meta = false;
         }
+        if self.rule.as_ref().is_some_and(|rule| rule.why_set) {
+            if line.starts_with("```") {
+                self.in_fence = true;
+            }
+            self.intent.push(raw.to_string());
+            return;
+        }
+        self.errorf(
+            n,
+            "Rules use a heading statement and scope:, status:, replaced-by:, or why: metadata"
+                .to_string(),
+        );
     }
 
     fn close_rule(&mut self) {
         if self.rule.is_none() {
             return;
         }
-        let node = self.rule.take().expect("checked");
+        let mut node = self.rule.take().expect("checked");
+        if self.in_fence {
+            self.errorf(
+                node.line,
+                format!(
+                    "unclosed code fence in rule {}: close it with ```",
+                    go_quote(&node.reference)
+                ),
+            );
+            self.in_fence = false;
+        }
+        let why = self.intent.join("\n").trim().to_string();
+        if !why.is_empty() {
+            node.why = collapse_blank_lines(&why);
+        }
         self.doc.rules.push(node);
         self.intent.clear();
         self.in_meta = false;
@@ -1847,6 +1914,21 @@ options: Keep it local | Allow Redis
         assert_eq!(doc.conflicts.len(), 1, "one conflict");
         assert_eq!(doc.conflicts[0].request, "Add a Redis cache to the core");
         assert_eq!(doc.conflicts[0].meta_value("rule"), Some("local-only"));
+    }
+
+    #[test]
+    fn retired_decision_and_fact_blocks_point_at_rules() {
+        let (_, diags) = decode("---\npolter: 1\n---\n#### decision 7: Local authority\n");
+        assert!(has_diag(&diags, 4, "decisions are Rules now"), "{diags:?}");
+        let (doc, diags) = decode("---\npolter: 1\n---\n#### old-fact: The store is local.\n");
+        assert!(!has_errors(&diags), "{diags:?}");
+        let (_, diags) = crate::domains::polter::plan::plan(&doc, &work::Snapshot::default());
+        assert!(
+            diags
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("facts are Rules now")),
+            "{diags:?}"
+        );
     }
 
     #[test]

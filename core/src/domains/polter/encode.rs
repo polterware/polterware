@@ -53,9 +53,14 @@ pub fn format(doc: &Document) -> String {
         }
         out.push('\n');
         for key in RULE_META_KEYS {
-            if let Some(value) = rule.meta_value(key) {
+            if let Some(value) = rule.meta_value(key)
+                && !value.is_empty()
+            {
                 out.push_str(&format!("{key}: {value}\n"));
             }
+        }
+        if rule.why_set || !rule.why.is_empty() {
+            write_rule_why(&mut out, &rule.why);
         }
     }
     for conflict in &doc.conflicts {
@@ -418,6 +423,22 @@ pub fn open_questions(card: &work::Card) -> i32 {
         .count() as i32
 }
 
+/// Writes a Rule's `why:` line and, when it spans lines, the Markdown body
+/// under it. The blank `why:` keeps a cleared reason round-trippable.
+pub(crate) fn write_rule_why(out: &mut String, why: &str) {
+    let why = why.trim_end_matches('\n');
+    if why.is_empty() {
+        out.push_str("why:\n");
+        return;
+    }
+    let mut lines = why.split('\n');
+    out.push_str(&format!("why: {}\n", lines.next().unwrap_or_default()));
+    for line in lines {
+        out.push_str(line);
+        out.push('\n');
+    }
+}
+
 pub(crate) fn write_decision(out: &mut String, decision: &DecisionNode) {
     if !decision.title.is_empty() {
         out.push_str(&format!("### {}: {}\n", decision.reference, decision.title));
@@ -618,5 +639,64 @@ mod tests {
             once.contains("- [ ] T1 Fix [repo: api] `src/auth/*`\n"),
             "{once}"
         );
+    }
+
+    #[test]
+    fn a_rule_round_trips_with_every_field() {
+        let text = concat!(
+            "---\npolter: 1\n---\n\n",
+            "#### rule local-only: Never call the network from the core.\n",
+            "scope: core, core/import\n",
+            "status: under_review\n",
+            "replaced-by: new-local-only\n",
+            "why: The core reads the local store only.\n",
+            "Offline installs and tests must not need a network.\n",
+            "\n",
+            "#### rule new-local-only: Read the store.\n",
+            "status: active\n",
+        );
+        let (doc, diags) = decode(text);
+        assert!(!has_errors(&diags), "decode: {diags:?}");
+        let rule = &doc.rules[0];
+        assert_eq!(rule.statement, "Never call the network from the core.");
+        assert_eq!(rule.meta_value("scope"), Some("core, core/import"));
+        assert_eq!(rule.meta_value("status"), Some("under_review"));
+        assert_eq!(rule.meta_value("replaced-by"), Some("new-local-only"));
+        assert_eq!(
+            rule.why,
+            "The core reads the local store only.\nOffline installs and tests must not need a network."
+        );
+        assert!(rule.why_set);
+        let once = format(&doc);
+        for line in [
+            "#### rule local-only: Never call the network from the core.",
+            "scope: core, core/import",
+            "status: under_review",
+            "replaced-by: new-local-only",
+            "why: The core reads the local store only.",
+            "Offline installs and tests must not need a network.",
+        ] {
+            assert!(once.contains(line), "missing {line:?} in {once}");
+        }
+        let (again, diags) = decode(&once);
+        assert!(diags.is_empty(), "canonical text: {diags:?}\n{once}");
+        assert_eq!(format(&again), once, "the rule round trip differs");
+        assert_eq!(again.rules[0].statement, doc.rules[0].statement);
+        assert_eq!(again.rules[0].meta, doc.rules[0].meta);
+        assert_eq!(again.rules[0].why, doc.rules[0].why);
+        assert_eq!(again.rules[0].why_set, doc.rules[0].why_set);
+    }
+
+    #[test]
+    fn a_cleared_rule_why_round_trips() {
+        let (doc, diags) = decode("---\npolter: 1\n---\n#### rule local-only: Stay local.\nwhy:\n");
+        assert!(!has_errors(&diags), "{diags:?}");
+        assert!(doc.rules[0].why_set, "the block carried why:");
+        assert!(doc.rules[0].why.is_empty(), "the reason is empty");
+        let once = format(&doc);
+        assert!(once.contains("why:\n"), "{once}");
+        let (again, _) = decode(&once);
+        assert!(again.rules[0].why_set, "an empty why survives");
+        assert!(again.rules[0].why.is_empty());
     }
 }

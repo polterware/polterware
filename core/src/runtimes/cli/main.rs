@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn the_usage_is_ten_thousand_bytes_of_go_text() {
-        assert_eq!(usage_text().len(), 3810);
+        assert_eq!(usage_text().len(), 3802);
         assert_eq!(usage_text().matches('\n').count(), 32);
     }
 
