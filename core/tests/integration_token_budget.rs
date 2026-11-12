@@ -14,8 +14,9 @@ const TOKEN_CEILINGS: &[(&str, i32)] = &[
     ("node.context", 266),
     ("search", 36),
     // The canvas source is the whole canvas: ids, kinds, refs, and props ride
-    // in each node's metadata so the text reads back unchanged.
-    ("canvas.show", 228),
+    // in each node's metadata so the text reads back unchanged. It grew when
+    // nodes gained `shape:` beside `kind:` and the `classDef unverified` line.
+    ("canvas.show", 257),
 ];
 
 #[test]

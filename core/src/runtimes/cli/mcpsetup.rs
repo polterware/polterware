@@ -11,11 +11,11 @@ fn p(e: FlagError) -> CliError {
 pub fn setup_mcp(db: &str, args: &[String]) -> CliResult {
     let mut action = "list";
     let mut rest = args;
-    if let Some(first) = args.first() {
-        if first != "--json" {
-            action = first;
-            rest = &args[1..]
-        }
+    if let Some(first) = args.first()
+        && first != "--json"
+    {
+        action = first;
+        rest = &args[1..]
     }
     let exe = crate::platform::coreclient::executable()?
         .display()

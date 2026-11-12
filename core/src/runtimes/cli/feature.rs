@@ -243,7 +243,6 @@ mod tests {
                 line: 9,
                 severity: "error".into(),
                 message: "no open tasks: add `- [ ] Task` lines before approving the plan".into(),
-                ..Default::default()
             }],
             ..Default::default()
         };
