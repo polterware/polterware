@@ -577,7 +577,7 @@ mod tests {
                 card_title: "Git import".to_string(),
                 items: vec![
                     "! No network calls".to_string(),
-                    "rule local-only: Never call the network (whole project)".to_string(),
+                    "rule local-only: Never call the network (from core)".to_string(),
                 ],
             },
             Checklist {
@@ -598,7 +598,7 @@ mod tests {
         assert_eq!(item.title, "Confirm 2 check(s) for Git import");
         assert_eq!(
             item.detail,
-            "! No network calls; rule local-only: Never call the network (whole project)"
+            "! No network calls; rule local-only: Never call the network (from core)"
         );
         assert_eq!(item.where_, "git-import");
         assert_eq!(item.card_slug, "git-import");
