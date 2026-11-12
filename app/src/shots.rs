@@ -33,6 +33,7 @@ use crate::app::AppView;
 use crate::state::{
     AppState, CanvasPatch, ComposeRequest, DISPATCH_ROW, KnowledgeTab, Load, Section, SettingsTab,
 };
+use crate::views::canvas::CanvasView;
 use crate::views::knowledge::first_row;
 use crate::work::{ALL_CARDS, Stage};
 
@@ -365,8 +366,8 @@ async fn interactive_stops(
             println!("18-canvas-zoom skipped: the project has no canvas");
         }
     }
-    table_scroll_stops(cx, dir, state, view).await;
-    window_stops(cx, dir, view).await;
+    table_scroll_stops(cx, dir, state).await;
+    window_stops(cx, dir).await;
 }
 
 /// Opens Canvas and the canvas the editor shows, and returns its fields before the stops.
@@ -420,30 +421,31 @@ async fn canvas_interactive_stops(
     view: &WeakEntity<AppView>,
     snapshot: CanvasSnapshot,
 ) {
-    let original = on_view_with(cx, view, |view, _, app| {
-        view.canvas().read(app).editor_source(app)
-    })
-    .flatten()
-    .unwrap_or_default();
+    // The canvas is taken before each step starts and updated on its own: a keystroke reaches
+    // the shell's key listeners, which update the view, so no step may run inside another
+    // entity's update.
+    let Some(canvas) = on_view_with(cx, view, |view, _, _| view.canvas().clone()) else {
+        println!("16-canvas-text skipped: the canvas editor is not open");
+        println!("16b-canvas-text-error skipped: the canvas editor is not open");
+        println!("17-canvas-drag skipped: the canvas editor is not open");
+        println!("18-canvas-zoom skipped: the canvas editor is not open");
+        return;
+    };
+    let original = canvas_source(cx, &canvas).unwrap_or_default();
 
     // 16: the toolbar's Mermaid source button opens the text pane, and typing reaches the
     // pane's field as a keyboard would.
-    let opened = on_view_with(cx, view, |view, window, cx| {
-        view.canvas()
-            .update(cx, |canvas, cx| canvas.toggle_source(window, cx))
-    })
-    .unwrap_or(false);
+    let opened = cx
+        .update(|window, app| canvas.update(app, |canvas, cx| canvas.toggle_source(window, cx)))
+        .unwrap_or(false);
     settle(cx, 500).await;
     if opened {
-        on_view(cx, view, |_, window, app| {
-            type_text(window, app, "\nn_tour[\"Tour node\"]");
-        });
+        type_text(cx, "\nn_tour[\"Tour node\"]");
         settle(cx, 700).await;
         shot(cx, dir, "16-canvas-text").await;
-        let drew = on_view_with(cx, view, |view, _, app| {
-            view.canvas().read(app).editor_has_node("Tour node", app)
-        })
-        .unwrap_or(false);
+        let drew = cx
+            .update(|_, app| canvas.read(app).editor_has_node("Tour node", app))
+            .unwrap_or(false);
         println!(
             "16-canvas-text typed n_tour into the Mermaid source; the diagram {}",
             if drew {
@@ -454,30 +456,20 @@ async fn canvas_interactive_stops(
         );
 
         // 16b: a line the parser refuses points at its place and keeps the last diagram.
-        on_view(cx, view, |_, window, app| {
-            type_text(window, app, "\n~");
-        });
+        type_text(cx, "\n~");
         settle(cx, 700).await;
         shot(cx, dir, "16b-canvas-text-error").await;
-        let message = on_view_with(cx, view, |view, _, app| {
-            view.canvas().read(app).editor_render_message(app)
-        })
-        .flatten()
-        .unwrap_or_else(|| "no parse error".to_string());
+        let message = cx
+            .update(|_, app| canvas.read(app).editor_render_message(app))
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "no parse error".to_string());
         // The pane's own undo puts the typed lines back, as the field's ⌘Z does.
         let mut restored = false;
         for _ in 0..12 {
-            on_view(cx, view, |_, window, app| {
-                let _ = window
-                    .dispatch_keystroke(Keystroke::parse("cmd-z").expect("the undo chord"), app);
-            });
+            dispatch_key(cx, "cmd-z");
             settle(cx, 120).await;
-            let source = on_view_with(cx, view, |view, _, app| {
-                view.canvas().read(app).editor_source(app)
-            })
-            .flatten()
-            .unwrap_or_default();
-            if source == original {
+            if canvas_source(cx, &canvas).unwrap_or_default() == original {
                 restored = true;
                 break;
             }
@@ -487,9 +479,8 @@ async fn canvas_interactive_stops(
             if restored { "restored" } else { "not restored" }
         );
         // Back to the diagram alone, so the drag and zoom show the whole well.
-        on_view(cx, view, |view, window, cx| {
-            view.canvas()
-                .update(cx, |canvas, cx| canvas.toggle_source(window, cx));
+        let _ = cx.update(|window, app| {
+            canvas.update(app, |canvas, cx| canvas.toggle_source(window, cx))
         });
         settle(cx, 700).await;
     } else {
@@ -499,10 +490,7 @@ async fn canvas_interactive_stops(
 
     // 17: a press on the canvas's first node, a move past the drag threshold, and the
     // release, which the platform delivers to MermaidView; its drop writes the pin.
-    let target = on_view_with(cx, view, |view, _, app| {
-        view.canvas().read(app).editor_node_point(app)
-    })
-    .flatten();
+    let target = canvas_node_point(cx, &canvas);
     let metrics = cx.update(|window, _| window_metrics(window)).ok().flatten();
     let dragged = if let (Some((x, y)), Some(metrics)) = (target, metrics) {
         send_mouse(metrics, NsMouse::Down, x, y, 1);
@@ -516,10 +504,10 @@ async fn canvas_interactive_stops(
         false
     };
     shot(cx, dir, "17-canvas-drag").await;
-    match on_view_with(cx, view, |view, _, app| {
-        view.canvas().read(app).editor_dropped_pin(app)
-    })
-    .flatten()
+    match cx
+        .update(|_, app| canvas.read(app).editor_dropped_pin(app))
+        .ok()
+        .flatten()
     {
         Some((id, x, y)) => println!("17-canvas-drag pinned {id} at {x:.1},{y:.1} in layout_json"),
         None if dragged => {
@@ -529,20 +517,13 @@ async fn canvas_interactive_stops(
     }
 
     // 18: the secondary-modifier wheel zooms around the pointer, and a double click fits.
-    let target = on_view_with(cx, view, |view, _, app| {
-        view.canvas().read(app).editor_node_point(app)
-    })
-    .flatten();
+    let target = canvas_node_point(cx, &canvas);
     let metrics = cx.update(|window, _| window_metrics(window)).ok().flatten();
     let zoomed = if let (Some((x, y)), Some(metrics)) = (target, metrics) {
         send_wheel(metrics, x, y, -120.0, true);
         settle(cx, 700).await;
         shot(cx, dir, "18-canvas-zoom").await;
-        let zoom = on_view_with(cx, view, |view, _, app| {
-            let diagram = view.canvas().read(app).editor_diagram(app)?;
-            diagram.read(app).viewport().map(|viewport| viewport.zoom)
-        })
-        .flatten();
+        let zoom = canvas_zoom(cx, &canvas);
         double_click(cx, metrics, x, y).await;
         settle(cx, 900).await;
         shot(cx, dir, "18b-canvas-fit").await;
@@ -585,18 +566,13 @@ async fn canvas_interactive_stops(
 }
 
 /// 19: the Inbox and Knowledge Rules tables scroll a few hundred pixels under the pointer.
-async fn table_scroll_stops(
-    cx: &mut AsyncWindowContext,
-    dir: &Path,
-    state: &Entity<AppState>,
-    view: &WeakEntity<AppView>,
-) {
+async fn table_scroll_stops(cx: &mut AsyncWindowContext, dir: &Path, state: &Entity<AppState>) {
     update(cx, state, |state, cx| {
         state.go_section(Section::Inbox, cx);
         state.close_inbox_detail();
     });
     settle(cx, 900).await;
-    hover_and_scroll(cx, view).await;
+    hover_and_scroll(cx).await;
     shot(cx, dir, "19-inbox-scroll").await;
     println!("19-table-scroll scrolled the Inbox table under a hovered row");
 
@@ -605,21 +581,23 @@ async fn table_scroll_stops(
         state.set_knowledge_tab(KnowledgeTab::Rules, cx);
     });
     settle(cx, 900).await;
-    hover_and_scroll(cx, view).await;
+    hover_and_scroll(cx).await;
     shot(cx, dir, "19b-rules-scroll").await;
     println!("19b-table-scroll scrolled the Knowledge Rules table under a hovered row");
 }
 
 /// Puts the pointer on the middle of the list and turns the wheel a few hundred pixels: two
 /// steps either way leave the table further down whichever sign the platform gives them.
-async fn hover_and_scroll(cx: &mut AsyncWindowContext, view: &WeakEntity<AppView>) {
+async fn hover_and_scroll(cx: &mut AsyncWindowContext) {
     let Some(metrics) = cx.update(|window, _| window_metrics(window)).ok().flatten() else {
         return;
     };
-    let center = on_view_with(cx, view, |_, window, _| {
-        let size = window.viewport_size();
-        (f32::from(size.width) * 0.55, f32::from(size.height) * 0.55)
-    });
+    let center = cx
+        .update(|window, _| {
+            let size = window.viewport_size();
+            (f32::from(size.width) * 0.55, f32::from(size.height) * 0.55)
+        })
+        .ok();
     let Some((x, y)) = center else {
         return;
     };
@@ -633,14 +611,12 @@ async fn hover_and_scroll(cx: &mut AsyncWindowContext, view: &WeakEntity<AppView
 
 /// 20 and 21: closing the window hides the app until it is activated again as the Dock does,
 /// and a title bar double click zooms it and zooms it back.
-async fn window_stops(cx: &mut AsyncWindowContext, dir: &Path, view: &WeakEntity<AppView>) {
+async fn window_stops(cx: &mut AsyncWindowContext, dir: &Path) {
     // CloseWindow is what Cmd+W and the close button reach: on macOS it hides the app.
-    on_view(cx, view, |_, window, app| {
-        let _ = window.dispatch_keystroke(Keystroke::parse("cmd-w").expect("the close chord"), app);
-    });
+    dispatch_key(cx, "cmd-w");
     settle(cx, 600).await;
-    on_view(cx, view, |_, window, app| {
-        // A click on the Dock icon of a hidden app unhides and activates it again.
+    // A click on the Dock icon of a hidden app unhides and activates it again.
+    let _ = cx.update(|window, app| {
         unhide_app();
         app.activate(true);
         window.activate_window();
@@ -649,13 +625,13 @@ async fn window_stops(cx: &mut AsyncWindowContext, dir: &Path, view: &WeakEntity
     shot(cx, dir, "20-window-hide").await;
     println!("20-window-hide closed the window, hid the app, and reopened it as the Dock does");
 
-    let point = on_view_with(cx, view, |_, window, app| titlebar_point(window, app));
+    let point = cx.update(|window, app| titlebar_point(window, app)).ok();
     let metrics = cx.update(|window, _| window_metrics(window)).ok().flatten();
     if let (Some((x, y)), Some(metrics)) = (point, metrics) {
         double_click(cx, metrics, x, y).await;
         settle(cx, 1400).await;
         shot(cx, dir, "21-titlebar-double-click").await;
-        let point = on_view_with(cx, view, |_, window, app| titlebar_point(window, app));
+        let point = cx.update(|window, app| titlebar_point(window, app)).ok();
         let metrics = cx.update(|window, _| window_metrics(window)).ok().flatten();
         if let (Some((x, y)), Some(metrics)) = (point, metrics) {
             double_click(cx, metrics, x, y).await;
@@ -835,16 +811,56 @@ async fn double_click(cx: &mut AsyncWindowContext, metrics: WindowMetrics, x: f3
     send_mouse(metrics, NsMouse::Up, x, y, 2);
 }
 
-/// What the user's keyboard types into the focused field.
-fn type_text(window: &mut Window, app: &mut App, text: &str) {
-    for ch in text.chars() {
-        let keystroke = Keystroke {
-            modifiers: Modifiers::default(),
-            key: ch.to_string(),
-            key_char: Some(ch.to_string()),
-        };
-        window.dispatch_keystroke(keystroke, app);
-    }
+/// What the user's keyboard types into the focused field, dispatched at the top level: a
+/// keystroke reaches the shell's own key listeners, which update the view, so it cannot be
+/// sent while an entity is being updated.
+fn type_text(cx: &mut AsyncWindowContext, text: &str) {
+    let _ = cx.update(|window, app| {
+        for ch in text.chars() {
+            let keystroke = Keystroke {
+                modifiers: Modifiers::default(),
+                key: ch.to_string(),
+                key_char: Some(ch.to_string()),
+            };
+            window.dispatch_keystroke(keystroke, app);
+        }
+    });
+}
+
+/// One chord, dispatched at the top level as a person's keyboard sends it.
+fn dispatch_key(cx: &mut AsyncWindowContext, chord: &str) {
+    let _ = cx.update(|window, app| {
+        if let Ok(keystroke) = Keystroke::parse(chord) {
+            let _ = window.dispatch_keystroke(keystroke, app);
+        }
+    });
+}
+
+/// The canvas editor's source, read while nothing is being updated.
+fn canvas_source(cx: &mut AsyncWindowContext, canvas: &Entity<CanvasView>) -> Option<String> {
+    cx.update(|_, app| canvas.read(app).editor_source(app))
+        .ok()
+        .flatten()
+}
+
+/// Where the canvas editor's first node is in the window.
+fn canvas_node_point(
+    cx: &mut AsyncWindowContext,
+    canvas: &Entity<CanvasView>,
+) -> Option<(f32, f32)> {
+    cx.update(|_, app| canvas.read(app).editor_node_point(app))
+        .ok()
+        .flatten()
+}
+
+/// The zoom the diagram's viewport holds.
+fn canvas_zoom(cx: &mut AsyncWindowContext, canvas: &Entity<CanvasView>) -> Option<f32> {
+    cx.update(|_, app| {
+        let diagram = canvas.read(app).editor_diagram(app)?;
+        diagram.read(app).viewport().map(|viewport| viewport.zoom)
+    })
+    .ok()
+    .flatten()
 }
 
 /// Where a double click on the title bar's drag space lands.
