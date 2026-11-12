@@ -1006,11 +1006,9 @@ impl KnowledgeView {
         let filter_bar = FilterPopover::bar(self.filters_for(tab), window, cx).map(|bar| {
             div()
                 .flex_none()
-                .w_full()
-                .min_w(px(0.0))
                 .px(px(theme.space_2))
                 .pb(px(theme.space_2))
-                .child(div().flex_1().min_w(px(0.0)).child(bar))
+                .child(bar)
         });
         div()
             .flex_none()
