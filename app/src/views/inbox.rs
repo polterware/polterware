@@ -1,6 +1,7 @@
 //! Inbox (`inbox-page.tsx`, `inbox-item-detail.tsx`): items that need a person, from
 //! `WorkService.ListInbox`. The toolbar holds Search inbox and the Type and Status filters;
-//! the table groups the items by kind in triage order (Conflicts, Deploys, Questions, Setup),
+//! the table groups the items by kind in triage order (Conflicts, Deploys, Questions,
+//! Confirmations, Setup),
 //! open before Later within each, with the selection column and the active item, whose
 //! detail floats on the right. The first item starts active; a click, Enter, or J and K open
 //! another. H moves the selection, or the active item, to Later and D dismisses it; the
@@ -744,6 +745,7 @@ impl InboxView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Dialog {
+        let theme = *Theme::global(cx);
         let (status, tone) = status_of(item);
         let (_, _, _, icon) = kind_entry(&item.kind);
         let tile_tone = if item.blocking && item.state == "open" {
@@ -823,7 +825,77 @@ impl InboxView {
             sections.push(detail_section("Deploy", Icon::Cloud, links, cx).into_any_element());
         }
 
-        if !item.detail.is_empty() && item.kind != "conflict" {
+        let mut confirmed_list = false;
+        if item.kind == "confirm" {
+            let checks = self
+                .state
+                .read(cx)
+                .confirm_state(&item.r#where)
+                .filter(|checks| checks.is_open())
+                .cloned();
+            if let Some(checks) = checks {
+                confirmed_list = true;
+                let state = self.state.clone();
+                let slug = item.r#where.clone();
+                let rows: Vec<AnyElement> = checks
+                    .open
+                    .iter()
+                    .enumerate()
+                    .map(|(index, check)| {
+                        let state = state.clone();
+                        let (slug, target) = (slug.clone(), check.target.clone());
+                        div()
+                            .id(gpui::ElementId::Name(
+                                format!("inbox-confirm-{}-{index}", item.id).into(),
+                            ))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .min_w(px(0.0))
+                                    .text_color(theme.color_text_primary)
+                                    .child(check.label.clone()),
+                            )
+                            .child(
+                                Button::new(
+                                    gpui::ElementId::Name(
+                                        format!("inbox-confirm-do-{}-{index}", item.id).into(),
+                                    ),
+                                    ButtonKind::Secondary,
+                                )
+                                .size(ButtonSize::Sm)
+                                .icon(Icon::Check)
+                                .label("Confirm")
+                                .disabled(pending)
+                                .on_click(move |_, cx| {
+                                    let (slug, target) = (slug.clone(), target.clone());
+                                    state.update(cx, |state, cx| {
+                                        state.confirm_card_check(slug, target, cx);
+                                        cx.notify();
+                                    });
+                                }),
+                            )
+                            .into_any_element()
+                    })
+                    .collect();
+                sections.push(
+                    detail_section(
+                        "Open checks",
+                        Icon::ListChecks,
+                        div().flex().flex_col().gap(px(6.0)).children(rows),
+                        cx,
+                    )
+                    .into_any_element(),
+                );
+            }
+        }
+
+        if !item.detail.is_empty()
+            && item.kind != "conflict"
+            && !(item.kind == "confirm" && confirmed_list)
+        {
             sections.push(
                 detail_section(
                     "Detail",

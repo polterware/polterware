@@ -18,13 +18,14 @@ use crate::contracts::{
     ListProjectsRequest, ListRulesRequest, ListStructureRequest, Project, ProjectChange,
     ProjectSettings, ResolveInboxItemRequest, Rule, SaveEnvironmentRequest, SaveKnowledgeRequest,
     SaveProjectRequest, SaveProjectSettingsRequest, SetKnowledgeArchivedRequest, SetScopeRequest,
-    StructureNode, WatchChangesRequest, WatchChangesResponse,
+    StructureNode, VerifyFeatureRequest, WatchChangesRequest, WatchChangesResponse,
 };
 use crate::dispatch::{
     self,
     contracts::{DispatchRunEvent, ListHistoryRequest},
 };
 use crate::format::format_instant;
+use crate::work;
 
 mod canvas;
 mod commander;
@@ -215,6 +216,9 @@ pub struct AppState {
     inbox_open: Option<String>,
     /// The Inbox items picked in the selection column.
     inbox_selected: BTreeSet<String>,
+    /// Each verify-stage card's manual checks, by slug (`load_confirmations`): the board's
+    /// acceptance indicator and the Inbox's checklists.
+    confirms: std::collections::BTreeMap<String, work::ConfirmState>,
     /// The item an action is being written for, while it is.
     inbox_pending: Option<String>,
     /// The action whose Morph is open in the detail's footer.
@@ -305,6 +309,7 @@ impl AppState {
             inbox: Load::Idle,
             inbox_open: None,
             inbox_selected: BTreeSet::new(),
+            confirms: Default::default(),
             inbox_pending: None,
             inbox_confirm: None,
             inbox_row_presses: 0,
@@ -385,6 +390,64 @@ impl AppState {
 
     pub fn inbox_confirm(&self) -> Option<&str> {
         self.inbox_confirm.as_deref()
+    }
+
+    /// The manual checks read for the card at `slug`, if they were: its acceptance criteria
+    /// confirmed and the checks still open.
+    pub fn confirm_state(&self, slug: &str) -> Option<&work::ConfirmState> {
+        self.confirms.get(slug)
+    }
+
+    /// Reads the verify of each card in `slugs` for its manual checks: a board shows a
+    /// verify-stage card's acceptance, and the Inbox lists what is still open. A read that
+    /// fails leaves that card without checks.
+    pub fn load_confirmations(&mut self, slugs: Vec<String>, cx: &mut Context<Self>) {
+        let (Some(core), Some(project)) = (self.ready_core(), self.project_id()) else {
+            return;
+        };
+        let wanted = project.to_string();
+        let cards: BTreeSet<String> = slugs.into_iter().filter(|slug| !slug.is_empty()).collect();
+        if cards.is_empty() {
+            return;
+        }
+        let project = wanted.clone();
+        cx.spawn(async move |this, cx| {
+            let reads = cx
+                .background_spawn(async move {
+                    cards
+                        .into_iter()
+                        .map(|slug| {
+                            let checks = core
+                                .work()
+                                .verify_feature(&VerifyFeatureRequest {
+                                    project_id: project.clone(),
+                                    target: slug.clone(),
+                                })
+                                .ok()
+                                .map(|response| work::confirm_state(&response.checks));
+                            (slug, checks)
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .await;
+            let _ = this.update(cx, |state, cx| {
+                if state.project_id() != Some(wanted.as_str()) {
+                    return;
+                }
+                for (slug, checks) in reads {
+                    match checks {
+                        Some(checks) => {
+                            state.confirms.insert(slug, checks);
+                        }
+                        None => {
+                            state.confirms.remove(&slug);
+                        }
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     pub fn group_collapsed(&self, label: &str) -> bool {
@@ -657,6 +720,13 @@ impl AppState {
                 state.inbox = match result {
                     Ok(inbox) => {
                         state.keep_inbox_open(&inbox);
+                        let cards: Vec<String> = inbox
+                            .items
+                            .iter()
+                            .filter(|item| item.kind == "confirm")
+                            .map(|item| item.r#where.clone())
+                            .collect();
+                        state.load_confirmations(cards, cx);
                         Load::Ready(inbox)
                     }
                     Err(error) => Load::Failed(state.lost(error, cx)),
@@ -1574,6 +1644,7 @@ impl AppState {
             self.inbox_detail = false;
             self.inbox_selected.clear();
             self.inbox_confirm = None;
+            self.confirms.clear();
             self.activity = Load::Idle;
             self.activity_dispatch.clear();
             self.activity_open = None;
@@ -1965,10 +2036,11 @@ impl ActorFilter {
 
 /// The Inbox's sections in triage order (`KIND_GROUPS`): the kind, its section's label, its
 /// row's label, and its icon.
-pub const INBOX_KINDS: [(&str, &str, &str, Icon); 4] = [
+pub const INBOX_KINDS: [(&str, &str, &str, Icon); 5] = [
     ("conflict", "Conflicts", "Conflict", Icon::AlertDiamond),
     ("deploy", "Deploys", "Deploy", Icon::Cloud),
     ("decision", "Questions", "Question", Icon::Scale),
+    ("confirm", "Confirmations", "Confirmation", Icon::ListChecks),
     ("setup", "Setup", "Setup", Icon::ShieldCheck),
 ];
 
