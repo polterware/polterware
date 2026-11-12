@@ -4,10 +4,10 @@
 //! The 44px toolbar holds Search canvases, the archive button, and New canvas ("+"). The grid
 //! is three columns 12px apart, at most 1120px wide and 16px in. A card (`Card
 //! variant="texture"`, at least 200px tall, 16px in) is the canvas's miniature filling its face
-//! inside the 1px frame, fading into the face under the title row: its 24px tile, the name
-//! (14px/500), the Agent-visible eye, and the "…" menu (Open, Rename, Make agent-visible or
-//! Hide from agents, Archive). The pointer brightens the miniature (`brightness(1.12)`); a
-//! press opens the canvas.
+//! inside the 1px frame, fading into the face under the title row: the canvas's Mermaid source
+//! drawn as its diagram, its 24px tile, the name (14px/500), the Agent-visible eye, and the
+//! "…" menu (Open, Rename, Make agent-visible or Hide from agents, Archive). The pointer
+//! brightens the miniature (`brightness(1.12)`); a press opens the canvas.
 //!
 //! New canvas and Rename take the shared Composer with the name as its title. Archive happens
 //! at once; the archive button lists the archived canvases (`ArchivedList`), each restored or,
@@ -17,6 +17,7 @@
 mod editor;
 mod inspector;
 mod library;
+mod mermaid;
 pub mod scene;
 
 use std::collections::HashMap;
@@ -24,14 +25,16 @@ use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, AppContext as _, Context, Entity, FocusHandle, FontWeight, IntoElement,
-    Render, SharedString, Window, div, linear_color_stop, linear_gradient, prelude::*, px,
+    Render, SharedString, Window, canvas, div, linear_color_stop, linear_gradient, prelude::*, px,
 };
+use polterware_mermaid::config::Config;
+use polterware_mermaid::scene::Scene;
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
-use polterware_ui::canvas::{Box2, Viewport, bounds_of, dot_grid};
 use polterware_ui::card::texture_card;
 use polterware_ui::icon_tile::IconTile;
 use polterware_ui::icons::{Icon, icon_colored};
 use polterware_ui::menu::MenuItem;
+use polterware_ui::mermaid::{SceneViewport, paint_scene};
 use polterware_ui::patterns::{
     AnchorSlot, ArchivedItem, ArchivedList, ArchivedListEvent, Composer, ComposerDraft,
     ComposerEvent, ComposerSpec, ConfirmDialog, ContextMenu, MascotMood, modal_layer, page_empty,
@@ -42,21 +45,18 @@ use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::Theme;
 use polterware_ui::window::window_drag::WindowDragRegion;
 
-use crate::canvas::document::to_document;
-use crate::canvas::references::StoreEntity;
 use crate::contracts::Canvas;
 use crate::format::archive_date;
 use crate::state::{AppState, CanvasPatch, Load};
 use editor::CanvasEditor;
-use scene::{NodeDecor, edges_view, layers, node_view};
 
 /// The grid's most width, its padding, and the gap between cards.
 const GRID_MAX: f32 = 1120.0;
 const GRID_PAD: f32 = 16.0;
 const GRID_GAP: f32 = 12.0;
 const CARD_MIN_HEIGHT: f32 = 200.0;
-/// The miniature's margin around the drawing, in document units.
-const MINI_MARGIN: f32 = 48.0;
+/// The miniature's margin around the drawing, in scene units.
+const MINI_MARGIN: f32 = 24.0;
 /// The room the title row takes at the card's foot: 16px in, a 24px row, 8px above it.
 const MINI_RESERVE: f32 = 48.0;
 
@@ -82,6 +82,8 @@ pub struct CanvasView {
     delete_focus_due: bool,
     /// Each card's bounds, which its miniature fits.
     cards: HashMap<String, AnchorSlot>,
+    /// Each canvas's drawing, by id, with the source it was drawn from.
+    previews: HashMap<String, (String, Rc<Scene>)>,
     editor: Option<(u64, Entity<CanvasEditor>)>,
 }
 
@@ -113,6 +115,7 @@ impl CanvasView {
             delete_focus: cx.focus_handle(),
             delete_focus_due: false,
             cards: HashMap::new(),
+            previews: HashMap::new(),
             editor: None,
         }
     }
@@ -380,20 +383,21 @@ impl CanvasView {
 
     fn grid(&mut self, canvases: Vec<Canvas>, cx: &mut Context<Self>) -> AnyElement {
         let theme = *Theme::global(cx);
-        let state = self.state.read(cx);
-        let entities = state.canvas_entities().to_vec();
-        let types = match state.canvas_list() {
+        let types = match self.state.read(cx).canvas_list() {
             Load::Ready(list) => list.types.clone(),
             _ => Vec::new(),
         };
+        let previews: Vec<Option<Rc<Scene>>> =
+            canvases.iter().map(|canvas| self.preview(canvas)).collect();
         let cards: Vec<AnyElement> = canvases
             .iter()
-            .map(|canvas| {
+            .zip(previews)
+            .map(|(canvas, scene)| {
                 let known = types
                     .iter()
                     .any(|definition| definition.r#type == canvas.r#type);
                 let slot = self.cards.entry(canvas.id.clone()).or_default().clone();
-                self.card(canvas, known, &entities, slot, cx)
+                self.card(canvas, known, scene, slot, cx)
             })
             .collect();
         let mut rows = Vec::new();
@@ -429,23 +433,35 @@ impl CanvasView {
             .into_any_element()
     }
 
+    /// The drawing a card shows: the canvas's Mermaid source rendered once per source, so a
+    /// grid of cards does not lay every diagram out again on each frame.
+    fn preview(&mut self, canvas: &Canvas) -> Option<Rc<Scene>> {
+        let source = canvas.source.trim();
+        if source.is_empty() {
+            return None;
+        }
+        if let Some((cached, scene)) = self.previews.get(&canvas.id)
+            && cached == source
+        {
+            return Some(scene.clone());
+        }
+        let scene = Rc::new(polterware_mermaid::render_diagram(source, &Config::default()).ok()?);
+        self.previews
+            .insert(canvas.id.clone(), (source.to_string(), scene.clone()));
+        Some(scene)
+    }
+
     fn card(
         &self,
         canvas: &Canvas,
         known: bool,
-        entities: &[StoreEntity],
+        scene: Option<Rc<Scene>>,
         slot: AnchorSlot,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let theme = *Theme::global(cx);
         let id = canvas.id.clone();
         let group: SharedString = format!("canvas-card-{id}").into();
-        let size = slot.get().map(|bounds| {
-            (
-                f32::from(bounds.size.width) - 2.0,
-                f32::from(bounds.size.height) - 2.0,
-            )
-        });
         let preview = div()
             .absolute()
             .top(px(1.0))
@@ -457,7 +473,7 @@ impl CanvasView {
             // here, rounded, and the miniature draws none, so no square corner shows.
             .bg(theme.color_app_background)
             .overflow_hidden()
-            .child(miniature(canvas, known, entities, size, &theme))
+            .child(miniature(if known { scene } else { None }, &theme))
             // The miniature fades into the face under the title row.
             .child(
                 div()
@@ -636,73 +652,25 @@ fn fade_edge(theme: &Theme) -> gpui::Background {
     )
 }
 
-/// A read-only miniature of a canvas (`CanvasMinimap`): its shapes, connections, and dotted
-/// grid, fitted to the card above the title row's reserve, on the app background.
-fn miniature(
-    canvas: &Canvas,
-    known: bool,
-    entities: &[StoreEntity],
-    size: Option<(f32, f32)>,
-    theme: &Theme,
-) -> AnyElement {
-    let doc = known
-        .then(|| to_document(canvas))
-        .filter(|doc| !doc.nodes.is_empty());
-    let (min_x, min_y, max_x, max_y) = match &doc {
-        Some(doc) => bounds_of(doc.nodes.iter().map(|node| node.rect())),
-        None => (
-            MINI_MARGIN,
-            MINI_MARGIN,
-            320.0 - MINI_MARGIN,
-            160.0 - MINI_MARGIN,
-        ),
+/// A read-only miniature of a canvas (`CanvasMinimap`): its diagram fitted to the card above
+/// the title row's reserve, drawn on the app background.
+fn miniature(scene: Option<Rc<Scene>>, theme: &Theme) -> AnyElement {
+    let Some(scene) = scene else {
+        return div().into_any_element();
     };
-    let fit = Box2::new(
-        min_x - MINI_MARGIN,
-        min_y - MINI_MARGIN,
-        max_x - min_x + MINI_MARGIN * 2.0,
-        max_y - min_y + MINI_MARGIN * 2.0,
-    );
-    let (width, height) = size.unwrap_or((320.0, CARD_MIN_HEIGHT));
-    let free = height - MINI_RESERVE;
-    let viewport = if width > 0.0 && free > 0.0 {
-        let scale = (width / fit.width).min(free / fit.height);
-        let x = fit.x - (width / scale - fit.width) / 2.0;
-        let y = fit.y - (free / scale - fit.height) / 2.0;
-        Viewport {
-            x: -x * scale,
-            y: -y * scale,
-            zoom: scale,
-        }
-    } else {
-        Viewport::default()
-    };
-    let mut layer = div().absolute().inset_0().child(dot_grid(
-        viewport,
-        viewport.zoom,
-        theme.color_border_default,
-    ));
-    if let Some(doc) = &doc {
-        let (back, front) = layers(doc);
-        let draw = |node: &crate::canvas::document::Node| {
-            node_view(
-                node,
-                entities,
-                viewport,
-                NodeDecor {
-                    selected: false,
-                    decorations: false,
-                    editing: None,
-                },
-                theme,
-            )
-        };
-        layer = layer
-            .children(back.into_iter().map(draw))
-            .child(edges_view(doc, viewport, |_| theme.color_text_muted))
-            .children(front.into_iter().map(draw));
-    }
-    layer.into_any_element()
+    let theme = *theme;
+    canvas(
+        |_, _, _| (),
+        move |bounds, _, window, cx| {
+            let width = f32::from(bounds.size.width);
+            let height = (f32::from(bounds.size.height) - MINI_RESERVE).max(1.0);
+            let viewport = SceneViewport::fit(scene.view_box, width, height, MINI_MARGIN);
+            paint_scene(&scene, bounds, viewport, theme, None, window, cx);
+        },
+    )
+    .absolute()
+    .inset_0()
+    .into_any_element()
 }
 
 impl Render for CanvasView {
