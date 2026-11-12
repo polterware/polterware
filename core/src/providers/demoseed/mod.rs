@@ -1,6 +1,6 @@
 //! The demo database that fills every surface.
 //!
-//! The demo database: one project with knowledge, structure, facts, Work
+//! The demo database: one project with knowledge, structure, Work
 //! cards, and connections that fills every surface, and one empty project that
 //! shows every empty state.
 

@@ -25,7 +25,7 @@ pub enum KnowledgeError {
     SourceRetired,
 }
 
-/// The one kind: a doc is a document that backs facts.
+/// The one kind: a doc is a document that backs project context.
 pub const KIND_DOC: &str = "doc";
 
 /// The one doc type. Docs hold only what lives in Polterware (agents read

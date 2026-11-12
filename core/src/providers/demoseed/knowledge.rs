@@ -1,7 +1,7 @@
 //! The demo project's docs and Rules.
 //!
-//! The demo docs, Decisions, and principles, and their links to the
-//! environment entities the project model syncs.
+//! The demo docs and Rules, and their links to the environment entities the
+//! project model syncs.
 
 use serde_json::{Value, json};
 use time::{Duration, Month};
@@ -126,8 +126,8 @@ pub(super) fn seed_knowledge(store: &Store) -> sqlite::Result<()> {
     Ok(())
 }
 
-/// Seeds the demo Rules: the three old Decisions and the three old principles,
-/// now Rules with the old body as their why.
+/// Seeds the demo Rules: the three lifecycle Rules and the three project-wide
+/// Rules, with their rationale as the why.
 fn seed_rules(store: &Store) -> sqlite::Result<()> {
     struct RuleSpec {
         id: &'static str,
@@ -139,19 +139,19 @@ fn seed_rules(store: &Store) -> sqlite::Result<()> {
         RuleSpec {
             id: "decision-sqlite-local",
             statement: "Persist project truth in a local SQLite database owned by polterware-core.",
-            why: "## Status\n\nAccepted\n\n## Context\n\nThe desktop needs durable local project state without a hosted account directory.\n\n## Decision\n\nPersist project truth in a local SQLite database owned by polterware-core.\n\n## Consequences\n\n- Desktop remains useful offline.\n- Cloud sync is optional later and must not replace local ownership.",
+            why: "## Status\n\nAccepted\n\n## Context\n\nThe desktop needs durable local project state without a hosted account directory.\n\n## Rule\n\nPersist project truth in a local SQLite database owned by polterware-core.\n\n## Consequences\n\n- Desktop remains useful offline.\n- Cloud sync is optional later and must not replace local ownership.",
             status: "active",
         },
         RuleSpec {
             id: "decision-deterministic-import",
             statement: "Import only a fixed set of project files and Git metadata, without network calls or model inference.",
-            why: "## Status\n\nAccepted\n\n## Context\n\nFacts imported from the repository must be reproducible and explainable.\n\n## Decision\n\nImport only a fixed set of project files and Git metadata, without network calls or model inference.\n\n## Consequences\n\n- The same checkout always yields the same facts.\n- Anything outside the MVP file set needs an explicit source.",
+            why: "## Status\n\nAccepted\n\n## Context\n\nImported data must be reproducible and explainable.\n\n## Rule\n\nImport only a fixed set of project files and Git metadata, without network calls or model inference.\n\n## Consequences\n\n- The same checkout always yields the same output.\n- Anything outside the MVP file set needs an explicit source.",
             status: "active",
         },
         RuleSpec {
             id: "decision-bounded-context",
             statement: "Compile context per session with a token budget, active invariants first.",
-            why: "## Status\n\nProposed\n\n## Context\n\nAgents lose accuracy when handed the whole project at once.\n\n## Decision\n\nCompile context per session with a token budget, active invariants first.\n\n## Consequences\n\n- Sessions start faster and cheaper.\n- Budget tuning needs measurement on large projects.",
+            why: "## Status\n\nProposed\n\n## Context\n\nAgents lose accuracy when handed the whole project at once.\n\n## Rule\n\nCompile context per session with a token budget, active invariants first.\n\n## Consequences\n\n- Sessions start faster and cheaper.\n- Budget tuning needs measurement on large projects.",
             status: "proposed",
         },
         RuleSpec {
@@ -168,8 +168,8 @@ fn seed_rules(store: &Store) -> sqlite::Result<()> {
         },
         RuleSpec {
             id: "decision-principle-provenance",
-            statement: "Declared and verified facts take precedence over inferred knowledge.",
-            why: "Declared facts win over inferred ones.",
+            statement: "Declared and verified statements take precedence over inferred knowledge.",
+            why: "Declared statements win over inferred ones.",
             status: "active",
         },
     ];

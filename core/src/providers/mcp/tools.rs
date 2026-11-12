@@ -217,6 +217,18 @@ mod tests {
     }
 
     #[test]
+    fn the_tool_list_names_no_retired_record() {
+        let text = serde_json::to_string(&tool_definitions()).expect("the tool list is JSON");
+        let lower = text.to_lowercase();
+        for word in ["decision", "principle", "fact"] {
+            assert!(
+                !lower.contains(word),
+                "the MCP tool list names the retired {word} record: {text}"
+            );
+        }
+    }
+
+    #[test]
     fn retired_names_point_to_their_replacement() {
         for (name, replacement) in retired_tools() {
             assert_eq!(retired_replacement(name), Some(*replacement));

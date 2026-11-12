@@ -47,7 +47,6 @@
     "format",
     "handoff",
     "task",
-    "decision",
     "feature",
     "verify",
     "scope",
@@ -144,7 +143,7 @@
    "id": "brief",
    "name": "polterware brief",
    "synopsis": "polterware brief <card slug|Structure path|file> [--budget N] [--project <id>]",
-   "summary": "Read before working on a card, node, or file: open tasks and questions, the last handoff, invariants, governing decisions, scope facts, milestone, canvas links, and docs, cut to a token budget.",
+   "summary": "Read before working on a card, node, or file: open tasks and questions, the last handoff, invariants, governing Rules, milestone, canvas links, and docs, cut to a token budget.",
    "flags": [
     {
      "name": "--budget",
@@ -163,7 +162,7 @@
    "id": "search",
    "name": "polterware search",
    "synopsis": "polterware search \"<terms>\" [--budget N] [--scope <node>] [--exact] [--project <id>]",
-   "summary": "Find the Structure nodes, cards, decisions, docs, and facts that hold every term, one line each. polterware context is an alias.",
+   "summary": "Find the Structure nodes, cards, Rules, and docs that hold every term, one line each. polterware context is an alias.",
    "flags": [
     {
      "name": "--budget",
@@ -247,7 +246,7 @@
    "id": "export",
    "name": "polterware export",
    "synopsis": "polterware export [--dry-run] [--sync on|off] [--json] [--project <id>]",
-   "summary": "Write Decision files and the generated AGENTS.md block (principles, Structure, decisions, invariants) into every checkout of the project.",
+   "summary": "Write the generated AGENTS.md block (Rules, Structure, and invariants) into every checkout of the project.",
    "flags": [
     {
      "name": "--dry-run",
@@ -320,16 +319,16 @@
   {
    "id": "format",
    "name": "polterware format",
-   "synopsis": "polterware format [structure|rules|decisions|facts|feature]",
-   "summary": "Print the Polter format core (Work cards, tasks, handoffs, claims, the binding Rules; about 360 tokens), or one topic: Structure nodes, Rules, Decisions, Facts, or the feature flow.",
+   "synopsis": "polterware format [structure|rules|feature|conflicts|canvas]",
+   "summary": "Print the Polter format core (Work cards, tasks, handoffs, claims, the binding Rules; about 360 tokens), or one topic: Structure nodes, Rules, the feature flow, Conflicts, or canvases.",
    "flags": [],
-   "example": "polterware format decisions"
+   "example": "polterware format rules"
   },
   {
    "id": "query",
    "name": "polterware query",
-   "synopsis": "polterware query \"cards\" | \"card <slug>\" | \"status\" | \"inbox\" | \"handoff <slug>\" | \"brief <target>\" | \"search <terms>\" | \"show <id>\" | \"commits <slug>\" | \"conflicts\" | \"conflict <slug>\" | \"structure [<path>] [at <point>]\" | \"structure history\" | \"decisions [state]\" | \"decision <decision>\" | \"feature <slug> [step]\" | \"verify <slug>\" | \"milestones\" | \"roadmap\" | \"canvas [<name|id>]\" [--scope <node>] [--exact] [--project <id>]",
-   "summary": "Read project state in Polter format: briefs, search, one record by id, a card's commits, Conflicts and one Conflict's answer, cards, one card, status, inbox, handoffs, Structure, decisions, feature steps, verification, milestones, the roadmap, or a shared canvas.",
+   "synopsis": "polterware query \"cards\" | \"card <slug>\" | \"status\" | \"inbox\" | \"handoff <slug>\" | \"brief <target>\" | \"search <terms>\" | \"show <id>\" | \"commits <slug>\" | \"conflicts\" | \"conflict <slug>\" | \"deploys [<path>]\" | \"structure [<path>] [at <point>]\" | \"structure history\" | \"rules [state]\" | \"feature <slug> [step]\" | \"verify <slug>\" | \"milestones\" | \"roadmap\" | \"canvas [<name|id>]\" [--scope <node>] [--exact] [--project <id>]",
+   "summary": "Read project state in Polter format: briefs, search, one record by id, a card's commits, Conflicts and one Conflict's answer, deploys, cards, one card, status, inbox, handoffs, Structure, Rules, feature steps, verification, milestones, the roadmap, or a shared canvas.",
    "flags": [
     {
      "name": "--scope",
@@ -420,50 +419,6 @@
    "example": "polterware task claim my-card#T2"
   },
   {
-   "id": "decision",
-   "name": "polterware decision",
-   "synopsis": "polterware decision list [state] | show <decision> | propose \"<title>\" | activate <decision> | challenge <decision> --reason \"...\" | supersede <decision> (--by <decision> | --title \"...\") | trigger <decision> \"...\"",
-   "summary": "Read and move Decisions through their lifecycle.",
-   "flags": [
-    {
-     "name": "--reason",
-     "value": "text",
-     "description": "challenge: why the decision moves."
-    },
-    {
-     "name": "--trigger",
-     "value": "text",
-     "description": "Review trigger."
-    },
-    {
-     "name": "--body",
-     "value": "text",
-     "description": "Decision text, plain (no # headings)."
-    },
-    {
-     "name": "--by",
-     "value": "decision",
-     "description": "supersede: the decision that supersedes."
-    },
-    {
-     "name": "--title",
-     "value": "text",
-     "description": "supersede: title of a new superseding decision."
-    },
-    {
-     "name": "--agent",
-     "value": "name",
-     "description": "Agent label. Defaults to $POLTERWARE_AGENT_LABEL."
-    },
-    {
-     "name": "--project",
-     "value": "id",
-     "description": "Project id. Defaults to the project with a repository cloned at the current directory."
-    }
-   ],
-   "example": "polterware decision propose \"Use one local core per database\""
-  },
-  {
    "id": "feature",
    "name": "polterware feature",
    "synopsis": "polterware feature new \"<intent>\" [--title \"...\"] [--under <node>] [--architecture] | shape <slug> | contract <slug> [--accept] | plan <slug> [--approve]",
@@ -544,18 +499,13 @@
   {
    "id": "conflict",
    "name": "polterware conflict",
-   "synopsis": "polterware conflict raise <slug> \"<request>\" (--rule <slug> | --decision <Decision-0003>) [--card <slug>] [--option \"<text>\"]... | decide <slug> \"<answer>\" | wait <slug> [--timeout 30m] | withdraw <slug> | list [--project <id>]",
-   "summary": "Raise a Conflict when a request goes against a Rule or a Decision, instead of acting on it: a person decides it in the Inbox, and wait blocks until the answer arrives.",
+   "synopsis": "polterware conflict raise <slug> \"<request>\" --rule <slug> [--card <slug>] [--option \"<text>\"]... | decide <slug> \"<answer>\" | wait <slug> [--timeout 30m] | withdraw <slug> | list [--project <id>]",
+   "summary": "Raise a Conflict when a request goes against a Rule, instead of acting on it: a person decides it in the Inbox, and wait blocks until the answer arrives.",
    "flags": [
     {
      "name": "--rule",
      "value": "slug",
      "description": "raise: the Rule the request goes against."
-    },
-    {
-     "name": "--decision",
-     "value": "ref",
-     "description": "raise: the Decision the request goes against."
     },
     {
      "name": "--card",
@@ -606,8 +556,8 @@
   {
    "id": "scope",
    "name": "polterware scope",
-   "synopsis": "polterware scope <decision|fact|rule|item> <id> [<node path>...] [--project <id>]",
-   "summary": "Set the contexts of a Decision, Fact, Rule, or derived Inbox item: the Structure nodes it is about. Name several to give it several; leave them out to clear its contexts (the whole project; a Decision with none is a principle).",
+   "synopsis": "polterware scope <rule|item> <id> [<node path>...] [--project <id>]",
+   "summary": "Set the contexts of a Rule or a derived Inbox item: the Structure nodes it is about. Name several to give it several; leave them out to clear its contexts (the whole project).",
    "flags": [
     {
      "name": "--project",
@@ -615,7 +565,7 @@
      "description": "Project id. Defaults to the project with a repository cloned at the current directory."
     }
    ],
-   "example": "polterware scope fact f-12 core/src/domains/work"
+   "example": "polterware scope rule local-only core/src/domains/work"
   },
   {
    "id": "setup",

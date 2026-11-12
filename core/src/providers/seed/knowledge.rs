@@ -1,7 +1,7 @@
 //! The seed project's docs and Rules.
 //!
-//! The pinned Rules (the old principles) and the two docs that name the
-//! repository documents defining Polterware.
+//! The pinned project-wide Rules and the two docs that name the repository
+//! documents defining Polterware.
 
 use serde_json::{Map, json};
 use time::OffsetDateTime;
@@ -11,40 +11,40 @@ use crate::providers::sqlite;
 
 use super::PROJECT_ID;
 
-struct Principle {
+struct SeedRule {
     id: &'static str,
     title: &'static str,
     summary: &'static str,
     body: &'static str,
 }
 
-/// Principles are Rules with no scope: they apply to the whole project.
-const PRINCIPLES: [Principle; 5] = [
-    Principle {
+/// These Rules have no scope: they apply to the whole project.
+const SEED_RULES: [SeedRule; 5] = [
+    SeedRule {
         id: "decision-principle-local-first",
         title: "Local-first truth",
         summary: "Project state must stay useful on one machine.",
         body: "Project state must remain useful on one machine without requiring a hosted account.",
     },
-    Principle {
+    SeedRule {
         id: "decision-principle-honest-boundaries",
         title: "Honest product boundaries",
         summary: "Never describe planned work as shipped.",
         body: "Do not describe planned capabilities as shipped. Post-wedge depth (Change Gates, Web App, Cloud) is direction, not behavior.",
     },
-    Principle {
+    SeedRule {
         id: "decision-principle-provenance",
         title: "Provenance over inference",
-        summary: "Declared facts win over inferred ones.",
-        body: "Declared and verified facts take precedence over inferred knowledge. Inference never silently becomes project truth.",
+        summary: "Declared statements win over inferred ones.",
+        body: "Declared and verified statements take precedence over inferred knowledge. Inference never silently becomes project truth.",
     },
-    Principle {
+    SeedRule {
         id: "decision-principle-one-authority",
         title: "One authority per database",
         summary: "Only the local core opens SQLite.",
         body: "Only the local core opens SQLite; every other surface is a client.",
     },
-    Principle {
+    SeedRule {
         id: "decision-principle-shared-interface",
         title: "Opaque, shared interface",
         summary: "Product UI uses the shared design system.",
@@ -104,20 +104,19 @@ pub(super) fn seed_knowledge(store: &sqlite::Store) -> sqlite::Result<()> {
     Ok(())
 }
 
-/// Seeds the project-wide Rules: one Rule per old principle, with the summary
-/// as its statement and the body as its why.
+/// Seeds the project-wide Rules: each summary and body become one Rule.
 fn seed_rules(store: &sqlite::Store) -> sqlite::Result<()> {
-    let mut ops: Vec<work::Op> = Vec::with_capacity(PRINCIPLES.len());
-    for principle in PRINCIPLES {
+    let mut ops: Vec<work::Op> = Vec::with_capacity(SEED_RULES.len());
+    for rule in SEED_RULES {
         let mut fields = Map::new();
-        fields.insert("statement".into(), json!(principle.body));
-        fields.insert("why".into(), json!(principle.summary));
+        fields.insert("statement".into(), json!(rule.body));
+        fields.insert("why".into(), json!(rule.summary));
         ops.push(work::Op {
             entity: work::ENTITY_RULE.to_string(),
             kind: work::OP_CREATE.to_string(),
-            entity_id: principle.id.to_string(),
-            card_slug: principle.title.to_string(),
-            label: principle.title.to_string(),
+            entity_id: rule.id.to_string(),
+            card_slug: rule.title.to_string(),
+            label: rule.title.to_string(),
             fields,
             ..work::Op::default()
         });

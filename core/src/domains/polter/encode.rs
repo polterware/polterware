@@ -144,7 +144,7 @@ pub fn node_from_card(card: &work::Card) -> CardNode {
     }
     if !card.decisions.is_empty() {
         node.meta
-            .push(MetaEntry::new("decisions", card.decisions.join(", "), 0));
+            .push(MetaEntry::new("rules", card.decisions.join(", "), 0));
     }
     if card.status == work::CARD_REMOVED {
         node.meta
@@ -574,7 +574,7 @@ mod tests {
         assert_eq!(node.meta_value("stage"), Some("build"));
         assert_eq!(node.meta_value("milestone"), Some("beta"));
         assert_eq!(node.meta_value("kind"), Some("architecture"));
-        assert_eq!(node.meta_value("decisions"), Some("Decision-0007"));
+        assert_eq!(node.meta_value("rules"), Some("Decision-0007"));
         assert_eq!(node.tasks[1].repo, "api", "the task checkout");
         assert_eq!(node.tasks[1].scope, "src/auth/*", "the task glob");
         assert_eq!(node.questions[0].options.len(), 2);

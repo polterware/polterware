@@ -122,7 +122,7 @@ pub struct ListChangesRequest {
     #[serde(rename = "scopeNodes")]
     pub scope_nodes: Vec<String>,
     /// subject_id narrows the history to changes that name this entity (a card,
-    /// Decision, doc, rule, or node id) among their subjects. It ignores the scope.
+    /// doc, rule, or node id) among their subjects. It ignores the scope.
     #[serde(rename = "subjectId")]
     pub subject_id: String,
 }
@@ -1971,7 +1971,7 @@ pub struct InboxItem {
     /// scope_node_ids are the item's own contexts; empty when it follows its source.
     #[serde(rename = "scopeNodeIds")]
     pub scope_node_ids: Vec<String>,
-    /// details are the item's facts, such as a setup item's provider.
+    /// details carry the item's fields, such as a setup item's provider.
     pub details: BTreeMap<String, String>,
 }
 
@@ -2282,8 +2282,8 @@ pub struct FileContextResponse {
 }
 
 /// SetAgentsSync turns on or off rewriting the generated AGENTS.md block of
-/// every checkout after project state changes (Decision files stay on
-/// ExportProjections). Turning it on syncs at once and returns those files.
+/// every checkout after project state changes (ExportProjections stays the
+/// on-demand export). Turning it on syncs at once and returns those files.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SetAgentsSyncRequest {
@@ -2618,8 +2618,8 @@ pub struct ReorderMilestonesResponse {
 
 /// Rule is the only law: a short imperative constraint agents read before they
 /// work. scope_node_ids are the Structure nodes it applies to (and every node
-/// below them); none is the whole project. why is optional Markdown (the old
-/// Decision body). Only active and under_review Rules bind.
+/// below them); none is the whole project. why is optional Markdown. Only
+/// active and under_review Rules bind.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Rule {

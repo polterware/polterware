@@ -71,8 +71,7 @@ pub fn defaults(store: &sqlite::Store) -> Result<()> {
 }
 
 /// Registers the project at `root`, its sibling checkouts, and the real
-/// Polterware content: Decisions, Structure nodes, Rules, Work cards, docs, and
-/// facts.
+/// Polterware content: Rules, Structure nodes, Work cards, and docs.
 pub fn polterware(store: &sqlite::Store, root: &str) -> Result<()> {
     wedge::init_project(
         store,
@@ -327,7 +326,7 @@ mod tests {
             );
             assert!(n > 0, "no card in stage {stage:?}");
         }
-        // Two project Rules and the five old principles are seeded as active.
+        // Two project Rules and the five project-wide Rules are seeded as active.
         let rules = count(
             &store,
             "SELECT COUNT(*) FROM rules WHERE project_id=?",

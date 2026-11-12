@@ -219,7 +219,7 @@ pub fn load_node_scopes(
 }
 
 /// Maps entity id (or inbox item key) to its context node ids for every
-/// knowledge item, fact, Rule, and derived item that has any.
+/// knowledge item, Rule, and derived item that has any.
 pub fn entity_scope_index(
     store: &Store,
     project_id: &str,
@@ -236,7 +236,7 @@ pub fn entity_scope_index(
 
 /// Keeps changes whose subjects are inside scope, plus changes that name no
 /// scoped subject. Subjects are matched by the contexts already stored on
-/// knowledge, facts, and evidence. A nil set matches everything.
+/// knowledge and evidence. A nil set matches everything.
 pub fn filter_changes_by_scope(
     resolved: &NodeScope,
     scopes: &HashMap<String, Vec<String>>,

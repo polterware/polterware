@@ -73,7 +73,7 @@ message ListChangesRequest {
   bool scope_exact = 5;
   repeated string scope_nodes = 6;
   // subject_id narrows the history to changes that name this entity (a card,
-  // Decision, doc, rule, or node id) among their subjects. It ignores the scope.
+  // doc, rule, or node id) among their subjects. It ignores the scope.
   string subject_id = 7;
 }
 

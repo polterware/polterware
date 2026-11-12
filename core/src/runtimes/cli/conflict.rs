@@ -102,7 +102,7 @@ pub fn run_conflict(db: &str, args: &[String]) -> CliResult {
             ))
         }
     } else {
-        text.push_str(&format!("summary: Withdraw conflict {}\nrationale: The request no longer needs a decision\n---\n\n#### conflict {}\nstatus: withdrawn\n",p[0],p[0]))
+        text.push_str(&format!("summary: Withdraw conflict {}\nrationale: The request no longer needs an answer\n---\n\n#### conflict {}\nstatus: withdrawn\n",p[0],p[0]))
     }
     let r = apply(
         &c,

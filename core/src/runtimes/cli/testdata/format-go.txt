@@ -7,12 +7,12 @@ rationale: Why it changes
 ---
 
 ## git-import: Git metadata import
-stage: build · under: core/import · milestone: beta · decisions: Decision-0007
+stage: build · under: core/import · milestone: beta · rules: local-only
 
 Intent: what we want and why.
 
 - [ ] T1 Read commits per checkout `backend/import/*`
-- [x] T2 Stamp revision on facts
+- [x] T2 Stamp revision on each commit
 ? Include merge commits? [blocking] (yes | no)
 ! No network calls during import
 

@@ -51,18 +51,22 @@ pub(super) fn list_inbox_for(
         if conflict.state != work::CONFLICT_OPEN {
             continue;
         }
-        let (rule, decision_title) = polter::conflict_against(conflict, snapshot);
+        let (rule, cited_rule) = polter::conflict_against(conflict, snapshot);
         let mut details = BTreeMap::from([("conflict".to_string(), conflict.slug.clone())]);
         let mut against: Vec<String> = Vec::new();
+        let mut statements: Vec<String> = Vec::new();
         if !rule.id.is_empty() {
             details.insert("rule_id".to_string(), rule.id.clone());
-            details.insert("rule".to_string(), rule.statement.clone());
-            against.push(format!("Rule: {}", rule.statement));
+            statements.push(rule.statement.clone());
         }
-        if !decision_title.is_empty() {
-            details.insert("decision_id".to_string(), conflict.decision.clone());
-            details.insert("decision".to_string(), decision_title.clone());
-            against.push(format!("Decision: {decision_title}"));
+        if !cited_rule.is_empty() {
+            statements.push(cited_rule);
+        }
+        if !statements.is_empty() {
+            details.insert("rule".to_string(), statements.join("; "));
+            for statement in &statements {
+                against.push(format!("Rule: {statement}"));
+            }
         }
         conflicts.push(inbox::Conflict {
             slug: conflict.slug.clone(),
@@ -163,7 +167,7 @@ pub struct ResolveInboxInput {
     pub project_id: String,
     pub item_id: String,
     pub action: String,
-    /// The decision for `decide`.
+    /// The answer for `decide`.
     pub answer: String,
     /// Who acted: the session agent label or "desktop".
     pub actor: String,
@@ -262,9 +266,8 @@ pub fn resolve_inbox(
     }
 }
 
-/// The Polter text that answers a Decision item's question or decides a
-/// Conflict. A question repeats `[blocking]` so the write does not change the
-/// flag.
+/// The Polter text that answers an open question or decides a Conflict. A
+/// question repeats `[blocking]` so the write does not change the flag.
 pub fn decide_text(item: &inbox::Item, answer: &str) -> Result<String, InboxInputError> {
     let answer = answer.trim();
     if item.kind == inbox::KIND_CONFLICT {
@@ -280,7 +283,7 @@ pub fn decide_text(item: &inbox::Item, answer: &str) -> Result<String, InboxInpu
     }
     if item.kind != inbox::KIND_DECISION {
         return Err(inbox_input(
-            "only a decision or conflict item takes an answer",
+            "only an open question or a conflict takes an answer",
         ));
     }
     if answer.is_empty() {

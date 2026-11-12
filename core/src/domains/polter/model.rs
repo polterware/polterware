@@ -244,13 +244,14 @@ pub struct InvariantNode {
     pub removed: bool,
 }
 
-/// The card metadata keys grammar v1 accepts.
+/// The card metadata keys grammar v1 accepts. `rules:` lists the Rules that
+/// govern the card; the retired `decisions:` key is read as the same list.
 pub const META_KEYS: [&str; 7] = [
     "stage",
     "owner",
     "under",
     "milestone",
-    "decisions",
+    "rules",
     "status",
     "kind",
 ];
@@ -264,7 +265,8 @@ pub const CARD_SECTION_KEYS: [&str; 3] = ["behavior", "edge-cases", "plan"];
 
 /// The Structure node metadata keys. `repo:` names a registered checkout
 /// (empty is the project root); `path:` is a folder inside it. `kind:` is what
-/// a component is and `tech:` its technology.
+/// a component is and `tech:` its technology. `rules:` lists the Rules that
+/// hold for the node; the retired `decisions:` key is read as the same list.
 pub const NODE_META_KEYS: [&str; 11] = [
     "level",
     "kind",
@@ -273,7 +275,7 @@ pub const NODE_META_KEYS: [&str; 11] = [
     "repo",
     "dir",
     "path",
-    "decisions",
+    "rules",
     "deploys",
     "status",
     "migrating",

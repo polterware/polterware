@@ -6,7 +6,7 @@ use crate::providers::sqlite::{self, Store};
 use super::seed::PROJECT_ID;
 
 /// Spreads demo Work cards across every stage, with tasks, invariants, open
-/// questions (one blocking, so Inbox has a decision), and a handoff on a card
+/// questions (one blocking, so the Inbox has a question), and a handoff on a card
 /// in Build.
 const ROADMAP_POLTER: &str = r#"---
 polter: 1
@@ -32,7 +32,7 @@ Explain why the session cache reports degraded health in development.
 ? Is the degraded status a real regression or a stale probe?
 
 ## auth-token-rotation: Auth token rotation
-stage: plan · under: services/auth · decisions: decision-sqlite-local · owner: Platform
+stage: plan · under: services/auth · rules: decision-sqlite-local · owner: Platform
 
 Rotate signing keys without logging users out.
 
@@ -42,7 +42,7 @@ Rotate signing keys without logging users out.
 ! Old keys stay valid for one full session lifetime
 
 ## git-metadata-import: Git metadata import
-stage: build · under: core/import · decisions: decision-sqlite-local, decision-deterministic-import · owner: Platform
+stage: build · under: core/import · rules: decision-sqlite-local, decision-deterministic-import · owner: Platform
 
 Read HEAD, branch, and recent commits so delivered tasks match commits on main.
 
@@ -64,7 +64,7 @@ next: Show linked commits on the task
 touched: backend/providers/git/git.go, backend/compositions/wedge/commits.go
 
 ## commits-panel: Commits panel
-stage: build · under: reality/commits · decisions: decision-deterministic-import
+stage: build · under: reality/commits · rules: decision-deterministic-import
 
 Show each card's commits with their subject, task, and GitHub link.
 
@@ -74,7 +74,7 @@ Show each card's commits with their subject, task, and GitHub link.
 ! A commit always names its task
 
 ## context-compiler: Context compiler
-stage: verify · under: agents/context · decisions: decision-bounded-context · owner: Agents
+stage: verify · under: agents/context · rules: decision-bounded-context · owner: Agents
 
 Compile a bounded project context for an agent session.
 
@@ -84,7 +84,7 @@ Compile a bounded project context for an agent session.
 ! The compiled context never includes credentials
 
 ## local-sqlite-core: Local SQLite core
-stage: delivered · under: core · decisions: decision-sqlite-local · owner: Platform
+stage: delivered · under: core · rules: decision-sqlite-local · owner: Platform
 
 One local core process owns the SQLite database; every client attaches to it.
 
@@ -98,7 +98,7 @@ One local core process owns the SQLite database; every client attaches to it.
 /// claim and Agents History shows two runs.
 const CLAIM_POLTER: &str = r#"---
 polter: 1
-summary: Claim the fact detail task
+summary: Claim the commits panel task
 rationale: Pick up the linked-commits UI while the core work continues
 ---
 

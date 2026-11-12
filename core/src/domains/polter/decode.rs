@@ -557,7 +557,7 @@ impl Decoder {
                         );
                     }
                 }
-                "owner" | "under" | "decisions" => {}
+                "owner" | "under" | "rules" | "decisions" => {}
                 _ => {
                     self.errorf(
                         n,
@@ -1236,7 +1236,7 @@ impl Decoder {
                     Err(err) => self.errorf(n, err),
                     Ok(specs) => value = super::deploy_spec::format_deploys(&specs),
                 },
-                "under" | "decisions" => {}
+                "under" | "rules" | "decisions" => {}
                 "uses" => {
                     self.errorf(
                         n,

@@ -19,7 +19,7 @@ use crate::platform::events;
 use super::connect::{ConnectError, ConnectRequest, Route};
 use super::server::{Core, internal, invalid};
 
-/// The change kinds that can change an AGENTS.md block: Structure, Decisions,
+/// The change kinds that can change an AGENTS.md block: Structure, Rules,
 /// invariants, checkouts, and the sync setting itself.
 const AGENTS_SYNC_KINDS: [&str; 4] = [
     events::KIND_WORK,

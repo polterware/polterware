@@ -92,7 +92,7 @@ fn write_structure_row(
         out.push_str(&format!("- {}\n", rule.statement));
     }
     if !row.node.decisions.is_empty() {
-        out.push_str(&format!("Decisions: {}\n", row.node.decisions.join(", ")));
+        out.push_str(&format!("Cites: {}\n", row.node.decisions.join(", ")));
     }
     if row.node.migrating() {
         out.push_str(&format!(
