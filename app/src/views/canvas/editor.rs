@@ -31,8 +31,9 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use gpui::{
-    AnyElement, App, AppContext as _, Context, Entity, FocusHandle, IntoElement, KeyDownEvent,
-    MouseButton, MouseDownEvent, Render, SharedString, Task, Window, div, point, prelude::*, px,
+    AnyElement, App, AppContext as _, Context, Entity, FocusHandle, Focusable, IntoElement,
+    KeyDownEvent, MouseButton, MouseDownEvent, Render, SharedString, Task, Window, div, point,
+    prelude::*, px,
 };
 use polterware_mermaid::scene::{Rect, Scene};
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
@@ -152,6 +153,9 @@ pub struct CanvasEditor {
     reveal: bool,
     source_input: Entity<TextInput>,
     source_open: bool,
+    /// The node a drag dropped last, as the diagram id and its new top-left: the screenshot
+    /// tour reads it to check the pin it wrote.
+    last_drop: Option<(String, f32, f32)>,
     /// The source does not draw: the parser's place or the renderer's answer.
     render_error: Option<String>,
     /// The source is a diagram type the renderer does not draw yet, and the note saying so.
@@ -307,6 +311,7 @@ impl CanvasEditor {
             layout,
             source_input,
             source_open: false,
+            last_drop: None,
             render_error: None,
             unsupported: None,
             render_due: true,
@@ -573,6 +578,7 @@ impl CanvasEditor {
             return;
         }
         self.layout = source_edit::with_pin(&self.layout, id, x, y);
+        self.last_drop = Some((id.to_string(), x, y));
         let canvas = self
             .node_ids
             .get(id)
@@ -593,6 +599,70 @@ impl CanvasEditor {
     /// The diagram id a connection's canvas id stands for.
     pub(super) fn edge_link(&self, canvas_id: &str) -> Option<String> {
         source_edit::edge_mermaid_id(&self.source, canvas_id)
+    }
+
+    /// Opens or closes the text pane, as the toolbar's Mermaid source button does, and puts
+    /// the caret at the source's end when it opens.
+    pub(super) fn toggle_source(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.source_open = !self.source_open;
+        if self.source_open {
+            let text = self.source.clone();
+            self.source_input.update(cx, |input, cx| {
+                input.set_text(text, cx);
+                input.focus_handle(cx).focus(window);
+            });
+        }
+        cx.notify();
+    }
+
+    /// The canvas as the text pane holds it (the screenshot tour's stops).
+    pub(super) fn source(&self) -> &str {
+        &self.source
+    }
+
+    /// The parser's answer while the source does not draw.
+    pub(super) fn render_message(&self) -> Option<&str> {
+        self.render_error.as_deref()
+    }
+
+    /// Whether the last drawing has a node called `name`.
+    pub(super) fn has_node(&self, name: &str) -> bool {
+        self.doc.nodes.iter().any(|node| node.name == name)
+    }
+
+    /// The pin the last drag wrote, when `layout` carries it.
+    pub(super) fn dropped_pin(&self) -> Option<(String, f32, f32)> {
+        let id = self.last_drop.as_ref()?.0.clone();
+        let layout: serde_json::Value = serde_json::from_str(&self.layout).ok()?;
+        let pin = layout.get("nodes")?.get(&id)?;
+        if !pin.get("pinned")?.as_bool()? {
+            return None;
+        }
+        let x = pin.get("x")?.as_f64()? as f32;
+        let y = pin.get("y")?.as_f64()? as f32;
+        Some((id, x, y))
+    }
+
+    /// The diagram the editor draws, for the tour's scripted pointer.
+    pub(super) fn diagram(&self) -> &Entity<MermaidView> {
+        &self.view
+    }
+
+    /// Where the first node's middle is in the window, so the tour's pointer presses the node
+    /// the diagram draws: the view's place between the panels, the pan and zoom it holds, and
+    /// the node's box.
+    pub(super) fn node_point(&self, cx: &App) -> Option<(f32, f32)> {
+        let node = self.doc.nodes.first()?;
+        let mermaid = self.mermaid(&node.id)?;
+        let (x, y, width, height) = self.boxes.get(&mermaid).copied()?;
+        let viewport = self.view.read(cx).viewport()?;
+        let theme = Theme::global(cx);
+        let origin_x = theme.sidebar_width + self.library_panel.read(cx).width();
+        let origin_y = theme.titlebar_height;
+        Some((
+            origin_x + x * viewport.zoom + viewport.x + width * viewport.zoom / 2.0,
+            origin_y + y * viewport.zoom + viewport.y + height * viewport.zoom / 2.0,
+        ))
     }
 
     /// Selects the canvas's first node, as a click on it would, so its inspector shows (the
@@ -1066,10 +1136,9 @@ impl CanvasEditor {
                     })
                     .on_click({
                         let view = view.clone();
-                        move |_, cx| {
+                        move |window, cx| {
                             let _ = view.update(cx, |this, cx| {
-                                this.source_open = !this.source_open;
-                                cx.notify();
+                                this.toggle_source(window, cx);
                             });
                         }
                     }),
