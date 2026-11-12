@@ -3,7 +3,7 @@
 //!
 //! `plan_conflicts` is a planner step: it raises, decides, and withdraws
 //! Conflicts against the project's Rules (the planner's live list, including
-//! ones this text creates) and Decisions.
+//! ones this text creates). A legacy `decision:` line is read as a Rule.
 
 use serde_json::json;
 
@@ -24,7 +24,7 @@ pub fn split_options(value: &str) -> Vec<String> {
 }
 
 /// Writes the Conflict blocks. A new slug raises one: it needs the request and
-/// the Rule or Decision it goes against. A known slug updates it; `answer:`
+/// the Rule it goes against. A known slug updates it; `answer:`
 /// decides it and `status: withdrawn` drops it. The planner's live Rule list
 /// names the law, and its snapshot gains the Conflicts this text raises.
 pub fn plan_conflicts(p: &mut Planner, doc: &Document) {

@@ -283,14 +283,13 @@ pub fn apply_polter(
 }
 
 /// Answers a v1 query ("cards", "card <slug>", "status", "inbox",
-/// "handoff <slug>", "oracle", "structure", "decisions [state]",
-/// "decision <decision>", "feature <slug>", "verify <target>", "canvas",
-/// "canvas <name|id>") in text.
+/// "handoff <slug>", "oracle", "structure", "rules [status]",
+/// "feature <slug>", "verify <target>", "canvas", "canvas <name|id>") in text.
 pub fn query_polter(store: &Store, project_id: &str, text: &str) -> Result<String> {
     query_polter_scoped(store, project_id, text, &structure::MultiScope::default())
 }
 
-/// Answers a query over the cards, Decisions and Inbox items inside scope. An
+/// Answers a query over the cards, Rules and Inbox items inside scope. An
 /// inactive scope is the whole project. Several nodes are a union.
 pub fn query_polter_scoped(
     store: &Store,
@@ -342,9 +341,6 @@ pub fn query_polter_scoped(
             Ok(polter::encode_conflict(conflict, &snapshot))
         }
         polter::QUERY_RULES => Ok(polter::encode_rules(&snapshot.rules, &query.slug)),
-        polter::QUERY_DECISIONS | polter::QUERY_DECISION => Err(Error::Message(
-            "decisions are Rules now: read them with polterware query \"rules\"".to_string(),
-        )),
         polter::QUERY_FEATURE | polter::QUERY_VERIFY => {
             query_feature(store, &snapshot, &query).map_err(message_error)
         }
@@ -629,6 +625,45 @@ stage: build
             card.contains("- [ ] T2 Stamp revision on observed facts"),
             "card = {card:?}"
         );
+    }
+
+    #[test]
+    fn query_rules_lists_by_status_and_shows_one() {
+        let TempStore { store, .. } = TempStore::new();
+        let project = init_test_project(&store, "Demo");
+        let text = concat!(
+            "---\npolter: 1\nsummary: Add the Rules\nrationale: The law lives in Rules\n---\n\n",
+            "#### rule no-network: Never call the network.\n",
+            "why: Offline installs must work.\n",
+            "\n",
+            "#### rule next-law: Read the local store.\n",
+            "status: proposed\n",
+        );
+        let result = apply(&store, &project.id, text);
+        assert!(result.applied, "apply: {result:?}");
+
+        let all = query_polter(&store, &project.id, "rules").expect("rules");
+        assert!(
+            all.lines()
+                .next()
+                .is_some_and(|line| line.starts_with("rules: proposed")),
+            "header: {all}"
+        );
+        assert!(
+            all.contains("- no-network · active · Never call the network. · whole project"),
+            "{all}"
+        );
+
+        let proposed = query_polter(&store, &project.id, "rules proposed").expect("proposed");
+        assert!(proposed.contains("next-law"), "{proposed}");
+        assert!(!proposed.contains("no-network ·"), "{proposed}");
+
+        let one = query_polter(&store, &project.id, "show no-network").expect("show a rule");
+        assert!(
+            one.contains("rule no-network [active] Never call the network."),
+            "{one}"
+        );
+        assert!(one.contains("Offline installs must work."), "{one}");
     }
 
     #[test]

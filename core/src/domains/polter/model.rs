@@ -269,19 +269,24 @@ impl FactNode {
     }
 }
 
-/// A `#### rule slug: Statement` block. A Rule is a constraint agents read
-/// before they work; `scope:` names the Structure nodes it holds for, and none
-/// is the whole project.
+/// A `#### rule slug: Statement` block. A Rule is the law agents read before
+/// they work; `scope:` names the Structure nodes it holds for, none is the
+/// whole project, `why:` is the optional Markdown reason, `status:` is its
+/// lifecycle state, and `replaced-by:` names the Rule that replaced it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RuleNode {
     pub line: i32,
     pub reference: String,
     pub statement: String,
     pub meta: Vec<MetaEntry>,
+    pub why: String,
+    /// Reports whether the block carried `why:`, which may clear the reason.
+    pub why_set: bool,
 }
 
-/// The keys a Rule block takes.
-pub const RULE_META_KEYS: [&str; 2] = ["scope", "status"];
+/// The single-line keys a Rule block takes. `why:` starts a body and is
+/// handled separately.
+pub const RULE_META_KEYS: [&str; 3] = ["scope", "status", "replaced-by"];
 
 /// Starts a Rule heading inside `#### `.
 pub const RULE_HEADING_PREFIX: &str = "rule ";
@@ -298,9 +303,9 @@ impl RuleNode {
     }
 }
 
-/// A `#### conflict slug: Request` block: a request that goes against a Rule
-/// or a Decision, raised instead of acting against it. Each metadata line is
-/// one key, so a request or an answer may hold any text.
+/// A `#### conflict slug: Request` block: a request that goes against a Rule,
+/// raised instead of acting against it. Each metadata line is one key, so a
+/// request or an answer may hold any text.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ConflictNode {
     pub line: i32,

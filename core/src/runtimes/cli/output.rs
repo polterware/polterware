@@ -85,8 +85,8 @@ pub fn usage_text() -> &'static str {
   polterware [-db path] export [--dry-run] [--sync on|off] [--json] [--project <id>]
   polterware [-db path] apply <file|-> [--dry-run] [--project <id>] [--summary ...] [--rationale ...] [--agent-run-id ...]
   polterware [-db path] lint <file|dir|-> [--project <id>]   (silent on success)
-  polterware [-db path] format [structure|rules|feature]   (the Polter format core, or one topic)
-  polterware [-db path] query "cards" | "card <slug>" | "status" | "inbox" | "handoff <slug>" | "brief <target>" | "search <terms>" | "show <id>" | "commits <slug>" | "conflicts" | "conflict <slug>" | "structure [<path>] [at <point>]" | "structure history" | "rules [state]" | "feature <slug> [step]" | "verify <slug>" | "milestones" | "roadmap" | "canvas [<name|id>]" [--scope <node>[,<node>]] [--exact] [--project <id>]
+  polterware [-db path] format [structure|rules|feature|conflicts]   (the Polter format core, or one topic)
+  polterware [-db path] query "cards" | "card <slug>" | "status" | "inbox" | "handoff <slug>" | "brief <target>" | "search <terms>" | "show <id>" | "commits <slug>" | "conflicts" | "conflict <slug>" | "structure [<path>] [at <point>]" | "structure history" | "rules [status]" | "feature <slug> [step]" | "verify <slug>" | "milestones" | "roadmap" | "canvas [<name|id>]" [--scope <node>[,<node>]] [--exact] [--project <id>]
   polterware [-db path] status [--scope <node>[,<node>]] [--exact] [--project <id>]
   polterware [-db path] handoff [--card <slug>] [--note "..."] [--project <id>]
   polterware [-db path] task claim|done|release <slug>#T2 [--agent name] [--commit <sha>] [--project <id>]
@@ -94,7 +94,7 @@ pub fn usage_text() -> &'static str {
   polterware [-db path] feature shape <slug> | contract <slug> [--accept] | plan <slug> [--approve] [--project <id>]
   polterware [-db path] verify <slug|slug#T2> [--project <id>]   (exit 1 when a check fails)
   polterware [-db path] inbox [<id> decide "<answer>" | delegate | defer | ignore] [--agent name] [--scope <node>[,<node>]] [--exact] [--project <id>]
-  polterware [-db path] conflict raise <slug> "<request>" --rule <slug> | --decision <ref> [--card <slug>] [--option "<text>"]... | decide <slug> "<answer>" | wait <slug> [--timeout 30m] | withdraw <slug> | list [--project <id>]
+  polterware [-db path] conflict raise <slug> "<request>" --rule <slug> [--card <slug>] [--option "<text>"]... | decide <slug> "<answer>" | wait <slug> [--timeout 30m] | withdraw <slug> | list [--project <id>]
   polterware [-db path] deploys [<path>] | check [<path>] [--force] | targets <provider> [--node <path>] [--project <id>]   (deploy links, the platform's latest deploy, what a deploy can link to)
   polterware [-db path] scope <rule|item> <id> [<node path>...] [--project <id>]   (the nodes replace its contexts; none clears them)
   polterware [-db path] setup [doctor] | claude [--uninstall | --enable | --disable | --skill-only] | codex [--uninstall] [--project <id>]

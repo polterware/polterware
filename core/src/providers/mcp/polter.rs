@@ -134,13 +134,13 @@ mod tests {
         assert_eq!(text, SPEC_CORE);
 
         let topic = server
-            .call(TOOL_POLTER_FORMAT, json!({"topic": "decisions"}))
-            .expect("format decisions");
+            .call(TOOL_POLTER_FORMAT, json!({"topic": "rules"}))
+            .expect("format rules");
         let want = spec_topics()
             .into_iter()
-            .find(|(name, _)| *name == "decisions")
+            .find(|(name, _)| *name == "rules")
             .map(|(_, text)| text)
-            .expect("decisions topic");
+            .expect("rules topic");
         assert_eq!(topic, want);
 
         assert!(
@@ -149,6 +149,40 @@ mod tests {
                 .is_err(),
             "an unknown topic must fail"
         );
+    }
+
+    #[test]
+    fn polter_writes_and_reads_a_rule_with_every_field() {
+        let mut server = TestServer::new();
+        server.server.session.label = "claude-code".to_string();
+        let text = concat!(
+            "---\npolter: 1\nsummary: Add a Rule\nrationale: The law lives in Rules\n---\n\n",
+            "#### rule no-network: Never call the network.\n",
+            "why: Offline installs must work.\n",
+            "\n",
+            "#### rule next-law: Read the local store.\n",
+            "status: proposed\n",
+        );
+        let args = server.args(&[("text", json!(text))]);
+        let applied = server.call(TOOL_POLTER_APPLY, args).expect("apply");
+        assert!(applied.starts_with("applied 2"), "apply: {applied}");
+
+        let list = server.query("rules");
+        assert!(list.contains("proposed 1 · active 3"), "{list}");
+        assert!(
+            list.contains("- no-network · active · Never call the network."),
+            "{list}"
+        );
+        let proposed = server.query("rules proposed");
+        assert!(proposed.contains("next-law"), "{proposed}");
+        assert!(!proposed.contains("no-network ·"), "{proposed}");
+
+        let one = server.query("show no-network");
+        assert!(
+            one.contains("rule no-network [active] Never call the network."),
+            "{one}"
+        );
+        assert!(one.contains("Offline installs must work."), "{one}");
     }
 
     #[test]

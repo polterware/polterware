@@ -7,10 +7,10 @@ use crate::domains::{context, structure, work};
 use super::brief::pack_brief;
 use super::*;
 
-/// Lists, one line each, the Structure nodes, cards, decisions, docs, and
-/// facts whose text holds every term (case-insensitive), in that order. Each
-/// line names what brief, decision, or card reads in full. A tight budget drops
-/// lines from the end and says how many.
+/// Lists, one line each, the Structure nodes, cards, docs, and binding Rules
+/// whose text holds every term (case-insensitive), in that order. Each line
+/// names what brief or card reads in full. A tight budget drops lines from the
+/// end and says how many.
 pub fn search(input: &BriefInput, terms: &str, budget: i32) -> String {
     let budget = context::normalize_budget(budget);
     let words: Vec<String> = terms

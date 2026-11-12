@@ -41,7 +41,7 @@ pub const SPEC_CORE: &str = concat!(
     "- Claim a task before editing it: `claim: T2`; `done: T2` finishes it, `release: T2` lets go.\n",
     "- A text changes only what it mentions. Remove with status: removed, [-], or a trailing [removed].\n",
     "- Read `polterware brief <slug|path|file>` before you edit; its Rules: bind you; raise a Conflict when a request breaks one. Find with `polterware search <terms>`. Start with `polterware status`; end with a handoff.\n",
-    "- More: `polterware format structure|rules|decisions|facts|feature|conflicts`. Check with `polterware lint <file>`; write with `polterware apply <file|-> [--dry-run]`.\n",
+    "- More: `polterware format structure|rules|feature|conflicts`. Check with `polterware lint <file>`; write with `polterware apply <file|-> [--dry-run]`.\n",
 );
 
 /// The size `polter.format` declares for [`SPEC_CORE`]; a test keeps it within
@@ -49,7 +49,7 @@ pub const SPEC_CORE: &str = concat!(
 pub const SPEC_CORE_TOKENS: i32 = 360;
 
 /// The rest of the format, one block per topic.
-pub fn spec_topics() -> [(&'static str, &'static str); 6] {
+pub fn spec_topics() -> [(&'static str, &'static str); 4] {
     [
         (
             "structure",
@@ -79,54 +79,31 @@ pub fn spec_topics() -> [(&'static str, &'static str); 6] {
                 "\n",
                 "#### rule local-only: Never call the network from the core.\n",
                 "scope: core, core/import\n",
+                "status: active\n",
+                "why: The core reads the local store only.\n",
+                "Offline installs and tests must not need a network.\n",
                 "\n",
-                "- `#### rule slug: Statement` creates a Rule or updates it by its lowercase-kebab slug (or id). A Rule is one short imperative constraint.\n",
-                "- `scope:` lists the Structure node paths it holds for, comma separated; a node's Rules also hold for every node below it. None (or empty) is the whole project. `status: removed` retires it.\n",
-                "- `polterware brief` opens with every Rule that holds for its target, never cut by the budget, and the generated AGENTS.md block lists them. Follow them; change one only with a rationale saying why.\n",
+                "- `#### rule slug: Statement` creates a Rule or updates it by its lowercase-kebab slug (or id). A Rule is one short imperative constraint, and the only law: a card cites Rules, not decisions.\n",
+                "- `scope:` lists the Structure node paths it holds for, comma separated; a node's Rules also hold for every node below it. None (or empty) is the whole project.\n",
+                "- `why:` is the optional Markdown reason; the lines after it are its body, so it may span lines. It does not enter the brief.\n",
+                "- `status:` is proposed, active, under review (under_review), replaced, or removed. Proposed does not bind; active and under review do; removed retires the Rule.\n",
+                "- `replaced-by:` names the Rule (slug or id) that replaced it and sets the status to replaced; a Rule cannot replace itself. Replacing needs a live Rule.\n",
+                "- `polterware query \"rules [status]\"` lists them and `polterware query \"show <rule>\"` renders one; `polterware brief` opens with every binding Rule that holds for its target, never cut by the budget, and the generated AGENTS.md block lists them. Follow them; change one only with a rationale saying why.\n",
             ),
         ),
         (
             "conflicts",
             concat!(
-                "Polter Conflicts: when a request goes against a Rule or a Decision.\n",
+                "Polter Conflicts: when a request goes against a Rule.\n",
                 "\n",
                 "#### conflict cache-in-core: Add a Redis cache to the core\n",
                 "rule: local-only\n",
                 "card: git-import\n",
                 "options: Keep it local | Allow Redis for this card\n",
                 "\n",
-                "- Do not act against a Rule or Decision: raise a Conflict with `#### conflict slug: <the request>` and `rule:` (slug or id) and/or `decision:` (Decision-0003). card: and options: (a | b) are optional. One key per line.\n",
-                "- A person decides it in the Inbox. Go on with work it does not block; `polterware conflict wait <slug>` blocks until the answer, and `polterware query \"conflict <slug>\"`, status, and the card's brief show it.\n",
+                "- Do not act against a Rule: raise a Conflict with `#### conflict slug: <the request>` and `rule:` (slug or id). card: and options: (a | b) are optional. One key per line.\n",
+                "- A person answers it in the Inbox. Go on with work it does not block; `polterware conflict wait <slug>` blocks until the answer, and `polterware query \"conflict <slug>\"`, status, and the card's brief show it.\n",
                 "- `status: withdrawn` drops one you no longer need. `polterware conflict raise|decide|list` are shortcuts.\n",
-            ),
-        ),
-        (
-            "decisions",
-            concat!(
-                "Polter Decisions.\n",
-                "\n",
-                "### new: Local SQLite authority\n",
-                "status: active · trigger: multi-user sync · supersedes: Decision-0003 · reason: why\n",
-                "\n",
-                "Decision body: context, decision, consequences.\n",
-                "\n",
-                "- `### ref: Title` is a Decision lifecycle block. `new` proposes one (a number is assigned); a ref such as `Decision-0003` or an id changes an existing one.\n",
-                "- States: proposed → active → challenged → active or superseded. `status: challenged` needs a reason:. `supersedes: Decision-0003` on the newer decision marks the older one superseded. Decisions are never removed.\n",
-                "- `scope:` lists the Structure node paths it applies to, comma separated (empty clears). A decision with none is a principle: it applies to the whole project and every brief names it. `level: principle` clears scope:. `trigger:` is the review condition.\n",
-                "- The body is plain text: no # lines. A card cites decisions with `decisions: Decision-0007`.\n",
-            ),
-        ),
-        (
-            "facts",
-            concat!(
-                "Polter Facts.\n",
-                "\n",
-                "#### local-authority: One local core owns SQLite.\n",
-                "kind: declared · scope: core\n",
-                "\n",
-                "- `#### slug: Statement` creates a canon Fact or updates it by its lowercase-kebab slug; an existing Fact id can replace the slug. Omit the heading statement on updates to keep it.\n",
-                "- A Fact states what is true; a Rule (`polterware format rules`) states what must stay true.\n",
-                "- `kind:` is declared (default on create), inferred, or verified. `scope:` lists the Structure node paths it is about, comma separated (empty clears; none is the whole project). Omitted fields stay unchanged. Plan output uses the Fact id. Facts have no body text.\n",
             ),
         ),
         (
@@ -145,14 +122,7 @@ pub fn spec_topics() -> [(&'static str, &'static str); 6] {
 }
 
 /// The topics in the order the help prints them.
-pub const SPEC_TOPIC_NAMES: [&str; 6] = [
-    "structure",
-    "rules",
-    "decisions",
-    "facts",
-    "feature",
-    "conflicts",
-];
+pub const SPEC_TOPIC_NAMES: [&str; 4] = ["structure", "rules", "feature", "conflicts"];
 
 /// Returns [`SPEC_CORE`] for an empty topic, or one topic's block.
 pub fn format_spec(topic: &str) -> Result<String, String> {
@@ -214,13 +184,21 @@ pub const QUERY_FEATURE: &str = "feature";
 pub const QUERY_VERIFY: &str = "verify";
 
 pub const QUERY_RULES: &str = "rules";
-pub const QUERY_DECISIONS: &str = "decisions";
-pub const QUERY_DECISION: &str = "decision";
 pub const QUERY_CANVAS: &str = "canvas";
 pub const QUERY_MILESTONES: &str = "milestones";
 pub const QUERY_ROADMAP: &str = "roadmap";
 
 const QUERY_USAGE: &str = r##"use "cards", "card <slug>", "status", "inbox", "handoff <slug>", "brief <slug|path|file>", "search <terms>", "show <id>", "commits <slug>", "conflicts", "conflict <slug>", "deploys [<path>]", "structure [<path>] [at <point>]", "structure history", "rules [proposed|active|under_review|replaced|removed]", "feature <slug> [shape|contract|plan]", "verify <slug|slug#T2>", "canvas", "canvas <name|id>", "milestones", or "roadmap""##;
+
+/// The reads retired when Decisions and Facts became Rules, with the read that
+/// replaced each. They answer an error, never an alias.
+const RETIRED_QUERIES: [(&str, &str); 2] = [
+    (
+        "decisions",
+        "\"rules [proposed|active|under_review|replaced|removed]\"",
+    ),
+    ("decision", "\"show <rule>\""),
+];
 
 /// Parses the v1 query language.
 pub fn parse_query(text: &str) -> Result<Query, String> {
@@ -229,6 +207,11 @@ pub fn parse_query(text: &str) -> Result<Query, String> {
         return Err(format!(
             "unknown query {}: {QUERY_USAGE}",
             go_quote(text.trim())
+        ));
+    }
+    if let Some((_, replacement)) = RETIRED_QUERIES.iter().find(|(name, _)| fields[0] == *name) {
+        return Err(format!(
+            "decisions are Rules now: use {replacement} (polterware format rules)"
         ));
     }
     match fields[0] {
@@ -286,38 +269,6 @@ pub fn parse_query(text: &str) -> Result<Query, String> {
                 "unknown query {}: use \"rules [proposed|active|under_review|replaced|removed]\"",
                 go_quote(text.trim())
             ))
-        }
-        QUERY_DECISIONS => {
-            if fields.len() == 1 {
-                return Ok(Query {
-                    kind: QUERY_DECISIONS.to_string(),
-                    ..Query::default()
-                });
-            }
-            if fields.len() == 2 && super::decode::valid_decision_state(fields[1]) {
-                return Ok(Query {
-                    kind: QUERY_DECISIONS.to_string(),
-                    slug: fields[1].to_string(),
-                    ..Query::default()
-                });
-            }
-            Err(format!(
-                "unknown query {}: use \"decisions [proposed|active|challenged|superseded]\"",
-                go_quote(text.trim())
-            ))
-        }
-        QUERY_DECISION => {
-            if fields.len() < 2 {
-                return Err(format!(
-                    "unknown query {}: use \"decision <decision>\"",
-                    go_quote(text.trim())
-                ));
-            }
-            Ok(Query {
-                kind: QUERY_DECISION.to_string(),
-                slug: fields[1..].join(" "),
-                ..Query::default()
-            })
         }
         QUERY_VERIFY => {
             if fields.len() != 2 {
@@ -517,8 +468,9 @@ mod tests {
         assert_eq!(query.slug, "core/import");
         let query = parse_query("structure history").expect("history");
         assert!(query.history);
-        let query = parse_query("decisions active").expect("a state");
-        assert_eq!(query.slug, "active");
+        let query = parse_query("rules under_review").expect("a status");
+        assert_eq!(query.kind, QUERY_RULES);
+        assert_eq!(query.slug, "under_review");
         let query = parse_query("deploys core/import").expect("a path");
         assert_eq!(query.slug, "core/import");
     }
@@ -533,7 +485,8 @@ mod tests {
             ("brief", "brief needs a target"),
             ("brief x budget:0", "invalid budget"),
             ("verify a b", "use \"verify <slug>\""),
-            ("decisions doing", "use \"decisions"),
+            ("decisions doing", "decisions are Rules now"),
+            ("decision 7", "decisions are Rules now"),
         ] {
             let err = parse_query(text).expect_err(text);
             assert!(err.contains(fragment), "{text}: {err}");
