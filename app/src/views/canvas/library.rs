@@ -237,7 +237,7 @@ fn tile(
         .on_click(move |_, _, cx| {
             let added = added.clone();
             let _ = editor.update(cx, |editor, cx| {
-                editor.insert(&added.kind, None, added.entity, cx);
+                editor.insert(&added.kind, added.entity, cx);
                 cx.notify();
             });
         })

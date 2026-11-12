@@ -19,6 +19,7 @@ mod inspector;
 mod library;
 mod mermaid;
 pub mod scene;
+mod source_edit;
 
 use std::collections::HashMap;
 use std::rc::Rc;

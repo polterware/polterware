@@ -47,8 +47,23 @@ pub(super) fn render(
         )?,
         other => return Err(RenderError::Unsupported(format!("{other:?}"))),
     };
-    apply_pins(&mut scene, &pins(layout_json));
+    apply_pins(&mut scene, &pins_for(source, layout_json));
     Ok(scene)
+}
+
+/// The pins the layout holds, by both the diagram id and the canvas id the source gives a node.
+fn pins_for(source: &str, layout_json: &str) -> HashMap<String, Point> {
+    let mut pinned = pins(layout_json);
+    let aliases: Vec<(String, String)> = node_ids(source)
+        .into_iter()
+        .filter(|(diagram, canvas)| diagram != canvas && pinned.contains_key(canvas))
+        .collect();
+    for (diagram, canvas) in aliases {
+        if let Some(point) = pinned.get(&canvas).copied() {
+            pinned.entry(diagram).or_insert(point);
+        }
+    }
+    pinned
 }
 
 /// What a person reads when the source does not draw: the parser's place, or the renderer's
@@ -101,12 +116,10 @@ pub(super) fn with_viewport(layout_json: &str, viewport: SceneViewport) -> Strin
     layout.to_string()
 }
 
-/// The canvas node each diagram id stands for: the export gives a node whose id is not a
-/// Mermaid id (`u1`) an `@{ id: ... }` block carrying the canvas's own, and a click in the
-/// diagram has to follow it to the inspector.
-pub(super) fn node_ids(source: &str) -> HashMap<String, String> {
+/// Every `@{ ... }` block in the source, by the id in front of it, each field unquoted.
+pub(super) fn blocks(source: &str) -> HashMap<String, HashMap<String, String>> {
     let bytes = source.as_bytes();
-    let mut ids = HashMap::new();
+    let mut found = HashMap::new();
     let mut index = 0;
     while index + 1 < bytes.len() {
         if bytes[index] != b'@' || bytes[index + 1] != b'{' {
@@ -117,15 +130,57 @@ pub(super) fn node_ids(source: &str) -> HashMap<String, String> {
             break;
         };
         let id = id_before(source, index);
-        if let Some(canvas) = field(&source[index + 2..close], "id")
-            && !id.is_empty()
-            && canvas != id
-        {
-            ids.insert(id, canvas);
+        if !id.is_empty() {
+            let inner = &source[index + 2..close];
+            let mut fields = HashMap::new();
+            for part in split_top_level(inner) {
+                let Some((name, _)) = part.split_once(':') else {
+                    continue;
+                };
+                let name = name.trim();
+                if name.is_empty() {
+                    continue;
+                }
+                fields.insert(name.to_string(), field(inner, name).unwrap_or_default());
+            }
+            found.insert(id, fields);
         }
         index = close + 1;
     }
-    ids
+    found
+}
+
+/// The canvas node each diagram id stands for: the export gives a node whose id is not a
+/// Mermaid id (`u1`) an `@{ id: ... }` block carrying the canvas's own, and a click in the
+/// diagram has to follow it to the inspector.
+pub(super) fn node_ids(source: &str) -> HashMap<String, String> {
+    blocks(source)
+        .into_iter()
+        .filter_map(|(id, fields)| {
+            let canvas = fields.get("id")?;
+            (!canvas.is_empty() && canvas != &id).then(|| (id, canvas.clone()))
+        })
+        .collect()
+}
+
+/// The box each node's drawing covers, by diagram id, in scene coordinates.
+pub(super) fn node_boxes(scene: &Scene) -> HashMap<String, (f32, f32, f32, f32)> {
+    let mut boxes = HashMap::new();
+    collect_node_boxes(&scene.items, Transform::IDENTITY, &mut boxes);
+    boxes
+        .into_iter()
+        .map(|(id, rect)| {
+            (
+                id,
+                (
+                    rect.x as f32,
+                    rect.y as f32,
+                    rect.width as f32,
+                    rect.height as f32,
+                ),
+            )
+        })
+        .collect()
 }
 
 /// The byte of the `}` that closes the `{` at `start`, skipping braces inside quoted text.
