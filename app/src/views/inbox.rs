@@ -24,10 +24,9 @@ use polterware_ui::filter_popover::{FilterField, FilterPopover, FiltersChanged};
 use polterware_ui::icon_tile::{IconTile, TileTone};
 use polterware_ui::icons::Icon;
 use polterware_ui::menu::MenuItem;
-use polterware_ui::patterns::dialog::{Dialog, DialogSize, dialog};
 use polterware_ui::patterns::{
-    ContextMenu, MascotMood, Morph, MorphAlign, detail_numbered_list, detail_properties,
-    detail_property, detail_section, detail_text, modal_layer, page_empty, page_empty_with,
+    ContextMenu, DetailPanel, MascotMood, Morph, MorphAlign, detail_numbered_list,
+    detail_properties, detail_property, detail_section, detail_text, page_empty, page_empty_with,
     selection_toolbar,
 };
 use polterware_ui::radio_group::{RadioOption, radio_group};
@@ -45,6 +44,7 @@ use crate::views::core_status::core_status;
 use crate::views::scope::{ScopeFilter, set_page_fields};
 
 /// `.pw-data-table-scroll`'s padding-inline.
+const DETAIL_SPACE: f32 = 408.0;
 const TABLE_INSET: f32 = 12.0;
 /// The StatusChip's radius on the web.
 const CHIP_RADIUS: f32 = 6.0;
@@ -625,18 +625,11 @@ impl Render for InboxView {
             }
         };
 
-        let close_state = self.state.clone();
-        let close: polterware_ui::Handler = Rc::new(move |_, cx: &mut App| {
-            close_state.update(cx, |state, cx| {
-                state.close_inbox_detail();
-                cx.notify();
-            });
+        let detail = active.as_ref().filter(|_| shows_detail).map(|item| {
+            self.detail(item, confirm.as_deref(), pending, window, cx)
+                .into_any_element()
         });
-        let dialog = active.as_ref().filter(|_| shows_detail).map(|item| {
-            let item_dlg =
-                self.item_dialog(item, confirm.as_deref(), pending, close.clone(), window, cx);
-            modal_layer(1.0, true, close, item_dlg, &theme)
-        });
+        let has_detail = detail.is_some();
 
         let keys_visible = visible.clone();
         div()
@@ -669,9 +662,20 @@ impl Render for InboxView {
                     .flex_1()
                     .min_h(px(0.0))
                     .flex()
-                    .child(div().flex_1().min_w(px(0.0)).h_full().child(list)),
+                    .child(div().flex_1().min_w(px(0.0)).h_full().child(list))
+                    .when(has_detail, |body| {
+                        body.child(div().flex_none().w(px(DETAIL_SPACE)))
+                    }),
             )
-            .children(dialog)
+            .children(detail.map(|detail| {
+                div()
+                    .absolute()
+                    .top(px(theme.page_header_height))
+                    .left_0()
+                    .right_0()
+                    .bottom_0()
+                    .child(detail)
+            }))
             .child(self.menu.clone())
     }
 }
@@ -735,37 +739,44 @@ impl InboxView {
         )
     }
 
-    /// `InboxItemDetail`: what the item is, where it came from, and its actions, in a dialog.
-    fn item_dialog(
+    /// `InboxItemDetail`: what the item is, where it came from, and its actions.
+    fn detail(
         &self,
         item: &InboxItem,
         confirm: Option<&str>,
         pending: bool,
-        close: polterware_ui::Handler,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) -> Dialog {
+    ) -> DetailPanel {
         let theme = *Theme::global(cx);
         let (status, tone) = status_of(item);
-        let (_, _, _, icon) = kind_entry(&item.kind);
-        let tile_tone = if item.blocking && item.state == "open" {
-            TileTone::Security
-        } else {
-            TileTone::Neutral
-        };
-        let leading = IconTile::new(icon).size(24.0, 14.0).tone(tile_tone);
-
-        let chips = div()
-            .flex()
-            .items_center()
-            .gap(px(6.0))
-            .child(chip_rounded(
+        let close_state = self.state.clone();
+        let mut panel = DetailPanel::new("inbox-detail", item.title.clone())
+            .aside(chip_rounded(
                 kind_label(&item.kind),
                 StatusTone::Muted,
                 CHIP_RADIUS,
                 cx,
             ))
-            .child(chip_rounded(status, tone, CHIP_RADIUS, cx));
+            .aside(chip_rounded(status, tone, CHIP_RADIUS, cx))
+            .on_close(Rc::new(move |_, cx: &mut App| {
+                close_state.update(cx, |state, cx| {
+                    state.close_inbox_detail();
+                    cx.notify();
+                });
+            }))
+            .on_outside_click({
+                let state = self.state.clone();
+                let presses = state.read(cx).inbox_row_presses();
+                Rc::new(move |_, cx: &mut App| {
+                    state.update(cx, |state, cx| {
+                        if state.inbox_row_presses() == presses && state.inbox_detail_open() {
+                            state.close_inbox_detail();
+                            cx.notify();
+                        }
+                    });
+                })
+            });
 
         let detail = |key: &str| {
             item.details
@@ -774,22 +785,24 @@ impl InboxView {
                 .cloned()
         };
 
-        let mut sections: Vec<AnyElement> = Vec::new();
-
-        if item.kind == "conflict" && detail("rule").is_some() {
+        if item.kind == "conflict" && (detail("rule").is_some() || detail("decision").is_some()) {
             let mut rows = Vec::new();
             if let Some(rule) = detail("rule") {
                 rows.push(detail_property("Rule", SharedString::from(rule), cx));
             }
-            sections.push(
-                detail_section(
-                    "Goes against",
-                    Icon::AlertDiamond,
-                    detail_properties(rows),
+            if let Some(decision) = detail("decision") {
+                rows.push(detail_property(
+                    "Decision",
+                    SharedString::from(decision),
                     cx,
-                )
-                .into_any_element(),
-            );
+                ));
+            }
+            panel = panel.section(detail_section(
+                "Goes against",
+                Icon::AlertDiamond,
+                detail_properties(rows),
+                cx,
+            ));
         }
 
         if item.kind == "deploy" && (detail("url").is_some() || detail("dashboard").is_some()) {
@@ -815,7 +828,7 @@ impl InboxView {
                         .on_click(move |_, cx| cx.open_url(&url)),
                 );
             }
-            sections.push(detail_section("Deploy", Icon::Cloud, links, cx).into_any_element());
+            panel = panel.section(detail_section("Deploy", Icon::Cloud, links, cx));
         }
 
         let mut confirmed_list = false;
@@ -873,15 +886,12 @@ impl InboxView {
                             .into_any_element()
                     })
                     .collect();
-                sections.push(
-                    detail_section(
-                        "Open checks",
-                        Icon::ListChecks,
-                        div().flex().flex_col().gap(px(6.0)).children(rows),
-                        cx,
-                    )
-                    .into_any_element(),
-                );
+                panel = panel.section(detail_section(
+                    "Open checks",
+                    Icon::ListChecks,
+                    div().flex().flex_col().gap(px(6.0)).children(rows),
+                    cx,
+                ));
             }
         }
 
@@ -889,27 +899,21 @@ impl InboxView {
             && item.kind != "conflict"
             && !(item.kind == "confirm" && confirmed_list)
         {
-            sections.push(
-                detail_section(
-                    "Detail",
-                    Icon::FileText,
-                    detail_text(item.detail.clone(), cx),
-                    cx,
-                )
-                .into_any_element(),
-            );
+            panel = panel.section(detail_section(
+                "Detail",
+                Icon::FileText,
+                detail_text(item.detail.clone(), cx),
+                cx,
+            ));
         }
 
         if !item.options.is_empty() {
-            sections.push(
-                detail_section(
-                    "Options",
-                    Icon::ListFilter,
-                    detail_numbered_list(item.options.iter().cloned(), cx),
-                    cx,
-                )
-                .into_any_element(),
-            );
+            panel = panel.section(detail_section(
+                "Options",
+                Icon::ListFilter,
+                detail_numbered_list(item.options.iter().cloned(), cx),
+                cx,
+            ));
         }
 
         let mut context = Vec::new();
@@ -928,36 +932,30 @@ impl InboxView {
             ));
         }
         if !context.is_empty() {
-            sections.push(
-                detail_section("Context", Icon::Network, detail_properties(context), cx)
-                    .into_any_element(),
-            );
+            panel = panel.section(detail_section(
+                "Context",
+                Icon::Network,
+                detail_properties(context),
+                cx,
+            ));
         }
 
-        let mut footer = Vec::new();
         if !item.actions.is_empty() {
             let count = item.actions.len();
+            let mut footer = div()
+                .w_full()
+                .flex()
+                .items_center()
+                .justify_end()
+                .gap(px(6.0));
             for (index, action) in item.actions.iter().enumerate() {
-                footer.push(
-                    self.action_morph(item, action, index, count, confirm, pending, window, cx)
-                        .into_any_element(),
+                footer = footer.child(
+                    self.action_morph(item, action, index, count, confirm, pending, window, cx),
                 );
             }
+            panel = panel.footer(footer);
         }
-
-        let body = div()
-            .flex()
-            .flex_col()
-            .gap(px(20.0))
-            .child(chips)
-            .children(sections);
-
-        dialog(item.title.clone(), 1.0)
-            .size(DialogSize::Md)
-            .title_leading(leading)
-            .on_close(close)
-            .footer(footer)
-            .child(body)
+        panel
     }
 
     #[allow(clippy::too_many_arguments)]

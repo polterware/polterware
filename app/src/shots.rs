@@ -122,19 +122,20 @@ pub fn start_tour(
             if let Some(id) = project {
                 update(cx, &state, move |state, cx| state.open_project(id, cx));
                 settle(cx, 1500).await;
-                shot(cx, &dir, "02-inbox").await;
                 // The first item, opened as a click on its row would.
                 update(cx, &state, |state, _| {
                     if let Some(id) = state.inbox_open().map(str::to_string) {
                         state.open_inbox_item(id);
                     }
                 });
-                settle(cx, 600).await;
+                settle(cx, 800).await;
+                shot(cx, &dir, "02-inbox").await;
                 // The open item's Decide and Later, each opened, then closed.
                 for (name, action) in INBOX_ACTIONS {
                     update(cx, &state, move |state, _| {
                         state.set_inbox_confirm(Some(action.into()))
                     });
+                    settle(cx, 800).await;
                     shot(cx, &dir, name).await;
                     update(cx, &state, |state, _| state.set_inbox_confirm(None));
                     settle(cx, 600).await;
@@ -330,6 +331,7 @@ pub fn start_tour(
                         state.open_inbox_item(id);
                     }
                 });
+                settle(cx, 800).await;
                 shot(cx, &dir, "15-inbox-confirm").await;
                 interactive_stops(cx, &dir, &state, &view).await;
             }
