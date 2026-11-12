@@ -234,6 +234,10 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0057_drop_dispatch.sql",
         include_str!("migrations/0057_drop_dispatch.sql"),
     ),
+    (
+        "0058_rules_unify.sql",
+        include_str!("migrations/0058_rules_unify.sql"),
+    ),
 ];
 
 const SCHEMA_MIGRATIONS: &str = "CREATE TABLE IF NOT EXISTS schema_migrations (\n\t\tversion INTEGER PRIMARY KEY,\n\t\tname TEXT NOT NULL,\n\t\tapplied_at TEXT NOT NULL\n\t)";
