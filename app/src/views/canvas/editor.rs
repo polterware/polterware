@@ -1558,7 +1558,9 @@ fn uuid() -> String {
 impl Render for CanvasEditor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = *Theme::global(cx);
-        let inspecting = !self.selection.is_empty();
+        // The text pane floats where the inspector does, so the inspector steps aside while the
+        // source is open instead of showing through behind it.
+        let inspecting = !self.selection.is_empty() && !self.source_open;
         let inspector_was_open = self.inspector_panel.read(cx).is_open();
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(inspecting));
