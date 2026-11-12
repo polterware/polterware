@@ -46,7 +46,7 @@ Category: **Project Context & Change Intelligence for AI Coding.** Polterware ke
 
 ## Cloud (needs a Decision before any code)
 
-Local-first, offline-capable core stays free. Cloud is one Go service (Fly.io, same region as Supabase) over Postgres (`pgx` + `sqlc`), Supabase Auth with GitHub login (Go verifies JWTs), River for jobs, SSE for live claims, RLS as a second layer only. No Edge Functions, no `supabase-js` from the Web App, no Supabase Realtime. Cloud stores the project model, commit metadata, and judgments, never source code. The domain logic and Polter codec are one Go module shared with the local binary. The Web App lives in `polterware-web`; the public Desktop repository never authorizes hosted operations.
+Local-first, offline-capable core stays free. Cloud is one service (Fly.io, same region as Supabase) over Postgres, Supabase Auth with GitHub login and JWT verification, background jobs, SSE for live claims, RLS as a second layer only. No Edge Functions, no `supabase-js` from the Web App, no Supabase Realtime. Cloud stores the project model, commit metadata, and judgments, never source code. The domain logic and Polter codec are shared with the Rust local core. The Web App lives in `polterware-web`; the public Desktop repository never authorizes hosted operations.
 
 Replication is an operation log: local `change_ops` upload and merge, no silent magical merge. Remote MCP exposes the same `polter.apply` / `polter.query` / `polter.format` for agents that cannot run a local binary (Codex cloud, Claude web, ChatGPT); prefer local when a core exists.
 

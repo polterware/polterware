@@ -1,6 +1,5 @@
 syntax = "proto3";
 package polterware.events.v1;
-option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/events/v1;eventsv1";
 
 message EventEnvelope {
   string event_id = 1;

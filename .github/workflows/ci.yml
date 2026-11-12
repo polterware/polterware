@@ -13,21 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  go:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: backend/go.mod
-      - uses: bufbuild/buf-action@v1
-        with:
-          setup_only: true
-      - run: (cd schemas && buf lint)
-      - run: (cd schemas/vendor/dispatch && buf lint)
-      - run: (cd backend && go vet ./...)
-      - run: (cd backend && go test ./...)
-
   rust:
     runs-on: macos-26
     steps:
@@ -42,6 +27,8 @@ jobs:
       - uses: bufbuild/buf-action@v1
         with:
           setup_only: true
+      - run: (cd schemas && buf lint)
+      - run: (cd schemas/vendor/dispatch && buf lint)
       - name: Generated contracts are current
         run: |
           (cd schemas && buf build -o /tmp/descriptor.json#format=json)

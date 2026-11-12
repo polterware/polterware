@@ -22,7 +22,8 @@ APP="$OUTPUT/$PRODUCT.app"
 [[ ! -e "$OUTPUT" ]] || { echo "Release output already exists: $OUTPUT" >&2; exit 1; }
 if [[ "${1:-}" != --existing-core ]]; then
   mkdir -p "$ROOT/dist"
-  (cd "$ROOT/backend" && CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -mod=readonly -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o "$ROOT/dist/polterware" ./runtimes/cli)
+  (cd "$ROOT" && cargo build --release --locked -p polterware-core --bin polterware)
+  cp "$ROOT/target/release/polterware" "$ROOT/dist/polterware"
   touch -t "$(date -r "$SOURCE_DATE_EPOCH" +%Y%m%d%H%M.%S)" "$ROOT/dist/polterware"
 fi
 [[ -f "$ROOT/dist/polterware" ]] || { echo 'Core binary is missing: dist/polterware' >&2; exit 1; }

@@ -1,6 +1,4 @@
-//! The Polterware core in Rust: a port of the Go `backend` (one module per Go package,
-//! same path with `-` as `_`). The wire stays the same: Connect-JSON routes, the SQLite
-//! schema, the CLI text, and the MCP tools, so the Desktop and agents do not change.
+//! The Polterware local core: Connect-JSON routes, SQLite, CLI, and MCP.
 
 #[path = "../../app/src/contracts/common_v1.rs"]
 pub mod common_v1;

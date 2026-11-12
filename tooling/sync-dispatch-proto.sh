@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Copies the protos polterware/dispatch owns into this repository: its services into
 # schemas/vendor/dispatch (the Desktop's Dispatch client contracts) and
-# DispatchHostService into schemas/polterware/local/v1 (served by the backend), then
+# DispatchHostService into schemas/polterware/local/v1 (served by the core), then
 # regenerates. --check only reports whether the copies differ.
 #
 #   tooling/sync-dispatch-proto.sh [--check] [<dispatch checkout>]
@@ -20,12 +20,6 @@ if [[ ! -d "$src/schemas/dispatch/v1" ]]; then
   exit 1
 fi
 
-host_header='option go_package = "github.com/polterware/polterware/backend/platform/gen/polterware/local/v1;localv1";'
-# The host proto with this repository's go_package line after its package line.
-host_proto() {
-  awk -v line="$host_header" '{ print } /^package / { print line }' "$src/schemas/polterware/local/v1/dispatch_host.proto"
-}
-
 stale=0
 for file in "$src"/schemas/dispatch/v1/*.proto; do
   target="$ROOT/schemas/vendor/dispatch/dispatch/v1/$(basename "$file")"
@@ -35,9 +29,9 @@ for file in "$src"/schemas/dispatch/v1/*.proto; do
   fi
 done
 host_target="$ROOT/schemas/polterware/local/v1/dispatch_host.proto"
-if ! cmp -s <(host_proto) "$host_target"; then
+if ! cmp -s "$src/schemas/polterware/local/v1/dispatch_host.proto" "$host_target"; then
   stale=1
-  [[ $check == 1 ]] || host_proto > "$host_target"
+  [[ $check == 1 ]] || cp "$src/schemas/polterware/local/v1/dispatch_host.proto" "$host_target"
 fi
 
 if [[ $check == 1 ]]; then
