@@ -2,8 +2,9 @@
 //!
 //! Verify reports whether a card (or one task) is finished. It is a read: it
 //! never moves the stored stage. Beyond tasks and questions it lists the card's
-//! acceptance criteria and the binding Rules that apply as manual checks, each a
-//! pass once a person or an agent confirmed it.
+//! acceptance criteria and the binding Rules scoped to its `under:` chain as
+//! manual checks, each a pass once a person or an agent confirmed it; the
+//! binding whole-project Rules are one info line, never one check each.
 
 use crate::domains::work;
 
@@ -26,15 +27,15 @@ pub struct VerifyInput {
     pub delivered: bool,
     /// The card's own invariants (its acceptance criteria).
     pub contract: Vec<ReviewInvariant>,
-    /// The binding Rules that apply to the card: its `under:` chain's and the
-    /// whole project's. Each is a manual check.
+    /// The binding Rules that apply to the card: its `under:` chain's, each a
+    /// manual check, and the whole project's, which are one info line.
     pub rules: Vec<VerifyRule>,
     /// What a person or an agent already confirmed for the card.
     pub confirmed: Vec<work::Confirmation>,
 }
 
-/// One Rule that applies to the card, as a manual check. `scope` is the node
-/// path that brings it in, empty for a whole-project Rule.
+/// One Rule that applies to the card. `scope` is the node path that brings it
+/// in, empty for a whole-project Rule, which is listed as info only.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct VerifyRule {
     pub id: String,
@@ -90,8 +91,11 @@ fn confirmation_for<'a>(
 }
 
 /// The card's manual checks: one per acceptance criterion and one per binding
-/// Rule that applies. A confirmed item is a pass that names who confirmed it;
-/// the rest stay manual for a person or an agent to confirm.
+/// Rule scoped to the card's `under:` chain. A confirmed item is a pass that
+/// names who confirmed it; the rest stay manual for a person or an agent to
+/// confirm. The binding whole-project Rules hold for every card at once, so
+/// they are one info line ("Constitution: N rules apply") and never a manual
+/// item, a confirmation, or an Inbox count.
 pub fn manual_checks(
     contract: &[ReviewInvariant],
     rules: &[VerifyRule],
@@ -119,12 +123,8 @@ pub fn manual_checks(
             }),
         }
     }
-    for rule in rules {
-        let scope = if rule.scope.is_empty() {
-            " (whole project)".to_string()
-        } else {
-            format!(" (from {})", rule.scope)
-        };
+    for rule in rules.iter().filter(|rule| !rule.scope.is_empty()) {
+        let scope = format!(" (from {})", rule.scope);
         match confirmation_for(confirmed, work::CONFIRMATION_RULE, &rule.id) {
             Some(item) => checks.push(VerifyCheck {
                 status: VERIFY_PASS.to_string(),
@@ -140,6 +140,17 @@ pub fn manual_checks(
                 message: format!("rule {}: {}{scope}", rule.slug, rule.statement),
             }),
         }
+    }
+    let constitution = rules.iter().filter(|rule| rule.scope.is_empty()).count();
+    if constitution > 0 {
+        checks.push(VerifyCheck {
+            status: VERIFY_INFO.to_string(),
+            message: if constitution == 1 {
+                "Constitution: 1 rule applies".to_string()
+            } else {
+                format!("Constitution: {constitution} rules apply")
+            },
+        });
     }
     checks
 }
@@ -489,17 +500,18 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains(
-                "check rule typed-errors: Handlers return typed errors (whole project)\n"
-            ),
-            "{text}"
+            text.contains("info  Constitution: 1 rule applies\n"),
+            "a whole-project Rule is one info line: {text}"
+        );
+        assert!(
+            !text.contains("typed-errors"),
+            "a whole-project Rule is never a check: {text}"
         );
         assert_eq!(
             unconfirmed(&result),
             vec![
                 "! Reads HEAD only".to_string(),
                 "rule local-only: Never call the network (from core)".to_string(),
-                "rule typed-errors: Handlers return typed errors (whole project)".to_string(),
             ]
         );
 
@@ -511,7 +523,7 @@ mod tests {
             confirmed: vec![work::Confirmation {
                 card_id: "c1".to_string(),
                 kind: work::CONFIRMATION_RULE.to_string(),
-                target_id: "r2".to_string(),
+                target_id: "r1".to_string(),
                 confirmed_by: "person".to_string(),
                 ..work::Confirmation::default()
             }],
@@ -520,12 +532,14 @@ mod tests {
         .expect("a card");
         let text = encode_verify(&rule_confirmed);
         assert!(
-            text.contains("pass  rule typed-errors: Handlers return typed errors (whole project) (confirmed by person)\n"),
+            text.contains(
+                "pass  rule local-only: Never call the network (from core) (confirmed by person)\n"
+            ),
             "{text}"
         );
         assert!(
-            !text.contains("confirmed by person (whole project)"),
-            "{text}"
+            text.contains("info  Constitution: 1 rule applies\n"),
+            "confirming a whole-project Rule changes no check: {text}"
         );
 
         let all = manual_checks(
@@ -537,7 +551,7 @@ mod tests {
                     card_id: "c1".to_string(),
                     kind: work::CONFIRMATION_INVARIANT.to_string(),
                     target_id: "inv-2".to_string(),
-                    confirmed_by: "codex".to_string(),
+                    confirmed_by: String::new(),
                     ..work::Confirmation::default()
                 },
                 work::Confirmation {
@@ -547,17 +561,10 @@ mod tests {
                     confirmed_by: "codex".to_string(),
                     ..work::Confirmation::default()
                 },
-                work::Confirmation {
-                    card_id: "c1".to_string(),
-                    kind: work::CONFIRMATION_RULE.to_string(),
-                    target_id: "r2".to_string(),
-                    confirmed_by: String::new(),
-                    ..work::Confirmation::default()
-                },
             ],
         );
         assert!(
-            all.iter().all(|check| check.status == VERIFY_PASS),
+            all.iter().all(|check| check.status != VERIFY_MANUAL),
             "every item is confirmed: {all:?}"
         );
         assert!(

@@ -114,8 +114,9 @@ pub(super) fn list_inbox_for(
     ))
 }
 
-/// One item per card in the verify stage whose acceptance criteria and Rules
-/// are not all confirmed yet.
+/// One item per card in the verify stage whose acceptance criteria and scoped
+/// Rules are not all confirmed yet. The binding whole-project Rules are never
+/// an item: they hold for every card at once.
 fn verify_checklists(
     store: &storepkg::Store,
     snapshot: &work::Snapshot,

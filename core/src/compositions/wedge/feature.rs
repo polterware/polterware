@@ -172,8 +172,8 @@ pub(super) fn verify_feature_for(
     .map_err(|err| anyhow::anyhow!("{err}"))
 }
 
-/// The card's manual checks: its active acceptance criteria and the binding
-/// Rules that apply (the `under:` chain's and the whole project's).
+/// The card's checks: its active acceptance criteria and the binding Rules that
+/// apply (the `under:` chain's and the whole project's).
 pub(super) fn card_checks(
     snapshot: &work::Snapshot,
     card: &work::Card,
@@ -434,8 +434,8 @@ mod tests {
         let text = polter::encode_verify(&result);
         assert!(text.contains("check ! No network calls\n"), "{text}");
         assert!(
-            text.contains("check rule local-only: Never call the network (whole project)\n"),
-            "{text}"
+            text.contains("info  Constitution: 1 rule applies\n"),
+            "the whole-project Rule is info, not a check: {text}"
         );
 
         let inbox = super::super::inbox::list_inbox(store, &project_id).expect("inbox");
@@ -445,9 +445,12 @@ mod tests {
             .find(|item| item.kind == crate::domains::inbox::KIND_CONFIRM)
             .unwrap_or_else(|| panic!("a confirm item: {inbox:?}"));
         assert_eq!(item.card_slug, slug);
-        assert_eq!(item.title, "Confirm 2 check(s) for Git import");
+        assert_eq!(item.title, "Confirm 1 check(s) for Git import");
         assert!(item.detail.contains("No network calls"), "{item:?}");
-        assert!(item.detail.contains("rule local-only"), "{item:?}");
+        assert!(
+            !item.detail.contains("rule local-only"),
+            "a whole-project Rule is never an Inbox check: {item:?}"
+        );
 
         apply_text(
             store,
@@ -470,10 +473,8 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains(
-                "pass  rule local-only: Never call the network (whole project) (confirmed by person)\n"
-            ),
-            "{text}"
+            text.contains("info  Constitution: 1 rule applies\n"),
+            "a whole-project Rule stays info: {text}"
         );
         let inbox = super::super::inbox::list_inbox(store, &project_id).expect("inbox");
         assert!(
