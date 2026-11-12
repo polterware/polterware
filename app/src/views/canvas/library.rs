@@ -362,7 +362,6 @@ impl CanvasEditor {
                             div()
                                 .mt(px(if index == 0 { 0.0 } else { 8.0 }))
                                 .mb(px(4.0))
-                                .mx(px(2.0))
                                 .text_size(px(11.0))
                                 .text_color(theme.color_text_muted)
                                 .child(*title),
@@ -413,6 +412,9 @@ impl CanvasEditor {
                     .pt(px(4.0))
                     .px(px(12.0))
                     .pb(px(12.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(12.0))
                     .children(sections)
                     .children(nothing),
             )

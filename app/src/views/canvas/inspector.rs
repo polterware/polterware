@@ -30,7 +30,6 @@ use polterware_ui::patterns::{
     CollapsibleSection, Composer, ComposerDraft, ComposerEvent, ComposerSpec, SectionBody,
 };
 use polterware_ui::segmented::SegmentedControl;
-use polterware_ui::tabs::Tabs;
 use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::{StatusTone, Theme};
 
@@ -947,22 +946,21 @@ impl CanvasEditor {
         };
         let selected = tabs.iter().position(|(item, _)| *item == tab).unwrap_or(0);
         let ids: Vec<Tab> = tabs.iter().map(|(item, _)| *item).collect();
-        let mut bar = Tabs::new("canvas-inspector-tabs").selected(selected);
-        for (_, label) in &tabs {
-            bar = bar.tab(*label);
-        }
-        let bar = bar.on_select({
-            let editor = editor.clone();
-            move |index, _, cx| {
-                let Some(tab) = ids.get(index).copied() else {
-                    return;
-                };
-                let _ = editor.update(cx, |this, cx| {
-                    this.inspector.tab = tab;
-                    cx.notify();
-                });
-            }
-        });
+        let bar = SegmentedControl::new("canvas-inspector-tabs")
+            .options(tabs.iter().map(|(_, label)| *label))
+            .selected(selected)
+            .on_select({
+                let editor = editor.clone();
+                move |index, _, cx| {
+                    let Some(tab) = ids.get(index).copied() else {
+                        return;
+                    };
+                    let _ = editor.update(cx, |this, cx| {
+                        this.inspector.tab = tab;
+                        cx.notify();
+                    });
+                }
+            });
         let page = match tab {
             Tab::Style => self.style_tab(node, &style, width, editor, theme, cx),
             Tab::Text => self.text_tab(node, &style, is_note, semantic, editor, theme),
@@ -982,7 +980,7 @@ impl CanvasEditor {
             .flex()
             .flex_col()
             .child(heading(title, Some(detail), theme))
-            .child(div().px(px(8.0)).pb(px(4.0)).child(bar))
+            .child(div().px(px(12.0)).pb(px(4.0)).child(bar))
             .child(body("canvas-inspector-body", page))
             .into_any_element()
     }
