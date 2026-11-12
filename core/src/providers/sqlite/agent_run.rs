@@ -163,7 +163,7 @@ impl super::Store {
     }
 
     /// Returns the change steps that name `subject_id` among their subjects,
-    /// newest first: the history of one card, Decision, doc, fact, or node.
+    /// newest first: the history of one card, Rule, doc, or node.
     pub fn list_subject_changes(
         &self,
         project_id: &str,

@@ -390,7 +390,9 @@ impl super::Store {
     }
 
     /// Writes ops in one transaction and appends one `change_ops` row per op.
-    /// It returns the ids of the cards touched, in first-touch order.
+    /// It returns the ids that name the write, in first-touch order: the cards
+    /// touched and the Rules it created, edited, or retired, so a Rule's own
+    /// history finds the write the way a card's does.
     pub fn apply_work_ops(
         &self,
         project_id: &str,
@@ -401,6 +403,7 @@ impl super::Store {
         let now = format_rfc3339(OffsetDateTime::now_utc());
         let tx = self.db.unchecked_transaction()?;
 
+        let mut subject_ids: Vec<String> = Vec::new();
         let mut card_ids: Vec<String> = Vec::new();
         let mut seen: HashSet<String> = HashSet::new();
         for op in ops {
@@ -442,14 +445,23 @@ impl super::Store {
                 && op.entity != work::ENTITY_NODE
                 && seen.insert(op.card_id.clone())
             {
+                subject_ids.push(op.card_id.clone());
                 card_ids.push(op.card_id.clone());
+            }
+            // A Rule names the write itself: its Activity reads the change
+            // history by subject, and it has no card to name it.
+            if op.entity == work::ENTITY_RULE
+                && !op.entity_id.is_empty()
+                && seen.insert(op.entity_id.clone())
+            {
+                subject_ids.push(op.entity_id.clone());
             }
         }
         for card_id in &card_ids {
             reindex_work_card_fts(&tx, card_id)?;
         }
         tx.commit()?;
-        Ok(card_ids)
+        Ok(subject_ids)
     }
 
     /// Returns the `change_ops` rows that touched Structure nodes and

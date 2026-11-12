@@ -235,9 +235,10 @@ mod tests {
             ]),
             ..work::Op::default()
         };
-        store
+        let subjects = store
             .apply_work_ops("proj", "", "batch-1", &[create])
             .expect("create rule");
+        assert_eq!(subjects, vec!["rule-1".to_string()], "the Rule names it");
 
         let rules = store.list_rules("proj").expect("rules");
         assert_eq!(rules.len(), 1);
@@ -253,9 +254,10 @@ mod tests {
             fields: fields(&[("statement", json!("Never use mutable globals"))]),
             ..work::Op::default()
         };
-        store
+        let subjects = store
             .apply_work_ops("proj", "", "batch-2", &[update])
             .expect("update rule");
+        assert_eq!(subjects, vec!["rule-1".to_string()], "the Rule names it");
         let rules = store.list_rules("proj").expect("rules");
         assert_eq!(rules[0].statement, "Never use mutable globals");
 
@@ -267,9 +269,10 @@ mod tests {
             fields: Map::new(),
             ..work::Op::default()
         };
-        store
+        let subjects = store
             .apply_work_ops("proj", "", "batch-3", &[remove])
             .expect("remove rule");
+        assert_eq!(subjects, vec!["rule-1".to_string()], "the Rule names it");
         let rules = store.list_rules("proj").expect("rules");
         assert_eq!(rules.len(), 1, "a removed Rule stays readable");
         assert_eq!(rules[0].status, work::RULE_REMOVED, "removed status");

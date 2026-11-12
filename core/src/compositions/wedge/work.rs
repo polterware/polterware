@@ -269,8 +269,8 @@ pub fn apply_polter(
         &actor_kind,
         &tool,
         |run| {
-            let card_ids = store.apply_work_ops(&project_id, &run.id, &batch_id, &write_ops)?;
-            Ok((card_ids, write_ops))
+            let subjects = store.apply_work_ops(&project_id, &run.id, &batch_id, &write_ops)?;
+            Ok((subjects, write_ops))
         },
     )
     .map_err(|error| fail(&result, error.into()))?;
@@ -664,6 +664,54 @@ stage: build
             "{one}"
         );
         assert!(one.contains("Offline installs must work."), "{one}");
+    }
+
+    #[test]
+    fn a_rule_write_names_the_rule_in_its_history() {
+        let TempStore { store, .. } = TempStore::new();
+        let project = init_test_project(&store, "Demo");
+        let created = apply(
+            &store,
+            &project.id,
+            concat!(
+                "---\npolter: 1\nsummary: Add the no-network Rule\n",
+                "rationale: Offline installs must work\n---\n\n",
+                "#### rule no-network: Never call the network.\n",
+            ),
+        );
+        let rule_id = created.ops[0].entity_id.clone();
+        assert_eq!(created.ops[0].entity, work::ENTITY_RULE, "ops: {created:?}");
+        let history = store
+            .list_subject_changes(&project.id, "", &rule_id, 10)
+            .expect("rule history");
+        assert_eq!(history.len(), 1, "history: {history:?}");
+        assert_eq!(history[0].summary, "Add the no-network Rule");
+
+        // An edit names the same Rule, and leaves another id alone.
+        apply(
+            &store,
+            &project.id,
+            concat!(
+                "---\npolter: 1\nsummary: Tighten the no-network Rule\n",
+                "rationale: The law reads clearer\n---\n\n",
+                "#### rule no-network: Never reach the network.\n",
+                "why: Offline installs must work.\n",
+                "status: under_review\n",
+            ),
+        );
+        let history = store
+            .list_subject_changes(&project.id, "", &rule_id, 10)
+            .expect("rule history");
+        let summaries: Vec<&str> = history.iter().map(|row| row.summary.as_str()).collect();
+        assert_eq!(
+            summaries,
+            vec!["Tighten the no-network Rule", "Add the no-network Rule"],
+            "history: {history:?}"
+        );
+        let other = store
+            .list_subject_changes(&project.id, "", "some-other-id", 10)
+            .expect("other subject");
+        assert!(other.is_empty(), "other subject: {other:?}");
     }
 
     #[test]
