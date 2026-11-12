@@ -743,45 +743,113 @@ fn send_mouse(metrics: WindowMetrics, kind: NsMouse, x: f32, y: f32, count: usiz
 #[cfg(not(target_os = "macos"))]
 fn send_mouse(_: WindowMetrics, _: NsMouse, _: f32, _: f32, _: usize) {}
 
+/// A point as Core Graphics spells it.
+#[cfg(target_os = "macos")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct CgPoint {
+    x: f64,
+    y: f64,
+}
+
+/// A rectangle as Core Graphics spells it: its origin is unused, only the display's height is.
+#[cfg(target_os = "macos")]
+#[repr(C)]
+#[derive(Clone, Copy)]
+#[allow(dead_code)]
+struct CgRect {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+// The Core Graphics and Core Foundation calls a wheel event needs; the `core-graphics` crate
+// this tree resolves does not declare them.
+#[cfg(target_os = "macos")]
+#[link(name = "CoreGraphics", kind = "framework")]
+unsafe extern "C" {
+    fn CGMainDisplayID() -> u32;
+    fn CGDisplayBounds(display: u32) -> CgRect;
+    fn CGEventCreateScrollWheelEvent2(
+        source: *const std::ffi::c_void,
+        units: u32,
+        wheel_count: u32,
+        wheel1: i32,
+        wheel2: i32,
+        wheel3: i32,
+    ) -> *mut std::ffi::c_void;
+    fn CGEventSetLocation(event: *mut std::ffi::c_void, location: CgPoint);
+    fn CGEventSetFlags(event: *mut std::ffi::c_void, flags: u64);
+}
+
+#[cfg(target_os = "macos")]
+#[link(name = "CoreFoundation", kind = "framework")]
+unsafe extern "C" {
+    fn CFRelease(object: *const std::ffi::c_void);
+}
+
 /// A wheel event from the platform: `control` turns it into the diagram's zoom.
+///
+/// `NSEvent` has no initializer for one, so Core Graphics makes it in pixel units (a smooth
+/// scroll), places it and sets its flags, and AppKit wraps it as the `NSEvent` the window's
+/// view receives.
 #[cfg(target_os = "macos")]
 fn send_wheel(metrics: WindowMetrics, x: f32, y: f32, dy: f32, control: bool) {
     use objc::runtime::Object;
     use objc::{class, msg_send, sel, sel_impl};
 
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    struct Point {
-        x: f64,
-        y: f64,
-    }
+    // `kCGScrollEventUnitPixel`, the units that read back as precise scrolling deltas.
+    const PIXEL_UNITS: u32 = 0;
+    // `kCGEventFlagMaskControl`, which `NSEvent.modifierFlags` reports as control.
+    const CONTROL: u64 = 1 << 18;
 
-    // `NSEventPhaseChanged`.
-    const CHANGED: usize = 4;
-    // `NSEventModifierFlagControl`.
-    let flags: usize = if control { 1 << 18 } else { 0 };
-    let location = Point {
-        x: f64::from(x),
-        y: f64::from(metrics.height - y),
-    };
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|elapsed| elapsed.as_secs_f64())
-        .unwrap_or_default();
     unsafe {
-        let event: *mut Object = msg_send![class!(NSEvent),
-            scrollWheelEventWithTimestamp: timestamp
-            location: location
-            modifierFlags: flags
-            phase: CHANGED
-            momentumPhase: 0usize
-            deviceID: 0i32
-            deltaX: 0.0f64
-            deltaY: f64::from(dy)
-            deltaZ: 0.0f64];
-        if !event.is_null() {
-            send_event(event);
+        let wheel = CGEventCreateScrollWheelEvent2(
+            std::ptr::null(),
+            PIXEL_UNITS,
+            1,
+            dy.round() as i32,
+            0,
+            0,
+        );
+        if wheel.is_null() {
+            return;
         }
+        // An event with no window reports its location in screen points, flipped by the main
+        // display's height, and the app reads that as the window's base point: it is placed
+        // where the flip lands on the pointer.
+        let display = CGDisplayBounds(CGMainDisplayID());
+        CGEventSetLocation(
+            wheel,
+            CgPoint {
+                x: f64::from(x),
+                y: display.height - f64::from(metrics.height) + f64::from(y),
+            },
+        );
+        CGEventSetFlags(wheel, if control { CONTROL } else { 0 });
+        let event: *mut Object = msg_send![class!(NSEvent), eventWithCGEvent: wheel];
+        CFRelease(wheel as *const std::ffi::c_void);
+        if event.is_null() {
+            return;
+        }
+        let app: *mut Object = msg_send![class!(NSApplication), sharedApplication];
+        let window: *mut Object = msg_send![app, windowWithWindowNumber: metrics.number as isize];
+        if window.is_null() {
+            return;
+        }
+        let content: *mut Object = msg_send![window, contentView];
+        if content.is_null() {
+            return;
+        }
+        // A Core Graphics event carries no window number, so queueing it never routes it: the
+        // view under the pointer takes it, as AppKit hands a person's wheel event to it.
+        let hit: *mut Object = msg_send![content, hitTest: CgPoint {
+            x: f64::from(x),
+            y: f64::from(metrics.height) - f64::from(y),
+        }];
+        let view = if hit.is_null() { content } else { hit };
+        let _: () = msg_send![view, scrollWheel: event];
     }
 }
 
