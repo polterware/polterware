@@ -10,8 +10,8 @@
 //! its end. Behavior and Edge cases are Markdown, edited in place and saved 800ms after the
 //! last keystroke as a card block's `behavior:` and `edge-cases:` sections. Plan holds the plan
 //! text, edited the same way and written as the card's `plan:` section, with the plan gate
-//! (Start work) beside its header. Every empty section reads a one-line hint of what goes
-//! there.
+//! (Start work) beside its header. Every empty section reads a one-line hint of what would go
+//! there, which a click opens for typing.
 //!
 //! Tasks lists every task with its box (done and open; a dropped one opens again), its number,
 //! title, scope, and claim, and drops an open one from the × under the pointer. Rules that
@@ -30,8 +30,8 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use gpui::{
-    AnyElement, App, AppContext as _, ClipboardItem, Context, Entity, IntoElement, Render,
-    SharedString, Subscription, WeakEntity, Window, div, prelude::*, px,
+    AnyElement, App, AppContext as _, ClipboardItem, Context, Entity, FontWeight, IntoElement,
+    Render, SharedString, Subscription, WeakEntity, Window, div, prelude::*, px,
 };
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
 use polterware_ui::checkbox::checkbox_mark;
@@ -91,6 +91,40 @@ fn spec_editor(
     let mut editor = MarkdownEditor::new(source, cx);
     editor.set_placeholder(hint);
     editor
+}
+
+/// A spec section's body: the in-place editor once it holds text or a block is open, and until
+/// then one line reading what to write there, which a click opens for typing. The editor keeps a
+/// tall minimum height while it is empty, so mounting it would leave blank room under the hint.
+fn spec_body(
+    id: &'static str,
+    hint: &'static str,
+    editor: &Entity<MarkdownEditor>,
+    cx: &mut Context<CardPage>,
+) -> AnyElement {
+    let empty = {
+        let editor = editor.read(cx);
+        editor.source().trim().is_empty() && !editor.is_editing()
+    };
+    if !empty {
+        return editor.clone().into_any_element();
+    }
+    let theme = *Theme::global(cx);
+    let editor = editor.clone();
+    div()
+        .id(id)
+        .w_full()
+        .pr(px(8.0))
+        .cursor_text()
+        .text_size(px(15.0))
+        .line_height(px(24.0))
+        .font_weight(FontWeight(450.0))
+        .text_color(theme.color_text_muted)
+        .child(hint)
+        .on_click(move |_, window, cx| {
+            editor.update(cx, |editor, cx| editor.edit_start(window, cx));
+        })
+        .into_any_element()
 }
 
 pub struct CardPage {
@@ -824,7 +858,12 @@ impl CardPage {
                     .flex_col()
                     .gap(px(6.0))
                     .child(Self::section_label("Behavior", cx))
-                    .child(self.behavior.clone()),
+                    .child(spec_body(
+                        "card-behavior",
+                        BEHAVIOR_HINT,
+                        &self.behavior,
+                        cx,
+                    )),
             )
             .child(Self::acceptance(card, cx))
             .child(
@@ -833,7 +872,12 @@ impl CardPage {
                     .flex_col()
                     .gap(px(6.0))
                     .child(Self::section_label("Edge cases", cx))
-                    .child(self.edge_cases.clone()),
+                    .child(spec_body(
+                        "card-edge-cases",
+                        EDGE_CASES_HINT,
+                        &self.edge_cases,
+                        cx,
+                    )),
             )
             .children(notes);
         document_group_with("Spec", Icon::FileText, Some(aside), true, content, cx)
@@ -860,7 +904,7 @@ impl CardPage {
             .flex()
             .flex_col()
             .gap(px(16.0))
-            .child(self.plan.clone())
+            .child(spec_body("card-plan", PLAN_HINT, &self.plan, cx))
             .children(notes);
         document_group_with("Plan", Icon::Route, Some(aside), true, content, cx).into_any_element()
     }
