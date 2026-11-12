@@ -174,7 +174,7 @@ impl super::Store {
             let mut stmt = self.db.prepare(
                 r#"SELECT id,slug,title,intent,stage,status,owner,kind,under,decisions_json,
 		COALESCE(milestone_id,''),COALESCE((SELECT slug FROM milestones WHERE milestones.id=work_cards.milestone_id),''),
-		position,created_at,updated_at
+		position,created_at,updated_at,behavior,edge_cases,plan
 		FROM work_cards WHERE project_id=? ORDER BY position, created_at"#,
             )?;
             let mut rows = stmt.query(params![project_id])?;
@@ -199,6 +199,9 @@ impl super::Store {
                     position: row.get(12)?,
                     created_at: parse_rfc3339(&created),
                     updated_at: parse_rfc3339(&updated),
+                    behavior: row.get(15)?,
+                    edge_cases: row.get(16)?,
+                    plan: row.get(17)?,
                     ..work::Card::default()
                 };
                 index.insert(card.id.clone(), snapshot.cards.len());
@@ -544,10 +547,13 @@ fn work_table(entity: &str) -> Option<&'static str> {
     }
 }
 
-const CARD_COLUMNS: [(&str, &str); 11] = [
+const CARD_COLUMNS: [(&str, &str); 14] = [
     ("slug", "slug"),
     ("title", "title"),
     ("intent", "intent"),
+    ("behavior", "behavior"),
+    ("edge_cases", "edge_cases"),
+    ("plan", "plan"),
     ("stage", "stage"),
     ("status", "status"),
     ("owner", "owner"),
@@ -700,7 +706,13 @@ mod tests {
         let holder = TempStore::new();
         let store = &holder.store;
         save_project(store, "proj", now());
-        let card = card_op("card-a", "a", work::STAGE_BUILD);
+        let mut card = card_op("card-a", "a", work::STAGE_BUILD);
+        card.fields
+            .insert("behavior".to_string(), json!("Imports commits."));
+        card.fields
+            .insert("edge_cases".to_string(), json!("Empty repository."));
+        card.fields
+            .insert("plan".to_string(), json!("Read HEAD, then write facts."));
         let task = work::Op {
             entity: work::ENTITY_TASK.to_string(),
             kind: work::OP_CREATE.to_string(),
@@ -754,6 +766,9 @@ mod tests {
         let card = &snapshot.cards[0];
         assert_eq!(card.slug, "a");
         assert_eq!(card.decisions, vec!["Decision-0001".to_string()]);
+        assert_eq!(card.behavior, "Imports commits.");
+        assert_eq!(card.edge_cases, "Empty repository.");
+        assert_eq!(card.plan, "Read HEAD, then write facts.");
         assert_eq!(card.tasks.len(), 1);
         assert_eq!(card.tasks[0].title, "Wire the store");
         assert_eq!(card.questions.len(), 1);

@@ -96,6 +96,12 @@ pub fn task_text(card: &work::Card) -> String {
     let mut node = node_from_card(card);
     node.meta.clear();
     node.handoff = None;
+    node.behavior.clear();
+    node.behavior_set = false;
+    node.edge_cases.clear();
+    node.edge_cases_set = false;
+    node.plan.clear();
+    node.plan_set = false;
     let mut out = String::new();
     write_card(&mut out, &node);
     out.trim().to_string()
@@ -109,6 +115,12 @@ pub fn node_from_card(card: &work::Card) -> CardNode {
         title: card.title.clone(),
         intent: card.intent.clone(),
         intent_set: !card.intent.is_empty(),
+        behavior: card.behavior.clone(),
+        behavior_set: !card.behavior.is_empty(),
+        edge_cases: card.edge_cases.clone(),
+        edge_cases_set: !card.edge_cases.is_empty(),
+        plan: card.plan.clone(),
+        plan_set: !card.plan.is_empty(),
         ..CardNode::default()
     };
     node.meta
@@ -253,6 +265,17 @@ fn write_card(out: &mut String, card: &CardNode) {
         out.push('\n');
         out.push_str(&card.intent);
         out.push('\n');
+    }
+    for (key, value) in [
+        ("behavior", &card.behavior),
+        ("edge-cases", &card.edge_cases),
+        ("plan", &card.plan),
+    ] {
+        if value.trim().is_empty() {
+            continue;
+        }
+        out.push('\n');
+        write_card_section(out, key, value);
     }
     if !card.tasks.is_empty() || !card.questions.is_empty() || !card.invariants.is_empty() {
         out.push('\n');
@@ -439,6 +462,18 @@ pub(crate) fn write_rule_why(out: &mut String, why: &str) {
     }
 }
 
+/// Writes a card section: its key and first line, then the Markdown body
+/// under it. A card section is the counterpart of a Rule's `why:`.
+fn write_card_section(out: &mut String, key: &str, body: &str) {
+    let body = body.trim_end_matches('\n');
+    let mut lines = body.split('\n');
+    out.push_str(&format!("{key}: {}\n", lines.next().unwrap_or_default()));
+    for line in lines {
+        out.push_str(line);
+        out.push('\n');
+    }
+}
+
 pub(crate) fn write_decision(out: &mut String, decision: &DecisionNode) {
     if !decision.title.is_empty() {
         out.push_str(&format!("### {}: {}\n", decision.reference, decision.title));
@@ -488,6 +523,9 @@ mod tests {
             slug: "git-import".into(),
             title: "Git import".into(),
             intent: "Import HEAD.".into(),
+            behavior: "Import every commit.\nInclude the branch names.".into(),
+            edge_cases: "An empty repository imports nothing.".into(),
+            plan: "Read HEAD, then write facts.\nFiles: backend/git/*".into(),
             stage: work::STAGE_BUILD.into(),
             status: work::CARD_ACTIVE.into(),
             under: "core/import".into(),
@@ -537,6 +575,24 @@ mod tests {
         assert_eq!(node.tasks[1].scope, "src/auth/*", "the task glob");
         assert_eq!(node.questions[0].options.len(), 2);
         assert_eq!(node.invariants[0].text, "No network calls");
+        assert_eq!(
+            node.behavior, "Import every commit.\nInclude the branch names.",
+            "behavior round-trips"
+        );
+        assert_eq!(
+            node.edge_cases, "An empty repository imports nothing.",
+            "edge cases round-trip"
+        );
+        assert_eq!(
+            node.plan, "Read HEAD, then write facts.\nFiles: backend/git/*",
+            "the plan round-trips"
+        );
+        assert!(
+            text.contains("\nbehavior: Import every commit.\n")
+                && text.contains("\nedge-cases: An empty repository imports nothing.\n")
+                && text.contains("\nplan: Read HEAD, then write facts.\n"),
+            "each section starts on its own line:\n{text}"
+        );
     }
 
     #[test]

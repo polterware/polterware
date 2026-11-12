@@ -1771,6 +1771,13 @@ pub struct WorkCard {
     /// milestone_id is the milestone the card ships in; empty is the Backlog.
     #[serde(rename = "milestoneId")]
     pub milestone_id: String,
+    /// behavior is what the feature does: the spec's behavior: section.
+    pub behavior: String,
+    /// edge_cases are the cases the feature must handle: the edge-cases: section.
+    #[serde(rename = "edgeCases")]
+    pub edge_cases: String,
+    /// plan is architecture, APIs, and files touched: the plan: section.
+    pub plan: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

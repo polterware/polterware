@@ -264,7 +264,7 @@ mod tests {
             &project_id,
             "Ask",
             &format!(
-                "---\npolter: 1\n---\n## {slug}\n? Include merge commits? [blocking]\n! No network calls during scan\n"
+                "---\npolter: 1\n---\n## {slug}\nbehavior: Import every commit of the checkout.\n? Include merge commits? [blocking]\n! No network calls during scan\n"
             ),
         );
         let (_, _, diags) =
@@ -298,7 +298,7 @@ mod tests {
             &project_id,
             "Plan",
             &format!(
-                "---\npolter: 1\n---\n## {slug}\n- [ ] Read HEAD `backend/git/*`\n- [ ] Stamp facts\n"
+                "---\npolter: 1\n---\n## {slug}\nplan: Read HEAD, then stamp each fact.\nFiles: backend/git/*, core/work/*\n- [ ] Read HEAD `backend/git/*`\n- [ ] Stamp facts\n"
             ),
         );
         let (advance, _, diags) =

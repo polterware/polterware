@@ -146,6 +146,15 @@ pub struct CardNode {
     pub meta: Vec<MetaEntry>,
     pub intent: String,
     pub intent_set: bool,
+    /// What the feature does: the spec's `behavior:` section.
+    pub behavior: String,
+    pub behavior_set: bool,
+    /// The cases the feature must handle: the spec's `edge-cases:` section.
+    pub edge_cases: String,
+    pub edge_cases_set: bool,
+    /// Architecture, APIs, and files touched: the `plan:` section.
+    pub plan: String,
+    pub plan_set: bool,
     pub tasks: Vec<TaskNode>,
     pub questions: Vec<QuestionNode>,
     pub invariants: Vec<InvariantNode>,
@@ -227,6 +236,11 @@ pub const META_KEYS: [&str; 7] = [
     "status",
     "kind",
 ];
+
+/// The card sections that carry the spec and the plan. Each starts with its key
+/// on a line of its own and keeps the lines after it as a Markdown body: the
+/// counterpart of a Rule's `why:`.
+pub const CARD_SECTION_KEYS: [&str; 3] = ["behavior", "edge-cases", "plan"];
 
 /// The Structure node metadata keys. `repo:` names a registered checkout
 /// (empty is the project root); `path:` is a folder inside it. `kind:` is what
