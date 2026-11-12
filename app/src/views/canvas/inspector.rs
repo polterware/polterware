@@ -485,7 +485,7 @@ fn small(id: impl Into<SharedString>, label: impl Into<SharedString>, kind: Butt
 
 impl CanvasEditor {
     pub(super) fn library_panel_width(&self, cx: &App) -> f32 {
-        self.library_panel.read(cx).width()
+        self.library_panel.read(cx).width() - super::editor::PANEL_INSET * 2.0
     }
 
     fn selected_node(&self) -> Option<String> {
@@ -867,7 +867,9 @@ impl CanvasEditor {
     ) -> AnyElement {
         self.sync_inspector(window, cx);
         let theme = *Theme::global(cx);
-        let width = (self.inspector_panel.read(cx).width() - 24.0).max(120.0);
+        let width =
+            (self.inspector_panel.read(cx).width() - super::editor::PANEL_INSET * 2.0 - 24.0)
+                .max(120.0);
         let editor = cx.entity().downgrade();
         let content = if let Some(node) = self
             .selected_node()

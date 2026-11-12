@@ -34,6 +34,7 @@ use polterware_ui::canvas::{
     dock_separator, dot_grid, hit_test, zoom_level,
 };
 use polterware_ui::icons::Icon;
+use polterware_ui::material::{drop, float_drop, floating_panel};
 use polterware_ui::patterns::{AnchorSlot, PanelSide, ResizablePanel};
 use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::Theme;
@@ -1332,10 +1333,9 @@ impl Render for CanvasEditor {
                     .child(format!("Pick the target shape for the {kind} connection.")),
             )
         });
-        let stage = div()
+        let overlay = div()
             .relative()
             .size_full()
-            .child(well)
             .child(self.toolbar(cx))
             .children(hint)
             .child(self.tools_dock(cx))
@@ -1345,8 +1345,13 @@ impl Render for CanvasEditor {
         let inner = inspector_panel.update(cx, |panel, cx| {
             panel.render(
                 &inspector_panel,
-                panel_frame(inspector, PanelSide::Right, &theme),
-                stage,
+                panel_frame(
+                    "canvas-inspector-panel",
+                    inspector,
+                    PanelSide::Right,
+                    &theme,
+                ),
+                overlay,
                 window,
                 cx,
             )
@@ -1356,7 +1361,7 @@ impl Render for CanvasEditor {
         let workspace = library_panel.update(cx, |panel, cx| {
             panel.render(
                 &library_panel,
-                panel_frame(library, PanelSide::Left, &theme),
+                panel_frame("canvas-library-panel", library, PanelSide::Left, &theme),
                 inner,
                 window,
                 cx,
@@ -1393,21 +1398,50 @@ impl Render for CanvasEditor {
             .flex()
             .flex_col()
             .children(alert)
-            .child(div().min_h_0().flex_1().child(workspace))
+            .child(
+                div()
+                    .relative()
+                    .min_h_0()
+                    .flex_1()
+                    .child(well)
+                    .child(div().absolute().inset_0().child(workspace)),
+            )
             .children(self.inspector.layers(cx))
     }
 }
 
-/// A side panel's face: the surface with a rule on its inner edge.
-fn panel_frame(content: AnyElement, side: PanelSide, theme: &Theme) -> AnyElement {
+pub(super) const PANEL_INSET: f32 = 8.0;
+
+/// A floating side panel: inset from the edges with the panel gap, rounded with the panel
+/// radius token, wearing the surface-panel-float material and quiet edge.
+fn panel_frame(
+    id: &'static str,
+    content: AnyElement,
+    _side: PanelSide,
+    theme: &Theme,
+) -> AnyElement {
+    let frame = div()
+        .id(id)
+        .relative()
+        .size_full()
+        .flex()
+        .flex_col()
+        .bg(theme.color_surface_subtle)
+        .rounded(px(theme.radius_surface))
+        .overflow_hidden()
+        .on_scroll_wheel(|_, _, cx| cx.stop_propagation())
+        .child(content);
+    let frame = floating_panel(frame, theme.radius_surface, theme);
+    let mut shadows = float_drop(theme);
+    shadows.push(drop(20.0, 56.0, theme.color_shadow_float));
+    let frame = frame.shadow(shadows);
+
     div()
         .size_full()
-        .bg(theme.color_surface)
-        .map(|panel| match side {
-            PanelSide::Left => panel.border_r_1(),
-            PanelSide::Right => panel.border_l_1(),
-        })
-        .border_color(theme.color_border_default)
-        .child(content)
+        .pt(px(PANEL_INSET))
+        .pb(px(PANEL_INSET))
+        .pl(px(PANEL_INSET))
+        .pr(px(PANEL_INSET))
+        .child(frame)
         .into_any_element()
 }
