@@ -286,6 +286,21 @@ fn suffix(value: &str, hint: &str) -> String {
     }
 }
 
+fn set_all_hooks(db: &str, enabled: bool) -> CliResult {
+    let c = dial(db)?;
+    for h in agentsetup::HOOKS {
+        let _: local_v1::SetHookSwitchResponse = c.unary(
+            SWITCHES,
+            &local_v1::SetHookSwitchRequest {
+                name: h.name.to_string(),
+                enabled,
+            },
+            CALL_TIMEOUT,
+        )?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,19 +345,4 @@ mod tests {
             )
         );
     }
-}
-
-fn set_all_hooks(db: &str, enabled: bool) -> CliResult {
-    let c = dial(db)?;
-    for h in agentsetup::HOOKS {
-        let _: local_v1::SetHookSwitchResponse = c.unary(
-            SWITCHES,
-            &local_v1::SetHookSwitchRequest {
-                name: h.name.to_string(),
-                enabled,
-            },
-            CALL_TIMEOUT,
-        )?;
-    }
-    Ok(())
 }

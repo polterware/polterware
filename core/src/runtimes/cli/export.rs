@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn projection_lines_match_go_padding_and_root_name() {
-        let files = vec![ProjectionFile {
+        let files = [ProjectionFile {
             action: "write".to_string(),
             repo: String::new(),
             path: "AGENTS.md".to_string(),

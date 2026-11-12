@@ -72,14 +72,12 @@ pub(super) fn detail_diagnostics(
         {
             continue;
         }
-        if let Some(debug) = detail.get("debug") {
-            if let Ok(response) =
+        if let Some(debug) = detail.get("debug")
+            && let Ok(response) =
                 serde_json::from_value::<local_v1::ApplyPolterResponse>(debug.clone())
-            {
-                if !response.diagnostics.is_empty() {
-                    return Some(response.diagnostics);
-                }
-            }
+            && !response.diagnostics.is_empty()
+        {
+            return Some(response.diagnostics);
         }
         let Some(value) = detail.get("value").and_then(|v| v.as_str()) else {
             continue;
@@ -229,7 +227,6 @@ pub fn run_apply(db: &str, args: &[String]) -> CliResult {
                 summary: f.string_value("summary").into(),
                 rationale: f.string_value("rationale").into(),
                 agent_run_id: run.into(),
-                ..Default::default()
             }),
             session_label: label(),
             session_id: if run.is_empty() {
@@ -472,7 +469,6 @@ pub fn run_task(db: &str, args: &[String]) -> CliResult {
                 project_id: id,
                 task: format!("{}#T{}", rf.slug, rf.number),
                 sha: f.string_value("commit").trim().into(),
-                ..Default::default()
             },
         )?;
         if let Some(commit) = r.commit {

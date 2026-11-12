@@ -18,7 +18,7 @@ pub fn run_conflict(db: &str, args: &[String]) -> CliResult {
     ] {
         f.string_flag(n, "", u)
     }
-    f.duration_flag("timeout", 1800_000_000_000, "how long wait blocks");
+    f.duration_flag("timeout", 1_800_000_000_000, "how long wait blocks");
     f.list_flag("option", "an answer a person may pick (repeat it)", false);
     parse(&mut f, &args[1..])?;
     let p = f.rest();
@@ -76,7 +76,6 @@ pub fn run_conflict(db: &str, args: &[String]) -> CliResult {
                 action: "decide".into(),
                 answer: p[1].clone(),
                 session_label: label(),
-                ..Default::default()
             },
         )?;
         println!("{}", r.ops.join("\n"));

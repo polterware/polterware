@@ -87,6 +87,13 @@ fn expand_path(path: &str) -> String {
     }
 }
 
+fn flag_error(err: FlagError) -> CliError {
+    match err {
+        FlagError::Help => CliError::message("flag: help requested"),
+        FlagError::Invalid(message) => CliError::message(message),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,12 +131,5 @@ mod tests {
             format!("{}/repo", std::env::var("HOME").unwrap_or_default())
         );
         assert_eq!(expand_path("~other/repo"), "~other/repo");
-    }
-}
-
-fn flag_error(err: FlagError) -> CliError {
-    match err {
-        FlagError::Help => CliError::message("flag: help requested"),
-        FlagError::Invalid(message) => CliError::message(message),
     }
 }

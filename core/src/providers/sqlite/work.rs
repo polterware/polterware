@@ -320,11 +320,9 @@ impl super::Store {
     pub fn list_card_confirmations(&self, project_id: &str) -> Result<Vec<work::Confirmation>> {
         let mut out = Vec::new();
         self.each_row(
-            &format!(
-                r#"SELECT card_confirmations.card_id,card_confirmations.kind,target_id,confirmed_by,confirmed_at
+            r#"SELECT card_confirmations.card_id,card_confirmations.kind,target_id,confirmed_by,confirmed_at
 		FROM card_confirmations INNER JOIN work_cards ON work_cards.id=card_confirmations.card_id
-		WHERE work_cards.project_id=? ORDER BY confirmed_at"#
-            ),
+		WHERE work_cards.project_id=? ORDER BY confirmed_at"#,
             params![project_id],
             |row| {
                 let confirmed: String = row.get(4)?;
