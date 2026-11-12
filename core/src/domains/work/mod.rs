@@ -435,6 +435,33 @@ pub struct NamedEnvironment {
     pub name: String,
 }
 
+/// One acceptance criterion (`invariant`) or Rule (`rule`) a person or an agent
+/// confirmed for a card. `target_id` is the invariant's or the Rule's id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Confirmation {
+    pub card_id: String,
+    pub kind: String,
+    pub target_id: String,
+    pub confirmed_by: String,
+    pub confirmed_at: OffsetDateTime,
+}
+
+impl Default for Confirmation {
+    fn default() -> Self {
+        Self {
+            card_id: String::new(),
+            kind: String::new(),
+            target_id: String::new(),
+            confirmed_by: String::new(),
+            confirmed_at: OffsetDateTime::UNIX_EPOCH,
+        }
+    }
+}
+
+/// What a confirmation is about.
+pub const CONFIRMATION_INVARIANT: &str = "invariant";
+pub const CONFIRMATION_RULE: &str = "rule";
+
 pub const ENTITY_CARD: &str = "card";
 pub const ENTITY_TASK: &str = "task";
 pub const ENTITY_QUESTION: &str = "question";
@@ -445,6 +472,8 @@ pub const ENTITY_NODE: &str = "node";
 pub const ENTITY_RULE: &str = "rule";
 pub const ENTITY_CONFLICT: &str = "conflict";
 pub const ENTITY_MILESTONE: &str = "milestone";
+/// One acceptance criterion or Rule a person or an agent confirmed for a card.
+pub const ENTITY_CONFIRMATION: &str = "confirmation";
 
 pub const OP_CREATE: &str = "create";
 pub const OP_UPDATE: &str = "update";

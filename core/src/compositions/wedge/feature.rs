@@ -137,6 +137,16 @@ pub fn verify_feature(
     project_id: &str,
     target: &str,
 ) -> anyhow::Result<polter::VerifyResult> {
+    let snapshot = store.load_work_snapshot(project_id)?;
+    verify_feature_for(store, &snapshot, target)
+}
+
+/// [`verify_feature`] against a snapshot the caller already loaded.
+pub(super) fn verify_feature_for(
+    store: &storepkg::Store,
+    snapshot: &work::Snapshot,
+    target: &str,
+) -> anyhow::Result<polter::VerifyResult> {
     let mut slug = target.trim().to_string();
     let mut number = 0;
     if slug.contains('#') || slug.contains(' ') {
@@ -144,25 +154,75 @@ pub fn verify_feature(
         slug = reference.slug;
         number = reference.number;
     }
-    let snapshot = store.load_work_snapshot(project_id)?;
-    let review = review_feature_for(store, &snapshot, &slug)?;
+    let review = review_feature_for(store, snapshot, &slug)?;
+    let (contract, rules) = card_checks(snapshot, &review.card);
+    let confirmed: Vec<work::Confirmation> = store
+        .list_card_confirmations(&snapshot.project_id)?
+        .into_iter()
+        .filter(|item| item.card_id == review.card.id)
+        .collect();
+    polter::verify_feature(&polter::VerifyInput {
+        card: review.card,
+        task: number,
+        delivered: project_git(store, &snapshot.project_id).delivered,
+        contract,
+        rules,
+        confirmed,
+    })
+    .map_err(|err| anyhow::anyhow!("{err}"))
+}
+
+/// The card's manual checks: its active acceptance criteria and the binding
+/// Rules that apply (the `under:` chain's and the whole project's).
+pub(super) fn card_checks(
+    snapshot: &work::Snapshot,
+    card: &work::Card,
+) -> (Vec<polter::ReviewInvariant>, Vec<polter::VerifyRule>) {
     let mut contract: Vec<polter::ReviewInvariant> = Vec::new();
-    for invariant in &review.card.invariants {
+    for invariant in &card.invariants {
         if invariant.state == work::INVARIANT_ACTIVE {
             contract.push(polter::ReviewInvariant {
+                id: invariant.id.clone(),
                 text: invariant.text.clone(),
                 from: "card".to_string(),
             });
         }
     }
-    contract.extend(review.inherited);
-    polter::verify_feature(&polter::VerifyInput {
-        card: review.card,
-        task: number,
-        delivered: project_git(store, project_id).delivered,
-        contract,
-    })
-    .map_err(|err| anyhow::anyhow!("{err}"))
+    let mut rules: Vec<polter::VerifyRule> = Vec::new();
+    let paths = rule_chain(snapshot, &card.under);
+    let (own, project) = polter::rules_for(&snapshot.rules, &paths);
+    for (i, list) in own.iter().enumerate() {
+        for rule in list {
+            rules.push(polter::VerifyRule {
+                id: rule.id.clone(),
+                slug: rule.slug.clone(),
+                statement: rule.statement.clone(),
+                scope: paths[i].clone(),
+            });
+        }
+    }
+    for rule in &project {
+        rules.push(polter::VerifyRule {
+            id: rule.id.clone(),
+            slug: rule.slug.clone(),
+            statement: rule.statement.clone(),
+            scope: String::new(),
+        });
+    }
+    (contract, rules)
+}
+
+/// The card's `under:` node and its ancestors, nearest first: the nodes whose
+/// Rules hold for the card.
+fn rule_chain(snapshot: &work::Snapshot, under: &str) -> Vec<String> {
+    let Some(node) = snapshot.node_by_path(under) else {
+        return Vec::new();
+    };
+    let mut paths = vec![node.path.clone()];
+    for ancestor in polter::ancestor_chain(&snapshot.nodes, node) {
+        paths.push(ancestor.path);
+    }
+    paths
 }
 
 /// Answers "feature <slug> [step]" and "verify <target>".
@@ -341,5 +401,87 @@ mod tests {
         );
         let text = query(store, &project_id, &format!("verify {slug}")).expect("verify query");
         assert!(text.contains("FAIL"), "verify query = {text:?}");
+    }
+
+    #[test]
+    fn a_confirmed_card_passes_verify_and_leaves_the_inbox() {
+        let temp = TempStore::named("confirm.db");
+        let store = &temp.store;
+        let project = init_project(
+            store,
+            InitInput {
+                name: "Demo".to_string(),
+                ..InitInput::default()
+            },
+        )
+        .expect("init project");
+        let project_id = project.id;
+        let slug = "git-import";
+        apply_text(
+            store,
+            &project_id,
+            "Specify",
+            &format!(
+                "---\npolter: 1\n---\n## {slug}: Git import\nstage: verify\nbehavior: Import every commit.\n! No network calls\n- [x] T1 Read HEAD\n\n#### rule local-only: Never call the network\nstatus: active\n"
+            ),
+        );
+
+        let result = verify_feature(store, &project_id, slug).expect("verify");
+        assert!(
+            result.passed,
+            "manual checks do not fail a verify: {result:?}"
+        );
+        let text = polter::encode_verify(&result);
+        assert!(text.contains("check ! No network calls\n"), "{text}");
+        assert!(
+            text.contains("check rule local-only: Never call the network (whole project)\n"),
+            "{text}"
+        );
+
+        let inbox = super::super::inbox::list_inbox(store, &project_id).expect("inbox");
+        let item = inbox
+            .items
+            .iter()
+            .find(|item| item.kind == crate::domains::inbox::KIND_CONFIRM)
+            .unwrap_or_else(|| panic!("a confirm item: {inbox:?}"));
+        assert_eq!(item.card_slug, slug);
+        assert_eq!(item.title, "Confirm 2 check(s) for Git import");
+        assert!(item.detail.contains("No network calls"), "{item:?}");
+        assert!(item.detail.contains("rule local-only"), "{item:?}");
+
+        apply_text(
+            store,
+            &project_id,
+            "Confirm",
+            &format!(
+                "---\npolter: 1\n---\n## {slug}\nconfirm: ! No network calls\nconfirm: rule local-only\n"
+            ),
+        );
+        let confirmed = store
+            .list_card_confirmations(&project_id)
+            .expect("confirmations");
+        assert_eq!(confirmed.len(), 2, "confirmations = {confirmed:?}");
+        assert_eq!(confirmed[0].confirmed_by, "person");
+
+        let result = verify_feature(store, &project_id, slug).expect("verify");
+        let text = polter::encode_verify(&result);
+        assert!(
+            text.contains("pass  ! No network calls (confirmed by person)\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "pass  rule local-only: Never call the network (whole project) (confirmed by person)\n"
+            ),
+            "{text}"
+        );
+        let inbox = super::super::inbox::list_inbox(store, &project_id).expect("inbox");
+        assert!(
+            inbox
+                .items
+                .iter()
+                .all(|item| item.kind != crate::domains::inbox::KIND_CONFIRM),
+            "a confirmed card leaves the inbox: {inbox:?}"
+        );
     }
 }

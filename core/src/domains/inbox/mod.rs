@@ -19,6 +19,7 @@ use crate::domains::integrations::provider_name;
 
 pub const KIND_CONFLICT: &str = "conflict";
 pub const KIND_DECISION: &str = "decision";
+pub const KIND_CONFIRM: &str = "confirm";
 pub const KIND_SETUP: &str = "setup";
 pub const KIND_DEPLOY: &str = "deploy";
 
@@ -31,12 +32,13 @@ pub const ACTION_DEFER: &str = "defer";
 pub const ACTION_IGNORE: &str = "ignore";
 
 /// The actions each kind accepts, primary first.
-pub static KIND_ACTIONS: [(&str, &[&str]); 4] = [
+pub static KIND_ACTIONS: [(&str, &[&str]); 5] = [
     (KIND_CONFLICT, &[ACTION_DECIDE, ACTION_DEFER]),
     (
         KIND_DECISION,
         &[ACTION_DECIDE, ACTION_DELEGATE, ACTION_DEFER],
     ),
+    (KIND_CONFIRM, &[ACTION_DEFER, ACTION_IGNORE]),
     (KIND_SETUP, &[ACTION_DEFER, ACTION_IGNORE]),
     (KIND_DEPLOY, &[ACTION_DEFER, ACTION_IGNORE]),
 ];
@@ -55,7 +57,8 @@ fn kind_order(kind: &str) -> i32 {
         KIND_CONFLICT => 0,
         KIND_DEPLOY => 1,
         KIND_DECISION => 2,
-        KIND_SETUP => 3,
+        KIND_CONFIRM => 3,
+        KIND_SETUP => 4,
         _ => 0,
     }
 }
@@ -289,12 +292,32 @@ fn provider_connected(
     })
 }
 
+/// A card in the verify stage whose manual checks are still unconfirmed: each
+/// acceptance criterion and each Rule the card must hold, listed as one item.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Checklist {
+    pub card_slug: String,
+    pub card_title: String,
+    pub items: Vec<String>,
+}
+
 /// Builds the Inbox from its sources and the latest disposition per key.
-/// `deploys` are the links whose provider CLI is not connected.
 pub fn derive(
     conflicts: &[Conflict],
     questions: &[Question],
     deploys: &[DeployLink],
+    dispositions: &[Disposition],
+) -> Result {
+    derive_with(conflicts, questions, deploys, &[], dispositions)
+}
+
+/// [`derive`] with the verify-stage cards whose manual checks are still
+/// unconfirmed, one item each.
+pub fn derive_with(
+    conflicts: &[Conflict],
+    questions: &[Question],
+    deploys: &[DeployLink],
+    checklists: &[Checklist],
     dispositions: &[Disposition],
 ) -> Result {
     let mut latest: BTreeMap<&str, &Disposition> = BTreeMap::new();
@@ -337,6 +360,28 @@ pub fn derive(
             where_: question.card_slug.clone(),
             card_slug: question.card_slug.clone(),
             question_text: question.text.clone(),
+            ..Item::default()
+        });
+    }
+    for checklist in checklists {
+        if checklist.items.is_empty() {
+            continue;
+        }
+        let key = format!("confirm:{}", checklist.card_slug);
+        let count = checklist.items.len();
+        let title = if checklist.card_title.is_empty() {
+            checklist.card_slug.clone()
+        } else {
+            checklist.card_title.clone()
+        };
+        items.push(Item {
+            id: short_id(&key),
+            key,
+            kind: KIND_CONFIRM.to_string(),
+            title: format!("Confirm {count} check(s) for {title}"),
+            detail: checklist.items.join("; "),
+            where_: checklist.card_slug.clone(),
+            card_slug: checklist.card_slug.clone(),
             ..Item::default()
         });
     }
@@ -522,6 +567,54 @@ mod tests {
         let id = &result.items[0].id;
         assert_eq!(id.len(), 9, "short id = {id:?}");
         assert_eq!(id.as_bytes()[0], b'i');
+    }
+
+    #[test]
+    fn derive_lists_one_checklist_item_per_verify_card() {
+        let checklists = vec![
+            Checklist {
+                card_slug: "git-import".to_string(),
+                card_title: "Git import".to_string(),
+                items: vec![
+                    "! No network calls".to_string(),
+                    "rule local-only: Never call the network (whole project)".to_string(),
+                ],
+            },
+            Checklist {
+                card_slug: "confirmed".to_string(),
+                card_title: "Confirmed".to_string(),
+                ..Checklist::default()
+            },
+        ];
+        let result = derive_with(&[], &[], &[], &checklists, &[]);
+        assert_eq!(
+            result.items.len(),
+            1,
+            "only the unconfirmed card: {result:?}"
+        );
+        let item = &result.items[0];
+        assert_eq!(item.kind, KIND_CONFIRM);
+        assert_eq!(item.key, "confirm:git-import");
+        assert_eq!(item.title, "Confirm 2 check(s) for Git import");
+        assert_eq!(
+            item.detail,
+            "! No network calls; rule local-only: Never call the network (whole project)"
+        );
+        assert_eq!(item.where_, "git-import");
+        assert_eq!(item.card_slug, "git-import");
+        assert_eq!(item.actions, vec![ACTION_DEFER, ACTION_IGNORE]);
+        assert!(!item.blocking, "a confirmation is not a failure");
+        assert_eq!(result.open(), 1);
+
+        let dispositions = vec![Disposition {
+            key: "confirm:git-import".to_string(),
+            action: ACTION_DEFER.to_string(),
+            created_at: datetime!(2026-11-12 12:00:00 UTC),
+            ..Disposition::default()
+        }];
+        let result = derive_with(&[], &[], &[], &checklists, &dispositions);
+        assert_eq!(result.items[0].state, STATE_DEFERRED);
+        assert_eq!(result.open(), 0, "a deferred item waits for later");
     }
 
     #[test]

@@ -868,6 +868,83 @@ impl Planner {
         self.invariants(node, card);
         self.handoff(node, card);
         self.coordination(node, card);
+        self.confirmations(node, card);
+    }
+
+    /// Plans `confirm:` lines: each names one acceptance criterion (an active
+    /// `!` invariant) or one binding Rule of the project, and stores the
+    /// confirmation for the card.
+    fn confirmations(&mut self, node: &CardNode, card: &work::Card) {
+        let mut seen: HashSet<(String, String)> = HashSet::new();
+        for line in &node.confirmations {
+            if card.id.is_empty() || card.status == work::CARD_REMOVED {
+                self.errorf(
+                    line.line,
+                    format!(
+                        "cannot confirm for {}: the card is not stored yet",
+                        go_quote(&card.slug)
+                    ),
+                );
+                continue;
+            }
+            let (target_id, label) = if line.kind == CONFIRM_RULE {
+                let key = line.target.to_lowercase();
+                let found = self.rules.iter().find(|rule| {
+                    rule.binding()
+                        && (rule.slug.to_lowercase() == key || rule.id.to_lowercase() == key)
+                });
+                let Some(rule) = found else {
+                    self.errorf(
+                        line.line,
+                        format!(
+                            "unknown Rule {}: confirm one that binds, with its slug or id",
+                            go_quote(&line.target)
+                        ),
+                    );
+                    continue;
+                };
+                (rule.id.clone(), format!("rule {}", rule.slug))
+            } else {
+                let key = work::normalize_text(&line.target);
+                let found = card.invariants.iter().find(|invariant| {
+                    invariant.state == work::INVARIANT_ACTIVE
+                        && work::normalize_text(&invariant.text) == key
+                });
+                let Some(invariant) = found else {
+                    self.errorf(
+                        line.line,
+                        format!(
+                            "unknown acceptance criterion {}: confirm one of the card's ! lines",
+                            go_quote(&line.target)
+                        ),
+                    );
+                    continue;
+                };
+                (invariant.id.clone(), format!("! {}", invariant.text))
+            };
+            if !seen.insert((line.kind.clone(), target_id.clone())) {
+                continue;
+            }
+            let confirmed_by = if self.holder.is_empty() {
+                "person".to_string()
+            } else {
+                self.holder.clone()
+            };
+            let mut fields = work::Fields::new();
+            fields.insert("kind".to_string(), json!(line.kind));
+            fields.insert("target_id".to_string(), json!(target_id));
+            fields.insert("confirmed_by".to_string(), json!(confirmed_by));
+            self.ops.push(work::Op {
+                entity: work::ENTITY_CONFIRMATION.to_string(),
+                kind: work::OP_CREATE.to_string(),
+                entity_id: format!("{}:{}:{}", card.id, line.kind, target_id),
+                card_id: card.id.clone(),
+                card_slug: card.slug.clone(),
+                label,
+                fields,
+                ..work::Op::default()
+            });
+        }
     }
 
     /// Plans claim, done, and release lines against stored tasks.
@@ -1655,6 +1732,11 @@ pub fn format_plan(ops: &[work::Op]) -> String {
                 out.push('\n');
                 continue;
             }
+            work::ENTITY_CONFIRMATION => {
+                out.push_str(&format!(" {}", op.label));
+                out.push('\n');
+                continue;
+            }
             _ => {
                 out.push_str(&format!(" {}", go_quote(&op.label)));
                 if op.kind == work::OP_CREATE
@@ -1772,6 +1854,7 @@ pub fn summarize(ops: &[work::Op]) -> String {
         work::ENTITY_INVARIANT,
         work::ENTITY_HANDOFF,
         work::ENTITY_CLAIM,
+        work::ENTITY_CONFIRMATION,
         work::ENTITY_NODE,
     ] {
         if let Some(&n) = counts.get(entity)
@@ -2130,6 +2213,108 @@ mod tests {
         assert!(!has_errors(&diags), "encode diags = {diags:?}");
         let (back, _) = plan(&encoded, &snapshot);
         assert!(back.is_empty(), "encode round trip: {}", format_plan(&back));
+    }
+
+    #[test]
+    fn confirm_lines_resolve_a_criterion_and_a_rule() {
+        let mut snapshot = work::Snapshot {
+            project_id: "p1".to_string(),
+            cards: vec![work::Card {
+                id: "c1".to_string(),
+                slug: "git-import".to_string(),
+                title: "Git import".to_string(),
+                status: work::CARD_ACTIVE.to_string(),
+                invariants: vec![work::Invariant {
+                    id: "inv-1".to_string(),
+                    card_id: "c1".to_string(),
+                    text: "No network calls".to_string(),
+                    state: work::INVARIANT_ACTIVE.to_string(),
+                    ..work::Invariant::default()
+                }],
+                ..work::Card::default()
+            }],
+            ..work::Snapshot::default()
+        };
+        snapshot.rules = vec![work::Rule {
+            id: "r1".to_string(),
+            slug: "local-only".to_string(),
+            statement: "Never call the network".to_string(),
+            status: work::RULE_ACTIVE.to_string(),
+            ..work::Rule::default()
+        }];
+
+        let (ops, diags) = plan_as(
+            &coord_doc("## git-import\nconfirm: ! No network calls\nconfirm: rule local-only\n"),
+            &snapshot,
+            "codex",
+        );
+        assert!(!has_errors(&diags), "confirm: {diags:?}");
+        assert_eq!(ops.len(), 2, "ops = {}", format_plan(&ops));
+        assert!(
+            ops.iter().all(|op| op.entity == work::ENTITY_CONFIRMATION
+                && op.kind == work::OP_CREATE
+                && op.card_id == "c1"),
+            "ops = {ops:?}"
+        );
+        assert_eq!(
+            field_str(&ops[0].fields, "kind"),
+            work::CONFIRMATION_INVARIANT
+        );
+        assert_eq!(field_str(&ops[0].fields, "target_id"), "inv-1");
+        assert_eq!(field_str(&ops[0].fields, "confirmed_by"), "codex");
+        assert_eq!(field_str(&ops[1].fields, "kind"), work::CONFIRMATION_RULE);
+        assert_eq!(field_str(&ops[1].fields, "target_id"), "r1");
+        let text = format_plan(&ops);
+        assert!(
+            text.contains("+ confirmation git-import ! No network calls\n")
+                && text.contains("+ confirmation git-import rule local-only\n"),
+            "plan = {text}"
+        );
+        assert!(
+            summarize(&ops).starts_with("2 ops (2 confirmations"),
+            "{}",
+            summarize(&ops)
+        );
+
+        // A person writes without an agent label; the confirmation names a
+        // person instead.
+        let (ops, diags) = plan_as(
+            &coord_doc("## git-import\nconfirm: ! No network calls\n"),
+            &snapshot,
+            "",
+        );
+        assert!(!has_errors(&diags), "{diags:?}");
+        assert_eq!(field_str(&ops[0].fields, "confirmed_by"), "person");
+
+        // Unknown criterion, unknown Rule, and a malformed line all refuse.
+        let (_, diags) = plan_as(
+            &coord_doc("## git-import\nconfirm: ! Call the network\n"),
+            &snapshot,
+            "codex",
+        );
+        assert!(
+            has_errors(&diags) && diags[0].message.contains("unknown acceptance criterion"),
+            "{diags:?}"
+        );
+        let (_, diags) = plan_as(
+            &coord_doc("## git-import\nconfirm: rule missing\n"),
+            &snapshot,
+            "codex",
+        );
+        assert!(
+            has_errors(&diags) && diags[0].message.contains("unknown Rule"),
+            "{diags:?}"
+        );
+        let (_, diags) = decode("---\npolter: 1\n---\n## git-import\nconfirm: everything\n");
+        assert!(
+            has_errors(&diags) && diags[0].message.contains("confirm needs"),
+            "{diags:?}"
+        );
+        let (_, diags) = decode("---\npolter: 1\n---\nconfirm: rule local-only\n");
+        assert!(
+            has_errors(&diags) && diags[0].message.contains("confirm outside a card"),
+            "{diags:?}"
+        );
     }
 
     #[test]
