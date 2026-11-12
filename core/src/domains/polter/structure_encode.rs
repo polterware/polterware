@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/structure_encode.go`: the plain-text
+//! The plain-text
 //! Structure graph an agent reads.
 
 use crate::domains::{structure, work};

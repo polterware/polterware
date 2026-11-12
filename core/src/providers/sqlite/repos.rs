@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/repos.go`.
+//! The project's repositories, stored.
 //!
 //! The repositories Structure components link by name: their GitHub identity
 //! and this machine's clone.

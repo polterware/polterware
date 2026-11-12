@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/hook.go`.
+//! The `hook` command.
 use super::{
     core::{dial, resolve_project_in},
     flags::{FlagError, FlagSet},

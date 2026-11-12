@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/hook_switches.go`.
+//! The per-hook switches, stored.
 //!
 //! The agent hooks a person can turn off. A hook with no row is on.
 

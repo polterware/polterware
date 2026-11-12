@@ -1,4 +1,4 @@
-//! Port of `backend/providers/mcp/helpers.go`: the argument readers, which
+//! The argument readers, which
 //! accept an absent or mistyped value as the zero one.
 
 use serde_json::Value;

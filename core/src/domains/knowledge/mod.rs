@@ -1,4 +1,4 @@
-//! Port of `backend/domains/knowledge`.
+//! Knowledge items (docs), their links, and the search hit over them.
 //!
 //! Knowledge items (docs), their entity links, and the search hit shape over
 //! them. Rules are their own law and are not knowledge items.

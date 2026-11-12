@@ -1,4 +1,4 @@
-//! Port of `backend/domains/structure/deploy.go`.
+//! The deploy targets of a Structure component, per environment.
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};

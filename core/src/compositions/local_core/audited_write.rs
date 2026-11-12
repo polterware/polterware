@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/audited_write.go`.
+//! The change envelope every semantic Desktop write carries.
 //!
 //! The change envelope every semantic Desktop write carries, and how its
 //! failures become Connect errors.
@@ -53,7 +53,7 @@ pub fn map_audited_err(err: sqlite::Error) -> ConnectError {
 
 /// Maps the refusal of an archive or restore: a knowledge item or canvas in the
 /// wrong state is `failed_precondition`, and anything else goes to
-/// [`map_audited_err`], as Go's `mapArchiveErr` (in `archive_handlers.go`) does.
+/// [`map_audited_err`], as an archive handler's failures always do.
 pub fn map_archive_err(err: impl Into<sqlite::Error>) -> ConnectError {
     let err = err.into();
     match &err {

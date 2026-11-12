@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/work.go`.
+//! The Work operations over Polter text: apply, query, and the Git view.
 
 #[allow(unused_imports)]
 use super::*;

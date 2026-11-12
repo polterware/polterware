@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/milestones.go`.
+//! Milestones, stored.
 //!
 //! Milestones group the cards that ship together. Every write records a
 //! `change_ops` row in the same transaction, and archiving a milestone moves

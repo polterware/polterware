@@ -1,13 +1,13 @@
-//! Port of `backend/compositions/local-core/lifecycle.go`.
+//! What keeps the daemon alive: recent requests and open change streams.
 //!
 //! What keeps the daemon alive (Decision 0007): recent requests (MCP calls
 //! included) and open change streams. The MCP bridge re-initializes
 //! transparently when an idle core exited, so MCP sessions do not pin it.
 //!
-//! Go's `interceptor` authenticates every call and records activity; the port's
-//! router does that around each route (`connect::authorize` plus
-//! [`Inflight::begin`]), so what is left here is the lifecycle itself, the
-//! client header, and the health, shutdown, and change-stream handlers.
+//! The router authenticates every call and records activity around each route
+//! (`connect::authorize` plus [`Inflight::begin`]); what is left here is the
+//! lifecycle itself, the client header, and the health, shutdown, and
+//! change-stream handlers.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicI32, AtomicI64, Ordering};

@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/mcpbridge.go`: MCP stdio to the core's `/mcp`.
+//! MCP stdio to the core's `/mcp`.
 //!
 //! Claude Code, Codex, and Cursor launch `polterware mcp` as a stdio server.
 //! The bridge forwards each JSON-RPC line to the core's `/mcp` endpoint
@@ -398,15 +398,12 @@ fn error_response(message: &[u8], err: &BridgeError) -> Vec<u8> {
     let Some(id) = object.get("id") else {
         return Vec::new();
     };
-    let body = serde_json::json!({
+    let body = crate::platform::json::compact(&serde_json::json!({
         "jsonrpc": "2.0",
         "id": id,
         "error": {"code": -32000, "message": err.to_string()},
-    });
-    match serde_json::to_string(&body) {
-        Ok(text) => text.into_bytes(),
-        Err(_) => Vec::new(),
-    }
+    }));
+    body.into_bytes()
 }
 
 #[cfg(test)]

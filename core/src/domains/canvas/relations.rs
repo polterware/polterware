@@ -1,4 +1,4 @@
-//! Port of `backend/domains/canvas/relations.go`.
+//! The edges between canvas nodes, and the change entries a changed one raises.
 
 use std::collections::{HashMap, HashSet};
 

@@ -1,4 +1,4 @@
-//! Port of `backend/domains/projection`.
+//! The generated block a checkout's AGENTS.md carries.
 //!
 //! Renders the generated block Polterware writes into each checkout's AGENTS.md.
 //! The store stays the source of truth; nothing here reads a checkout back. It

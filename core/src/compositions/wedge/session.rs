@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/session.go`.
+//! Applying a write inside a session's AgentRun.
 
 #[allow(unused_imports)]
 use super::*;

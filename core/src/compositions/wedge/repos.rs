@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/repos.go`.
+//! Repositories, checkouts, and which one a run works in.
 //!
 //! Repositories belong to Structure components by name: the ones the project
 //! registers, which clone on this machine, and which one a run works in.

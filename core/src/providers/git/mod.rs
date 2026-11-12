@@ -1,4 +1,4 @@
-//! Port of `backend/providers/git`.
+//! A checkout's Git: HEAD, branch, recent commits, and GitHub remotes.
 //!
 //! Reads a work tree and its recent commits through the `git` CLI, and parses
 //! GitHub remote URLs. Nothing here contacts a remote.

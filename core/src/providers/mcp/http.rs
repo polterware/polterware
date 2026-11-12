@@ -1,4 +1,4 @@
-//! Port of `backend/providers/mcp/http.go`: MCP over HTTP inside the core
+//! MCP over HTTP inside the core
 //! (Decision 0007).
 //!
 //! POST one JSON-RPC message and get its JSON response (202 for

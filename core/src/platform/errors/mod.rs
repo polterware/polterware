@@ -1,4 +1,4 @@
-//! Port of `backend/platform/errors`.
+//! Error codes and the detail they carry.
 
 use std::fmt;
 

@@ -1,12 +1,12 @@
-//! Port of `backend/providers/sqlite`.
+//! The store over SQLite: its errors, its time formats, and its shared helpers.
 //!
 //! The local SQLite store: one [`Store`] per database, opened through
 //! `platform::db::sqlite` with the migrations applied and the change hooks
-//! registered. Every package file adds its own `impl Store` block here, one
-//! module per Go file; this module holds the store itself, the shared helpers,
-//! and the error type they return.
+//! registered. Each table area adds its own `impl Store` block in its module;
+//! this module holds the store itself, the shared helpers, and the error type
+//! they return.
 //!
-//! Methods take `&self`, like the Go store's pool: a write that needs a
+//! Methods take `&self`, because the connection is shared: a write that needs a
 //! transaction uses `unchecked_transaction`, and the SQLite connection is held
 //! behind the caller's lock.
 
@@ -66,14 +66,12 @@ pub enum Error {
 }
 
 impl Error {
-    /// A plain message, the port of the package's `fmt.Errorf` and
-    /// `errors.New` sites.
+    /// A plain message error, for the store's own failures.
     pub fn message(text: impl Into<String>) -> Error {
         Error::Message(text.into())
     }
 
-    /// Reports whether this is SQLite's "no rows" error, the port's
-    /// `errors.Is(err, sql.ErrNoRows)`.
+    /// Reports whether this is SQLite's "no rows" error.
     pub fn is_no_rows(&self) -> bool {
         matches!(self, Error::Sqlite(rusqlite::Error::QueryReturnedNoRows))
     }

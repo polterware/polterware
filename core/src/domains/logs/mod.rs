@@ -1,4 +1,4 @@
-//! Port of `backend/domains/logs`.
+//! Bounded log buffers and the non-blocking stream handoff.
 //!
 //! A bounded log line buffer and the bounded, non-blocking stream handoff
 //! between a process and its readers.

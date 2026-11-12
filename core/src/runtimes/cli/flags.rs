@@ -1,10 +1,10 @@
-//! The subset of Go's `flag` package the CLI uses.
+//! The `flag` semantics the CLI uses.
 //!
-//! Go parses `-name`, `--name`, `-name=value`, and `-name value`, stops at the
-//! first non-flag argument (or `--`), and prints `flag provided but not
-//! defined` and the flag set's usage on an error. This module keeps that
-//! behavior, with the same messages and the same `PrintDefaults` layout, so a
-//! person sees what `polterware` in Go shows.
+//! A flag is `-name`, `--name`, `-name=value`, or `-name value`; parsing stops at
+//! the first non-flag argument (or `--`), and an error prints `flag provided but
+//! not defined` with the flag set's usage. This module keeps those messages and
+//! the `PrintDefaults` layout exactly, so the CLI reads the same from one
+//! version to the next.
 
 use std::time::Duration;
 

@@ -1,4 +1,4 @@
-//! Port of `backend/platform/events`.
+//! The change bus: table kinds, changes, and subscribers.
 //!
 //! The core's in-memory change bus (Decision 0007). SQLite commit hooks record
 //! which tables a transaction wrote; the bus coalesces them into numbered change

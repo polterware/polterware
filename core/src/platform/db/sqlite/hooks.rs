@@ -7,9 +7,9 @@
 //! once per commit, before the commit is visible to other connections; the
 //! rollback hook drops what the rolled-back transaction recorded.
 //!
-//! [`PendingTx::pre_update`] and [`load_project_columns`] keep the Go behavior:
-//! only the `main` database counts, `schema_migrations` is ignored, and the
-//! project id column is `project_id` (or `id` on `projects`).
+//! [`PendingTx::pre_update`] and [`load_project_columns`] keep one rule: only the
+//! `main` database counts, `schema_migrations` is ignored, and the project id
+//! column is `project_id` (or `id` on `projects`).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};

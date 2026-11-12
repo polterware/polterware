@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/terminal.go`.
+//! The Desktop terminal and Connect's provider sign-in flow.
 //!
 //! The Desktop terminal and Connect's provider sign-in flow: one manager per
 //! core, one PTY session per shell. `Core` keeps no terminal field here, so the

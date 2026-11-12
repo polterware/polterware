@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/feature.go`: the feature flow.
+//! The feature flow.
 //!
 //! Review computes the Shape impact of one card (what it touches and inherits)
 //! and the checks of every step; the gates turn that review into the Polter

@@ -1,9 +1,9 @@
-//! Port of `backend/runtimes/cli`: the `polterware` binary.
+//! The `polterware` binary.
 //!
 //! `main` parses `-db` and the command, then hands each command to its file:
 //! `serve` (the only process that opens the store), `mcp` (the stdio bridge to
-//! the core's `/mcp`), and the client commands. A client command that is not
-//! ported yet answers `<command>: not ported yet` with exit code 2.
+//! the core's `/mcp`), and the client commands. A client command with no
+//! implementation yet answers `<command>: not ported yet` with exit code 2.
 
 pub mod canvas;
 pub mod conflict;

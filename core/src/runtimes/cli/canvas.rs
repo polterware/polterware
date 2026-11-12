@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/canvas.go`.
+//! The `canvas` command.
 
 use super::{
     core::{dial, resolve_project},

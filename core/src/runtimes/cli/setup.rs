@@ -1,4 +1,5 @@
-//! Port of the setup and hook switch commands.
+//! The `setup` and `hooks` commands: installing the agent tooling and
+//! switching its hooks.
 use super::{
     core::dial,
     flags::{FlagError, FlagSet},

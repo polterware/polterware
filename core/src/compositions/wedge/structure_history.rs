@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/structure_history.go`.
+//! Structure at a past commit, and its history.
 
 #[allow(unused_imports)]
 use super::*;

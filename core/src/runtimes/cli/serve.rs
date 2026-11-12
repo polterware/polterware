@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/serve.go`: the detached core daemon.
+//! The detached core daemon.
 //!
 //! `polterware serve` is the only process that opens the store (Decision 0007).
 //! It takes the per-database lock, listens on loopback, writes `core.json` with

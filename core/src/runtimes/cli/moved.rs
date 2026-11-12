@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/moved.go`: the delegation commands Dispatch
+//! The delegation commands Dispatch owns.
 //! took over.
 //!
 //! `run`/`runs`/`wait`/... now belong to Polterware Dispatch. When the

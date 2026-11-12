@@ -1,4 +1,4 @@
-//! Port of `backend/domains/structure`.
+//! The project tree: domains, components, and where code lives.
 //!
 //! The project graph above Work cards: the project is the root, with domains
 //! under it and components under a domain or loose. Features stay cards. Status

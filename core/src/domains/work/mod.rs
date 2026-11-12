@@ -1,4 +1,4 @@
-//! Port of `backend/domains/work` (`work.go`; the package's own file).
+//! Work cards, their tasks, and the snapshot a read plans against.
 //!
 //! The relational Work model: cards (features) with tasks, open questions, and
 //! contract invariants. Agents write it through the Polter codec; every

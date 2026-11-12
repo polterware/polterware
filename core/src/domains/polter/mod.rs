@@ -1,10 +1,10 @@
-//! Port of `backend/domains/polter`: the Polter format codec.
+//! The Polter format codec.
 //!
 //! The markdown dialect agents use to read and write Polterware Work state. It
 //! is pure (no store) so the CLI, MCP, the Desktop (through the core), and
 //! Cloud share the same code.
 //!
-//! This module ports the whole package: decode, encode, structure encode, the
+//! This module holds the whole codec: decode, encode, structure encode, the
 //! format spec, the graph checks, scopes, coordination, lint, hints, commit
 //! references, and the planners (`Plan`, `Brief`, the feature flow, milestones,
 //! decisions, rules, conflicts, facts, deploys, handoff notes), which read the

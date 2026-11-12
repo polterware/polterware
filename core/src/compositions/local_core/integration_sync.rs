@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/integration_sync.go`.
+//! `SyncIntegrationConnection`: one provider's CLI inventory into a connection.
 //!
 //! `SyncIntegrationConnection` pulls one provider's bounded CLI inventory and
 //! replaces the connection's resources, or records the run as failed and leaves

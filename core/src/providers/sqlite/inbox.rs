@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/inbox.go`.
+//! Inbox dispositions and deploy links, stored.
 //!
 //! What the Inbox keeps: a person's dispositions on derived items (append-only
 //! rows, latest per key) and the deploy links the Deploy and Setup items are

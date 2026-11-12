@@ -1,4 +1,4 @@
-//! Port of `backend/domains/work/claim.go`.
+//! Task claims: the path globs two cards must not both hold.
 
 use std::collections::HashMap;
 
@@ -60,7 +60,7 @@ pub fn split_scope(scope: &str) -> (String, String) {
 /// checkouts never overlap. Inside one checkout, segments are split on `/`;
 /// `*` and `?` stay inside one segment and `**` matches any number of
 /// segments. A pattern also covers everything below a path it matches, so
-/// `backend/*` overlaps `backend/domains/canon/*`. Character classes are
+/// `core/*` overlaps `core/domains/canon/*`. Character classes are
 /// treated as any single character, which can only over-report overlap. An
 /// empty pattern overlaps nothing.
 pub fn scopes_overlap(a: &str, b: &str) -> bool {

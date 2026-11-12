@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/deploy_checks.go`.
+//! The background deploy check and the two deploy handlers.
 //!
 //! The background deploy check and the two deploy handlers: what a deploy can
 //! link to, and asking the platforms again.

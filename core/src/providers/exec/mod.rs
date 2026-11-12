@@ -1,4 +1,4 @@
-//! Port of `backend/providers/exec`.
+//! Running a short-lived command with a timeout and a bounded stdout.
 //!
 //! Runs a short-lived command with a timeout and keeps a bounded stdout, so
 //! every caller (Git, the platform CLIs, package managers) reports failures

@@ -1,4 +1,4 @@
-//! Port of `backend/providers/mcp/tools.go`: the four tools, their schemas, and
+//! The four tools, their schemas, and
 //! the map from a retired name to its replacement.
 
 use serde_json::{Value, json};

@@ -1,4 +1,4 @@
-//! Port of `backend/domains/knowledge/links.go`.
+//! The entity links a knowledge item carries.
 
 use time::OffsetDateTime;
 

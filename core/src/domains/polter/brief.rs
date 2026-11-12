@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/brief.go`.
+//! The one read before an agent works.
 //!
 //! The one read before an agent works: a card or a Structure node with its
 //! Rules, open work, milestone, canvas links, and docs, deterministic and packed

@@ -1,4 +1,4 @@
-//! Port of `backend/domains/agentaccess`.
+//! Agent tool calls: their ids and the summary kept for each result.
 //!
 //! Agent tool calls: their ids and the summary text kept for each result.
 

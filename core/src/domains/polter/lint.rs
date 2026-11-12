@@ -1,9 +1,8 @@
-//! Port of `backend/domains/polter/lint.go`: decode plus the reference checks,
-//! graph checks, and similarity hints.
+//! Decoding plus the reference checks, graph checks, and similarity hints.
 //!
-//! Go declares `stageHints` in `feature.go` and `HandoffHints` with `GitView` in
-//! `handoff.go`; the passes they feed (`FeatureReview`, the handoff encoders)
-//! read them here, and `lint` runs them with the rest of the reference checks.
+//! The stage hints live in `feature`, and the handoff hints with `GitView` in
+//! `handoff`; the passes they feed (feature review, the handoff encoders) read
+//! them here, and `lint` runs them with the rest of the reference checks.
 
 use std::collections::{HashMap, HashSet};
 

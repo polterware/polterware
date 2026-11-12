@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/encode.go`: canonical rendering of a
+//! Canonical rendering of a
 //! decoded document, a stored card, and the card list.
 //!
 //! `format(Decode(format(Decode(x))))` equals `format(Decode(x))`: the codec's

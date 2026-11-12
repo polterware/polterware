@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/scopes.go`: the `scope:` value shared by
+//! The `scope:` value shared by
 //! Rules, Decisions, Facts, and derived items.
 
 use std::collections::HashMap;

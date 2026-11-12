@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/conflicts.go`.
+//! Conflicts and their answers, stored.
 //!
 //! A Conflict is a request that goes against a Rule or a Decision: an agent
 //! raises one instead of acting against the law, and a person decides it.

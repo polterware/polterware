@@ -1,6 +1,5 @@
-//! Port of `backend/compositions/local-core/server_test.go`, plus the wire
-//! checks the routes answer on, and the replay of the fixtures captured from
-//! the Go core.
+//! Wire tests: the checks the routes answer on, and the replay of the reply
+//! fixtures kept in `testdata/`.
 
 use std::time::{Duration, Instant};
 

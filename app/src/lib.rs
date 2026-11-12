@@ -1,6 +1,5 @@
-//! Polterware in GPUI: the Desktop's frame and surfaces over the local Go core, read through
-//! Connect-JSON. The Electron Desktop (`apps/polterware-desktop`) stays the shipped app until
-//! this one reaches parity.
+//! Polterware in GPUI: the Desktop's frame and surfaces over the local Rust core, read through
+//! Connect-JSON.
 
 pub mod app;
 pub mod canvas;

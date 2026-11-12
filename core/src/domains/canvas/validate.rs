@@ -1,4 +1,4 @@
-//! Port of `backend/domains/canvas/validate.go`.
+//! Validation of a canvas graph against the kinds it may use.
 
 use super::{
     Canvas, Definition, Error, Graph, KIND_NOTE, KIND_TEXT, Ref, Result, SHAPE_KINDS,

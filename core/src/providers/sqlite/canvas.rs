@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/canvas.go`.
+//! Canvases and their archives, stored.
 //!
 //! Canvases: the semantic graph, the opaque layout beside it, the Structure
 //! node it is scoped to, and the change op each write appends.

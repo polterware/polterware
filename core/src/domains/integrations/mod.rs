@@ -1,4 +1,4 @@
-//! Port of `backend/domains/integrations`.
+//! The catalog of platform CLIs and the records around a connection.
 //!
 //! The catalog of platform CLIs Polterware connects through, plus the
 //! connection, resource, and sync-run records around them.

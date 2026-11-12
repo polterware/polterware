@@ -1,4 +1,4 @@
-//! Port of `backend/platform/db/sqlite`.
+//! Opening the SQLite baseline, its migrations, and its change hooks.
 
 mod hooks;
 mod migrate;

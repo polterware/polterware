@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/agent_run.go`.
+//! Agent runs, their steps, and the change log, stored.
 //!
 //! AgentRuns: their headers, the ordered steps that reconstruct a run, and the
 //! justified change history (B9) the Unified Change History reads.

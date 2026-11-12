@@ -1,4 +1,4 @@
-//! Port of `backend/domains/context/compile.go`.
+//! Compiling the candidate context items of a project under a token budget.
 
 use std::collections::HashSet;
 

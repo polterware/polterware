@@ -208,12 +208,12 @@ impl ConnectError {
         self
     }
 
-    /// The port of the package's `invalid`.
+    /// An `invalid_argument` error.
     pub fn invalid(message: impl Into<String>) -> ConnectError {
         ConnectError::new(Code::InvalidArgument, message)
     }
 
-    /// The port of the package's `internal`.
+    /// An `internal` error.
     pub fn internal(message: impl Into<String>) -> ConnectError {
         ConnectError::new(Code::Internal, message)
     }
@@ -226,8 +226,7 @@ impl ConnectError {
         ConnectError::new(Code::FailedPrecondition, message)
     }
 
-    /// The error a handler that is not ported yet answers with, worded as
-    /// connect-go's generated `Unimplemented…Handler` stubs word it.
+    /// The error a handler with no implementation yet answers with.
     pub fn unimplemented(message: impl Into<String>) -> ConnectError {
         ConnectError::new(Code::Unimplemented, message)
     }

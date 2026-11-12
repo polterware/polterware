@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/rules.go`.
+//! Rules and their lifecycle, stored.
 //!
 //! Rules are the law agents read: a short imperative statement with any number
 //! of Structure node contexts (none is the whole project).

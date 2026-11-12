@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/commit_links.go`.
+//! The commits people link to a card's tasks, stored.
 //!
 //! The links an agent or a person made between one commit and one task. Links
 //! cited in commit subjects are derived on read, so only manual ones are

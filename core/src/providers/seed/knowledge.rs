@@ -1,4 +1,4 @@
-//! Port of `backend/providers/seed/knowledge.go`.
+//! The seed project's docs and Rules.
 //!
 //! The pinned Rules (the old principles) and the two docs that name the
 //! repository documents defining Polterware.

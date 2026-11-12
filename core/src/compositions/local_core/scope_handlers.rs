@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/scope_handlers.go`.
+//! The handlers that set the Structure contexts of a Rule, a doc, or an Inbox item.
 //!
 //! Sets the Structure contexts of a Rule or a doc, or of a derived Inbox item;
 //! none clears them, which means the whole project.

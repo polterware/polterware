@@ -1,4 +1,4 @@
-//! Port of `backend/providers/seed/structure.go`.
+//! The seed project's Structure, cards, and milestones.
 //!
 //! The Polterware project described in its own Structure: its project Rules,
 //! its domains and components, and its Work cards.

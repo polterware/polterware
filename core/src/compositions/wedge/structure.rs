@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/structure.go`.
+//! The Structure rows derived from a project's cards.
 
 #[allow(unused_imports)]
 use super::*;
@@ -12,8 +12,8 @@ pub fn structure_rows(_store: &Store, snapshot: &work::Snapshot) -> Vec<structur
     structure_rows_inner(snapshot)
 }
 
-/// [`structure_rows`] without the store: the port of the package's private
-/// `structureRows`, which the query path calls with the snapshot it holds.
+/// [`structure_rows`] without the store: the query path passes the snapshot it
+/// holds.
 fn structure_rows_inner(snapshot: &work::Snapshot) -> Vec<structure::Row> {
     let mut features: Vec<structure::Feature> = Vec::with_capacity(snapshot.cards.len());
     for card in &snapshot.cards {

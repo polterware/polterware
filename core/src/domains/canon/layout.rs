@@ -1,4 +1,4 @@
-//! Port of `backend/domains/canon/layout.go`.
+//! Canon's stored layout: where entities sit, apart from the graph.
 
 use serde_json::{Map, Value};
 

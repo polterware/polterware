@@ -1,9 +1,9 @@
-//! Port of `backend/compositions/local-core`: the core's Connect-JSON server.
+//! The core's Connect-JSON server.
 //!
-//! One module per Go file. [`server`] holds [`Core`], the listener, the router,
+//! One module per service. [`server`] holds [`Core`], the listener, the router,
 //! and the project, environment, knowledge, and connection handlers; [`connect`]
-//! is the wire every handler answers on; the rest are the handler files of the
-//! services, ported or still stubbed to Connect `unimplemented`.
+//! is the wire every handler answers on; the rest are the handler modules of the
+//! services, implemented or still stubbed to Connect `unimplemented`.
 
 pub mod agent_setup_handlers;
 pub mod agentrun_handlers;

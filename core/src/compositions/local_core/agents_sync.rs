@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/agents_sync.go`.
+//! AGENTS.md sync: the per-project switch and the background pass.
 //!
 //! AGENTS.md sync: the switch per project, and the background pass that
 //! rewrites a checkout's generated block a moment after a change that can

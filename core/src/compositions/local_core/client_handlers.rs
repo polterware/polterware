@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/client_handlers.go`.
+//! What a CLI client asks the core about itself.
 //!
 //! What a CLI client asks the core about itself: which project a directory
 //! belongs to, registering a project, and the MCP sessions connected here.

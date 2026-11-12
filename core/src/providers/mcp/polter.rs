@@ -1,4 +1,4 @@
-//! Port of `backend/providers/mcp/polter.go`: the Polter reads and the audited
+//! The Polter reads and the audited
 //! write that joins the session's run.
 
 use serde_json::{Map, Value};

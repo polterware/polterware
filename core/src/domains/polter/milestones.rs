@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/milestones.go`: the milestone list and the
+//! The milestone list and the
 //! roadmap.
 //!
 //! Both read the Work snapshot: a milestone is a board of cards, and a card

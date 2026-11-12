@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/path.go`.
+//! Path helpers: `~` expansion, cleaning, and slash-form paths.
 
 #[allow(unused_imports)]
 use super::*;

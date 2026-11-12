@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/verify.go`.
+//! What a card's `confirm:` lines record, verified.
 //!
 //! Verify reports whether a card (or one task) is finished. It is a read: it
 //! never moves the stored stage. Beyond tasks and questions it lists the card's

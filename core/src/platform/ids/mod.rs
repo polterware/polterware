@@ -1,4 +1,4 @@
-//! Port of `backend/platform/ids`.
+//! ULID generation for stored records.
 //!
 //! Generates stable record ids that can be created offline on any machine
 //! without collisions.

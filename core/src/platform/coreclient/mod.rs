@@ -1,16 +1,14 @@
-//! Port of `backend/platform/coreclient`.
+//! The client that finds, starts, and talks to the local core.
 //!
 //! Finds, starts, and talks to the local core (Decision 0007). The core
 //! (`polterware serve`) is the only process that opens the SQLite store; the CLI
 //! and the MCP bridge reach it through these helpers.
 //!
-//! The core speaks Connect-JSON over loopback. Core has no HTTP client crate, so
-//! the unary call is written here on `std::net`: one JSON `POST` per call, as the
-//! Desktop's client does.
+//! The core speaks Connect-JSON over loopback, and every call is one JSON `POST`
+//! through `ureq`, as the Desktop's client does.
 
 use std::fs::{self, OpenOptions};
-use std::io::{self, Read, Write};
-use std::net::{SocketAddr, TcpStream};
+use std::io;
 use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -44,10 +42,10 @@ const ENSURE_ATTEMPTS: usize = 3;
 /// How long `ensure` waits for a core that just started to answer.
 const RESTART_PAUSE: Duration = Duration::from_millis(200);
 
-/// The errors coreclient returns, one per Go error site.
+/// The errors coreclient returns, one per failure site.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// A formatted message, as Go's `fmt.Errorf` returns it.
+    /// A formatted message.
     #[error("{0}")]
     Message(String),
     #[error("{message}")]
@@ -221,11 +219,9 @@ pub fn stop(db_path: impl AsRef<Path>) -> Result<()> {
     )))
 }
 
-/// The typed Connect client of one core. Go's generated service clients
-/// (`HealthServiceClient`, `MaintenanceServiceClient`, and the rest) are code
-/// generated from the protos; the Rust core has none generated, so the calls
-/// this package makes are spelled out and any other route goes through
-/// [`Clients::unary`].
+/// The typed Connect client of one core. Nothing is code generated for the Rust
+/// core, so the calls this package makes are spelled out and any other route
+/// goes through [`Clients::unary`].
 #[derive(Clone, Debug)]
 pub struct Clients {
     core: runstate::Core,
@@ -323,30 +319,42 @@ fn post(
     timeout: Duration,
 ) -> Result<(u16, Vec<u8>)> {
     let (host, port) = endpoint(&core.endpoint)?;
-    let address: SocketAddr = format!("{host}:{port}")
-        .parse()
-        .map_err(|err| Error::Message(format!("core endpoint {}: {err}", core.endpoint)))?;
-    let mut stream = TcpStream::connect_timeout(&address, timeout)?;
-    stream.set_read_timeout(Some(timeout))?;
-    stream.set_write_timeout(Some(timeout))?;
-    let head = format!(
-        "POST /{route} HTTP/1.1\r\n\
-         Host: {host}:{port}\r\n\
-         Content-Type: application/json\r\n\
-         Connect-Protocol-Version: 1\r\n\
-         Authorization: Bearer {token}\r\n\
-         {CLIENT_HEADER}: {client}\r\n\
-         Content-Length: {length}\r\n\
-         Connection: close\r\n\r\n",
-        route = route.trim_start_matches('/'),
-        token = core.token,
-        length = body.len(),
-    );
-    stream.write_all(head.as_bytes())?;
-    stream.write_all(body)?;
-    let mut response = Vec::new();
-    stream.read_to_end(&mut response)?;
-    split_response(&response)
+    let url = format!("http://{host}:{port}/{}", route.trim_start_matches('/'));
+    let mut response = agent(timeout)
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .header("Connect-Protocol-Version", "1")
+        .header("Authorization", format!("Bearer {}", core.token))
+        .header(CLIENT_HEADER, client)
+        .send(body)
+        .map_err(|err| transport_error(route, err))?;
+    let status = response.status().as_u16();
+    let body = response
+        .body_mut()
+        .read_to_vec()
+        .map_err(|err| transport_error(route, err))?;
+    Ok((status, body))
+}
+
+/// The agent one call gets: one fresh connection, no redirect followed, and the
+/// call's own timeout over the whole exchange.
+fn agent(timeout: Duration) -> ureq::Agent {
+    let config = ureq::Agent::config_builder()
+        .timeout_global(Some(timeout))
+        .http_status_as_error(false)
+        .max_redirects(0)
+        .max_redirects_will_error(false)
+        .max_idle_connections(0)
+        .build();
+    ureq::Agent::new_with_config(config)
+}
+
+/// Names a failed exchange. A socket error keeps its own text, as it always has.
+fn transport_error(route: &str, err: ureq::Error) -> Error {
+    match err {
+        ureq::Error::Io(err) => Error::Io(err),
+        err => Error::Message(format!("{route}: {err}")),
+    }
 }
 
 /// The host and port an endpoint names (`http://127.0.0.1:52341`).
@@ -364,33 +372,6 @@ fn endpoint(endpoint: &str) -> Result<(String, u16)> {
         }
         None => Ok((rest.to_string(), 80)),
     }
-}
-
-/// Splits one HTTP/1.1 response into its status code and body.
-fn split_response(response: &[u8]) -> Result<(u16, Vec<u8>)> {
-    let head_end = response
-        .windows(4)
-        .position(|window| window == b"\r\n\r\n")
-        .ok_or_else(|| Error::Message("the core closed the connection".to_string()))?;
-    let head = String::from_utf8_lossy(&response[..head_end]);
-    let mut lines = head.split("\r\n");
-    let status = lines
-        .next()
-        .and_then(|line| line.split_whitespace().nth(1))
-        .and_then(|code| code.parse::<u16>().ok())
-        .ok_or_else(|| Error::Message("the core sent no status line".to_string()))?;
-    let mut body = &response[head_end + 4..];
-    for line in lines {
-        let Some((name, value)) = line.split_once(':') else {
-            continue;
-        };
-        if name.trim().eq_ignore_ascii_case("content-length")
-            && let Ok(length) = value.trim().parse::<usize>()
-        {
-            body = &body[..length.min(body.len())];
-        }
-    }
-    Ok((status, body.to_vec()))
 }
 
 /// The error a Connect response body carries, as the Desktop reads it.
@@ -415,8 +396,7 @@ fn status_error(status: u16, body: &[u8]) -> Error {
     }
 }
 
-/// Signals `pid` to terminate, as Go's `syscall.Kill(pid, syscall.SIGTERM)`
-/// does. A process that is already gone is not an error.
+/// Signals `pid` to terminate. A process that is already gone is not an error.
 fn terminate(pid: i32) -> Result<()> {
     const SIGTERM: i32 = 15;
     const ESRCH: i32 = 3;
@@ -435,7 +415,7 @@ unsafe extern "C" {
     fn kill(pid: i32, sig: i32) -> i32;
 }
 
-/// Names an exit the way Go's `os/exec` does: "exit status 3", "signal: killed".
+/// Names an exit as `exit status <code>` or `signal: <name>`.
 fn exit_error(status: &std::process::ExitStatus) -> String {
     use std::os::unix::process::ExitStatusExt;
     let Some(signal) = status.signal() else {
@@ -459,7 +439,8 @@ fn exit_error(status: &std::process::ExitStatus) -> String {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use std::net::TcpListener;
+    use std::io::{Read, Write};
+    use std::net::{TcpListener, TcpStream};
     use time::OffsetDateTime;
 
     /// One canned reply from a loopback server; the returned handle answers the
@@ -500,8 +481,13 @@ mod tests {
         let text = String::from_utf8_lossy(&head).into_owned();
         let length = text
             .lines()
-            .find_map(|line| line.strip_prefix("Content-Length: "))
-            .and_then(|value| value.trim().parse::<usize>().ok())
+            .find_map(|line| {
+                let (name, value) = line.split_once(':')?;
+                name.trim()
+                    .eq_ignore_ascii_case("content-length")
+                    .then(|| value.trim().parse::<usize>().ok())
+                    .flatten()
+            })
             .unwrap_or(0);
         let mut body = vec![0u8; length];
         let _ = stream.read_exact(&mut body);
@@ -536,7 +522,7 @@ mod tests {
         assert!(newer_build("1700000000-1", "1600000000-999"));
         assert!(!newer_build("1600000000-999", "1700000000-1"));
         assert!(!newer_build("1700000000-1", "1700000000-1"));
-        // An unparsable time reads as zero, as Go's ignored ParseInt error does.
+        // An unparsable time reads as zero.
         assert!(newer_build("2026-1", "0-1"));
         assert!(!newer_build("abc", "0-1"));
         assert!(!newer_build("", ""));
@@ -560,13 +546,16 @@ mod tests {
             request.starts_with("POST /polterware.local.v1.HealthService/Check HTTP/1.1\r\n"),
             "{request}"
         );
+        // Header names are case-insensitive on the wire; ureq writes them
+        // lowercase.
+        let lowered = request.to_lowercase();
         assert!(
-            request.contains("Authorization: Bearer token\r\n"),
+            lowered.contains("authorization: bearer token\r\n"),
             "{request}"
         );
-        assert!(request.contains("Polterware-Client: cli\r\n"), "{request}");
+        assert!(lowered.contains("polterware-client: cli\r\n"), "{request}");
         assert!(
-            request.contains("Connect-Protocol-Version: 1\r\n"),
+            lowered.contains("connect-protocol-version: 1\r\n"),
             "{request}"
         );
         assert!(request.ends_with("\r\n\r\n{}"), "{request}");

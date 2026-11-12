@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/decode.go`: the decoder, the document AST
+//! The decoder, the document AST
 //! entry points, and the metadata grammar.
 //!
 //! `Decode` parses Polter text into a [`Document`]. Syntax problems come back

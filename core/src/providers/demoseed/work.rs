@@ -1,4 +1,4 @@
-//! Port of `backend/providers/demoseed/work.go`.
+//! The demo project's milestones and cards.
 
 use crate::compositions::wedge;
 use crate::providers::sqlite::{self, Store};

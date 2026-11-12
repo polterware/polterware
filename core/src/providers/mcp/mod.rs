@@ -1,16 +1,15 @@
-//! Port of `backend/providers/mcp`: the MCP server the core serves to coding
-//! agents.
+//! The MCP server the core serves to coding agents.
 //!
 //! The surface is four tools: [`TOOL_POLTER_QUERY`] reads, [`TOOL_POLTER_APPLY`]
 //! and [`TOOL_DOC_UPSERT`] write in one audited change that joins the session's
 //! AgentRun, and [`TOOL_POLTER_FORMAT`] prints the Polter format. A retired tool
 //! name answers with its replacement.
 //!
-//! [`Server`] answers one JSON-RPC message at a time: [`Server::serve`] keeps the
+//! `Server` answers one JSON-RPC message at a time: [`Server::serve`] keeps the
 //! line-oriented loop over stdio, and [`Sessions`] serves the streamable HTTP
-//! transport inside the core. The wire is Go's `encoding/json`: struct fields in
-//! declaration order, map keys sorted, and HTML escaped, so a client reads the
-//! same bytes from either core.
+//! transport inside the core. The wire keeps `encoding/json`'s layout: struct
+//! fields in declaration order, map keys sorted, and HTML escaped, so a client
+//! reads the same bytes from either transport.
 
 mod docs;
 mod helpers;
@@ -30,7 +29,7 @@ pub use tools::{TOOL_DOC_UPSERT, TOOL_POLTER_APPLY, TOOL_POLTER_FORMAT, TOOL_POL
 pub struct Error(pub String);
 
 impl Error {
-    /// Builds the error Go's `fmt.Errorf` would have written.
+    /// Builds a tool failure from its message.
     pub(crate) fn message(text: impl Into<String>) -> Error {
         Error(text.into())
     }

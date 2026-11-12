@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/feature_handlers.go`.
+//! The feature flow handlers: intent, impact, and the stage gates.
 //!
 //! The feature flow: Intent creates a card in shape, Shape shows its impact, and
 //! the contract and plan gates move the stage.

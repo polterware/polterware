@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/scope.go`.
+//! The Structure scope of a read: resolving nodes and filtering by them.
 
 #[allow(unused_imports)]
 use super::*;

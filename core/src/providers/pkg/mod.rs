@@ -1,4 +1,4 @@
-//! Port of `backend/providers/pkg`.
+//! Running a package manager's script through the exec port.
 //!
 //! Runs a package manager's script through the exec port.
 

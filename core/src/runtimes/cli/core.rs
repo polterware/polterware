@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/core.go`: the CLI's client of the core.
+//! The CLI's client of the core.
 //!
 //! `dial` returns clients for the core that owns the database, starting it when
 //! none is running (Decision 0007: only the core opens the store). The rest

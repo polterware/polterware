@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/commitref.go`: the task citations a commit
+//! The task citations a commit
 //! subject carries, and the tasks they name.
 
 use std::collections::HashSet;

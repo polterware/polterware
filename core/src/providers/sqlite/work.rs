@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/work.go`.
+//! Work cards, tasks, and the column values they store.
 //!
 //! The Work snapshot — every card with its tasks, questions, invariants,
 //! claims, and handoffs, plus the rows read beside them — and the writer that
@@ -23,9 +23,8 @@ use super::*;
 /// The cards of the project the tasks, questions, and invariants belong to.
 const CARDS_SCOPE: &str = "card_id IN (SELECT id FROM work_cards WHERE project_id=?)";
 
-/// One value bound into a column: the port of the `any` `columnValue` returns.
-/// A JSON array becomes its marshaled text and a boolean becomes SQLite's 1 and
-/// 0.
+/// One value bound into a column. A JSON array becomes its marshaled text and a
+/// boolean becomes SQLite's 1 and 0.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ColumnValue {
     Null,

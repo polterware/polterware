@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/export.go`: checkout projections.
+//! The `export` command: checkout projections.
 
 use crate::local_v1;
 use crate::platform::coreclient::CALL_TIMEOUT;

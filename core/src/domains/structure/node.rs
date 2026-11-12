@@ -1,4 +1,4 @@
-//! Port of `backend/domains/structure/node.go`.
+//! A Structure node: its level, kind, checkout, and derived status.
 
 use std::collections::{HashMap, HashSet};
 

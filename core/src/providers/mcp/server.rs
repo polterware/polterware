@@ -1,4 +1,4 @@
-//! Port of `backend/providers/mcp/server.go`: one MCP session, the JSON-RPC
+//! One MCP session, the JSON-RPC
 //! messages it answers, and the line loop over stdio.
 
 use std::io::{BufRead, BufReader, Read, Write};
@@ -797,9 +797,9 @@ mod tests {
 
     #[test]
     fn the_stdio_loop_frames_the_go_server_byte_for_byte() {
-        // The fixtures under `testdata/` come from running the Go server
-        // (`backend/providers/mcp`) outside this repository: the same lines
-        // into `Server.Serve`, and the bytes it wrote back.
+        // The fixtures under `testdata/` are recorded wire replies: the same
+        // lines into `Server::serve` and the bytes it writes back, which must
+        // stay identical.
         let TempStore { store, .. } = TempStore::new();
         let mut server = Server::new();
         let initialize = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"clientInfo\":{\"name\":\"fixture\",\"version\":\"1.0.0\"}}}";

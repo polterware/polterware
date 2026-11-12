@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/store.go`.
+//! The `Store`: one connection per database, and the writes over it.
 //!
 //! The [`Store`] itself, its projects, environments, knowledge items, and
 //! connections, and the health row the local core exposes.

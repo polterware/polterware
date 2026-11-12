@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/hints.go`: deterministic similarity checks
+//! Deterministic similarity checks
 //! against the project's current cards.
 //!
 //! Duplicate warnings for new cards, questions, and invariants, and a placement

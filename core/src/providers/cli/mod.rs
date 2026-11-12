@@ -1,4 +1,4 @@
-//! Port of `backend/providers/cli`.
+//! The platform CLI providers: detection, sign-in, and what they report.
 //!
 //! Reads platform resources through each provider's CLI and the sign-in it
 //! already has: the connection probe, the bounded inventory pull, and the

@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/context.go`.
+//! The context package query.
 //!
 //! The Context Compiler's candidates: the entity asked for, its linked
 //! knowledge and relationship hops, search hits, title matches, facts, and a

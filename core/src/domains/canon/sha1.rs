@@ -1,5 +1,5 @@
-//! SHA-1, the digest Go's `crypto/sha1` gives Canon: entity and relationship ids
-//! derive from it, so they stay byte for byte the ones the Go core wrote.
+//! SHA-1, the digest Canon derives entity and relationship ids from, so those
+//! ids stay byte for byte stable.
 
 use sha1::{Digest, Sha1};
 

@@ -1,4 +1,4 @@
-//! Port of `backend/providers/demoseed/knowledge.go`.
+//! The demo project's docs and Rules.
 //!
 //! The demo docs, Decisions, and principles, and their links to the
 //! environment entities the project model syncs.

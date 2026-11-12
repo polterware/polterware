@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/agent_setup_handlers.go`.
+//! The AgentSetupService handlers: the hook switches and the setup doctor.
 //!
 //! The hook switches and the setup doctor. Installing is done by
 //! `polterware setup`; the core only reads.

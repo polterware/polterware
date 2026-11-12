@@ -1,4 +1,4 @@
-//! Port of `backend/providers/demoseed/seed_test.go`.
+//! The demo seed's tests.
 
 use std::collections::HashSet;
 

@@ -1,7 +1,7 @@
-//! Port of `backend/runtimes/cli/output.go` and `main.go`'s usage text.
+//! JSON and text output, usage text, and command failures.
 //!
-//! The CLI answers with Go-shaped text: `writeJSON` (encoding/json with a
-//! two-space indent), `writeProtoJSON` (protojson with proto field names and
+//! The CLI answers with the same JSON text from one build to the next:
+//! `writeJSON` (a two-space indent), `writeProtoJSON` (proto field names and
 //! unpopulated fields), `exitError` and `fail`, and the usage every command
 //! shares.
 
@@ -10,6 +10,7 @@ use std::io::{self, Write};
 use serde::Serialize;
 
 use crate::platform::coreclient;
+use crate::platform::json;
 
 /// How a command ends without a successful result.
 ///
@@ -119,12 +120,13 @@ pub fn not_ported(command: &str) -> CliResult {
     Err(CliError::Exit(2))
 }
 
-/// The JSON text Go's `json.Encoder` writes with a two-space indent: sorted
-/// keys for maps (serde_json's default map), `<`, `>`, `&`, U+2028, and U+2029
+/// The JSON text `json.Encoder` writes with a two-space indent: object keys
+/// sorted (whatever order the map keeps), `<`, `>`, `&`, U+2028, and U+2029
 /// escaped as Go escapes them, and a trailing newline.
 pub fn json_string<T: Serialize + ?Sized>(value: &T) -> Result<String, CliError> {
-    let mut text =
-        serde_json::to_string_pretty(value).map_err(|err| CliError::Message(err.to_string()))?;
+    let value = serde_json::to_value(value).map_err(|err| CliError::Message(err.to_string()))?;
+    let mut text = serde_json::to_string_pretty(&json::sorted(&value))
+        .map_err(|err| CliError::Message(err.to_string()))?;
     text = go_escape_html(&text);
     text.push('\n');
     Ok(text)
