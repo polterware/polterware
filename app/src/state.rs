@@ -424,7 +424,7 @@ impl AppState {
                                     target: slug.clone(),
                                 })
                                 .ok()
-                                .map(|response| work::confirm_state(&response.checks));
+                                .map(|response| work::confirm_state(&response.manual));
                             (slug, checks)
                         })
                         .collect::<Vec<_>>()

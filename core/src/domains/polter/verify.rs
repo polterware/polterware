@@ -55,6 +55,20 @@ pub struct VerifyResult {
     pub target: String,
     pub passed: bool,
     pub checks: Vec<VerifyCheck>,
+    /// Every manual item, confirmed or not: what the board counts as
+    /// "confirmed / total" and what the Inbox counts as still open.
+    pub manual: Vec<ManualItem>,
+}
+
+/// One manual check: an acceptance criterion or a binding Rule scoped to the
+/// card's `under:` chain, and whether a person or an agent confirmed it.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ManualItem {
+    /// The line verify prints, with its origin and who confirmed it.
+    pub label: String,
+    /// The `confirm:` target that answers it: `! <criterion>` or `rule <slug>`.
+    pub target: String,
+    pub confirmed: bool,
 }
 
 /// The manual checks a person or an agent has not confirmed yet.
@@ -90,6 +104,71 @@ fn confirmation_for<'a>(
         .find(|item| item.kind == kind && item.target_id == target_id)
 }
 
+/// The card's manual items: one per acceptance criterion and one per binding
+/// Rule scoped to the card's `under:` chain. A confirmed item says who
+/// confirmed it and carries the confirmed flag; the rest wait for a person or
+/// an agent. The binding whole-project Rules hold for every card at once, so
+/// they are one info line ("Constitution: N rules apply") and never a manual
+/// item, a confirmation, or an Inbox count.
+pub fn manual_items(
+    contract: &[ReviewInvariant],
+    rules: &[VerifyRule],
+    confirmed: &[work::Confirmation],
+) -> Vec<ManualItem> {
+    let mut items: Vec<ManualItem> = Vec::new();
+    for invariant in contract {
+        let from = if invariant.from.is_empty() || invariant.from == "card" {
+            String::new()
+        } else {
+            format!(" (from {})", invariant.from)
+        };
+        let label = format!("! {}{from}", invariant.text);
+        let target = format!("! {}", invariant.text);
+        items.push(
+            match confirmation_for(confirmed, work::CONFIRMATION_INVARIANT, &invariant.id) {
+                Some(item) => ManualItem {
+                    label: format!("{label} (confirmed by {})", confirmed_by(item)),
+                    target,
+                    confirmed: true,
+                },
+                None => ManualItem {
+                    label,
+                    target,
+                    confirmed: false,
+                },
+            },
+        );
+    }
+    for rule in rules.iter().filter(|rule| !rule.scope.is_empty()) {
+        let label = format!(
+            "rule {}: {} (from {})",
+            rule.slug, rule.statement, rule.scope
+        );
+        // A node's `!` line becomes a Rule with no slug; its id still names it.
+        let key = if rule.slug.is_empty() {
+            rule.id.as_str()
+        } else {
+            rule.slug.as_str()
+        };
+        let target = format!("rule {key}");
+        items.push(
+            match confirmation_for(confirmed, work::CONFIRMATION_RULE, &rule.id) {
+                Some(item) => ManualItem {
+                    label: format!("{label} (confirmed by {})", confirmed_by(item)),
+                    target,
+                    confirmed: true,
+                },
+                None => ManualItem {
+                    label,
+                    target,
+                    confirmed: false,
+                },
+            },
+        );
+    }
+    items
+}
+
 /// The card's manual checks: one per acceptance criterion and one per binding
 /// Rule scoped to the card's `under:` chain. A confirmed item is a pass that
 /// names who confirmed it; the rest stay manual for a person or an agent to
@@ -101,46 +180,17 @@ pub fn manual_checks(
     rules: &[VerifyRule],
     confirmed: &[work::Confirmation],
 ) -> Vec<VerifyCheck> {
-    let mut checks: Vec<VerifyCheck> = Vec::new();
-    for invariant in contract {
-        let from = if invariant.from.is_empty() || invariant.from == "card" {
-            String::new()
-        } else {
-            format!(" (from {})", invariant.from)
-        };
-        match confirmation_for(confirmed, work::CONFIRMATION_INVARIANT, &invariant.id) {
-            Some(item) => checks.push(VerifyCheck {
-                status: VERIFY_PASS.to_string(),
-                message: format!(
-                    "! {}{from} (confirmed by {})",
-                    invariant.text,
-                    confirmed_by(item)
-                ),
-            }),
-            None => checks.push(VerifyCheck {
-                status: VERIFY_MANUAL.to_string(),
-                message: format!("! {}{from}", invariant.text),
-            }),
-        }
-    }
-    for rule in rules.iter().filter(|rule| !rule.scope.is_empty()) {
-        let scope = format!(" (from {})", rule.scope);
-        match confirmation_for(confirmed, work::CONFIRMATION_RULE, &rule.id) {
-            Some(item) => checks.push(VerifyCheck {
-                status: VERIFY_PASS.to_string(),
-                message: format!(
-                    "rule {}: {}{scope} (confirmed by {})",
-                    rule.slug,
-                    rule.statement,
-                    confirmed_by(item)
-                ),
-            }),
-            None => checks.push(VerifyCheck {
-                status: VERIFY_MANUAL.to_string(),
-                message: format!("rule {}: {}{scope}", rule.slug, rule.statement),
-            }),
-        }
-    }
+    let mut checks: Vec<VerifyCheck> = manual_items(contract, rules, confirmed)
+        .into_iter()
+        .map(|item| VerifyCheck {
+            status: if item.confirmed {
+                VERIFY_PASS.to_string()
+            } else {
+                VERIFY_MANUAL.to_string()
+            },
+            message: item.label,
+        })
+        .collect();
     let constitution = rules.iter().filter(|rule| rule.scope.is_empty()).count();
     if constitution > 0 {
         checks.push(VerifyCheck {
@@ -224,6 +274,7 @@ pub fn verify_feature(input: &VerifyInput) -> Result<VerifyResult, String> {
             });
         }
     }
+    result.manual = manual_items(&input.contract, &input.rules, &input.confirmed);
     result.checks.extend(manual_checks(
         &input.contract,
         &input.rules,

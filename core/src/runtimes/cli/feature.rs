@@ -147,6 +147,15 @@ pub fn run_verify(db: &str, args: &[String]) -> CliResult {
                 message: c.message,
             })
             .collect(),
+        manual: r
+            .manual
+            .into_iter()
+            .map(|item| polter::ManualItem {
+                label: item.label,
+                target: item.target,
+                confirmed: item.confirmed,
+            })
+            .collect(),
     };
     print!("{}", polter::encode_verify(&result));
     if !result.passed {

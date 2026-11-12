@@ -803,7 +803,7 @@ impl AppState {
                     done(false, cx);
                     return;
                 };
-                let checks = work::confirm_state(&response.checks);
+                let checks = work::confirm_state(&response.manual);
                 let failures: Vec<String> = response
                     .checks
                     .iter()

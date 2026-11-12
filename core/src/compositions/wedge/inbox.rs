@@ -140,10 +140,10 @@ fn verify_checklists(
             .filter(|item| item.card_id == card.id)
             .cloned()
             .collect();
-        let items: Vec<String> = polter::manual_checks(&contract, &rules, &own)
+        let items: Vec<String> = polter::manual_items(&contract, &rules, &own)
             .into_iter()
-            .filter(|check| check.status == polter::VERIFY_MANUAL)
-            .map(|check| check.message)
+            .filter(|item| !item.confirmed)
+            .map(|item| item.label)
             .collect();
         if items.is_empty() {
             continue;

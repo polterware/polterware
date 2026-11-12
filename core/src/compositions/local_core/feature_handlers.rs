@@ -154,11 +154,19 @@ pub fn verify_feature(
         target: result.target.clone(),
         passed: result.passed,
         checks: Vec::new(),
+        manual: Vec::new(),
     };
     for check in &result.checks {
         out.checks.push(local_v1::VerifyCheck {
             status: check.status.clone(),
             message: check.message.clone(),
+        });
+    }
+    for item in &result.manual {
+        out.manual.push(local_v1::VerifyManualItem {
+            label: item.label.clone(),
+            confirmed: item.confirmed,
+            target: item.target.clone(),
         });
     }
     Ok(out)
