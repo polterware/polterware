@@ -1032,6 +1032,25 @@ pub(super) fn viewport(layout_json: &str) -> Option<SceneViewport> {
     (x.is_finite() && y.is_finite() && zoom.is_finite()).then(|| SceneViewport::new(x, y, zoom))
 }
 
+/// Fits the whole drawing in the portion of a viewport left uncovered by side panels.
+/// The returned translation is in the full viewport's coordinates, so the drawing is
+/// centered in the open interval between `left` and `width - right`.
+pub(super) fn fit_viewport_inset(
+    view_box: Rect,
+    viewport: (f32, f32),
+    left: f32,
+    right: f32,
+    padding: f32,
+) -> SceneViewport {
+    let (width, height) = viewport;
+    let left = left.max(0.0).min(width.max(0.0));
+    let right = right.max(0.0).min((width - left).max(0.0));
+    let room_width = (width - left - right).max(1.0);
+    let mut fitted = SceneViewport::fit(view_box, room_width, height, padding);
+    fitted.x += left;
+    fitted
+}
+
 /// The pan and zoom a canvas takes so the selected node stays in the room it has.
 ///
 /// A diagram that fits the room is fitted again: opening the inspector narrows the room, and a
@@ -1876,6 +1895,30 @@ mod tests {
 
     fn test_palette() -> Palette {
         palette(&Theme::dark())
+    }
+
+    #[test]
+    fn fit_centers_the_drawing_inside_the_area_left_by_side_panels() {
+        let view_box = Rect::new(20.0, 30.0, 400.0, 200.0);
+        let viewport = (1000.0, 500.0);
+        let left = 200.0;
+        let right = 300.0;
+        let fitted = fit_viewport_inset(view_box, viewport, left, right, 20.0);
+
+        let drawing_left = view_box.x as f32 * fitted.zoom + fitted.x;
+        let drawing_right = (view_box.x + view_box.width) as f32 * fitted.zoom + fitted.x;
+        let drawing_top = view_box.y as f32 * fitted.zoom + fitted.y;
+        let drawing_bottom = (view_box.y + view_box.height) as f32 * fitted.zoom + fitted.y;
+        assert!(drawing_left >= left + 19.9, "left edge: {drawing_left}");
+        assert!(
+            drawing_right <= viewport.0 - right - 19.9,
+            "right edge: {drawing_right}"
+        );
+        assert!(drawing_top >= 19.9, "top edge: {drawing_top}");
+        assert!(
+            drawing_bottom <= viewport.1 - 19.9,
+            "bottom edge: {drawing_bottom}"
+        );
     }
 
     #[test]

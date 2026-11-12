@@ -64,7 +64,7 @@ use crate::state::{AppState, CanvasPatch, OpenCanvas};
 const SAVE_DELAY: Duration = Duration::from_millis(500);
 /// How long typing in the source pane waits before the diagram is drawn again.
 const RENDER_DELAY: Duration = Duration::from_millis(250);
-/// The source pane's width beside the diagram.
+/// The source pane's floating width.
 const SOURCE_PANE_WIDTH: f32 = 380.0;
 /// How many frames the view may take to measure itself before the remembered viewport is
 /// dropped.
@@ -452,12 +452,8 @@ impl CanvasEditor {
         }
     }
 
-    /// Keeps the selected node in view in the room the diagram has while the inspector is
-    /// open, measured from the diagram's own laid-out box: the panel slides in beside it, so
-    /// only that box says how much room is left. The whole drawing is fitted again when it fits
-    /// that room, so no other node is pushed out, and otherwise the view pans only as far as the
-    /// node needs. Answers whether the view moved, so a panel still sliding in is measured
-    /// again on the next frame.
+    /// Keeps the selected node in view in the uncovered part of the diagram. A fitting drawing
+    /// is fitted into that room; otherwise the view pans only as far as the node needs.
     fn reveal_selection(&mut self, cx: &mut Context<Self>) -> bool {
         let Some(id) = self.selection.nodes.first() else {
             return false;
@@ -475,14 +471,57 @@ impl CanvasEditor {
         let Some(bounds) = self.host.get() else {
             return true;
         };
-        let room = (f32::from(bounds.size.width), f32::from(bounds.size.height));
+        let full_width = f32::from(bounds.size.width);
+        let height = f32::from(bounds.size.height);
+        let left = self.open_panel_width(PanelSide::Left, cx);
+        let right = self.open_panel_width(PanelSide::Right, cx);
+        let room_width = (full_width - left - right).max(1.0);
         let focus = Rect::new(f64::from(bx), f64::from(by), f64::from(bw), f64::from(bh));
         let view_box = self.view.read(cx).scene().view_box;
-        let Some(target) =
-            source::reveal_view(current, view_box, room, focus, source::REVEAL_MARGIN)
-        else {
+        let local_current = SceneViewport::new(current.x - left, current.y, current.zoom);
+        let Some(mut target) = source::reveal_view(
+            local_current,
+            view_box,
+            (room_width, height),
+            focus,
+            source::REVEAL_MARGIN,
+        ) else {
             return false;
         };
+        target.x += left;
+        self.apply_view(target, cx);
+        true
+    }
+
+    fn open_panel_width(&self, side: PanelSide, cx: &App) -> f32 {
+        if side == PanelSide::Right && self.source_open {
+            return SOURCE_PANE_WIDTH + PANEL_INSET;
+        }
+        let panel = match side {
+            PanelSide::Left => &self.library_panel,
+            PanelSide::Right => &self.inspector_panel,
+        };
+        if panel.read(cx).is_open() {
+            panel.read(cx).width()
+        } else {
+            0.0
+        }
+    }
+
+    fn fit_in_open_area(&mut self, cx: &mut Context<Self>) -> bool {
+        let Some(bounds) = self.host.get() else {
+            return false;
+        };
+        if self.view.read(cx).viewport().is_none() {
+            return false;
+        }
+        let target = source::fit_viewport_inset(
+            self.view.read(cx).scene().view_box,
+            (f32::from(bounds.size.width), f32::from(bounds.size.height)),
+            self.open_panel_width(PanelSide::Left, cx),
+            self.open_panel_width(PanelSide::Right, cx),
+            source::REVEAL_MARGIN,
+        );
         self.apply_view(target, cx);
         true
     }
@@ -615,6 +654,7 @@ impl CanvasEditor {
                 input.focus_handle(cx).focus(window);
             });
         }
+        self.fit(cx);
         cx.notify();
     }
 
@@ -894,7 +934,11 @@ impl CanvasEditor {
     }
 
     fn fit(&mut self, cx: &mut Context<Self>) {
-        self.view.update(cx, |view, cx| view.fit(cx));
+        if !self.fit_in_open_area(cx) {
+            self.fit_on_open = true;
+            self.fit_waits = RESTORE_FRAMES;
+            cx.notify();
+        }
     }
 
     /// Clears the pins, so the automatic layout places every node again.
@@ -1094,11 +1138,10 @@ impl CanvasEditor {
         let theme = *Theme::global(cx);
         let view = cx.entity().downgrade();
         let back = view.clone();
-        div()
-            .absolute()
-            .top_0()
-            .left_0()
-            .right_0()
+        let toolbar = card(cx)
+            .id("canvas-toolbar")
+            .occlude()
+            .w(px(420.0))
             .h(px(theme.page_header_height))
             .pt(px(theme.space_2))
             .px(px(theme.space_2))
@@ -1148,7 +1191,15 @@ impl CanvasEditor {
                         }
                     }),
             )
-            .child(div().flex_1().h_full().window_drag_region())
+            .child(div().flex_1().h_full().window_drag_region());
+        div()
+            .absolute()
+            .top(px(PANEL_INSET))
+            .left_0()
+            .right_0()
+            .flex()
+            .justify_center()
+            .child(toolbar)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1355,8 +1406,9 @@ impl CanvasEditor {
         if self.fit_on_open {
             if self.fit_waits > 0 {
                 self.fit_waits -= 1;
-                self.view.update(cx, |view, cx| view.fit(cx));
-                cx.notify();
+                if !self.fit_in_open_area(cx) {
+                    cx.notify();
+                }
             } else {
                 self.fit_on_open = false;
             }
@@ -1415,17 +1467,8 @@ impl CanvasEditor {
             .size_full()
             .overflow_hidden()
             .bg(theme.color_app_background)
-            .flex()
-            .child(
-                div()
-                    .relative()
-                    .flex_1()
-                    .min_w_0()
-                    .h_full()
-                    .child(self.host.probe())
-                    .child(diagram),
-            )
-            .when(self.source_open, |well| well.child(self.source_pane(cx)))
+            .child(self.host.probe())
+            .child(diagram)
             .on_action(cx.listener(|this, _: &CloseOverlay, _, cx| this.escape(cx)))
             .into_any_element()
     }
@@ -1434,52 +1477,56 @@ impl CanvasEditor {
     /// the text does not draw.
     fn source_pane(&self, cx: &mut Context<Self>) -> AnyElement {
         let theme = *Theme::global(cx);
-        div()
-            .id("canvas-source-pane")
-            .flex_none()
-            .w(px(SOURCE_PANE_WIDTH))
-            .h_full()
+        card(cx)
+            .id("canvas-source-pane-card")
+            .occlude()
+            .size_full()
             .flex()
             .flex_col()
-            .border_l_1()
-            .border_color(theme.color_border_default)
-            .bg(theme.color_surface)
             .child(
                 div()
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .h(px(32.0))
-                    .px(px(12.0))
-                    .text_size(px(12.0))
-                    .text_color(theme.color_text_secondary)
-                    .child("Mermaid source"),
-            )
-            .child(
-                div()
-                    .id("canvas-source-scroll")
+                    .id("canvas-source-pane")
+                    .size_full()
                     .min_h_0()
-                    .flex_1()
-                    .overflow_y_scroll()
-                    .px(px(12.0))
-                    .pt(px(12.0))
-                    .pb(px(12.0))
-                    .child(self.source_input.clone()),
+                    .flex()
+                    .flex_col()
+                    .child(
+                        div()
+                            .flex_none()
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .h(px(32.0))
+                            .px(px(12.0))
+                            .text_size(px(12.0))
+                            .text_color(theme.color_text_secondary)
+                            .child("Mermaid source"),
+                    )
+                    .child(
+                        div()
+                            .id("canvas-source-scroll")
+                            .min_h_0()
+                            .flex_1()
+                            .overflow_y_scroll()
+                            .px(px(12.0))
+                            .pt(px(12.0))
+                            .pb(px(12.0))
+                            .child(self.source_input.clone()),
+                    )
+                    .when_some(self.render_error.clone(), |pane, error| {
+                        pane.child(
+                            div()
+                                .flex_none()
+                                .border_t_1()
+                                .border_color(theme.color_border_default)
+                                .px(px(12.0))
+                                .py(px(8.0))
+                                .text_size(px(12.0))
+                                .text_color(theme.color_danger)
+                                .child(error),
+                        )
+                    }),
             )
-            .when_some(self.render_error.clone(), |pane, error| {
-                pane.child(
-                    div()
-                        .flex_none()
-                        .border_t_1()
-                        .border_color(theme.color_border_default)
-                        .px(px(12.0))
-                        .py(px(8.0))
-                        .text_size(px(12.0))
-                        .text_color(theme.color_danger)
-                        .child(error),
-                )
-            })
             .into_any_element()
     }
 }
@@ -1512,8 +1559,12 @@ impl Render for CanvasEditor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = *Theme::global(cx);
         let inspecting = !self.selection.is_empty();
+        let inspector_was_open = self.inspector_panel.read(cx).is_open();
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(inspecting));
+        if inspector_was_open && !inspecting {
+            self.fit(cx);
+        }
         if source::palette(&theme) != self.colors {
             self.render_due = true;
         }
@@ -1551,38 +1602,62 @@ impl Render for CanvasEditor {
                     .child(format!("Pick the target shape for the {kind} connection.")),
             )
         });
-        // The diagram is the main area between the two panels, so the source pane beside it
-        // stays in reach whatever the panels' widths are.
-        let main = div()
-            .relative()
-            .size_full()
-            .child(well)
-            .children(hint)
-            .child(self.toolbar(cx))
-            .child(self.tools_dock(cx))
-            .into_any_element();
+        let library = self.library_view(window, cx);
+        let library_overlay = self.library_panel.update(cx, |panel, cx| {
+            panel.render(
+                &self.library_panel,
+                panel_frame("canvas-library-panel", library, PanelSide::Left, cx),
+                div().size_0().into_any_element(),
+                window,
+                cx,
+            )
+        });
+        let overlays = div()
+            .absolute()
+            .top_0()
+            .bottom_0()
+            .left_0()
+            .w(px(self.library_panel.read(cx).width() + 12.0))
+            .child(library_overlay);
         let inspector = self.inspector_view(window, cx);
         let inspector_panel = self.inspector_panel.clone();
-        let inner = inspector_panel.update(cx, |panel, cx| {
+        let inspector_overlay = inspector_panel.update(cx, |panel, cx| {
             panel.render(
                 &inspector_panel,
                 panel_frame("canvas-inspector-panel", inspector, PanelSide::Right, cx),
-                main,
+                div().size_0().into_any_element(),
                 window,
                 cx,
             )
         });
-        let library = self.library_view(window, cx);
-        let library_panel = self.library_panel.clone();
-        let workspace = library_panel.update(cx, |panel, cx| {
-            panel.render(
-                &library_panel,
-                panel_frame("canvas-library-panel", library, PanelSide::Left, cx),
-                inner,
-                window,
-                cx,
-            )
-        });
+        let mut layer = div()
+            .relative()
+            .size_full()
+            .child(well)
+            .child(self.toolbar(cx))
+            .child(self.tools_dock(cx))
+            .children(hint)
+            .child(overlays)
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .bottom_0()
+                    .right_0()
+                    .w(px(self.inspector_panel.read(cx).width() + 12.0))
+                    .child(inspector_overlay),
+            );
+        if self.source_open {
+            layer = layer.child(
+                div()
+                    .absolute()
+                    .top(px(56.0))
+                    .bottom(px(64.0))
+                    .right(px(PANEL_INSET))
+                    .w(px(SOURCE_PANE_WIDTH))
+                    .child(self.source_pane(cx)),
+            );
+        }
         let alert = self.error.clone().map(|message| {
             let view = cx.entity().downgrade();
             div()
@@ -1610,16 +1685,15 @@ impl Render for CanvasEditor {
                 )
         });
         div()
+            .relative()
             .size_full()
-            .flex()
-            .flex_col()
-            .children(alert)
-            .child(div().min_h_0().flex_1().child(workspace))
+            .child(layer)
+            .children(alert.map(|alert| div().absolute().top(px(48.0)).left(px(12.0)).child(alert)))
             .children(self.inspector.layers(cx))
     }
 }
 
-pub(super) const PANEL_INSET: f32 = 8.0;
+pub(super) const PANEL_INSET: f32 = 12.0;
 
 /// A floating side panel: inset from the edges with the panel gap, rounded with the card
 /// radius token, wearing the card surface and quiet edge.
