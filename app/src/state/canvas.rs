@@ -1,6 +1,6 @@
 //! Canvas's state (`CanvasView`, `canvas-workspace.tsx`, `canvasPersistence` in
 //! `workspace/persist.ts`): the project's canvases and the types the core reports, the
-//! archived ones, the records a node can cite (cards, decisions, Structure nodes, and Facts),
+//! archived ones, the records a node can cite (cards, Rules, and Structure nodes),
 //! and the canvas open in the editor, which lives outside the route as it does in Electron:
 //! Back leaves it open, and choosing Canvas again closes it. The canvas open last in a
 //! project opens again when Canvas does, while the app runs.
@@ -15,16 +15,15 @@ use polterware_ui::toast::ToastTone;
 
 use super::{AppState, Load, Section, change};
 use crate::canvas::references::{
-    PromotionKind, StoreEntity, created_decision_title, created_fact_id, promotion_rationale,
-    promotion_text,
+    PromotionKind, StoreEntity, created_rule_slug, promotion_rationale, promotion_text,
 };
 use crate::canvas::structure::{NAME as STRUCTURE_NAME, draw_structure, is_structure_canvas};
 use crate::client::{Core, CoreError};
 use crate::contracts::{
     ApplyPolterRequest, Canvas, CanvasGraph, CanvasTypeDefinition, CreateCanvasRequest,
     DeleteCanvasRequest, GetCanvasRequest, ListCanvasTypesRequest, ListCanvasesRequest,
-    ListFactsRequest, ListKnowledgeRequest, ListStructureRequest, ListWorkCardsRequest,
-    SetCanvasArchivedRequest, StructureNode, UpdateCanvasRequest,
+    ListRulesRequest, ListStructureRequest, ListWorkCardsRequest, SetCanvasArchivedRequest,
+    StructureNode, UpdateCanvasRequest,
 };
 
 /// The canvases and the types, read together.
@@ -101,7 +100,7 @@ fn read_list(core: &Core, project: &str) -> Result<CanvasList, CoreError> {
     Ok(CanvasList { canvases, types })
 }
 
-/// What a node can cite: the cards, the decisions, the Structure nodes, and the Facts.
+/// What a node can cite: the cards, the Rules, and the Structure nodes.
 fn read_entities(core: &Core, project: &str) -> Result<Vec<StoreEntity>, CoreError> {
     let cards = core
         .work()
@@ -110,13 +109,13 @@ fn read_entities(core: &Core, project: &str) -> Result<Vec<StoreEntity>, CoreErr
             ..ListWorkCardsRequest::default()
         })?
         .cards;
-    let items = core
-        .knowledge()
-        .list_knowledge(&ListKnowledgeRequest {
+    let rules = core
+        .work()
+        .list_rules(&ListRulesRequest {
             project_id: project.to_string(),
-            ..ListKnowledgeRequest::default()
+            ..ListRulesRequest::default()
         })?
-        .items;
+        .rules;
     let nodes = core
         .work()
         .list_structure(&ListStructureRequest {
@@ -124,15 +123,6 @@ fn read_entities(core: &Core, project: &str) -> Result<Vec<StoreEntity>, CoreErr
             ..ListStructureRequest::default()
         })?
         .nodes;
-    // A Facts failure leaves the other records citable, as the Electron Desktop shows it apart.
-    let facts = core
-        .project_model()
-        .list_facts(&ListFactsRequest {
-            project_id: project.to_string(),
-            ..ListFactsRequest::default()
-        })
-        .map(|response| response.facts)
-        .unwrap_or_default();
     let mut out: Vec<StoreEntity> = cards
         .into_iter()
         .map(|card| StoreEntity {
@@ -143,17 +133,13 @@ fn read_entities(core: &Core, project: &str) -> Result<Vec<StoreEntity>, CoreErr
             ..StoreEntity::default()
         })
         .collect();
-    out.extend(
-        items
-            .into_iter()
-            .filter(|item| item.kind == "decision")
-            .map(|item| StoreEntity {
-                kind: "decision".into(),
-                id: item.id,
-                title: item.title,
-                ..StoreEntity::default()
-            }),
-    );
+    out.extend(rules.into_iter().map(|rule| StoreEntity {
+        kind: "rule".into(),
+        id: rule.id,
+        title: rule.statement,
+        slug: rule.slug,
+        ..StoreEntity::default()
+    }));
     out.extend(nodes.into_iter().map(|node| StoreEntity {
         kind: "node".into(),
         id: node.id,
@@ -161,12 +147,6 @@ fn read_entities(core: &Core, project: &str) -> Result<Vec<StoreEntity>, CoreErr
         level: node.level,
         component_kind: node.kind,
         tech: node.tech,
-        ..StoreEntity::default()
-    }));
-    out.extend(facts.into_iter().map(|fact| StoreEntity {
-        kind: "fact".into(),
-        id: fact.id,
-        title: fact.statement,
         ..StoreEntity::default()
     }));
     Ok(out)
@@ -661,7 +641,7 @@ impl AppState {
         .detach();
     }
 
-    /// Promotes a drawing to a card, a decision, or a Fact through `ApplyPolter`, and answers
+    /// Promotes a drawing to a card or a Rule through `ApplyPolter`, and answers
     /// with the record created (`canvasPersistence.promote`).
     pub fn promote_canvas_item(
         &self,
@@ -714,24 +694,22 @@ impl AppState {
                     return Err("That Work card slug already exists. Choose another slug.".into());
                 }
             }
-            if kind != PromotionKind::Decision {
-                // Removed cards and Facts still own their slug in Polter.
-                let plan = apply(true)?;
-                let refused = errors(&plan.diagnostics);
-                if !refused.is_empty() {
-                    return Err(refused.join("\n"));
-                }
-                let prefix = match kind {
-                    PromotionKind::Card => format!("+ card {slug} "),
-                    _ => "+ fact ".into(),
-                };
-                if !plan.ops.iter().any(|op| op.starts_with(&prefix)) {
-                    return Err(if kind == PromotionKind::Card {
-                        "That slug already belongs to a Work card, including removed cards. Choose another slug.".into()
-                    } else {
-                        "That slug already belongs to a Fact. Choose another slug.".into()
-                    });
-                }
+            // Removed cards and Rules still own their slug in Polter.
+            let plan = apply(true)?;
+            let refused = errors(&plan.diagnostics);
+            if !refused.is_empty() {
+                return Err(refused.join("\n"));
+            }
+            let prefix = match kind {
+                PromotionKind::Card => format!("+ card {slug} "),
+                PromotionKind::Rule => "+ rule ".into(),
+            };
+            if !plan.ops.iter().any(|op| op.starts_with(&prefix)) {
+                return Err(if kind == PromotionKind::Card {
+                    "That slug already belongs to a Work card, including removed cards. Choose another slug.".into()
+                } else {
+                    "That slug already belongs to a Rule. Choose another slug.".into()
+                });
             }
             let applied = apply(false)?;
             let refused = errors(&applied.diagnostics);
@@ -765,50 +743,26 @@ impl AppState {
                             ..StoreEntity::default()
                         })
                     }
-                    PromotionKind::Fact => {
-                        let id = created_fact_id(&applied.ops)
-                            .ok_or("ApplyPolter returned no created Fact identity.")?;
-                        let facts = core
-                            .project_model()
-                            .list_facts(&ListFactsRequest {
+                    PromotionKind::Rule => {
+                        let slug = created_rule_slug(&applied.ops)
+                            .ok_or("ApplyPolter returned no created Rule identity.")?;
+                        let rules = core
+                            .work()
+                            .list_rules(&ListRulesRequest {
                                 project_id: project.clone(),
-                                ..ListFactsRequest::default()
+                                ..ListRulesRequest::default()
                             })
                             .map_err(|error| error.to_string())?
-                            .facts;
-                        let fact = facts
+                            .rules;
+                        let rule = rules
                             .into_iter()
-                            .find(|fact| fact.id == id)
-                            .ok_or("The new Fact was not returned.")?;
+                            .find(|rule| rule.slug == slug && !rule.id.is_empty())
+                            .ok_or("The new Rule was not returned.")?;
                         Ok(StoreEntity {
-                            kind: "fact".into(),
-                            id,
-                            title: fact.statement,
-                            slug: slug.clone(),
-                            ..StoreEntity::default()
-                        })
-                    }
-                    PromotionKind::Decision => {
-                        let title = created_decision_title(&applied.ops)
-                            .ok_or("ApplyPolter returned no created Decision identity.")?;
-                        let items = core
-                            .knowledge()
-                            .list_knowledge(&ListKnowledgeRequest {
-                                project_id: project.clone(),
-                                ..ListKnowledgeRequest::default()
-                            })
-                            .map_err(|error| error.to_string())?
-                            .items;
-                        let decision = items
-                            .into_iter()
-                            .find(|item| {
-                                item.kind == "decision" && item.title == title && !item.id.is_empty()
-                            })
-                            .ok_or("The new Decision was not returned.")?;
-                        Ok(StoreEntity {
-                            kind: "decision".into(),
-                            id: decision.id,
-                            title: decision.title,
+                            kind: "rule".into(),
+                            id: rule.id,
+                            title: rule.statement,
+                            slug: rule.slug,
                             ..StoreEntity::default()
                         })
                     }

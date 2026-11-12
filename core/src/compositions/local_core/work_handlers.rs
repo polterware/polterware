@@ -97,10 +97,41 @@ pub fn list_work_cards(
     let mut cards = Vec::new();
     for card in wedge::filter_cards_by_scope(&resolved, &snapshot.cards) {
         if card.status == work::CARD_ACTIVE {
-            cards.push(work_card_proto(&card));
+            let mut proto = work_card_proto(&card);
+            proto.rules = applicable_rules(&snapshot, &card);
+            cards.push(proto);
         }
     }
     Ok(local_v1::ListWorkCardsResponse { cards })
+}
+
+/// The Rules that apply to a card: its scope chain plus the project-wide ones.
+/// Only binding Rules (active and under review) are law.
+fn applicable_rules(snapshot: &work::Snapshot, card: &work::Card) -> Vec<String> {
+    snapshot
+        .rules
+        .iter()
+        .filter(|rule| rule.binding())
+        .filter(|rule| {
+            rule.scopes.is_empty() || rule.scopes.iter().any(|scope| in_scope(&card.under, scope))
+        })
+        .map(|rule| {
+            if rule.slug.is_empty() {
+                rule.id.clone()
+            } else {
+                rule.slug.clone()
+            }
+        })
+        .collect()
+}
+
+/// Reports whether `path` is `scope` or below it.
+fn in_scope(path: &str, scope: &str) -> bool {
+    let scope = scope.trim_matches('/');
+    if scope.is_empty() {
+        return true;
+    }
+    path.trim_matches('/') == scope || path.starts_with(&format!("{scope}/"))
 }
 
 /// `polterware.local.v1.WorkService.ListStructure`.
@@ -886,7 +917,7 @@ fn structure_node_proto(row: &structure::Row) -> local_v1::StructureNode {
         path: node.path.clone(),
         title: node.title.clone(),
         intent: node.intent.clone(),
-        decisions: node.decisions.clone(),
+        rules: node.decisions.clone(),
         status: row.derived.clone(),
         child_count: row.child_count as i32,
         feature_count: row.feature_count as i32,
@@ -932,7 +963,7 @@ pub(super) fn work_card_proto(card: &work::Card) -> local_v1::WorkCard {
         owner: card.owner.clone(),
         under: card.under.clone(),
         kind: card.kind.clone(),
-        decisions: card.decisions.clone(),
+        rules: card.decisions.clone(),
         milestone_id: card.milestone_id.clone(),
         created_at: format_rfc3339_zone(card.created_at),
         updated_at: format_rfc3339_zone(card.updated_at),

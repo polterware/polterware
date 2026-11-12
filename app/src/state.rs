@@ -114,33 +114,28 @@ impl Section {
     }
 }
 
-/// Knowledge's tabs (`SECTION_TABS.truth`, route tabs `decisions`, `facts`, and `docs`).
+/// Knowledge's tabs (`SECTION_TABS.truth`, route tabs `rules` and `docs`): the
+/// Rules agents read and the docs.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum KnowledgeTab {
     #[default]
-    Decisions,
     Rules,
     Docs,
 }
 
 impl KnowledgeTab {
-    pub const ALL: [KnowledgeTab; 3] = [
-        KnowledgeTab::Decisions,
-        KnowledgeTab::Rules,
-        KnowledgeTab::Docs,
-    ];
+    pub const ALL: [KnowledgeTab; 2] = [KnowledgeTab::Rules, KnowledgeTab::Docs];
 
     pub fn label(self) -> &'static str {
         match self {
-            KnowledgeTab::Decisions => "Decisions",
             KnowledgeTab::Rules => "Rules",
             KnowledgeTab::Docs => "Docs",
         }
     }
 }
 
-/// What Knowledge lists: its decisions and docs (`ListKnowledge`), its Rules (`ListRules`),
-/// and the Structure nodes their contexts name (`ListStructure`).
+/// What Knowledge lists: its Rules (`ListRules`), its docs (`ListKnowledge`), and
+/// the Structure nodes their contexts name (`ListStructure`).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Knowledge {
     pub items: Vec<KnowledgeItem>,
@@ -159,7 +154,7 @@ pub enum Route {
         tab: KnowledgeTab,
         /// Milestones' place: the board open and its layout.
         board: BoardRoute,
-        /// The record open as a page in place of the list (a decision's or doc's id, a card's
+        /// The record open as a page in place of the list (a doc's id, a card's
         /// slug), so Back returns to the list.
         page: Option<String>,
     },
@@ -235,7 +230,7 @@ pub struct AppState {
     archived_docs: Load<Vec<KnowledgeItem>>,
     /// The changes that named the open page's record, by its id (`DocumentActivity`).
     document_activity: Option<(String, Vec<ProjectChange>)>,
-    /// A decision's move or a doc's archiving is being written.
+    /// A doc's archiving is being written.
     knowledge_pending: bool,
     /// Milestones' boards and cards, read when it opens.
     work: Load<Work>,
@@ -861,7 +856,7 @@ impl AppState {
         );
     }
 
-    /// Reads Knowledge's decisions and docs, its Rules, and the Structure nodes they name.
+    /// Reads Knowledge's Rules and docs, and the Structure nodes their contexts name.
     pub fn load_knowledge(&mut self, cx: &mut Context<Self>) {
         let (Some(core), Route::Project { id, .. }) = (self.ready_core(), &self.route) else {
             return;
@@ -932,7 +927,7 @@ impl AppState {
         .detach();
     }
 
-    /// Writes an edit of a decision or a doc (`persistKnowledgeTitle`, `persistKnowledgeBody`,
+    /// Writes an edit of a doc (`persistKnowledgeTitle`, `persistKnowledgeBody`,
     /// `persistKnowledgeTags`) under `summary` with no reason. The lists show it at once, as
     /// the web keeps an override, without reading Knowledge again; the page's Activity is.
     pub fn save_knowledge_item(
@@ -978,7 +973,7 @@ impl AppState {
         .detach();
     }
 
-    /// Sets the Structure nodes a decision or a doc is about (`persistKnowledgeScope`), none
+    /// Sets the Structure nodes a doc is about (`persistKnowledgeScope`), none
     /// being the whole project. The record shows them at once; Knowledge is read again after
     /// the write (`refreshWorkspace`), which also undoes them when the core refuses, with a
     /// toast.
@@ -1119,7 +1114,7 @@ impl AppState {
         .detach();
     }
 
-    /// Creates a decision or a doc from the Composer (`createDecision`, `createDoc`): the item
+    /// Creates a doc from the Composer (`createDoc`): the item
     /// under its summary with the Composer's reason, then its Context when it has one, and
     /// Knowledge read again. `done` hears whether it was written, so a draft that failed
     /// stays in the Composer.
@@ -1135,11 +1130,7 @@ impl AppState {
         };
         let project = project.to_string();
         let title = record.title.clone();
-        let tab = if record.decision {
-            KnowledgeTab::Decisions
-        } else {
-            KnowledgeTab::Docs
-        };
+        let tab = KnowledgeTab::Docs;
         cx.spawn(async move |this, cx| {
             let result = cx
                 .background_spawn(async move {
@@ -1248,53 +1239,6 @@ impl AppState {
                     }
                 };
                 done(ok, cx);
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    /// Moves a decision through its lifecycle with a Polter decision block
-    /// (`persistDecisionAction`); the core refuses an illegal move, which a toast shows.
-    pub fn move_decision(
-        &mut self,
-        block: String,
-        summary: String,
-        rationale: String,
-        cx: &mut Context<Self>,
-    ) {
-        let (Some(core), Some(project)) = (self.ready_core(), self.project_id()) else {
-            return;
-        };
-        if self.knowledge_pending {
-            return;
-        }
-        let project = project.to_string();
-        self.knowledge_pending = true;
-        cx.spawn(async move |this, cx| {
-            let result = cx
-                .background_spawn(async move {
-                    core.work().apply_polter(&ApplyPolterRequest {
-                        project_id: project,
-                        text: format!("---\npolter: 1\n---\n\n{block}\n"),
-                        change: Some(change(&summary, &rationale)),
-                        session_label: "desktop".into(),
-                        ..ApplyPolterRequest::default()
-                    })
-                })
-                .await;
-            let _ = this.update(cx, |state, cx| {
-                state.knowledge_pending = false;
-                match result {
-                    Ok(_) => {
-                        state.load_knowledge(cx);
-                        state.push_toast("Decision updated.", ToastTone::Success);
-                    }
-                    Err(error) => {
-                        let message = state.lost(error, cx);
-                        state.toast(message, true);
-                    }
-                }
                 cx.notify();
             });
         })
@@ -1824,49 +1768,29 @@ impl AppState {
     }
 }
 
-/// A decision or a doc the Composer creates.
+/// A doc the Composer creates.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NewRecord {
-    pub decision: bool,
     pub title: String,
-    /// A decision's Context paragraph, or a doc's Markdown.
+    /// The doc's Markdown.
     pub body: String,
     pub nodes: Vec<String>,
     pub why: String,
 }
 
 impl NewRecord {
-    /// The item `persistKnowledgeCreate` saves, and the summary its change goes under: a
-    /// decision proposed with the ADR's sections and the Context typed, a doc owned by a
-    /// person with the Markdown as its body.
+    /// The item `persistKnowledgeCreate` saves, and the summary its change goes under: a doc
+    /// owned by a person with the Markdown as its body.
     pub fn item(&self, project: &str) -> (KnowledgeItem, String) {
-        let (kind, prefix) = if self.decision {
-            ("decision", "decision")
-        } else {
-            ("doc", "doc")
-        };
-        let body = if self.decision {
-            format!(
-                "## Status\n\nProposed\n\n## Context\n\n{}\n\n## Decision\n\n\n\n## Consequences\n\n",
-                self.body
-            )
-        } else {
-            self.body.clone()
-        };
-        let summary = if self.decision {
-            format!("Create decision: {}", self.title)
-        } else {
-            format!("Add doc: {}", self.title)
-        };
+        let summary = format!("Add doc: {}", self.title);
         let item = KnowledgeItem {
-            id: new_id(prefix),
+            id: new_id("doc"),
             project_id: project.to_string(),
             title: self.title.clone(),
-            body,
-            kind: kind.into(),
-            doc_type: if self.decision { "" } else { "doc" }.into(),
+            body: self.body.clone(),
+            kind: "doc".into(),
+            doc_type: "doc".into(),
             owner: "human".into(),
-            status: if self.decision { "proposed" } else { "" }.into(),
             extra_json: "{}".into(),
             ..KnowledgeItem::default()
         };
@@ -1885,7 +1809,7 @@ fn new_id(prefix: &str) -> String {
     format!("{prefix}-{:08x}", hasher.finish() as u32)
 }
 
-/// `WorkService.SetScope` for a decision or a doc.
+/// `WorkService.SetScope` for a doc.
 fn knowledge_scope(
     core: &Core,
     project_id: String,
@@ -2196,28 +2120,7 @@ mod tests {
     }
 
     #[test]
-    fn a_new_decision_is_proposed_with_its_sections_and_a_doc_keeps_its_markdown() {
-        let decision = NewRecord {
-            decision: true,
-            title: "One writer".into(),
-            body: "Two writers raced.".into(),
-            ..NewRecord::default()
-        };
-        let (item, summary) = decision.item("p1");
-        assert_eq!(summary, "Create decision: One writer");
-        assert!(item.id.starts_with("decision-") && item.id.len() == "decision-".len() + 8);
-        assert_eq!(
-            item.body,
-            "## Status\n\nProposed\n\n## Context\n\nTwo writers raced.\n\n## Decision\n\n\n\n## Consequences\n\n"
-        );
-        assert_eq!(
-            (
-                item.kind.as_str(),
-                item.status.as_str(),
-                item.doc_type.as_str()
-            ),
-            ("decision", "proposed", "")
-        );
+    fn a_new_doc_keeps_its_markdown() {
         let doc = NewRecord {
             title: "Runbook".into(),
             body: "# Steps\n\n1. Drain".into(),

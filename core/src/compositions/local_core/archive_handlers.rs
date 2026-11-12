@@ -12,7 +12,6 @@ use time::OffsetDateTime;
 
 use crate::compositions::wedge;
 use crate::domains::agentrun;
-use crate::domains::knowledge;
 use crate::local_v1;
 use crate::platform::ids;
 
@@ -52,9 +51,6 @@ pub fn set_knowledge_archived(
         }
         Err(err) => return Err(internal(err)),
     };
-    if existing.kind == knowledge::KIND_DECISION {
-        return Err(map_archive_err(knowledge::KnowledgeError::DecisionArchive));
-    }
     env.project_id = existing.project_id.clone();
     let tool = if msg.archived {
         "desktop.knowledge.archive"
@@ -129,6 +125,7 @@ mod tests {
     use time::OffsetDateTime;
 
     use crate::compositions::local_core::test_support::Harness;
+    use crate::domains::knowledge;
     use crate::domains::projects;
 
     use super::*;
@@ -168,44 +165,18 @@ mod tests {
                     ..projects::Project::default()
                 })
                 .expect("project");
-            for (id, kind) in [
-                ("doc-1", knowledge::KIND_DOC),
-                ("dec-1", knowledge::KIND_DECISION),
-            ] {
-                let saved = knowledge::new_item(
-                    id,
-                    "proj-archive",
-                    &format!("Item {id}"),
-                    "body",
-                    kind,
-                    Vec::new(),
-                )
-                .expect("knowledge item");
-                store.save_knowledge(saved).expect("save knowledge");
-            }
+            let saved = knowledge::new_item(
+                "doc-1",
+                "proj-archive",
+                "Item doc-1",
+                "body",
+                knowledge::KIND_DOC,
+                Vec::new(),
+            )
+            .expect("knowledge item");
+            store.save_knowledge(saved).expect("save knowledge");
         }
         let change = change();
-
-        let err = set_knowledge_archived(
-            Arc::clone(&core),
-            request(local_v1::SetKnowledgeArchivedRequest {
-                id: "dec-1".to_string(),
-                archived: true,
-                change: Some(change.clone()),
-            }),
-        )
-        .expect_err("archive of a decision");
-        assert!(failed(&err), "{err}");
-
-        let err = super::super::server::delete_knowledge(
-            Arc::clone(&core),
-            request(local_v1::DeleteKnowledgeRequest {
-                id: "dec-1".to_string(),
-                change: Some(change.clone()),
-            }),
-        )
-        .expect_err("delete of a decision");
-        assert!(failed(&err), "{err}");
 
         let err = super::super::server::delete_knowledge(
             Arc::clone(&core),

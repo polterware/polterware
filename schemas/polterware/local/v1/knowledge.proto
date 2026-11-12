@@ -8,7 +8,7 @@ message KnowledgeItem {
   string project_id = 2;
   string title = 3;
   string body = 4;
-  // kind is doc or decision.
+  // kind is doc; Rules are their own law and never knowledge items.
   string kind = 5;
   repeated string tags = 6;
   string summary = 7;
@@ -20,11 +20,11 @@ message KnowledgeItem {
   reserved 13;
   reserved "scope_node_id";
   // scope_node_ids are the Structure nodes the item is about; none is the whole
-  // project (a decision with none is a principle).
+  // project.
   repeated string scope_node_ids = 16;
   // archived_at is empty while the item is active (RFC3339 otherwise).
   string archived_at = 14;
-  // doc_type is doc for a doc and empty for a decision.
+  // doc_type is doc for a doc.
   string doc_type = 15;
 }
 
@@ -68,7 +68,7 @@ message ListKnowledgeRequest {
 message ListKnowledgeResponse { repeated KnowledgeItem items = 1; }
 
 // SetKnowledgeArchived moves an item into the archive (archived = true) or
-// restores it. Decisions are never archived: supersede them instead.
+// restores it.
 message SetKnowledgeArchivedRequest {
   string id = 1;
   bool archived = 2;
@@ -76,8 +76,8 @@ message SetKnowledgeArchivedRequest {
 }
 message SetKnowledgeArchivedResponse { KnowledgeItem item = 1; }
 
-// DeleteKnowledge removes an archived item for good. Active items and
-// decisions are refused with FAILED_PRECONDITION.
+// DeleteKnowledge removes an archived item for good. Active items are refused
+// with FAILED_PRECONDITION.
 message DeleteKnowledgeRequest {
   string id = 1;
   ChangeEnvelope change = 2;

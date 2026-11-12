@@ -1,14 +1,14 @@
 //! Structure's state (`StructureView`'s host in `App.tsx`, its writes in `workspace/persist.ts`):
 //! the project's Structure nodes and what a node's document shows besides them (the project's
-//! repositories, its cards, decisions, docs, and Rules, its platform connections, its
-//! environments, and its settings), read together when Structure opens; the node open beside
+//! repositories, its cards, docs, and Rules, its platform connections, its environments, and
+//! its settings), read together when Structure opens; the node open beside
 //! the tree, kept in the route's `page` and moved without a step of history (`setSelectedNode`,
 //! `"silent"`); and the writes a node's document and its Composers make.
 //!
 //! A node is written as Polter text through `WorkService.ApplyPolter`, as an agent writes it
 //! (`structureNodeText`): its heading (`# path: Title`), its `level:` (and `under:` when it is
-//! created or moved), then the lines it changes. A card is linked by its `under:`; a Rule, a
-//! decision, or a doc by its contexts (`SetScope`). The project's name and description go
+//! created or moved), then the lines it changes. A card is linked by its `under:`; a Rule or
+//! a doc by its contexts (`SetScope`). The project's name and description go
 //! through `SaveProject` and `SaveProjectSettings` (`persistProjectSettings`). A component's
 //! deploys are checked against their platforms (`CheckDeploys`) when its document opens, and at
 //! once after they change.
@@ -36,7 +36,7 @@ pub struct Structure {
     pub nodes: Vec<StructureNode>,
     pub repos: Vec<ProjectRepo>,
     pub cards: Vec<WorkCard>,
-    /// The decisions and the docs.
+    /// The docs.
     pub items: Vec<KnowledgeItem>,
     pub rules: Vec<Rule>,
     pub integrations: Vec<IntegrationConnection>,
@@ -80,23 +80,17 @@ pub struct NodeDraft {
     pub parent_id: String,
 }
 
-/// A card, a decision, a Rule, or a doc a node's document lists (`StructureRecordKind`), in
-/// the order its sections show them.
+/// A card, a Rule, or a doc a node's document lists (`StructureRecordKind`), in the order
+/// its sections show them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RecordKind {
     Rule,
     Card,
-    Decision,
     Doc,
 }
 
 impl RecordKind {
-    pub const ALL: [RecordKind; 4] = [
-        RecordKind::Rule,
-        RecordKind::Card,
-        RecordKind::Decision,
-        RecordKind::Doc,
-    ];
+    pub const ALL: [RecordKind; 3] = [RecordKind::Rule, RecordKind::Card, RecordKind::Doc];
 }
 
 /// The deploy targets a platform lists for a node (`listDeployTargets`), read for the deploy
@@ -277,7 +271,7 @@ impl AppState {
         cx.notify();
     }
 
-    /// Opens a card, a decision, a Rule, or a doc a node's document lists, as its own page,
+    /// Opens a card, a Rule, or a doc a node's document lists, as its own page,
     /// so Back returns to Structure.
     pub fn open_structure_record(&mut self, kind: RecordKind, id: String, cx: &mut Context<Self>) {
         let Some(project) = self.project_id().map(str::to_string) else {
@@ -285,7 +279,6 @@ impl AppState {
         };
         let (section, tab) = match kind {
             RecordKind::Card => (Section::Milestones, KnowledgeTab::default()),
-            RecordKind::Decision => (Section::Knowledge, KnowledgeTab::Decisions),
             RecordKind::Rule => (Section::Knowledge, KnowledgeTab::Rules),
             RecordKind::Doc => (Section::Knowledge, KnowledgeTab::Docs),
         };
@@ -711,8 +704,8 @@ impl AppState {
         self.deploy_targets = None;
     }
 
-    /// `onLinkRecord`: a card moves under the node, or out of any component; a decision, a
-    /// Rule, or a doc gains or loses this node among its contexts and keeps the others.
+    /// `onLinkRecord`: a card moves under the node, or out of any component; a Rule or a doc
+    /// gains or loses this node among its contexts and keeps the others.
     pub fn link_structure_record(
         &mut self,
         kind: RecordKind,
@@ -768,7 +761,7 @@ impl AppState {
                     .unwrap_or_default();
                 Write::Scope("rule", with_context(&contexts))
             }
-            RecordKind::Decision | RecordKind::Doc => {
+            RecordKind::Doc => {
                 let contexts = structure
                     .items
                     .iter()

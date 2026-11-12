@@ -73,82 +73,10 @@ enum Compose {
     Rule(Option<String>),
 }
 
-/// The lifecycle states the Status filter offers, in its order (`DECISION_STATE_LABEL`).
-const DECISION_STATES: [(&str, &str); 4] = [
-    ("active", "Active"),
-    ("challenged", "Under review"),
-    ("proposed", "Proposed"),
-    ("superseded", "Replaced"),
-];
-
-/// `decisionState`: a stored status as a lifecycle state; the legacy `accepted` reads as
-/// active and anything unknown as proposed.
-pub fn decision_state(status: &str) -> &'static str {
-    let value = status.trim().to_lowercase();
-    if value == "accepted" {
-        return "active";
-    }
-    DECISION_STATES
-        .iter()
-        .map(|(id, _)| *id)
-        .find(|id| *id == value)
-        .unwrap_or("proposed")
-}
-
-/// `DECISION_STATE_LABEL`.
-pub fn decision_state_label(state: &str) -> &'static str {
-    DECISION_STATES
-        .iter()
-        .find(|(id, _)| *id == state)
-        .map_or("Proposed", |(_, label)| *label)
-}
-
-/// `decisionStateTone`.
-pub fn decision_state_tone(state: &str) -> StatusTone {
-    match state {
-        "active" => StatusTone::Ok,
-        "challenged" => StatusTone::Warn,
-        _ => StatusTone::Muted,
-    }
-}
-
-/// A Decision as its row shows it (`LibraryRow`).
-#[derive(Clone, Debug, PartialEq)]
-struct DecisionRow {
-    id: String,
-    title: String,
-    scope: Vec<String>,
-    state: &'static str,
-    updated: String,
-    /// A principle: no context, so it applies to the whole project and stays on top.
-    pinned: bool,
-}
-
-/// `libraryRowsFromWorkspace`: the decisions in the core's order, the principles first.
-fn decision_rows(items: &[KnowledgeItem]) -> Vec<DecisionRow> {
-    let rows: Vec<DecisionRow> = items
-        .iter()
-        .filter(|item| item.kind == "decision")
-        .map(|item| DecisionRow {
-            id: item.id.clone(),
-            title: item.title.clone(),
-            scope: item.scope_node_ids.clone(),
-            state: decision_state(&item.status),
-            updated: format_instant(&item.updated_at),
-            pinned: item.scope_node_ids.is_empty(),
-        })
-        .collect();
-    let (pinned, rest): (Vec<_>, Vec<_>) = rows.into_iter().partition(|row| row.pinned);
-    pinned.into_iter().chain(rest).collect()
-}
-
 /// The record a click on the tab's first row opens, in the list's own order: the first
 /// decision (a principle when there is one), the first rule (in its Composer), or the first doc.
 pub fn first_row(tab: KnowledgeTab, knowledge: &Knowledge) -> Option<String> {
     match tab {
-        KnowledgeTab::Decisions => decision_rows(&knowledge.items)
-            .first()
-            .map(|row| row.id.clone()),
         KnowledgeTab::Docs => doc_rows(&knowledge.items).first().map(|row| row.id.clone()),
         KnowledgeTab::Rules => knowledge.rules.first().map(|rule| rule.id.clone()),
     }
@@ -443,7 +371,7 @@ pub struct KnowledgeView {
     search: Entity<TextInput>,
     /// One filter menu per tab, each with its own name (`Library filters`, `Rule filters`,
     /// `Doc filters`).
-    filters: [Entity<FilterPopover>; 3],
+    filters: [Entity<FilterPopover>; 2],
     query: String,
     /// The tab the search, filters, and sort were set for; another one clears them.
     tab: KnowledgeTab,
@@ -466,7 +394,7 @@ pub struct KnowledgeView {
     /// The confirm takes the focus on the next frame.
     delete_focus_due: bool,
     /// Each tab's link to the shared scope; Docs offers environments too.
-    scopes: [ScopeFilter; 3],
+    scopes: [ScopeFilter; 2],
 }
 
 impl KnowledgeView {
@@ -481,7 +409,6 @@ impl KnowledgeView {
         })
         .detach();
         let filters = [
-            ("knowledge-library-filters", "Library filters"),
             ("knowledge-rule-filters", "Rule filters"),
             ("knowledge-doc-filters", "Doc filters"),
         ]
@@ -497,19 +424,7 @@ impl KnowledgeView {
             cx.observe(&popover, |_, _, cx| cx.notify()).detach();
             popover
         });
-        let statuses = FilterSpec::multi(
-            "status",
-            "Status",
-            DECISION_STATES
-                .iter()
-                .map(|(id, label)| FilterOption::new(*id, *label))
-                .collect(),
-        )
-        .plural("statuses");
-        filters[0].update(cx, |popover, _| {
-            popover.set_fields(vec![FilterField::new(statuses, None)]);
-        });
-        filters[2].update(cx, |popover, _| {
+        filters[1].update(cx, |popover, _| {
             popover.set_fields(vec![FilterField::new(
                 FilterSpec::multi("tags", "Tag", Vec::new()),
                 Some(Icon::FileText),
@@ -533,11 +448,7 @@ impl KnowledgeView {
             delete_ask: None,
             delete_focus: cx.focus_handle(),
             delete_focus_due: false,
-            scopes: [
-                ScopeFilter::new(false),
-                ScopeFilter::new(false),
-                ScopeFilter::new(true),
-            ],
+            scopes: [ScopeFilter::new(false), ScopeFilter::new(true)],
             state,
             search,
             filters,
@@ -603,7 +514,6 @@ impl KnowledgeView {
         cx: &mut Context<Self>,
     ) {
         let request = match tab {
-            KnowledgeTab::Decisions => ComposeRequest::Decision,
             KnowledgeTab::Docs => ComposeRequest::Doc,
             KnowledgeTab::Rules => {
                 let Load::Ready(knowledge) = self.state.read(cx).knowledge() else {
@@ -927,7 +837,7 @@ impl KnowledgeView {
             .iter()
             .map(|tag| FilterOption::new(tag.clone(), tag.clone()))
             .collect();
-        self.filters[2].update(cx, |popover, _| {
+        self.filters[1].update(cx, |popover, _| {
             set_page_fields(
                 popover,
                 vec![FilterField::new(
@@ -943,39 +853,10 @@ impl KnowledgeView {
         self.query.trim().to_lowercase()
     }
 
-    /// `filterLibraryRows` and the Status clauses, then the sort.
-    fn visible_decisions(&self, rows: Vec<DecisionRow>, cx: &App) -> Vec<DecisionRow> {
-        let needle = self.needle();
-        let filters = self.filters[0].read(cx).filters();
-        let rows: Vec<DecisionRow> = rows
-            .into_iter()
-            .filter(|row| {
-                needle.is_empty()
-                    || [
-                        row.title.as_str(),
-                        decision_state_label(row.state),
-                        if row.pinned { "principle" } else { "" },
-                    ]
-                    .iter()
-                    .any(|value| value.to_lowercase().contains(&needle))
-            })
-            .filter(|row| filters.matches(|field| (field == "status").then(|| vec![row.state])))
-            .collect();
-        match self.sort {
-            Some((column, direction)) => sort_rows(&rows, direction, |row| match column {
-                0 => text(&row.title),
-                2 => text(decision_state_label(row.state)),
-                3 => text(&row.updated),
-                _ => SortValue::Missing,
-            }),
-            None => rows,
-        }
-    }
-
     /// `filterDocs` and the Tag clauses, then the sort.
     fn visible_docs(&self, rows: Vec<DocRow>, cx: &App) -> Vec<DocRow> {
         let needle = self.needle();
-        let filters = self.filters[2].read(cx).filters();
+        let filters = self.filters[1].read(cx).filters();
         let rows: Vec<DocRow> = rows
             .into_iter()
             .filter(|row| {
@@ -1065,7 +946,6 @@ impl KnowledgeView {
             });
         let archive = tab == KnowledgeTab::Docs && self.show_archived;
         let create = match tab {
-            KnowledgeTab::Decisions => "New Decision",
             KnowledgeTab::Rules => "New rule",
             KnowledgeTab::Docs => "Add doc",
         };
@@ -1140,88 +1020,6 @@ impl KnowledgeView {
             .child(bar)
             .children(filter_bar)
             .into_any_element()
-    }
-
-    fn decisions(&self, knowledge: &Knowledge, cx: &mut Context<Self>) -> AnyElement {
-        let all = decision_rows(&knowledge.items);
-        if all.is_empty() {
-            return page_empty("No Decisions yet", MascotMood::Sleeping, cx).into_any_element();
-        }
-        let rows = self.visible_decisions(all, cx);
-        if rows.is_empty() {
-            return page_empty("No matches", MascotMood::Lost, cx).into_any_element();
-        }
-        let ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
-        let marked = self.marked(&ids);
-        let nodes = Rc::new(knowledge.nodes.clone());
-        let rows = Rc::new(rows);
-        let columns = vec![
-            Column::new("Title").sortable().shrinks(),
-            Column::new("Context"),
-            Column::new("Status").sortable(),
-            Column::new("Updated").sortable(),
-        ];
-        let cells = rows.clone();
-        let cell_nodes = nodes.clone();
-        let measured = rows.clone();
-        let measure_nodes = nodes.clone();
-        let table = DataTable::new(
-            "knowledge-decisions",
-            columns,
-            rows.len(),
-            move |row, _, cx| {
-                let decision = &cells[row.index];
-                let icon = if decision.pinned {
-                    Icon::Scale
-                } else {
-                    Icon::FileText
-                };
-                vec![
-                    title_cell(icon, &decision.title, cx),
-                    chips(&context_labels(&decision.scope, &cell_nodes), cx),
-                    chip_rounded(
-                        decision_state_label(decision.state),
-                        decision_state_tone(decision.state),
-                        CHIP_RADIUS,
-                        cx,
-                    )
-                    .into_any_element(),
-                    muted_cell(decision.updated.clone(), cx),
-                ]
-            },
-        )
-        .measure(move |range, window, cx| {
-            let theme = *Theme::global(cx);
-            let medium = sans(&theme, FontWeight::MEDIUM);
-            let normal = sans(&theme, FontWeight::NORMAL);
-            let mut widest = [0.0_f32; 4];
-            for decision in measured.get(range).unwrap_or_default() {
-                let widths = [
-                    title_width(&decision.title, window, cx),
-                    chips_width(&context_labels(&decision.scope, &measure_nodes), window, cx),
-                    CHIP_FRAME
-                        + text_width(
-                            decision_state_label(decision.state),
-                            medium.clone(),
-                            11.0,
-                            window,
-                        ),
-                    text_width(&decision.updated, normal.clone(), 12.5, window),
-                ];
-                for (slot, width) in widest.iter_mut().zip(widths) {
-                    *slot = slot.max(width);
-                }
-            }
-            widest.to_vec()
-        });
-        // J and K open the next Decision, as `onActiveRowChange` activates it.
-        self.table(
-            table,
-            rows.iter().map(|row| row.id.clone()).collect(),
-            marked,
-            true,
-            cx,
-        )
     }
 
     fn docs(&mut self, knowledge: &Knowledge, cx: &mut Context<Self>) -> AnyElement {
@@ -1462,7 +1260,6 @@ impl Render for KnowledgeView {
                 .into_any_element(),
             Some(_) if tab == KnowledgeTab::Docs && self.show_archived => self.archive(window, cx),
             Some(knowledge) => match tab {
-                KnowledgeTab::Decisions => self.decisions(knowledge, cx),
                 KnowledgeTab::Rules => self.rules(knowledge, cx),
                 KnowledgeTab::Docs => self.docs(knowledge, cx),
             },
@@ -1499,25 +1296,6 @@ mod tests {
             title: title.into(),
             ..StructureNode::default()
         }
-    }
-
-    #[test]
-    fn principles_lead_the_decisions_in_the_core_order() {
-        let items = [
-            item("d1", "decision", "active", &["n1"]),
-            item("k1", "doc", "", &[]),
-            item("d2", "decision", "accepted", &[]),
-            item("d3", "decision", "weird", &["n2"]),
-            item("d4", "decision", "challenged", &[]),
-        ];
-        let rows = decision_rows(&items);
-        let ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
-        assert_eq!(ids, ["d2", "d4", "d1", "d3"]);
-        assert_eq!(rows[0].state, "active");
-        assert_eq!(rows[1].state, "challenged");
-        assert_eq!(decision_state_label(rows[1].state), "Under review");
-        assert_eq!(rows[3].state, "proposed");
-        assert!(rows[0].pinned && !rows[2].pinned);
     }
 
     #[test]
@@ -1613,7 +1391,7 @@ mod tests {
         a.tags = vec!["runbook".into(), "api".into()];
         let mut b = item("k2", "doc", "", &[]);
         b.tags = vec!["api".into(), "billing".into()];
-        let docs = doc_rows(&[a, b, item("d1", "decision", "", &[])]);
+        let docs = doc_rows(&[a, b]);
         assert_eq!(docs.len(), 2);
         assert_eq!(docs[0].owner, "Platform");
         assert_eq!(doc_tags(&docs), ["api", "billing", "runbook"]);

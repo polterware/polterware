@@ -4,7 +4,7 @@ package polterware.local.v1;
 import "polterware/local/v1/agentrun.proto";
 
 // CanvasRef cites another project entity.
-// kind is "card", "decision", "fact", "rule", or "node" (a structure node).
+// kind is "card", "rule", or "node" (a structure node).
 message CanvasRef {
   string kind = 1;
   string id = 2;

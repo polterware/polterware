@@ -6,8 +6,8 @@
 //! the Projects screen and its New project, the seed's main project (Atlas, else the first) on
 //! its Inbox, with the open item's Decide and Later panels, Switch project, Help and a topic,
 //! and every other section (Activity with a change open, then a Dispatch entry; Knowledge's
-//! first decision, its first rule in the Composer, the Docs tab's Add doc Composer and its
-//! archive, and the first doc), Project settings, Commander, and App settings.
+//! first rule in the Composer, the Docs tab's Add doc Composer and its archive, and the first
+//! doc), Project settings, Commander, and App settings.
 //!
 //! `POLTERWARE_BENCH=<file>`: appends `{"app","event","at"}` lines (`at` in epoch milliseconds)
 //! when the Projects screen first shows rows (`projects-ready`), for `tooling/bench`.
@@ -38,14 +38,9 @@ const SECTIONS: [(&str, Section); 5] = [
 ];
 
 /// Knowledge's tabs as the tour walks them: the list's stop after switching to it (none for
-/// Decisions, where Knowledge opens) and the stop of its first row's page.
-const KNOWLEDGE_STOPS: [(KnowledgeTab, Option<&str>, Option<&str>); 3] = [
-    (KnowledgeTab::Decisions, None, Some("07-knowledge-decision")),
-    (
-        KnowledgeTab::Rules,
-        Some("07-knowledge-rules"),
-        Some("07-knowledge-rule"),
-    ),
+/// Rules, where Knowledge opens) and the stop of its first row's page.
+const KNOWLEDGE_STOPS: [(KnowledgeTab, Option<&str>, Option<&str>); 2] = [
+    (KnowledgeTab::Rules, None, Some("07-knowledge-rule")),
     (
         KnowledgeTab::Docs,
         Some("07-knowledge-docs"),

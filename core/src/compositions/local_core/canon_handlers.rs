@@ -39,15 +39,6 @@ pub fn routes() -> Vec<Route> {
             sync_project_model,
         ),
         Route::unary(
-            "/polterware.local.v1.ProjectModelService/ListFacts",
-            list_facts,
-        ),
-        Route::unary("/polterware.local.v1.ProjectModelService/GetFact", get_fact),
-        Route::unary(
-            "/polterware.local.v1.ProjectModelService/UpsertFact",
-            upsert_fact,
-        ),
-        Route::unary(
             "/polterware.local.v1.ContextService/CompileContext",
             compile_context,
         ),
@@ -145,154 +136,6 @@ pub fn sync_project_model(
         .map_err(internal)?;
     Ok(local_v1::SyncProjectModelResponse {
         entity_count: count as i32,
-    })
-}
-
-pub fn list_facts(
-    core: Arc<Core>,
-    request: ConnectRequest<local_v1::ListFactsRequest>,
-) -> Result<local_v1::ListFactsResponse, ConnectError> {
-    let msg = request.message;
-    if msg.project_id.is_empty() {
-        return Err(invalid("project id is required"));
-    }
-    let store = core.store();
-    let snapshot = store
-        .load_work_snapshot(&msg.project_id)
-        .map_err(internal)?;
-    let refs = wedge::scope_refs(&msg.scope_node, &msg.scope_nodes);
-    let resolved = wedge::load_node_scopes(&store, &msg.project_id, &refs, msg.scope_exact)
-        .map_err(|err| invalid(err.to_string()))?;
-    let mut out = Vec::new();
-    for rule in &snapshot.rules {
-        if !rule.binding() {
-            continue;
-        }
-        if !resolved.set.is_nil() {
-            let contexts = store
-                .scope_map(&msg.project_id, sqlite::SCOPE_RULE)
-                .map_err(internal)?
-                .get(&rule.id)
-                .cloned()
-                .unwrap_or_default();
-            if !resolved.matches_any(&contexts) {
-                continue;
-            }
-        }
-        out.push(rule_fact_proto(rule));
-    }
-    Ok(local_v1::ListFactsResponse { facts: out })
-}
-
-pub fn get_fact(
-    core: Arc<Core>,
-    request: ConnectRequest<local_v1::GetFactRequest>,
-) -> Result<local_v1::GetFactResponse, ConnectError> {
-    let msg = request.message;
-    if msg.id.is_empty() {
-        return Err(invalid("fact id is required"));
-    }
-    let rule = match core.store().get_rule(&msg.id) {
-        Ok(rule) => rule,
-        Err(err) if err.is_no_rows() => {
-            return Err(ConnectError::new(
-                Code::NotFound,
-                canon::Error::UnknownFact.to_string(),
-            ));
-        }
-        Err(err) => return Err(internal(err)),
-    };
-    Ok(local_v1::GetFactResponse {
-        fact: Some(rule_fact_proto(&rule)),
-    })
-}
-
-/// Writes a Fact as a Rule: the old wire shape stays for the Desktop until the
-/// contracts move, but the store only knows Rules.
-pub fn upsert_fact(
-    core: Arc<Core>,
-    request: ConnectRequest<local_v1::UpsertFactRequest>,
-) -> Result<local_v1::UpsertFactResponse, ConnectError> {
-    let msg = request.message;
-    let Some(fact_msg) = msg.fact.as_ref() else {
-        return Err(invalid("fact is required"));
-    };
-    if fact_msg.statement.trim().is_empty() {
-        return Err(invalid("fact statement is required"));
-    }
-    let mut env = change_envelope_from_proto(msg.change.as_ref()).map_err(map_audited_err)?;
-    let project_id = if fact_msg.project_id.is_empty() {
-        env.project_id.clone()
-    } else {
-        fact_msg.project_id.clone()
-    };
-    env.project_id = project_id.clone();
-    if !fact_msg.entity_id.is_empty() && core.store().get_canon_entity(&fact_msg.entity_id).is_err()
-    {
-        return Err(invalid("entity not found"));
-    }
-    let rule_id = if fact_msg.id.is_empty() {
-        crate::platform::ids::new_ulid()
-    } else {
-        fact_msg.id.clone()
-    };
-    let mut fields = serde_json::Map::new();
-    fields.insert(
-        "statement".into(),
-        serde_json::Value::String(fact_msg.statement.clone()),
-    );
-    if !fact_msg.scope_node_ids.is_empty() {
-        let nodes = core
-            .store()
-            .structure_nodes(&project_id)
-            .map_err(internal)?;
-        let paths: Vec<String> = nodes
-            .iter()
-            .filter(|node| fact_msg.scope_node_ids.contains(&node.id))
-            .map(|node| node.path.clone())
-            .collect();
-        fields.insert("scope".into(), serde_json::json!(paths));
-    }
-    let op = crate::domains::work::Op {
-        entity: crate::domains::work::ENTITY_RULE.to_string(),
-        kind: if fact_msg.id.is_empty() {
-            crate::domains::work::OP_CREATE.to_string()
-        } else {
-            crate::domains::work::OP_UPDATE.to_string()
-        },
-        entity_id: rule_id.clone(),
-        card_slug: fact_msg.statement.clone(),
-        label: fact_msg.statement.clone(),
-        fields,
-        ..crate::domains::work::Op::default()
-    };
-    {
-        let store = core.store();
-        let batch = crate::platform::ids::new_ulid();
-        wedge::execute_audited_write(
-            &store,
-            env,
-            agentrun::ACTOR_KIND_HUMAN,
-            "desktop.fact.upsert",
-            |run| {
-                store.apply_work_ops(&project_id, &run.id, &batch, std::slice::from_ref(&op))?;
-                Ok((vec![rule_id.clone()], rule_id.clone()))
-            },
-        )
-    }
-    .map_err(map_audited_err)?;
-    let snapshot = core
-        .store()
-        .load_work_snapshot(&project_id)
-        .map_err(internal)?;
-    let rule = snapshot
-        .rules
-        .iter()
-        .find(|rule| rule.id == rule_id)
-        .cloned()
-        .unwrap_or_default();
-    Ok(local_v1::UpsertFactResponse {
-        fact: Some(rule_fact_proto(&rule)),
     })
 }
 
@@ -592,22 +435,6 @@ pub fn canon_relationship_proto(item: &canon::Relationship) -> local_v1::CanonRe
     }
 }
 
-pub fn rule_fact_proto(rule: &crate::domains::work::Rule) -> local_v1::CanonFact {
-    local_v1::CanonFact {
-        id: rule.id.clone(),
-        project_id: String::new(),
-        statement: rule.statement.clone(),
-        truth_class: "declared".to_string(),
-        source: "rule".to_string(),
-        actor: String::new(),
-        observed_at: String::new(),
-        entity_id: String::new(),
-        created_at: String::new(),
-        updated_at: String::new(),
-        scope_node_ids: Vec::new(),
-    }
-}
-
 pub fn knowledge_link_proto(item: &knowledge::EntityLink) -> local_v1::KnowledgeEntityLink {
     local_v1::KnowledgeEntityLink {
         id: item.id.clone(),
@@ -636,84 +463,6 @@ mod tests {
             headers: HeaderMap::new(),
             message,
         }
-    }
-
-    fn change() -> local_v1::ChangeEnvelope {
-        local_v1::ChangeEnvelope {
-            summary: "Record a fact".to_string(),
-            ..local_v1::ChangeEnvelope::default()
-        }
-    }
-
-    #[test]
-    fn a_fact_round_trips_and_needs_an_entity() {
-        let harness = crate::compositions::local_core::test_support::Harness::start();
-        let core = Arc::clone(&harness.core);
-        let project_id = seed::PROJECT_ID.to_string();
-
-        let created = upsert_fact(
-            Arc::clone(&core),
-            request(local_v1::UpsertFactRequest {
-                fact: Some(local_v1::CanonFact {
-                    project_id: project_id.clone(),
-                    statement: "One core owns the store".to_string(),
-                    ..local_v1::CanonFact::default()
-                }),
-                change: Some(change()),
-            }),
-        )
-        .expect("upsert fact");
-        let fact = created.fact.expect("fact");
-        assert!(!fact.id.is_empty(), "fact = {fact:?}");
-        assert_eq!(fact.source, "rule");
-
-        let got = get_fact(
-            Arc::clone(&core),
-            request(local_v1::GetFactRequest {
-                id: fact.id.clone(),
-            }),
-        )
-        .expect("get fact");
-        assert_eq!(got.fact.expect("fact").statement, fact.statement);
-
-        let err = get_fact(
-            Arc::clone(&core),
-            request(local_v1::GetFactRequest {
-                id: "missing".to_string(),
-            }),
-        )
-        .expect_err("unknown fact");
-        assert_eq!(err.code, Code::NotFound);
-        assert_eq!(err.message, "unknown canon fact");
-
-        let err = upsert_fact(
-            Arc::clone(&core),
-            request(local_v1::UpsertFactRequest {
-                fact: Some(local_v1::CanonFact {
-                    project_id: project_id.clone(),
-                    statement: "Linked".to_string(),
-                    entity_id: "missing".to_string(),
-                    ..local_v1::CanonFact::default()
-                }),
-                change: Some(change()),
-            }),
-        )
-        .expect_err("unknown entity");
-        assert_eq!(err.code, Code::InvalidArgument);
-        assert_eq!(err.message, "entity not found");
-
-        let listed = list_facts(
-            Arc::clone(&core),
-            request(local_v1::ListFactsRequest {
-                project_id,
-                ..local_v1::ListFactsRequest::default()
-            }),
-        )
-        .expect("facts");
-        assert!(
-            listed.facts.iter().any(|item| item.id == fact.id),
-            "listed = {listed:?}"
-        );
     }
 
     #[test]

@@ -287,9 +287,6 @@ impl Store {
         at: OffsetDateTime,
     ) -> Result<knowledge::Item> {
         let item = self.get_knowledge(id)?;
-        if item.kind == knowledge::KIND_DECISION {
-            return Err(knowledge::KnowledgeError::DecisionArchive.into());
-        }
         let stamp = if archived {
             format_rfc3339(at)
         } else {
@@ -310,13 +307,9 @@ impl Store {
         self.get_knowledge(id)
     }
 
-    /// Removes an archived item for good. Active items and decisions are
-    /// refused.
+    /// Removes an archived item for good. Active items are refused.
     pub fn delete_knowledge(&self, id: &str) -> Result<()> {
         let item = self.get_knowledge(id)?;
-        if item.kind == knowledge::KIND_DECISION {
-            return Err(knowledge::KnowledgeError::DecisionArchive.into());
-        }
         if !item.archived() {
             return Err(knowledge::KnowledgeError::NotArchived.into());
         }
@@ -652,34 +645,22 @@ mod tests {
         let at = now();
         project_save(store, at);
         store
-            .save_knowledge(item("decision-1", "proj-a", knowledge::KIND_DECISION, at))
-            .expect("save decision");
-        store
             .save_knowledge(item("doc-1", "proj-a", knowledge::KIND_DOC, at))
             .expect("save doc");
 
-        let decisions = store
-            .list_knowledge("proj-a", knowledge::KIND_DECISION)
-            .expect("decisions");
-        assert_eq!(decisions.len(), 1, "decisions = {decisions:?}");
-        let first = &decisions[0];
-        assert_eq!(first.kind, knowledge::KIND_DECISION);
+        let docs = store
+            .list_knowledge("proj-a", knowledge::KIND_DOC)
+            .expect("docs");
+        assert_eq!(docs.len(), 1, "docs = {docs:?}");
+        let first = &docs[0];
+        assert_eq!(first.kind, knowledge::KIND_DOC);
         assert_eq!(first.project_id, "proj-a");
         let got = store.get_knowledge(&first.id).expect("get");
         assert_eq!(got.title, first.title);
 
-        let err = store.delete_knowledge(&first.id).expect_err("decision");
-        assert!(
-            matches!(err, Error::Knowledge(KnowledgeError::DecisionArchive)),
-            "err = {err:?}"
-        );
-        let err = store
-            .set_knowledge_archived(&first.id, true, at)
-            .expect_err("decision");
-        assert!(
-            matches!(err, Error::Knowledge(KnowledgeError::DecisionArchive)),
-            "err = {err:?}"
-        );
+        store
+            .delete_knowledge(&first.id)
+            .expect_err("an active item is refused");
     }
 
     #[test]

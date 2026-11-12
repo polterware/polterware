@@ -7,7 +7,7 @@ use gpui::Context;
 use super::AppState;
 use crate::work::Stage;
 
-/// A card, a decision, or a doc, with what the place it was asked from already knows.
+/// A card or a doc, with what the place it was asked from already knows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ComposeRequest {
     /// `stage` starts the Stage pill (Idea when none); `milestone` is a milestone's id, empty
@@ -16,7 +16,6 @@ pub enum ComposeRequest {
         stage: Option<Stage>,
         milestone: String,
     },
-    Decision,
     Doc,
 }
 

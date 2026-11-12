@@ -339,81 +339,6 @@ pub struct SyncProjectModelResponse {
     pub entity_count: i32,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct CanonFact {
-    pub id: String,
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-    pub statement: String,
-    #[serde(rename = "truthClass")]
-    pub truth_class: String,
-    pub source: String,
-    pub actor: String,
-    #[serde(rename = "observedAt")]
-    pub observed_at: String,
-    #[serde(rename = "entityId")]
-    pub entity_id: String,
-    #[serde(rename = "createdAt")]
-    pub created_at: String,
-    #[serde(rename = "updatedAt")]
-    pub updated_at: String,
-    /// scope_node_ids are the Structure nodes the fact is about; none is the whole project.
-    #[serde(rename = "scopeNodeIds")]
-    pub scope_node_ids: Vec<String>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListFactsRequest {
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-    #[serde(rename = "entityId")]
-    pub entity_id: String,
-    #[serde(rename = "scopeNode")]
-    pub scope_node: String,
-    #[serde(rename = "scopeExact")]
-    pub scope_exact: bool,
-    /// scope_nodes is merged with scope_node. The list is the union.
-    #[serde(rename = "scopeNodes")]
-    pub scope_nodes: Vec<String>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListFactsResponse {
-    pub facts: Vec<CanonFact>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct GetFactRequest {
-    pub id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct GetFactResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub fact: Option<CanonFact>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct UpsertFactRequest {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub fact: Option<CanonFact>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub change: Option<ChangeEnvelope>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct UpsertFactResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub fact: Option<CanonFact>,
-}
-
 // polterware/local/v1/canvas.proto
 
 /// CanvasRef cites another project entity.
@@ -1831,7 +1756,9 @@ pub struct WorkCard {
     pub stage: String,
     pub owner: String,
     pub under: String,
-    pub decisions: Vec<String>,
+    /// rules are the Rules that apply to the card: its scope chain plus the
+    /// project-wide ones.
+    pub rules: Vec<String>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
     #[serde(rename = "updatedAt")]
@@ -2159,7 +2086,8 @@ pub struct StructureNode {
     pub path: String,
     pub title: String,
     pub intent: String,
-    pub decisions: Vec<String>,
+    /// rules are the Rule references the node cites.
+    pub rules: Vec<String>,
     pub status: String,
     #[serde(rename = "childCount")]
     pub child_count: i32,
@@ -2368,11 +2296,11 @@ pub struct FeatureTouch {
     pub title: String,
 }
 
-/// from is "card" or the node path that cites the decision; status is empty
-/// when no Decision matches the reference.
+/// from is "card" or the node path that cites the Rule; status is empty
+/// when no Rule matches the reference.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct FeatureDecision {
+pub struct FeatureRule {
     pub r#ref: String,
     pub id: String,
     pub title: String,
@@ -2421,7 +2349,7 @@ pub struct FeatureReview {
     /// suggested lists component paths for a card without under:.
     pub suggested: Vec<String>,
     pub touches: Vec<FeatureTouch>,
-    pub decisions: Vec<FeatureDecision>,
+    pub rules: Vec<FeatureRule>,
     pub inherited: Vec<FeatureInvariant>,
     pub questions: Vec<FeatureQuestion>,
     pub checks: Vec<FeatureCheck>,
@@ -2658,9 +2586,10 @@ pub struct ReorderMilestonesResponse {
     pub milestones: Vec<Milestone>,
 }
 
-/// Rule is a short imperative constraint agents read before they work.
-/// scope_node_ids are the Structure nodes it applies to (and every node below
-/// them); none is the whole project.
+/// Rule is the only law: a short imperative constraint agents read before they
+/// work. scope_node_ids are the Structure nodes it applies to (and every node
+/// below them); none is the whole project. why is optional Markdown (the old
+/// Decision body). Only active and under_review Rules bind.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Rule {
@@ -2672,6 +2601,14 @@ pub struct Rule {
     /// scope_paths are the same nodes as paths, sorted.
     #[serde(rename = "scopePaths")]
     pub scope_paths: Vec<String>,
+    /// why is the optional Markdown rationale, shown on the Rule's page.
+    pub why: String,
+    /// status is proposed, active, under_review, replaced, or removed.
+    pub status: String,
+    /// replaced_by is the Rule that replaced this one, when status is replaced.
+    #[serde(rename = "replacedBy")]
+    pub replaced_by: String,
+    pub position: i32,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -2685,12 +2622,59 @@ pub struct ListRulesRequest {
     pub scope_nodes: Vec<String>,
     #[serde(rename = "scopeExact")]
     pub scope_exact: bool,
+    /// statuses keeps the Rules in any of these states; empty keeps every state.
+    pub statuses: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ListRulesResponse {
     pub rules: Vec<Rule>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GetRuleRequest {
+    pub id: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GetRuleResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rule: Option<Rule>,
+}
+
+/// WriteRule writes Polter rule text: a `#### rule <slug>: Statement` block with
+/// its scope, why, status, and replaced-by. dry_run plans it without writing.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct WriteRuleRequest {
+    #[serde(rename = "projectId")]
+    pub project_id: String,
+    pub text: String,
+    #[serde(rename = "dryRun")]
+    pub dry_run: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub change: Option<ChangeEnvelope>,
+    /// session_label is the acting agent; the Desktop writes as "desktop".
+    #[serde(rename = "sessionLabel")]
+    pub session_label: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct WriteRuleResponse {
+    pub applied: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rule: Option<Rule>,
+    pub diagnostics: Vec<PolterDiagnostic>,
+    /// ops is one terraform-style line per operation (`+`, `~`, `-`).
+    pub ops: Vec<String>,
+    #[serde(rename = "agentRunId")]
+    pub agent_run_id: String,
+    #[serde(rename = "batchId")]
+    pub batch_id: String,
 }
 
 /// CardCommit is one commit of a card's task: linked by an agent or a person,

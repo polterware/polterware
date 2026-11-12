@@ -202,7 +202,7 @@ impl CardPage {
         ));
         rows.extend(text("Owner", &card.owner, false));
         rows.extend(text("Component", &card.under, true));
-        rows.extend(text("Decisions", &card.decisions.join(", "), false));
+        rows.extend(text("Rules", &card.rules.join(", "), false));
         rows.extend(text("Updated", &format_instant(&card.updated_at), false));
         document_group(
             "Properties",

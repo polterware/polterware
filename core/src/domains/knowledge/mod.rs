@@ -1,7 +1,7 @@
 //! Port of `backend/domains/knowledge`.
 //!
-//! Knowledge items (docs and decisions), their entity links, and the search
-//! hit shape over them.
+//! Knowledge items (docs), their entity links, and the search hit shape over
+//! them. Rules are their own law and are not knowledge items.
 
 use rand::RngCore;
 use time::OffsetDateTime;
@@ -17,9 +17,6 @@ pub const MAX_BODY: usize = 64 * 1024;
 pub enum KnowledgeError {
     #[error("invalid knowledge item")]
     Invalid,
-    /// A decision is superseded, never removed.
-    #[error("decisions are never archived or deleted: supersede them")]
-    DecisionArchive,
     #[error("archive the item before deleting it permanently")]
     NotArchived,
     #[error("restore the item before editing it")]
@@ -28,10 +25,8 @@ pub enum KnowledgeError {
     SourceRetired,
 }
 
-/// Kinds. A decision is one Decision with its lifecycle; a doc is a document
-/// that backs facts, typed by `doc_type`.
+/// The one kind: a doc is a document that backs facts.
 pub const KIND_DOC: &str = "doc";
-pub const KIND_DECISION: &str = "decision";
 
 /// The one doc type. Docs hold only what lives in Polterware (agents read
 /// repository files from the checkout) and are told apart by tags.
@@ -50,8 +45,7 @@ pub struct Item {
     pub title: String,
     pub body: String,
     pub kind: String,
-    /// `doc` for a doc and empty for a decision. Docs have no types: tags tell
-    /// them apart.
+    /// `doc` for a doc. Docs have no types: tags tell them apart.
     pub doc_type: String,
     pub tags: Vec<String>,
     pub summary: String,
@@ -108,7 +102,7 @@ pub fn check_doc_type(doc_type: &str) -> Result<(), KnowledgeError> {
 }
 
 pub fn valid_kind(kind: &str) -> bool {
-    matches!(kind, KIND_DOC | KIND_DECISION)
+    kind == KIND_DOC
 }
 
 /// Reads a kind: doc and the retired runbook name a doc, and any other value is
@@ -120,8 +114,7 @@ pub fn normalize_kind(kind: &str) -> &str {
     }
 }
 
-/// Returns the stored doc type of `kind`: `doc` for a doc and empty for a
-/// decision.
+/// Returns the stored doc type of `kind`: `doc` for a doc, empty otherwise.
 pub fn doc_type_for(kind: &str) -> &'static str {
     if kind != KIND_DOC {
         return "";
@@ -184,16 +177,6 @@ mod tests {
                 "expected kind {kind} to be rejected"
             );
         }
-        let decision = new_item(
-            "decision-1",
-            "project",
-            "Title",
-            "Body",
-            KIND_DECISION,
-            vec![],
-        )
-        .expect("valid decision");
-        assert_eq!(decision.doc_type, "");
         // A doc type names a doc of that type; tags stay as given.
         // A runbook is a doc now; tags tell docs apart.
         for kind in ["doc", "runbook"] {
