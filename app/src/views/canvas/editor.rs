@@ -1642,6 +1642,11 @@ impl Render for CanvasEditor {
             .update(cx, |panel, _| panel.set_open(inspecting));
         if inspector_was_open && !inspecting {
             self.fit(cx);
+        } else if !inspector_was_open && inspecting && !self.reveal {
+            // The inspector came back (the source pane closed, say) over a drawing laid out for
+            // the wider room: bring the drawing out from under it, as a fresh selection does.
+            self.reveal = true;
+            self.reveal_waits = REVEAL_FRAMES;
         }
         if source::palette(&theme) != self.colors {
             self.render_due = true;
