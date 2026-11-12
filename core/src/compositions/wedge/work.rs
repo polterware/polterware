@@ -5,11 +5,9 @@ use super::*;
 
 use std::collections::HashSet;
 
-use serde_json::Value;
 use time::OffsetDateTime;
 
 use crate::domains::agentrun;
-use crate::domains::decision;
 use crate::domains::inbox;
 use crate::domains::polter;
 use crate::domains::projects;
@@ -140,7 +138,6 @@ fn polter_references_from_snapshot(
     store: &Store,
     snapshot: &work::Snapshot,
 ) -> Result<polter::References> {
-    let decisions = store.list_knowledge(&snapshot.project_id, "decision")?;
     let mut refs = polter::References {
         cards: snapshot.cards.clone(),
         nodes: snapshot.nodes.clone(),
@@ -148,11 +145,11 @@ fn polter_references_from_snapshot(
         environments: snapshot.environments.clone(),
         ..polter::References::default()
     };
-    for item in &decisions {
+    for rule in &snapshot.rules {
         refs.decisions.push(polter::DecisionRef {
-            id: item.id.clone(),
-            title: item.title.clone(),
-            status: item.status.clone(),
+            id: rule.id.clone(),
+            title: rule.statement.clone(),
+            status: rule.status.clone(),
         });
     }
     let view = project_git(store, &snapshot.project_id);
@@ -256,14 +253,6 @@ pub fn apply_polter(
     let tool = first_non_empty(&[&in_.tool, "polter.apply"]);
     let batch_id = ids::new_ulid();
     result.batch_id = batch_id.clone();
-    // A fact records who wrote it, like every other field the plan resolved.
-    let fact_actor = first_non_empty(&[&in_.agent, &actor_kind]);
-    for op in &mut result.ops {
-        if op.entity == work::ENTITY_FACT {
-            op.fields
-                .insert("actor".to_string(), Value::String(fact_actor.clone()));
-        }
-    }
     let write_ops = result.ops.clone();
     let project_id = in_.project_id.clone();
     let written = execute_audited_write(
@@ -352,20 +341,10 @@ pub fn query_polter_scoped(
             };
             Ok(polter::encode_conflict(conflict, &snapshot))
         }
-        polter::QUERY_DECISIONS => Ok(polter::encode_decisions(&snapshot.decisions, &query.slug)),
-        polter::QUERY_DECISION => {
-            let Some(target) = decision::find(&snapshot.decisions, &query.slug) else {
-                return Err(Error::Message(format!(
-                    "unknown decision {}: list decisions with polterware decision list",
-                    polter::go_quote(&query.slug)
-                )));
-            };
-            Ok(polter::encode_decision(
-                &target,
-                &snapshot.decisions,
-                &polter::nodes_citing(&snapshot.nodes, &target),
-            ))
-        }
+        polter::QUERY_RULES => Ok(polter::encode_rules(&snapshot.rules, &query.slug)),
+        polter::QUERY_DECISIONS | polter::QUERY_DECISION => Err(Error::Message(
+            "decisions are Rules now: read them with polterware query \"rules\"".to_string(),
+        )),
         polter::QUERY_FEATURE | polter::QUERY_VERIFY => {
             query_feature(store, &snapshot, &query).map_err(message_error)
         }
@@ -742,104 +721,6 @@ stage: build
             "change step requires summary and rationale: add them to the frontmatter or pass --summary and --rationale",
             "a person's write still needs a summary"
         );
-    }
-
-    #[test]
-    fn polter_fact_apply_round_trip_and_audit() {
-        let TempStore { store, .. } = TempStore::new();
-        let project = init_test_project(&store, "Facts");
-        let header = "---\npolter: 1\nsummary: Promote canvas item\nrationale: promoted from canvas Sketch\n---\n";
-        let text = format!(
-            "{header}# core: Core\nlevel: domain\n#### local-core: One local core owns SQLite.\nkind: declared\nscope: core\n"
-        );
-        let apply_as_codex = |text: &str, dry: bool| {
-            apply_polter(
-                &store,
-                ApplyInput {
-                    project_id: project.id.clone(),
-                    text: text.to_string(),
-                    dry_run: dry,
-                    auto_start_label: "codex".to_string(),
-                    agent: "codex".to_string(),
-                    ..ApplyInput::default()
-                },
-            )
-        };
-        let dry = apply_as_codex(&text, true).expect("dry");
-        assert!(!dry.applied, "dry: {dry:?}");
-        assert_eq!(dry.ops.len(), 2, "dry ops: {:?}", dry.ops);
-        let facts = store.list_canon_facts(&project.id, "").expect("facts");
-        assert!(facts.is_empty(), "dry wrote: {facts:?}");
-
-        let result = apply_as_codex(&text, false).expect("apply");
-        assert!(result.applied, "apply: {result:?}");
-        let id = result.ops[1].entity_id.clone();
-        let fact = store.get_canon_fact(&id).expect("fact");
-        assert_eq!(fact.statement, "One local core owns SQLite.");
-        assert_eq!(fact.truth_class, "declared");
-        assert_eq!(fact.actor, "codex");
-
-        let snapshot = store.load_work_snapshot(&project.id).expect("snapshot");
-        assert_eq!(snapshot.facts[0].slug, "local-core");
-        assert_eq!(snapshot.facts[0].scopes, vec!["core".to_string()]);
-
-        let (op, batch, actor): (String, String, String) = store
-            .db
-            .query_row(
-                "SELECT op,batch_id,agent_run_id FROM change_ops WHERE entity='fact' AND entity_id=?",
-                rusqlite::params![id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .expect("audit row");
-        assert_eq!(op, "create");
-        assert_eq!(batch, result.batch_id);
-        assert_eq!(actor, result.agent_run_id);
-
-        let record = store
-            .get_agent_run_record(&result.agent_run_id)
-            .expect("run record");
-        assert_eq!(record.steps.len(), 1);
-        assert_eq!(record.steps[0].kind, agentrun::KIND_CHANGE);
-        assert!(record.steps[0].payload_json.contains(&result.batch_id));
-
-        let again = apply_as_codex(&text, false).expect("idempotence");
-        assert!(!again.applied, "idempotence: {again:?}");
-        assert_eq!(again.ops.len(), 0);
-
-        for reference in ["local-core", id.as_str()] {
-            let updated = apply_as_codex(
-                &format!("{header}#### {reference}: Updated {reference}\nkind: inferred\n"),
-                false,
-            )
-            .expect("update");
-            assert!(updated.applied, "update: {updated:?}");
-            assert_eq!(updated.ops.len(), 1, "update ops: {:?}", updated.ops);
-            assert_eq!(updated.ops[0].entity_id, id);
-        }
-        let cleared = apply_as_codex(
-            &format!("{header}#### {id}\nkind: verified\nscope:\n"),
-            false,
-        )
-        .expect("clear");
-        assert!(cleared.applied, "clear: {cleared:?}");
-        let fact = store.get_canon_fact(&id).expect("verified fact");
-        assert_eq!(fact.truth_class, "verified");
-        let scope = store
-            .scope_map(&project.id, sqlite::SCOPE_FACT)
-            .expect("scope");
-        assert!(
-            scope.get(&id).is_none_or(|nodes| nodes.is_empty()),
-            "clear scope: {scope:?}"
-        );
-
-        // One invalid block rejects the whole document.
-        let bad =
-            format!("{header}#### another: Another fact\n#### bad: Rejected\nkind: invalid\n");
-        let failure = apply_as_codex(&bad, false).unwrap_err();
-        assert!(failure.is_polter_invalid(), "reject: {failure}");
-        assert!(polter::has_errors(&failure.result.diagnostics));
-        let facts = store.list_canon_facts(&project.id, "").expect("facts");
-        assert_eq!(facts.len(), 1, "partial apply: {facts:?}");
     }
 
     #[test]

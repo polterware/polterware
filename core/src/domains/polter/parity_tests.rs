@@ -15,7 +15,7 @@ use std::path::Path;
 use regex::Regex;
 use serde_json::Value;
 
-use crate::domains::{canon, decision, structure, work};
+use crate::domains::{structure, work};
 
 use super::model::Diagnostic;
 use super::{BriefInput, Doc, brief, decode, format_plan, plan, summarize};
@@ -210,45 +210,15 @@ fn parse_node(value: &Value) -> structure::Node {
     }
 }
 
-fn parse_decision(value: &Value) -> decision::Decision {
-    decision::Decision {
-        id: text(value, "ID"),
-        title: text(value, "Title"),
-        status: text(value, "Status"),
-        body: text(value, "Body"),
-        scopes: strings(value, "Scopes"),
-        meta: decision::Meta {
-            superseded_by: text(value, "supersededBy"),
-            review_trigger: text(value, "reviewTrigger"),
-            status_reason: text(value, "statusReason"),
-        },
-    }
-}
-
-fn parse_fact(value: &Value) -> work::Fact {
-    work::Fact {
-        fact: canon::Fact {
-            id: text(value, "ID"),
-            project_id: text(value, "ProjectID"),
-            statement: text(value, "Statement"),
-            truth_class: text(value, "TruthClass"),
-            source: text(value, "Source"),
-            actor: text(value, "Actor"),
-            entity_id: text(value, "EntityID"),
-            ..canon::Fact::default()
-        },
-        slug: text(value, "Slug"),
-        scopes: strings(value, "Scopes"),
-    }
-}
-
 fn parse_rule(value: &Value) -> work::Rule {
     work::Rule {
         id: text(value, "ID"),
         slug: text(value, "Slug"),
         statement: text(value, "Statement"),
+        why: text(value, "Why"),
         scopes: strings(value, "Scopes"),
         status: text(value, "Status"),
+        replaced_by: text(value, "ReplacedBy"),
         position: number(value, "Position"),
     }
 }
@@ -302,11 +272,6 @@ fn parse_snapshot(value: &Value) -> work::Snapshot {
             .iter()
             .map(parse_environment)
             .collect(),
-        decisions: objects(value, "Decisions")
-            .iter()
-            .map(parse_decision)
-            .collect(),
-        facts: objects(value, "Facts").iter().map(parse_fact).collect(),
         rules: objects(value, "Rules").iter().map(parse_rule).collect(),
         conflicts: objects(value, "Conflicts")
             .iter()
@@ -362,13 +327,10 @@ fn render(head: &Value, input: &BriefInput, target: &str, budget: i32) -> String
     out
 }
 
-/// Masks generated ULIDs and fact ids so a fixture generated once keeps
-/// comparing.
+/// Masks generated ULIDs so a fixture generated once keeps comparing.
 fn mask_ulids(text: &str) -> String {
-    let fact = Regex::new(r"\bfact-[0-9a-f]{24}\b").expect("the fact id pattern");
-    let masked = fact.replace_all(text, "fact-<id>");
     let ulid = Regex::new(r"\b[0-9A-HJKMNP-TV-Z]{26}\b").expect("the ULID pattern");
-    ulid.replace_all(&masked, "<ulid>").into_owned()
+    ulid.replace_all(text, "<ulid>").into_owned()
 }
 
 #[test]
@@ -381,8 +343,8 @@ fn parity_fixtures_match_the_go_oracle() {
         .collect();
     files.sort();
     assert!(
-        files.len() >= 15,
-        "expected at least 15 parity fixtures, found {}",
+        files.len() >= 11,
+        "expected at least 11 parity fixtures, found {}",
         files.len()
     );
     let mut failures: Vec<String> = Vec::new();

@@ -72,14 +72,9 @@ impl super::Store {
                     reasons: vec![context::REASON_RELATIONSHIP_HOP.to_string()],
                 });
             }
-            let fact_items = self.fact_context_items(
-                &req.project_id,
-                &req.entity_id,
-                "",
-                context::REASON_FACT_FOR_ENTITY,
-                0,
-            )?;
-            candidates.extend(fact_items);
+            let rule_items =
+                self.rule_context_items(&req.project_id, "", context::REASON_FACT_FOR_ENTITY, 0)?;
+            candidates.extend(rule_items);
         }
 
         if !req.query.trim().is_empty() {
@@ -118,14 +113,13 @@ impl super::Store {
                     reasons: vec![context::REASON_TITLE_MATCH.to_string()],
                 });
             }
-            let fact_items = self.fact_context_items(
+            let rule_items = self.rule_context_items(
                 &req.project_id,
-                "",
                 &req.query,
                 context::REASON_FACT_QUERY_MATCH,
                 0,
             )?;
-            candidates.extend(fact_items);
+            candidates.extend(rule_items);
         }
 
         if candidates.is_empty() && req.entity_id.is_empty() && req.query.trim().is_empty() {
@@ -145,14 +139,13 @@ impl super::Store {
                     reasons: vec![context::REASON_PROJECT_SAMPLE.to_string()],
                 });
             }
-            let fact_items = self.fact_context_items(
+            let rule_items = self.rule_context_items(
                 &req.project_id,
-                "",
                 "",
                 context::REASON_PROJECT_SAMPLE,
                 CONTEXT_SAMPLE_FACT_LIMIT,
             )?;
-            candidates.extend(fact_items);
+            candidates.extend(rule_items);
         }
 
         let candidates = self.scope_context_items(req, candidates)?;
@@ -178,15 +171,15 @@ impl super::Store {
             },
         )?;
         let mut maps: HashMap<&str, HashMap<String, Vec<String>>> = HashMap::new();
-        for kind in [SCOPE_KNOWLEDGE, SCOPE_FACT] {
+        for kind in [SCOPE_KNOWLEDGE, SCOPE_RULE] {
             maps.insert(kind, self.scope_map(&req.project_id, kind)?);
         }
         let mut out = Vec::with_capacity(items.len());
         for item in items {
             let nodes: Vec<String> = {
                 let kind = match item.kind.as_str() {
-                    "fact" => Some(SCOPE_FACT),
-                    knowledge::KIND_DECISION | knowledge::KIND_DOC => Some(SCOPE_KNOWLEDGE),
+                    "rule" => Some(SCOPE_RULE),
+                    knowledge::KIND_DOC => Some(SCOPE_KNOWLEDGE),
                     _ => None,
                 };
                 match kind.and_then(|kind| maps.get(kind)) {
@@ -201,19 +194,21 @@ impl super::Store {
         Ok(out)
     }
 
-    fn fact_context_items(
+    fn rule_context_items(
         &self,
         project_id: &str,
-        entity_id: &str,
         query: &str,
         reason: &str,
         limit: usize,
     ) -> Result<Vec<context::Item>> {
-        let facts = self.list_canon_facts(project_id, entity_id)?;
+        let rules = self.load_rules(project_id)?;
         let needle = query.trim().to_lowercase();
-        let mut out = Vec::with_capacity(facts.len());
-        for fact in &facts {
-            if !needle.is_empty() && !fact.statement.to_lowercase().contains(&needle) {
+        let mut out = Vec::with_capacity(rules.len());
+        for rule in &rules {
+            if !rule.binding() {
+                continue;
+            }
+            if !needle.is_empty() && !rule.statement.to_lowercase().contains(&needle) {
                 continue;
             }
             let item_reason = if reason.is_empty() {
@@ -222,13 +217,13 @@ impl super::Store {
                 reason
             };
             out.push(context::Item {
-                kind: "fact".to_string(),
-                id: fact.id.clone(),
-                title: context::excerpt(&fact.statement, 120),
-                excerpt: context::excerpt(&fact.statement, 280),
-                truth_class: fact.truth_class.clone(),
-                source: fact.source.clone(),
-                path: format!("canon/fact/{}", fact.id),
+                kind: "rule".to_string(),
+                id: rule.id.clone(),
+                title: context::excerpt(&rule.statement, 120),
+                excerpt: context::excerpt(&rule.statement, 280),
+                truth_class: canon::TRUTH_DECLARED.to_string(),
+                source: "rule".to_string(),
+                path: format!("rule/{}", rule.handle()),
                 reasons: vec![item_reason.to_string()],
             });
             if limit > 0 && out.len() >= limit {
@@ -316,7 +311,7 @@ mod tests {
     }
 
     #[test]
-    fn compile_context_includes_facts_with_reasons() {
+    fn compile_context_includes_rules_with_reasons() {
         let holder = TempStore::new();
         let store = &holder.store;
         let at = now();
@@ -326,16 +321,11 @@ mod tests {
             store.sync_project_model("p").expect("sync") > 0,
             "the project must project its environments"
         );
-        let fact = canon::new_fact(
-            "p",
+        seed_rule(
+            store,
+            "rule-1",
             "module uses Go modules for dependency management",
-            canon::TRUTH_DECLARED,
-            "polterware",
-            "system",
-            "",
-        )
-        .expect("fact");
-        store.upsert_canon_fact(&fact).expect("upsert");
+        );
 
         let sample = store
             .compile_context(&context::Request {
@@ -344,7 +334,7 @@ mod tests {
                 ..context::Request::default()
             })
             .expect("sample");
-        assert_fact_item(&sample, &fact.id, context::REASON_PROJECT_SAMPLE);
+        assert_rule_item(&sample, "rule-1", context::REASON_PROJECT_SAMPLE);
 
         let matched = store
             .compile_context(&context::Request {
@@ -354,13 +344,33 @@ mod tests {
                 ..context::Request::default()
             })
             .expect("matched");
-        assert_fact_item(&matched, &fact.id, context::REASON_FACT_QUERY_MATCH);
+        assert_rule_item(&matched, "rule-1", context::REASON_FACT_QUERY_MATCH);
     }
 
-    fn assert_fact_item(pkg: &context::Package, fact_id: &str, want_reason: &str) {
-        let found = find(pkg, "fact", fact_id).unwrap_or_else(|| {
+    fn seed_rule(store: &super::Store, id: &str, statement: &str) {
+        let mut fields = serde_json::Map::new();
+        fields.insert("statement".into(), serde_json::json!(statement));
+        store
+            .apply_work_ops(
+                "p",
+                "",
+                "seed-rule",
+                &[crate::domains::work::Op {
+                    entity: crate::domains::work::ENTITY_RULE.to_string(),
+                    kind: crate::domains::work::OP_CREATE.to_string(),
+                    entity_id: id.to_string(),
+                    card_slug: id.to_string(),
+                    fields,
+                    ..crate::domains::work::Op::default()
+                }],
+            )
+            .expect("rule");
+    }
+
+    fn assert_rule_item(pkg: &context::Package, rule_id: &str, want_reason: &str) {
+        let found = find(pkg, "rule", rule_id).unwrap_or_else(|| {
             panic!(
-                "expected fact {fact_id} in package ({} items)",
+                "expected rule {rule_id} in package ({} items)",
                 pkg.items.len()
             )
         });
@@ -635,18 +645,6 @@ mod tests {
             .list_canon_entities("p", canon::KIND_ENVIRONMENT)
             .expect("entities")
             .remove(0);
-        let mut fact = canon::new_fact(
-            "p",
-            "local runs Postgres",
-            canon::TRUTH_DECLARED,
-            "polterware",
-            "system",
-            "",
-        )
-        .expect("fact");
-        fact.entity_id = entity.id.clone();
-        store.upsert_canon_fact(&fact).expect("fact");
-
         let pkg = store
             .compile_context(&context::Request {
                 project_id: "p".to_string(),
@@ -659,7 +657,6 @@ mod tests {
             find(&pkg, "entity", &entity.id).expect("entity").reasons,
             vec![context::REASON_EXACT_ENTITY.to_string()]
         );
-        assert_fact_item(&pkg, &fact.id, context::REASON_FACT_FOR_ENTITY);
     }
 
     #[test]

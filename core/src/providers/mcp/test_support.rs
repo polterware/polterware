@@ -2,17 +2,14 @@
 //!
 //! Go's tests build it with `demoseed.Defaults` and `SyncProjectModel`; that
 //! package is ported later, so the rows the MCP assertions read are written
-//! here directly, as `demoseed` would: a Decision, two docs, a declared fact,
-//! and a card.
+//! here directly, as `demoseed` would: two Rules, two docs, and a card.
 
 use serde_json::{Map, Value, json};
-use time::OffsetDateTime;
 
 use crate::compositions::wedge;
 use crate::domains::agentrun;
-use crate::domains::canon;
-use crate::domains::decision;
 use crate::domains::knowledge;
+use crate::domains::work;
 use crate::providers::sqlite::Store;
 use crate::providers::sqlite::test_support::TempStore;
 
@@ -73,20 +70,39 @@ impl TestStore {
     }
 }
 
-/// Writes the demo rows: a numbered Decision, two docs, a declared fact, and a
-/// card.
+/// Writes the demo rows: two Rules, two docs, and a card.
 fn seed(store: &Store, project_id: &str) {
-    let mut item = knowledge::new_item(
-        "decision-sqlite-local",
-        project_id,
-        "Decision 0001: Local SQLite authority",
-        "One local core owns SQLite.",
-        knowledge::KIND_DECISION,
-        Vec::new(),
-    )
-    .expect("decision");
-    item.status = decision::STATE_ACTIVE.to_string();
-    store.save_knowledge(item).expect("save decision");
+    let rules = [
+        (
+            "decision-sqlite-local",
+            "One local core owns SQLite.",
+            "Decision 0001: Local SQLite authority",
+        ),
+        (
+            "fact-no-network",
+            "Imports never call the network.",
+            "Decision 0002: Deterministic import",
+        ),
+    ];
+    let ops: Vec<work::Op> = rules
+        .iter()
+        .map(|(id, statement, label)| {
+            let mut fields = Map::new();
+            fields.insert("statement".into(), json!(statement));
+            work::Op {
+                entity: work::ENTITY_RULE.to_string(),
+                kind: work::OP_CREATE.to_string(),
+                entity_id: (*id).to_string(),
+                card_slug: (*label).to_string(),
+                label: (*label).to_string(),
+                fields,
+                ..work::Op::default()
+            }
+        })
+        .collect();
+    store
+        .apply_work_ops(project_id, "", "seed", &ops)
+        .expect("seed rules");
     save_doc(
         store,
         project_id,
@@ -101,22 +117,6 @@ fn seed(store: &Store, project_id: &str) {
         "Service recovery",
         "Restart the core; it replays the WAL.",
     );
-
-    let now = OffsetDateTime::now_utc();
-    store
-        .upsert_canon_fact(&canon::Fact {
-            id: "fact-no-network".to_string(),
-            project_id: project_id.to_string(),
-            statement: "Imports never call the network.".to_string(),
-            truth_class: canon::TRUTH_DECLARED.to_string(),
-            source: "Decision 0002".to_string(),
-            actor: "demo".to_string(),
-            observed_at: now,
-            created_at: now,
-            updated_at: now,
-            ..canon::Fact::default()
-        })
-        .expect("save fact");
 
     let result = wedge::apply_polter(
         store,

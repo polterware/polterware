@@ -1,7 +1,7 @@
 //! Port of `backend/domains/polter/format.go`: the shipped format spec and the
 //! v1 query language.
 
-use crate::domains::decision;
+use crate::domains::work;
 
 use super::model::go_quote;
 
@@ -213,13 +213,14 @@ pub const QUERY_STRUCTURE: &str = "structure";
 pub const QUERY_FEATURE: &str = "feature";
 pub const QUERY_VERIFY: &str = "verify";
 
+pub const QUERY_RULES: &str = "rules";
 pub const QUERY_DECISIONS: &str = "decisions";
 pub const QUERY_DECISION: &str = "decision";
 pub const QUERY_CANVAS: &str = "canvas";
 pub const QUERY_MILESTONES: &str = "milestones";
 pub const QUERY_ROADMAP: &str = "roadmap";
 
-const QUERY_USAGE: &str = r##"use "cards", "card <slug>", "status", "inbox", "handoff <slug>", "brief <slug|path|file>", "search <terms>", "show <id>", "commits <slug>", "conflicts", "conflict <slug>", "deploys [<path>]", "structure [<path>] [at <point>]", "structure history", "decisions [proposed|active|challenged|superseded]", "decision <decision>", "feature <slug> [shape|contract|plan]", "verify <slug|slug#T2>", "canvas", "canvas <name|id>", "milestones", or "roadmap""##;
+const QUERY_USAGE: &str = r##"use "cards", "card <slug>", "status", "inbox", "handoff <slug>", "brief <slug|path|file>", "search <terms>", "show <id>", "commits <slug>", "conflicts", "conflict <slug>", "deploys [<path>]", "structure [<path>] [at <point>]", "structure history", "rules [proposed|active|under_review|replaced|removed]", "feature <slug> [shape|contract|plan]", "verify <slug|slug#T2>", "canvas", "canvas <name|id>", "milestones", or "roadmap""##;
 
 /// Parses the v1 query language.
 pub fn parse_query(text: &str) -> Result<Query, String> {
@@ -235,7 +236,7 @@ pub fn parse_query(text: &str) -> Result<Query, String> {
         QUERY_SHOW => {
             if fields.len() < 2 {
                 return Err(
-                    "show needs an id: use \"show <card slug|Decision ref|fact|rule|doc|entity|run id>\""
+                    "show needs an id: use \"show <card slug|rule ref|doc|entity|run id>\""
                         .to_string(),
                 );
             }
@@ -267,6 +268,25 @@ pub fn parse_query(text: &str) -> Result<Query, String> {
                 go_quote(text.trim())
             ))
         }
+        QUERY_RULES => {
+            if fields.len() == 1 {
+                return Ok(Query {
+                    kind: QUERY_RULES.to_string(),
+                    ..Query::default()
+                });
+            }
+            if fields.len() == 2 && work::valid_rule_status(fields[1]) {
+                return Ok(Query {
+                    kind: QUERY_RULES.to_string(),
+                    slug: fields[1].to_string(),
+                    ..Query::default()
+                });
+            }
+            Err(format!(
+                "unknown query {}: use \"rules [proposed|active|under_review|replaced|removed]\"",
+                go_quote(text.trim())
+            ))
+        }
         QUERY_DECISIONS => {
             if fields.len() == 1 {
                 return Ok(Query {
@@ -274,7 +294,7 @@ pub fn parse_query(text: &str) -> Result<Query, String> {
                     ..Query::default()
                 });
             }
-            if fields.len() == 2 && decision::valid_state(fields[1]) {
+            if fields.len() == 2 && super::decode::valid_decision_state(fields[1]) {
                 return Ok(Query {
                     kind: QUERY_DECISIONS.to_string(),
                     slug: fields[1].to_string(),

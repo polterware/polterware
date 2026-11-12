@@ -5,11 +5,9 @@
 //! value has a truth class, and the layout parser projects an architecture layout
 //! into the same nodes and edges.
 
-mod facts;
 mod layout;
 pub mod sha1;
 
-pub use facts::*;
 pub use layout::*;
 
 use time::OffsetDateTime;

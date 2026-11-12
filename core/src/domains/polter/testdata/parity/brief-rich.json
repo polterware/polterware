@@ -18,7 +18,7 @@
       "Body": "Unrelated."
     }
   ],
-  "expected": "## decode\n## plan diagnostics\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n## rich-card: Rich card\nstage: build · under: core/api · milestone: beta\nkind: api · tech: Go · repo: api · path: cmd/api\ndeploys: production=vercel:api (failed: error · https://api-1.vercel.app), local=docker:api (ok)\nEverything a brief reads.\n\nRules:\n- Version the API. (from core/api)\n- Never call the network. (from core)\n- Keep changes small. (whole project)\n\n- [ ] T1 First task [repo: api] `src/*`\n? Ship it? [blocking] (yes | no)\nhandoff codex on feat/rich: next: T2\n\n! Keep the API stable\n\nDecisions:\n- Decision-0002 [active] Import\nprinciples: SQLite · Context\n\nFacts:\n- declared: One process owns SQLite.\n\nmilestone beta: Public beta · active · target 2026-12-01\ngoal: Ship the beta.\nexit: No P0 bugs\n\nDocs:\n- Local core\n",
+  "expected": "## decode\n## plan diagnostics\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n## rich-card: Rich card\nstage: build \u00b7 under: core/api \u00b7 milestone: beta\nkind: api \u00b7 tech: Go \u00b7 repo: api \u00b7 path: cmd/api\ndeploys: production=vercel:api (failed: error \u00b7 https://api-1.vercel.app), local=docker:api (ok)\nEverything a brief reads.\n\nRules:\n- Version the API. (from core/api)\n- Never call the network. (from core)\n- Keep changes small. (whole project)\n\n- [ ] T1 First task [repo: api] `src/*`\n? Ship it? [blocking] (yes | no)\nhandoff codex on feat/rich: next: T2\n\n! Keep the API stable\n\nmilestone beta: Public beta \u00b7 active \u00b7 target 2026-12-01\ngoal: Ship the beta.\nexit: No P0 bugs\n\nDocs:\n- Local core\n",
   "name": "brief-rich",
   "snapshot": {
     "Cards": [
@@ -311,5 +311,5 @@
     ]
   },
   "target": "rich-card",
-  "text": "---\npolter: 1\n---\n\n## rich-card: Rich card\nstage: build · under: core/api · decisions: Decision-0002 · milestone: beta\n\nEverything a brief reads.\n\n- [ ] T1 First task `src/*`\n? Ship it? [blocking] (yes | no)\n! Keep the API stable\n"
+  "text": "---\npolter: 1\n---\n\n## rich-card: Rich card\nstage: build \u00b7 under: core/api \u00b7 decisions: Decision-0002 \u00b7 milestone: beta\n\nEverything a brief reads.\n\n- [ ] T1 First task `src/*`\n? Ship it? [blocking] (yes | no)\n! Keep the API stable\n"
 }

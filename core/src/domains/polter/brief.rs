@@ -1,13 +1,13 @@
 //! Port of `backend/domains/polter/brief.go`.
 //!
 //! The one read before an agent works: a card or a Structure node with its
-//! Rules, open work, decisions, facts, milestone, canvas links, and docs,
-//! deterministic and packed under a token budget.
+//! Rules, open work, milestone, canvas links, and docs, deterministic and packed
+//! under a token budget.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-use crate::domains::{canvas, context, decision, structure, work};
+use crate::domains::{canvas, context, structure, work};
 
 use super::structure_encode::{checkout_line, kind_tech_line};
 use super::*;
@@ -63,9 +63,8 @@ pub struct Doc {
 /// Renders what an agent reads before it works on a card or a Structure node,
 /// most important first: the target with its kind and technology, the Rules
 /// that hold for it (its node's, its ancestors', and the project's), open tasks
-/// and questions with the last handoff, the card's invariants, the decisions
-/// that govern it, scope facts, the milestone goal, canvas links, and doc
-/// titles. It is deterministic. A tight budget cuts lines from the end, so the
+/// and questions with the last handoff, the card's invariants, the milestone
+/// goal, canvas links, and doc titles. It is deterministic. A tight budget cuts lines from the end, so the
 /// lowest-priority blocks go first, and the last line says what was cut; the
 /// target and the Rules are never cut.
 pub fn brief(input: &BriefInput, target: &str, budget: i32) -> Result<String, BriefError> {
@@ -132,8 +131,6 @@ impl BriefBuilder<'_> {
             self.conflicts(),
             self.open_work(),
             self.invariants(),
-            self.decisions(),
-            self.facts(),
             self.milestone(),
             self.canvas(),
             self.docs(),
@@ -290,91 +287,6 @@ impl BriefBuilder<'_> {
         lines
     }
 
-    /// The card's own decisions, the ones its node and ancestors cite, and the
-    /// ones scoped to that path, each with its statement. The project
-    /// principles follow as one line of titles: they apply everywhere, so the
-    /// brief only names them. Superseded decisions are left out.
-    fn decisions(&self) -> Vec<String> {
-        let all = &self.input.snapshot.decisions;
-        let mut seen: HashSet<String> = HashSet::new();
-        let mut picked: Vec<decision::Decision> = Vec::new();
-        if let Some(card) = self.card {
-            cite_decisions(all, &card.decisions, &mut picked, &mut seen);
-        }
-        let paths = self.chain_paths();
-        if let Some(focus) = self.focus {
-            cite_decisions(all, &focus.decisions, &mut picked, &mut seen);
-        }
-        for node in &self.chain {
-            cite_decisions(all, &node.decisions, &mut picked, &mut seen);
-        }
-        for path in &paths {
-            for item in all {
-                if item.scopes.iter().any(|scope| scope == path) {
-                    push_decision(item.clone(), &mut picked, &mut seen);
-                }
-            }
-        }
-        let mut principles: Vec<String> = Vec::new();
-        for item in all {
-            if item.is_principle()
-                && !seen.contains(&item.id)
-                && decision::normalize(&item.status) != decision::STATE_SUPERSEDED
-            {
-                principles.push(decision::strip_number(&item.title));
-            }
-        }
-        let mut lines: Vec<String> = Vec::new();
-        if !picked.is_empty() {
-            lines.push("Decisions:".to_string());
-        }
-        for item in &picked {
-            let status = decision::normalize(&item.status);
-            let mut line = format!(
-                "- {} [{status}] {}",
-                decision_handle(item),
-                decision::strip_number(&item.title)
-            );
-            let statement = first_sentence(&item.body);
-            if !statement.is_empty() {
-                line.push_str(": ");
-                line.push_str(&statement);
-            }
-            if !item.meta.status_reason.is_empty() && status == decision::STATE_CHALLENGED {
-                line.push_str(&format!(" (challenged: {})", item.meta.status_reason));
-            }
-            lines.push(line);
-        }
-        if !principles.is_empty() {
-            lines.push(format!("principles: {}", principles.join(" · ")));
-        }
-        lines
-    }
-
-    /// The facts scoped to the focus or an ancestor, nearest first.
-    /// Project-wide facts are the same in every brief and are left to search.
-    fn facts(&self) -> Vec<String> {
-        let mut lines: Vec<String> = Vec::new();
-        let mut seen: HashSet<usize> = HashSet::new();
-        for path in self.chain_paths() {
-            for (i, fact) in self.input.snapshot.facts.iter().enumerate() {
-                if !seen.contains(&i) && fact.scopes.iter().any(|scope| scope == &path) {
-                    seen.insert(i);
-                    lines.push(format!(
-                        "- {}: {}",
-                        fact.fact.truth_class, fact.fact.statement
-                    ));
-                }
-            }
-        }
-        if lines.is_empty() {
-            return Vec::new();
-        }
-        let mut out = vec!["Facts:".to_string()];
-        out.extend(lines);
-        out
-    }
-
     fn milestone(&self) -> Vec<String> {
         let Some(card) = self.card else {
             return Vec::new();
@@ -491,33 +403,6 @@ impl BriefBuilder<'_> {
             paths.push(node.path.clone());
         }
         paths
-    }
-}
-
-/// Adds a decision once, leaving out the superseded ones.
-fn push_decision(
-    item: decision::Decision,
-    picked: &mut Vec<decision::Decision>,
-    seen: &mut HashSet<String>,
-) {
-    if seen.contains(&item.id) || decision::normalize(&item.status) == decision::STATE_SUPERSEDED {
-        return;
-    }
-    seen.insert(item.id.clone());
-    picked.push(item);
-}
-
-/// Resolves every reference and adds the decisions it names.
-fn cite_decisions(
-    all: &[decision::Decision],
-    refs: &[String],
-    picked: &mut Vec<decision::Decision>,
-    seen: &mut HashSet<String>,
-) {
-    for reference in refs {
-        if let Some(found) = decision::find(all, reference) {
-            push_decision(found, picked, seen);
-        }
     }
 }
 
@@ -696,6 +581,7 @@ fn active_node<'a>(nodes: &'a [structure::Node], path: &str) -> Option<&'a struc
 
 /// The opening sentence of a body, up to 240 runes; Markdown heading lines are
 /// skipped.
+#[allow(dead_code)]
 fn first_sentence(body: &str) -> String {
     let mut prose: Vec<&str> = Vec::new();
     for line in body.split('\n') {
@@ -757,7 +643,6 @@ pub(super) fn pack_brief(blocks: &[Vec<String>], budget: i32, keep: usize) -> St
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domains::canon;
     use crate::domains::polter::search::search;
 
     fn brief_fixture() -> BriefInput {
@@ -855,90 +740,21 @@ mod tests {
             under: "app/api".into(),
             ..work::Card::default()
         };
-        let decision = |id: &str, title: &str, status: &str, body: &str| decision::Decision {
-            id: id.into(),
-            title: title.into(),
-            status: status.into(),
-            body: body.into(),
-            ..decision::Decision::default()
-        };
-        let scoped =
-            |id: &str, title: &str, status: &str, body: &str, scopes: &[&str]| decision::Decision {
-                scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
-                ..decision(id, title, status, body)
-            };
-        let challenged = decision::Decision {
-            meta: decision::Meta {
-                status_reason: "too slow".into(),
-                ..decision::Meta::default()
-            },
-            ..scoped(
-                "k4",
-                "Decision 0004: Audit writes",
-                "challenged",
-                "Every write is audited.",
-                &["app"],
-            )
-        };
         let rule = |id: &str, statement: &str, scopes: &[&str]| work::Rule {
             id: id.into(),
             statement: statement.into(),
             scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
             ..work::Rule::default()
         };
-        let fact = |statement: &str, truth_class: &str, scopes: &[&str]| work::Fact {
-            fact: canon::Fact {
-                statement: statement.into(),
-                truth_class: truth_class.into(),
-                ..canon::Fact::default()
-            },
-            scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
-            ..work::Fact::default()
-        };
         BriefInput {
             snapshot: work::Snapshot {
                 nodes: vec![system, api, db],
                 cards: vec![card, old],
-                decisions: vec![
-                    decision(
-                        "k1",
-                        "Decision 0001: Sessions in cookies",
-                        "active",
-                        "## Decision\nSessions live in signed cookies. Tokens are not used.",
-                    ),
-                    decision(
-                        "k2",
-                        "Decision 0002: One API process",
-                        "proposed",
-                        "One process serves the API.",
-                    ),
-                    scoped("k3", "Decision 0003: Postgres", "superseded", "", &["app"]),
-                    challenged,
-                    decision("k5", "Local first", "active", ""),
-                    // Any one context on the target's path picks a decision.
-                    scoped(
-                        "k6",
-                        "Decision 0006: Cache reads",
-                        "active",
-                        "Reads go through a cache.",
-                        &["app/db", "app/api"],
-                    ),
-                    scoped("k7", "Decision 0007: Batch jobs", "active", "", &["app/db"]),
-                ],
                 rules: vec![
                     rule("r1", "No secrets in logs", &["app"]),
                     rule("r2", "Handlers return typed errors", &["app/api"]),
                     rule("r3", "Migrations are reversible", &["app/db"]),
                     rule("r4", "Never commit credentials", &[]),
-                ],
-                facts: vec![
-                    fact(
-                        "The API runs on port 8080.",
-                        canon::TRUTH_INFERRED,
-                        &["app/api", "app/db"],
-                    ),
-                    fact("The app ships weekly.", canon::TRUTH_DECLARED, &["app"]),
-                    fact("Project-wide fact.", canon::TRUTH_DECLARED, &[]),
                 ],
                 milestones: vec![work::Milestone {
                     id: "m1".into(),
@@ -1025,17 +841,6 @@ handoff codex on feat/login: next: wire the route
 
 ! Rate limit attempts
 
-Decisions:
-- Decision-0001 [active] Sessions in cookies: Sessions live in signed cookies.
-- Decision-0002 [proposed] One API process: One process serves the API.
-- Decision-0006 [active] Cache reads: Reads go through a cache.
-- Decision-0004 [challenged] Audit writes: Every write is audited. (challenged: too slow)
-principles: Local first
-
-Facts:
-- inferred: The API runs on port 8080.
-- declared: The app ships weekly.
-
 milestone beta: Beta · active · target 2026-12-01
 goal: Outside users sign in.
 exit: 10 users; no P1
@@ -1058,7 +863,6 @@ Docs:
             "\nRules:\n- Handlers return typed errors\n- No secrets in logs (from app)\n- Never commit credentials (whole project)\n",
             "- login  build  \"Login\"  2 open?",
             "? Which hash? [blocking] (argon2 | bcrypt) — login",
-            "- Decision-0002 [proposed]",
         ] {
             assert!(text.contains(want), "missing {want:?} in:\n{text}");
         }
@@ -1066,7 +870,6 @@ Docs:
             "\"Old\"",
             "Remember me?",
             "milestone beta",
-            "Decision-0001",
             "Migrations are reversible",
         ] {
             assert!(
@@ -1099,15 +902,13 @@ Docs:
         let text = search(&input, "API", 0);
         for want in [
             "node app/api  component  \"API\"",
-            "decision Decision-0002  proposed  \"One API process\"",
             "doc doc-1  \"API runbook\": Restart the API with make restart when the port is stuck.",
-            "fact inferred: The API runs on port 8080.",
         ] {
             assert!(text.contains(want), "missing {want:?} in:\n{text}");
         }
         let got = search(&input, "api port", 0);
         assert!(
-            got.contains("fact inferred") && !got.contains("node app/api"),
+            got.contains("doc doc-1") && !got.contains("node app/api"),
             "every term must match: {got}"
         );
         assert_eq!(

@@ -25,9 +25,8 @@ pub const SCOPE_ITEM: &str = "item";
 /// The table that holds each scoped entity kind.
 fn scope_table(kind: &str) -> Option<&'static str> {
     match kind {
-        SCOPE_DECISION | SCOPE_KNOWLEDGE => Some("knowledge_items"),
-        SCOPE_FACT => Some("canon_facts"),
-        SCOPE_RULE => Some("rules"),
+        SCOPE_KNOWLEDGE => Some("knowledge_items"),
+        SCOPE_DECISION | SCOPE_FACT | SCOPE_RULE => Some("rules"),
         _ => None,
     }
 }

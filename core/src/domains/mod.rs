@@ -3,7 +3,6 @@ pub mod agentrun;
 pub mod canon;
 pub mod canvas;
 pub mod context;
-pub mod decision;
 pub mod filters;
 pub mod inbox;
 pub mod integrations;

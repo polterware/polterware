@@ -10,10 +10,24 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-use crate::domains::{canon, decision, structure, work};
+use crate::domains::{canon, structure, work};
 
 use super::glob::valid_pattern;
 use super::model::*;
+
+/// The states a retired `###` decision block may name. The block only parses so
+/// the planner can point old text at `#### rule`.
+pub const DECISION_STATES: [&str; 4] = ["proposed", "active", "challenged", "superseded"];
+
+/// Reports whether `value` is a retired decision state.
+pub fn valid_decision_state(value: &str) -> bool {
+    DECISION_STATES.contains(&value)
+}
+
+/// Reports whether `value` is a retired decision level.
+pub fn valid_decision_level(value: &str) -> bool {
+    matches!(value, "decision" | "principle")
+}
 
 /// A card task line: `- [ ] T1 Title`.
 static TASK_LINE: LazyLock<Regex> = LazyLock::new(|| {
@@ -1213,27 +1227,25 @@ impl Decoder {
             match key.as_str() {
                 "status" => {
                     value = value.to_lowercase();
-                    if !decision::valid_state(&value) {
+                    if !valid_decision_state(&value) {
                         self.errorf(
                             n,
                             format!(
                                 "unknown decision status {}: use {}",
                                 go_quote(&value),
-                                decision::STATES.join("|")
+                                DECISION_STATES.join("|")
                             ),
                         );
                     }
                 }
                 "level" => {
                     value = value.to_lowercase();
-                    if !decision::valid_level(&value) {
+                    if !valid_decision_level(&value) {
                         self.errorf(
                             n,
                             format!(
-                                "unknown decision level {}: use {}|{}",
-                                go_quote(&value),
-                                decision::LEVEL_DECISION,
-                                decision::LEVEL_PRINCIPLE
+                                "unknown decision level {}: use decision|principle",
+                                go_quote(&value)
                             ),
                         );
                     }
@@ -1341,7 +1353,7 @@ impl Decoder {
             match key.as_str() {
                 "kind" => {
                     value = value.to_lowercase();
-                    if !canon::valid_fact_truth_class(&value) {
+                    if !canon::valid_truth_class(&value) {
                         self.errorf(
                             n,
                             format!(

@@ -15,7 +15,7 @@ rationale: Polterware is managed with its own build, so its structure and roadma
 #### rule no-provider-credentials: Never persist provider credentials in SQLite
 
 # desktop: Desktop
-level: domain · decisions: Decision-0002
+level: domain
 
 The GPUI app, a client of the local core over Connect-JSON.
 
@@ -39,67 +39,67 @@ level: component · under: contracts · path: schemas · kind: spec · tech: Pro
 Protobuf schemas, generated Go in backend/platform/gen and Rust in app/src/contracts.
 
 # core: Local core
-level: domain · decisions: Decision-0007
+level: domain
 
 The polterware serve process. It owns SQLite and serves Connect RPC and MCP.
 
 ! Only the core opens SQLite
 
 # core/server: Core server
-level: component · under: core · decisions: Decision-0007 · path: backend/compositions/local-core · kind: service · tech: Go, ConnectRPC · repo: main
+level: component · under: core · path: backend/compositions/local-core · kind: service · tech: Go, ConnectRPC · repo: main
 
 The Connect RPC and MCP HTTP server, the process lock, and the build handshake.
 
 ! One core per database
 
 # core/services: Project services
-level: component · under: core · decisions: Decision-0004 · path: backend/compositions/wedge · kind: service · tech: Go · repo: main
+level: component · under: core · path: backend/compositions/wedge · kind: service · tech: Go · repo: main
 
 Composes the domains into project init, Polter apply, and project model sync.
 
 # core/store: SQLite store
-level: component · under: core · decisions: Decision-0007 · path: backend/providers/sqlite · kind: database · tech: SQLite · repo: main
+level: component · under: core · path: backend/providers/sqlite · kind: database · tech: SQLite · repo: main
 
 One clean baseline schema and the commit hooks that emit change events.
 
 # core/work: Work model and Polter codec
-level: component · under: core · decisions: Decision-0006, Decision-0010 · path: backend/domains/polter · kind: service · tech: Go · repo: main
+level: component · under: core · path: backend/domains/polter · kind: service · tech: Go · repo: main
 
 Work cards, tasks, questions, invariants, decisions, claims, and the Polter grammar.
 
 ! Polter text is never stored as a blob
 
 # core/facts: Facts
-level: component · under: core · decisions: Decision-0004 · path: backend/domains/canon · kind: service · tech: Go · repo: main
+level: component · under: core · path: backend/domains/canon · kind: service · tech: Go · repo: main
 
 Project facts and the truth class each one carries.
 
 # core/git: Git history
-level: component · under: core · decisions: Decision-0005 · path: backend/providers/git · kind: service · tech: Go · repo: main
+level: component · under: core · path: backend/providers/git · kind: service · tech: Go · repo: main
 
 HEAD, branch, and recent commits read from the registered checkouts.
 
 # core/commits: Card commits
-level: component · under: core · decisions: Decision-0004 · path: backend/compositions/wedge/commits.go · kind: service · tech: Go · repo: main
+level: component · under: core · path: backend/compositions/wedge/commits.go · kind: service · tech: Go · repo: main
 
 Shows each card's commits: linked by an agent or a person, or cited as slug#T2 in a commit subject, with a GitHub link when the checkout has a GitHub remote.
 
 ! A finding always names its task or commit
 
 # core/context: Context compiler, brief, and search
-level: component · under: core · decisions: Decision-0004, Decision-0008 · path: backend/domains/context · kind: service · tech: Go · repo: main
+level: component · under: core · path: backend/domains/context · kind: service · tech: Go · repo: main
 
 Packs the project graph into a budgeted context for an agent session.
 
 ! The compiled context never includes credentials
 
 # core/structure: Structure model
-level: component · under: core · decisions: Decision-0008, Decision-0009 · path: backend/domains/structure · kind: service · tech: Go · repo: main
+level: component · under: core · path: backend/domains/structure · kind: service · tech: Go · repo: main
 
 Domain and component nodes, their derived status, and history.
 
 # core/decisions: Decision lifecycle
-level: component · under: core · decisions: Decision-0010 · path: backend/domains/decision · kind: service · tech: Go · repo: main
+level: component · under: core · path: backend/domains/decision · kind: service · tech: Go · repo: main
 
 Decision states and the supersede chain.
 
@@ -123,14 +123,14 @@ Detects provider CLIs and probes connection status; credentials stay in the OS o
 ! Never persist provider credentials in SQLite
 
 # core/mcp: MCP server and bridge
-level: component · under: core · decisions: Decision-0007 · path: backend/providers/mcp · kind: mcp · tech: Go · repo: main
+level: component · under: core · path: backend/providers/mcp · kind: mcp · tech: Go · repo: main
 
 Audited MCP reads and writes inside the core; polterware mcp is a stdio bridge.
 
 ! Every MCP write carries a summary and a rationale
 
 # cli: CLI
-level: domain · decisions: Decision-0007
+level: domain
 
 The single polterware binary: commands, serve, and mcp.
 
@@ -145,7 +145,7 @@ level: component · under: cli · path: backend/platform/coreclient · kind: cli
 Finds or starts the local core and attaches to it.
 
 # agents: Agent integration
-level: domain · decisions: Decision-0006
+level: domain
 
 How Claude Code, Codex, and Cursor reach Polterware, and what a session leaves behind.
 
@@ -157,7 +157,7 @@ Embedded Claude Code plugin, per-hook switches, Codex skill and AGENTS.md line, 
 ! The core never edits an agent's own files except through its CLI
 
 # agents/runs: AgentRun audit
-level: component · under: agents · decisions: Decision-0004 · path: backend/domains/agentrun · kind: agent · tech: Go · repo: main
+level: component · under: agents · path: backend/domains/agentrun · kind: agent · tech: Go · repo: main
 
 One audited run per session, with steps, tool calls, and change batches.
 
@@ -167,26 +167,26 @@ level: component · under: agents · path: backend/domains/agentaccess · kind: 
 Which agents may read and write a project.
 
 # web: Website and Web App
-level: domain · decisions: Decision-0003
+level: domain
 
 The public Polterware Website. The authenticated Web App is not built yet.
 
 # web/site: Website
-level: component · under: web · decisions: Decision-0003{web} · kind: frontend
+level: component · under: web · kind: frontend
 
 Next.js site owned by polterware-web.
 
 ! Public or shared frontend code never grants hosted authorization
 
 # cloud: Cloud
-level: domain · decisions: Decision-0001, Decision-0005
+level: domain
 
 Hosted identity, sync, and enrichment. Design documents only; nothing here ships yet.
 
 ! Cloud never unlocks local Desktop features
 
 # cloud/docs: Cloud design
-level: component · under: cloud · decisions: Decision-0005{cloud} · kind: spec
+level: component · under: cloud · kind: spec
 
 Architecture drafts for sync, hosted MCP, and the Judge.
 
@@ -200,7 +200,7 @@ Sidebar surfaces Inbox, Structure, Work, Decisions, Reality, Agents, Integration
 - [x] Commander and docs updated
 
 ## work-board: Work board
-stage: delivered · under: desktop/app · decisions: Decision-0006
+stage: delivered · under: desktop/app
 
 Five stage columns (Shape, Plan, Build, Verify, Delivered) read from the Work tables.
 
@@ -209,7 +209,7 @@ Five stage columns (Shape, Plan, Build, Verify, Delivered) read from the Work ta
 - [x] Specs table over the same cards
 
 ## polter-work-model: Polter format and Work model
-stage: delivered · under: core/work · decisions: Decision-0006
+stage: delivered · under: core/work
 
 Agents create a roadmap with one apply call; the store, not the text, is the truth.
 
@@ -219,7 +219,7 @@ Agents create a roadmap with one apply call; the store, not the text, is the tru
 ! Removal is explicit and rows are never deleted
 
 ## agent-channels: Agent channels
-stage: delivered · under: agents/setup · decisions: Decision-0006
+stage: delivered · under: agents/setup
 
 The same Polter grammar reaches agents through MCP, the Claude Code plugin, and AGENTS.md.
 
@@ -236,7 +236,7 @@ Non-blocking hints for similar cards, questions, and invariants, by normalizatio
 - [x] Suggest under: for new cards
 
 ## single-local-core: Single local core with live sync
-stage: delivered · under: core/store · decisions: Decision-0007
+stage: delivered · under: core/store
 
 One core owns SQLite; every client attaches to it and sees changes without a reload.
 
@@ -257,7 +257,7 @@ Switch between Codex and Claude on Polterware's own development without re-expla
 ? Did the next agent start from the right point without help?
 
 ## git-metadata-import: Git metadata import
-stage: verify · under: core/git · decisions: Decision-0004, Decision-0005
+stage: verify · under: core/git
 
 Read HEAD, branch, and recent commits so delivered tasks match commits on main.
 
@@ -287,7 +287,7 @@ Question, Conflict, and Setup items derived on every read.
 ! The Inbox has only Question, Conflict, and Setup items
 
 ## structure-hierarchy-oracle: Structure hierarchy and Oracle
-stage: verify · under: core/context · decisions: Decision-0008, Decision-0009
+stage: verify · under: core/context
 
 Domain and component nodes above Work cards, plus a budgeted Oracle.
 
@@ -307,7 +307,7 @@ A stepper from Intent through Shape and Contract to Plan, with gates.
 - [x] Oracle impact shown at Shape
 
 ## decision-lifecycle: Decision lifecycle
-stage: verify · under: core/work · decisions: Decision-0010
+stage: verify · under: core/work
 
 Proposed, active, challenged, superseded, with history kept.
 
@@ -317,7 +317,7 @@ Proposed, active, challenged, superseded, with history kept.
 ! A challenge is never automatic
 
 ## architecture-evolution: Architecture evolution
-stage: verify · under: core/work · decisions: Decision-0008
+stage: verify · under: core/work
 
 Architecture Change cards, node migration state, and the Structure timeline.
 
@@ -344,7 +344,7 @@ The operator chooses what Polterware installs into each agent.
 ! Nothing requires hooks
 
 ## local-build-dogfood: Manage Polterware with its own build
-stage: build · under: cli/commands · decisions: Decision-0007
+stage: build · under: cli/commands
 
 Run Polterware on its own repository from a local build, and judge every seeded item.
 
@@ -374,7 +374,7 @@ Build and publish the GPUI bundle from a release tag, with its signed update fee
 - [ ] Sign the Sparkle appcast and attach the DMG and ZIP to a draft release
 
 ## structure-upper-levels: Creating the upper Structure levels
-stage: shape · under: core/work · decisions: Decision-0008
+stage: shape · under: core/work
 
 Decide who creates System and Domain nodes.
 
@@ -395,7 +395,7 @@ The default route is Inbox today; docs/future.md asks whether Work should be the
 ? Should the default route flip from Inbox to Work?
 
 ## pretooluse-enforcement: Light enforcement with PreToolUse
-stage: shape · under: agents/setup · decisions: Decision-0010
+stage: shape · under: agents/setup
 
 Tell an agent that a file is governed by a decision, before it edits.
 
@@ -409,7 +409,7 @@ Packs that generate questions for the Inbox, never rules.
 ! A pack adds questions, not rules
 
 ## retrieval-measurement: Retrieval measurement
-stage: shape · under: core/context · decisions: Decision-0005
+stage: shape · under: core/context
 
 Measure duplicate and commit-link misses on real use before adding local embeddings.
 
@@ -417,7 +417,7 @@ Measure duplicate and commit-link misses on real use before adding local embeddi
 ! Embeddings are never the source of truth
 
 ## cloud-judge: Cloud Judge
-stage: shape · under: cloud/docs · decisions: Decision-0005
+stage: shape · under: cloud/docs
 
 Jev as a Cloud-only Judge: decision detector, invariant guard, handoff verification.
 
@@ -425,14 +425,14 @@ Jev as a Cloud-only Judge: decision detector, invariant guard, handoff verificat
 ? Which first check headlines the Guard plan?
 
 ## cloud-sync: Cloud sync
-stage: shape · under: cloud/docs · decisions: Decision-0005
+stage: shape · under: cloud/docs
 
 Project sync across machines, managed backup, and hosted MCP on the same project model.
 
 ? For a teammate on Cloud, does delivered mean on main or in production?
 
 ## web-app: Polterware Web App
-stage: shape · under: web/site · decisions: Decision-0003
+stage: shape · under: web/site
 
 The authenticated hosted surface. The Website exists; the Web App does not.
 

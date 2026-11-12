@@ -274,7 +274,7 @@ pub fn run_query(db: &str, args: &[String]) -> CliResult {
     parse(&mut f, args)?;
     if f.rest().is_empty() {
         return Err(CliError::message(
-            "usage: polterware query \"cards\" | \"card <slug>\" | \"status\" | \"inbox\" | \"handoff <slug>\" | \"brief <target>\" | \"search <terms>\" | \"show <id>\" | \"commits <slug>\" | \"structure\" | \"decisions [state]\" | \"decision <decision>\" | \"feature <slug> [step]\" | \"verify <slug>\" | \"canvas [<name|id>]\"",
+            "usage: polterware query \"cards\" | \"card <slug>\" | \"status\" | \"inbox\" | \"handoff <slug>\" | \"brief <target>\" | \"search <terms>\" | \"show <id>\" | \"commits <slug>\" | \"structure\" | \"feature <slug> [step]\" | \"verify <slug>\" | \"canvas [<name|id>]\"",
         ));
     }
     let c = dial(db)?;

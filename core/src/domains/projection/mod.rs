@@ -1,44 +1,20 @@
 //! Port of `backend/domains/projection`.
 //!
-//! Renders the files Polterware writes into checkouts: one Markdown file per
-//! Decision under `docs/decision/` and one generated block in AGENTS.md. The
-//! store stays the source of truth; nothing here reads a checkout back. It is
-//! pure so the export composition only moves bytes.
+//! Renders the generated block Polterware writes into each checkout's AGENTS.md.
+//! The store stays the source of truth; nothing here reads a checkout back. It
+//! is pure so the export composition only moves bytes.
 
-use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
-use std::sync::LazyLock;
 
-use regex::Regex;
-
-use crate::domains::{decision as lifecycle, polter, structure, work};
+use crate::domains::{structure, work};
 
 /// `block_begin` and `block_end` delimit the generated AGENTS.md block. Export
 /// replaces what lies between them and leaves the rest of the file alone.
 pub const BLOCK_BEGIN: &str = "<!-- polterware:begin generated -->";
 pub const BLOCK_END: &str = "<!-- polterware:end generated -->";
 
-/// Where Decision projections go, relative to a checkout.
-pub const DECISION_DIR: &str = "docs/decision";
-/// Held the projections before Decisions had their name. Export removes the
-/// files it wrote there.
-pub const LEGACY_DECISION_DIR: &str = "docs/verdict";
 /// The agent instructions file, relative to a checkout.
 pub const AGENTS_FILE: &str = "AGENTS.md";
-
-/// One decision record from the project store. A principle applies to the whole
-/// project, so every checkout's block lists it.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Decision {
-    pub id: String,
-    pub title: String,
-    pub body: String,
-    pub status: String,
-    /// The paths of the Structure nodes the decision applies to; a decision
-    /// governs the checkouts of those nodes and of the nodes citing it.
-    pub contexts: Vec<String>,
-    pub principle: bool,
-}
 
 /// The errors the projection returns, one per Go `fmt.Errorf` site.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -49,138 +25,11 @@ pub enum Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-/// Go's `\S` is the ASCII complement of `[\t\n\f\r ]`, and its `\d` is `[0-9]`.
-static DECISION_MARKER: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^<!-- polterware:decision ([^ \t\n\f\r]+) ").expect("the decision marker pattern")
-});
-
-static LEGACY_DECISION_MARKER: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^<!-- polterware:verdict [^ \t\n\f\r]+ ")
-        .expect("the legacy decision marker pattern")
-});
-
-static DECISION_FILE_NAME: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^([0-9]{4})-[^/]*\.md$").expect("the decision file name pattern")
-});
-
-const MAX_SLUG_RUNES: usize = 60;
-
-/// Assigns each Decision to the checkouts it governs: the repo of every active
-/// node that cites it in `decisions:` or names it in its contexts. A Decision no
-/// active node cites governs every checkout. The result is keyed by checkout
-/// name.
-pub fn govern(
-    nodes: &[structure::Node],
-    decisions: &[Decision],
-    checkouts: &[String],
-) -> HashMap<String, Vec<Decision>> {
-    let mut out: HashMap<String, Vec<Decision>> = HashMap::new();
-    for decision in decisions {
-        let mut repos: HashSet<&str> = HashSet::new();
-        for node in nodes {
-            if node.status == structure::NODE_REMOVED {
-                continue;
-            }
-            if decision.contexts.iter().any(|path| path == &node.path) {
-                repos.insert(node.repo.as_str());
-            }
-            for reference in &node.decisions {
-                if cites(reference, decision) {
-                    repos.insert(node.repo.as_str());
-                }
-            }
-        }
-        if repos.is_empty() {
-            for name in checkouts {
-                repos.insert(name.as_str());
-            }
-        }
-        for repo in repos {
-            out.entry(repo.to_string())
-                .or_default()
-                .push(decision.clone());
-        }
-    }
-    for list in out.values_mut() {
-        sort_decisions(list);
-    }
-    out
-}
-
-/// Reports whether a `decisions:` entry names `decision`, by id or Decision
-/// number.
-pub fn cites(reference: &str, decision: &Decision) -> bool {
-    polter::cites_decision(reference, &decision.id, &decision.title)
-}
-
-/// Returns the file name under `docs/decision/` and the projected content, or
-/// `None` when the title carries no Decision number.
-pub fn decision_file(decision: &Decision) -> Option<(String, String)> {
-    let number = polter::parse_decision_number(&decision.title)?;
-    let mut slug = slugify(&lifecycle::strip_number(&decision.title));
-    if slug.is_empty() {
-        slug = "decision".to_string();
-    }
-    let name = format!("{number:04}-{slug}.md");
-
-    let mut b = String::new();
-    b.push_str(&format!(
-        "<!-- polterware:decision {} generated by polterware export; edits here are replaced on the next export -->\n",
-        decision.id
-    ));
-    let mut body = decision.body.trim().to_string();
-    if !body.starts_with("# ") {
-        b.push_str(&format!("# {}\n\n", decision.title));
-    } else if let Some((title, rest)) = body.split_once('\n') {
-        b.push_str(title);
-        b.push_str("\n\n");
-        body = rest.trim().to_string();
-    } else {
-        b.push_str(&body);
-        b.push_str("\n\n");
-        body.clear();
-    }
-    if !decision.status.is_empty() {
-        b.push_str(&format!("Lifecycle status: {}\n\n", decision.status));
-    }
-    if !body.is_empty() {
-        b.push_str(&body);
-        b.push('\n');
-    }
-    Some((name, b))
-}
-
-/// Returns the Decision id a projected file was written for, or `None` when
-/// `content` is not a Polterware projection.
-pub fn decision_marker(content: &str) -> Option<String> {
-    let found = DECISION_MARKER.captures(content)?;
-    found.get(1).map(|id| id.as_str().to_string())
-}
-
-/// Reports whether `content` is a projection export wrote under
-/// [`LEGACY_DECISION_DIR`].
-pub fn legacy_decision_marker(content: &str) -> bool {
-    LEGACY_DECISION_MARKER.is_match(content)
-}
-
-/// Returns the four-digit number of a `NNNN-*.md` file name.
-pub fn decision_file_number(name: &str) -> Option<String> {
-    let found = DECISION_FILE_NAME.captures(name)?;
-    found.get(1).map(|number| number.as_str().to_string())
-}
-
 /// Renders the AGENTS.md block for `checkout` (`""` is the project root): the
 /// Rules agents must follow (the project's, then those of the checkout's nodes
-/// and their ancestors), the project's principles, the Structure nodes placed in
-/// it with their kind and technology, the decisions that govern it or its nodes,
-/// and how to read the brief for a file.
-pub fn block(
-    checkout: &str,
-    nodes: &[structure::Node],
-    governed: &[Decision],
-    all: &[Decision],
-    rules: &[work::Rule],
-) -> String {
+/// and their ancestors), the Structure nodes placed in it with their kind and
+/// technology, and how to read the brief for a file.
+pub fn block(checkout: &str, nodes: &[structure::Node], rules: &[work::Rule]) -> String {
     let applicable = applicable_nodes(checkout, nodes);
 
     let mut own: Vec<String> = Vec::new();
@@ -202,40 +51,17 @@ pub fn block(
         own.push(line);
     }
 
-    let principles: Vec<String> = all
-        .iter()
-        .filter(|decision| decision.principle)
-        .map(|decision| format!("- {}", lifecycle::strip_number(&decision.title)))
-        .collect();
-    let mut decisions: Vec<Decision> = governed
-        .iter()
-        .filter(|decision| !decision.principle)
-        .cloned()
-        .collect();
-    for node in &applicable {
-        for reference in &node.decisions {
-            for decision in all {
-                if cites(reference, decision)
-                    && !decision.principle
-                    && !contains_decision(&decisions, &decision.id)
-                {
-                    decisions.push(decision.clone());
-                }
-            }
-        }
-    }
-    sort_decisions(&mut decisions);
-
     let mut rule_lines: Vec<String> = Vec::new();
     for rule in rules {
-        if rule.scopes.is_empty() {
+        if rule.binding() && rule.scopes.is_empty() {
             rule_lines.push(format!("- {}", rule.statement));
         }
     }
     let mut seen: HashSet<&str> = HashSet::new();
     for node in &applicable {
         for rule in rules {
-            if !seen.contains(rule.id.as_str())
+            if rule.binding()
+                && !seen.contains(rule.id.as_str())
                 && rule.scopes.iter().any(|scope| scope == &node.path)
             {
                 seen.insert(rule.id.as_str());
@@ -249,27 +75,11 @@ pub fn block(
     b.push('\n');
     b.push_str("## Polterware project context\n\n");
     b.push_str("Generated from the Polterware project store by `polterware export`, or on every change when AGENTS.md sync is on. Edits inside this block are replaced; change the source with `polterware apply`. Before you work on a card, a Structure node, or a file, read `polterware brief <slug|path|file>`; the Rules it lists, like the ones below, are binding.\n");
-    if principles.len() + own.len() + decisions.len() + rule_lines.len() == 0 {
-        b.push_str(
-            "\nNo Rules, principles, Structure nodes, or decisions apply to this checkout.\n",
-        );
+    if own.len() + rule_lines.len() == 0 {
+        b.push_str("\nNo Rules or Structure nodes apply to this checkout.\n");
     }
     write_section(&mut b, "Rules", &rule_lines);
-    write_section(&mut b, "Principles", &principles);
     write_section(&mut b, "Structure", &own);
-    let decision_lines: Vec<String> = decisions
-        .iter()
-        .map(|decision| {
-            let mut line = format!("- {}", decision.title);
-            if !decision.status.is_empty() {
-                line.push_str(" (");
-                line.push_str(&decision.status);
-                line.push(')');
-            }
-            line
-        })
-        .collect();
-    write_section(&mut b, "Decisions", &decision_lines);
     b.push_str(BLOCK_END);
     b.push('\n');
     b
@@ -342,324 +152,65 @@ fn write_section(b: &mut String, title: &str, lines: &[String]) {
     }
 }
 
-fn contains_decision(list: &[Decision], id: &str) -> bool {
-    list.iter().any(|decision| decision.id == id)
-}
-
-/// Orders by Decision number, then title; unnumbered records go last.
-fn sort_decisions(list: &mut [Decision]) {
-    list.sort_by(|a, b| {
-        let na = polter::parse_decision_number(&a.title);
-        let nb = polter::parse_decision_number(&b.title);
-        match (na, nb) {
-            (Some(na), Some(nb)) if na != nb => na.cmp(&nb),
-            (Some(_), None) => Ordering::Less,
-            (None, Some(_)) => Ordering::Greater,
-            _ => a.title.cmp(&b.title),
-        }
-    });
-}
-
-fn slugify(title: &str) -> String {
-    let slug = work::normalize_text(title).replace(' ', "-");
-    let runes: Vec<char> = slug.chars().collect();
-    if runes.len() > MAX_SLUG_RUNES {
-        return runes[..MAX_SLUG_RUNES]
-            .iter()
-            .collect::<String>()
-            .trim_end_matches('-')
-            .to_string();
-    }
-    slug
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn test_graph() -> (Vec<structure::Node>, Vec<Decision>) {
-        let nodes = vec![
-            structure::Node {
-                id: "s".to_string(),
-                path: "shop".to_string(),
-                level: structure::LEVEL_DOMAIN.to_string(),
-                title: "Shop".to_string(),
-                status: structure::NODE_ACTIVE.to_string(),
-                decisions: vec!["Decision 0001".to_string()],
-                ..structure::Node::default()
-            },
-            structure::Node {
-                id: "d".to_string(),
-                parent_id: "s".to_string(),
-                path: "shop/auth".to_string(),
-                level: structure::LEVEL_DOMAIN.to_string(),
-                title: "Auth".to_string(),
-                status: structure::NODE_ACTIVE.to_string(),
-                repo: "api".to_string(),
-                folder: "src/auth".to_string(),
-                decisions: vec!["decision-tokens".to_string()],
-                ..structure::Node::default()
-            },
-        ];
-        let decisions = vec![
-            Decision {
-                id: "decision-cents".to_string(),
-                title: "Decision 0001: Integer cents".to_string(),
-                body: "## Decision\n\nStore cents.".to_string(),
-                status: "accepted".to_string(),
-                ..Decision::default()
-            },
-            Decision {
-                id: "decision-tokens".to_string(),
-                title: "Decision 0002: Short tokens".to_string(),
-                body: "## Decision\n\nShort tokens.".to_string(),
-                ..Decision::default()
-            },
-            Decision {
-                id: "decision-free".to_string(),
-                title: "Decision 0003: Free standing".to_string(),
-                body: "Body.".to_string(),
-                ..Decision::default()
-            },
-        ];
-        (nodes, decisions)
-    }
-
-    fn test_rules() -> Vec<work::Rule> {
+    fn nodes() -> Vec<structure::Node> {
         vec![
-            work::Rule {
-                id: "r1".to_string(),
-                statement: "Money is integer cents".to_string(),
-                scopes: vec!["shop".to_string()],
-                ..work::Rule::default()
+            structure::Node {
+                id: "n-api".into(),
+                path: "core/api".into(),
+                title: "API".into(),
+                level: structure::LEVEL_COMPONENT.into(),
+                status: structure::NODE_ACTIVE.into(),
+                repo: "api".into(),
+                kind: "service".into(),
+                tech: "Rust".into(),
+                ..structure::Node::default()
             },
-            work::Rule {
-                id: "r2".to_string(),
-                statement: "Tokens expire in 15 minutes".to_string(),
-                scopes: vec!["shop/auth".to_string()],
-                ..work::Rule::default()
-            },
-            work::Rule {
-                id: "r3".to_string(),
-                statement: "Never log secrets".to_string(),
-                ..work::Rule::default()
+            structure::Node {
+                id: "n-core".into(),
+                path: "core".into(),
+                title: "Core".into(),
+                level: structure::LEVEL_DOMAIN.into(),
+                status: structure::NODE_ACTIVE.into(),
+                ..structure::Node::default()
             },
         ]
     }
 
-    fn ids(list: &[Decision]) -> String {
-        let out: Vec<&str> = list.iter().map(|decision| decision.id.as_str()).collect();
-        out.join(",")
+    #[test]
+    fn block_lists_rules_and_structure() {
+        let rules = vec![
+            work::Rule {
+                id: "r1".into(),
+                statement: "Never call the network.".into(),
+                scopes: vec!["core/api".into()],
+                ..work::Rule::default()
+            },
+            work::Rule {
+                id: "r2".into(),
+                statement: "Keep changes small.".into(),
+                ..work::Rule::default()
+            },
+        ];
+        let text = block("api", &nodes(), &rules);
+        assert!(text.contains("- core/api (component) API · service · Rust"));
+        assert!(text.contains("Rules:\n- Keep changes small."));
+        assert!(text.contains("- Never call the network. (from core/api)"));
+        assert!(!text.contains("Principles"));
+        assert!(!text.contains("Decisions"));
     }
 
     #[test]
-    fn govern_by_citing_node_repo() {
-        let (nodes, decisions) = test_graph();
-        let governed = govern(&nodes, &decisions, &[String::new()]);
-        assert_eq!(
-            ids(governed.get("").map_or(&[], Vec::as_slice)),
-            "decision-cents,decision-free",
-            "root"
-        );
-        assert_eq!(
-            ids(governed.get("api").map_or(&[], Vec::as_slice)),
-            "decision-tokens",
-            "api"
-        );
-    }
-
-    #[test]
-    fn decision_file_projects_a_numbered_decision() {
-        let (_, decisions) = test_graph();
-        let Some((name, content)) = decision_file(&decisions[0]) else {
-            panic!("a numbered title has a file");
-        };
-        assert_eq!(name, "0001-integer-cents.md");
-        assert_eq!(
-            decision_marker(&content).as_deref(),
-            Some("decision-cents"),
-            "marker:\n{content}"
-        );
-        assert!(
-            content.contains(
-                "# Decision 0001: Integer cents\n\nLifecycle status: accepted\n\n## Decision"
-            ),
-            "content = {content}"
-        );
-        assert!(
-            decision_file(&Decision {
-                id: "x".to_string(),
-                title: "Untitled decision".to_string(),
-                ..Decision::default()
-            })
-            .is_none(),
-            "an unnumbered title has no file"
-        );
-        assert!(
-            decision_marker("# Decision 0001: Hand-written\n").is_none(),
-            "hand-written files carry no marker"
-        );
-    }
-
-    #[test]
-    fn block_inherits_ancestors() {
-        let (nodes, decisions) = test_graph();
-        let governed = govern(&nodes, &decisions, &[String::new()]);
-        let api = block(
-            "api",
-            &nodes,
-            governed.get("api").map_or(&[], Vec::as_slice),
-            &decisions,
-            &test_rules(),
-        );
-        for want in [
-            "- shop/auth (domain) Auth · path: src/auth",
-            "- Decision 0001: Integer cents (accepted)",
-            "- Decision 0002: Short tokens",
-            "- Money is integer cents (from shop)",
-            "- Tokens expire in 15 minutes (from shop/auth)",
-            "- Never log secrets\n",
-        ] {
-            assert!(api.contains(want), "api block missing {want:?}:\n{api}");
-        }
-        assert!(
-            !api.contains("Old rule")
-                && !api.contains("Decision 0003")
-                && !api.contains("- shop (system)"),
-            "api block has foreign lines:\n{api}"
-        );
-        let root = block(
-            "",
-            &nodes,
-            governed.get("").map_or(&[], Vec::as_slice),
-            &decisions,
-            &test_rules(),
-        );
-        assert!(
-            !root.contains("Tokens expire") && root.contains("Decision 0003: Free standing"),
-            "root block:\n{root}"
-        );
-        assert!(
-            api.starts_with(&format!("{BLOCK_BEGIN}\n"))
-                && api.ends_with(&format!("{BLOCK_END}\n")),
-            "sentinels:\n{api}"
-        );
-    }
-
-    #[test]
-    fn replace_block_keeps_the_rest_of_the_file() {
-        let block = format!("{BLOCK_BEGIN}\nnew\n{BLOCK_END}\n");
-
-        let got = replace_block("", &block).expect("empty file");
-        assert_eq!(got, block, "empty file");
-
-        let got = replace_block("# Agents\n\nRules.\n", &block).expect("append");
-        assert_eq!(got, format!("# Agents\n\nRules.\n\n{block}"), "append");
-
-        let existing = format!(
-            "# Agents\n\n{BLOCK_BEGIN}\nold\nhand edit\n{BLOCK_END}\n\n## Tail\nKeep me.\n"
-        );
-        let got = replace_block(&existing, &block).expect("replace");
-        assert_eq!(
-            got,
-            format!("# Agents\n\n{block}\n## Tail\nKeep me.\n"),
-            "replace"
-        );
-
-        let again = replace_block(&got, &block).expect("re-export");
-        assert_eq!(again, got, "re-export must be stable");
-
-        assert!(
-            replace_block(&format!("x\n{BLOCK_BEGIN}\nno end\n"), &block).is_err(),
-            "missing end sentinel must fail"
-        );
-    }
-
-    #[test]
-    fn block_lists_principles_structure_and_the_brief_line() {
-        let (mut nodes, mut decisions) = test_graph();
-        nodes.push(structure::Node {
-            id: "c".to_string(),
-            parent_id: "d".to_string(),
-            path: "shop/auth/session".to_string(),
-            level: structure::LEVEL_COMPONENT.to_string(),
-            title: "Sessions".to_string(),
-            status: structure::NODE_ACTIVE.to_string(),
-            repo: "api".to_string(),
-            folder: "src/auth/session".to_string(),
-            kind: "service".to_string(),
-            tech: "Go".to_string(),
-            ..structure::Node::default()
-        });
-        decisions.push(Decision {
-            id: "decision-local".to_string(),
-            title: "Local first".to_string(),
-            status: "active".to_string(),
-            principle: true,
-            ..Decision::default()
-        });
-        let governed = govern(&nodes, &decisions, &[String::new()]);
-        let want = format!(
-            "{BLOCK_BEGIN}
-## Polterware project context
-
-Generated from the Polterware project store by `polterware export`, or on every change when AGENTS.md sync is on. Edits inside this block are replaced; change the source with `polterware apply`. Before you work on a card, a Structure node, or a file, read `polterware brief <slug|path|file>`; the Rules it lists, like the ones below, are binding.
-
-Rules:
-- Never log secrets
-- Money is integer cents (from shop)
-- Tokens expire in 15 minutes (from shop/auth)
-
-Principles:
-- Local first
-
-Structure:
-- shop/auth (domain) Auth · path: src/auth
-- shop/auth/session (component) Sessions · service · Go · path: src/auth/session
-
-Decisions:
-- Decision 0001: Integer cents (accepted)
-- Decision 0002: Short tokens
-{BLOCK_END}
-"
-        );
-        let got = block(
-            "api",
-            &nodes,
-            governed.get("api").map_or(&[], Vec::as_slice),
-            &decisions,
-            &test_rules(),
-        );
-        assert_eq!(got, want);
-        let root = block(
-            "",
-            &nodes,
-            governed.get("").map_or(&[], Vec::as_slice),
-            &decisions,
-            &[],
-        );
-        assert!(
-            root.contains("Principles:\n- Local first\n")
-                && !root.contains("- Local first (active)"),
-            "a principle is listed once, under Principles:\n{root}"
-        );
-    }
-
-    #[test]
-    fn file_numbers_and_legacy_markers() {
-        assert_eq!(
-            decision_file_number("0002-short-tokens.md").as_deref(),
-            Some("0002")
-        );
-        assert!(decision_file_number("short-tokens.md").is_none());
-        assert!(decision_file_number("0002-short-tokens.md.bak").is_none());
-        assert!(legacy_decision_marker(
-            "<!-- polterware:verdict d generated by polterware export -->\n"
-        ));
-        assert!(!legacy_decision_marker("# Decision 0001: Hand-written\n"));
-        assert!(
-            !legacy_decision_marker("x<!-- polterware:verdict d generated -->"),
-            "the marker must open the content"
-        );
+    fn block_replaces_only_the_generated_region() {
+        let first = replace_block("Intro\n", "BLOCK\n").expect("append");
+        assert_eq!(first, "Intro\n\nBLOCK\n");
+        let existing = format!("Intro\n{BLOCK_BEGIN}\nold\n{BLOCK_END}\nTail\n");
+        let got = replace_block(&existing, "NEW\n").expect("replace");
+        assert_eq!(got, "Intro\nNEW\nTail\n");
+        let err = replace_block(&format!("{BLOCK_BEGIN}\nold\n"), "NEW").expect_err("unclosed");
+        assert!(err.to_string().contains("without"));
     }
 }

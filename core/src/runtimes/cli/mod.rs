@@ -10,7 +10,6 @@ pub mod conflict;
 pub mod context;
 pub mod core;
 pub mod db;
-pub mod decision;
 pub mod deploys;
 pub mod export;
 pub mod feature;

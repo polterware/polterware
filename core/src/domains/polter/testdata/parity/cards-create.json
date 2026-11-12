@@ -1,7 +1,7 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n## plan diagnostics\n## plan\n+ card git-metadata-import \"Git metadata import\" [plan]\n+ task git-metadata-import T1 \"Commit evidence upsert\"\n+ task git-metadata-import T2 \"Stamp revision\"\n+ question git-metadata-import \"Include merge commits?\" [blocking]\n+ invariant git-metadata-import \"No network calls during scan\"\n## summary\n5 ops (1 card, 2 tasks, 1 question, 1 invariant)\n## brief\n# core/api: API\nlevel: component · kind: api · tech: Go · repo: api · path: cmd/api\n\nDecisions:\n- Decision-0002 [active] Import\nprinciples: SQLite · Context · Git evidence\n",
+  "expected": "## decode\n## plan diagnostics\n## plan\n+ card git-metadata-import \"Git metadata import\" [plan]\n+ task git-metadata-import T1 \"Commit evidence upsert\"\n+ task git-metadata-import T2 \"Stamp revision\"\n+ question git-metadata-import \"Include merge commits?\" [blocking]\n+ invariant git-metadata-import \"No network calls during scan\"\n## summary\n5 ops (1 card, 2 tasks, 1 question, 1 invariant)\n## brief\n# core/api: API\nlevel: component \u00b7 kind: api \u00b7 tech: Go \u00b7 repo: api \u00b7 path: cmd/api\n",
   "name": "cards-create",
   "snapshot": {
     "Cards": null,
@@ -96,5 +96,5 @@
     "Rules": null
   },
   "target": "core/api",
-  "text": "---\npolter: 1\n---\n\n## git-metadata-import: Git metadata import\nstage: plan · owner: erick · decisions: Decision-0007\n\nImport HEAD, branch and recent commits as evidence.\n\n- [ ] T1 Commit evidence upsert `backend/domains/canon/*`\n- [X] T2 Stamp revision\n? Include merge commits? [blocking] (yes | no | first-parent)\n! No network calls during scan\n"
+  "text": "---\npolter: 1\n---\n\n## git-metadata-import: Git metadata import\nstage: plan \u00b7 owner: erick \u00b7 decisions: Decision-0007\n\nImport HEAD, branch and recent commits as evidence.\n\n- [ ] T1 Commit evidence upsert `backend/domains/canon/*`\n- [X] T2 Stamp revision\n? Include merge commits? [blocking] (yes | no | first-parent)\n! No network calls during scan\n"
 }

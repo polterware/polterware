@@ -4,7 +4,6 @@
 //! cards, and connections that fills every surface, and one empty project that
 //! shows every empty state.
 
-mod facts;
 mod integrations;
 mod knowledge;
 mod seed;

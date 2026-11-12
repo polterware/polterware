@@ -1,11 +1,12 @@
 //! Port of `backend/providers/seed/knowledge.go`.
 //!
-//! The pinned principles and the two docs that name the repository documents
-//! defining Polterware.
+//! The pinned Rules (the old principles) and the two docs that name the
+//! repository documents defining Polterware.
 
+use serde_json::{Map, json};
 use time::OffsetDateTime;
 
-use crate::domains::knowledge;
+use crate::domains::{knowledge, work};
 use crate::providers::sqlite;
 
 use super::PROJECT_ID;
@@ -17,8 +18,7 @@ struct Principle {
     body: &'static str,
 }
 
-/// Principles apply to the whole project. They are pinned Decisions, not a
-/// separate document.
+/// Principles are Rules with no scope: they apply to the whole project.
 const PRINCIPLES: [Principle; 5] = [
     Principle {
         id: "decision-principle-local-first",
@@ -78,23 +78,8 @@ const DOCS: [Doc; 2] = [
 
 pub(super) fn seed_knowledge(store: &sqlite::Store) -> sqlite::Result<()> {
     let at = OffsetDateTime::now_utc();
+    seed_rules(store)?;
     let mut items: Vec<knowledge::Item> = Vec::new();
-    for principle in PRINCIPLES {
-        items.push(knowledge::Item {
-            id: principle.id.to_string(),
-            project_id: PROJECT_ID.to_string(),
-            title: principle.title.to_string(),
-            kind: knowledge::KIND_DECISION.to_string(),
-            body: format!("## Decision\n\n{}", principle.body),
-            summary: principle.summary.to_string(),
-            owner: "Platform".to_string(),
-            status: "active".to_string(),
-            extra_json: "{}".to_string(),
-            created_at: at,
-            updated_at: at,
-            ..knowledge::Item::default()
-        });
-    }
     for doc in DOCS {
         items.push(knowledge::Item {
             id: doc.id.to_string(),
@@ -116,6 +101,28 @@ pub(super) fn seed_knowledge(store: &sqlite::Store) -> sqlite::Result<()> {
     for item in items {
         store.save_knowledge(item)?;
     }
+    Ok(())
+}
+
+/// Seeds the project-wide Rules: one Rule per old principle, with the summary
+/// as its statement and the body as its why.
+fn seed_rules(store: &sqlite::Store) -> sqlite::Result<()> {
+    let mut ops: Vec<work::Op> = Vec::with_capacity(PRINCIPLES.len());
+    for principle in PRINCIPLES {
+        let mut fields = Map::new();
+        fields.insert("statement".into(), json!(principle.body));
+        fields.insert("why".into(), json!(principle.summary));
+        ops.push(work::Op {
+            entity: work::ENTITY_RULE.to_string(),
+            kind: work::OP_CREATE.to_string(),
+            entity_id: principle.id.to_string(),
+            card_slug: principle.title.to_string(),
+            label: principle.title.to_string(),
+            fields,
+            ..work::Op::default()
+        });
+    }
+    store.apply_work_ops(PROJECT_ID, "", "seed-rules", &ops)?;
     Ok(())
 }
 

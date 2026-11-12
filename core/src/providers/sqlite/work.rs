@@ -17,7 +17,6 @@ use crate::platform::ids;
 
 use super::commit_links::reindex_work_card_fts;
 use super::conflicts::apply_conflict_op;
-use super::decision::apply_decision_op;
 use super::rules::apply_rule_op;
 use super::*;
 
@@ -208,8 +207,6 @@ impl super::Store {
         }
         snapshot.repos = self.load_repo_names(project_id)?;
         snapshot.milestones = self.list_milestones(project_id)?;
-        snapshot.decisions = self.load_decisions(project_id)?;
-        snapshot.facts = self.load_polter_facts(project_id)?;
         snapshot.rules = self.load_rules(project_id)?;
         snapshot.conflicts = self.load_conflicts(project_id)?;
         if snapshot.cards.is_empty() {
@@ -388,7 +385,6 @@ impl super::Store {
                 )?;
             } else if op.entity != work::ENTITY_CARD
                 && op.entity != work::ENTITY_NODE
-                && op.entity != work::ENTITY_DECISION
                 && !op.card_id.is_empty()
             {
                 tx.execute(
@@ -460,10 +456,8 @@ fn apply_work_op(tx: &Connection, project_id: &str, op: &work::Op, now: &str) ->
     match op.entity.as_str() {
         work::ENTITY_CLAIM => return apply_claim_op(tx, project_id, op, now),
         work::ENTITY_NODE => return super::structure::apply_structure_op(tx, project_id, op, now),
-        work::ENTITY_FACT => return super::polter_facts::apply_fact_op(tx, project_id, op, now),
         work::ENTITY_RULE => return apply_rule_op(tx, project_id, op, now),
         work::ENTITY_CONFLICT => return apply_conflict_op(tx, project_id, op, now),
-        work::ENTITY_DECISION => return apply_decision_op(tx, project_id, op, now),
         _ => {}
     }
     let Some(table) = work_table(&op.entity) else {

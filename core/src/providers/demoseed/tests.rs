@@ -54,7 +54,7 @@ fn defaults_is_idempotent() {
         "knowledge_items",
         "work_cards",
         "work_tasks",
-        "canon_facts",
+        "rules",
     ];
     let before: Vec<i64> = tables
         .iter()
@@ -88,21 +88,19 @@ fn defaults_does_not_overwrite_an_existing_database() {
 }
 
 #[test]
-fn seeded_decisions_cover_the_lifecycle_states() {
+fn seeded_rules_cover_the_lifecycle_states() {
     let holder = new_seeded();
     let store = &holder.store;
-    let decisions = store
-        .list_knowledge(PROJECT_ID, "decision")
-        .expect("list decisions");
+    let rules = store.list_rules(PROJECT_ID).expect("list rules");
     assert!(
-        decisions.len() >= 3,
-        "want at least 3 seeded Decisions, got {}",
-        decisions.len()
+        rules.len() >= 3,
+        "want at least 3 seeded Rules, got {}",
+        rules.len()
     );
-    let states: HashSet<&str> = decisions.iter().map(|item| item.status.as_str()).collect();
+    let states: HashSet<&str> = rules.iter().map(|rule| rule.status.as_str()).collect();
     assert!(
         states.contains("active") && states.contains("proposed"),
-        "seed must show active and proposed Decisions, got {states:?}"
+        "seed must show active and proposed Rules, got {states:?}"
     );
 }
 
@@ -128,7 +126,7 @@ fn seed_registers_no_source_docs() {
 fn empty_project_has_no_content() {
     let holder = new_seeded();
     let store = &holder.store;
-    for table in ["knowledge_items", "work_cards", "canon_facts"] {
+    for table in ["knowledge_items", "work_cards", "rules"] {
         let rows = count(
             store,
             &format!("SELECT COUNT(*) FROM {table} WHERE project_id=?"),

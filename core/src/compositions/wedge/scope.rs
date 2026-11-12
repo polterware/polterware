@@ -11,8 +11,7 @@ use crate::domains::inbox;
 use crate::domains::structure;
 use crate::domains::work;
 use crate::providers::sqlite::{
-    self, ChangeRow, NodeScope, SCOPE_DECISION, SCOPE_FACT, SCOPE_ITEM, SCOPE_KNOWLEDGE,
-    SCOPE_RULE, Store,
+    self, ChangeRow, NodeScope, SCOPE_ITEM, SCOPE_KNOWLEDGE, SCOPE_RULE, Store,
 };
 
 /// Derives the Inbox and keeps the items inside scope. An item's own contexts
@@ -68,7 +67,7 @@ pub(crate) fn inbox_scoped(
     Ok(filtered)
 }
 
-/// Narrows the snapshot's cards and Decisions to `scope`. Structure nodes stay
+/// Narrows the snapshot's cards and Rules to `scope`. Structure nodes stay
 /// whole so the map keeps its structure.
 pub fn scope_snapshot(
     store: &Store,
@@ -79,16 +78,16 @@ pub fn scope_snapshot(
         return Ok(snapshot);
     }
     let resolved = store.load_scopes(&snapshot.project_id, scope)?;
-    let scopes = store.scope_map(&snapshot.project_id, SCOPE_DECISION)?;
+    let scopes = store.scope_map(&snapshot.project_id, SCOPE_RULE)?;
     snapshot.cards = filter_cards_by_scope(&resolved, &snapshot.cards);
-    let mut kept = Vec::with_capacity(snapshot.decisions.len());
-    for item in &snapshot.decisions {
+    let mut kept = Vec::with_capacity(snapshot.rules.len());
+    for item in &snapshot.rules {
         let contexts = scopes.get(&item.id).cloned().unwrap_or_default();
         if resolved.matches_any(&contexts) {
             kept.push(item.clone());
         }
     }
-    snapshot.decisions = kept;
+    snapshot.rules = kept;
     Ok(snapshot)
 }
 
@@ -102,25 +101,6 @@ pub fn filter_cards_by_scope(resolved: &NodeScope, cards: &[work::Card]) -> Vec<
     cards
         .iter()
         .filter(|card| resolved.matches_path(&card.under))
-        .cloned()
-        .collect()
-}
-
-/// Keeps the facts with a context inside scope plus those with none.
-pub fn filter_facts_by_scope(
-    resolved: &NodeScope,
-    scopes: &HashMap<String, Vec<String>>,
-    facts: &[work::Fact],
-) -> Vec<work::Fact> {
-    if resolved.set.is_nil() {
-        return facts.to_vec();
-    }
-    facts
-        .iter()
-        .filter(|fact| {
-            let contexts = scopes.get(&fact.fact.id).cloned().unwrap_or_default();
-            resolved.matches_any(&contexts)
-        })
         .cloned()
         .collect()
 }
@@ -245,7 +225,7 @@ pub fn entity_scope_index(
     project_id: &str,
 ) -> sqlite::Result<HashMap<String, Vec<String>>> {
     let mut out: HashMap<String, Vec<String>> = HashMap::new();
-    for kind in [SCOPE_KNOWLEDGE, SCOPE_FACT, SCOPE_RULE, SCOPE_ITEM] {
+    for kind in [SCOPE_KNOWLEDGE, SCOPE_RULE, SCOPE_ITEM] {
         let mapped = store.scope_map(project_id, kind)?;
         for (id, nodes) in mapped {
             out.insert(id, nodes);

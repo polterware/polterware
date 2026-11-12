@@ -16,7 +16,7 @@ use regex::Regex;
 use serde_json::{Map, Value};
 use time::OffsetDateTime;
 
-use crate::domains::{canon, decision, structure};
+use crate::domains::structure;
 
 pub const STAGE_SHAPE: &str = "shape";
 pub const STAGE_PLAN: &str = "plan";
@@ -283,10 +283,7 @@ pub struct Snapshot {
     /// The project's environments. A `deploys:` line names one by id or by
     /// name.
     pub environments: Vec<NamedEnvironment>,
-    /// The project's Decisions with their lifecycle state.
-    pub decisions: Vec<decision::Decision>,
-    pub facts: Vec<Fact>,
-    /// The project's active Rules, in position order.
+    /// Every Rule of the project, in position order.
     pub rules: Vec<Rule>,
     /// Every Conflict of the project, newest first.
     pub conflicts: Vec<Conflict>,
@@ -295,41 +292,75 @@ pub struct Snapshot {
     pub milestones: Vec<Milestone>,
 }
 
-/// A canon fact with its Polter identity and context paths.
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct Fact {
-    pub fact: canon::Fact,
-    pub slug: String,
-    /// The paths of the Structure nodes the fact is about, sorted; none is the
-    /// whole project.
-    pub scopes: Vec<String>,
-}
-
 /// A short imperative constraint agents read before they work. Scopes are the
 /// paths of the Structure nodes it applies to, sorted; none is the whole
 /// project, and a node's Rules hold for every node below it.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+///
+/// A Rule is the only law: it carries an optional Markdown `why` (the old
+/// Decision body) and, when replaced, the id of the Rule that replaced it.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rule {
     pub id: String,
     pub slug: String,
     pub statement: String,
+    pub why: String,
     pub scopes: Vec<String>,
     pub status: String,
+    pub replaced_by: String,
     pub position: i32,
 }
 
+impl Default for Rule {
+    fn default() -> Self {
+        Self {
+            id: String::new(),
+            slug: String::new(),
+            statement: String::new(),
+            why: String::new(),
+            scopes: Vec::new(),
+            status: RULE_ACTIVE.to_string(),
+            replaced_by: String::new(),
+            position: 0,
+        }
+    }
+}
+
 /// Rule states.
+pub const RULE_PROPOSED: &str = "proposed";
 pub const RULE_ACTIVE: &str = "active";
+pub const RULE_UNDER_REVIEW: &str = "under_review";
+pub const RULE_REPLACED: &str = "replaced";
 pub const RULE_REMOVED: &str = "removed";
 
-/// A request that goes against a Rule or a Decision. An agent raises it
-/// instead of acting against the law; a person decides it.
+/// The Rule states in display order.
+pub const RULE_STATUSES: [&str; 5] = [
+    RULE_PROPOSED,
+    RULE_ACTIVE,
+    RULE_UNDER_REVIEW,
+    RULE_REPLACED,
+    RULE_REMOVED,
+];
+
+/// Reports whether `status` is a Rule status.
+pub fn valid_rule_status(status: &str) -> bool {
+    RULE_STATUSES.contains(&status)
+}
+
+/// Reports whether a Rule in `status` constrains work: active and under review
+/// Rules bind until they are resolved.
+pub fn binding_rule_status(status: &str) -> bool {
+    status == RULE_ACTIVE || status == RULE_UNDER_REVIEW
+}
+
+/// A request that goes against a Rule. An agent raises it instead of acting
+/// against the law; a person decides it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Conflict {
     pub id: String,
     pub slug: String,
     pub request: String,
     pub rule_id: String,
+    /// The Rule named by a legacy `decision:` line, read as a Rule id.
     pub decision: String,
     pub card_slug: String,
     pub options: Vec<String>,
@@ -380,6 +411,12 @@ impl Rule {
             &self.slug
         }
     }
+
+    /// Reports whether this Rule constrains work: active and under review
+    /// Rules bind until they are resolved.
+    pub fn binding(&self) -> bool {
+        binding_rule_status(&self.status)
+    }
 }
 
 /// A project environment a `deploys:` line can name.
@@ -396,8 +433,6 @@ pub const ENTITY_INVARIANT: &str = "invariant";
 pub const ENTITY_HANDOFF: &str = "handoff";
 pub const ENTITY_CLAIM: &str = "claim";
 pub const ENTITY_NODE: &str = "node";
-pub const ENTITY_DECISION: &str = "decision";
-pub const ENTITY_FACT: &str = "fact";
 pub const ENTITY_RULE: &str = "rule";
 pub const ENTITY_CONFLICT: &str = "conflict";
 pub const ENTITY_MILESTONE: &str = "milestone";
