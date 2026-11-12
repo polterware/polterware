@@ -453,6 +453,9 @@ impl CanvasView {
             .right(px(1.0))
             .bottom(px(1.0))
             .rounded(px(theme.radius_card - 2.0))
+            // GPUI clips children to a rectangle, not to the radius: the backdrop is painted
+            // here, rounded, and the miniature draws none, so no square corner shows.
+            .bg(theme.color_app_background)
             .overflow_hidden()
             .child(miniature(canvas, known, entities, size, &theme))
             // The miniature fades into the face under the title row.
@@ -463,6 +466,7 @@ impl CanvasView {
                     .right_0()
                     .bottom_0()
                     .h(px(96.0))
+                    .rounded_b(px(theme.radius_card - 2.0))
                     .bg(fade_edge(&theme)),
             )
             .child(
@@ -470,6 +474,7 @@ impl CanvasView {
                     .absolute()
                     .inset_0()
                     .invisible()
+                    .rounded(px(theme.radius_card - 2.0))
                     .group_hover(group.clone(), |veil| veil.visible())
                     .bg(gpui::Rgba {
                         r: 1.0,
@@ -667,7 +672,6 @@ fn miniature(
     let mut layer = div()
         .absolute()
         .inset_0()
-        .bg(theme.color_app_background)
         .child(dot_grid(
             viewport,
             viewport.zoom,
