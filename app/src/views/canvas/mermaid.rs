@@ -17,7 +17,7 @@ use gpui::Rgba;
 use polterware_mermaid::DiagramKind;
 use polterware_mermaid::config::Config;
 use polterware_mermaid::error::{ParseError, RenderError};
-use polterware_mermaid::measure::TextMeasure;
+use polterware_mermaid::measure::{Font, TextMeasure};
 use polterware_mermaid::scene::{
     Color, Group, Item, PathCommand, Point, Rect, Scene, SourceKind, TextRun, Transform,
 };
@@ -58,6 +58,8 @@ pub(super) struct Palette {
     pub cluster_stroke: String,
     pub label_background: String,
     pub muted: String,
+    /// The app's UI font, the family every label is measured and painted in.
+    pub font_family: String,
 }
 
 /// The shapes a node with `kind` draws as when its text names none.
@@ -160,9 +162,9 @@ pub(super) fn palette(theme: &Theme) -> Palette {
     let mut set = |key: &str, value: String| {
         overrides.insert(key.to_string(), serde_json::json!(value));
     };
-    set("primaryColor", css(theme.color_surface));
+    set("primaryColor", css(theme.color_surface_subtle));
     set("mainBkg", css(theme.color_surface));
-    set("nodeBkg", css(theme.color_surface));
+    set("nodeBkg", css(theme.color_surface_subtle));
     set("primaryTextColor", css(theme.color_text_primary));
     set("textColor", css(theme.color_text_secondary));
     set("titleColor", css(theme.color_text_primary));
@@ -172,7 +174,7 @@ pub(super) fn palette(theme: &Theme) -> Palette {
     set("background", css(theme.color_app_background));
     set("secondaryColor", css(theme.color_surface_subtle));
     set("tertiaryColor", css(theme.color_surface_subtle));
-    set("clusterBkg", css(theme.color_surface_subtle));
+    set("clusterBkg", css(theme.color_surface));
     set("clusterBorder", css(theme.color_text_muted));
     set("edgeLabelBackground", css(theme.color_surface_raised));
     set("actorBkg", css(theme.color_surface));
@@ -192,14 +194,15 @@ pub(super) fn palette(theme: &Theme) -> Palette {
     let pick =
         |key: &str, fallback: String| variables.color(key).map(str::to_string).unwrap_or(fallback);
     Palette {
-        node_fill: pick("primaryColor", css(theme.color_surface)),
+        node_fill: pick("primaryColor", css(theme.color_surface_subtle)),
         node_stroke: pick("primaryBorderColor", css(theme.color_text_muted)),
         text: pick("primaryTextColor", css(theme.color_text_primary)),
         line: pick("lineColor", css(theme.color_text_muted)),
-        cluster_fill: pick("clusterBkg", css(theme.color_surface_subtle)),
+        cluster_fill: pick("clusterBkg", css(theme.color_surface)),
         cluster_stroke: pick("clusterBorder", css(theme.color_text_muted)),
         label_background: pick("edgeLabelBackground", css(theme.color_surface_raised)),
         muted: css(theme.color_text_muted),
+        font_family: theme.font_sans.to_string(),
     }
 }
 
@@ -288,6 +291,58 @@ fn theme_text(text: &mut TextRun, palette: &Palette) {
     };
     if default {
         text.fill = Some(Color::new(palette.text.clone()));
+    }
+}
+
+/// Puts every label in the app's UI font.
+///
+/// The renderer asks for a family of its own (a monospace one) and bakes it into each run; the
+/// canvas reads in the font the rest of the app uses, so the family is replaced here, after the
+/// layout. A code span keeps its weight but not its own face, so the measure and the painter
+/// shape the same runs.
+fn theme_fonts(items: &mut [Item], palette: &Palette) {
+    for item in items {
+        match item {
+            Item::Group(group) => theme_fonts(&mut group.items, palette),
+            Item::Text(text) => {
+                text.font.family = palette.font_family.clone();
+                for line in &mut text.lines {
+                    for span in &mut line.spans {
+                        span.code = false;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Lays a diagram out in the app's UI font.
+///
+/// The renderer measures through this while it asks for its own family; mapping every request
+/// to the family the canvas paints makes a label wrap where it is drawn, so its box stays
+/// centered on its shape.
+struct UiFontMeasure<'a> {
+    inner: &'a dyn TextMeasure,
+    family: &'a str,
+}
+
+impl UiFontMeasure<'_> {
+    fn font(&self, font: &Font) -> Font {
+        Font {
+            family: self.family.to_string(),
+            ..font.clone()
+        }
+    }
+}
+
+impl TextMeasure for UiFontMeasure<'_> {
+    fn width(&self, text: &str, font: &Font) -> f64 {
+        self.inner.width(text, &self.font(font))
+    }
+
+    fn line_height(&self, font: &Font) -> f64 {
+        self.inner.line_height(&self.font(font))
     }
 }
 
@@ -454,9 +509,14 @@ pub(super) fn render(
     palette: &Palette,
 ) -> Result<Scene, RenderError> {
     let styled = styled_source(source);
-    let mut scene = draw(&styled, measure)?;
+    let measure = UiFontMeasure {
+        inner: measure,
+        family: &palette.font_family,
+    };
+    let mut scene = draw(&styled, &measure, palette)?;
     apply_theme(&mut scene, palette);
     apply_styles(&mut scene, &css_styles(&styled));
+    theme_fonts(&mut scene.items, palette);
     center_labels(&mut scene.items);
     apply_pins(&mut scene, &pins_for(&styled, layout_json));
     Ok(scene)
@@ -465,15 +525,20 @@ pub(super) fn render(
 /// Renders `source` for a preview: no pins, in the app's colors.
 pub(super) fn preview(source: &str, measure: &dyn TextMeasure, palette: &Palette) -> Option<Scene> {
     let styled = styled_source(source);
-    let mut scene = draw(&styled, measure).ok()?;
+    let measure = UiFontMeasure {
+        inner: measure,
+        family: &palette.font_family,
+    };
+    let mut scene = draw(&styled, &measure, palette).ok()?;
     apply_theme(&mut scene, palette);
     apply_styles(&mut scene, &css_styles(&styled));
+    theme_fonts(&mut scene.items, palette);
     center_labels(&mut scene.items);
     Some(scene)
 }
 
-/// Lays a source out into a scene, as the renderer draws it.
-fn draw(source: &str, measure: &dyn TextMeasure) -> Result<Scene, RenderError> {
+/// Lays a source out into a scene, as the renderer draws it, in the app's UI font.
+fn draw(source: &str, measure: &dyn TextMeasure, palette: &Palette) -> Result<Scene, RenderError> {
     let preprocessed = polterware_mermaid::preprocess::preprocess(source);
     if let Some(message) = preprocessed.error {
         return Err(RenderError::Parse(ParseError::new(message, None)));
@@ -482,6 +547,7 @@ fn draw(source: &str, measure: &dyn TextMeasure) -> Result<Scene, RenderError> {
         .ok_or_else(|| ParseError::new("No diagram type detected", None))?;
     let mut config = Config::default();
     config.apply(&preprocessed.config)?;
+    config.font_family = palette.font_family.clone();
     let scene = match kind {
         DiagramKind::Flowchart => polterware_mermaid::diagrams::flowchart::render::draw(
             &preprocessed.body,
@@ -1368,6 +1434,62 @@ mod tests {
             fill, MERMAID_FILL,
             "Mermaid's light fill is still on the dark app"
         );
+    }
+
+    #[test]
+    fn nodes_take_a_surface_fill_above_the_canvas_background() {
+        let theme = Theme::dark();
+        let palette = palette(&theme);
+        assert_eq!(palette.node_fill, css(theme.color_surface_subtle));
+        assert_ne!(palette.node_fill, css(theme.color_app_background));
+        assert_ne!(
+            palette.cluster_fill, palette.node_fill,
+            "a cluster and a node would read the same"
+        );
+        let scene = render(
+            "flowchart LR\n  a[Start]\n",
+            "{}",
+            &FallbackMeasure,
+            &palette,
+        )
+        .expect("a scene");
+        assert_eq!(
+            first_rect_fill(&scene.items).as_deref(),
+            Some(palette.node_fill.as_str()),
+            "the node is not filled with the surface token"
+        );
+    }
+
+    #[test]
+    fn labels_paint_in_the_apps_ui_font() {
+        let theme = Theme::dark();
+        let palette = palette(&theme);
+        assert_eq!(palette.font_family, theme.font_sans.to_string());
+        let scene = render(
+            "flowchart LR\n  a[Start] --> b[End]\n",
+            "{}",
+            &FallbackMeasure,
+            &palette,
+        )
+        .expect("a scene");
+        let families = text_families(&scene.items);
+        assert!(!families.is_empty(), "the diagram has no label");
+        assert!(
+            families.iter().all(|family| *family == palette.font_family),
+            "a label kept its own family: {families:?}"
+        );
+    }
+
+    fn text_families(items: &[Item]) -> Vec<String> {
+        let mut families = Vec::new();
+        for item in items {
+            match item {
+                Item::Text(text) => families.push(text.font.family.clone()),
+                Item::Group(group) => families.extend(text_families(&group.items)),
+                _ => {}
+            }
+        }
+        families
     }
 
     #[test]

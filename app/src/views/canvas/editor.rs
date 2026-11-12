@@ -360,6 +360,7 @@ impl CanvasEditor {
                         view.update_scene(scene, cx);
                     }
                 });
+                self.show_selection(cx);
                 self.render_error = None;
                 self.unsupported = None;
             }
@@ -539,10 +540,30 @@ impl CanvasEditor {
             self.connect_from = None;
         }
         self.selection = selection;
+        self.show_selection(cx);
         self.reveal = !self.selection.nodes.is_empty();
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(!self.selection.is_empty()));
         cx.notify();
+    }
+
+    /// Makes the diagram outline the selection the editor holds, so a selection made in the
+    /// inspector, in the text pane, or by a palette insert shows in the drawing, not only one
+    /// made by a click on it.
+    fn show_selection(&mut self, cx: &mut Context<Self>) {
+        let id = self
+            .selection
+            .nodes
+            .first()
+            .and_then(|id| self.mermaid(id))
+            .or_else(|| {
+                self.selection
+                    .edges
+                    .first()
+                    .and_then(|id| self.edge_link(id))
+            });
+        self.view
+            .update(cx, |view, cx| view.select_id(id.as_deref(), cx));
     }
 
     /// Pins the dropped node where the drawing left it, so the next render keeps it there.
@@ -588,6 +609,7 @@ impl CanvasEditor {
         };
         self.selection = Selection::node(&id);
         self.reveal = true;
+        self.show_selection(cx);
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(true));
         cx.notify();
@@ -767,6 +789,7 @@ impl CanvasEditor {
         });
         self.render_due = true;
         self.selection = Selection::default();
+        self.show_selection(cx);
         self.schedule(cx);
     }
 
@@ -790,6 +813,7 @@ impl CanvasEditor {
         self.layout = layout;
         self.apply_source(source, Capture::Immediately, cx);
         self.selection = Selection::default();
+        self.show_selection(cx);
         self.connect_from = None;
     }
 
@@ -875,6 +899,7 @@ impl CanvasEditor {
         self.apply_source(source, Capture::Immediately, cx);
         self.selection = Selection::node(&canvas);
         self.reveal = true;
+        self.show_selection(cx);
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(true));
         cx.notify();
@@ -884,6 +909,7 @@ impl CanvasEditor {
     fn connect_to(&mut self, to: String, cx: &mut Context<Self>) {
         let Some(from) = self.connect_from.take() else {
             self.selection = Selection::node(&to);
+            self.show_selection(cx);
             self.connect_from = Some(to);
             cx.notify();
             return;
@@ -907,6 +933,7 @@ impl CanvasEditor {
         self.error = None;
         self.apply_source(next, Capture::Immediately, cx);
         self.selection = Selection::edge(&edge_id);
+        self.show_selection(cx);
     }
 
     /// Changes a connection's kind, rewriting its link text.
@@ -979,6 +1006,7 @@ impl CanvasEditor {
         self.tool = Tool::Select;
         self.connect_from = None;
         self.selection = Selection::default();
+        self.show_selection(cx);
         cx.notify();
     }
 
