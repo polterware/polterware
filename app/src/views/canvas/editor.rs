@@ -34,7 +34,7 @@ use gpui::{
     AnyElement, App, AppContext as _, Context, Entity, FocusHandle, IntoElement, KeyDownEvent,
     MouseButton, MouseDownEvent, Render, SharedString, Task, Window, div, point, prelude::*, px,
 };
-use polterware_mermaid::scene::Scene;
+use polterware_mermaid::scene::{Rect, Scene};
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
 use polterware_ui::canvas::{
     Capture, History, arrange_horizontally, canvas_dock, dock_group, dock_separator, zoom_level,
@@ -164,6 +164,12 @@ pub struct CanvasEditor {
     /// itself, and the frames left to wait for that.
     restore_viewport: Option<SceneViewport>,
     restore_waits: u8,
+    /// The diagram has never been fitted: it opens fitted to the whole drawing, and a canvas
+    /// with a saved viewport restores that instead.
+    fit_on_open: bool,
+    /// How many frames the opening fit may still be asked for. The view measures itself on the
+    /// frame it paints, so the wish outlives a frame that measured nothing.
+    fit_waits: u8,
     /// The pan and zoom the canvas was opened at, so leaving can tell whether it moved.
     opened_viewport: Option<SceneViewport>,
     history: History<String>,
@@ -308,6 +314,8 @@ impl CanvasEditor {
             view,
             restore_viewport: opened_viewport,
             restore_waits: RESTORE_FRAMES,
+            fit_on_open: opened_viewport.is_none(),
+            fit_waits: RESTORE_FRAMES,
             opened_viewport,
             history: History::new(100),
             tool: Tool::Select,
@@ -432,7 +440,9 @@ impl CanvasEditor {
         }
     }
 
-    /// Pans the selected node into the room the diagram has while the inspector is open.
+    /// Keeps the selected node in view in the room the diagram has while the inspector is
+    /// open: the whole drawing is fitted again when it fits, so no other node is pushed out,
+    /// and otherwise the view pans only as far as the node needs.
     fn reveal_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.reveal = false;
         let Some(id) = self.selection.nodes.first() else {
@@ -455,34 +465,18 @@ impl CanvasEditor {
         } else {
             self.inspector_panel.read(cx).width() + PANEL_INSET * 2.0
         };
-        let visible_width =
-            (f32::from(size.width) - theme.sidebar_width - library - inspector).max(1.0);
-        let visible_height =
+        let room = (
+            (f32::from(size.width) - theme.sidebar_width - library - inspector).max(1.0),
             (f32::from(size.height) - theme.titlebar_height - theme.page_header_height - 48.0)
-                .max(1.0);
-        let margin = 24.0;
-        let left = bx * current.zoom + current.x;
-        let top = by * current.zoom + current.y;
-        let right = left + bw * current.zoom;
-        let bottom = top + bh * current.zoom;
-        let dx = if right > visible_width - margin {
-            visible_width - margin - right
-        } else if left < margin {
-            margin - left
-        } else {
-            0.0
-        };
-        let dy = if bottom > visible_height - margin {
-            visible_height - margin - bottom
-        } else if top < theme.page_header_height + margin {
-            theme.page_header_height + margin - top
-        } else {
-            0.0
-        };
-        if dx.abs() < 0.5 && dy.abs() < 0.5 {
+                .max(1.0),
+        );
+        let focus = Rect::new(f64::from(bx), f64::from(by), f64::from(bw), f64::from(bh));
+        let view_box = self.view.read(cx).scene().view_box;
+        let Some(target) =
+            source::reveal_view(current, view_box, room, focus, source::REVEAL_MARGIN)
+        else {
             return;
-        }
-        let target = SceneViewport::new(current.x + dx, current.y + dy, current.zoom);
+        };
         self.apply_view(target, cx);
     }
 
@@ -1280,6 +1274,19 @@ impl CanvasEditor {
             self.draw(window, cx);
         }
         self.place_viewport(cx);
+        // A canvas opened without a saved viewport opens on the whole drawing, so a wide
+        // diagram does not open at 100% with its right-hand node cut off. The view fits
+        // itself against the room it measures when it paints, so the wish is repeated for a
+        // few frames in case the first one measured nothing.
+        if self.fit_on_open {
+            if self.fit_waits > 0 {
+                self.fit_waits -= 1;
+                self.view.update(cx, |view, cx| view.fit(cx));
+                cx.notify();
+            } else {
+                self.fit_on_open = false;
+            }
+        }
         // The view measures itself on its first paint, so the remembered pan and zoom waits
         // for the frame after it; asking for that frame, a few times at most, keeps the wish
         // from waiting forever.

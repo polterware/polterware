@@ -16,10 +16,14 @@ use std::collections::{HashMap, HashSet};
 use gpui::Rgba;
 use polterware_mermaid::DiagramKind;
 use polterware_mermaid::config::Config;
+use polterware_mermaid::diagrams::flowchart;
 use polterware_mermaid::error::{ParseError, RenderError};
-use polterware_mermaid::measure::{Font, TextMeasure};
+use polterware_mermaid::measure::{Font, TextMeasure, plain_text_block};
+use polterware_mermaid::render::edges::{EdgeData, insert_edge_label};
+use polterware_mermaid::render::markers::marker_placement;
 use polterware_mermaid::scene::{
-    Color, Group, Item, PathCommand, Point, Rect, Scene, SourceKind, TextRun, Transform,
+    Color, Group, Item, NORMAL_WEIGHT, PathCommand, PathStyle, Point, Rect, RectShape, Scene,
+    SourceKind, SourceRef, TextBaseline, TextRun, Transform,
 };
 use polterware_mermaid::theme::Theme as MermaidTheme;
 use polterware_ui::mermaid::SceneViewport;
@@ -29,6 +33,11 @@ use crate::canvas::catalog::component_of;
 
 /// How near an edge end has to be to a node's box to be read as that node's.
 const END_TOLERANCE: f64 = 0.75;
+/// The room kept around a selected node when the diagram is too large to fit the view.
+pub(super) const REVEAL_MARGIN: f32 = 24.0;
+/// How far past an edge's end its arrowhead reaches: Mermaid stops the line one head short of
+/// the node, so the end is that much further from the box than the tip it paints.
+const ARROW_REACH: f64 = 4.0;
 /// The room a scene keeps around its content when pins move nodes past the fitted view box.
 const REFIT_PADDING: f64 = 24.0;
 
@@ -46,6 +55,10 @@ const MERMAID_LINE: &str = "#333333";
 const MERMAID_LABEL_BACKGROUND: &str = "rgba(232,232,232, 0.8)";
 /// The dash a kind drawn as an external thing wears.
 const DASHED_STROKE: &str = "4 4";
+/// The width Mermaid draws a flowchart edge with (`edgePath`'s `stroke-width: 2px`).
+const EDGE_WIDTH: f64 = 2.0;
+/// The dash Mermaid gives a dashed flowchart edge (`stroke-dasharray: 3`).
+const EDGE_DASH: [f64; 2] = [3.0, 3.0];
 
 /// The colors the app draws a Mermaid scene with, built from its theme tokens.
 #[derive(Clone, Debug, PartialEq)]
@@ -513,10 +526,8 @@ pub(super) fn render(
         inner: measure,
         family: &palette.font_family,
     };
-    let mut scene = draw(&styled, &measure, palette)?;
-    apply_theme(&mut scene, palette);
-    apply_styles(&mut scene, &css_styles(&styled));
-    theme_fonts(&mut scene.items, palette);
+    let (mut scene, edges) = draw(&styled, &measure, palette)?;
+    paint_scene_theme(&mut scene, &styled, &edges, &measure, palette);
     center_labels(&mut scene.items);
     apply_pins(&mut scene, &pins_for(&styled, layout_json));
     Ok(scene)
@@ -529,16 +540,37 @@ pub(super) fn preview(source: &str, measure: &dyn TextMeasure, palette: &Palette
         inner: measure,
         family: &palette.font_family,
     };
-    let mut scene = draw(&styled, &measure, palette).ok()?;
-    apply_theme(&mut scene, palette);
-    apply_styles(&mut scene, &css_styles(&styled));
-    theme_fonts(&mut scene.items, palette);
+    let (mut scene, edges) = draw(&styled, &measure, palette).ok()?;
+    paint_scene_theme(&mut scene, &styled, &edges, &measure, palette);
     center_labels(&mut scene.items);
     Some(scene)
 }
 
+/// Puts the app's colors on a laid-out scene, its style lines over them, and finishes the
+/// edges the flowchart pipeline leaves to the stylesheet.
+fn paint_scene_theme(
+    scene: &mut Scene,
+    source: &str,
+    edges: &Edges,
+    measure: &dyn TextMeasure,
+    palette: &Palette,
+) {
+    apply_theme(scene, palette);
+    apply_styles(scene, &css_styles(source));
+    theme_fonts(&mut scene.items, palette);
+    paint_edges(scene, edges, measure, palette);
+}
+
 /// Lays a source out into a scene, as the renderer draws it, in the app's UI font.
-fn draw(source: &str, measure: &dyn TextMeasure, palette: &Palette) -> Result<Scene, RenderError> {
+///
+/// A flowchart keeps the layout's edges: the pipeline pushes their paths with the stylesheet's
+/// job undone (no stroke, no arrow ends, no label), so [`paint_edges`] completes them once the
+/// app's colors are on the scene.
+fn draw(
+    source: &str,
+    measure: &dyn TextMeasure,
+    palette: &Palette,
+) -> Result<(Scene, Edges), RenderError> {
     let preprocessed = polterware_mermaid::preprocess::preprocess(source);
     if let Some(message) = preprocessed.error {
         return Err(RenderError::Parse(ParseError::new(message, None)));
@@ -548,15 +580,205 @@ fn draw(source: &str, measure: &dyn TextMeasure, palette: &Palette) -> Result<Sc
     let mut config = Config::default();
     config.apply(&preprocessed.config)?;
     config.font_family = palette.font_family.clone();
-    let scene = match kind {
-        DiagramKind::Flowchart => polterware_mermaid::diagrams::flowchart::render::draw(
-            &preprocessed.body,
-            &config,
+    match kind {
+        DiagramKind::Flowchart => {
+            let ast = flowchart::parse(&preprocessed.body)?;
+            let (data, scene) = flowchart::render::draw_layout_ast(&ast, &config, measure)?;
+            let items = data
+                .edges
+                .iter()
+                .filter(|edge| edge.is_layout_only != Some(true))
+                .map(EdgePaint::new)
+                .collect();
+            let edges = Edges {
+                items,
+                font_size: config.font_size,
+            };
+            Ok((scene, edges))
+        }
+        other => Err(RenderError::Unsupported(format!("{other:?}"))),
+    }
+}
+
+/// The edges a flowchart laid out, and the label size the layout measured them with.
+#[derive(Clone, Debug, PartialEq)]
+struct Edges {
+    items: Vec<EdgePaint>,
+    font_size: f64,
+}
+
+/// What an edge needs that the flowchart pipeline leaves to the stylesheet: the line, its
+/// arrow ends, and its label.
+#[derive(Clone, Debug, PartialEq)]
+struct EdgePaint {
+    id: String,
+    label: Option<String>,
+    label_x: Option<f64>,
+    label_y: Option<f64>,
+    label_width: f64,
+    label_height: f64,
+    points: Vec<Point>,
+    arrow_start: Option<String>,
+    arrow_end: Option<String>,
+    /// A color a `linkStyle` line names; the theme's line color otherwise.
+    stroke: Option<String>,
+    dashed: bool,
+}
+
+impl EdgePaint {
+    fn new(edge: &polterware_mermaid::render::pipeline::types::Edge) -> Self {
+        Self {
+            id: edge.id.clone(),
+            label: edge
+                .label
+                .as_deref()
+                .map(polterware_mermaid::measure::decode_html_entities)
+                .filter(|label| !label.is_empty()),
+            label_x: edge.x,
+            label_y: edge.y,
+            label_width: edge.width.unwrap_or(0.0),
+            label_height: edge.height.unwrap_or(0.0),
+            points: edge.points.clone().unwrap_or_default(),
+            arrow_start: edge.arrow_type_start.clone(),
+            arrow_end: edge.arrow_type_end.clone(),
+            stroke: edge.stroke.clone(),
+            dashed: edge.pattern.as_deref() == Some("dashed"),
+        }
+    }
+}
+
+/// Gives each edge path its theme line and its arrow ends, then paints every edge's label.
+///
+/// The pipeline pushes one bare, unstyled [`Item::Path`] per layout edge, in edge order, so the
+/// path and its edge line up by position. The paths are filled with `currentColor` and have no
+/// stroke, and the painter draws a stroke only for a path that has one, so without this pass an
+/// edge paints as an empty black area: nothing at all.
+fn paint_edges(scene: &mut Scene, edges: &Edges, measure: &dyn TextMeasure, palette: &Palette) {
+    if edges.items.is_empty() {
+        return;
+    }
+    let mut index = 0;
+    for item in &mut scene.items {
+        let Item::Path(path) = item else {
+            continue;
+        };
+        let Some(edge) = edges.items.get(index) else {
+            break;
+        };
+        index += 1;
+        paint_edge_path(path, edge, palette);
+    }
+    let mut labels: Vec<Item> = Vec::new();
+    for edge in &edges.items {
+        paint_edge_label(
+            edge,
+            edge_stroke(edge, palette),
             measure,
-        )?,
-        other => return Err(RenderError::Unsupported(format!("{other:?}"))),
+            edges.font_size,
+            palette,
+            &mut labels,
+        );
+    }
+    scene.items.extend(labels);
+}
+
+/// The color an edge's line, arrow ends, and label wear.
+fn edge_stroke(edge: &EdgePaint, palette: &Palette) -> Color {
+    Color::new(edge.stroke.clone().unwrap_or_else(|| palette.line.clone()))
+}
+
+/// Puts an edge's line, its dash, and its arrow ends on its path.
+fn paint_edge_path(
+    path: &mut polterware_mermaid::scene::PathShape,
+    edge: &EdgePaint,
+    palette: &Palette,
+) {
+    let stroke = edge_stroke(edge, palette);
+    path.style = PathStyle::stroked(stroke.clone(), EDGE_WIDTH);
+    if edge.dashed {
+        path.style.dash = EDGE_DASH.to_vec();
+    }
+    path.source = Some(SourceRef::edge(edge.id.clone()));
+    let Ok(placement) = marker_placement(
+        edge.arrow_start
+            .as_deref()
+            .filter(|value| !value.is_empty()),
+        edge.arrow_end.as_deref().filter(|value| !value.is_empty()),
+        flowchart::layout_data::DEFAULT_DIAGRAM_ID,
+        flowchart::DIAGRAM_TYPE,
+        false,
+    ) else {
+        return;
     };
-    Ok(scene)
+    if let Some(marker) = placement.start {
+        path.start_markers.push(marker.with_color(stroke.clone()));
+    }
+    if let Some(marker) = placement.end {
+        path.end_markers.push(marker.with_color(stroke));
+    }
+}
+
+/// Paints an edge's label over its line, on the theme's label background.
+fn paint_edge_label(
+    edge: &EdgePaint,
+    stroke: Color,
+    measure: &dyn TextMeasure,
+    font_size: f64,
+    palette: &Palette,
+    labels: &mut Vec<Item>,
+) {
+    let Some(label) = edge.label.as_deref() else {
+        return;
+    };
+    let data = EdgeData {
+        id: edge.id.clone(),
+        points: edge.points.clone(),
+        label: Some(label.to_string()),
+        label_width: edge.label_width,
+        label_height: edge.label_height,
+        label_x: edge.label_x,
+        label_y: edge.label_y,
+        ..EdgeData::default()
+    };
+    let font = Font {
+        family: palette.font_family.clone(),
+        size: font_size,
+        weight: NORMAL_WEIGHT,
+        italic: false,
+    };
+    for placed in insert_edge_label(&data) {
+        let bounds = placed.position.bounds;
+        if bounds.width <= 0.0 || bounds.height <= 0.0 {
+            continue;
+        }
+        let source = SourceRef::edge(edge.id.clone());
+        let mut group = Group::new()
+            .with_class("edgeLabel")
+            .with_source(source.clone());
+        group.transform = Transform::translate(bounds.x, bounds.y);
+        if placed.background.is_some() {
+            group.push(RectShape::new(
+                Rect::new(0.0, 0.0, bounds.width, bounds.height),
+                0.0,
+                PathStyle {
+                    fill: Some(Color::new(palette.label_background.clone())),
+                    stroke: None,
+                    ..PathStyle::default()
+                },
+            ));
+        }
+        let block = plain_text_block(&placed.text, &font, measure);
+        let mut text = TextRun::centered(
+            Point::new(bounds.width / 2.0, bounds.height / 2.0),
+            font.clone(),
+            block,
+        );
+        text.baseline = TextBaseline::Middle;
+        text.fill = Some(stroke.clone());
+        text.source = Some(source);
+        group.push(Item::Text(text));
+        labels.push(Item::Group(group));
+    }
 }
 
 /// The pins the layout holds, by both the diagram id and the canvas id the source gives a node.
@@ -602,6 +824,54 @@ pub(super) fn viewport(layout_json: &str) -> Option<SceneViewport> {
     let (x, y, zoom) = (number("x")?, number("y")?, number("zoom")?);
     let (x, y, zoom) = (x as f32, y as f32, zoom as f32);
     (x.is_finite() && y.is_finite() && zoom.is_finite()).then(|| SceneViewport::new(x, y, zoom))
+}
+
+/// The pan and zoom a canvas takes so the selected node stays in the room it has.
+///
+/// A diagram that fits the room is fitted again: opening the inspector narrows the room, and a
+/// fit centers the whole drawing in what is left, so no other node leaves the view. A diagram
+/// too large for the room is panned as little as it takes to bring the node inside the margins.
+/// The view that is already right is `None`, so a click on a node that shows moves nothing.
+pub(super) fn reveal_view(
+    current: SceneViewport,
+    view_box: Rect,
+    room: (f32, f32),
+    focus: Rect,
+    margin: f32,
+) -> Option<SceneViewport> {
+    let (width, height) = room;
+    if !(width > 0.0 && height > 0.0) || current.zoom <= 0.0 {
+        return None;
+    }
+    let zoom = current.zoom;
+    let fits = view_box.width as f32 * zoom <= (width - margin * 2.0).max(1.0)
+        && view_box.height as f32 * zoom <= (height - margin * 2.0).max(1.0);
+    if fits {
+        let fitted = SceneViewport::fit(view_box, width, height, margin);
+        return (fitted != current).then_some(fitted);
+    }
+    let left = focus.x as f32 * zoom + current.x;
+    let top = focus.y as f32 * zoom + current.y;
+    let right = left + focus.width as f32 * zoom;
+    let bottom = top + focus.height as f32 * zoom;
+    let dx = if right > width - margin {
+        width - margin - right
+    } else if left < margin {
+        margin - left
+    } else {
+        0.0
+    };
+    let dy = if bottom > height - margin {
+        height - margin - bottom
+    } else if top < margin {
+        margin - top
+    } else {
+        0.0
+    };
+    if dx.abs() < 0.5 && dy.abs() < 0.5 {
+        return None;
+    }
+    Some(SceneViewport::new(current.x + dx, current.y + dy, zoom))
 }
 
 /// `layout_json` with `viewport` written in, keeping every node's pin and every other field.
@@ -1165,11 +1435,19 @@ fn shift_edge_paths(
                 let Some(source) = path.source.as_ref() else {
                     continue;
                 };
-                for command in &mut path.path.commands {
+                // Mermaid stops a line one arrowhead short of the node it points at, so an
+                // edge's ends are tested at the arrow's own reach, not against the line only.
+                let last = path.path.commands.len().saturating_sub(1);
+                for (index, command) in path.path.commands.iter_mut().enumerate() {
                     let Some(point) = command_end(command) else {
                         continue;
                     };
-                    let Some(delta) = touching(&point, boxes, deltas) else {
+                    let reach = if index == 0 || index == last {
+                        ARROW_REACH
+                    } else {
+                        0.0
+                    };
+                    let Some(delta) = touching(&point, boxes, deltas, reach) else {
                         continue;
                     };
                     shift_command(command, delta);
@@ -1217,17 +1495,18 @@ fn is_edge(source: Option<&polterware_mermaid::scene::SourceRef>) -> bool {
     source.is_some_and(|source| source.kind == SourceKind::Edge)
 }
 
-/// The pinned node whose box holds `point`, and how far that node moved.
+/// The pinned node whose box holds `point` within `reach`, and how far that node moved.
 fn touching(
     point: &Point,
     boxes: &HashMap<String, Rect>,
     deltas: &HashMap<String, Point>,
+    reach: f64,
 ) -> Option<Point> {
     boxes.iter().find_map(|(id, rect)| {
         let delta = deltas.get(id)?;
         let dx = (rect.x - point.x).max(point.x - rect.right()).max(0.0);
         let dy = (rect.y - point.y).max(point.y - rect.bottom()).max(0.0);
-        (dx.hypot(dy) <= END_TOLERANCE).then_some(*delta)
+        (dx.hypot(dy) <= END_TOLERANCE + reach).then_some(*delta)
     })
 }
 
@@ -1611,6 +1890,250 @@ mod tests {
             }
         }
         None
+    }
+
+    /// The canvas the report was filed with: two nodes and one labelled edge.
+    const REPORTED: &str = "flowchart LR\n  api[\"Orders API\"]@{ kind: service, shape: rounded }\n  db[\"Orders DB\"]@{ kind: database, shape: cyl }\n  api -->|writes| db\n";
+
+    #[test]
+    fn a_reported_canvas_paints_its_edge_line_arrow_and_label() {
+        let palette = test_palette();
+        let scene = render(REPORTED, "{}", &FallbackMeasure, &palette).expect("a scene");
+        let path = first_edge(&scene).expect("an edge path");
+        let stroke = path.style.stroke.as_ref().expect("the edge has no stroke");
+        assert_ne!(stroke.0, "none", "the edge paints nothing");
+        assert_ne!(stroke.0, "transparent", "the edge paints nothing");
+        assert_eq!(stroke.0, palette.line, "the edge is not the theme's line");
+        assert_eq!(
+            path.style.fill, None,
+            "an edge is a line, not a filled area"
+        );
+        assert!(path.style.stroke_width > 0.0);
+        assert_eq!(
+            path.end_markers.first().map(|marker| marker.def.as_str()),
+            Some("mermaid_flowchart-v2-pointEnd"),
+            "the edge has no arrowhead"
+        );
+        assert!(
+            scene.marker_def("mermaid_flowchart-v2-pointEnd").is_some(),
+            "the arrowhead is not defined for the painter"
+        );
+        assert!(
+            edge_label(&scene, "writes").is_some(),
+            "the edge label is missing"
+        );
+
+        // The ends touch both boxes: the line starts on the tail's box and stops one arrowhead
+        // short of the target, where the head's tip lands.
+        let (start, end) = edge_ends(path);
+        let api = node_rect(&scene, "api");
+        let db = node_rect(&scene, "db");
+        assert!(
+            gap(api, start) <= END_TOLERANCE,
+            "the start {start:?} is not on {api:?}"
+        );
+        assert!(
+            gap(db, arrow_tip(path)) <= END_TOLERANCE,
+            "the arrowhead does not reach {db:?}"
+        );
+        assert!(gap(db, end) <= ARROW_REACH + END_TOLERANCE);
+    }
+
+    #[test]
+    fn a_pinned_node_takes_its_edge_and_its_label_with_it() {
+        let palette = test_palette();
+        let unpinned = render(REPORTED, "{}", &FallbackMeasure, &palette).expect("a scene");
+        let layout = r#"{"nodes":{"db":{"x":400,"y":120,"pinned":true}}}"#;
+        let scene = render(REPORTED, layout, &FallbackMeasure, &palette).expect("a scene");
+
+        let db = node_rect(&scene, "db");
+        assert!((db.x - 400.0).abs() < 0.5, "the node did not pin: {db:?}");
+        assert!((db.y - 120.0).abs() < 0.5, "the node did not pin: {db:?}");
+        let path = first_edge(&scene).expect("an edge path");
+        assert!(
+            gap(db, arrow_tip(path)) <= END_TOLERANCE,
+            "the arrowhead stayed behind, {} from the pinned node",
+            gap(db, arrow_tip(path))
+        );
+        let api = node_rect(&scene, "api");
+        assert!(
+            gap(api, edge_ends(path).0) <= END_TOLERANCE,
+            "the tail left the node that stayed"
+        );
+        let before = edge_label(&unpinned, "writes").expect("the label");
+        let after = edge_label(&scene, "writes").expect("the label");
+        assert!(
+            after.0 > before.0 + 1.0,
+            "the label did not follow the edge: {} -> {}",
+            before.0,
+            after.0
+        );
+    }
+
+    #[test]
+    fn a_fitting_diagram_is_fitted_again_when_the_room_narrows() {
+        let source = "flowchart LR\n  api[\"Orders API\"]@{ kind: service }\n  db[\"Orders DB\"]@{ kind: database }\n  ui[\"Storefront\"]@{ kind: frontend }\n";
+        let scene = render(source, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
+        let view_box = scene.view_box;
+        let wide = (
+            view_box.width as f32 + 400.0,
+            view_box.height as f32 + 200.0,
+        );
+        let narrow = (view_box.width as f32 + 80.0, view_box.height as f32 + 160.0);
+        let opened = SceneViewport::fit(view_box, wide.0, wide.1, REVEAL_MARGIN);
+        let focus = node_rect(&scene, "ui");
+        let target = reveal_view(opened, view_box, narrow, focus, REVEAL_MARGIN)
+            .expect("the narrower room refits the diagram");
+
+        for id in ["api", "db", "ui"] {
+            let rect = node_rect(&scene, id);
+            let left = rect.x as f32 * target.zoom + target.x;
+            let right = left + rect.width as f32 * target.zoom;
+            let top = rect.y as f32 * target.zoom + target.y;
+            let bottom = top + rect.height as f32 * target.zoom;
+            assert!(
+                left >= 0.0 && right <= narrow.0 && top >= 0.0 && bottom <= narrow.1,
+                "{id} is outside the room: {left}..{right} x {top}..{bottom}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_diagram_too_large_for_the_room_pans_only_to_the_selected_node() {
+        let view_box = Rect::new(0.0, 0.0, 1200.0, 200.0);
+        let room = (600.0, 400.0);
+        let focus = Rect::new(1000.0, 20.0, 100.0, 40.0);
+        let current = SceneViewport::new(0.0, 0.0, 2.0);
+        let target = reveal_view(current, view_box, room, focus, REVEAL_MARGIN)
+            .expect("the selected node is panned into the room");
+        assert_eq!(target.zoom, current.zoom, "a pan must not zoom");
+        assert!(
+            (target.x - (room.0 - REVEAL_MARGIN - 1200.0 * 2.0)).abs() > 1.0,
+            "the pan should stop at the node, not at the drawing's edge"
+        );
+        let right = (focus.x + focus.width) as f32 * target.zoom + target.x;
+        assert!(
+            (right - (room.0 - REVEAL_MARGIN)).abs() < 0.5,
+            "the node did not stop at the margin: {right}"
+        );
+        assert!(
+            reveal_view(target, view_box, room, focus, REVEAL_MARGIN).is_none(),
+            "a node already in the room moves nothing"
+        );
+    }
+
+    #[test]
+    fn a_diagram_that_already_fits_where_it_is_keeps_its_view() {
+        let view_box = Rect::new(0.0, 0.0, 200.0, 100.0);
+        let room = (400.0, 300.0);
+        let focus = Rect::new(20.0, 20.0, 80.0, 40.0);
+        let fitted = SceneViewport::fit(view_box, room.0, room.1, REVEAL_MARGIN);
+        assert!(
+            reveal_view(fitted, view_box, room, focus, REVEAL_MARGIN).is_none(),
+            "a fitted diagram was moved again"
+        );
+    }
+
+    /// The first edge path of a scene, which the painter draws a line and arrowheads from.
+    fn first_edge(scene: &Scene) -> Option<&polterware_mermaid::scene::PathShape> {
+        scene.items.iter().find_map(|item| match item {
+            Item::Path(path) if is_edge(path.source.as_ref()) => Some(path),
+            _ => None,
+        })
+    }
+
+    /// The place an edge's label paints, by its text: its box's left and top.
+    fn edge_label(scene: &Scene, text: &str) -> Option<(f64, f64)> {
+        fn find(items: &[Item], text: &str) -> Option<(f64, f64)> {
+            for item in items {
+                match item {
+                    Item::Group(group) => {
+                        let labels = group
+                            .class
+                            .as_deref()
+                            .is_some_and(|classes| classes.contains("edgeLabel"));
+                        if labels && let Some((left, top)) = label_text(&group.items, text) {
+                            return Some((group.transform.e + left, group.transform.f + top));
+                        }
+                        if let Some(found) = find(&group.items, text) {
+                            return Some(found);
+                        }
+                    }
+                    Item::Text(run) if run.lines.iter().any(|line| line.text() == text) => {
+                        return Some((run.position.x, run.position.y));
+                    }
+                    _ => {}
+                }
+            }
+            None
+        }
+        find(&scene.items, text)
+    }
+
+    fn label_text(items: &[Item], text: &str) -> Option<(f64, f64)> {
+        items.iter().find_map(|item| match item {
+            Item::Text(run) if run.lines.iter().any(|line| line.text() == text) => {
+                Some((run.position.x, run.position.y))
+            }
+            _ => None,
+        })
+    }
+
+    /// The first and last points an edge path ends at.
+    fn edge_ends(path: &polterware_mermaid::scene::PathShape) -> (Point, Point) {
+        let start = path
+            .path
+            .commands
+            .first()
+            .and_then(command_end)
+            .expect("an edge has a start");
+        let end = path
+            .path
+            .commands
+            .iter()
+            .rev()
+            .find_map(command_end)
+            .expect("an edge has an end");
+        (start, end)
+    }
+
+    /// Where an edge's arrowhead tip lands: one head past its end, along the line.
+    fn arrow_tip(path: &polterware_mermaid::scene::PathShape) -> Point {
+        let commands = &path.path.commands;
+        let end = commands.iter().rev().find_map(command_end).expect("an end");
+        let before = commands
+            .iter()
+            .rev()
+            .filter_map(command_end)
+            .find(|point| *point != end)
+            .unwrap_or(end);
+        let dx = end.x - before.x;
+        let dy = end.y - before.y;
+        let length = dx.hypot(dy);
+        if length < 1e-9 {
+            return end;
+        }
+        Point::new(
+            end.x + dx / length * ARROW_REACH,
+            end.y + dy / length * ARROW_REACH,
+        )
+    }
+
+    fn node_rect(scene: &Scene, id: &str) -> Rect {
+        let (x, y, width, height) = node_box(scene, id);
+        Rect::new(
+            f64::from(x),
+            f64::from(y),
+            f64::from(width),
+            f64::from(height),
+        )
+    }
+
+    /// How far a point sits from a box, zero inside it.
+    fn gap(rect: Rect, point: Point) -> f64 {
+        let dx = (rect.x - point.x).max(point.x - rect.right()).max(0.0);
+        let dy = (rect.y - point.y).max(point.y - rect.bottom()).max(0.0);
+        dx.hypot(dy)
     }
 
     #[test]
