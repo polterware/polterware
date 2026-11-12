@@ -658,6 +658,58 @@ impl AppState {
         }
     }
 
+    /// Moves picked cards to `stage` through `board_move`'s rules: a pick that only moves cards
+    /// back, or leaves them, is one write, while a pick that moves any card forward takes each
+    /// card through its column's gate, so a refused one stays where it was and toasts the
+    /// gate's lines. `done` hears whether every card moved.
+    pub fn board_move_cards(
+        &mut self,
+        slugs: Vec<String>,
+        stage: Stage,
+        done: impl FnOnce(bool, &mut App) + 'static,
+        cx: &mut Context<Self>,
+    ) {
+        let forward = match &self.work {
+            Load::Ready(work) => slugs.iter().any(|slug| {
+                work.card(slug)
+                    .is_some_and(|card| stage.index() > Stage::of(card).index())
+            }),
+            _ => false,
+        };
+        if !forward {
+            return self.set_cards_stage(slugs, stage, String::new(), done, cx);
+        }
+        self.board_move_each(slugs, stage, true, done, cx);
+    }
+
+    /// Moves the cards of a pick one at a time, so each forward move runs its own gate.
+    fn board_move_each<F>(
+        &mut self,
+        slugs: Vec<String>,
+        stage: Stage,
+        moved: bool,
+        done: F,
+        cx: &mut Context<Self>,
+    ) where
+        F: FnOnce(bool, &mut App) + 'static,
+    {
+        let Some((slug, rest)) = slugs.split_first() else {
+            return done(moved, cx);
+        };
+        let (slug, rest) = (slug.clone(), rest.to_vec());
+        let state = cx.entity().downgrade();
+        self.board_move(
+            slug,
+            stage,
+            move |ok, cx| {
+                let _ = state.update(cx, |state, cx| {
+                    state.board_move_each(rest, stage, moved && ok, done, cx);
+                });
+            },
+            cx,
+        );
+    }
+
     /// Passes the open card's `step` gate for a board move: a refusal stays as a toast.
     fn gate_card(
         &mut self,
