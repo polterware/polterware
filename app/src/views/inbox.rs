@@ -23,9 +23,10 @@ use polterware_ui::filter_popover::{FilterField, FilterPopover, FiltersChanged};
 use polterware_ui::icon_tile::{IconTile, TileTone};
 use polterware_ui::icons::Icon;
 use polterware_ui::menu::MenuItem;
+use polterware_ui::patterns::dialog::{Dialog, DialogSize, dialog};
 use polterware_ui::patterns::{
-    ContextMenu, DetailPanel, MascotMood, Morph, MorphAlign, detail_numbered_list,
-    detail_properties, detail_property, detail_section, detail_text, page_empty, page_empty_with,
+    ContextMenu, MascotMood, Morph, MorphAlign, detail_numbered_list, detail_properties,
+    detail_property, detail_section, detail_text, modal_layer, page_empty, page_empty_with,
     selection_toolbar,
 };
 use polterware_ui::radio_group::{RadioOption, radio_group};
@@ -34,6 +35,7 @@ use polterware_ui::theme::{StatusTone, Theme, tw};
 use polterware_ui::window::window_drag::WindowDragRegion;
 
 use crate::contracts::InboxItem;
+use crate::format::{ago, now_seconds};
 use crate::state::{
     ACTION_DECIDE, ACTION_DEFER, ACTION_DELEGATE, ACTION_DISMISS, AppState, INBOX_KINDS, Load,
     inbox_order,
@@ -41,8 +43,6 @@ use crate::state::{
 use crate::views::core_status::core_status;
 use crate::views::scope::{ScopeFilter, set_page_fields};
 
-/// The room the floating detail keeps beside the list: its 400px and its 8px inset.
-const DETAIL_SPACE: f32 = 408.0;
 /// `.pw-data-table-scroll`'s padding-inline.
 const TABLE_INSET: f32 = 12.0;
 /// The StatusChip's radius on the web.
@@ -155,6 +155,67 @@ fn status_id(item: &InboxItem) -> &'static str {
     } else {
         "open"
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InboxCol {
+    Item,
+    Type,
+    Where,
+    Actor,
+    Updated,
+    Status,
+}
+
+fn item_actor(item: &InboxItem) -> Option<&str> {
+    for key in ["agent", "actor", "author", "raised_by", "who"] {
+        if let Some(val) = item.details.get(key).filter(|s| !s.is_empty()) {
+            return Some(val.as_str());
+        }
+    }
+    if item.kind != "deploy" && item.kind != "setup" && !item.source.is_empty() {
+        return Some(item.source.as_str());
+    }
+    None
+}
+
+fn item_time(item: &InboxItem) -> Option<&str> {
+    for key in [
+        "updated_at",
+        "created_at",
+        "checked_at",
+        "time",
+        "age",
+        "date",
+    ] {
+        if let Some(val) = item.details.get(key).filter(|s| !s.is_empty()) {
+            return Some(val.as_str());
+        }
+    }
+    None
+}
+
+fn item_time_formatted(item: &InboxItem) -> String {
+    if let Some(raw) = item_time(item) {
+        ago(raw, now_seconds())
+    } else {
+        "\u{2014}".to_string()
+    }
+}
+
+pub fn active_columns_for(items: &[InboxItem]) -> Vec<InboxCol> {
+    let mut cols = vec![InboxCol::Item, InboxCol::Type];
+    if items.iter().any(|item| !item.r#where.is_empty()) {
+        cols.push(InboxCol::Where);
+    }
+    if items.iter().any(|item| item_actor(item).is_some()) {
+        cols.push(InboxCol::Actor);
+    }
+    if items.iter().any(|item| item_time(item).is_some()) {
+        cols.push(InboxCol::Updated);
+    }
+    cols.push(InboxCol::Status);
+    cols
 }
 
 pub struct InboxView {
@@ -273,7 +334,7 @@ impl InboxView {
     }
 
     /// The items on show, in display order: grouped by kind, open before Later, searched and
-    /// filtered, and sorted by status inside each group when Status sorts.
+    /// filtered, and sorted inside each group when a sortable column sorts.
     fn visible(&self, items: &[InboxItem], cx: &App) -> Vec<InboxItem> {
         let needle = self.query.trim().to_lowercase();
         let filters = self.filters.read(cx).filters();
@@ -283,6 +344,7 @@ impl InboxView {
                 needle.is_empty()
                     || item.title.to_lowercase().contains(&needle)
                     || item.detail.to_lowercase().contains(&needle)
+                    || item.r#where.to_lowercase().contains(&needle)
             })
             .filter(|item| {
                 filters.matches(|field| match field {
@@ -293,18 +355,28 @@ impl InboxView {
             })
             .cloned()
             .collect();
-        if let Some((1, direction)) = self.sort {
-            let group =
-                |item: &InboxItem| INBOX_KINDS.iter().position(|(kind, ..)| *kind == item.kind);
-            rows.sort_by(|a, b| {
-                group(a).cmp(&group(b)).then_with(|| {
-                    let order = status_sort_label(a).cmp(&status_sort_label(b));
-                    match direction {
-                        SortDirection::Ascending => order,
-                        SortDirection::Descending => order.reverse(),
-                    }
-                })
-            });
+        let cols = active_columns_for(&rows);
+        if let Some((col_idx, direction)) = self.sort {
+            if let Some(&col) = cols.get(col_idx) {
+                let group =
+                    |item: &InboxItem| INBOX_KINDS.iter().position(|(kind, ..)| *kind == item.kind);
+                rows.sort_by(|a, b| {
+                    group(a).cmp(&group(b)).then_with(|| {
+                        let order = match col {
+                            InboxCol::Item => a.title.to_lowercase().cmp(&b.title.to_lowercase()),
+                            InboxCol::Type => kind_label(&a.kind).cmp(kind_label(&b.kind)),
+                            InboxCol::Where => a.r#where.cmp(&b.r#where),
+                            InboxCol::Actor => item_actor(a).cmp(&item_actor(b)),
+                            InboxCol::Updated => item_time(a).cmp(&item_time(b)),
+                            InboxCol::Status => status_sort_label(a).cmp(&status_sort_label(b)),
+                        };
+                        match direction {
+                            SortDirection::Ascending => order,
+                            SortDirection::Descending => order.reverse(),
+                        }
+                    })
+                });
+            }
         }
         rows
     }
@@ -552,11 +624,18 @@ impl Render for InboxView {
             }
         };
 
-        let detail = active.as_ref().filter(|_| shows_detail).map(|item| {
-            self.detail(item, confirm.as_deref(), pending, window, cx)
-                .into_any_element()
+        let close_state = self.state.clone();
+        let close: polterware_ui::Handler = Rc::new(move |_, cx: &mut App| {
+            close_state.update(cx, |state, cx| {
+                state.close_inbox_detail();
+                cx.notify();
+            });
         });
-        let has_detail = detail.is_some();
+        let dialog = active.as_ref().filter(|_| shows_detail).map(|item| {
+            let item_dlg =
+                self.item_dialog(item, confirm.as_deref(), pending, close.clone(), window, cx);
+            modal_layer(1.0, true, close, item_dlg, &theme)
+        });
 
         let keys_visible = visible.clone();
         div()
@@ -589,20 +668,9 @@ impl Render for InboxView {
                     .flex_1()
                     .min_h(px(0.0))
                     .flex()
-                    .child(div().flex_1().min_w(px(0.0)).h_full().child(list))
-                    .when(has_detail, |body| {
-                        body.child(div().flex_none().w(px(DETAIL_SPACE)))
-                    }),
+                    .child(div().flex_1().min_w(px(0.0)).h_full().child(list)),
             )
-            .children(detail.map(|detail| {
-                div()
-                    .absolute()
-                    .top(px(theme.page_header_height))
-                    .left_0()
-                    .right_0()
-                    .bottom_0()
-                    .child(detail)
-            }))
+            .children(dialog)
             .child(self.menu.clone())
     }
 }
@@ -666,50 +734,46 @@ impl InboxView {
         )
     }
 
-    /// `InboxItemDetail`: what the item is, where it came from, and its actions.
-    fn detail(
+    /// `InboxItemDetail`: what the item is, where it came from, and its actions, in a dialog.
+    fn item_dialog(
         &self,
         item: &InboxItem,
         confirm: Option<&str>,
         pending: bool,
+        close: polterware_ui::Handler,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) -> DetailPanel {
+    ) -> Dialog {
         let (status, tone) = status_of(item);
-        let close_state = self.state.clone();
-        let mut panel = DetailPanel::new("inbox-detail", item.title.clone())
-            .aside(chip_rounded(
+        let (_, _, _, icon) = kind_entry(&item.kind);
+        let tile_tone = if item.blocking && item.state == "open" {
+            TileTone::Security
+        } else {
+            TileTone::Neutral
+        };
+        let leading = IconTile::new(icon).size(24.0, 14.0).tone(tile_tone);
+
+        let chips = div()
+            .flex()
+            .items_center()
+            .gap(px(6.0))
+            .child(chip_rounded(
                 kind_label(&item.kind),
                 StatusTone::Muted,
                 CHIP_RADIUS,
                 cx,
             ))
-            .aside(chip_rounded(status, tone, CHIP_RADIUS, cx))
-            .on_close(Rc::new(move |_, cx: &mut App| {
-                close_state.update(cx, |state, cx| {
-                    state.close_inbox_detail();
-                    cx.notify();
-                });
-            }))
-            .on_outside_click({
-                // A click on a row opened or picked one; any other click outside closes.
-                let state = self.state.clone();
-                let presses = state.read(cx).inbox_row_presses();
-                Rc::new(move |_, cx: &mut App| {
-                    state.update(cx, |state, cx| {
-                        if state.inbox_row_presses() == presses && state.inbox_detail_open() {
-                            state.close_inbox_detail();
-                            cx.notify();
-                        }
-                    });
-                })
-            });
+            .child(chip_rounded(status, tone, CHIP_RADIUS, cx));
+
         let detail = |key: &str| {
             item.details
                 .get(key)
                 .filter(|value| !value.is_empty())
                 .cloned()
         };
+
+        let mut sections: Vec<AnyElement> = Vec::new();
+
         if item.kind == "conflict" && (detail("rule").is_some() || detail("decision").is_some()) {
             let mut rows = Vec::new();
             if let Some(rule) = detail("rule") {
@@ -722,13 +786,17 @@ impl InboxView {
                     cx,
                 ));
             }
-            panel = panel.section(detail_section(
-                "Goes against",
-                Icon::AlertDiamond,
-                detail_properties(rows),
-                cx,
-            ));
+            sections.push(
+                detail_section(
+                    "Goes against",
+                    Icon::AlertDiamond,
+                    detail_properties(rows),
+                    cx,
+                )
+                .into_any_element(),
+            );
         }
+
         if item.kind == "deploy" && (detail("url").is_some() || detail("dashboard").is_some()) {
             let mut links = div().flex().flex_wrap().gap(px(8.0));
             if let Some(url) = detail("url") {
@@ -752,24 +820,33 @@ impl InboxView {
                         .on_click(move |_, cx| cx.open_url(&url)),
                 );
             }
-            panel = panel.section(detail_section("Deploy", Icon::Cloud, links, cx));
+            sections.push(detail_section("Deploy", Icon::Cloud, links, cx).into_any_element());
         }
+
         if !item.detail.is_empty() && item.kind != "conflict" {
-            panel = panel.section(detail_section(
-                "Detail",
-                Icon::FileText,
-                detail_text(item.detail.clone(), cx),
-                cx,
-            ));
+            sections.push(
+                detail_section(
+                    "Detail",
+                    Icon::FileText,
+                    detail_text(item.detail.clone(), cx),
+                    cx,
+                )
+                .into_any_element(),
+            );
         }
+
         if !item.options.is_empty() {
-            panel = panel.section(detail_section(
-                "Options",
-                Icon::ListFilter,
-                detail_numbered_list(item.options.iter().cloned(), cx),
-                cx,
-            ));
+            sections.push(
+                detail_section(
+                    "Options",
+                    Icon::ListFilter,
+                    detail_numbered_list(item.options.iter().cloned(), cx),
+                    cx,
+                )
+                .into_any_element(),
+            );
         }
+
         let mut context = Vec::new();
         if !item.r#where.is_empty() {
             context.push(detail_property(
@@ -785,24 +862,37 @@ impl InboxView {
                 cx,
             ));
         }
-        panel = panel.section(detail_section(
-            "Context",
-            Icon::Network,
-            detail_properties(context),
-            cx,
-        ));
+        if !context.is_empty() {
+            sections.push(
+                detail_section("Context", Icon::Network, detail_properties(context), cx)
+                    .into_any_element(),
+            );
+        }
 
+        let mut footer = Vec::new();
         if !item.actions.is_empty() {
             let count = item.actions.len();
-            let mut footer = div().w_full().flex().items_center().gap(px(6.0));
             for (index, action) in item.actions.iter().enumerate() {
-                footer = footer.child(
-                    self.action_morph(item, action, index, count, confirm, pending, window, cx),
+                footer.push(
+                    self.action_morph(item, action, index, count, confirm, pending, window, cx)
+                        .into_any_element(),
                 );
             }
-            panel = panel.footer(footer);
         }
-        panel
+
+        let body = div()
+            .flex()
+            .flex_col()
+            .gap(px(20.0))
+            .child(chips)
+            .children(sections);
+
+        dialog(item.title.clone(), 1.0)
+            .size(DialogSize::Md)
+            .title_leading(leading)
+            .on_close(close)
+            .footer(footer)
+            .child(body)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -850,7 +940,6 @@ impl InboxView {
             trigger,
             title,
         )
-        .grow()
         .align(align)
         .open(confirm == Some(action), move |open, _, cx| {
             let action = open.then(|| open_action.clone());
@@ -957,8 +1046,8 @@ impl InboxView {
     }
 }
 
-/// The Inbox `DataTable`: the selection column, Item (the kind's tile and the title), and
-/// Status (112px, sorting), grouped by kind.
+/// The Inbox `DataTable`: the selection column, Item (the kind's tile and the title),
+/// Type, Where, Raised by, Updated, and Status, grouped by kind.
 fn inbox_table(
     rows: Rc<Vec<InboxItem>>,
     active: &Option<InboxItem>,
@@ -966,10 +1055,18 @@ fn inbox_table(
     view: &InboxView,
     cx: &mut Context<InboxView>,
 ) -> DataTable {
-    let columns = vec![
-        Column::new("Item").shrinks(),
-        Column::new("Status").width(112.0).sortable(),
-    ];
+    let cols = active_columns_for(&rows);
+    let columns: Vec<Column> = cols
+        .iter()
+        .map(|col| match col {
+            InboxCol::Item => Column::new("Item").sortable().shrinks(),
+            InboxCol::Type => Column::new("Type").sortable(),
+            InboxCol::Where => Column::new("Where").sortable(),
+            InboxCol::Actor => Column::new("Raised by").sortable(),
+            InboxCol::Updated => Column::new("Updated").sortable(),
+            InboxCol::Status => Column::new("Status").width(112.0).sortable(),
+        })
+        .collect();
     let mut groups = Vec::new();
     let mut start = 0;
     for (kind, label, _, icon) in INBOX_KINDS {
@@ -994,6 +1091,7 @@ fn inbox_table(
     let theme = *Theme::global(cx);
     let font = sans(&theme, FontWeight::MEDIUM);
     let cells = rows.clone();
+    let cell_cols = cols.clone();
     let entity = cx.entity();
     let activate = entity.clone();
     let opened = rows.clone();
@@ -1003,45 +1101,126 @@ fn inbox_table(
     let menu_rows = rows.clone();
     let sorted = entity.clone();
     let measured = rows.clone();
+    let measure_cols = cols.clone();
     DataTable::new("inbox", columns, rows.len(), move |row, _window, cx| {
         let theme = *Theme::global(cx);
         let item = &cells[row.index];
-        let (_, _, _, icon) = kind_entry(&item.kind);
-        let tone = if item.blocking && item.state == "open" {
-            TileTone::Security
-        } else {
-            TileTone::Neutral
-        };
-        let title = primary_cell_ink(
-            IconTile::new(icon).size(24.0, 14.0).tone(tone),
-            SharedString::from(item.title.clone()),
-            font.clone(),
-            if item.state == "deferred" {
-                theme.color_text_muted
-            } else {
-                theme.color_text_primary
-            },
-            None,
-        );
-        let (status, tone) = status_of(item);
-        vec![
-            title,
-            chip_rounded(status, tone, CHIP_RADIUS, cx).into_any_element(),
-        ]
+        let mut row_cells: Vec<AnyElement> = Vec::with_capacity(cell_cols.len());
+        for col in &cell_cols {
+            let el = match col {
+                InboxCol::Item => {
+                    let (_, _, _, icon) = kind_entry(&item.kind);
+                    let tone = if item.blocking && item.state == "open" {
+                        TileTone::Security
+                    } else {
+                        TileTone::Neutral
+                    };
+                    primary_cell_ink(
+                        IconTile::new(icon).size(24.0, 14.0).tone(tone),
+                        SharedString::from(item.title.clone()),
+                        font.clone(),
+                        if item.state == "deferred" {
+                            theme.color_text_muted
+                        } else {
+                            theme.color_text_primary
+                        },
+                        None,
+                    )
+                }
+                InboxCol::Type => div()
+                    .text_size(px(12.5))
+                    .text_color(theme.color_text_muted)
+                    .whitespace_nowrap()
+                    .child(kind_label(&item.kind))
+                    .into_any_element(),
+                InboxCol::Where => {
+                    let text: SharedString = if item.r#where.is_empty() {
+                        "\u{2014}".into()
+                    } else {
+                        item.r#where.clone().into()
+                    };
+                    div()
+                        .text_size(px(12.5))
+                        .text_color(if item.r#where.is_empty() {
+                            theme.color_text_muted
+                        } else {
+                            theme.color_text_secondary
+                        })
+                        .whitespace_nowrap()
+                        .child(text)
+                        .into_any_element()
+                }
+                InboxCol::Actor => {
+                    let actor = item_actor(item);
+                    let text: SharedString = actor.unwrap_or("\u{2014}").into();
+                    div()
+                        .text_size(px(12.5))
+                        .text_color(if actor.is_none() {
+                            theme.color_text_muted
+                        } else {
+                            theme.color_text_secondary
+                        })
+                        .whitespace_nowrap()
+                        .child(text)
+                        .into_any_element()
+                }
+                InboxCol::Updated => {
+                    let time = item_time_formatted(item);
+                    div()
+                        .text_size(px(12.5))
+                        .text_color(theme.color_text_muted)
+                        .whitespace_nowrap()
+                        .child(time)
+                        .into_any_element()
+                }
+                InboxCol::Status => {
+                    let (status, tone) = status_of(item);
+                    chip_rounded(status, tone, CHIP_RADIUS, cx).into_any_element()
+                }
+            };
+            row_cells.push(el);
+        }
+        row_cells
     })
     .measure(move |range, window, cx| {
         let theme = *Theme::global(cx);
         let medium = sans(&theme, FontWeight::MEDIUM);
-        let mut widest = [0.0_f32; 2];
+        let normal = sans(&theme, FontWeight::NORMAL);
+        let mut widest = vec![0.0_f32; measure_cols.len()];
         for item in measured.get(range).unwrap_or_default() {
-            let title = 24.0 + 10.0 + text_width(&item.title, medium.clone(), 12.5, window);
-            // The chip: its 1px frame and 9px padding each side around 11px/500 text.
-            let (status, _) = status_of(item);
-            let chip = 2.0 * 10.0 + text_width(status, medium.clone(), 11.0, window);
-            widest[0] = widest[0].max(title);
-            widest[1] = widest[1].max(chip);
+            for (idx, col) in measure_cols.iter().enumerate() {
+                let w = match col {
+                    InboxCol::Item => {
+                        24.0 + 10.0 + text_width(&item.title, medium.clone(), 12.5, window)
+                    }
+                    InboxCol::Type => {
+                        text_width(kind_label(&item.kind), normal.clone(), 12.5, window)
+                    }
+                    InboxCol::Where => {
+                        let text = if item.r#where.is_empty() {
+                            "\u{2014}"
+                        } else {
+                            item.r#where.as_str()
+                        };
+                        text_width(text, normal.clone(), 12.5, window)
+                    }
+                    InboxCol::Actor => {
+                        let actor = item_actor(item).unwrap_or("\u{2014}");
+                        text_width(actor, normal.clone(), 12.5, window)
+                    }
+                    InboxCol::Updated => {
+                        let time = item_time_formatted(item);
+                        text_width(&time, normal.clone(), 12.5, window)
+                    }
+                    InboxCol::Status => {
+                        let (status, _) = status_of(item);
+                        2.0 * 10.0 + text_width(status, medium.clone(), 11.0, window)
+                    }
+                };
+                widest[idx] = widest[idx].max(w);
+            }
         }
-        widest.to_vec()
+        widest
     })
     .groups(groups)
     .active(active_index)
@@ -1066,10 +1245,8 @@ fn inbox_table(
     })
     .sort(view.sort, move |column, _, cx| {
         sorted.update(cx, |view, cx| {
-            if column == 1 {
-                view.sort = next_sort(view.sort, column);
-                cx.notify();
-            }
+            view.sort = next_sort(view.sort, column);
+            cx.notify();
         });
     })
     .on_activate(move |index, _window, cx| {
@@ -1086,4 +1263,97 @@ fn inbox_table(
             });
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    fn sample_item(kind: &str, r#where: &str) -> InboxItem {
+        InboxItem {
+            id: "i12345678".to_string(),
+            kind: kind.to_string(),
+            blocking: false,
+            title: "Test question".to_string(),
+            detail: "Detail text".to_string(),
+            options: vec!["A".to_string(), "B".to_string()],
+            r#where: r#where.to_string(),
+            source: String::new(),
+            state: "open".to_string(),
+            actions: vec!["decide".to_string(), "defer".to_string()],
+            scope_node_ids: Vec::new(),
+            details: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn active_columns_skips_empty_optional_fields() {
+        let items = vec![sample_item("decision", "")];
+        let cols = active_columns_for(&items);
+        assert_eq!(cols, vec![InboxCol::Item, InboxCol::Type, InboxCol::Status]);
+    }
+
+    #[test]
+    fn active_columns_includes_where_when_present() {
+        let items = vec![sample_item("decision", "card-slug")];
+        let cols = active_columns_for(&items);
+        assert_eq!(
+            cols,
+            vec![
+                InboxCol::Item,
+                InboxCol::Type,
+                InboxCol::Where,
+                InboxCol::Status
+            ]
+        );
+    }
+
+    #[test]
+    fn active_columns_includes_actor_and_time_when_present() {
+        let mut item = sample_item("conflict", "card-slug");
+        item.details
+            .insert("agent".to_string(), "claude".to_string());
+        item.details
+            .insert("created_at".to_string(), "2026-11-10T12:00:00Z".to_string());
+        let items = vec![item];
+        let cols = active_columns_for(&items);
+        assert_eq!(
+            cols,
+            vec![
+                InboxCol::Item,
+                InboxCol::Type,
+                InboxCol::Where,
+                InboxCol::Actor,
+                InboxCol::Updated,
+                InboxCol::Status
+            ]
+        );
+    }
+
+    #[test]
+    fn item_actor_extraction() {
+        let mut item = sample_item("conflict", "");
+        assert_eq!(item_actor(&item), None);
+        item.details
+            .insert("actor".to_string(), "erick".to_string());
+        assert_eq!(item_actor(&item), Some("erick"));
+
+        let mut item_with_source = sample_item("conflict", "");
+        item_with_source.source = "agent-codex".to_string();
+        assert_eq!(item_actor(&item_with_source), Some("agent-codex"));
+
+        let mut deploy_item = sample_item("deploy", "");
+        deploy_item.source = "production".to_string();
+        assert_eq!(item_actor(&deploy_item), None);
+    }
+
+    #[test]
+    fn item_time_extraction() {
+        let mut item = sample_item("decision", "");
+        assert_eq!(item_time(&item), None);
+        item.details
+            .insert("updated_at".to_string(), "2026-11-11T10:00:00Z".to_string());
+        assert_eq!(item_time(&item), Some("2026-11-11T10:00:00Z"));
+    }
 }
