@@ -1463,6 +1463,7 @@ impl CanvasEditor {
                     .flex_1()
                     .overflow_y_scroll()
                     .px(px(12.0))
+                    .pt(px(12.0))
                     .pb(px(12.0))
                     .child(self.source_input.clone()),
             )

@@ -1359,8 +1359,8 @@ fn pins(layout_json: &str) -> HashMap<String, Pin> {
         .collect()
 }
 
-/// Moves every pinned node onto its place, sizes it as the layout remembers it, and the edge
-/// ends that touch it with it.
+/// Moves every pinned node onto its place, sizes it as the layout remembers it, and reroutes
+/// the edges whose ends touch a pinned node.
 fn apply_pins(scene: &mut Scene, pins: &HashMap<String, Pin>) {
     if pins.is_empty() {
         return;
@@ -1381,7 +1381,7 @@ fn apply_pins(scene: &mut Scene, pins: &HashMap<String, Pin>) {
         .filter(|(_, delta)| delta.x != 0.0 || delta.y != 0.0)
         .collect();
     shift_nodes(&mut scene.items, Transform::IDENTITY, &deltas);
-    shift_edges(&mut scene.items, &boxes, &deltas);
+    reroute_edges(&mut scene.items, &boxes, &deltas);
     center_labels(&mut scene.items);
     refit(scene);
 }
@@ -1618,19 +1618,25 @@ fn local_delta(parent: Transform, delta: Point) -> Point {
     )
 }
 
-/// Moves the edge ends that sit on a pinned node's box, and the edge's label with them.
-fn shift_edges(items: &mut [Item], boxes: &HashMap<String, Rect>, deltas: &HashMap<String, Point>) {
-    let mut moved: HashMap<String, Vec<Point>> = HashMap::new();
-    shift_edge_paths(items, boxes, deltas, &mut moved);
-    shift_edge_labels(items, &moved);
-}
-
-/// Moves each edge's ends, remembering by how much, so the label follows them.
-fn shift_edge_paths(
+/// Reroutes every edge whose ends touch a pinned node: a straight line clipped at the source
+/// and target borders, and a label centered on the line's midpoint. An edge between two
+/// unpinned nodes keeps the layout's path exactly as dagre left it.
+fn reroute_edges(
     items: &mut [Item],
     boxes: &HashMap<String, Rect>,
     deltas: &HashMap<String, Point>,
-    moved: &mut HashMap<String, Vec<Point>>,
+) {
+    let mut midpoints = HashMap::new();
+    reroute_edge_paths(items, boxes, deltas, &mut midpoints);
+    center_edge_labels(items, &midpoints, Transform::IDENTITY);
+}
+
+/// Reroutes each edge that has a pinned node on either end, remembering its label's midpoint.
+fn reroute_edge_paths(
+    items: &mut [Item],
+    boxes: &HashMap<String, Rect>,
+    deltas: &HashMap<String, Point>,
+    midpoints: &mut HashMap<String, Point>,
 ) {
     for item in items {
         match item {
@@ -1641,57 +1647,33 @@ fn shift_edge_paths(
                 let Some(source) = path.source.as_ref() else {
                     continue;
                 };
-                // Mermaid stops a line one arrowhead short of the node it points at, so an
-                // edge's ends are tested at the arrow's own reach, not against the line only.
-                let last = path.path.commands.len().saturating_sub(1);
-                for (index, command) in path.path.commands.iter_mut().enumerate() {
-                    let Some(point) = command_end(command) else {
-                        continue;
-                    };
-                    let reach = if index == 0 || index == last {
-                        ARROW_REACH
-                    } else {
-                        0.0
-                    };
-                    let Some(delta) = touching(&point, boxes, deltas, reach) else {
-                        continue;
-                    };
-                    shift_command(command, delta);
-                    moved.entry(source.id.clone()).or_default().push(delta);
-                }
-            }
-            Item::Group(group) => shift_edge_paths(&mut group.items, boxes, deltas, moved),
-            _ => {}
-        }
-    }
-}
-
-/// Moves an edge's label by how far its ends moved on average.
-fn shift_edge_labels(items: &mut [Item], moved: &HashMap<String, Vec<Point>>) {
-    for item in items {
-        match item {
-            Item::Text(text) => {
-                if !is_edge(text.source.as_ref()) {
-                    continue;
-                }
-                let Some(deltas) = text
-                    .source
-                    .as_ref()
-                    .and_then(|source| moved.get(&source.id))
-                else {
+                let points: Vec<Point> =
+                    path.path.commands.iter().filter_map(command_end).collect();
+                let (Some(first), Some(last)) = (points.first(), points.last()) else {
                     continue;
                 };
-                if deltas.is_empty() {
+                // Mermaid stops a line one arrowhead short of the node it points at, so an
+                // edge's ends are tested at the arrow's own reach, not against the line only.
+                let Some((from_id, from)) = node_at(first, boxes, deltas, ARROW_REACH) else {
+                    continue;
+                };
+                let Some((to_id, to)) = node_at(last, boxes, deltas, ARROW_REACH) else {
+                    continue;
+                };
+                let moved = deltas.contains_key(&from_id) || deltas.contains_key(&to_id);
+                if from_id == to_id || !moved {
                     continue;
                 }
-                let (dx, dy) = deltas
-                    .iter()
-                    .fold((0.0, 0.0), |(x, y), delta| (x + delta.x, y + delta.y));
-                let count = deltas.len() as f64;
-                text.position =
-                    Point::new(text.position.x + dx / count, text.position.y + dy / count);
+                let Some((start, end)) = border_line(from, to) else {
+                    continue;
+                };
+                path.path = Path::polyline([start, end]);
+                midpoints.insert(
+                    source.id.clone(),
+                    Point::new((start.x + end.x) / 2.0, (start.y + end.y) / 2.0),
+                );
             }
-            Item::Group(group) => shift_edge_labels(&mut group.items, moved),
+            Item::Group(group) => reroute_edge_paths(&mut group.items, boxes, deltas, midpoints),
             _ => {}
         }
     }
@@ -1701,19 +1683,94 @@ fn is_edge(source: Option<&polterware_mermaid::scene::SourceRef>) -> bool {
     source.is_some_and(|source| source.kind == SourceKind::Edge)
 }
 
-/// The pinned node whose box holds `point` within `reach`, and how far that node moved.
-fn touching(
+/// The node a point sits on, with its box moved to where a pin put it.
+fn node_at(
     point: &Point,
     boxes: &HashMap<String, Rect>,
     deltas: &HashMap<String, Point>,
     reach: f64,
-) -> Option<Point> {
+) -> Option<(String, Rect)> {
     boxes.iter().find_map(|(id, rect)| {
-        let delta = deltas.get(id)?;
         let dx = (rect.x - point.x).max(point.x - rect.right()).max(0.0);
         let dy = (rect.y - point.y).max(point.y - rect.bottom()).max(0.0);
-        (dx.hypot(dy) <= END_TOLERANCE + reach).then_some(*delta)
+        if dx.hypot(dy) > END_TOLERANCE + reach {
+            return None;
+        }
+        let delta = deltas.get(id).copied().unwrap_or(Point::ZERO);
+        Some((
+            id.clone(),
+            Rect::new(rect.x + delta.x, rect.y + delta.y, rect.width, rect.height),
+        ))
     })
+}
+
+/// The straight line between two boxes, clipped at each border.
+fn border_line(from: Rect, to: Rect) -> Option<(Point, Point)> {
+    let start = exit_point(from.center(), to.center(), from)?;
+    let end = exit_point(to.center(), from.center(), to)?;
+    ((end.x - start.x).hypot(end.y - start.y) > 1e-9).then_some((start, end))
+}
+
+/// Where a ray from a box's center toward `toward` leaves the box.
+fn exit_point(center: Point, toward: Point, rect: Rect) -> Option<Point> {
+    let dx = toward.x - center.x;
+    let dy = toward.y - center.y;
+    let mut best: Option<f64> = None;
+    let mut keep = |t: f64| {
+        if t > 1e-9 && best.is_none_or(|best| t < best) {
+            best = Some(t);
+        }
+    };
+    if dx.abs() > 1e-9 {
+        for x in [rect.x, rect.right()] {
+            let t = (x - center.x) / dx;
+            let y = center.y + dy * t;
+            if y >= rect.y - 1e-9 && y <= rect.bottom() + 1e-9 {
+                keep(t);
+            }
+        }
+    }
+    if dy.abs() > 1e-9 {
+        for y in [rect.y, rect.bottom()] {
+            let t = (y - center.y) / dy;
+            let x = center.x + dx * t;
+            if x >= rect.x - 1e-9 && x <= rect.right() + 1e-9 {
+                keep(t);
+            }
+        }
+    }
+    best.map(|t| Point::new(center.x + dx * t, center.y + dy * t))
+}
+
+/// Centers each edge's label background box, and its text with it, on the edge's midpoint.
+fn center_edge_labels(items: &mut [Item], midpoints: &HashMap<String, Point>, parent: Transform) {
+    for item in items {
+        let Item::Group(group) = item else {
+            continue;
+        };
+        let midpoint = group
+            .source
+            .as_ref()
+            .filter(|source| source.kind == SourceKind::Edge)
+            .and_then(|source| midpoints.get(&source.id));
+        if let Some(midpoint) = midpoint {
+            let world = group.transform.then(parent);
+            let background = group.items.iter().find_map(|item| match item {
+                Item::Rect(rect) => Some(transformed(rect.rect, world)),
+                _ => None,
+            });
+            if let Some(background) = background {
+                let center = background.center();
+                let delta = Point::new(midpoint.x - center.x, midpoint.y - center.y);
+                let local = local_delta(parent, delta);
+                group.transform.e += local.x;
+                group.transform.f += local.y;
+                continue;
+            }
+        }
+        let world = group.transform.then(parent);
+        center_edge_labels(&mut group.items, midpoints, world);
+    }
 }
 
 /// The point a command ends at, the one an edge's end sits on.
@@ -1725,19 +1782,6 @@ fn command_end(command: &PathCommand) -> Option<Point> {
         | PathCommand::ArcTo { x, y, .. } => Some(Point::new(x, y)),
         PathCommand::Close => None,
     }
-}
-
-/// Moves a command's end point, keeping its control points where the layout put them.
-fn shift_command(command: &mut PathCommand, delta: Point) {
-    let (x, y) = match command {
-        PathCommand::MoveTo { x, y } | PathCommand::LineTo { x, y } => (x, y),
-        PathCommand::CubicTo { x, y, .. }
-        | PathCommand::QuadTo { x, y, .. }
-        | PathCommand::ArcTo { x, y, .. } => (x, y),
-        PathCommand::Close => return,
-    };
-    *x += delta.x;
-    *y += delta.y;
 }
 
 /// The content's box again, so a node moved past the fitted view still shows.
@@ -2079,6 +2123,37 @@ mod tests {
         None
     }
 
+    fn edge_label_group<'a>(items: &'a [Item], text: &str) -> Option<&'a Group> {
+        for item in items {
+            if let Item::Group(group) = item {
+                let labelled = group
+                    .class
+                    .as_deref()
+                    .is_some_and(|classes| classes.contains("edgeLabel"));
+                if labelled && label_text(&group.items, text).is_some() {
+                    return Some(group);
+                }
+                if let Some(found) = edge_label_group(&group.items, text) {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
+
+    /// Whether a point sits on a box's border, within the edge's end tolerance.
+    fn on_border(rect: Rect, point: Point) -> bool {
+        let inside = point.x >= rect.x - END_TOLERANCE
+            && point.x <= rect.right() + END_TOLERANCE
+            && point.y >= rect.y - END_TOLERANCE
+            && point.y <= rect.bottom() + END_TOLERANCE;
+        let on_x = (point.x - rect.x).abs() <= END_TOLERANCE
+            || (point.x - rect.right()).abs() <= END_TOLERANCE;
+        let on_y = (point.y - rect.y).abs() <= END_TOLERANCE
+            || (point.y - rect.bottom()).abs() <= END_TOLERANCE;
+        inside && (on_x || on_y)
+    }
+
     fn first_rect_fill(items: &[Item]) -> Option<String> {
         for item in items {
             match item {
@@ -2189,6 +2264,67 @@ mod tests {
             "the label did not follow the edge: {} -> {}",
             before.0,
             after.0
+        );
+    }
+
+    #[test]
+    fn an_edge_label_text_is_centered_in_its_background_box() {
+        let layout = r#"{"nodes":{"api":{"x":-40,"y":260,"pinned":true}}}"#;
+        let scene = render(REPORTED, layout, &FallbackMeasure, &test_palette()).expect("a scene");
+        let group = edge_label_group(&scene.items, "writes").expect("the label group");
+        let background = group
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Rect(rect) => Some(transformed(rect.rect, group.transform)),
+                _ => None,
+            })
+            .expect("the label background");
+        let text = group
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Text(text) if text.lines.iter().any(|line| line.text() == "writes") => {
+                    Some(transformed(text.bounds(), group.transform))
+                }
+                _ => None,
+            })
+            .expect("the label text");
+        let (text_center, box_center) = (text.center(), background.center());
+        assert!(
+            (text_center.x - box_center.x).abs() < 0.5
+                && (text_center.y - box_center.y).abs() < 0.5,
+            "the text {text:?} is not centered in its box {background:?}"
+        );
+        assert!(
+            background.contains(Point::new(text.x, text.y))
+                && background.contains(Point::new(text.right(), text.bottom())),
+            "the text {text:?} leaves its box {background:?}"
+        );
+    }
+
+    #[test]
+    fn a_pinned_endpoint_reroutes_its_edge_as_a_clipped_straight_line() {
+        let layout = r#"{"nodes":{"api":{"x":-40,"y":260,"pinned":true}}}"#;
+        let scene = render(REPORTED, layout, &FallbackMeasure, &test_palette()).expect("a scene");
+        let path = first_edge(&scene).expect("an edge path");
+        let points: Vec<Point> = path.path.commands.iter().filter_map(command_end).collect();
+        assert_eq!(
+            points.len(),
+            2,
+            "the edge kept dagre's middle points: {points:?}"
+        );
+        let api = node_rect(&scene, "api");
+        let db = node_rect(&scene, "db");
+        assert!(
+            on_border(api, points[0]),
+            "the line starts at {:?}, not on {api:?}",
+            points[0]
+        );
+        assert!(
+            on_border(db, points[1]),
+            "the line ends at {:?}, not on {db:?}",
+            points[1]
         );
     }
 
