@@ -41,7 +41,7 @@ pub const SPEC_CORE: &str = concat!(
     "- Claim a task before editing it: `claim: T2`; `done: T2` finishes it, `release: T2` lets go.\n",
     "- A text changes only what it mentions. Remove with status: removed, [-], or a trailing [removed].\n",
     "- Read `polterware brief <slug|path|file>` before you edit; its Rules: bind you; raise a Conflict when a request breaks one. Find with `polterware search <terms>`. Start with `polterware status`; end with a handoff.\n",
-    "- More: `polterware format structure|rules|feature|conflicts`. Check with `polterware lint <file>`; write with `polterware apply <file|-> [--dry-run]`.\n",
+    "- More: `polterware format structure|rules|feature|conflicts|canvas`. Check with `polterware lint <file>`; write with `polterware apply <file|-> [--dry-run]`.\n",
 );
 
 /// The size `polter.format` declares for [`SPEC_CORE`]; a test keeps it within
@@ -49,7 +49,7 @@ pub const SPEC_CORE: &str = concat!(
 pub const SPEC_CORE_TOKENS: i32 = 360;
 
 /// The rest of the format, one block per topic.
-pub fn spec_topics() -> [(&'static str, &'static str); 4] {
+pub fn spec_topics() -> [(&'static str, &'static str); 5] {
     [
         (
             "structure",
@@ -107,6 +107,24 @@ pub fn spec_topics() -> [(&'static str, &'static str); 4] {
             ),
         ),
         (
+            "canvas",
+            concat!(
+                "Polterware canvases are Mermaid text.\n",
+                "\n",
+                "flowchart LR\n",
+                "  n1@{ label: \"Orders\", kind: service, ref: node/01HT, props: \"{\\\"technology\\\":\\\"Go\\\"}\" }\n",
+                "  n2@{ label: \"Postgres\", kind: database, ref: node/01HV }\n",
+                "  n1 l1@-->|reads| n2\n",
+                "  l1@{ kind: reads, id: \"e1\" }\n",
+                "\n",
+                "- A canvas is its source: `polterware canvas show <id|name>` prints it and `polterware canvas save <id|name> --source <file|->` writes it. MCP writes one with `polter.apply` and `canvas: <name|id>` (text is the source); an unknown name creates the canvas.\n",
+                "- A node's `@{ }` block carries what the drawing does not: label (the bracket text is only a fallback), kind (a canvas kind such as service, database, note, or a drawing shape), ref (node/<Structure id>, card/<id>), and props (a JSON object in a quoted string). The node id is its Mermaid id, and a subgraph is a frame.\n",
+                "- A link's `@{ }` block carries kind (relates, flows, uses, calls, reads, writes, publishes, subscribes, depends_on, contains) and id. A link with no metadata reads its label as the kind; no label is relates.\n",
+                "- Positions never live in the source: a node a person placed is pinned in layout_json and stays put, and an unpinned node takes the automatic layout.\n",
+                "- A parse failure answers with its line and column. A domain or component node needs `ref: node/<id>`, and that Structure node must exist.\n",
+            ),
+        ),
+        (
             "feature",
             concat!(
                 "Polter feature flow, tasks, and claims.\n",
@@ -125,7 +143,7 @@ pub fn spec_topics() -> [(&'static str, &'static str); 4] {
 }
 
 /// The topics in the order the help prints them.
-pub const SPEC_TOPIC_NAMES: [&str; 4] = ["structure", "rules", "feature", "conflicts"];
+pub const SPEC_TOPIC_NAMES: [&str; 5] = ["structure", "rules", "feature", "conflicts", "canvas"];
 
 /// Returns [`SPEC_CORE`] for an empty topic, or one topic's block.
 pub fn format_spec(topic: &str) -> Result<String, String> {

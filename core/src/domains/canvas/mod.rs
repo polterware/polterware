@@ -6,12 +6,14 @@
 mod export;
 mod model;
 mod relations;
+mod source;
 mod types;
 mod validate;
 
 pub use export::*;
 pub use model::*;
 pub use relations::*;
+pub use source::*;
 pub use types::*;
 pub use validate::*;
 
@@ -36,6 +38,14 @@ pub enum Error {
     Archived,
     #[error("unknown canvas format {0:?}: use mermaid, json, or dot")]
     UnknownFormat(String),
+    /// The source did not parse. The message names the place, so an agent can
+    /// go straight to the line and column.
+    #[error("line {line}, column {column}: {message}")]
+    Source {
+        line: u32,
+        column: u32,
+        message: String,
+    },
     /// An `encoding/json` failure of a graph or export encode.
     #[error("{0}")]
     Json(String),

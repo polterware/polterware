@@ -110,6 +110,7 @@ pub fn create_canvas(
         r#type: msg.r#type.clone(),
         agent_visible: msg.agent_visible,
         graph,
+        source: msg.source.clone(),
         layout_json: msg.layout_json.clone(),
         scope_node_id: msg.scope_node_id.clone(),
         ..canvas::Canvas::default()
@@ -173,6 +174,13 @@ pub fn update_canvas(
     if let Some(graph) = msg.graph.as_ref() {
         let graph = graph_from_proto(Some(graph)).map_err(invalid)?;
         current.graph = graph;
+        // The graph as sent wins: prepare writes the source that matches it,
+        // unless this update carries a source of its own.
+        current.source.clear();
+        changed = true;
+    }
+    if let Some(source) = &msg.source {
+        current.source = source.clone();
         changed = true;
     }
     if let Some(layout_json) = &msg.layout_json {
@@ -185,7 +193,7 @@ pub fn update_canvas(
     }
     if !changed {
         return Err(invalid(
-            "update requires name, agent_visible, graph, layout, or scope",
+            "update requires name, agent_visible, graph, source, layout, or scope",
         ));
     }
     let prepared = canvas::prepare(current).map_err(map_canvas_write_err)?;
@@ -295,7 +303,8 @@ pub fn map_canvas_write_err(err: impl Into<sqlite::Error>) -> ConnectError {
             | canvas::Error::UnknownType(_)
             | canvas::Error::NameRequired
             | canvas::Error::Layout
-            | canvas::Error::UnknownScope,
+            | canvas::Error::UnknownScope
+            | canvas::Error::Source { .. },
         ) => invalid(err.to_string()),
         _ => map_audited_err(err),
     }
@@ -362,6 +371,7 @@ pub fn canvas_proto(item: &canvas::Canvas) -> local_v1::Canvas {
         r#type: item.r#type.clone(),
         agent_visible: item.agent_visible,
         graph: Some(graph_to_proto(&item.graph)),
+        source: item.source.clone(),
         layout_json: item.layout_json.clone(),
         scope_node_id: item.scope_node_id.clone(),
         created_at: sqlite::format_rfc3339(item.created_at),
@@ -530,6 +540,105 @@ mod tests {
             rationale: "The roadmap needs a surface".to_string(),
             ..local_v1::ChangeEnvelope::default()
         }
+    }
+
+    #[test]
+    fn canvas_source_is_the_canvas_and_a_parse_error_keeps_its_place() {
+        let harness = Harness::start();
+        let core = Arc::clone(&harness.core);
+        let now = OffsetDateTime::now_utc();
+        core.store()
+            .save_project(projects::Project {
+                id: "proj-source".to_string(),
+                name: "Source".to_string(),
+                created_at: now,
+                updated_at: now,
+                ..projects::Project::default()
+            })
+            .expect("project");
+
+        let err = create_canvas(
+            Arc::clone(&core),
+            request(local_v1::CreateCanvasRequest {
+                project_id: "proj-source".to_string(),
+                name: "Broken".to_string(),
+                r#type: "canvas".to_string(),
+                source: "flowchart LR\n  a@{ shape: nonsense }\n".to_string(),
+                change: Some(change()),
+                ..local_v1::CreateCanvasRequest::default()
+            }),
+        )
+        .expect_err("bad source");
+        assert_eq!(err.code, Code::InvalidArgument);
+        assert!(
+            err.message.starts_with("line 2, column"),
+            "message = {}",
+            err.message
+        );
+
+        let source = concat!(
+            "flowchart LR\n",
+            "  a@{ label: \"Orders\", kind: service }\n",
+            "  b@{ label: \"Postgres\", kind: database }\n",
+            "  a l1@-->|reads| b\n",
+        )
+        .to_string();
+        let created = create_canvas(
+            Arc::clone(&core),
+            request(local_v1::CreateCanvasRequest {
+                project_id: "proj-source".to_string(),
+                name: "From source".to_string(),
+                r#type: "canvas".to_string(),
+                source: source.clone(),
+                change: Some(change()),
+                ..local_v1::CreateCanvasRequest::default()
+            }),
+        )
+        .expect("canvas source");
+        let created = created.canvas.expect("canvas");
+        assert_eq!(created.source, source.trim());
+        let graph = created.graph.as_ref().expect("graph");
+        assert_eq!(graph.nodes.len(), 2);
+        assert_eq!(graph.nodes[0].label, "Orders");
+        assert_eq!(graph.nodes[1].kind, "database");
+        assert_eq!(graph.edges.len(), 1);
+        assert_eq!(graph.edges[0].kind, "reads");
+        assert_eq!(graph.edges[0].from, "a");
+        assert_eq!(graph.edges[0].to, "b");
+        assert_eq!(created.layout_json, "{}");
+        assert!(
+            created.source.contains("kind: database"),
+            "source: {}",
+            created.source
+        );
+
+        let err = update_canvas(
+            Arc::clone(&core),
+            request(local_v1::UpdateCanvasRequest {
+                project_id: "proj-source".to_string(),
+                id: created.id.clone(),
+                source: Some("flowchart LR\n  a -->\n".to_string()),
+                change: Some(change()),
+                ..local_v1::UpdateCanvasRequest::default()
+            }),
+        )
+        .expect_err("broken update");
+        assert_eq!(err.code, Code::InvalidArgument);
+        assert!(
+            err.message.starts_with("line 2, column"),
+            "message = {}",
+            err.message
+        );
+
+        let stored = get_canvas(
+            Arc::clone(&core),
+            request(local_v1::GetCanvasRequest {
+                project_id: "proj-source".to_string(),
+                id: created.id,
+            }),
+        )
+        .expect("get");
+        assert_eq!(stored.canvas.expect("canvas").source, source.trim());
     }
 
     #[test]

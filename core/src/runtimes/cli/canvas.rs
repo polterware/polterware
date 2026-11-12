@@ -7,9 +7,10 @@ use super::{
 };
 use crate::platform::coreclient::CALL_TIMEOUT;
 use crate::{domains::canvas as domain, local_v1};
+use std::io::Read;
 use std::time::Duration;
 
-const USAGE: &str = "usage: polterware canvas ls [--agents] [--scope <node>[,<node>]] [--exact] [--project <id>]\n       polterware canvas show <id|name> [--format mermaid|json|dot] [--project <id>]\n       polterware canvas share <id|name> on|off [--project <id>]";
+const USAGE: &str = "usage: polterware canvas ls [--agents] [--scope <node>[,<node>]] [--exact] [--project <id>]\n       polterware canvas show <id|name> [--format mermaid|json|dot] [--project <id>]\n       polterware canvas save <id|name> --source <file|-> [--project <id>]\n       polterware canvas share <id|name> on|off [--project <id>]";
 const LIST: &str = "/polterware.local.v1.CanvasService/ListCanvases";
 const UPDATE: &str = "/polterware.local.v1.CanvasService/UpdateCanvas";
 
@@ -26,6 +27,13 @@ struct CanvasShowArgs {
     project: String,
     reference: String,
     format: String,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct CanvasSaveArgs {
+    project: String,
+    reference: String,
+    source: String,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -72,6 +80,7 @@ pub fn run_canvas(db: &str, args: &[String]) -> CliResult {
     match args[0].as_str() {
         "ls" => ls(db, &args[1..]),
         "show" => show(db, &args[1..]),
+        "save" => save(db, &args[1..]),
         "share" => share(db, &args[1..]),
         _ => Err(CliError::message(USAGE)),
     }
@@ -112,6 +121,24 @@ fn parse_canvas_show(args: &[String]) -> Result<CanvasShowArgs, CliError> {
         project: f.string_value("project").to_owned(),
         reference: f.rest()[0].clone(),
         format,
+    })
+}
+
+fn parse_canvas_save(args: &[String]) -> Result<CanvasSaveArgs, CliError> {
+    let mut f = flags("canvas save");
+    f.string_flag(
+        "source",
+        "",
+        "file holding the Mermaid source, or - for stdin",
+    );
+    f.parse_interspersed(args).map_err(parse_err)?;
+    if f.rest().len() != 1 || f.string_value("source").is_empty() {
+        return Err(CliError::message(USAGE));
+    }
+    Ok(CanvasSaveArgs {
+        project: f.string_value("project").to_owned(),
+        reference: f.rest()[0].clone(),
+        source: f.string_value("source").to_owned(),
     })
 }
 
@@ -267,6 +294,46 @@ fn show(db: &str, args: &[String]) -> CliResult {
     print!("{}{}", text, if text.ends_with('\n') { "" } else { "\n" });
     Ok(())
 }
+fn save(db: &str, args: &[String]) -> CliResult {
+    let parsed = parse_canvas_save(args)?;
+    let source = read_source(&parsed.source)?;
+    let c = dial(db)?;
+    let p = resolve_project(&c, &parsed.project)?
+        .ok_or_else(|| CliError::message("no project found"))?;
+    let item = resolve_canvas(&c, &p.id, &parsed.reference)?;
+    let change = local_v1::ChangeEnvelope {
+        summary: "Save canvas source".to_string(),
+        rationale: "Mermaid source written from the CLI".to_string(),
+        ..Default::default()
+    };
+    let response: local_v1::UpdateCanvasResponse = c.unary(
+        UPDATE,
+        &local_v1::UpdateCanvasRequest {
+            project_id: p.id,
+            id: item.id,
+            source: Some(source),
+            change: Some(change),
+            ..Default::default()
+        },
+        Duration::from_secs(10),
+    )?;
+    let updated = response
+        .canvas
+        .ok_or_else(|| CliError::message("canvas update returned no canvas"))?;
+    println!("{}: source saved", updated.name);
+    Ok(())
+}
+
+/// Reads the Mermaid source from a file, or from stdin when the path is `-`.
+fn read_source(path: &str) -> Result<String, CliError> {
+    if path == "-" {
+        let mut text = String::new();
+        std::io::stdin().read_to_string(&mut text)?;
+        return Ok(text);
+    }
+    Ok(std::fs::read_to_string(path)?)
+}
+
 fn share(db: &str, args: &[String]) -> CliResult {
     let parsed = parse_canvas_share(args)?;
     let c = dial(db)?;
@@ -375,6 +442,26 @@ mod tests {
         );
         assert!(parse_canvas_show(&[]).is_err());
         assert!(parse_canvas_show(&args(&["id-1", "--format", "yaml"])).is_err());
+    }
+
+    #[test]
+    fn parses_canvas_save() {
+        let got = parse_canvas_save(&args(&[
+            "Platform map",
+            "--source",
+            "map.mmd",
+            "--project",
+            "p1",
+        ]))
+        .unwrap();
+        assert_eq!(got.reference, "Platform map");
+        assert_eq!(got.source, "map.mmd");
+        assert_eq!(got.project, "p1");
+        let stdin = parse_canvas_save(&args(&["--source", "-", "id-1"])).unwrap();
+        assert_eq!(stdin.source, "-");
+        assert_eq!(stdin.reference, "id-1");
+        assert!(parse_canvas_save(&args(&["id-1"])).is_err());
+        assert!(parse_canvas_save(&args(&["--source", "map.mmd"])).is_err());
     }
 
     #[test]

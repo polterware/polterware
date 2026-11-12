@@ -37,7 +37,7 @@ Rules:
 - Claim a task before editing it: `claim: T2`; `done: T2` finishes it, `release: T2` lets go.
 - A text changes only what it mentions. Remove with status: removed, [-], or a trailing [removed].
 - Read `polterware brief <slug|path|file>` before you edit; its Rules: bind you; raise a Conflict when a request breaks one. Find with `polterware search <terms>`. Start with `polterware status`; end with a handoff.
-- More: `polterware format structure|rules|feature|conflicts`. Check with `polterware lint <file>`; write with `polterware apply <file|-> [--dry-run]`.
+- More: `polterware format structure|rules|feature|conflicts|canvas`. Check with `polterware lint <file>`; write with `polterware apply <file|-> [--dry-run]`.
 ```
 
 ## Workflow

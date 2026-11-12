@@ -15,13 +15,45 @@ use crate::platform::ids;
 
 use super::*;
 
-const CANVAS_COLUMNS: &str = "id,project_id,name,type,agent_visible,graph_json,layout_json,COALESCE(scope_node_id,''),created_at,updated_at,archived_at";
+const CANVAS_COLUMNS: &str = "id,project_id,name,type,agent_visible,graph_json,source,layout_json,COALESCE(scope_node_id,''),created_at,updated_at,archived_at";
 
 impl super::Store {
     /// Reports whether `node_id` belongs to the project. An empty `node_id` is
     /// the whole project and is allowed.
     pub fn require_structure_node(&self, project_id: &str, node_id: &str) -> Result<()> {
         require_structure_node(&self.db, project_id, node_id)
+    }
+
+    /// Writes the source of every canvas stored before it had one and pins the
+    /// positions it already had, so nothing moves. Migration 0061 adds the
+    /// column; the rows are converted here because SQL cannot write Mermaid.
+    pub fn backfill_canvas_sources(&self) -> Result<()> {
+        let mut pending: Vec<(String, String, String)> = Vec::new();
+        {
+            let mut stmt = self
+                .db
+                .prepare("SELECT id, graph_json, layout_json FROM canvases WHERE source=''")?;
+            let rows = stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })?;
+            for row in rows {
+                pending.push(row?);
+            }
+        }
+        for (id, graph_json, layout_json) in pending {
+            let graph = canvas::unmarshal_graph(&graph_json)?;
+            let layout = canvas::pin_layout(&layout_json);
+            let source = canvas::export_mermaid(&graph, &layout);
+            self.db.execute(
+                "UPDATE canvases SET source=?, layout_json=? WHERE id=? AND source=''",
+                params![source, layout, id],
+            )?;
+        }
+        Ok(())
     }
 
     /// Returns the project's active canvases ordered by name.
@@ -184,8 +216,8 @@ impl super::Store {
         let now = format_rfc3339(OffsetDateTime::now_utc());
         if insert {
             tx.execute(
-                r#"INSERT INTO canvases(id,project_id,name,type,agent_visible,graph_json,layout_json,scope_node_id,created_at,updated_at)
-			VALUES(?,?,?,?,?,?,?,?,?,?)"#,
+                r#"INSERT INTO canvases(id,project_id,name,type,agent_visible,graph_json,source,layout_json,scope_node_id,created_at,updated_at)
+			VALUES(?,?,?,?,?,?,?,?,?,?,?)"#,
                 params![
                     &prepared.id,
                     &prepared.project_id,
@@ -193,6 +225,7 @@ impl super::Store {
                     &prepared.r#type,
                     visible,
                     &graph_json,
+                    &prepared.source,
                     &prepared.layout_json,
                     nullable(&prepared.scope_node_id),
                     &now,
@@ -207,12 +240,13 @@ impl super::Store {
             );
             if existing.is_ok() {
                 tx.execute(
-                    r#"UPDATE canvases SET name=?, agent_visible=?, graph_json=?, layout_json=?, scope_node_id=?, updated_at=?
+                    r#"UPDATE canvases SET name=?, agent_visible=?, graph_json=?, source=?, layout_json=?, scope_node_id=?, updated_at=?
 				WHERE project_id=? AND id=?"#,
                     params![
                         &prepared.name,
                         visible,
                         &graph_json,
+                        &prepared.source,
                         &prepared.layout_json,
                         nullable(&prepared.scope_node_id),
                         &now,
@@ -299,9 +333,9 @@ fn insert_canvas_op_data(
 fn scan_canvas(row: &Row<'_>) -> Result<canvas::Canvas> {
     let visible: i64 = row.get(4)?;
     let graph_raw: String = row.get(5)?;
-    let created: String = row.get(8)?;
-    let updated: String = row.get(9)?;
-    let archived: String = row.get(10)?;
+    let created: String = row.get(9)?;
+    let updated: String = row.get(10)?;
+    let archived: String = row.get(11)?;
     Ok(canvas::Canvas {
         id: row.get(0)?,
         project_id: row.get(1)?,
@@ -309,8 +343,9 @@ fn scan_canvas(row: &Row<'_>) -> Result<canvas::Canvas> {
         r#type: row.get(3)?,
         agent_visible: visible != 0,
         graph: canvas::unmarshal_graph(&graph_raw)?,
-        layout_json: row.get(6)?,
-        scope_node_id: row.get(7)?,
+        source: row.get(6)?,
+        layout_json: row.get(7)?,
+        scope_node_id: row.get(8)?,
         created_at: parse_rfc3339(&created),
         updated_at: parse_rfc3339(&updated),
         archived_at: parse_optional_rfc3339(&archived),
@@ -346,6 +381,93 @@ mod tests {
                 params![id, project_id, format_rfc3339(at), format_rfc3339(at)],
             )
             .expect("structure node");
+    }
+
+    #[test]
+    fn a_canvas_from_before_the_source_gets_one_and_pinned_positions() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("legacy-canvas.db");
+        let at = now();
+        let graph = canvas::Graph {
+            nodes: vec![
+                canvas::Node {
+                    id: "app".to_string(),
+                    kind: "component".to_string(),
+                    label: "App".to_string(),
+                    r#ref: Some(canvas::Ref {
+                        kind: canvas::REF_NODE.to_string(),
+                        id: "node-1".to_string(),
+                    }),
+                    ..canvas::Node::default()
+                },
+                canvas::Node {
+                    id: "orders".to_string(),
+                    kind: "service".to_string(),
+                    label: "Orders".to_string(),
+                    props: serde_json::from_value(json!({"technology": "Go"})).expect("props"),
+                    ..canvas::Node::default()
+                },
+                canvas::Node {
+                    id: "ask".to_string(),
+                    kind: canvas::KIND_NOTE.to_string(),
+                    label: "ask design".to_string(),
+                    ..canvas::Node::default()
+                },
+            ],
+            edges: vec![canvas::Edge {
+                id: "e1".to_string(),
+                from: "orders".to_string(),
+                to: "app".to_string(),
+                kind: canvas::EDGE_READS.to_string(),
+                ..canvas::Edge::default()
+            }],
+        };
+        let layout = r#"{"nodes":{"app":{"x":10,"y":20,"width":200,"height":80},"orders":{"x":300,"y":20}},"viewport":{"x":4,"y":5,"zoom":2}}"#;
+        let created = {
+            let store = open(&path);
+            save_project(&store, "proj-canvas", at);
+            save_structure_node(&store, "proj-canvas", "node-1", at);
+            let created = store
+                .create_canvas(
+                    canvas::Canvas {
+                        project_id: "proj-canvas".to_string(),
+                        name: "Legacy".to_string(),
+                        r#type: canvas::TYPE_CANVAS.to_string(),
+                        graph: graph.clone(),
+                        layout_json: layout.to_string(),
+                        ..canvas::Canvas::default()
+                    },
+                    "run-1",
+                    "batch-1",
+                )
+                .expect("create canvas");
+            // The row a database from before migration 0061 holds: no source,
+            // and positions nobody had pinned.
+            store
+                .db
+                .execute(
+                    "UPDATE canvases SET source='', layout_json=? WHERE id=?",
+                    params![layout, &created.id],
+                )
+                .expect("rewind the row");
+            store.close().expect("close");
+            created
+        };
+
+        let store = open(&path);
+        let back = store
+            .get_canvas("proj-canvas", &created.id)
+            .expect("converted canvas");
+        assert!(!back.source.is_empty(), "migration wrote no source");
+        assert_eq!(back.graph, graph, "source:\n{}", back.source);
+        let pinned: serde_json::Value =
+            serde_json::from_str(&back.layout_json).expect("layout json");
+        assert_eq!(pinned["nodes"]["app"]["pinned"], json!(true));
+        assert_eq!(pinned["nodes"]["orders"]["pinned"], json!(true));
+        assert_eq!(pinned["nodes"]["app"]["x"], json!(10));
+        assert_eq!(pinned["viewport"]["zoom"], json!(2));
+        let parsed = canvas::graph_from_source(&back.source).expect("parse the stored source");
+        assert_eq!(parsed, graph, "source:\n{}", back.source);
     }
 
     #[test]

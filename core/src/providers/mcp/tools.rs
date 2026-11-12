@@ -96,12 +96,13 @@ pub(crate) fn tool_definitions() -> Vec<Value> {
         }),
         json!({
             "name": TOOL_POLTER_APPLY,
-            "description": "Write Work cards, Structure nodes, and Rules from Polter text in one audited write that joins this session's run. Needs summary and rationale (frontmatter or arguments). dry_run returns the plan.",
+            "description": "Write Work cards, Structure nodes, and Rules from Polter text, or a canvas from its Mermaid source (canvas names it; read polter.format topic canvas once), in one audited write that joins this session's run. Needs summary and rationale (frontmatter or arguments). dry_run returns the plan.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "project_id": {"type": "string"},
-                    "text": {"type": "string", "description": "Polter format text"},
+                    "text": {"type": "string", "description": "Polter format text, or the canvas Mermaid source when canvas is set"},
+                    "canvas": {"type": "string", "description": "Canvas name or id: text is then its Mermaid source, and an unknown name creates the canvas. A parse failure answers with its line and column."},
                     "dry_run": {"type": "boolean"},
                     "summary": {"type": "string", "description": "Overrides the frontmatter summary"},
                     "rationale": {"type": "string", "description": "Overrides the frontmatter rationale"},
