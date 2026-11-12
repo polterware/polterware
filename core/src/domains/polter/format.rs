@@ -112,6 +112,8 @@ pub fn spec_topics() -> [(&'static str, &'static str); 4] {
                 "Polter feature flow, tasks, and claims.\n",
                 "\n",
                 "- New feature: `polterware feature new \"<intent>\"`, then `feature shape|contract|plan <slug>` (`--accept` / `--approve` pass the gate); check with `polterware verify <slug>`.\n",
+                "- The spec is three sections: `behavior:` says what the feature does, `edge-cases:` the cases it must handle, and `plan:` its architecture, APIs, and files touched. Each keeps the lines after it as a Markdown body, so it may span lines; the `!` invariants are the acceptance criteria.\n",
+                "- The contract gate needs a non-empty behavior: and the plan gate a non-empty plan: plus an open task; the gate names what is missing.\n",
                 "- A card also takes owner: and decisions: (comma-separated refs). Tasks take `[repo: api]`; a scope may carry its checkout: `api:src/auth/*`.\n",
                 "- Claims: `claim: T2` in a card or `polterware task claim slug#T2`. The holder is the session agent; a task or overlapping scope held by another agent is refused. Scopes in different checkouts never overlap.\n",
                 "- handoff: records one session on branch: with goal, done, in_progress, next, touched (comma separated), and agent. End a session with `polterware handoff --card <slug> --note \"...\"`.\n",

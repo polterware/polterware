@@ -52,6 +52,12 @@ message WorkCard {
   string kind = 15;
   // milestone_id is the milestone the card ships in; empty is the Backlog.
   string milestone_id = 16;
+  // behavior is what the feature does: the spec's behavior: section.
+  string behavior = 17;
+  // edge_cases are the cases the feature must handle: the edge-cases: section.
+  string edge_cases = 18;
+  // plan is architecture, APIs, and files touched: the plan: section.
+  string plan = 19;
 }
 
 message PolterDiagnostic {

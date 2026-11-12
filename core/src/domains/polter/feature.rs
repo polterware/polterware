@@ -602,6 +602,13 @@ fn feature_checks(review: &FeatureReview) -> Vec<FeatureCheck> {
     }
 
     // Contract.
+    if card.behavior.trim().is_empty() {
+        add(
+            FEATURE_STEP_CONTRACT,
+            SEVERITY_ERROR,
+            "no behavior: write what the feature does as a behavior: section".to_string(),
+        );
+    }
     let mut own = 0;
     for invariant in &card.invariants {
         if invariant.state != work::INVARIANT_ACTIVE {
@@ -649,6 +656,13 @@ fn feature_checks(review: &FeatureReview) -> Vec<FeatureCheck> {
     }
 
     // Plan.
+    if card.plan.trim().is_empty() {
+        add(
+            FEATURE_STEP_PLAN,
+            SEVERITY_ERROR,
+            "no plan: write architecture, APIs, and files touched as a plan: section".to_string(),
+        );
+    }
     let mut open = 0;
     for task in &card.tasks {
         if task.state != work::TASK_OPEN {
@@ -1201,6 +1215,22 @@ mod tests {
             &HashMap::new(),
         )
         .expect("the card is active");
+        let (_, diags) = advance_text(&review, FEATURE_STEP_CONTRACT);
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.message.contains("no behavior")),
+            "the contract gate needs a behavior: {diags:?}"
+        );
+
+        card.behavior = "Import git commits as evidence.".into();
+        let review = review_feature(
+            &feature_snapshot(card.clone()),
+            "git-import",
+            &[],
+            &HashMap::new(),
+        )
+        .expect("the card is active");
         let (text, diags) = advance_text(&review, FEATURE_STEP_CONTRACT);
         assert!(
             diags.is_empty() && text.contains("## git-import\nstage: plan\n"),
@@ -1222,12 +1252,30 @@ mod tests {
             has_errors(&diags),
             "plan gate without open tasks should be refused"
         );
+        assert!(
+            diags.iter().any(|diag| diag.message.contains("no plan")),
+            "the plan gate needs a plan: {diags:?}"
+        );
         card.tasks = vec![work::Task {
             number: 1,
             title: "Read HEAD".into(),
             state: work::TASK_OPEN.into(),
             ..work::Task::default()
         }];
+        let review = review_feature(
+            &feature_snapshot(card.clone()),
+            "git-import",
+            &[],
+            &HashMap::new(),
+        )
+        .expect("the card is active");
+        let (_, diags) = advance_text(&review, FEATURE_STEP_PLAN);
+        assert!(
+            diags.iter().any(|diag| diag.message.contains("no plan")),
+            "tasks alone do not pass the plan gate: {diags:?}"
+        );
+
+        card.plan = "Read HEAD, then stamp each fact.\nFiles: backend/git/*".into();
         let review = review_feature(
             &feature_snapshot(card.clone()),
             "git-import",

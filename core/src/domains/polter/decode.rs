@@ -48,6 +48,11 @@ static TRAILING_SCOPE: LazyLock<Regex> =
 static META_KEY: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([a-z_]+):[\t\n\f\r ]*(.*)$").expect("the metadata pattern"));
 
+/// A card spec section: `behavior:`, `edge-cases:`, or `plan:`.
+static CARD_SECTION_KEY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(behavior|edge-cases|plan):[\t\n\f\r ]*(.*)$").expect("the card section pattern")
+});
+
 /// A Rule's single-line metadata key; `replaced-by:` carries a hyphen.
 static RULE_META_KEY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^([a-z][a-z-]*):[\t\n\f\r ]*(.*)$").expect("the rule metadata pattern")
@@ -112,6 +117,10 @@ struct Decoder {
     in_handoff: bool,
     in_fence: bool,
     intent: Vec<String>,
+    /// The card section being read (`behavior`, `edge-cases`, or `plan`) and
+    /// its body so far.
+    card_section: Option<String>,
+    section: Vec<String>,
     slug_lines: HashMap<String, i32>,
     path_lines: HashMap<String, i32>,
     saw_version: bool,
@@ -212,7 +221,11 @@ impl Decoder {
         let trimmed = raw.trim();
 
         if self.in_fence {
-            self.intent.push(raw.to_string());
+            if self.card_section.is_some() {
+                self.section.push(raw.to_string());
+            } else {
+                self.intent.push(raw.to_string());
+            }
             if trimmed.starts_with("```") {
                 self.in_fence = false;
             }
@@ -332,7 +345,26 @@ impl Decoder {
 
         if trimmed.is_empty() {
             self.in_meta = false;
-            self.intent.push(String::new());
+            if self.card_section.is_some() {
+                self.section.push(String::new());
+            } else {
+                self.intent.push(String::new());
+            }
+            return;
+        }
+
+        if let Some(m) = CARD_SECTION_KEY.captures(trimmed) {
+            self.flush_card_section();
+            let key = m.get(1).expect("group 1").as_str().to_string();
+            let value = m.get(2).expect("group 2").as_str().trim().to_string();
+            self.card_section = Some(key);
+            self.in_meta = false;
+            if value.starts_with("```") {
+                self.in_fence = true;
+            }
+            if !value.is_empty() {
+                self.section.push(value);
+            }
             return;
         }
 
@@ -343,6 +375,22 @@ impl Decoder {
             }
             self.in_meta = false;
         }
+
+        if self.card_section.is_some()
+            && !trimmed.starts_with("handoff:")
+            && !COORD_LINE.is_match(trimmed)
+            && !TASK_LINE.is_match(trimmed)
+            && !BAD_TASK_LINE.is_match(trimmed)
+            && !trimmed.starts_with("? ")
+            && !trimmed.starts_with("! ")
+        {
+            if trimmed.starts_with("```") {
+                self.in_fence = true;
+            }
+            self.section.push(raw.to_string());
+            return;
+        }
+        self.flush_card_section();
 
         if trimmed.starts_with("handoff:") {
             self.start_handoff(n, trimmed);
@@ -870,11 +918,39 @@ impl Decoder {
         (body, tags)
     }
 
+    /// Stores the section being read on the card, if any.
+    fn flush_card_section(&mut self) {
+        let Some(key) = self.card_section.take() else {
+            return;
+        };
+        let body = self.section.join("\n").trim().to_string();
+        let body = collapse_blank_lines(&body);
+        if let Some(card) = self.card.as_mut() {
+            match key.as_str() {
+                "behavior" => {
+                    card.behavior = body;
+                    card.behavior_set = true;
+                }
+                "edge-cases" => {
+                    card.edge_cases = body;
+                    card.edge_cases_set = true;
+                }
+                "plan" => {
+                    card.plan = body;
+                    card.plan_set = true;
+                }
+                _ => {}
+            }
+        }
+        self.section.clear();
+    }
+
     fn close_card(&mut self) {
         if self.card.is_none() {
             return;
         }
         self.end_handoff();
+        self.flush_card_section();
         let mut card = self.card.take().expect("checked");
         if self.in_fence {
             self.errorf(

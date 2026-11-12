@@ -693,6 +693,9 @@ impl Planner {
         fields.insert("slug".to_string(), json!(node.slug));
         fields.insert("title".to_string(), json!(node.title));
         fields.insert("intent".to_string(), json!(node.intent));
+        fields.insert("behavior".to_string(), json!(node.behavior));
+        fields.insert("edge_cases".to_string(), json!(node.edge_cases));
+        fields.insert("plan".to_string(), json!(node.plan));
         fields.insert("stage".to_string(), json!(stage));
         fields.insert("status".to_string(), json!(work::CARD_ACTIVE));
         fields.insert("owner".to_string(), json!(owner));
@@ -759,6 +762,25 @@ impl Planner {
                 s(&card.intent),
                 s(&node.intent),
             );
+        }
+        for (key, set, value, current) in [
+            (
+                "behavior",
+                node.behavior_set,
+                &node.behavior,
+                &card.behavior,
+            ),
+            (
+                "edge_cases",
+                node.edge_cases_set,
+                &node.edge_cases,
+                &card.edge_cases,
+            ),
+            ("plan", node.plan_set, &node.plan, &card.plan),
+        ] {
+            if set && value != current {
+                set_field(&mut fields, &mut before, key, s(current), s(value));
+            }
         }
         for key in META_KEYS {
             let Some(value) = node.meta_value(key) else {

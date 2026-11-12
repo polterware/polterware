@@ -106,6 +106,12 @@ pub struct Card {
     pub slug: String,
     pub title: String,
     pub intent: String,
+    /// What the feature does: the spec's `behavior:` section.
+    pub behavior: String,
+    /// The cases the feature must handle: the spec's `edge-cases:` section.
+    pub edge_cases: String,
+    /// Architecture, APIs, and files touched: the `plan:` section.
+    pub plan: String,
     pub stage: String,
     pub status: String,
     pub owner: String,
@@ -135,6 +141,9 @@ impl Default for Card {
             slug: String::new(),
             title: String::new(),
             intent: String::new(),
+            behavior: String::new(),
+            edge_cases: String::new(),
+            plan: String::new(),
             stage: String::new(),
             status: String::new(),
             owner: String::new(),

@@ -459,6 +459,44 @@ fn structure_kind_tech_migration() {
 }
 
 #[test]
+fn card_spec_migration_adds_the_spec_sections() {
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let mut db = open(tmp.path().join("card_spec.db")).expect("open");
+    migrate_before(&mut db, "0059");
+    for statement in [
+        "INSERT INTO projects(id, name, created_at, updated_at, status, archived_at) VALUES('p', 'Project', 'now', 'now', 'active', '')",
+        "INSERT INTO work_cards(id,project_id,slug,title,created_at,updated_at) VALUES('c1','p','signup','Signup','now','now')",
+    ] {
+        db.execute(statement, [])
+            .unwrap_or_else(|err| panic!("{statement}: {err}"));
+    }
+    apply_migration(&mut db, "0059_card_spec.sql");
+    let (behavior, edge_cases, plan): (String, String, String) = db
+        .query_row(
+            "SELECT behavior, edge_cases, plan FROM work_cards WHERE id='c1'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .expect("the spec columns");
+    assert!(
+        behavior.is_empty() && edge_cases.is_empty() && plan.is_empty(),
+        "existing cards start with empty sections"
+    );
+    db.execute(
+        "UPDATE work_cards SET behavior='Imports commits.', edge_cases='Empty repository.', plan='Read HEAD.' WHERE id='c1'",
+        [],
+    )
+    .expect("write the sections");
+    let behavior: String = db
+        .query_row("SELECT behavior FROM work_cards WHERE id='c1'", [], |row| {
+            row.get(0)
+        })
+        .expect("the behavior");
+    assert_eq!(behavior, "Imports commits.", "the section keeps its text");
+    assert_no_foreign_key_violations(&db);
+}
+
+#[test]
 fn milestones_migration() {
     let tmp = tempfile::tempdir().expect("temp dir");
     let mut db = open(tmp.path().join("milestones.db")).expect("open");
