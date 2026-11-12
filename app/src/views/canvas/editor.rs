@@ -69,6 +69,9 @@ const SOURCE_PANE_WIDTH: f32 = 380.0;
 /// How many frames the view may take to measure itself before the remembered viewport is
 /// dropped.
 const RESTORE_FRAMES: u8 = 4;
+/// How many frames a reveal runs for: the inspector's panel slides in over the diagram, and
+/// every frame it moves leaves a different room to fit the drawing into.
+const REVEAL_FRAMES: u8 = 12;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Tool {
@@ -151,6 +154,9 @@ pub struct CanvasEditor {
     colors: source::Palette,
     /// The selected node wants to be panned into view.
     reveal: bool,
+    /// How many frames the reveal may still run for: the inspector's panel slides over the
+    /// diagram, so the room it leaves is measured again for as long as it moves.
+    reveal_waits: u8,
     source_input: Entity<TextInput>,
     source_open: bool,
     /// The node a drag dropped last, as the diagram id and its new top-left: the screenshot
@@ -307,6 +313,7 @@ impl CanvasEditor {
             boxes: HashMap::new(),
             colors: source::palette(Theme::global(cx)),
             reveal: false,
+            reveal_waits: 0,
             source: text,
             layout,
             source_input,
@@ -446,43 +453,38 @@ impl CanvasEditor {
     }
 
     /// Keeps the selected node in view in the room the diagram has while the inspector is
-    /// open: the whole drawing is fitted again when it fits, so no other node is pushed out,
-    /// and otherwise the view pans only as far as the node needs.
-    fn reveal_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.reveal = false;
+    /// open, measured from the diagram's own laid-out box: the panel slides in beside it, so
+    /// only that box says how much room is left. The whole drawing is fitted again when it fits
+    /// that room, so no other node is pushed out, and otherwise the view pans only as far as the
+    /// node needs. Answers whether the view moved, so a panel still sliding in is measured
+    /// again on the next frame.
+    fn reveal_selection(&mut self, cx: &mut Context<Self>) -> bool {
         let Some(id) = self.selection.nodes.first() else {
-            return;
+            return false;
         };
         let Some(mermaid) = self.mermaid(id) else {
-            return;
+            return false;
         };
         let Some((bx, by, bw, bh)) = self.boxes.get(&mermaid).copied() else {
-            return;
+            return false;
         };
         let Some(current) = self.view.read(cx).viewport() else {
-            return;
+            return false;
         };
-        let theme = *Theme::global(cx);
-        let size = window.viewport_size();
-        let library = self.library_panel.read(cx).width() + PANEL_INSET * 2.0;
-        let inspector = if self.selection.is_empty() {
-            0.0
-        } else {
-            self.inspector_panel.read(cx).width() + PANEL_INSET * 2.0
+        // The diagram sits beside both panels, so its own box is the room a diagram may use.
+        let Some(bounds) = self.host.get() else {
+            return true;
         };
-        let room = (
-            (f32::from(size.width) - theme.sidebar_width - library - inspector).max(1.0),
-            (f32::from(size.height) - theme.titlebar_height - theme.page_header_height - 48.0)
-                .max(1.0),
-        );
+        let room = (f32::from(bounds.size.width), f32::from(bounds.size.height));
         let focus = Rect::new(f64::from(bx), f64::from(by), f64::from(bw), f64::from(bh));
         let view_box = self.view.read(cx).scene().view_box;
         let Some(target) =
             source::reveal_view(current, view_box, room, focus, source::REVEAL_MARGIN)
         else {
-            return;
+            return false;
         };
         self.apply_view(target, cx);
+        true
     }
 
     /// The pan and zoom on screen, as the layout keeps them.
@@ -541,6 +543,7 @@ impl CanvasEditor {
         self.selection = selection;
         self.show_selection(cx);
         self.reveal = !self.selection.nodes.is_empty();
+        self.reveal_waits = REVEAL_FRAMES;
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(!self.selection.is_empty()));
         cx.notify();
@@ -673,6 +676,7 @@ impl CanvasEditor {
         };
         self.selection = Selection::node(&id);
         self.reveal = true;
+        self.reveal_waits = REVEAL_FRAMES;
         self.show_selection(cx);
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(true));
@@ -963,6 +967,7 @@ impl CanvasEditor {
         self.apply_source(source, Capture::Immediately, cx);
         self.selection = Selection::node(&canvas);
         self.reveal = true;
+        self.reveal_waits = REVEAL_FRAMES;
         self.show_selection(cx);
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(true));
@@ -1512,7 +1517,18 @@ impl Render for CanvasEditor {
             self.render_due = true;
         }
         if self.reveal {
-            self.reveal_selection(window, cx);
+            if self.reveal_waits > 0 {
+                self.reveal_waits -= 1;
+                // The inspector's panel is still sliding over the diagram: keep measuring the
+                // room it leaves until it stops, or the fit is one for a room nobody has.
+                if self.reveal_selection(cx) {
+                    cx.notify();
+                } else {
+                    self.reveal = false;
+                }
+            } else {
+                self.reveal = false;
+            }
         }
         let well = self.well(window, cx);
         let hint = self.connect_from.as_ref().map(|_| {

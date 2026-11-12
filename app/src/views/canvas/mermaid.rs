@@ -22,8 +22,9 @@ use polterware_mermaid::measure::{Font, TextMeasure, plain_text_block};
 use polterware_mermaid::render::edges::{EdgeData, insert_edge_label};
 use polterware_mermaid::render::markers::marker_placement;
 use polterware_mermaid::scene::{
-    Color, Group, Item, NORMAL_WEIGHT, PathCommand, PathStyle, Point, Rect, RectShape, Scene,
-    SourceKind, SourceRef, TextBaseline, TextRun, Transform,
+    Color, Group, Item, MarkerDef, MarkerUnits, NORMAL_WEIGHT, Path, PathCommand, PathShape,
+    PathStyle, Point, Rect, RectShape, Scene, SourceKind, SourceRef, TextBaseline, TextRun,
+    Transform,
 };
 use polterware_mermaid::theme::Theme as MermaidTheme;
 use polterware_ui::mermaid::SceneViewport;
@@ -530,6 +531,7 @@ pub(super) fn render(
     paint_scene_theme(&mut scene, &styled, &edges, &measure, palette);
     center_labels(&mut scene.items);
     apply_pins(&mut scene, &pins_for(&styled, layout_json));
+    paint_arrow_heads(&mut scene, &edges, palette);
     Ok(scene)
 }
 
@@ -543,6 +545,7 @@ pub(super) fn preview(source: &str, measure: &dyn TextMeasure, palette: &Palette
     let (mut scene, edges) = draw(&styled, &measure, palette).ok()?;
     paint_scene_theme(&mut scene, &styled, &edges, &measure, palette);
     center_labels(&mut scene.items);
+    paint_arrow_heads(&mut scene, &edges, palette);
     Some(scene)
 }
 
@@ -687,7 +690,12 @@ fn edge_stroke(edge: &EdgePaint, palette: &Palette) -> Color {
     Color::new(edge.stroke.clone().unwrap_or_else(|| palette.line.clone()))
 }
 
-/// Puts an edge's line, its dash, and its arrow ends on its path.
+/// Puts an edge's line and its dash on its path.
+///
+/// A point arrowhead is not left to the marker list: the painter strokes every marker path as
+/// it is defined upstream (a hairline with a `1,0` dash), which reads as a few dots instead of
+/// Mermaid's solid triangle. [`paint_arrow_heads`] draws those, filled, once the pins have
+/// placed the line.
 fn paint_edge_path(
     path: &mut polterware_mermaid::scene::PathShape,
     edge: &EdgePaint,
@@ -710,12 +718,210 @@ fn paint_edge_path(
     ) else {
         return;
     };
-    if let Some(marker) = placement.start {
+    if let Some(marker) = placement.start
+        && !wants_filled_head(edge.arrow_start.as_deref())
+    {
         path.start_markers.push(marker.with_color(stroke.clone()));
     }
-    if let Some(marker) = placement.end {
+    if let Some(marker) = placement.end
+        && !wants_filled_head(edge.arrow_end.as_deref())
+    {
         path.end_markers.push(marker.with_color(stroke));
     }
+}
+
+/// Whether an arrow type is Mermaid's `point`: the filled triangle this painter draws itself.
+fn wants_filled_head(arrow: Option<&str>) -> bool {
+    arrow == Some("arrow_point")
+}
+
+/// Draws every point arrowhead as Mermaid's `pointEnd` marker: a filled triangle in the line's
+/// color at the marker's real size, along the last segment, its tip on the target node's
+/// border.
+///
+/// Runs after the pins, so the head sits on the line as it is finally drawn, and appends the
+/// triangles to the scene; the edge lines are read first, because painting adds items.
+fn paint_arrow_heads(scene: &mut Scene, edges: &Edges, palette: &Palette) {
+    let mut heads: Vec<Item> = Vec::new();
+    for item in &scene.items {
+        let Item::Path(path) = item else {
+            continue;
+        };
+        let Some(source) = path
+            .source
+            .as_ref()
+            .filter(|source| source.kind == SourceKind::Edge)
+        else {
+            continue;
+        };
+        let Some(edge) = edges.items.iter().find(|edge| edge.id == source.id) else {
+            continue;
+        };
+        let stroke = edge_stroke(edge, palette);
+        for (arrow, at_start) in [
+            (edge.arrow_start.as_deref(), true),
+            (edge.arrow_end.as_deref(), false),
+        ] {
+            if !wants_filled_head(arrow) {
+                continue;
+            }
+            let Some((at, tangent)) = line_end(&path.path, at_start) else {
+                continue;
+            };
+            let Some(definition) = point_marker(scene, at_start) else {
+                continue;
+            };
+            let angle = tangent.y.atan2(tangent.x).to_degrees();
+            if let Some(head) = point_arrow(
+                definition,
+                at,
+                angle,
+                path.style.stroke_width,
+                stroke.clone(),
+                source.clone(),
+            ) {
+                heads.push(head);
+            }
+        }
+    }
+    scene.items.extend(heads);
+}
+
+/// The `point` marker definition of a scene, for an arrow at the start or the end of a line.
+fn point_marker(scene: &Scene, at_start: bool) -> Option<&MarkerDef> {
+    let placement = marker_placement(
+        at_start.then_some("arrow_point"),
+        (!at_start).then_some("arrow_point"),
+        flowchart::layout_data::DEFAULT_DIAGRAM_ID,
+        flowchart::DIAGRAM_TYPE,
+        false,
+    )
+    .ok()?;
+    let marker = if at_start {
+        placement.start
+    } else {
+        placement.end
+    }?;
+    scene.marker_def(&marker.def)
+}
+
+/// Where a line ends (or starts) and the unit direction it travels there.
+fn line_end(path: &Path, at_start: bool) -> Option<(Point, Point)> {
+    let points: Vec<Point> = path.commands.iter().filter_map(command_end).collect();
+    let (at, before) = if at_start {
+        (points.first()?, points.get(1)?)
+    } else {
+        (points.last()?, points.get(points.len().checked_sub(2)?)?)
+    };
+    let dx = if at_start {
+        before.x - at.x
+    } else {
+        at.x - before.x
+    };
+    let dy = if at_start {
+        before.y - at.y
+    } else {
+        at.y - before.y
+    };
+    let length = dx.hypot(dy);
+    (length > 1e-9).then(|| (*at, Point::new(dx / length, dy / length)))
+}
+
+/// A point arrowhead in scene coordinates: the marker's own triangle, scaled to its size and
+/// reference point, turned along the line, and filled with the edge's color.
+fn point_arrow(
+    definition: &MarkerDef,
+    at: Point,
+    angle: f64,
+    stroke_width: f64,
+    color: Color,
+    source: SourceRef,
+) -> Option<Item> {
+    let view_box = definition.view_box;
+    if view_box.width <= 0.0 || view_box.height <= 0.0 {
+        return None;
+    }
+    let units = match definition.units {
+        MarkerUnits::StrokeWidth => stroke_width.max(0.0),
+        MarkerUnits::UserSpaceOnUse => 1.0,
+    };
+    if units <= 0.0 {
+        return None;
+    }
+    let scale_x = units * definition.width / view_box.width;
+    let scale_y = units * definition.height / view_box.height;
+    let world = Transform::translate(-view_box.x, -view_box.y)
+        .then(Transform::scale(scale_x, scale_y))
+        .then(Transform::translate(
+            -(definition.reference.x - view_box.x) * scale_x,
+            -(definition.reference.y - view_box.y) * scale_y,
+        ))
+        .then(Transform::rotate(angle))
+        .then(Transform::translate(at.x, at.y));
+    let shape = definition.shapes.first()?;
+    Some(Item::Path(PathShape {
+        source: Some(source),
+        path: transformed_path(&shape.path, world),
+        style: PathStyle::filled(color),
+        ..PathShape::default()
+    }))
+}
+
+/// A path moved into another coordinate system, every point of it.
+fn transformed_path(path: &Path, world: Transform) -> Path {
+    let mut out = Path::new();
+    for command in &path.commands {
+        match *command {
+            PathCommand::MoveTo { x, y } => {
+                out.move_to(world.apply(Point::new(x, y)));
+            }
+            PathCommand::LineTo { x, y } => {
+                out.line_to(world.apply(Point::new(x, y)));
+            }
+            PathCommand::CubicTo {
+                c1x,
+                c1y,
+                c2x,
+                c2y,
+                x,
+                y,
+            } => {
+                out.cubic_to(
+                    world.apply(Point::new(c1x, c1y)),
+                    world.apply(Point::new(c2x, c2y)),
+                    world.apply(Point::new(x, y)),
+                );
+            }
+            PathCommand::QuadTo { cx, cy, x, y } => {
+                out.quad_to(
+                    world.apply(Point::new(cx, cy)),
+                    world.apply(Point::new(x, y)),
+                );
+            }
+            PathCommand::ArcTo {
+                rx,
+                ry,
+                rotation,
+                large_arc,
+                sweep,
+                x,
+                y,
+            } => {
+                out.arc_to(
+                    rx,
+                    ry,
+                    rotation,
+                    large_arc,
+                    sweep,
+                    world.apply(Point::new(x, y)),
+                );
+            }
+            PathCommand::Close => {
+                out.close();
+            }
+        }
+    }
+    out
 }
 
 /// Paints an edge's label over its line, on the theme's label background.
@@ -1909,15 +2115,30 @@ mod tests {
             "an edge is a line, not a filled area"
         );
         assert!(path.style.stroke_width > 0.0);
+        assert!(
+            path.end_markers.is_empty(),
+            "the line still leaves its arrowhead to an unfilled marker"
+        );
+
+        // The arrowhead is Mermaid's point marker: a solid triangle in the line's color, its
+        // tip on the target's border and its base a real head's size back along the line.
+        let head = arrow_head(&scene).expect("the edge has no arrowhead");
         assert_eq!(
-            path.end_markers.first().map(|marker| marker.def.as_str()),
-            Some("mermaid_flowchart-v2-pointEnd"),
-            "the edge has no arrowhead"
+            head.style.fill.as_ref().map(|fill| fill.0.as_str()),
+            Some(palette.line.as_str()),
+            "the arrowhead is not filled with the line's color"
         );
         assert!(
-            scene.marker_def("mermaid_flowchart-v2-pointEnd").is_some(),
-            "the arrowhead is not defined for the painter"
+            head.style.stroke.is_none(),
+            "the arrowhead is a hairline, not a filled triangle"
         );
+        assert!(
+            head.style.dash.is_empty(),
+            "the arrowhead is dashed, so it reads as dots"
+        );
+        let area = head_area(head);
+        assert!(area > 8.0, "the arrowhead is too small to see: {area}");
+
         assert!(
             edge_label(&scene, "writes").is_some(),
             "the edge label is missing"
@@ -1933,7 +2154,7 @@ mod tests {
             "the start {start:?} is not on {api:?}"
         );
         assert!(
-            gap(db, arrow_tip(path)) <= END_TOLERANCE,
+            gap(db, head_tip(head, db)) <= END_TOLERANCE,
             "the arrowhead does not reach {db:?}"
         );
         assert!(gap(db, end) <= ARROW_REACH + END_TOLERANCE);
@@ -1950,10 +2171,11 @@ mod tests {
         assert!((db.x - 400.0).abs() < 0.5, "the node did not pin: {db:?}");
         assert!((db.y - 120.0).abs() < 0.5, "the node did not pin: {db:?}");
         let path = first_edge(&scene).expect("an edge path");
+        let head = arrow_head(&scene).expect("an arrowhead");
         assert!(
-            gap(db, arrow_tip(path)) <= END_TOLERANCE,
+            gap(db, head_tip(head, db)) <= END_TOLERANCE,
             "the arrowhead stayed behind, {} from the pinned node",
-            gap(db, arrow_tip(path))
+            gap(db, head_tip(head, db))
         );
         let api = node_rect(&scene, "api");
         assert!(
@@ -1994,6 +2216,42 @@ mod tests {
             assert!(
                 left >= 0.0 && right <= narrow.0 && top >= 0.0 && bottom <= narrow.1,
                 "{id} is outside the room: {left}..{right} x {top}..{bottom}"
+            );
+        }
+    }
+
+    /// The report's canvas, open with the inspector: the room left of the panel is narrower
+    /// than the window, and the two nodes still fit in it.
+    #[test]
+    fn the_room_beside_the_inspector_refits_the_whole_canvas() {
+        let scene = render(REPORTED, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
+        let view_box = scene.view_box;
+        // The 640px the report had, less the inspector's panel and its insets: the drawing
+        // fits, with the reveal margin around it and nothing more.
+        let room = (
+            (view_box.width as f32 + 56.0).min(640.0),
+            view_box.height as f32 + 120.0,
+        );
+        assert!(
+            view_box.width as f32 <= room.0 - REVEAL_MARGIN * 2.0,
+            "the report's drawing no longer fits the room beside the inspector"
+        );
+        let current = SceneViewport::new(0.0, 0.0, 1.0);
+        let focus = node_rect(&scene, "api");
+        let target = reveal_view(current, view_box, room, focus, REVEAL_MARGIN)
+            .expect("the room beside the inspector refits the drawing");
+        assert_eq!(
+            target,
+            SceneViewport::fit(view_box, room.0, room.1, REVEAL_MARGIN),
+            "the drawing was panned, not fitted, in the room beside the inspector"
+        );
+        for id in ["api", "db"] {
+            let rect = node_rect(&scene, id);
+            let left = rect.x as f32 * target.zoom + target.x;
+            let right = left + rect.width as f32 * target.zoom;
+            assert!(
+                left >= 0.0 && right <= room.0,
+                "{id} is cut off: {left}..{right} in a room {room:?}"
             );
         }
     }
@@ -2040,6 +2298,40 @@ mod tests {
             Item::Path(path) if is_edge(path.source.as_ref()) => Some(path),
             _ => None,
         })
+    }
+
+    /// The filled arrowhead of a scene: the edge path that carries a fill.
+    fn arrow_head(scene: &Scene) -> Option<&polterware_mermaid::scene::PathShape> {
+        scene.items.iter().find_map(|item| match item {
+            Item::Path(path) if is_edge(path.source.as_ref()) && path.style.fill.is_some() => {
+                Some(path)
+            }
+            _ => None,
+        })
+    }
+
+    /// An arrowhead's points, in scene coordinates.
+    fn head_points(head: &polterware_mermaid::scene::PathShape) -> Vec<Point> {
+        head.path.commands.iter().filter_map(command_end).collect()
+    }
+
+    /// The area an arrowhead covers: how much paint the head puts on the canvas.
+    fn head_area(head: &polterware_mermaid::scene::PathShape) -> f64 {
+        let points = head_points(head);
+        let mut area = 0.0;
+        for (index, point) in points.iter().enumerate() {
+            let next = points[(index + 1) % points.len()];
+            area += point.x * next.y - next.x * point.y;
+        }
+        area.abs() / 2.0
+    }
+
+    /// The point of an arrowhead nearest `rect`: its tip, on the node's border.
+    fn head_tip(head: &polterware_mermaid::scene::PathShape, rect: Rect) -> Point {
+        head_points(head)
+            .into_iter()
+            .min_by(|a, b| gap(rect, *a).total_cmp(&gap(rect, *b)))
+            .expect("an arrowhead has points")
     }
 
     /// The place an edge's label paints, by its text: its box's left and top.
@@ -2095,28 +2387,6 @@ mod tests {
             .find_map(command_end)
             .expect("an edge has an end");
         (start, end)
-    }
-
-    /// Where an edge's arrowhead tip lands: one head past its end, along the line.
-    fn arrow_tip(path: &polterware_mermaid::scene::PathShape) -> Point {
-        let commands = &path.path.commands;
-        let end = commands.iter().rev().find_map(command_end).expect("an end");
-        let before = commands
-            .iter()
-            .rev()
-            .filter_map(command_end)
-            .find(|point| *point != end)
-            .unwrap_or(end);
-        let dx = end.x - before.x;
-        let dy = end.y - before.y;
-        let length = dx.hypot(dy);
-        if length < 1e-9 {
-            return end;
-        }
-        Point::new(
-            end.x + dx / length * ARROW_REACH,
-            end.y + dy / length * ARROW_REACH,
-        )
     }
 
     fn node_rect(scene: &Scene, id: &str) -> Rect {
