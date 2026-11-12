@@ -545,7 +545,7 @@ impl MilestonesView {
     }
 
     /// Writes a stage move: one card (a drop, which the board waits on) or the List's pick.
-    /// A single card goes through its column's gate; a selection moves as one write.
+    /// Both go through the board's move rules, so a forward move runs its column's gate.
     fn move_cards(
         &mut self,
         slugs: Vec<String>,
@@ -570,10 +570,9 @@ impl MilestonesView {
                     },
                     cx,
                 ),
-                None => state.set_cards_stage(
+                None => state.board_move_cards(
                     slugs,
                     stage,
-                    String::new(),
                     move |ok, cx| {
                         if ok {
                             let _ = view.update(cx, |this, cx| {
@@ -660,10 +659,11 @@ impl MilestonesView {
         self.ask(Ask::RemoveCard { slug, title }, cx);
     }
 
-    /// Moves the open card's stage, from its page.
+    /// Moves the open card's stage, from its page, through the board's move rules: a forward
+    /// move runs the column's gate and a refusal toasts the gate's lines; moving back is free.
     pub(crate) fn ask_stage(&mut self, slug: String, stage: Stage, cx: &mut Context<Self>) {
         self.state.update(cx, |state, cx| {
-            state.set_card_stage(slug, stage, String::new(), |_, _| {}, cx);
+            state.board_move(slug, stage, |_, _| {}, cx);
         });
     }
 
