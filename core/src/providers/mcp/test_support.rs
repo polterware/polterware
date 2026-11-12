@@ -25,8 +25,14 @@ rationale: Slice 5 needs a card before coding
 ## git-import: Git metadata import
 stage: plan
 
+Ship commit evidence into the canon.
+
 - [ ] T1 Upsert commit evidence
-? Include merge commits? [blocking] (yes | no)
+? Include merge commits? (yes | no)
+
+behavior: Read HEAD, branch, and recent commits as evidence.
+
+plan: Follow the commitref provider.
 "#;
 
 /// The cards every test starts with, applied as one audited write.

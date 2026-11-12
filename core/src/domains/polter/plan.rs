@@ -916,7 +916,7 @@ impl Planner {
                     );
                     continue;
                 };
-                (rule.id.clone(), format!("rule {}", rule.slug))
+                (rule.id.clone(), format!("rule {}", rule.handle()))
             } else {
                 let key = work::normalize_text(&line.target);
                 let found = card.invariants.iter().find(|invariant| {

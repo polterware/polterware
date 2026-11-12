@@ -387,6 +387,149 @@ pub const CONFLICT_DECIDED: &str = "decided";
 pub const CONFLICT_WITHDRAWN: &str = "withdrawn";
 
 impl Snapshot {
+    /// Applies planned ops to this snapshot in memory, so a read can see the
+    /// state a write produces before it is stored. Handoffs, claims, nodes,
+    /// Rules, and conflicts are left alone; confirmations the ops create are
+    /// returned because they do not live on the snapshot.
+    pub fn apply_ops(&mut self, ops: &[Op]) -> Vec<Confirmation> {
+        let mut created: Vec<Confirmation> = Vec::new();
+        for op in ops {
+            match op.entity.as_str() {
+                ENTITY_CARD => self.apply_card_op(op),
+                ENTITY_TASK => {
+                    if op.kind == OP_CREATE {
+                        let task = Task {
+                            id: op.entity_id.clone(),
+                            card_id: op.card_id.clone(),
+                            number: number_field(&op.fields, "number"),
+                            title: text_field(&op.fields, "title"),
+                            state: text_field(&op.fields, "state"),
+                            repo: text_field(&op.fields, "repo"),
+                            scope: text_field(&op.fields, "scope"),
+                            position: number_field(&op.fields, "position"),
+                            claim: None,
+                        };
+                        if let Some(card) = self.card_mut(&op.card_id) {
+                            card.tasks.push(task);
+                        }
+                    } else if let Some(card) = self.card_mut(&op.card_id)
+                        && let Some(task) =
+                            card.tasks.iter_mut().find(|task| task.id == op.entity_id)
+                    {
+                        apply_task_fields(task, &op.fields);
+                    }
+                }
+                ENTITY_QUESTION => {
+                    if op.kind == OP_CREATE {
+                        let question = Question {
+                            id: op.entity_id.clone(),
+                            card_id: op.card_id.clone(),
+                            text: text_field(&op.fields, "text"),
+                            blocking: bool_field(&op.fields, "blocking"),
+                            options: list_field(&op.fields, "options"),
+                            state: text_field(&op.fields, "state"),
+                            answer: text_field(&op.fields, "answer"),
+                            position: number_field(&op.fields, "position"),
+                        };
+                        if let Some(card) = self.card_mut(&op.card_id) {
+                            card.questions.push(question);
+                        }
+                    } else if let Some(card) = self.card_mut(&op.card_id)
+                        && let Some(question) = card
+                            .questions
+                            .iter_mut()
+                            .find(|question| question.id == op.entity_id)
+                    {
+                        apply_question_fields(question, &op.fields);
+                    }
+                }
+                ENTITY_INVARIANT => {
+                    if op.kind == OP_CREATE {
+                        let invariant = Invariant {
+                            id: op.entity_id.clone(),
+                            card_id: op.card_id.clone(),
+                            text: text_field(&op.fields, "text"),
+                            state: text_field(&op.fields, "state"),
+                            position: number_field(&op.fields, "position"),
+                        };
+                        if let Some(card) = self.card_mut(&op.card_id) {
+                            card.invariants.push(invariant);
+                        }
+                    } else if let Some(card) = self.card_mut(&op.card_id)
+                        && let Some(invariant) = card
+                            .invariants
+                            .iter_mut()
+                            .find(|invariant| invariant.id == op.entity_id)
+                    {
+                        apply_invariant_fields(invariant, &op.fields);
+                    }
+                }
+                ENTITY_CONFIRMATION if op.kind == OP_CREATE => created.push(Confirmation {
+                    card_id: op.card_id.clone(),
+                    kind: text_field(&op.fields, "kind"),
+                    target_id: text_field(&op.fields, "target_id"),
+                    confirmed_by: text_field(&op.fields, "confirmed_by"),
+                    confirmed_at: OffsetDateTime::UNIX_EPOCH,
+                }),
+                _ => {}
+            }
+        }
+        created
+    }
+
+    /// The card with `id`, for in-memory ops.
+    fn card_mut(&mut self, id: &str) -> Option<&mut Card> {
+        self.cards.iter_mut().find(|card| card.id == id)
+    }
+
+    fn apply_card_op(&mut self, op: &Op) {
+        if op.kind == OP_CREATE {
+            self.cards.push(Card {
+                id: op.entity_id.clone(),
+                project_id: self.project_id.clone(),
+                slug: text_field(&op.fields, "slug"),
+                title: text_field(&op.fields, "title"),
+                intent: text_field(&op.fields, "intent"),
+                behavior: text_field(&op.fields, "behavior"),
+                edge_cases: text_field(&op.fields, "edge_cases"),
+                plan: text_field(&op.fields, "plan"),
+                stage: text_field(&op.fields, "stage"),
+                status: text_field(&op.fields, "status"),
+                owner: text_field(&op.fields, "owner"),
+                kind: text_field(&op.fields, "kind"),
+                under: text_field(&op.fields, "under"),
+                decisions: list_field(&op.fields, "decisions"),
+                milestone_id: text_field(&op.fields, "milestone"),
+                position: number_field(&op.fields, "position"),
+                ..Card::default()
+            });
+            return;
+        }
+        let Some(card) = self.cards.iter_mut().find(|card| card.id == op.entity_id) else {
+            return;
+        };
+        for (key, value) in &op.fields {
+            let text = value.as_str().unwrap_or_default();
+            match key.as_str() {
+                "slug" => card.slug = text.to_string(),
+                "title" => card.title = text.to_string(),
+                "intent" => card.intent = text.to_string(),
+                "behavior" => card.behavior = text.to_string(),
+                "edge_cases" => card.edge_cases = text.to_string(),
+                "plan" => card.plan = text.to_string(),
+                "stage" => card.stage = text.to_string(),
+                "status" => card.status = text.to_string(),
+                "owner" => card.owner = text.to_string(),
+                "kind" => card.kind = text.to_string(),
+                "under" => card.under = text.to_string(),
+                "milestone" => card.milestone_id = text.to_string(),
+                "position" => card.position = value.as_i64().unwrap_or(0) as i32,
+                "decisions" => card.decisions = list_field(&op.fields, key),
+                _ => {}
+            }
+        }
+    }
+
     /// Returns the project's Conflict with this slug.
     pub fn conflict(&self, slug: &str) -> Option<&Conflict> {
         self.conflicts.iter().find(|conflict| conflict.slug == slug)
@@ -408,6 +551,74 @@ impl Snapshot {
     /// Returns the card with `slug`, if present.
     pub fn card(&self, slug: &str) -> Option<&Card> {
         self.cards.iter().find(|card| card.slug == slug)
+    }
+}
+
+fn text_field(fields: &Fields, key: &str) -> String {
+    fields
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn number_field(fields: &Fields, key: &str) -> i32 {
+    fields.get(key).and_then(Value::as_i64).unwrap_or_default() as i32
+}
+
+fn bool_field(fields: &Fields, key: &str) -> bool {
+    fields.get(key).and_then(Value::as_bool).unwrap_or_default()
+}
+
+fn list_field(fields: &Fields, key: &str) -> Vec<String> {
+    fields
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn apply_task_fields(task: &mut Task, fields: &Fields) {
+    for (key, value) in fields {
+        match key.as_str() {
+            "title" => task.title = text_field(fields, key),
+            "state" => task.state = text_field(fields, key),
+            "repo" => task.repo = text_field(fields, key),
+            "scope" => task.scope = text_field(fields, key),
+            "position" => task.position = value.as_i64().unwrap_or(0) as i32,
+            _ => {}
+        }
+    }
+}
+
+fn apply_question_fields(question: &mut Question, fields: &Fields) {
+    for (key, value) in fields {
+        match key.as_str() {
+            "text" => question.text = text_field(fields, key),
+            "blocking" => question.blocking = bool_field(fields, key),
+            "options" => question.options = list_field(fields, key),
+            "state" => question.state = text_field(fields, key),
+            "answer" => question.answer = text_field(fields, key),
+            "position" => question.position = value.as_i64().unwrap_or(0) as i32,
+            _ => {}
+        }
+    }
+}
+
+fn apply_invariant_fields(invariant: &mut Invariant, fields: &Fields) {
+    for (key, value) in fields {
+        match key.as_str() {
+            "text" => invariant.text = text_field(fields, key),
+            "state" => invariant.state = text_field(fields, key),
+            "position" => invariant.position = value.as_i64().unwrap_or(0) as i32,
+            _ => {}
+        }
     }
 }
 

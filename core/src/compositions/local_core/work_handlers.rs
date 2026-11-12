@@ -1147,7 +1147,7 @@ mod tests {
             );
         }
 
-        apply("---\npolter: 1\n---\n## git-import\nstage: build\n").expect("stage move");
+        apply("---\npolter: 1\n---\n## git-import\nstage: build\n? Merge commits?\nplan: Follow the core.\n").expect("stage move");
         let listed = list_work_cards(
             Arc::clone(&core),
             request(local_v1::ListWorkCardsRequest {
@@ -1209,7 +1209,7 @@ mod tests {
             queried.text
         );
         assert!(
-            queried.text.contains("Merge commits? [blocking]"),
+            queried.text.contains("Merge commits?"),
             "query handoff = {}",
             queried.text
         );

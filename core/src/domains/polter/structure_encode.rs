@@ -82,7 +82,7 @@ fn write_structure_row(
     }
     let mut wrote_rules = false;
     for rule in rules {
-        if !rule.scopes.iter().any(|scope| scope == &row.node.path) {
+        if !rule.binding() || !rule.scopes.iter().any(|scope| scope == &row.node.path) {
             continue;
         }
         if !wrote_rules {
@@ -303,6 +303,28 @@ mod tests {
             "{out}"
         );
         assert!(out.contains("  import  build  \"Import\"\n"), "{out}");
+    }
+
+    #[test]
+    fn lists_only_binding_rules_that_hold_for_the_node() {
+        let rule = |id: &str, status: &str| work::Rule {
+            id: id.into(),
+            statement: format!("{id} statement"),
+            scopes: vec!["data/db".into()],
+            status: status.into(),
+            ..work::Rule::default()
+        };
+        let rules = vec![
+            rule("active-rule", work::RULE_ACTIVE),
+            rule("review-rule", work::RULE_UNDER_REVIEW),
+            rule("replaced-rule", work::RULE_REPLACED),
+            rule("proposed-rule", work::RULE_PROPOSED),
+        ];
+        let out = encode_structure("demo", &rows(), &[], &rules, "data/db");
+        assert!(out.contains("- active-rule statement\n"), "{out}");
+        assert!(out.contains("- review-rule statement\n"), "{out}");
+        assert!(!out.contains("replaced-rule"), "{out}");
+        assert!(!out.contains("proposed-rule"), "{out}");
     }
 
     #[test]

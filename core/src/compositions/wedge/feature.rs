@@ -527,14 +527,15 @@ mod tests {
             .iter()
             .map(|item| item.label.as_str())
             .collect();
+        assert_eq!(labels[0], "! No network calls");
+        assert!(
+            labels[1].starts_with("rule ")
+                && labels[1].contains(": No inline styles (from app/core)"),
+            "a Rule with no slug is named by its id: {labels:?}"
+        );
         assert_eq!(
-            labels,
-            vec![
-                "! No network calls",
-                "rule : No inline styles (from app/core)",
-                "rule local-only: Never call the network (from app/core)",
-            ],
-            "the card's own invariant and both scoped Rules"
+            labels[2],
+            "rule local-only: Never call the network (from app/core)"
         );
         let inherited = &result.manual[1];
         assert!(
