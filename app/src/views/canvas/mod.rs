@@ -669,14 +669,11 @@ fn miniature(
     } else {
         Viewport::default()
     };
-    let mut layer = div()
-        .absolute()
-        .inset_0()
-        .child(dot_grid(
-            viewport,
-            viewport.zoom,
-            theme.color_border_default,
-        ));
+    let mut layer = div().absolute().inset_0().child(dot_grid(
+        viewport,
+        viewport.zoom,
+        theme.color_border_default,
+    ));
     if let Some(doc) = &doc {
         let (back, front) = layers(doc);
         let draw = |node: &crate::canvas::document::Node| {
