@@ -356,27 +356,27 @@ impl InboxView {
             .cloned()
             .collect();
         let cols = active_columns_for(&rows);
-        if let Some((col_idx, direction)) = self.sort {
-            if let Some(&col) = cols.get(col_idx) {
-                let group =
-                    |item: &InboxItem| INBOX_KINDS.iter().position(|(kind, ..)| *kind == item.kind);
-                rows.sort_by(|a, b| {
-                    group(a).cmp(&group(b)).then_with(|| {
-                        let order = match col {
-                            InboxCol::Item => a.title.to_lowercase().cmp(&b.title.to_lowercase()),
-                            InboxCol::Type => kind_label(&a.kind).cmp(kind_label(&b.kind)),
-                            InboxCol::Where => a.r#where.cmp(&b.r#where),
-                            InboxCol::Actor => item_actor(a).cmp(&item_actor(b)),
-                            InboxCol::Updated => item_time(a).cmp(&item_time(b)),
-                            InboxCol::Status => status_sort_label(a).cmp(&status_sort_label(b)),
-                        };
-                        match direction {
-                            SortDirection::Ascending => order,
-                            SortDirection::Descending => order.reverse(),
-                        }
-                    })
-                });
-            }
+        if let Some((col_idx, direction)) = self.sort
+            && let Some(&col) = cols.get(col_idx)
+        {
+            let group =
+                |item: &InboxItem| INBOX_KINDS.iter().position(|(kind, ..)| *kind == item.kind);
+            rows.sort_by(|a, b| {
+                group(a).cmp(&group(b)).then_with(|| {
+                    let order = match col {
+                        InboxCol::Item => a.title.to_lowercase().cmp(&b.title.to_lowercase()),
+                        InboxCol::Type => kind_label(&a.kind).cmp(kind_label(&b.kind)),
+                        InboxCol::Where => a.r#where.cmp(&b.r#where),
+                        InboxCol::Actor => item_actor(a).cmp(&item_actor(b)),
+                        InboxCol::Updated => item_time(a).cmp(&item_time(b)),
+                        InboxCol::Status => status_sort_label(a).cmp(&status_sort_label(b)),
+                    };
+                    match direction {
+                        SortDirection::Ascending => order,
+                        SortDirection::Descending => order.reverse(),
+                    }
+                })
+            });
         }
         rows
     }
@@ -1152,7 +1152,7 @@ fn inbox_table(
                 }
                 InboxCol::Actor => {
                     let actor = item_actor(item);
-                    let text: SharedString = actor.unwrap_or("\u{2014}").into();
+                    let text = SharedString::from(actor.unwrap_or("\u{2014}").to_string());
                     div()
                         .text_size(px(12.5))
                         .text_color(if actor.is_none() {
