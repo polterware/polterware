@@ -1,7 +1,7 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n## plan diagnostics\n## plan\n~ conflict use-redis \"Add a Redis cache\" answer: \"\" → \"Keep local - for now\" state: open → decided\n+ conflict use-postgres \"Move to Postgres\"\n- conflict old-conflict \"An old request\" state: open → withdrawn\n## summary\n3 ops ()\n## brief\n# core: Core\nlevel: domain\n\nRules:\n- Never call the network. (whole project)\n\nDecisions:\n- Decision-0002 [active] Import\nprinciples: SQLite · Context\n",
+  "expected": "## decode\n## plan diagnostics\n## plan\n~ conflict use-redis \"Add a Redis cache\" answer: \"\" \u2192 \"Keep local - for now\" state: open \u2192 decided\n+ conflict use-postgres \"Move to Postgres\"\n- conflict old-conflict \"An old request\" state: open \u2192 withdrawn\n## summary\n3 ops ()\n## brief\n# core: Core\nlevel: domain\n\nRules:\n- Decision 0002: Import\n- Never call the network. (whole project)\n",
   "name": "conflicts-lifecycle",
   "snapshot": {
     "Cards": null,
@@ -33,39 +33,7 @@
         "State": "open"
       }
     ],
-    "Decisions": [
-      {
-        "Body": "",
-        "ID": "a1",
-        "Scopes": null,
-        "Status": "active",
-        "Title": "Decision 0001: SQLite"
-      },
-      {
-        "Body": "",
-        "ID": "a2",
-        "Scopes": [
-          "core"
-        ],
-        "Status": "active",
-        "Title": "Decision 0002: Import"
-      },
-      {
-        "Body": "",
-        "ID": "a3",
-        "Scopes": null,
-        "Status": "proposed",
-        "Title": "Decision 0003: Context"
-      },
-      {
-        "Body": "",
-        "ID": "a4",
-        "Scopes": null,
-        "Status": "superseded",
-        "Title": "Decision 0004: Old",
-        "supersededBy": "a2"
-      }
-    ],
+    "Decisions": null,
     "Environments": null,
     "Facts": null,
     "Milestones": null,
@@ -114,6 +82,16 @@
     "ProjectID": "p1",
     "Repos": null,
     "Rules": [
+      {
+        "ID": "a2",
+        "Slug": "",
+        "Statement": "Decision 0002: Import",
+        "Scopes": [
+          "core"
+        ],
+        "Status": "active",
+        "Position": 1
+      },
       {
         "ID": "r1",
         "Position": 0,

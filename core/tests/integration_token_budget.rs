@@ -10,9 +10,9 @@ const TOKEN_CEILINGS: &[(&str, i32)] = &[
     ("mcp.initialize", 237),
     ("mcp.tools_list", 702),
     ("polter.format", 397),
-    ("card.context", 275),
-    ("node.context", 201),
-    ("search", 57),
+    ("card.context", 341),
+    ("node.context", 266),
+    ("search", 36),
     ("canvas.show", 91),
 ];
 

@@ -7,7 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::domains::{decision, structure, work};
+use crate::domains::{structure, work};
 
 use super::deploy_spec::check_deploys;
 use super::graph::check_graph;
@@ -18,7 +18,7 @@ use super::model::*;
 /// be resolved and only syntax is checked.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct References {
-    /// Each Decision's knowledge id and title.
+    /// Each Rule's id and statement.
     pub decisions: Vec<DecisionRef>,
     /// The project's current Work graph, for similarity hints.
     pub cards: Vec<work::Card>,
@@ -39,7 +39,7 @@ pub struct References {
 pub struct DecisionRef {
     pub id: String,
     pub title: String,
-    /// The Decision knowledge status (proposed, accepted, …).
+    /// The Rule status (proposed, active, under_review, …).
     pub status: String,
 }
 
@@ -86,17 +86,17 @@ fn check_references(doc: &Document, references: &References) -> Vec<Diagnostic> 
             numbers.insert(number);
         }
     }
-    // `stale` hints at a cited decision that no longer settles the question.
+    // `stale` hints at a cited Rule that no longer settles the question.
     let stale = |line: i32, reference: &str| -> Vec<Diagnostic> {
         for entry in &references.decisions {
             if !cites_decision(reference, &entry.id, &entry.title)
-                || decision::binding(&entry.status)
+                || work::binding_rule_status(&entry.status)
             {
                 continue;
             }
-            let state = decision::normalize(&entry.status);
-            let mut message = format!("decision {} is {state}", entry.title);
-            if state == decision::STATE_SUPERSEDED {
+            let state = entry.status.as_str();
+            let mut message = format!("rule {} is {state}", entry.title);
+            if state == work::RULE_REPLACED {
                 message.push_str(": cite its successor");
             }
             return vec![Diagnostic::hint(line, message)];
@@ -124,7 +124,7 @@ fn check_references(doc: &Document, references: &References) -> Vec<Diagnostic> 
                     line: entry.line,
                     severity: SEVERITY_ERROR.to_string(),
                     message: format!(
-                        "unknown decision {}: no Decision with that number or id in this project",
+                        "unknown rule {}: no Rule with that number or id in this project",
                         go_quote(&reference)
                     ),
                 });
@@ -167,13 +167,26 @@ pub fn check_repos(doc: &Document, repos: &[String]) -> Vec<Diagnostic> {
     diags
 }
 
-/// Reads the number from "Decision-0008" or a numbered title.
+/// Reads the number from "Decision-0008", "ADR-8", "Verdict-8", or a numbered
+/// title.
 pub fn parse_decision_number(value: &str) -> Option<i64> {
-    decision::number(value)
+    let lower = value.trim().to_lowercase();
+    let rest = [
+        "decision-",
+        "decision ",
+        "adr-",
+        "adr ",
+        "verdict-",
+        "verdict ",
+    ]
+    .iter()
+    .find_map(|prefix| lower.strip_prefix(prefix))?;
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+    digits.parse().ok()
 }
 
-/// Reports whether a `decisions:` entry names the Decision with `id` and
-/// `title`, by id or by Decision number.
+/// Reports whether a `decisions:` entry names the Rule with `id` and
+/// `statement`, by id or by Decision number.
 pub fn cites_decision(reference: &str, id: &str, title: &str) -> bool {
     let reference = reference.trim();
     if reference.to_lowercase() == id.to_lowercase() {
@@ -409,7 +422,7 @@ mod tests {
             "Decision-0007 should resolve: {diags:?}"
         );
         let (_, diags) = lint(SAMPLE, Some(&References::default()));
-        assert!(has_diag(&diags, 10, "unknown decision"), "{diags:?}");
+        assert!(has_diag(&diags, 10, "unknown rule"), "{diags:?}");
     }
 
     #[test]
@@ -418,7 +431,7 @@ mod tests {
             decisions: vec![DecisionRef {
                 id: "decision-x".into(),
                 title: "Decision 0007: Deterministic import".into(),
-                status: decision::STATE_SUPERSEDED.into(),
+                status: work::RULE_REPLACED.into(),
             }],
             ..References::default()
         };

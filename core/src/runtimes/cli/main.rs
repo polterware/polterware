@@ -10,7 +10,6 @@ use super::canvas;
 use super::conflict;
 use super::context;
 use super::db::{abs, default_db};
-use super::decision;
 use super::deploys;
 use super::export;
 use super::feature;
@@ -76,7 +75,6 @@ pub fn run(argv: &[String]) -> i32 {
         "status" => polter::run_status(&db_path, rest),
         "handoff" => polter::run_handoff(&db_path, rest),
         "task" => polter::run_task(&db_path, rest),
-        "decision" => decision::run_decision(&db_path, rest),
         "feature" => feature::run_feature(&db_path, rest),
         "verify" => feature::run_verify(&db_path, rest),
         "inbox" => inbox::run_inbox(&db_path, rest),
@@ -114,8 +112,8 @@ mod tests {
 
     #[test]
     fn the_usage_is_ten_thousand_bytes_of_go_text() {
-        assert_eq!(usage_text().len(), 4113);
-        assert_eq!(usage_text().matches('\n').count(), 33);
+        assert_eq!(usage_text().len(), 3810);
+        assert_eq!(usage_text().matches('\n').count(), 32);
     }
 
     #[test]

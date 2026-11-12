@@ -478,10 +478,13 @@ mod tests {
     fn polter_query_shows_one_record_and_commits() {
         let mut server = TestServer::new();
         for (id, want) in [
-            ("Decision-0001", "### Decision-0001: Local SQLite authority"),
+            (
+                "decision-sqlite-local",
+                "rule decision-sqlite-local [active] One local core owns SQLite.\nscope: whole project\n",
+            ),
             (
                 "fact-no-network",
-                "fact fact-no-network [declared] Imports never call the network.\n",
+                "rule fact-no-network [active] Imports never call the network.\nscope: whole project\n",
             ),
             ("rb-service", "doc rb-service \"Service recovery\"\n"),
             (
@@ -618,7 +621,9 @@ mod tests {
 
         let shown = server.query("show no-secret-logs");
         assert!(
-            shown.contains("rule no-secret-logs Never log secrets.\nscope: whole project\n"),
+            shown.contains(
+                "rule no-secret-logs [active] Never log secrets.\nscope: whole project\n"
+            ),
             "show rule:\n{shown}"
         );
 

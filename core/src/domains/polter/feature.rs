@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use crate::domains::{decision, structure, work};
+use crate::domains::{structure, work};
 
 use super::hints::{WordSet, card_words};
 use super::*;
@@ -37,7 +37,7 @@ pub struct FeatureReview {
     /// The `under:` chain (top-down) plus components whose words overlap the
     /// card title and intent.
     pub touches: Vec<structure::Node>,
-    pub decisions: Vec<ReviewDecision>,
+    pub rules: Vec<ReviewRule>,
     pub inherited: Vec<ReviewInvariant>,
     pub questions: Vec<ReviewQuestion>,
     pub checks: Vec<FeatureCheck>,
@@ -45,10 +45,10 @@ pub struct FeatureReview {
     components: bool,
 }
 
-/// One decision that applies to the card. `from` is `card` or the node path
-/// that cites it. `status` is empty when no Decision matches.
+/// One Rule that applies to the card. `from` is `card` or the node path that
+/// cites it. `status` is empty when no Rule matches.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ReviewDecision {
+pub struct ReviewRule {
     pub reference: String,
     pub id: String,
     pub title: String,
@@ -90,7 +90,7 @@ pub struct FeatureCheck {
 pub fn review_feature(
     snapshot: &work::Snapshot,
     slug: &str,
-    decisions: &[DecisionRef],
+    rules: &[DecisionRef],
     routes: &HashMap<String, String>,
 ) -> Result<FeatureReview, String> {
     let card = match snapshot.card(slug) {
@@ -141,10 +141,10 @@ pub fn review_feature(
         }
     }
 
-    review.decisions = review_decisions(&card, &chain, decisions);
+    review.rules = review_rules(&card, &chain, rules);
     for node in &chain {
         for rule in &snapshot.rules {
-            if rule.scopes.contains(&node.path) {
+            if rule.binding() && rule.scopes.contains(&node.path) {
                 review.inherited.push(ReviewInvariant {
                     text: rule.statement.clone(),
                     from: node.path.clone(),
@@ -268,8 +268,8 @@ pub fn encode_feature_review(review: &FeatureReview, step: &str) -> String {
             .collect();
         out.push_str(&format!("Touches: {}\n", paths.join(", ")));
     }
-    for item in &review.decisions {
-        out.push_str(&format!("Applies: {}\n", decision_line(item)));
+    for item in &review.rules {
+        out.push_str(&format!("Applies: {}\n", rule_line(item)));
     }
     for invariant in &review.inherited {
         out.push_str(&format!(
@@ -501,20 +501,20 @@ pub fn unique_card_slug(existing: &[String], title: &str) -> String {
     }
 }
 
-fn review_decisions(
+fn review_rules(
     card: &work::Card,
     chain: &[structure::Node],
-    decisions: &[DecisionRef],
-) -> Vec<ReviewDecision> {
-    let mut out: Vec<ReviewDecision> = Vec::new();
+    rules: &[DecisionRef],
+) -> Vec<ReviewRule> {
+    let mut out: Vec<ReviewRule> = Vec::new();
     let mut seen: HashMap<String, bool> = HashMap::new();
     let mut add = |reference: &str, from: &str| {
-        let mut item = ReviewDecision {
+        let mut item = ReviewRule {
             reference: reference.to_string(),
             from: from.to_string(),
-            ..ReviewDecision::default()
+            ..ReviewRule::default()
         };
-        for candidate in decisions {
+        for candidate in rules {
             if cites_decision(reference, &candidate.id, &candidate.title) {
                 item.id = candidate.id.clone();
                 item.title = candidate.title.clone();
@@ -632,25 +632,18 @@ fn feature_checks(review: &FeatureReview) -> Vec<FeatureCheck> {
             "no contract: add `! invariant` lines the feature must keep".to_string(),
         );
     }
-    for item in &review.decisions {
+    for item in &review.rules {
         if item.id.is_empty() {
             add(
                 FEATURE_STEP_CONTRACT,
                 SEVERITY_HINT,
-                format!(
-                    "decision {} matches no Decision in this project",
-                    item.reference
-                ),
+                format!("rule {} matches no Rule in this project", item.reference),
             );
-        } else if !item.status.is_empty() && !decision::binding(&item.status) {
+        } else if !item.status.is_empty() && !work::binding_rule_status(&item.status) {
             add(
                 FEATURE_STEP_CONTRACT,
                 SEVERITY_HINT,
-                format!(
-                    "decision {} is {}, not active",
-                    item.title,
-                    decision::normalize(&item.status)
-                ),
+                format!("rule {} is {}, not binding", item.title, item.status),
             );
         }
     }
@@ -683,7 +676,7 @@ fn feature_checks(review: &FeatureReview) -> Vec<FeatureCheck> {
     checks
 }
 
-fn decision_line(item: &ReviewDecision) -> String {
+fn rule_line(item: &ReviewRule) -> String {
     let mut line = item.reference.clone();
     if !item.title.is_empty() {
         line = item.title.clone();
@@ -691,7 +684,7 @@ fn decision_line(item: &ReviewDecision) -> String {
     if !item.status.is_empty() {
         line.push_str(&format!(" ({})", item.status));
     } else if item.id.is_empty() {
-        line.push_str(" (no Decision)");
+        line.push_str(" (no Rule)");
     }
     if item.from != "card" {
         line.push_str(&format!(" via {}", item.from));
@@ -986,7 +979,7 @@ mod tests {
             DecisionRef {
                 id: "decision-7".into(),
                 title: "Decision 0007: Deterministic import only".into(),
-                status: "accepted".into(),
+                status: "active".into(),
             },
             DecisionRef {
                 id: "decision-9".into(),
@@ -1062,14 +1055,9 @@ mod tests {
             .collect();
         assert_eq!(touches.join(","), "core,core/import", "touches");
 
-        assert_eq!(
-            review.decisions.len(),
-            2,
-            "decisions: {:?}",
-            review.decisions
-        );
-        assert_eq!(review.decisions[0].id, "decision-9", "the card's decision");
-        assert_eq!(review.decisions[1].from, "core", "the node's decision");
+        assert_eq!(review.rules.len(), 2, "rules: {:?}", review.rules);
+        assert_eq!(review.rules[0].id, "decision-9", "the card's rule");
+        assert_eq!(review.rules[1].from, "core", "the node's rule");
 
         assert_eq!(
             review.inherited.len(),
@@ -1115,7 +1103,7 @@ mod tests {
                 &review,
                 FEATURE_STEP_CONTRACT,
                 SEVERITY_HINT,
-                "is proposed, not active"
+                "is proposed, not binding"
             ),
             "proposed decision should hint: {:?}",
             review.checks

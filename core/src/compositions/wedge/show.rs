@@ -5,7 +5,6 @@ use time::OffsetDateTime;
 use time::format_description::FormatItem;
 use time::macros::format_description;
 
-use crate::domains::decision;
 use crate::domains::polter;
 use crate::domains::work;
 use crate::providers::sqlite as storepkg;
@@ -19,9 +18,9 @@ const GO_DATETIME: &[FormatItem<'static>] =
 /// Go's `15:04` layout.
 const GO_CLOCK: &[FormatItem<'static>] = format_description!("[hour]:[minute]");
 
-/// Renders one record by id as text: a card (by slug), a Decision (by ref or
-/// id), a fact or Rule (by slug or id), a doc with its body, a Canon entity, or
-/// an AgentRun with its steps.
+/// Renders one record by id as text: a card (by slug), a Rule (by slug, id, or
+/// migrated Decision number), a doc with its body, a Canon entity, or an
+/// AgentRun with its steps.
 /// Called by the work.go query router, ported separately; unexported in Go, so
 /// public here only for the package's glob re-export.
 pub fn query_show(
@@ -33,42 +32,16 @@ pub fn query_show(
     if let Some(card) = snapshot.card(id) {
         return Ok(polter::encode_card(card));
     }
-    if let Some(target) = decision::find(&snapshot.decisions, id) {
-        return Ok(polter::encode_decision(
-            &target,
-            &snapshot.decisions,
-            &polter::nodes_citing(&snapshot.nodes, &target),
+    if let Some(rule) = snapshot.rules.iter().find(|rule| {
+        rule.id == id
+            || (!rule.slug.is_empty() && rule.slug == id)
+            || polter::cites_decision(id, &rule.id, &rule.statement)
+    }) {
+        return Ok(polter::encode_rule(
+            rule,
+            &snapshot.rules,
+            &polter::nodes_citing_rule(&snapshot.nodes, rule),
         ));
-    }
-    for fact in &snapshot.facts {
-        if fact.fact.id != id && (fact.slug.is_empty() || fact.slug != id) {
-            continue;
-        }
-        let mut out = format!(
-            "fact {} [{}] {}\n",
-            fact.fact.id, fact.fact.truth_class, fact.fact.statement
-        );
-        if !fact.slug.is_empty() {
-            out.push_str(&format!("slug: {}\n", fact.slug));
-        }
-        if !fact.scopes.is_empty() {
-            out.push_str(&format!("scope: {}\n", fact.scopes.join(", ")));
-        }
-        out.push_str(&format!(
-            "source: {} · actor: {}\n",
-            fact.fact.source, fact.fact.actor
-        ));
-        return Ok(out);
-    }
-    for rule in &snapshot.rules {
-        if rule.id != id && (rule.slug.is_empty() || rule.slug != id) {
-            continue;
-        }
-        let text = format!("rule {} {}\n", rule.handle(), rule.statement);
-        if !rule.scopes.is_empty() {
-            return Ok(text + "scope: " + &rule.scopes.join(", ") + "\n");
-        }
-        return Ok(text + "scope: whole project\n");
     }
     if let Ok(item) = store.get_knowledge(id)
         && item.project_id == snapshot.project_id
@@ -132,7 +105,7 @@ pub fn query_show(
         return Ok(out);
     }
     Err(anyhow::anyhow!(
-        "unknown id {}: show takes a card slug, a Decision ref, a fact, rule, doc, entity, or run id (search <terms> finds them)",
+        "unknown id {}: show takes a card slug, a Rule ref, a doc, entity, or run id (search <terms> finds them)",
         polter::go_quote(id)
     ))
 }

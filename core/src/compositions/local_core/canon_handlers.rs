@@ -6,9 +6,6 @@
 
 use std::sync::Arc;
 
-use time::OffsetDateTime;
-use time::format_description::well_known::Rfc3339;
-
 use crate::compositions::wedge;
 use crate::domains::agentaccess;
 use crate::domains::agentrun;
@@ -160,26 +157,29 @@ pub fn list_facts(
         return Err(invalid("project id is required"));
     }
     let store = core.store();
-    let items = store
-        .list_canon_facts(&msg.project_id, &msg.entity_id)
+    let snapshot = store
+        .load_work_snapshot(&msg.project_id)
         .map_err(internal)?;
     let refs = wedge::scope_refs(&msg.scope_node, &msg.scope_nodes);
     let resolved = wedge::load_node_scopes(&store, &msg.project_id, &refs, msg.scope_exact)
         .map_err(|err| invalid(err.to_string()))?;
-    let scopes = store
-        .scope_map(&msg.project_id, sqlite::SCOPE_FACT)
-        .map_err(internal)?;
-    // Go's `wedge.FilterFactsByScope`: the nil set keeps every fact, and a fact
-    // without a context belongs to the whole project.
-    let mut out = Vec::with_capacity(items.len());
-    for item in &items {
-        let contexts = scopes.get(&item.id).cloned().unwrap_or_default();
-        if !resolved.set.is_nil() && !resolved.matches_any(&contexts) {
+    let mut out = Vec::new();
+    for rule in &snapshot.rules {
+        if !rule.binding() {
             continue;
         }
-        let mut fact = canon_fact_proto(item);
-        fact.scope_node_ids = contexts;
-        out.push(fact);
+        if !resolved.set.is_nil() {
+            let contexts = store
+                .scope_map(&msg.project_id, sqlite::SCOPE_RULE)
+                .map_err(internal)?
+                .get(&rule.id)
+                .cloned()
+                .unwrap_or_default();
+            if !resolved.matches_any(&contexts) {
+                continue;
+            }
+        }
+        out.push(rule_fact_proto(rule));
     }
     Ok(local_v1::ListFactsResponse { facts: out })
 }
@@ -192,8 +192,8 @@ pub fn get_fact(
     if msg.id.is_empty() {
         return Err(invalid("fact id is required"));
     }
-    let fact = match core.store().get_canon_fact(&msg.id) {
-        Ok(fact) => fact,
+    let rule = match core.store().get_rule(&msg.id) {
+        Ok(rule) => rule,
         Err(err) if err.is_no_rows() => {
             return Err(ConnectError::new(
                 Code::NotFound,
@@ -203,10 +203,12 @@ pub fn get_fact(
         Err(err) => return Err(internal(err)),
     };
     Ok(local_v1::GetFactResponse {
-        fact: Some(canon_fact_proto(&fact)),
+        fact: Some(rule_fact_proto(&rule)),
     })
 }
 
+/// Writes a Fact as a Rule: the old wire shape stays for the Desktop until the
+/// contracts move, but the store only knows Rules.
 pub fn upsert_fact(
     core: Arc<Core>,
     request: ConnectRequest<local_v1::UpsertFactRequest>,
@@ -215,31 +217,82 @@ pub fn upsert_fact(
     let Some(fact_msg) = msg.fact.as_ref() else {
         return Err(invalid("fact is required"));
     };
+    if fact_msg.statement.trim().is_empty() {
+        return Err(invalid("fact statement is required"));
+    }
     let mut env = change_envelope_from_proto(msg.change.as_ref()).map_err(map_audited_err)?;
-    let mut fact = canon_fact_from_proto(fact_msg).map_err(|err| invalid(err.to_string()))?;
-    env.project_id = fact.project_id.clone();
-    fact.actor = agentrun::ACTOR_HUMAN.to_string();
-    fact.source = agentrun::SOURCE_DESKTOP.to_string();
-    if !fact.entity_id.is_empty() && core.store().get_canon_entity(&fact.entity_id).is_err() {
+    let project_id = if fact_msg.project_id.is_empty() {
+        env.project_id.clone()
+    } else {
+        fact_msg.project_id.clone()
+    };
+    env.project_id = project_id.clone();
+    if !fact_msg.entity_id.is_empty() && core.store().get_canon_entity(&fact_msg.entity_id).is_err()
+    {
         return Err(invalid("entity not found"));
     }
+    let rule_id = if fact_msg.id.is_empty() {
+        crate::platform::ids::new_ulid()
+    } else {
+        fact_msg.id.clone()
+    };
+    let mut fields = serde_json::Map::new();
+    fields.insert(
+        "statement".into(),
+        serde_json::Value::String(fact_msg.statement.clone()),
+    );
+    if !fact_msg.scope_node_ids.is_empty() {
+        let nodes = core
+            .store()
+            .structure_nodes(&project_id)
+            .map_err(internal)?;
+        let paths: Vec<String> = nodes
+            .iter()
+            .filter(|node| fact_msg.scope_node_ids.contains(&node.id))
+            .map(|node| node.path.clone())
+            .collect();
+        fields.insert("scope".into(), serde_json::json!(paths));
+    }
+    let op = crate::domains::work::Op {
+        entity: crate::domains::work::ENTITY_RULE.to_string(),
+        kind: if fact_msg.id.is_empty() {
+            crate::domains::work::OP_CREATE.to_string()
+        } else {
+            crate::domains::work::OP_UPDATE.to_string()
+        },
+        entity_id: rule_id.clone(),
+        card_slug: fact_msg.statement.clone(),
+        label: fact_msg.statement.clone(),
+        fields,
+        ..crate::domains::work::Op::default()
+    };
     {
         let store = core.store();
-        let item = fact.clone();
+        let batch = crate::platform::ids::new_ulid();
         wedge::execute_audited_write(
             &store,
             env,
             agentrun::ACTOR_KIND_HUMAN,
             "desktop.fact.upsert",
-            |_run| {
-                store.upsert_canon_fact(&item)?;
-                Ok((vec![item.id.clone()], item.clone()))
+            |run| {
+                store.apply_work_ops(&project_id, &run.id, &batch, std::slice::from_ref(&op))?;
+                Ok((vec![rule_id.clone()], rule_id.clone()))
             },
         )
     }
     .map_err(map_audited_err)?;
+    let snapshot = core
+        .store()
+        .load_work_snapshot(&project_id)
+        .map_err(internal)?;
+    let rule = snapshot
+        .rules
+        .iter()
+        .find(|rule| rule.id == rule_id)
+        .cloned()
+        .unwrap_or_default();
     Ok(local_v1::UpsertFactResponse {
-        fact: Some(canon_fact_proto(&fact)),
+        fact: Some(rule_fact_proto(&rule)),
     })
 }
 
@@ -539,70 +592,20 @@ pub fn canon_relationship_proto(item: &canon::Relationship) -> local_v1::CanonRe
     }
 }
 
-pub fn canon_fact_proto(item: &canon::Fact) -> local_v1::CanonFact {
+pub fn rule_fact_proto(rule: &crate::domains::work::Rule) -> local_v1::CanonFact {
     local_v1::CanonFact {
-        id: item.id.clone(),
-        project_id: item.project_id.clone(),
-        statement: item.statement.clone(),
-        truth_class: item.truth_class.clone(),
-        source: item.source.clone(),
-        actor: item.actor.clone(),
-        observed_at: sqlite::format_rfc3339_zone(item.observed_at),
-        entity_id: item.entity_id.clone(),
-        created_at: sqlite::format_rfc3339_zone(item.created_at),
-        updated_at: sqlite::format_rfc3339_zone(item.updated_at),
+        id: rule.id.clone(),
+        project_id: String::new(),
+        statement: rule.statement.clone(),
+        truth_class: "declared".to_string(),
+        source: "rule".to_string(),
+        actor: String::new(),
+        observed_at: String::new(),
+        entity_id: String::new(),
+        created_at: String::new(),
+        updated_at: String::new(),
         scope_node_ids: Vec::new(),
     }
-}
-
-/// Reads a fact off the wire, as Go's `canonFactFromProto` does: without an id
-/// it is a new fact, and with one it keeps the given stamps when they parse.
-fn canon_fact_from_proto(msg: &local_v1::CanonFact) -> Result<canon::Fact, canon::Error> {
-    if msg.id.is_empty() {
-        return canon::new_fact(
-            &msg.project_id,
-            &msg.statement,
-            &msg.truth_class,
-            &msg.source,
-            &msg.actor,
-            &msg.entity_id,
-        );
-    }
-    let now = OffsetDateTime::now_utc();
-    let mut fact = canon::Fact {
-        id: msg.id.clone(),
-        project_id: msg.project_id.clone(),
-        statement: msg.statement.clone(),
-        truth_class: msg.truth_class.clone(),
-        source: msg.source.clone(),
-        actor: msg.actor.clone(),
-        entity_id: msg.entity_id.clone(),
-        observed_at: now,
-        created_at: now,
-        updated_at: now,
-    };
-    if fact.truth_class.is_empty() {
-        fact.truth_class = canon::TRUTH_DECLARED.to_string();
-    }
-    if fact.source.is_empty() {
-        fact.source = "polterware".to_string();
-    }
-    if fact.actor.is_empty() {
-        fact.actor = "system".to_string();
-    }
-    if !msg.observed_at.is_empty()
-        && let Ok(parsed) = OffsetDateTime::parse(&msg.observed_at, &Rfc3339)
-    {
-        fact.observed_at = parsed;
-    }
-    if !msg.created_at.is_empty()
-        && let Ok(parsed) = OffsetDateTime::parse(&msg.created_at, &Rfc3339)
-    {
-        fact.created_at = parsed;
-    }
-    canon::validate_fact(&fact)?;
-    fact.updated_at = now;
-    Ok(fact)
 }
 
 pub fn knowledge_link_proto(item: &knowledge::EntityLink) -> local_v1::KnowledgeEntityLink {
@@ -662,9 +665,7 @@ mod tests {
         .expect("upsert fact");
         let fact = created.fact.expect("fact");
         assert!(!fact.id.is_empty(), "fact = {fact:?}");
-        assert_eq!(fact.actor, agentrun::ACTOR_HUMAN);
-        assert_eq!(fact.source, agentrun::SOURCE_DESKTOP);
-        assert!(fact.observed_at.ends_with('Z'), "stamp = {fact:?}");
+        assert_eq!(fact.source, "rule");
 
         let got = get_fact(
             Arc::clone(&core),

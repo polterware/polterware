@@ -14,8 +14,6 @@ use crate::domains::projects;
 use crate::platform::ids;
 use crate::providers::sqlite;
 
-use super::decisions::{DECISION_CONTEXTS_POLTER, DECISION_STATUS_POLTER, DECISIONS_POLTER};
-use super::facts::seed_facts;
 use super::knowledge::seed_knowledge;
 use super::structure::structure_text;
 
@@ -26,8 +24,6 @@ pub const PROJECT_NAME: &str = "Polterware";
 pub const EMPTY_PROJECT_ID: &str = "proj-empty";
 
 const SEED_LABEL: &str = "seed";
-
-const GIT_MODULE: &str = "module github.com/polterware/polterware/backend";
 
 /// The sibling repositories of the Polterware project, by the name they get in
 /// `project_repos`.
@@ -102,18 +98,12 @@ pub fn polterware(store: &sqlite::Store, root: &str) -> Result<()> {
         *registered.get("web").unwrap_or(&false),
         *registered.get("cloud").unwrap_or(&false),
     );
-    let texts = [
-        DECISIONS_POLTER,
-        DECISION_STATUS_POLTER,
-        structure.as_str(),
-        DECISION_CONTEXTS_POLTER,
-    ];
+    let texts = [structure.as_str()];
     for text in texts {
         apply(store, text)?;
     }
     seed_knowledge(store)?;
     store.sync_project_model(PROJECT_ID)?;
-    seed_facts(store)?;
     Ok(())
 }
 
@@ -182,17 +172,21 @@ pub fn detect_root() -> String {
     String::new()
 }
 
-/// Walks up from `dir` to the directory that holds the Polterware Go module
-/// (`backend/go.mod`) and is a Git work tree.
+/// Walks up from `dir` to the directory that holds the Polterware Rust
+/// workspace (a `Cargo.toml` workspace with a `core` crate) and is a Git work
+/// tree.
 fn find_root(dir: &str) -> String {
     let mut dir = PathBuf::from(dir);
     loop {
-        let module = dir.join("backend").join("go.mod");
-        if let Ok(body) = std::fs::read(&module)
-            && let Ok(body) = String::from_utf8(body)
-            && body.trim().starts_with(GIT_MODULE)
+        let manifest = dir.join("Cargo.toml");
+        if let Ok(body) = std::fs::read_to_string(&manifest)
+            && body.contains("[workspace]")
+            && dir.join("core").join("Cargo.toml").is_file()
         {
-            let found = dir.to_string_lossy().into_owned();
+            let found = std::fs::canonicalize(&dir)
+                .unwrap_or_else(|_| dir.clone())
+                .to_string_lossy()
+                .into_owned();
             if git_top_level(&found) == found {
                 return found;
             }
@@ -333,28 +327,30 @@ mod tests {
             );
             assert!(n > 0, "no card in stage {stage:?}");
         }
-        // Decision-0001..0005 and the five principles are seeded as active.
-        let decisions = count(
+        // Two project Rules and the five old principles are seeded as active.
+        let rules = count(
             &store,
-            "SELECT COUNT(*) FROM knowledge_items WHERE project_id=? AND kind='decision'",
+            "SELECT COUNT(*) FROM rules WHERE project_id=?",
             params![PROJECT_ID],
         );
-        assert_eq!(decisions, 15, "want 15 Decisions, got {decisions}");
+        assert!(rules >= 7, "want at least 7 Rules, got {rules}");
         let active = count(
             &store,
-            "SELECT COUNT(*) FROM knowledge_items WHERE project_id=? AND kind='decision' AND status='active'",
+            "SELECT COUNT(*) FROM rules WHERE project_id=? AND status='active'",
             params![PROJECT_ID],
         );
-        assert_eq!(active, 10, "want 10 active Decisions, got {active}");
-        // A decision with no contexts is a principle: the five pinned ones and
-        // Decision-0004.
-        let principles = count(
+        assert!(active >= 7, "want at least 7 active Rules, got {active}");
+        // A Rule with no contexts applies to the whole project.
+        let project_wide = count(
             &store,
-            "SELECT COUNT(*) FROM knowledge_items k WHERE k.project_id=? AND k.kind='decision'
-		AND NOT EXISTS (SELECT 1 FROM entity_contexts c WHERE c.entity_id=k.id)",
+            "SELECT COUNT(*) FROM rules r WHERE r.project_id=?
+		AND NOT EXISTS (SELECT 1 FROM entity_contexts c WHERE c.entity_id=r.id)",
             params![PROJECT_ID],
         );
-        assert_eq!(principles, 6, "want 6 principles, got {principles}");
+        assert_eq!(
+            project_wide, 7,
+            "want 7 project-wide Rules, got {project_wide}"
+        );
         let nodes = count(
             &store,
             "SELECT COUNT(*) FROM structure_nodes WHERE project_id=?",
@@ -364,12 +360,6 @@ mod tests {
             nodes >= 10,
             "want a Structure of Polterware, got {nodes} nodes"
         );
-        let facts = count(
-            &store,
-            "SELECT COUNT(*) FROM canon_facts WHERE project_id=?",
-            params![PROJECT_ID],
-        );
-        assert!(facts > 0, "want facts");
         let invariants = count(
             &store,
             "SELECT COUNT(*) FROM work_invariants wi JOIN work_cards wc ON wc.id=wi.card_id WHERE wc.project_id=?",
@@ -420,7 +410,7 @@ mod tests {
             "work_cards",
             "work_tasks",
             "structure_nodes",
-            "canon_facts",
+            "rules",
         ];
         let mut before = HashMap::new();
         for table in tables {

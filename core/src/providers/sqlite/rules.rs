@@ -12,21 +12,24 @@ use super::work::{field_str, field_text, scope_paths};
 use super::{Error, Result};
 
 impl super::Store {
-    /// Returns the project's active Rules in position order, each with the
-    /// paths of its context nodes.
+    /// Returns every Rule of the project in position order, each with the paths
+    /// of its context nodes. Callers that need the law filter with
+    /// [`work::Rule::binding`].
     pub(crate) fn load_rules(&self, project_id: &str) -> Result<Vec<work::Rule>> {
         let mut rules = Vec::new();
         self.each_row(
-            r#"SELECT id,COALESCE(slug,''),statement,status,position FROM rules
-		WHERE project_id=? AND status='active' ORDER BY position, created_at, id"#,
+            r#"SELECT id,COALESCE(slug,''),statement,why,status,COALESCE(replaced_by,''),position FROM rules
+		WHERE project_id=? ORDER BY position, created_at, id"#,
             params![project_id],
             |row| {
                 rules.push(work::Rule {
                     id: row.get(0)?,
                     slug: row.get(1)?,
                     statement: row.get(2)?,
-                    status: row.get(3)?,
-                    position: row.get(4)?,
+                    why: row.get(3)?,
+                    status: row.get(4)?,
+                    replaced_by: row.get(5)?,
+                    position: row.get(6)?,
                     scopes: Vec::new(),
                 });
                 Ok(())
@@ -39,9 +42,38 @@ impl super::Store {
         Ok(rules)
     }
 
-    /// Returns the project's active Rules.
+    /// Returns every Rule of the project, in position order.
     pub fn list_rules(&self, project_id: &str) -> Result<Vec<work::Rule>> {
         self.load_rules(project_id)
+    }
+
+    /// Returns one Rule by id, with its context paths, across projects.
+    pub fn get_rule(&self, id: &str) -> Result<work::Rule> {
+        let (project_id, mut rule) = self
+            .db
+            .query_row(
+                r#"SELECT project_id,id,COALESCE(slug,''),statement,why,status,COALESCE(replaced_by,''),position FROM rules WHERE id=?"#,
+                params![id],
+                |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        work::Rule {
+                            id: row.get(1)?,
+                            slug: row.get(2)?,
+                            statement: row.get(3)?,
+                            why: row.get(4)?,
+                            status: row.get(5)?,
+                            replaced_by: row.get(6)?,
+                            position: row.get(7)?,
+                            scopes: Vec::new(),
+                        },
+                    ))
+                },
+            )
+            .map_err(Error::from)?;
+        let contexts = self.context_paths(&project_id)?;
+        rule.scopes = contexts.get(&rule.id).cloned().unwrap_or_default();
+        Ok(rule)
     }
 }
 
@@ -59,19 +91,28 @@ pub(super) fn apply_rule_op(
                 Some(Value::String(value)) if !value.is_empty() => Some(value.clone()),
                 _ => None,
             };
+            let mut status = field_text(&op.fields, "status").unwrap_or_default();
+            if status.is_empty() {
+                status = work::RULE_ACTIVE.to_string();
+            } else if !work::valid_rule_status(&status) {
+                return Err(Error::message(format!("unknown rule status {status:?}")));
+            }
             let position: i64 = tx.query_row(
                 r#"SELECT COALESCE(MAX(position),-1)+1 FROM rules WHERE project_id=?"#,
                 params![project_id],
                 |row| row.get(0),
             )?;
+            let replaced_by = field_text(&op.fields, "replaced_by").unwrap_or_default();
             tx.execute(
-                r#"INSERT INTO rules(id,project_id,slug,statement,status,position,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)"#,
+                r#"INSERT INTO rules(id,project_id,slug,statement,why,status,replaced_by,position,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)"#,
                 params![
                     op.entity_id,
                     project_id,
                     slug,
                     statement,
-                    work::RULE_ACTIVE,
+                    field_str(&op.fields, "why"),
+                    status,
+                    replaced_by,
                     position,
                     now,
                     now
@@ -96,10 +137,25 @@ pub(super) fn apply_rule_op(
                     params![value, now, op.entity_id],
                 )?;
             }
+            if let Some(value) = field_text(&op.fields, "why") {
+                tx.execute(
+                    r#"UPDATE rules SET why=?, updated_at=? WHERE id=?"#,
+                    params![value, now, op.entity_id],
+                )?;
+            }
+            if let Some(value) = field_text(&op.fields, "replaced_by") {
+                tx.execute(
+                    r#"UPDATE rules SET replaced_by=?, updated_at=? WHERE id=?"#,
+                    params![value, now, op.entity_id],
+                )?;
+            }
             let mut status = String::new();
             if op.kind == work::OP_REMOVE {
                 status = work::RULE_REMOVED.to_string();
             } else if let Some(value) = field_text(&op.fields, "status") {
+                if !work::valid_rule_status(&value) {
+                    return Err(Error::message(format!("unknown rule status {value:?}")));
+                }
                 status = value;
             }
             if !status.is_empty() {
@@ -203,10 +259,9 @@ mod tests {
         store
             .apply_work_ops("proj", "", "batch-3", &[remove])
             .expect("remove rule");
-        assert!(
-            store.list_rules("proj").expect("rules").is_empty(),
-            "a removed Rule leaves the list"
-        );
+        let rules = store.list_rules("proj").expect("rules");
+        assert_eq!(rules.len(), 1, "a removed Rule stays readable");
+        assert_eq!(rules[0].status, work::RULE_REMOVED, "removed status");
         let slug: Option<String> = store
             .db
             .query_row("SELECT slug FROM rules WHERE id='rule-1'", [], |row| {

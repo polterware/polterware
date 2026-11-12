@@ -2,7 +2,7 @@
 //!
 //! The one-line-per-match read agents search with before they ask for a brief.
 
-use crate::domains::{context, decision, structure, work};
+use crate::domains::{context, structure, work};
 
 use super::brief::pack_brief;
 use super::*;
@@ -60,16 +60,6 @@ pub fn search(input: &BriefInput, terms: &str, budget: i32) -> String {
             ));
         }
     }
-    for item in &input.snapshot.decisions {
-        if matches(&[item.title.as_str(), item.body.as_str()]) {
-            lines.push(format!(
-                "decision {}  {}  {}",
-                decision_handle(item),
-                decision::normalize(&item.status),
-                go_quote(&decision::strip_number(&item.title))
-            ));
-        }
-    }
     for doc in &input.docs {
         if !matches(&[doc.title.as_str(), doc.body.as_str()]) {
             continue;
@@ -83,16 +73,8 @@ pub fn search(input: &BriefInput, terms: &str, budget: i32) -> String {
         lines.push(line);
     }
     for rule in &input.snapshot.rules {
-        if matches(&[rule.statement.as_str()]) {
+        if rule.binding() && matches(&[rule.statement.as_str()]) {
             lines.push(format!("rule {}: {}", rule.handle(), rule.statement));
-        }
-    }
-    for fact in &input.snapshot.facts {
-        if matches(&[fact.fact.statement.as_str()]) {
-            lines.push(format!(
-                "fact {}: {}",
-                fact.fact.truth_class, fact.fact.statement
-            ));
         }
     }
     if lines.is_empty() {

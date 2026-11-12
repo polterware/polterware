@@ -50,6 +50,39 @@ pub fn plan_as(
     (p.ops, p.diags)
 }
 
+/// Decision blocks are retired: a `###` block now points at `#### rule`, which
+/// is the only law. The codec still reads the syntax so old text gets a clear
+/// error instead of an unknown heading.
+pub fn plan_decisions(p: &mut Planner, doc: &Document) {
+    for node in &doc.decisions {
+        if p.failed(node.line) {
+            continue;
+        }
+        p.errorf(
+            node.line,
+            "decisions are Rules now: use #### rule <slug>: Statement".to_string(),
+        );
+    }
+}
+
+/// Fact blocks are retired: a `#### slug: Statement` block now points at
+/// `#### rule`.
+pub fn plan_facts(p: &mut Planner, doc: &Document) {
+    for node in &doc.facts {
+        let mut failed = p.failed(node.line);
+        for entry in &node.meta {
+            failed = failed || p.failed(entry.line);
+        }
+        if failed {
+            continue;
+        }
+        p.errorf(
+            node.line,
+            "facts are Rules now: use #### rule <slug>: Statement".to_string(),
+        );
+    }
+}
+
 /// The one index of active claims, by task id.
 #[derive(Debug, Clone, PartialEq)]
 pub struct HeldClaim {
@@ -1718,8 +1751,6 @@ pub fn summarize(ops: &[work::Op]) -> String {
         work::ENTITY_HANDOFF,
         work::ENTITY_CLAIM,
         work::ENTITY_NODE,
-        work::ENTITY_DECISION,
-        work::ENTITY_FACT,
     ] {
         if let Some(&n) = counts.get(entity)
             && n > 0

@@ -85,19 +85,18 @@ pub fn usage_text() -> &'static str {
   polterware [-db path] export [--dry-run] [--sync on|off] [--json] [--project <id>]
   polterware [-db path] apply <file|-> [--dry-run] [--project <id>] [--summary ...] [--rationale ...] [--agent-run-id ...]
   polterware [-db path] lint <file|dir|-> [--project <id>]   (silent on success)
-  polterware [-db path] format [structure|rules|decisions|facts|feature]   (the Polter format core, or one topic)
-  polterware [-db path] query "cards" | "card <slug>" | "status" | "inbox" | "handoff <slug>" | "brief <target>" | "search <terms>" | "show <id>" | "commits <slug>" | "conflicts" | "conflict <slug>" | "structure [<path>] [at <point>]" | "structure history" | "decisions [state]" | "decision <decision>" | "feature <slug> [step]" | "verify <slug>" | "milestones" | "roadmap" | "canvas [<name|id>]" [--scope <node>[,<node>]] [--exact] [--project <id>]
+  polterware [-db path] format [structure|rules|feature]   (the Polter format core, or one topic)
+  polterware [-db path] query "cards" | "card <slug>" | "status" | "inbox" | "handoff <slug>" | "brief <target>" | "search <terms>" | "show <id>" | "commits <slug>" | "conflicts" | "conflict <slug>" | "structure [<path>] [at <point>]" | "structure history" | "rules [state]" | "feature <slug> [step]" | "verify <slug>" | "milestones" | "roadmap" | "canvas [<name|id>]" [--scope <node>[,<node>]] [--exact] [--project <id>]
   polterware [-db path] status [--scope <node>[,<node>]] [--exact] [--project <id>]
   polterware [-db path] handoff [--card <slug>] [--note "..."] [--project <id>]
   polterware [-db path] task claim|done|release <slug>#T2 [--agent name] [--commit <sha>] [--project <id>]
-  polterware [-db path] decision list [state] | show <decision> | propose "<title>" | activate <decision> | challenge <decision> --reason "..." | supersede <decision> (--by <decision> | --title "...") | trigger <decision> "..." [--project <id>]
   polterware [-db path] feature new "<intent>" [--title "..."] [--under <node>] [--project <id>]
   polterware [-db path] feature shape <slug> | contract <slug> [--accept] | plan <slug> [--approve] [--project <id>]
   polterware [-db path] verify <slug|slug#T2> [--project <id>]   (exit 1 when a check fails)
   polterware [-db path] inbox [<id> decide "<answer>" | delegate | defer | ignore] [--agent name] [--scope <node>[,<node>]] [--exact] [--project <id>]
   polterware [-db path] conflict raise <slug> "<request>" --rule <slug> | --decision <ref> [--card <slug>] [--option "<text>"]... | decide <slug> "<answer>" | wait <slug> [--timeout 30m] | withdraw <slug> | list [--project <id>]
   polterware [-db path] deploys [<path>] | check [<path>] [--force] | targets <provider> [--node <path>] [--project <id>]   (deploy links, the platform's latest deploy, what a deploy can link to)
-  polterware [-db path] scope <decision|fact|rule|item> <id> [<node path>...] [--project <id>]   (the nodes replace its contexts; none clears them)
+  polterware [-db path] scope <rule|item> <id> [<node path>...] [--project <id>]   (the nodes replace its contexts; none clears them)
   polterware [-db path] setup [doctor] | claude [--uninstall | --enable | --disable | --skill-only] | codex [--uninstall] [--project <id>]
   polterware [-db path] setup mcp [list] [--json] | add <claude|codex|cursor|all> | remove <claude|codex|cursor|all>   (register the MCP server with each client)
   polterware [-db path] hooks [list] | enable|disable <status|stop|lint|context|session|all>
@@ -380,7 +379,7 @@ mod tests {
         let text = usage_text();
         assert!(text.starts_with("Usage:\n  polterware [-db path] init"));
         assert!(text.ends_with("(MCP server over stdio for coding agents)\n"));
-        assert_eq!(text.lines().count(), 33);
+        assert_eq!(text.lines().count(), 32);
     }
 
     #[test]

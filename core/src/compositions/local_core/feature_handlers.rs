@@ -199,13 +199,13 @@ fn feature_review_proto(review: &crate::domains::polter::FeatureReview) -> local
             title: node.title.clone(),
         });
     }
-    for decision in &review.decisions {
+    for rule in &review.rules {
         out.decisions.push(local_v1::FeatureDecision {
-            r#ref: decision.reference.clone(),
-            id: decision.id.clone(),
-            title: decision.title.clone(),
-            status: decision.status.clone(),
-            from: decision.from.clone(),
+            r#ref: rule.reference.clone(),
+            id: rule.id.clone(),
+            title: rule.title.clone(),
+            status: rule.status.clone(),
+            from: rule.from.clone(),
         });
     }
     for invariant in &review.inherited {

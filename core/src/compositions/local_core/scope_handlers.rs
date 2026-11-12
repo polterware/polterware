@@ -1,7 +1,8 @@
 //! Port of `backend/compositions/local-core/scope_handlers.go`.
 //!
-//! Sets the Structure contexts of a Decision, a doc, a Fact, a Rule, or a
-//! derived Inbox item; none clears them, which means the whole project.
+//! Sets the Structure contexts of a Rule or a doc, or of a derived Inbox item;
+//! none clears them, which means the whole project. `decision` and `fact` are
+//! read as `rule`, the kind that replaced them.
 
 use std::sync::Arc;
 
@@ -49,7 +50,7 @@ pub fn set_scope(
     let scope = wedge::resolve_scope_refs(&store, &msg.project_id, &msg.nodes, false)
         .map_err(|err| invalid(err.to_string()))?;
     let mut id = msg.id.clone();
-    if msg.kind == SCOPE_RULE {
+    if matches!(msg.kind.as_str(), SCOPE_RULE | SCOPE_DECISION | SCOPE_FACT) {
         // A Rule is named by its slug as often as by its id.
         let rules = store.list_rules(&msg.project_id).map_err(internal)?;
         for rule in &rules {

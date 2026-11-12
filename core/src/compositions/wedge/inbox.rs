@@ -260,7 +260,7 @@ mod tests {
 
     use super::super::init::{InitInput, init_project};
     use super::*;
-    use crate::domains::{agentrun, canon};
+    use crate::domains::agentrun;
     use crate::providers::sqlite::test_support::TempStore;
 
     const INBOX_ROADMAP: &str = r#"---
@@ -312,18 +312,7 @@ stage: plan
         let temp = TempStore::named("work.db");
         let store = &temp.store;
         let project_id = seed(store);
-        // A fact raises nothing: only questions, commits, and setup reach the
-        // Inbox.
-        let declared = canon::new_fact(
-            &project_id,
-            "Local auth is bearer token",
-            canon::TRUTH_DECLARED,
-            "mcp",
-            "codex",
-            "",
-        )
-        .expect("fact");
-        store.upsert_canon_fact(&declared).expect("save fact");
+        // Only questions, commits, and setup reach the Inbox.
 
         let listed = list_inbox(store, &project_id).expect("inbox");
         assert_eq!(

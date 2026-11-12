@@ -10,7 +10,6 @@ use crate::compositions::wedge;
 use crate::domains::projects;
 use crate::providers::sqlite::{self, Store};
 
-use super::facts::seed_facts;
 use super::integrations::seed_integrations;
 use super::knowledge::{seed_knowledge, seed_knowledge_links};
 use super::work::seed_work;
@@ -35,7 +34,6 @@ pub fn defaults(store: &Store) -> sqlite::Result<()> {
     seed_knowledge(store)?;
     let _ = store.sync_project_model(PROJECT_ID)?;
     seed_knowledge_links(store)?;
-    seed_facts(store)?;
     seed_work(store)?;
     seed_integrations(store)?;
     seed_empty_project(store)

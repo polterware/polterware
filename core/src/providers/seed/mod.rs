@@ -3,9 +3,7 @@
 //! Seeds an empty database with the Polterware project itself and one empty
 //! project, so Polterware is managed with its own build.
 
-mod decisions;
 mod defaults;
-mod facts;
 mod knowledge;
 mod structure;
 

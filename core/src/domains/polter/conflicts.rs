@@ -7,7 +7,7 @@
 
 use serde_json::json;
 
-use crate::domains::{decision, work};
+use crate::domains::work;
 use crate::platform::ids;
 
 use super::model::{CONFLICT_HEADING_PREFIX, Document, go_quote};
@@ -58,11 +58,16 @@ pub fn plan_conflicts(p: &mut Planner, doc: &Document) {
             .meta_value("decision")
             .filter(|value| !value.is_empty())
         {
-            let Some(found) = decision::find(&p.snapshot.decisions, reference) else {
+            let Some(found) = p.rules.iter().find(|rule| {
+                rule.id == reference
+                    || rule.slug == reference
+                    || rule.statement == reference
+                    || super::lint::cites_decision(reference, &rule.id, &rule.statement)
+            }) else {
                 p.errorf(
                     node.line,
                     format!(
-                        "unknown decision {}: use a Decision number or id",
+                        "unknown rule {}: use a Rule slug or id",
                         go_quote(reference)
                     ),
                 );
@@ -199,9 +204,9 @@ pub fn conflict_against(
             rule = candidate.clone();
         }
     }
-    for candidate in &snapshot.decisions {
+    for candidate in &snapshot.rules {
         if candidate.id == conflict.decision {
-            decision_title = candidate.title.clone();
+            decision_title = candidate.statement.clone();
         }
     }
     (rule, decision_title)
@@ -219,7 +224,7 @@ pub fn encode_conflict(conflict: &work::Conflict, snapshot: &work::Snapshot) -> 
         out.push_str(&format!("rule: {} ({})\n", rule.handle(), rule.statement));
     }
     if !decision_title.is_empty() {
-        out.push_str(&format!("decision: {decision_title}\n"));
+        out.push_str(&format!("rule: {decision_title}\n"));
     }
     if !conflict.card_slug.is_empty() {
         out.push_str(&format!("card: {}\n", conflict.card_slug));

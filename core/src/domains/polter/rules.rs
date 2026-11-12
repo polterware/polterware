@@ -203,6 +203,87 @@ pub fn node_rules(p: &mut Planner, node: &StructureNode, stored: &structure::Nod
     }
 }
 
+/// Lists Rules, one line each, optionally only those in `status`. A header
+/// counts every status so the whole lifecycle is visible.
+pub fn encode_rules(rules: &[work::Rule], status: &str) -> String {
+    let mut counts: std::collections::HashMap<&str, i32> = std::collections::HashMap::new();
+    for rule in rules {
+        *counts.entry(rule.status.as_str()).or_insert(0) += 1;
+    }
+    let header: Vec<String> = work::RULE_STATUSES
+        .iter()
+        .map(|state| format!("{state} {}", counts.get(state).copied().unwrap_or(0)))
+        .collect();
+    let mut out = format!("rules: {}\n", header.join(" · "));
+    let mut shown = 0;
+    for rule in rules {
+        if !status.is_empty() && rule.status != status {
+            continue;
+        }
+        shown += 1;
+        let mut line = format!("- {} · {} · {}", rule.handle(), rule.status, rule.statement);
+        if rule.scopes.is_empty() {
+            line.push_str(" · whole project");
+        } else {
+            line.push_str(&format!(" · scope: {}", rule.scopes.join(", ")));
+        }
+        out.push_str(&line);
+        out.push('\n');
+    }
+    if shown == 0 {
+        out.push_str("(none)\n");
+    }
+    out
+}
+
+/// Returns the paths of active Structure nodes whose `decisions:` cite `rule`.
+pub fn nodes_citing_rule(nodes: &[structure::Node], rule: &work::Rule) -> Vec<String> {
+    let mut paths = Vec::new();
+    for node in nodes {
+        if node.status == structure::NODE_REMOVED {
+            continue;
+        }
+        if node
+            .decisions
+            .iter()
+            .any(|reference| super::lint::cites_decision(reference, &rule.id, &rule.statement))
+        {
+            paths.push(node.path.clone());
+        }
+    }
+    paths
+}
+
+/// Renders one Rule as text: its statement, status, scope, why, successor, and
+/// the Structure nodes that cite it.
+pub fn encode_rule(rule: &work::Rule, all: &[work::Rule], node_paths: &[String]) -> String {
+    let mut out = format!(
+        "rule {} [{}] {}\n",
+        rule.handle(),
+        rule.status,
+        rule.statement
+    );
+    if rule.scopes.is_empty() {
+        out.push_str("scope: whole project\n");
+    } else {
+        out.push_str(&format!("scope: {}\n", rule.scopes.join(", ")));
+    }
+    if !rule.replaced_by.is_empty() {
+        let handle = all
+            .iter()
+            .find(|candidate| candidate.id == rule.replaced_by)
+            .map_or(rule.replaced_by.as_str(), work::Rule::handle);
+        out.push_str(&format!("replaced by: {handle}\n"));
+    }
+    if !rule.why.is_empty() {
+        out.push_str(&format!("\n{}\n", rule.why.trim_end_matches('\n')));
+    }
+    if !node_paths.is_empty() {
+        out.push_str(&format!("\nholds for: {}\n", node_paths.join(", ")));
+    }
+    out
+}
+
 /// Returns the active Rules that hold for a node path: its own, its ancestors'
 /// (nearest first), then the project-wide ones, each once and in stored order
 /// within a level.
@@ -214,7 +295,7 @@ pub fn rules_for(
     let mut own: Vec<Vec<work::Rule>> = vec![Vec::new(); chain.len()];
     for (i, path) in chain.iter().enumerate() {
         for rule in rules {
-            if !seen.contains(&rule.id.as_str()) && rule.scopes.contains(path) {
+            if rule.binding() && !seen.contains(&rule.id.as_str()) && rule.scopes.contains(path) {
                 seen.push(rule.id.as_str());
                 own[i].push(rule.clone());
             }
@@ -222,7 +303,7 @@ pub fn rules_for(
     }
     let project = rules
         .iter()
-        .filter(|rule| rule.scopes.is_empty())
+        .filter(|rule| rule.binding() && rule.scopes.is_empty())
         .cloned()
         .collect();
     (own, project)

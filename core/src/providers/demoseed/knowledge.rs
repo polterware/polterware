@@ -4,7 +4,7 @@
 //! environment entities the project model syncs.
 
 use serde_json::{Value, json};
-use time::{Duration, Month, OffsetDateTime};
+use time::{Duration, Month};
 
 use crate::domains::canon;
 use crate::domains::knowledge;
@@ -118,85 +118,83 @@ pub(super) fn seed_knowledge(store: &Store) -> sqlite::Result<()> {
             updated_at: runbook_updated - Duration::days(8),
             archived_at: None,
         },
-        knowledge::Item {
-            id: "decision-sqlite-local".to_string(),
-            project_id: PROJECT_ID.to_string(),
-            title: "Decision 0001: Local SQLite authority".to_string(),
-            kind: "decision".to_string(),
-            doc_type: String::new(),
-            body: "## Status\n\nAccepted\n\n## Context\n\nThe desktop needs durable local project state without a hosted account directory.\n\n## Decision\n\nPersist project truth in a local SQLite database owned by polterware-core.\n\n## Consequences\n\n- Desktop remains useful offline.\n- Cloud sync is optional later and must not replace local ownership.".to_string(),
-            tags: vec!["storage".to_string()],
-            summary: "Keep local SQLite as the desktop authority for project data.".to_string(),
-            owner: "Platform".to_string(),
-            status: "active".to_string(),
-            extra_json: must_json(json!({
-                "decisionStatus": "active",
-            })),
-            created_at: docs_updated - Duration::hours(48),
-            updated_at: docs_updated - Duration::hours(48),
-            archived_at: None,
-        },
-        knowledge::Item {
-            id: "decision-deterministic-import".to_string(),
-            project_id: PROJECT_ID.to_string(),
-            title: "Decision 0002: Deterministic import".to_string(),
-            kind: "decision".to_string(),
-            doc_type: String::new(),
-            body: "## Status\n\nAccepted\n\n## Context\n\nFacts imported from the repository must be reproducible and explainable.\n\n## Decision\n\nImport only a fixed set of project files and Git metadata, without network calls or model inference.\n\n## Consequences\n\n- The same checkout always yields the same facts.\n- Anything outside the MVP file set needs an explicit source.".to_string(),
-            tags: vec!["import".to_string()],
-            summary: "Import facts from a fixed file set with no inference.".to_string(),
-            owner: "Platform".to_string(),
-            status: "active".to_string(),
-            extra_json: must_json(json!({
-                "decisionStatus": "active",
-            })),
-            created_at: docs_updated - Duration::hours(36),
-            updated_at: docs_updated - Duration::hours(36),
-            archived_at: None,
-        },
-        knowledge::Item {
-            id: "decision-bounded-context".to_string(),
-            project_id: PROJECT_ID.to_string(),
-            title: "Decision 0003: Bounded agent context".to_string(),
-            kind: "decision".to_string(),
-            doc_type: String::new(),
-            body: "## Status\n\nProposed\n\n## Context\n\nAgents lose accuracy when handed the whole project at once.\n\n## Decision\n\nCompile context per session with a token budget, active invariants first.\n\n## Consequences\n\n- Sessions start faster and cheaper.\n- Budget tuning needs measurement on large projects.".to_string(),
-            tags: vec!["agents".to_string()],
-            summary: "Give agents a budgeted context instead of the whole project.".to_string(),
-            owner: "Agents".to_string(),
-            status: "proposed".to_string(),
-            extra_json: must_json(json!({
-                "decisionStatus": "proposed",
-            })),
-            created_at: docs_updated - Duration::hours(12),
-            updated_at: docs_updated - Duration::hours(12),
-            archived_at: None,
-        },
-        principle_item(
-            "decision-principle-local-first",
-            "Local-first truth",
-            "Project state must stay useful on one machine.",
-            "Project state must remain useful on one machine without requiring a hosted account.",
-            docs_updated - Duration::hours(48),
-        ),
-        principle_item(
-            "decision-principle-honest-boundaries",
-            "Honest product boundaries",
-            "Never describe planned work as shipped.",
-            "Do not describe planned capabilities as shipped.",
-            docs_updated - Duration::hours(48),
-        ),
-        principle_item(
-            "decision-principle-provenance",
-            "Provenance over inference",
-            "Declared facts win over inferred ones.",
-            "Declared and verified facts take precedence over inferred knowledge.",
-            docs_updated - Duration::hours(48),
-        ),
     ];
     for item in items {
         store.save_knowledge(item)?;
     }
+    seed_rules(store)?;
+    Ok(())
+}
+
+/// Seeds the demo Rules: the three old Decisions and the three old principles,
+/// now Rules with the old body as their why.
+fn seed_rules(store: &Store) -> sqlite::Result<()> {
+    struct RuleSpec {
+        id: &'static str,
+        statement: &'static str,
+        why: &'static str,
+        status: &'static str,
+    }
+    let rules = [
+        RuleSpec {
+            id: "decision-sqlite-local",
+            statement: "Persist project truth in a local SQLite database owned by polterware-core.",
+            why: "## Status\n\nAccepted\n\n## Context\n\nThe desktop needs durable local project state without a hosted account directory.\n\n## Decision\n\nPersist project truth in a local SQLite database owned by polterware-core.\n\n## Consequences\n\n- Desktop remains useful offline.\n- Cloud sync is optional later and must not replace local ownership.",
+            status: "active",
+        },
+        RuleSpec {
+            id: "decision-deterministic-import",
+            statement: "Import only a fixed set of project files and Git metadata, without network calls or model inference.",
+            why: "## Status\n\nAccepted\n\n## Context\n\nFacts imported from the repository must be reproducible and explainable.\n\n## Decision\n\nImport only a fixed set of project files and Git metadata, without network calls or model inference.\n\n## Consequences\n\n- The same checkout always yields the same facts.\n- Anything outside the MVP file set needs an explicit source.",
+            status: "active",
+        },
+        RuleSpec {
+            id: "decision-bounded-context",
+            statement: "Compile context per session with a token budget, active invariants first.",
+            why: "## Status\n\nProposed\n\n## Context\n\nAgents lose accuracy when handed the whole project at once.\n\n## Decision\n\nCompile context per session with a token budget, active invariants first.\n\n## Consequences\n\n- Sessions start faster and cheaper.\n- Budget tuning needs measurement on large projects.",
+            status: "proposed",
+        },
+        RuleSpec {
+            id: "decision-principle-local-first",
+            statement: "Project state must remain useful on one machine without requiring a hosted account.",
+            why: "Project state must stay useful on one machine.",
+            status: "active",
+        },
+        RuleSpec {
+            id: "decision-principle-honest-boundaries",
+            statement: "Do not describe planned capabilities as shipped.",
+            why: "Never describe planned work as shipped.",
+            status: "active",
+        },
+        RuleSpec {
+            id: "decision-principle-provenance",
+            statement: "Declared and verified facts take precedence over inferred knowledge.",
+            why: "Declared facts win over inferred ones.",
+            status: "active",
+        },
+    ];
+    let ops: Vec<crate::domains::work::Op> = rules
+        .iter()
+        .map(|rule| {
+            let mut fields = serde_json::Map::new();
+            fields.insert(
+                "statement".into(),
+                Value::String(rule.statement.to_string()),
+            );
+            fields.insert("why".into(), Value::String(rule.why.to_string()));
+            fields.insert("status".into(), Value::String(rule.status.to_string()));
+            crate::domains::work::Op {
+                entity: crate::domains::work::ENTITY_RULE.to_string(),
+                kind: crate::domains::work::OP_CREATE.to_string(),
+                entity_id: rule.id.to_string(),
+                card_slug: rule.id.to_string(),
+                label: rule.statement.to_string(),
+                fields,
+                ..crate::domains::work::Op::default()
+            }
+        })
+        .collect();
+    store.apply_work_ops(PROJECT_ID, "", "seed-rules", &ops)?;
     Ok(())
 }
 
@@ -226,12 +224,6 @@ pub(super) fn seed_knowledge_links(store: &Store) -> sqlite::Result<()> {
             ref_kind: canon::REF_ENVIRONMENT,
             ref_id: ENV_PRODUCTION_ID,
             predicate: canon::PRED_OPERATES,
-        },
-        LinkSpec {
-            knowledge_id: "decision-sqlite-local",
-            ref_kind: canon::REF_ENVIRONMENT,
-            ref_id: ENV_PRODUCTION_ID,
-            predicate: canon::PRED_RELATED_TO,
         },
     ];
     for spec in specs {
@@ -269,27 +261,4 @@ fn go_json_marshal(value: &Value) -> String {
         .replace('>', "\\u003e")
         .replace('\u{2028}', "\\u2028")
         .replace('\u{2029}', "\\u2029")
-}
-
-fn principle_item(
-    id: &str,
-    title: &str,
-    summary: &str,
-    body: &str,
-    at: OffsetDateTime,
-) -> knowledge::Item {
-    knowledge::Item {
-        id: id.to_string(),
-        project_id: PROJECT_ID.to_string(),
-        title: title.to_string(),
-        kind: "decision".to_string(),
-        body: format!("## Decision\n\n{body}"),
-        summary: summary.to_string(),
-        owner: "Platform".to_string(),
-        status: "active".to_string(),
-        extra_json: must_json(json!({"level": "principle"})),
-        created_at: at - Duration::hours(48),
-        updated_at: at,
-        ..knowledge::Item::default()
-    }
 }
