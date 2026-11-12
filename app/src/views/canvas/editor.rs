@@ -33,8 +33,8 @@ use polterware_ui::canvas::{
     Capture, History, Hit, Pt, Viewport, arrange_horizontally, bounds_of, canvas_dock, dock_group,
     dock_separator, dot_grid, hit_test, zoom_level,
 };
+use polterware_ui::card::card;
 use polterware_ui::icons::Icon;
-use polterware_ui::material::{drop, float_drop, floating_panel};
 use polterware_ui::patterns::{AnchorSlot, PanelSide, ResizablePanel};
 use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::Theme;
@@ -1345,12 +1345,7 @@ impl Render for CanvasEditor {
         let inner = inspector_panel.update(cx, |panel, cx| {
             panel.render(
                 &inspector_panel,
-                panel_frame(
-                    "canvas-inspector-panel",
-                    inspector,
-                    PanelSide::Right,
-                    &theme,
-                ),
+                panel_frame("canvas-inspector-panel", inspector, PanelSide::Right, cx),
                 overlay,
                 window,
                 cx,
@@ -1361,7 +1356,7 @@ impl Render for CanvasEditor {
         let workspace = library_panel.update(cx, |panel, cx| {
             panel.render(
                 &library_panel,
-                panel_frame("canvas-library-panel", library, PanelSide::Left, &theme),
+                panel_frame("canvas-library-panel", library, PanelSide::Left, cx),
                 inner,
                 window,
                 cx,
@@ -1412,36 +1407,21 @@ impl Render for CanvasEditor {
 
 pub(super) const PANEL_INSET: f32 = 8.0;
 
-/// A floating side panel: inset from the edges with the panel gap, rounded with the panel
-/// radius token, wearing the surface-panel-float material and quiet edge.
-fn panel_frame(
-    id: &'static str,
-    content: AnyElement,
-    _side: PanelSide,
-    theme: &Theme,
-) -> AnyElement {
-    let frame = div()
+/// A floating side panel: inset from the edges with the panel gap, rounded with the card
+/// radius token, wearing the card surface and quiet edge.
+fn panel_frame(id: &'static str, content: AnyElement, _side: PanelSide, cx: &App) -> AnyElement {
+    let frame = card(cx)
         .id(id)
-        .relative()
+        .occlude()
         .size_full()
         .flex()
         .flex_col()
-        .bg(theme.color_surface_subtle)
-        .rounded(px(theme.radius_surface))
-        .overflow_hidden()
         .on_scroll_wheel(|_, _, cx| cx.stop_propagation())
         .child(content);
-    let frame = floating_panel(frame, theme.radius_surface, theme);
-    let mut shadows = float_drop(theme);
-    shadows.push(drop(20.0, 56.0, theme.color_shadow_float));
-    let frame = frame.shadow(shadows);
 
     div()
         .size_full()
-        .pt(px(PANEL_INSET))
-        .pb(px(PANEL_INSET))
-        .pl(px(PANEL_INSET))
-        .pr(px(PANEL_INSET))
+        .p(px(PANEL_INSET))
         .child(frame)
         .into_any_element()
 }
