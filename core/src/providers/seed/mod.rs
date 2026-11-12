@@ -1,4 +1,4 @@
-//! Port of `backend/providers/seed`.
+//! Seeding an empty database with the Polterware project and an empty one.
 //!
 //! Seeds an empty database with the Polterware project itself and one empty
 //! project, so Polterware is managed with its own build.

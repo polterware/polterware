@@ -1,11 +1,11 @@
-//! Go's `path.Match`, ported: the syntax check the decoder runs on a task
-//! `scope` glob.
+//! The `path.Match` glob the Polter format uses: the syntax check the decoder
+//! runs on a task `scope`, and the matcher claims and search reuse.
 //!
-//! Only the pattern side is load-bearing here (the decoder validates a glob
+//! Only the pattern side is load-bearing in the decoder (it validates a glob
 //! against an empty name), but the matcher is complete so claims and search
 //! can reuse it.
 
-/// The pattern is malformed: Go's `path.ErrBadPattern`.
+/// The pattern is malformed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BadPattern;
 

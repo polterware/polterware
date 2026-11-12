@@ -1,4 +1,4 @@
-//! Port of `backend/providers/demoseed/seed.go`.
+//! Seeding the demo database.
 //!
 //! The demo database itself: the Polter project with its environments and
 //! settings, then every seed step in order, and the empty project that starts

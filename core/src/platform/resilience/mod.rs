@@ -1,4 +1,4 @@
-//! Port of `backend/platform/resilience`.
+//! Retry classification for provider calls.
 
 use std::fmt;
 

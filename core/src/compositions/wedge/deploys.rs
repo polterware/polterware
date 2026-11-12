@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/deploys.go`.
+//! Where a Structure node runs, read through each platform's CLI.
 //!
 //! Where a Structure node runs, read through each platform's CLI and the
 //! sign-in it already has. A CLI that fails leaves a link unknown, never

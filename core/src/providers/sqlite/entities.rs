@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/entities.go`.
+//! Project settings, integration resources, and sync runs, stored.
 //!
 //! The project's settings row, the AGENTS.md sync switch over it, and the
 //! integration resources and sync runs of a project's connections.

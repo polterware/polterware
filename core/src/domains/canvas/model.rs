@@ -1,4 +1,4 @@
-//! Port of `backend/domains/canvas/model.go`.
+//! The canvas graph and its layout, as stored and as sent on the wire.
 
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Value};

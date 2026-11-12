@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/plan.go`.
+//! The planner: the operations that make the store match a decoded document.
 //!
 //! The planner diffs the desired state in a decoded document against a store
 //! snapshot and answers the operations that make the store match. A text only

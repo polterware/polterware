@@ -1,4 +1,4 @@
-//! Port of `backend/platform/observability`.
+//! Correlation ids for a request's log lines.
 
 use rand::RngCore;
 

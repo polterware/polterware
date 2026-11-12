@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/scope.go`.
+//! The Structure contexts of an entity, stored.
 //!
 //! An entity's contexts: the Structure nodes a Decision, a doc, or a Fact is
 //! about. None means the whole project. The same file resolves a global scope

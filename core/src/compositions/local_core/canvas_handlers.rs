@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/canvas_handlers.go`.
+//! The CanvasService handlers.
 //!
 //! The CanvasService handlers: the project's canvases, the graph converts to and
 //! from its wire shape, and the audited writes that create, update, archive, and

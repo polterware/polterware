@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/coord.go`: task references
+//! Task references
 //! (`slug#T2` / `slug T2`) and the coordination text agents write.
 
 use std::sync::LazyLock;

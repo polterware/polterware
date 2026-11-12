@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/format.go`: the shipped format spec and the
+//! The shipped format spec and the
 //! v1 query language.
 
 use crate::domains::work;

@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/deploys.go`: the planner half of the
+//! The planner half of the
 //! `deploys:` line.
 //!
 //! `deploy_spec.rs` holds the text half (`ParseDeploys`, `FormatDeploys`,

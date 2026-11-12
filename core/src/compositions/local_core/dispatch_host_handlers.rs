@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/dispatch_host_handlers.go`.
+//! The `DispatchHostService` handlers Polterware Dispatch reads from this core.
 //!
 //! `DispatchHostService` is what Polterware Dispatch reads from this core: the
 //! projects, where a run works and what it works on, the open cards, and the

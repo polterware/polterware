@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/work_handlers.go`.
+//! The Work service's handlers over cards, Structure, Polter text, and milestones.
 //!
 //! The Work service's reads and writes over cards, Structure, Polter text,
 //! handoffs, projections, file context, and milestones, plus the helpers the
@@ -788,9 +788,9 @@ fn map_agentrun_err(err: &agentrun::Error) -> ConnectError {
     }
 }
 
-/// The port of `invalidPolter`: InvalidArgument with the line-numbered
-/// diagnostics message and the diagnostics as an `ApplyPolterResponse` error
-/// detail, so clients can print them one per line.
+/// The InvalidArgument a failed apply answers: the line-numbered diagnostics
+/// message and the diagnostics as an `ApplyPolterResponse` error detail, so
+/// clients can print them one per line.
 pub(super) fn invalid_polter(diags: &[polter::Diagnostic]) -> ConnectError {
     invalid(diagnostics_message(diags)).with_detail(apply_polter_detail(diags))
 }

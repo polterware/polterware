@@ -1,4 +1,4 @@
-//! Port of `backend/domains/structure/history.go`.
+//! A Structure node's changes over time.
 
 use std::collections::{HashMap, HashSet};
 

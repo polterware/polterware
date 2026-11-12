@@ -1,4 +1,4 @@
-//! Shared helpers for the ported Go tests. HOME and PATH are process-wide and
+//! Shared helpers for the agent setup tests. HOME and PATH are process-wide and
 //! tests run in parallel, so they are overridden per thread instead.
 
 use std::ffi::OsStr;

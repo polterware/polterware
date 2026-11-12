@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/rule_handlers.go`.
+//! The RuleService handlers.
 //!
 //! Rules are the law agents read: statements the code must keep, each holding
 //! for the Structure nodes it names and everything under them, or for the whole

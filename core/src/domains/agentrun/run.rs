@@ -1,4 +1,4 @@
-//! Port of `backend/domains/agentrun/run.go`.
+//! An AgentRun record: its id, state, and timestamps.
 
 use rand::RngCore;
 use time::{OffsetDateTime, UtcOffset};

@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/mcpsetup.go`.
+//! The `setup mcp` command: registering the MCP server with each client.
 use super::{
     flags::{FlagError, FlagSet},
     output::{CliError, CliResult},
@@ -36,10 +36,9 @@ pub fn setup_mcp(db: &str, args: &[String]) -> CliResult {
             if f.bool_value("json") {
                 println!(
                     "{}",
-                    serde_json::to_string(
+                    crate::platform::json::compact(
                         &serde_json::json!({"command":exe,"dbPath":db,"clients":rows})
                     )
-                    .unwrap_or_default()
                 )
             } else {
                 for row in rows {
@@ -101,7 +100,7 @@ fn client_row(id: &str, name: &str, status: String, error: Option<String>) -> se
     if let Some(error) = error {
         row["error"] = serde_json::Value::String(error);
     }
-    row
+    crate::platform::json::sorted(&row)
 }
 
 #[cfg(test)]

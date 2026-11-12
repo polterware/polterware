@@ -1,4 +1,4 @@
-//! Port of `backend/providers/seed/seed.go`.
+//! The seed project's defaults: environments, settings, and platforms.
 //!
 //! Gives an empty database the Polterware project itself, so Polterware is
 //! managed with its own build, plus one empty project that shows every empty

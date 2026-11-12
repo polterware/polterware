@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/deploys.go`: deploy links and their latest
+//! The `deploys` command: deploy links and their latest check.
 //! state.
 
 use crate::local_v1;

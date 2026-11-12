@@ -1,4 +1,4 @@
-//! Port of `backend/domains/structure/scope.go`.
+//! Resolving a Structure path and the nodes under it.
 
 use std::collections::{HashMap, HashSet};
 

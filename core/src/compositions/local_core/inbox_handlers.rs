@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/inbox_handlers.go`.
+//! The derived Inbox handlers.
 //!
 //! The derived Inbox: open items (blocking first), deferred ones, the items a
 //! person routed to agents, and the one action that resolves an item.

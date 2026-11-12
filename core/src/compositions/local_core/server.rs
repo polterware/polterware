@@ -1,12 +1,12 @@
-//! Port of `backend/compositions/local-core/server.go`.
+//! `Core`, the token and listener it starts with, and the router that mounts every service.
 //!
 //! The [`Core`] the services read and write through, the token and listener it
 //! starts with, the router that mounts every service route, and the project,
 //! environment, knowledge, connection, and maintenance handlers.
 //!
 //! The one open store of this database lives inside the MCP session table
-//! (`providers::mcp::Sessions` owns it, as `mcp.NewSessions` does in Go); every
-//! handler borrows it through [`Core::store`].
+//! (`providers::mcp::Sessions` owns it); every handler borrows it through
+//! [`Core::store`].
 
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
@@ -313,12 +313,12 @@ pub fn routes() -> Vec<Route> {
     ]
 }
 
-/// The port of the package's `invalid`.
+/// An `invalid_argument` error.
 pub fn invalid(message: impl Into<String>) -> ConnectError {
     ConnectError::invalid(message)
 }
 
-/// The port of the package's `internal`.
+/// An `internal` error.
 pub fn internal(err: impl std::fmt::Display) -> ConnectError {
     ConnectError::internal(err.to_string())
 }

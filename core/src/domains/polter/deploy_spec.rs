@@ -1,9 +1,8 @@
 //! The `deploys:` text of a Structure node: parsing, canonical form, and the
 //! environment reference check.
 //!
-//! Go declares these in `deploys.go`, next to the planner that resolves a line
-//! into stored links; the planner is added by a later submodule, so the pure
-//! text half lives here.
+//! The planner that resolves a line into stored links lives in `deploys`; this
+//! module holds the pure text half.
 
 use crate::domains::{integrations, work};
 

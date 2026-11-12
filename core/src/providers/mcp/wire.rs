@@ -1,28 +1,28 @@
-//! Go's `encoding/json` for the MCP wire: what a client reads must not depend
-//! on which core answers it.
+//! `encoding/json`'s layout for the MCP wire: what a client reads must not
+//! depend on which core answers it.
 //!
-//! Go marshals a struct's fields in declaration order, sorts the keys of a map,
-//! and escapes HTML in every string (`<`, `>`, and `&` become `\u003c`,
-//! `\u003e`, and `\u0026`). `serde_json` keeps raw HTML and its own escaping, so
-//! the server writes its bodies with [`marshal`] instead and keeps the response
-//! envelope's field order in `server.rs`.
+//! The layout is fixed: a struct's fields in declaration order, a map's keys
+//! sorted, and HTML escaped in every string (`<`, `>`, and `&` become
+//! `\u003c`, `\u003e`, and `\u0026`). `serde_json` keeps raw HTML and its own
+//! escaping, so the server writes its bodies with [`marshal`] instead and keeps
+//! the response envelope's field order in `server.rs`.
 //!
 //! Two corners differ, and neither reaches a client of the four tools: a request
 //! id is re-printed rather than echoed byte for byte (so an id spelled `1e3`
 //! comes back as `1000.0`), and a float uses `serde_json`'s exponent spelling
-//! where Go has its own.
+//! where the wire has its own.
 
 use serde_json::Value;
 
-/// Writes one JSON value the way Go's `json.Marshal` would.
+/// Writes one JSON value in the wire's layout.
 pub(crate) fn marshal(value: &Value) -> String {
     let mut out = String::new();
     write(&mut out, value);
     out
 }
 
-/// Appends one JSON value; object keys come sorted because [`serde_json::Map`]
-/// is ordered by key.
+/// Appends one JSON value; object keys come out sorted, whatever order the map
+/// keeps.
 pub(crate) fn write(out: &mut String, value: &Value) {
     match value {
         Value::Null => out.push_str("null"),
@@ -41,21 +41,23 @@ pub(crate) fn write(out: &mut String, value: &Value) {
             out.push(']');
         }
         Value::Object(map) => {
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort_unstable();
             out.push('{');
-            for (index, (key, item)) in map.iter().enumerate() {
+            for (index, key) in keys.into_iter().enumerate() {
                 if index > 0 {
                     out.push(',');
                 }
                 write_string(out, key);
                 out.push(':');
-                write(out, item);
+                write(out, &map[key.as_str()]);
             }
             out.push('}');
         }
     }
 }
 
-/// Appends a quoted string: the escapes Go writes, HTML and the two line
+/// Appends a quoted string: the wire's escapes, HTML and the two line
 /// separators included, and a control character as `\u00XX`.
 fn write_string(out: &mut String, text: &str) {
     out.push('"');

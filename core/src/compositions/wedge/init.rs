@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/init.go`.
+//! A new local project with its environments and first component.
 //!
 //! A new local project: its name, its environments, and, when it starts from a
 //! folder, its first component.

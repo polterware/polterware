@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/canon_handlers.go`.
+//! The ProjectModelService, ContextService, and KnowledgeService handlers.
 //!
 //! The ProjectModelService, ContextService, and KnowledgeService handlers: the
 //! canon entities, relationships, and facts, the compiled context package, the

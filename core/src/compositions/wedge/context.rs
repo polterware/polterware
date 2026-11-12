@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/context.go`.
+//! Compiling a bounded context package, and its AgentRun step.
 
 #[allow(unused_imports)]
 use super::*;

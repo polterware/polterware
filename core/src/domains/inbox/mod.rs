@@ -1,4 +1,4 @@
-//! Port of `backend/domains/inbox` (`inbox.go` and `text.go`).
+//! Deriving the items that need a person from data the project already has.
 //!
 //! Derives the items that need a person from data the project already has: open
 //! Conflicts (a request against a Rule or Decision), open questions (Decision),

@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/init.go`: registering a project.
+//! The `init` command: registering a project.
 
 use std::path::Path;
 

@@ -1,4 +1,4 @@
-//! Port of `backend/providers/demoseed/integrations.go`.
+//! The demo project's platform connections.
 
 use crate::domains::integrations;
 use crate::providers::sqlite::{self, Store};

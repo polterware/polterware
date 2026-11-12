@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/export.go`.
+//! The generated AGENTS.md block of every checkout.
 //!
 //! Writes the generated AGENTS.md block of every checkout. The store is the
 //! source of truth: files are replaced, never read back into SQLite.

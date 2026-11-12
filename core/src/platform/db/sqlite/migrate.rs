@@ -1,5 +1,4 @@
-//! Schema migrations: the Go package embeds `migrations/*.sql`; the Rust port
-//! carries the same files byte for byte.
+//! Schema migrations: the `migrations/*.sql` files, carried byte for byte.
 
 use rusqlite::{Connection, params};
 use time::OffsetDateTime;

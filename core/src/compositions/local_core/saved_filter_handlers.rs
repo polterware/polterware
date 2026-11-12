@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/saved_filter_handlers.go`.
+//! The saved filter handlers.
 //!
 //! Saved filters are UI preferences: these handlers write the store directly,
 //! without an audited change envelope.

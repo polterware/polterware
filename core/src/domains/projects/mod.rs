@@ -1,4 +1,4 @@
-//! Port of `backend/domains/projects`.
+//! Projects, their environments, settings, and repositories.
 //!
 //! A project is a name and its environments, with no folder. Repositories are
 //! Git clones Structure components link by name.

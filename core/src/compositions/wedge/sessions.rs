@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/sessions.go`.
+//! A project's agent sessions: their claims, handoffs, and runs.
 
 #[allow(unused_imports)]
 use super::*;

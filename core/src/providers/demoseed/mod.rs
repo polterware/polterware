@@ -1,4 +1,4 @@
-//! Port of `backend/providers/demoseed`.
+//! The demo database that fills every surface.
 //!
 //! The demo database: one project with knowledge, structure, facts, Work
 //! cards, and connections that fills every surface, and one empty project that

@@ -1,4 +1,4 @@
-//! Port of `backend/platform/runstate`.
+//! The running core's files: its descriptor, log, and lock.
 //!
 //! Owns the small files that let local Polterware processes find the core
 //! (Decision 0007): core.json (endpoint, token, build), core.lock (one core per

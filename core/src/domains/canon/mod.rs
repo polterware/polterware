@@ -1,4 +1,4 @@
-//! Port of `backend/domains/canon`.
+//! The project graph: entities, relationships, and the facts about them.
 //!
 //! Canon is the project's graph: entities with stable ids derived from their ref,
 //! the relationships between them, and the facts that carry provenance. Every

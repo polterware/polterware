@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/search.go`.
+//! The one-line-per-match searches over Structure, cards, Rules, and docs.
 //!
 //! The one-line-per-match read agents search with before they ask for a brief.
 

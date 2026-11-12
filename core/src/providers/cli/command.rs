@@ -1,5 +1,5 @@
-//! Runs a platform CLI with a deadline and its output, the way `os/exec` did
-//! in Go, plus the PATH lookup the Go package used before every run.
+//! Runs a platform CLI with a deadline and its output, plus the PATH lookup done
+//! before every run.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};

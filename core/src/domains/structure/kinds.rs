@@ -1,4 +1,4 @@
-//! Port of `backend/domains/structure/kinds.go`.
+//! The Structure levels, component kinds, and adoption kinds.
 
 /// What a component is, in palette order. The canvas uses the same list for its
 /// semantic components. Only components carry a kind.

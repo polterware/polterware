@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/commit_handlers.go`.
+//! A card's commits, whether linked by hand or cited by a commit subject.
 //!
 //! A card's commits: the ones linked to its tasks by hand, and the ones whose
 //! subject cites a task (`slug#T2`) in a checkout's recent history.

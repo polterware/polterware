@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/agentrun_handlers.go`.
+//! The AgentRunService handlers: run history and the Unified Change History.
 //!
 //! The agent run history: a project's runs, one run with its steps, and the
 //! Unified Change History (`ListChanges`) with its actor and scope filters.

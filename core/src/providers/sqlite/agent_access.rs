@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/agent_access.go`.
+//! Agent tool calls, stored.
 //!
 //! Agent tool calls: the audit row each MCP or Desktop tool call appends and
 //! the list the app reads back.

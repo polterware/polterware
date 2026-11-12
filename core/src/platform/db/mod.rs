@@ -1,3 +1,3 @@
-//! Port of `backend/platform/db`.
+//! The database layer.
 
 pub mod sqlite;

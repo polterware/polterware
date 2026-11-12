@@ -157,7 +157,7 @@
      "description": "Project id. Defaults to the project with a repository cloned at the current directory."
     }
    ],
-   "example": "polterware brief backend/domains/polter/brief.go"
+   "example": "polterware brief core/src/domains/polter/brief.rs"
   },
   {
    "id": "search",
@@ -209,7 +209,7 @@
      "description": "Project id. Defaults to the project with a repository cloned at the current directory."
     }
    ],
-   "example": "polterware structure --node backend/domains/work --at 2026-09-01"
+   "example": "polterware structure --node core/src/domains/work --at 2026-09-01"
   },
   {
    "id": "canvas",
@@ -615,7 +615,7 @@
      "description": "Project id. Defaults to the project with a repository cloned at the current directory."
     }
    ],
-   "example": "polterware scope fact f-12 backend/domains/work"
+   "example": "polterware scope fact f-12 core/src/domains/work"
   },
   {
    "id": "setup",

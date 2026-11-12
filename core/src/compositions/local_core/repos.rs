@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/repos.go`.
+//! The repositories a project's Structure components link by name.
 //!
 //! The repositories a project's Structure components link by name.
 

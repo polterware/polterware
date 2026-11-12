@@ -1,4 +1,4 @@
-//! Port of `backend/domains/canvas`.
+//! The canvas model: a semantic property graph with layout stored beside it.
 //!
 //! Canvas is a semantic property graph. Layout (positions, sizes, groups) is
 //! stored beside the graph and is never part of its semantics.

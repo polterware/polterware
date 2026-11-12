@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/saved_filters.go`.
+//! Saved filters, stored.
 //!
 //! Saved filters: one surface's named filter combinations, upserted by name.
 //! They are UI preferences, so no change ops are written.

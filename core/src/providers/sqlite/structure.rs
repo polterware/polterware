@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/structure.go`.
+//! Structure nodes, stored.
 //!
 //! The Structure tree reader `scope.go` resolves a scope against, and the write
 //! ops a node takes: a create, an update, a removal, and the deploy links it

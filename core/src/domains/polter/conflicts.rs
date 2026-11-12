@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/conflicts.go`: the Conflict planner and its
+//! The Conflict planner and its
 //! text.
 //!
 //! `plan_conflicts` is a planner step: it raises, decides, and withdraws

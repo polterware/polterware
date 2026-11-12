@@ -1,4 +1,4 @@
-//! Port of `backend/providers/terminal`.
+//! The PTY-backed terminal sessions the core owns.
 
 mod manager;
 

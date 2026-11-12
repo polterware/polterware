@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/local-core/extra.go`.
+//! Project settings, integration resources, sync runs, and the platform CLI probe.
 //!
 //! Project settings, integration resources and sync runs, and the platform CLI
 //! probe and sign-in plan.

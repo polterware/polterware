@@ -1,4 +1,4 @@
-//! Port of `backend/domains/work/milestone.go`.
+//! A milestone: its goal, exit criteria, state, and target date.
 
 use std::collections::{HashMap, HashSet};
 

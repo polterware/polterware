@@ -1,4 +1,4 @@
-//! Port of `backend/providers/agentsetup`.
+//! Installing the coding agent tooling: MCP, hooks, the skill, and setup.
 //!
 //! Installs Polterware into agents: the embedded Claude Code plugin (through
 //! the `claude` CLI, never by editing Claude Code's files) and the skill file

@@ -1,4 +1,4 @@
-//! Port of `backend/domains/agentrun/payload.go`.
+//! The payloads an AgentRun step carries.
 
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;

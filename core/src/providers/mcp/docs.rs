@@ -1,4 +1,4 @@
-//! Port of `backend/providers/mcp/docs.go`: the doc write, whose Markdown body
+//! The doc write, whose Markdown body
 //! does not fit Polter text.
 
 use serde_json::{Map, Value};

@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/repo.go`: the project's repositories.
+//! The `repo` command: the project's repositories.
 
 use std::path::Path;
 

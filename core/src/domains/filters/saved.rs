@@ -1,4 +1,4 @@
-//! Port of `backend/domains/filters/saved.go`.
+//! A saved filter's record and its stored shape.
 
 use serde_json::Value;
 use time::OffsetDateTime;

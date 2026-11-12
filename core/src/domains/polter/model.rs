@@ -1,9 +1,8 @@
 //! Shared Polter types: the decoded AST, its metadata entries, and the
 //! constants the whole package reads.
 //!
-//! Go declares most of these across `decode.go`, `facts.go`, `rules.go`, and
-//! `conflicts.go`; the shared half of those files lives here so the planners
-//! added by later submodules read one copy.
+//! The decoder, the planners, and the encoders all read these types from here,
+//! so the grammar has one definition.
 
 /// The grammar version this codec reads and writes.
 pub const VERSION: i32 = 1;
@@ -433,8 +432,8 @@ pub fn go_quote(value: &str) -> String {
 /// is the checkout root. Absolute paths and ".." are refused; the refused
 /// value is returned unchanged so the caller can report it.
 ///
-/// Port of `CleanFolder`; Go's `path.Clean` is ported here to keep the same
-/// folder text.
+/// The folder text is cleaned once here, so a stored path and the one an agent
+/// writes for it are the same.
 pub fn clean_folder(value: &str) -> (String, bool) {
     let value = value.trim();
     if value.is_empty() {

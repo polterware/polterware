@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/hook_context.go`.
+//! The Structure briefs a hook already delivered, stored.
 //!
 //! What each agent session already received from the context hook: one row per
 //! session and Structure node, holding the hash of the brief it sent.

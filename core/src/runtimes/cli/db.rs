@@ -1,4 +1,4 @@
-//! Port of `backend/runtimes/cli/db.go`, plus Go's `filepath` pieces the CLI
+//! The database file the CLI uses, and its path helpers.
 //! needs: the default database and absolute, cleaned paths.
 
 use std::env;

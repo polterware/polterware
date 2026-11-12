@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/handoff.go`.
+//! Session start reads: handoff hints, the `--note` parser, and the status text.
 //!
 //! The session start reads agents get: hints that compare a declared handoff
 //! with Git, the `--note` parser, and the status and handoff text.

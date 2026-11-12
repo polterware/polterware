@@ -1,4 +1,4 @@
-//! Port of `backend/providers/sqlite/canon.go`.
+//! Canon entities, relationships, and facts, stored.
 //!
 //! Canon in the store: entities projected from their ref, the relationships
 //! between them, the links from knowledge items to entities, the full-text

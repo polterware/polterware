@@ -1,4 +1,4 @@
-//! Port of `backend/domains/canvas/export.go`.
+//! A canvas as a Mermaid flowchart for agents.
 
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};

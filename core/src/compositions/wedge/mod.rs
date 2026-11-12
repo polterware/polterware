@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge`.
+//! The operations the CLI, MCP, and the Desktop share over the store.
 
 mod audited;
 mod brief;

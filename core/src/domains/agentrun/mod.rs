@@ -1,4 +1,4 @@
-//! Port of `backend/domains/agentrun`.
+//! An AgentRun's audit header, its ordered steps, and its payloads.
 //!
 //! A minimal AgentRun audit header plus its ordered steps (context → change).
 

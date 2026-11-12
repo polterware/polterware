@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/rules.go`: the Rule planner, a node's `!`
+//! The Rule planner, a node's `!`
 //! lines, and the Rules that hold for a path.
 //!
 //! `plan_rules` and `node_rules` are planner steps: they update the planner's

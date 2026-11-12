@@ -1,4 +1,4 @@
-//! Port of `backend/domains/canvas/types.go`.
+//! The canvas kinds and the shapes a node can take.
 
 use super::{
     COMPONENT_KINDS, EDGE_KINDS, KIND_NOTE, KIND_TEXT, SHAPE_KINDS, STRUCTURE_KINDS, TYPE_CANVAS,

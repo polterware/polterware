@@ -1,4 +1,4 @@
-//! Port of `backend/domains/polter/graph.go`: where a heading lands in the
+//! Where a heading lands in the
 //! Structure tree, and the errors a text's `under:` and `level:` raise.
 
 use std::collections::HashMap;

@@ -1,8 +1,7 @@
-//! The fixture the ported tests share.
+//! The fixture the MCP tests share.
 //!
-//! Go's tests build it with `demoseed.Defaults` and `SyncProjectModel`; that
-//! package is ported later, so the rows the MCP assertions read are written
-//! here directly, as `demoseed` would: two Rules, two docs, and a card.
+//! The rows the assertions read are written here directly: two Rules, two docs,
+//! and a card.
 
 use serde_json::{Map, Value, json};
 

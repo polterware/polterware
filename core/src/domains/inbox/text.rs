@@ -1,4 +1,4 @@
-//! Port of `backend/domains/inbox/text.go`.
+//! The Inbox text `polterware status` prints.
 
 use super::{ACTION_DELEGATE, Item, Result, STATE_DEFERRED, STATE_OPEN};
 
@@ -103,8 +103,8 @@ mod tests {
     use pretty_assertions::assert_eq;
     use time::macros::datetime;
 
-    /// The Go package (`backend/domains/inbox`) prints these bytes for the same
-    /// inputs; the capture is the differential check for the text output.
+    /// The exact bytes the status text must keep for these inputs: the field
+    /// order and spacing are part of what agents parse.
     #[test]
     fn the_text_matches_the_go_core_on_a_full_inbox() {
         let conflict = Conflict {

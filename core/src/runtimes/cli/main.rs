@@ -1,8 +1,7 @@
-//! Port of `backend/runtimes/cli/main.go`: argument dispatch, usage, and exit
-//! codes.
+//! Argument dispatch, usage, and exit codes.
 //!
 //! `polterware [-db path] <command> ...`: the top-level `-db` flag comes first
-//! (Go's `flag` stops at the first positional argument), then the command reads
+//! (parsing stops at the first positional argument), then the command reads
 //! the database it was given. Only `serve` opens the store (Decision 0007);
 //! every other command is a client of the core and starts it when none runs.
 

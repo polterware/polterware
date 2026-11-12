@@ -1,4 +1,4 @@
-//! Port of `backend/compositions/wedge/audited.go`.
+//! The justified mutation envelope shared by MCP and the Desktop.
 
 #[allow(unused_imports)]
 use super::*;
