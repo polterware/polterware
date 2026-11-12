@@ -1,16 +1,15 @@
 //! The shared Composer (`KnowledgeComposer` in `composers.tsx`, hosted by `App.tsx`): the one
-//! composer C, Commander's New card, New decision, and New doc, Milestones' "+", and
-//! Knowledge's "+" open over the page, for a card, a decision, or a doc, with what the place it
-//! was asked from already knows. The app owns every write.
+//! composer C, Commander's New card and New doc, Milestones' "+", and Knowledge's "+" open over
+//! the page, for a card or a doc, with what the place it was asked from already knows. A Rule is
+//! created in Knowledge's own Composer. The app owns every write.
 //!
 //! A card (`CardComposer`) takes its title, its description as the intent, and four pills:
 //! Stage (Idea unless asked for another), Milestone (the Backlog, or the board it was asked
 //! from), Component (shown while the project has components), and Kind (Feature or
 //! Architecture change); Create card writes it as a Polter block under a slug free across the
-//! project. A decision (`DecisionComposer`) or a doc (`DocComposer`) takes its title, its
-//! Context paragraph or Markdown body, and its Context as tokens, which start from the scope
-//! filter's domains and components (`defaultContexts`). Each takes an optional reason, recorded
-//! in Activity.
+//! project. A doc (`DocComposer`) takes its title, its Markdown body, and its Context as tokens,
+//! which start from the scope filter's domains and components (`defaultContexts`). Each takes
+//! an optional reason, recorded in Activity.
 
 use gpui::{
     App, AppContext as _, Context, Entity, IntoElement, Render, SharedString, Window, div,
@@ -124,7 +123,7 @@ pub struct ComposeView {
     /// What the Composer is open for.
     open: Option<ComposeRequest>,
     card: CardProps,
-    /// A decision's or a doc's Context.
+    /// A doc's Context.
     contexts: Vec<SharedString>,
 }
 

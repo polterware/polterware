@@ -124,7 +124,7 @@ impl AppState {
         }
     }
 
-    /// The picked domains and components, which a new decision or doc starts with as its
+    /// The picked domains and components, which a new doc starts with as its
     /// Context (`defaultContexts`).
     pub fn scope_contexts(&self) -> Vec<String> {
         self.scope

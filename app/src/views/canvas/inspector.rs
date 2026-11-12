@@ -1415,7 +1415,7 @@ impl CanvasEditor {
         let placeholder = if required {
             "Search Structure"
         } else {
-            "Search cards, Decisions, Rules or Structure"
+            "Search cards, Rules or Structure"
         };
         search.update(cx, |search, _| search.set_placeholder(placeholder));
         let editor = editor.clone();

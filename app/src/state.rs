@@ -252,6 +252,8 @@ pub struct AppState {
     deploy_targets: Option<DeployTargets>,
     /// Commander asked Structure to open its node Composer.
     add_node_request: bool,
+    /// Commander asked Knowledge to open its Rule Composer.
+    rule_compose_request: bool,
     /// What the open card's page reads besides the card.
     card_reads: CardReads,
     /// Activity's feed: the latest changes for its actor filter.
@@ -322,6 +324,7 @@ impl AppState {
             deploys_checking: false,
             deploy_targets: None,
             add_node_request: false,
+            rule_compose_request: false,
             card_reads: CardReads::default(),
             activity: Load::Idle,
             activity_actor: ActorFilter::All,
@@ -854,6 +857,48 @@ impl AppState {
             },
             cx,
         );
+    }
+
+    /// Opens Rule `id` as its page on Knowledge, wherever the app is.
+    pub fn open_rule(&mut self, id: String, cx: &mut Context<Self>) {
+        let Some(project) = self.project_id().map(str::to_string) else {
+            return;
+        };
+        self.navigate(
+            Route::Project {
+                id: project,
+                section: Section::Knowledge,
+                tab: KnowledgeTab::Rules,
+                board: BoardRoute::default(),
+                page: Some(id),
+            },
+            cx,
+        );
+    }
+
+    /// Asks Knowledge's Rule Composer to open, once its Rules are read (Commander's New rule).
+    pub fn request_rule_compose(&mut self, cx: &mut Context<Self>) {
+        if self.project_id().is_none() {
+            return;
+        }
+        self.rule_compose_request = true;
+        cx.notify();
+    }
+
+    /// Whether Commander asked for the Rule Composer; Knowledge takes the request once its
+    /// Rules are read.
+    pub fn take_rule_compose_request(&mut self) -> bool {
+        if !matches!(self.knowledge, Load::Ready(_)) {
+            return false;
+        }
+        std::mem::take(&mut self.rule_compose_request)
+    }
+
+    /// Reads Knowledge when nothing has yet, for a page that needs its Rules.
+    pub fn ensure_knowledge(&mut self, cx: &mut Context<Self>) {
+        if matches!(self.knowledge, Load::Idle) {
+            self.load_knowledge(cx);
+        }
     }
 
     /// Reads Knowledge's Rules and docs, and the Structure nodes their contexts name.

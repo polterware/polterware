@@ -323,7 +323,7 @@ impl SettingsView {
             );
         let agents = settings_group("AGENTS.md")
             .description(
-                "The generated Polterware block in the AGENTS.md of each repository clone: the Rules agents must follow, principles, Structure, and decisions. The rest of the file is left alone.",
+                "The generated Polterware block in the AGENTS.md of each repository clone: the Rules agents must follow and the Structure. The rest of the file is left alone.",
             )
             .child(
                 settings_row("Keep in sync")
