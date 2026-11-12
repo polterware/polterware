@@ -36,6 +36,8 @@ use crate::canvas::catalog::component_of;
 const END_TOLERANCE: f64 = 0.75;
 /// The room kept around a selected node when the diagram is too large to fit the view.
 pub(super) const REVEAL_MARGIN: f32 = 24.0;
+/// The smallest zoom a reveal zooms out to so the whole drawing fits beside the panels.
+pub(super) const REVEAL_MIN_ZOOM: f32 = 0.5;
 /// How far past an edge's end its arrowhead reaches: Mermaid stops the line one head short of
 /// the node, so the end is that much further from the box than the tip it paints.
 const ARROW_REACH: f64 = 4.0;
@@ -1120,8 +1122,11 @@ pub(super) fn reveal_view(
     let zoom = current.zoom;
     let fits = view_box.width as f32 * zoom <= (width - margin * 2.0).max(1.0)
         && view_box.height as f32 * zoom <= (height - margin * 2.0).max(1.0);
-    if fits {
-        let fitted = SceneViewport::fit(view_box, width, height, margin);
+    let fitted = SceneViewport::fit(view_box, width, height, margin);
+    // A drawing that fits, or that fits once zoomed out a little (to no less than
+    // `REVEAL_MIN_ZOOM`), is fitted whole into the room, so no node ends up under a panel; only
+    // a drawing too large for that pans to the selected node.
+    if fits || (fitted.zoom >= REVEAL_MIN_ZOOM && fitted.zoom < zoom) {
         return (fitted != current).then_some(fitted);
     }
     let left = focus.x as f32 * zoom + current.x;
@@ -2524,6 +2529,23 @@ mod tests {
             reveal_view(target, view_box, room, focus, REVEAL_MARGIN).is_none(),
             "a node already in the room moves nothing"
         );
+    }
+
+    #[test]
+    fn a_diagram_a_little_too_wide_for_the_room_zooms_out_to_fit_whole() {
+        // The E2E canvas at 100% beside the library and the inspector: 300px of drawing in a
+        // 330px room does not fit with the margins, but does at 0.9x, so both nodes stay out
+        // from under the panels.
+        let view_box = Rect::new(0.0, 0.0, 300.0, 80.0);
+        let room = (330.0, 500.0);
+        let focus = Rect::new(0.0, 20.0, 120.0, 40.0);
+        let current = SceneViewport::new(0.0, 0.0, 1.0);
+        let target = reveal_view(current, view_box, room, focus, REVEAL_MARGIN)
+            .expect("the drawing is refitted");
+        assert!(target.zoom < 1.0 && target.zoom >= REVEAL_MIN_ZOOM);
+        let left = target.x;
+        let right = view_box.width as f32 * target.zoom + target.x;
+        assert!(left >= 0.0 && right <= room.0, "cut off: {left}..{right}");
     }
 
     #[test]
