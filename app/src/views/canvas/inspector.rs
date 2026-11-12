@@ -39,8 +39,7 @@ use crate::canvas::catalog::{
     COMPONENTS, component_of, edge_palette, family_for, kind_label, structure_kind,
 };
 use crate::canvas::document::{
-    COLOR_TAGS, Node, ShapeStyle, TextAlign, TextSize, property_text, read_style, set_reference,
-    update_edge, update_node, write_style,
+    COLOR_TAGS, Node, ShapeStyle, TextAlign, TextSize, property_text, read_style, write_style,
 };
 use crate::canvas::references::{
     PromotionKind, StoreEntity, build_ref, can_promote, derive_slug, linked_facts, ref_label,
@@ -92,7 +91,6 @@ pub(super) struct InspectorState {
     body: Entity<TextInput>,
     technology: Entity<TextInput>,
     description: Entity<TextInput>,
-    edge_label: Entity<TextInput>,
     search: Entity<TextInput>,
     query: String,
     steppers: [(Geometry, Entity<NumberStepper>); 4],
@@ -212,22 +210,6 @@ impl InspectorState {
                 cx,
             )
         });
-        let edge_label = input(cx, None, false, |this, text, cx| {
-            let Some(id) = this.selected_edge() else {
-                return;
-            };
-            if this
-                .doc
-                .edge(&id)
-                .is_none_or(|edge| property_text(&edge.props, "label") == text)
-            {
-                return;
-            }
-            let next = update_edge(&this.doc, &id, |edge| {
-                edge.props.insert("label".into(), text.into());
-            });
-            this.change(next, Capture::Eventually, cx);
-        });
         let search = input(cx, None, false, |this, text, cx| {
             if this.inspector.query != text {
                 this.inspector.query = text;
@@ -266,7 +248,6 @@ impl InspectorState {
             body,
             technology,
             description,
-            edge_label,
             search,
             query: String::new(),
             steppers,
@@ -501,7 +482,7 @@ impl CanvasEditor {
         self.selection.edges.first().cloned()
     }
 
-    /// Changes the one selected shape, when `change` says it changed.
+    /// Changes the one selected shape, when `change` says it changed, writing the source.
     fn edit_node(
         &mut self,
         change: impl FnOnce(&mut Node) -> bool,
@@ -511,14 +492,39 @@ impl CanvasEditor {
         let Some(id) = self.selected_node() else {
             return;
         };
-        let Some(mut node) = self.doc.node(&id).cloned() else {
+        let Some(before) = self.doc.node(&id).cloned() else {
             return;
         };
-        if !change(&mut node) {
+        let mut after = before.clone();
+        if !change(&mut after) {
             return;
         }
-        let next = update_node(&self.doc, &id, |current| *current = node);
-        self.change(next, capture, cx);
+        let Some(mermaid) = self.mermaid(&id) else {
+            return;
+        };
+        let mut source = self.source.clone();
+        if after.name != before.name {
+            source = super::source_edit::set_label(&source, &mermaid, &after.name);
+        }
+        if after.kind != before.kind {
+            source = super::source_edit::set_kind(&source, &mermaid, &after.kind);
+        }
+        if after.reference != before.reference {
+            source = super::source_edit::set_ref(&source, &mermaid, after.reference.as_ref());
+        }
+        if after.props != before.props {
+            source = super::source_edit::set_props(&source, &mermaid, &after.props);
+        }
+        let mut layout = self.layout.clone();
+        if (after.x, after.y) != (before.x, before.y) {
+            layout = super::source_edit::with_pin(&layout, &mermaid, after.x, after.y);
+        }
+        if (after.width, after.height) != (before.width, before.height) {
+            layout = super::source_edit::with_size(&layout, &mermaid, after.width, after.height);
+        }
+        self.layout = layout;
+        self.doc = crate::canvas::document::update_node(&self.doc, &id, |node| *node = after);
+        self.apply_source(source, capture, cx);
     }
 
     fn set_style(&mut self, change: impl FnOnce(&mut ShapeStyle), cx: &mut Context<Self>) {
@@ -539,24 +545,31 @@ impl CanvasEditor {
             return;
         }
         let value = value as f32;
-        self.edit_node(
-            |node| {
-                let (slot, min) = match geometry {
-                    Geometry::X => (&mut node.x, f32::NEG_INFINITY),
-                    Geometry::Y => (&mut node.y, f32::NEG_INFINITY),
-                    Geometry::Width => (&mut node.width, 40.0),
-                    Geometry::Height => (&mut node.height, 32.0),
-                };
-                let next = value.round().max(min);
-                if *slot == next {
-                    return false;
-                }
-                *slot = next;
-                true
-            },
-            Capture::Eventually,
-            cx,
-        );
+        let Some(id) = self.selected_node() else {
+            return;
+        };
+        let Some(node) = self.doc.node(&id).cloned() else {
+            return;
+        };
+        let Some(mermaid) = self.mermaid(&id) else {
+            return;
+        };
+        let mut layout = self.layout.clone();
+        let (x, y, width, height) = match geometry {
+            Geometry::X => (value.round(), node.y, node.width, node.height),
+            Geometry::Y => (node.x, value.round(), node.width, node.height),
+            Geometry::Width => (node.x, node.y, value.round().max(40.0), node.height),
+            Geometry::Height => (node.x, node.y, node.width, value.round().max(32.0)),
+        };
+        layout = super::source_edit::with_pin(&layout, &mermaid, x, y);
+        layout = super::source_edit::with_size(&layout, &mermaid, width, height);
+        self.doc = crate::canvas::document::update_node(&self.doc, &id, |node| {
+            node.x = x;
+            node.y = y;
+            node.width = width;
+            node.height = height;
+        });
+        self.apply_layout(layout, cx);
     }
 
     /// The component types of `family` this canvas allows.
@@ -605,33 +618,44 @@ impl CanvasEditor {
         );
     }
 
-    /// Brings the shape to the front or sends it to the back: the graph order is the stacking.
+    /// Brings the shape to the front or sends it to the back, which is its line's place.
     fn order(&mut self, front: bool, cx: &mut Context<Self>) {
         let Some(id) = self.selected_node() else {
             return;
         };
-        let Some(node) = self.doc.node(&id).cloned() else {
+        let Some(mermaid) = self.mermaid(&id) else {
             return;
         };
-        let mut next = self.doc.clone();
-        let rest: Vec<Node> = next.nodes.drain(..).filter(|item| item.id != id).collect();
-        next.nodes = if front {
-            rest.into_iter().chain([node]).collect()
-        } else {
-            [node].into_iter().chain(rest).collect()
-        };
-        for (z, node) in next.nodes.iter_mut().enumerate() {
-            node.z = z as i32;
+        let source = super::source_edit::move_node_line(&self.source, &mermaid, front);
+        let mut doc = self.doc.clone();
+        let node = doc.nodes.iter().position(|node| node.id == id);
+        if let Some(index) = node {
+            let node = doc.nodes.remove(index);
+            if front {
+                doc.nodes.insert(0, node);
+            } else {
+                doc.nodes.push(node);
+            }
+            for (z, node) in doc.nodes.iter_mut().enumerate() {
+                node.z = z as i32;
+            }
         }
-        self.change(next, Capture::Immediately, cx);
+        self.doc = doc;
+        self.apply_source(source, Capture::Immediately, cx);
     }
 
     fn link(&mut self, reference: Option<CanvasRef>, cx: &mut Context<Self>) {
-        let Some(id) = self.selected_node() else {
-            return;
-        };
-        let next = set_reference(&self.doc, &id, reference);
-        self.change(next, Capture::Immediately, cx);
+        self.edit_node(
+            |node| {
+                if node.reference == reference {
+                    return false;
+                }
+                node.reference = reference.clone();
+                true
+            },
+            Capture::Immediately,
+            cx,
+        );
     }
 
     fn align(&mut self, align: Align, cx: &mut Context<Self>) {
@@ -667,7 +691,20 @@ impl CanvasEditor {
                 Align::Bottom => node.y = bottom - node.height,
             }
         }
-        self.change(next, Capture::Immediately, cx);
+        let moved: Vec<(String, f32, f32)> = next
+            .nodes
+            .iter()
+            .filter(|node| ids.contains(&node.id))
+            .map(|node| (node.id.clone(), node.x, node.y))
+            .collect();
+        let mut layout = self.layout.clone();
+        for (id, x, y) in moved {
+            if let Some(mermaid) = self.mermaid(&id) {
+                layout = super::source_edit::with_pin(&layout, &mermaid, x, y);
+            }
+        }
+        self.doc = next;
+        self.apply_layout(layout, cx);
     }
 
     fn open_promotion(&mut self, kind: PromotionKind, window: &mut Window, cx: &mut Context<Self>) {
@@ -744,7 +781,7 @@ impl CanvasEditor {
                 let finish = |written: bool, cx: &mut Context<Self>| {
                     composer.update(cx, |composer, cx| composer.finish(written, cx));
                 };
-                let Some((id, kind)) = self.inspector.promotion.clone() else {
+                let Some((_id, kind)) = self.inspector.promotion.clone() else {
                     return finish(false, cx);
                 };
                 if self.inspector.applied {
@@ -767,8 +804,14 @@ impl CanvasEditor {
                                 let reference = build_ref(&entity);
                                 this.state
                                     .update(cx, |state, _| state.add_canvas_entity(entity));
-                                let next = set_reference(&this.doc, &id, Some(reference));
-                                this.change(next, Capture::Immediately, cx);
+                                this.edit_node(
+                                    |node| {
+                                        node.reference = Some(reference.clone());
+                                        true
+                                    },
+                                    Capture::Immediately,
+                                    cx,
+                                );
                                 true
                             }
                             Err(message) => {
@@ -845,16 +888,6 @@ impl CanvasEditor {
                     stepper.update(cx, |stepper, cx| stepper.set_value(value, window, cx));
                 }
             }
-        } else if let Some(edge) = self
-            .selected_edge()
-            .and_then(|id| self.doc.edge(&id).cloned())
-        {
-            sync(
-                &self.inspector.edge_label,
-                &property_text(&edge.props, "label"),
-                window,
-                cx,
-            );
         }
     }
 
@@ -1587,26 +1620,23 @@ impl CanvasEditor {
                     label,
                     checked,
                     Rc::new(act(editor, move |this, _, cx| {
-                        let next = update_edge(&this.doc, &id, |edge| edge.kind = kind.clone());
-                        this.change(next, Capture::Immediately, cx);
+                        this.set_edge_kind(&id, &kind, cx);
                     })),
                 )
             })
             .collect();
-        let page = form(8.0)
-            .child(field(
-                "Edge kind",
-                self.inspector.edge_kind.trigger(
-                    "canvas-edge-kind",
-                    kind_label(&edge.kind),
-                    width,
-                    kinds,
-                    false,
-                    cx,
-                ),
-                theme,
-            ))
-            .child(field("Label", self.inspector.edge_label.clone(), theme));
+        let page = form(8.0).child(field(
+            "Edge kind",
+            self.inspector.edge_kind.trigger(
+                "canvas-edge-kind",
+                kind_label(&edge.kind),
+                width,
+                kinds,
+                false,
+                cx,
+            ),
+            theme,
+        ));
         div()
             .size_full()
             .min_h_0()

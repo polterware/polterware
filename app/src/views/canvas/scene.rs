@@ -19,8 +19,7 @@ use gpui::{
     AnyElement, FontWeight, IntoElement, Rgba, SharedString, div, prelude::*, px, relative,
 };
 use polterware_ui::canvas::{
-    EdgePaint, Line, Pt, ShapePaint, Viewport, edges_layer, route, selection_frame, shape_of,
-    shape_surface, sticky_surface,
+    Line, Pt, ShapePaint, Viewport, selection_frame, shape_of, shape_surface, sticky_surface,
 };
 use polterware_ui::chip::chip_tone;
 use polterware_ui::icon_tile::{IconTile, TileTone};
@@ -29,10 +28,9 @@ use polterware_ui::material::face;
 use polterware_ui::theme::{StatusTone, Theme};
 
 use crate::canvas::catalog::{
-    Variant, backdrop, component_of, edge_style, kind_label, node_icon, silhouette, structure_kind,
-    variant,
+    Variant, component_of, kind_label, node_icon, silhouette, structure_kind, variant,
 };
-use crate::canvas::document::{Doc, Edge, Node, ShapeStyle, TextAlign, read_style};
+use crate::canvas::document::{Node, ShapeStyle, TextAlign, read_style};
 use crate::canvas::references::{StoreEntity, linked_facts, reference_state};
 /// `.pw-status-chip`'s radius.
 const CHIP_RADIUS: f32 = 6.0;
@@ -521,57 +519,4 @@ fn semantic_card(
         .child(shape_surface(paint, zoom))
         .child(card)
         .into_any_element()
-}
-
-/// A connection's label: its own, else its kind's (none for `relates`).
-pub fn edge_label(edge: &Edge) -> String {
-    let own = crate::canvas::document::property_text(&edge.props, "label");
-    if !own.is_empty() {
-        own
-    } else if edge.kind == "relates" {
-        String::new()
-    } else {
-        kind_label(&edge.kind)
-    }
-}
-
-/// The routes of a document's connections, in document units.
-pub fn edge_routes(doc: &Doc) -> Vec<(String, Vec<Pt>)> {
-    doc.edges
-        .iter()
-        .filter_map(|edge| {
-            let source = doc.node(&edge.from)?;
-            let target = doc.node(&edge.to)?;
-            Some((edge.id.clone(), route(source.rect(), target.rect())))
-        })
-        .collect()
-}
-
-/// The connections painted at `viewport`, each in the color `color` gives it.
-pub fn edges_view(
-    doc: &Doc,
-    viewport: Viewport,
-    color: impl Fn(&Edge) -> Rgba,
-) -> impl IntoElement {
-    let routes = edge_routes(doc);
-    let edges = doc
-        .edges
-        .iter()
-        .filter_map(|edge| {
-            let points = routes.iter().find(|(id, _)| *id == edge.id)?.1.clone();
-            let (arrow, dashed) = edge_style(&edge.kind);
-            Some(EdgePaint {
-                points,
-                color: color(edge),
-                dashed,
-                arrow,
-            })
-        })
-        .collect();
-    edges_layer(edges, viewport)
-}
-
-/// The document's nodes in paint order: frames first, the rest after the connections.
-pub fn layers(doc: &Doc) -> (Vec<&Node>, Vec<&Node>) {
-    doc.nodes.iter().partition(|node| backdrop(&node.kind))
 }
