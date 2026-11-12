@@ -1032,23 +1032,72 @@ pub(super) fn viewport(layout_json: &str) -> Option<SceneViewport> {
     (x.is_finite() && y.is_finite() && zoom.is_finite()).then(|| SceneViewport::new(x, y, zoom))
 }
 
-/// Fits the whole drawing in the portion of a viewport left uncovered by side panels.
-/// The returned translation is in the full viewport's coordinates, so the drawing is
-/// centered in the open interval between `left` and `width - right`.
-pub(super) fn fit_viewport_inset(
+/// Fits the drawing inside the free rectangle of the full canvas surface.
+pub(super) fn fit_viewport_in_area(
     view_box: Rect,
-    viewport: (f32, f32),
-    left: f32,
-    right: f32,
+    surface: (f32, f32),
+    insets: (f32, f32, f32, f32),
     padding: f32,
 ) -> SceneViewport {
-    let (width, height) = viewport;
+    let (left, right, top, bottom) = insets;
+    let (width, height) = surface;
     let left = left.max(0.0).min(width.max(0.0));
     let right = right.max(0.0).min((width - left).max(0.0));
-    let room_width = (width - left - right).max(1.0);
-    let mut fitted = SceneViewport::fit(view_box, room_width, height, padding);
+    let top = top.max(0.0).min(height.max(0.0));
+    let bottom = bottom.max(0.0).min((height - top).max(0.0));
+    let mut fitted = SceneViewport::fit(
+        view_box,
+        (width - left - right).max(1.0),
+        (height - top - bottom).max(1.0),
+        padding,
+    );
     fitted.x += left;
+    fitted.y += top;
     fitted
+}
+
+/// Converts between full-surface and free-area viewport coordinates.
+pub(super) fn viewport_at_free_origin(
+    viewport: SceneViewport,
+    left: f32,
+    top: f32,
+) -> SceneViewport {
+    SceneViewport::new(viewport.x - left, viewport.y - top, viewport.zoom)
+}
+
+pub(super) fn viewport_from_free_origin(
+    viewport: SceneViewport,
+    left: f32,
+    top: f32,
+) -> SceneViewport {
+    SceneViewport::new(viewport.x + left, viewport.y + top, viewport.zoom)
+}
+
+/// The fraction of the transformed scene bounds that falls in the unobscured area.
+pub(super) fn visible_fraction(view_box: Rect, viewport: SceneViewport, free_area: Rect) -> f32 {
+    let left = view_box.x as f32 * viewport.zoom + viewport.x;
+    let top = view_box.y as f32 * viewport.zoom + viewport.y;
+    let right = (view_box.x + view_box.width) as f32 * viewport.zoom + viewport.x;
+    let bottom = (view_box.y + view_box.height) as f32 * viewport.zoom + viewport.y;
+    let width = (right - left).max(0.0);
+    let height = (bottom - top).max(0.0);
+    let area = width * height;
+    if area <= 0.0 {
+        return 0.0;
+    }
+    let visible_width =
+        (right.min(free_area.right() as f32) - left.max(free_area.x as f32)).max(0.0);
+    let visible_height =
+        (bottom.min(free_area.bottom() as f32) - top.max(free_area.y as f32)).max(0.0);
+    (visible_width * visible_height / area).clamp(0.0, 1.0)
+}
+
+pub(super) fn restored_view_needs_fit(
+    view_box: Rect,
+    viewport: SceneViewport,
+    free_area: Rect,
+) -> bool {
+    visible_fraction(view_box, viewport, free_area) < 0.5
 }
 
 /// The pan and zoom a canvas takes so the selected node stays in the room it has.
@@ -1898,27 +1947,45 @@ mod tests {
     }
 
     #[test]
-    fn fit_centers_the_drawing_inside_the_area_left_by_side_panels() {
+    fn fit_centers_the_drawing_inside_the_free_area() {
         let view_box = Rect::new(20.0, 30.0, 400.0, 200.0);
         let viewport = (1000.0, 500.0);
-        let left = 200.0;
-        let right = 300.0;
-        let fitted = fit_viewport_inset(view_box, viewport, left, right, 20.0);
+        let insets = (200.0, 300.0, 50.0, 40.0);
+        let fitted = fit_viewport_in_area(view_box, viewport, insets, 20.0);
 
         let drawing_left = view_box.x as f32 * fitted.zoom + fitted.x;
         let drawing_right = (view_box.x + view_box.width) as f32 * fitted.zoom + fitted.x;
         let drawing_top = view_box.y as f32 * fitted.zoom + fitted.y;
         let drawing_bottom = (view_box.y + view_box.height) as f32 * fitted.zoom + fitted.y;
-        assert!(drawing_left >= left + 19.9, "left edge: {drawing_left}");
+        assert!(drawing_left >= insets.0 + 19.9, "left edge: {drawing_left}");
         assert!(
-            drawing_right <= viewport.0 - right - 19.9,
+            drawing_right <= viewport.0 - insets.1 - 19.9,
             "right edge: {drawing_right}"
         );
-        assert!(drawing_top >= 19.9, "top edge: {drawing_top}");
+        assert!(drawing_top >= insets.2 + 19.9, "top edge: {drawing_top}");
         assert!(
-            drawing_bottom <= viewport.1 - 19.9,
+            drawing_bottom <= viewport.1 - insets.3 - 19.9,
             "bottom edge: {drawing_bottom}"
         );
+    }
+
+    #[test]
+    fn viewport_save_and_restore_use_the_free_area_origin() {
+        let screen = SceneViewport::new(260.0, 84.0, 1.25);
+        let saved = viewport_at_free_origin(screen, 204.0, 56.0);
+        assert_eq!(saved, SceneViewport::new(56.0, 28.0, 1.25));
+        assert_eq!(viewport_from_free_origin(saved, 204.0, 56.0), screen);
+    }
+
+    #[test]
+    fn restored_view_with_less_than_half_its_bounds_visible_needs_fit() {
+        let drawing = Rect::new(0.0, 0.0, 400.0, 200.0);
+        let free_area = Rect::new(204.0, 56.0, 500.0, 360.0);
+        let mostly_hidden = SceneViewport::new(-100.0, 56.0, 1.0);
+        let half_visible = SceneViewport::new(4.0, 56.0, 1.0);
+
+        assert!(restored_view_needs_fit(drawing, mostly_hidden, free_area));
+        assert!(!restored_view_needs_fit(drawing, half_visible, free_area));
     }
 
     #[test]
