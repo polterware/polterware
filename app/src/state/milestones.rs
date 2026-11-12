@@ -12,10 +12,10 @@ use crate::client::{Core, CoreError};
 use crate::contracts::{
     AdvanceFeatureRequest, ApplyPolterRequest, ArchiveMilestoneRequest, CardCommit,
     CreateMilestoneRequest, LinkTaskCommitRequest, ListAgentSessionsRequest,
-    ListCardCommitsRequest, ListMilestonesRequest, ListStructureRequest, ListWorkCardsRequest,
-    Milestone, QueryPolterRequest, ReorderMilestonesRequest, ReviewFeatureRequest, SessionHandoff,
-    StructureNode, UnlinkTaskCommitRequest, UpdateMilestoneRequest, VerifyFeatureRequest,
-    VerifyFeatureResponse, WorkCard, WorkTask,
+    ListCardCommitsRequest, ListMilestonesRequest, ListRulesRequest, ListStructureRequest,
+    ListWorkCardsRequest, Milestone, QueryPolterRequest, ReorderMilestonesRequest,
+    ReviewFeatureRequest, Rule, SessionHandoff, StructureNode, UnlinkTaskCommitRequest,
+    UpdateMilestoneRequest, VerifyFeatureRequest, VerifyFeatureResponse, WorkCard, WorkTask,
 };
 use crate::dispatch::{self, contracts::DispatchRun, contracts::ListRunsRequest};
 use crate::work::{self, GateCheck, Stage};
@@ -30,9 +30,19 @@ pub struct Work {
     pub milestones: Vec<Milestone>,
     pub cards: Vec<WorkCard>,
     pub nodes: Vec<StructureNode>,
+    /// The project's Rules, which the board's Constitution chip counts.
+    pub rules: Vec<Rule>,
 }
 
 impl Work {
+    /// The Rules that bind the project: its active ones, which the Constitution counts.
+    pub fn active_rules(&self) -> usize {
+        self.rules
+            .iter()
+            .filter(|rule| rule.status == "active")
+            .count()
+    }
+
     pub fn card(&self, slug: &str) -> Option<&WorkCard> {
         self.cards.iter().find(|card| card.slug == slug)
     }
@@ -272,6 +282,17 @@ impl AppState {
                     Ok(work) => Load::Ready(work),
                     Err(error) => Load::Failed(state.lost(error, cx)),
                 };
+                // A verify-stage card's acceptance reads with the cards.
+                let verify: Vec<String> = match &state.work {
+                    Load::Ready(work) => work
+                        .cards
+                        .iter()
+                        .filter(|card| Stage::of(card) == Stage::Verify)
+                        .map(|card| card.slug.clone())
+                        .collect(),
+                    _ => Vec::new(),
+                };
+                state.load_confirmations(verify, cx);
                 state.keep_card_reads(cx);
                 cx.notify();
             });
@@ -587,6 +608,195 @@ impl AppState {
                 restore,
             },
             done,
+            cx,
+        );
+    }
+
+    /// Drops a card on a board's column: a forward move runs that column's gate through the
+    /// path its page's gate button uses (Planned accepts the contract, In progress approves
+    /// the plan, Done needs verify passing with every check confirmed), and moving back is
+    /// free. A refused gate leaves the card where it was and toasts the gate's own lines.
+    pub fn board_move(
+        &mut self,
+        slug: String,
+        stage: Stage,
+        done: impl FnOnce(bool, &mut App) + 'static,
+        cx: &mut Context<Self>,
+    ) {
+        let current = match &self.work {
+            Load::Ready(work) => work.card(&slug).map(Stage::of),
+            _ => None,
+        };
+        let Some(current) = current else {
+            done(false, cx);
+            return;
+        };
+        if stage.index() <= current.index() {
+            return self.set_card_stage(slug, stage, String::new(), done, cx);
+        }
+        // A column is one step: a drop that skips one asks for the column before it.
+        if stage.index() > current.index() + 1 {
+            let next = Stage::ALL[current.index() + 1];
+            self.toast(
+                format!(
+                    "Move the card to {} first: each column is a step.",
+                    next.label()
+                ),
+                true,
+            );
+            cx.notify();
+            done(false, cx);
+            return;
+        }
+        match stage {
+            Stage::Plan => self.gate_card(slug, "contract", done, cx),
+            Stage::Build => self.gate_card(slug, "plan", done, cx),
+            Stage::Delivered => self.deliver_card(slug, done, cx),
+            Stage::Verify | Stage::Shape => {
+                self.set_card_stage(slug, stage, String::new(), done, cx)
+            }
+        }
+    }
+
+    /// Passes the open card's `step` gate for a board move: a refusal stays as a toast.
+    fn gate_card(
+        &mut self,
+        slug: String,
+        step: &'static str,
+        done: impl FnOnce(bool, &mut App) + 'static,
+        cx: &mut Context<Self>,
+    ) {
+        let (Some(core), Some(project)) = (self.ready_core(), self.project_id()) else {
+            done(false, cx);
+            return;
+        };
+        let wanted = project.to_string();
+        let project = wanted.clone();
+        let summary = if step == "contract" {
+            format!("Accept contract for {slug}")
+        } else {
+            format!("Approve plan for {slug}")
+        };
+        cx.spawn(async move |this, cx| {
+            let result = cx
+                .background_spawn(async move {
+                    core.work().advance_feature(&AdvanceFeatureRequest {
+                        project_id: project,
+                        slug,
+                        step: step.into(),
+                        change: Some(change(&summary, "")),
+                        session_label: "desktop".into(),
+                        ..AdvanceFeatureRequest::default()
+                    })
+                })
+                .await;
+            let _ = this.update(cx, |state, cx| {
+                if state.project_id() != Some(wanted.as_str()) {
+                    done(false, cx);
+                    return;
+                }
+                match result {
+                    Ok(_) => {
+                        state.load_work(cx);
+                        done(true, cx);
+                    }
+                    Err(error) => {
+                        let message = error.to_string();
+                        let lines = work::gate_error_lines(if message.is_empty() {
+                            "The gate refused the card."
+                        } else {
+                            &message
+                        });
+                        state.toast(lines.join(" "), true);
+                        done(false, cx);
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// Moves a card from In review to Done: verify must pass and every acceptance criterion
+    /// and Rule it lists must be confirmed.
+    fn deliver_card(
+        &mut self,
+        slug: String,
+        done: impl FnOnce(bool, &mut App) + 'static,
+        cx: &mut Context<Self>,
+    ) {
+        let (Some(core), Some(project)) = (self.ready_core(), self.project_id()) else {
+            done(false, cx);
+            return;
+        };
+        let wanted = project.to_string();
+        let project = wanted.clone();
+        cx.spawn(async move |this, cx| {
+            let target = slug.clone();
+            let result = cx
+                .background_spawn(async move {
+                    core.work().verify_feature(&VerifyFeatureRequest {
+                        project_id: project,
+                        target,
+                    })
+                })
+                .await;
+            let _ = this.update(cx, |state, cx| {
+                if state.project_id() != Some(wanted.as_str()) {
+                    done(false, cx);
+                    return;
+                }
+                let Some(response) = result.ok() else {
+                    state.toast("Could not verify the card.", true);
+                    done(false, cx);
+                    return;
+                };
+                let checks = work::confirm_state(&response.checks);
+                let failures: Vec<String> = response
+                    .checks
+                    .iter()
+                    .filter(|check| check.status == "fail")
+                    .map(|check| check.message.clone())
+                    .collect();
+                if !response.passed || checks.is_open() {
+                    let mut lines = failures;
+                    lines.extend(checks.open.iter().map(|check| check.label.clone()));
+                    state.toast(
+                        if lines.is_empty() {
+                            "Verification did not pass.".to_string()
+                        } else {
+                            format!("Done needs verify passing: {}", lines.join(" "))
+                        },
+                        true,
+                    );
+                    done(false, cx);
+                    cx.notify();
+                    return;
+                }
+                state.set_card_stage(slug, Stage::Delivered, String::new(), done, cx);
+            });
+        })
+        .detach();
+    }
+
+    /// Confirms one manual check of a card (`confirm: ! <criterion>` or `confirm: rule
+    /// <slug>`), from the Inbox; the card and the Inbox read again.
+    pub fn confirm_card_check(&mut self, slug: String, target: String, cx: &mut Context<Self>) {
+        let inbox = cx.entity().downgrade();
+        self.write_cards(
+            CardWrite {
+                text: work::polter_confirm(&slug, &target),
+                summary: format!("Confirm {target} for {slug}"),
+                rationale: String::new(),
+                written: Some("Check confirmed.".into()),
+                failed: "Could not confirm the check.",
+                restore: Vec::new(),
+            },
+            move |ok, cx| {
+                if ok {
+                    let _ = inbox.update(cx, |state, cx| state.load_inbox(cx));
+                }
+            },
             cx,
         );
     }
@@ -1161,10 +1371,18 @@ fn read_work(core: &Core, project: &str, scope_nodes: Vec<String>) -> Result<Wor
             ..ListStructureRequest::default()
         })?
         .nodes;
+    let rules = core
+        .work()
+        .list_rules(&ListRulesRequest {
+            project_id: project.to_string(),
+            ..ListRulesRequest::default()
+        })?
+        .rules;
     Ok(Work {
         milestones,
         cards,
         nodes,
+        rules,
     })
 }
 
