@@ -1,46 +1,54 @@
-//! The canvas editor (`editor.tsx`): the shape library on the left, the canvas well, and the
-//! inspector on the right, which opens only for a selected shape or connection. Both panels
+//! The canvas editor (`editor.tsx`): the shape library on the left, the diagram in the well,
+//! and the inspector on the right, which opens only for a selected node or edge. Both panels
 //! resize (192px, 168 to 256; 272px, 256 to 336).
 //!
-//! The toolbar floats over the well: Canvases (back), the name in a 224px pill field, and the
-//! save state (Unsaved, Saving…, Not saved in the danger color, Saved; 11px muted). The tool
-//! dock floats at the bottom center: Select, Pan, Connect; Undo, Redo; Delete selection,
-//! Arrange; Zoom out, the zoom level, Zoom in, Fit canvas; Agent-visible and Canvas rules.
-//! While Connect waits for its target, a hint floats under the toolbar.
+//! The canvas is Mermaid text, so the well draws the source: `polterware_mermaid` lays the
+//! flowchart out with the window's text measurement and `MermaidView` paints it, with pan,
+//! zoom around the pointer, a double-click to fit, and a click that selects the node or edge
+//! under it. Pins from `layout_json` override the automatic layout, and its viewport restores
+//! the pan and zoom the canvas was left at. A source the renderer does not draw yet shows the
+//! text and a note instead of the diagram.
 //!
-//! The well is the app background with the dotted grid following the viewport. A press on a
-//! shape selects it (Shift adds or removes it) and drags the selection; on a connection
-//! selects it; on the empty well clears the selection and pans, as Pan and the middle button
-//! always do. A selected shape's eight handles resize it from its pre-gesture box. Scrolling
-//! pans; Ctrl or ⌘ with it zooms about the pointer. Double-click or Enter edits a label (not a
-//! referenced shape's). Delete or Backspace removes the selection, Escape returns to Select
-//! and clears it, the arrows nudge it 10 units (40 with Shift), and ⌘Z / ⇧⌘Z undo and redo.
+//! The toolbar floats over the well: Canvases (back), the name in a 224px pill field, the save
+//! state (Unsaved, Saving…, Not saved in the danger color, Saved; 11px muted), and Mermaid
+//! source, which opens the text pane beside the diagram. Typing there re-renders after a short
+//! pause; a parse error reads as `line L, column C: message` under the text and keeps the last
+//! diagram that drew. The tool dock floats at the bottom center: Select, Pan, Connect; Undo,
+//! Redo; Delete selection, Arrange; Zoom out, the zoom level, Zoom in, Fit canvas;
+//! Agent-visible and Canvas rules. While Connect waits for its target, a hint floats under the
+//! toolbar.
 //!
 //! Every edit saves on its own after 500ms, one writer per canvas: new edits coalesce, and an
 //! older answer never replaces local state. Leaving saves first; a refusal stays on the page
 //! with Retry save. An editor closed from outside saves what it holds.
+//!
+//! Dragging nodes to pin them, the palette inserting nodes, and the inspector writing back to
+//! the source are the next change: their gestures are still here, unwired.
 
+use std::collections::HashMap;
 use std::time::Duration;
 
 use gpui::{
-    AnyElement, App, AppContext as _, Context, CursorStyle, DispatchPhase, Entity, FocusHandle,
-    Focusable, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, Render, ScrollWheelEvent, SharedString, Task, Window, canvas, div, prelude::*,
-    px,
+    AnyElement, App, AppContext as _, Context, CursorStyle, Entity, FocusHandle, Focusable,
+    IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, Render,
+    ScrollWheelEvent, SharedString, Task, Window, div, point, prelude::*, px,
 };
+use polterware_mermaid::scene::Scene;
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
 use polterware_ui::canvas::{
-    Capture, History, Hit, Pt, Viewport, arrange_horizontally, bounds_of, canvas_dock, dock_group,
-    dock_separator, dot_grid, hit_test, zoom_level,
+    Capture, History, Hit, Pt, arrange_horizontally, canvas_dock, dock_group, dock_separator,
+    hit_test, zoom_level,
 };
 use polterware_ui::card::card;
 use polterware_ui::icons::Icon;
+use polterware_ui::mermaid::{MermaidEvent, MermaidView, SceneMeasure, SceneViewport};
 use polterware_ui::patterns::{AnchorSlot, PanelSide, ResizablePanel};
 use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::Theme;
 use polterware_ui::window::window_drag::WindowDragRegion;
 
-use super::scene::{NodeDecor, edge_label, edge_routes, edges_view, layers, node_view};
+use super::mermaid as source;
+use super::scene::{edge_label, edge_routes};
 use crate::app::CloseOverlay;
 use crate::canvas::catalog::{
     PaletteGroup, backdrop, component_of, default_props, edge_palette, initial_geometry,
@@ -48,7 +56,7 @@ use crate::canvas::catalog::{
 };
 use crate::canvas::document::{
     Doc, HANDLES, Handle, Selection, connect_nodes, insert_node, move_nodes, remove_selection,
-    resize_from, serialize, set_reference, to_document, update_node,
+    resize_from, set_reference, to_document, update_node,
 };
 use crate::canvas::references::{StoreEntity, build_ref};
 use crate::contracts::{Canvas, CanvasTypeDefinition};
@@ -56,7 +64,15 @@ use crate::state::{AppState, CanvasPatch, OpenCanvas};
 
 /// How long an edit waits before it saves.
 const SAVE_DELAY: Duration = Duration::from_millis(500);
+/// How long typing in the source pane waits before the diagram is drawn again.
+const RENDER_DELAY: Duration = Duration::from_millis(250);
+/// The source pane's width beside the diagram.
+const SOURCE_PANE_WIDTH: f32 = 380.0;
+/// How many frames the view may take to measure itself before the remembered viewport is
+/// dropped.
+const RESTORE_FRAMES: u8 = 4;
 /// A resize handle's side on screen.
+#[allow(dead_code)]
 const HANDLE_SIZE: f32 = 8.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -74,6 +90,9 @@ pub(super) enum SaveState {
     Error,
 }
 
+// The gestures that drag a node to pin it, resize it, and pan the old drawing stay compiled
+// for the change that writes them back to the source (C2b); nothing drives them yet.
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 enum GestureMode {
     Pan,
@@ -81,6 +100,7 @@ enum GestureMode {
     Resize(Handle),
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 struct Gesture {
     mode: GestureMode,
@@ -143,10 +163,31 @@ pub struct CanvasEditor {
     pub(super) groups: Vec<PaletteGroup>,
     pub(super) doc: Doc,
     pub(super) selection: Selection,
+    /// The canvas as Mermaid text: what the diagram draws and what saving writes.
+    pub(super) source: String,
+    /// The canvas node each diagram id stands for, read from the source's `@{ }` blocks.
+    node_ids: HashMap<String, String>,
+    source_input: Entity<TextInput>,
+    source_open: bool,
+    /// The source does not draw: the parser's place or the renderer's answer.
+    render_error: Option<String>,
+    /// The source is a diagram type the renderer does not draw yet, and the note saying so.
+    unsupported: Option<String>,
+    /// The diagram is waiting to be drawn again, and the pause it waits out.
+    render_due: bool,
+    render_timer: Option<Task<()>>,
+    view: Entity<MermaidView>,
+    /// The pan and zoom the canvas was opened at, put on screen once the view has measured
+    /// itself, and the frames left to wait for that.
+    restore_viewport: Option<SceneViewport>,
+    restore_waits: u8,
+    /// The pan and zoom the canvas was opened at, so leaving can tell whether it moved.
+    opened_viewport: Option<SceneViewport>,
     history: History<Doc>,
     pub(super) tool: Tool,
     connect_from: Option<String>,
     editing: Option<String>,
+    #[allow(dead_code)]
     label_input: Entity<TextInput>,
     name_input: Entity<TextInput>,
     pub(super) name: String,
@@ -158,7 +199,9 @@ pub struct CanvasEditor {
     saved_version: u64,
     saving: bool,
     timer: Option<Task<()>>,
+    #[allow(dead_code)]
     gesture: Option<Gesture>,
+    #[allow(dead_code)]
     hover_edge: Option<String>,
     host: AnchorSlot,
     focus: FocusHandle,
@@ -168,6 +211,9 @@ pub struct CanvasEditor {
     pub(super) inspector: super::inspector::InspectorState,
 }
 
+// Dragging nodes to pin them, the palette's insert, and the inspector's writes back to the
+// source are the next change: the methods they drive stay here, compiled and unwired.
+#[allow(dead_code)]
 impl CanvasEditor {
     pub fn new(
         state: Entity<AppState>,
@@ -258,6 +304,41 @@ impl CanvasEditor {
         let library = super::library::LibraryState::new(&groups, cx);
         let inspector = super::inspector::InspectorState::new(window, cx);
         let focus = cx.focus_handle();
+        // The canvas is Mermaid text: the pane edits it, and the view draws it.
+        let text = if open.canvas.source.trim().is_empty() {
+            "flowchart LR\n".to_string()
+        } else {
+            open.canvas.source.clone()
+        };
+        let source_input = cx.new(|cx| {
+            TextInput::new(cx)
+                .multiline()
+                .nowrap()
+                .mono()
+                .bare()
+                .placeholder("flowchart LR\n  start[Start] --> end[End]")
+        });
+        source_input.update(cx, |input, cx| input.set_text(text.clone(), cx));
+        cx.observe(&source_input, |this, input, cx| {
+            let text = input.read(cx).text().to_string();
+            if text != this.source {
+                this.source = text;
+                this.draw_soon(cx);
+                this.schedule(cx);
+            }
+        })
+        .detach();
+        let view = cx.new(|cx| {
+            MermaidView::new(Scene::default()).background(Theme::global(cx).color_app_background)
+        });
+        cx.subscribe(&view, |this, _, event: &MermaidEvent, cx| {
+            let MermaidEvent::Selected(hit) = event else {
+                return;
+            };
+            this.select(hit.as_ref(), cx);
+        })
+        .detach();
+        let opened_viewport = source::viewport(&open.canvas.layout_json);
         Self {
             state,
             agent_visible: open.canvas.agent_visible,
@@ -267,6 +348,18 @@ impl CanvasEditor {
             groups,
             doc,
             selection: Selection::default(),
+            node_ids: source::node_ids(&text),
+            source: text,
+            source_input,
+            source_open: false,
+            render_error: None,
+            unsupported: None,
+            render_due: true,
+            render_timer: None,
+            view,
+            restore_viewport: opened_viewport,
+            restore_waits: RESTORE_FRAMES,
+            opened_viewport,
             history: History::new(100),
             tool: Tool::Select,
             connect_from: None,
@@ -294,6 +387,134 @@ impl CanvasEditor {
 
     pub(super) fn entities(&self, cx: &App) -> Vec<StoreEntity> {
         self.state.read(cx).canvas_entities().to_vec()
+    }
+
+    /// The canvas as the diagram draws it: the source, the pins, and the window's text
+    /// measurement, so a label wraps where the painter draws it. A source that does not draw
+    /// keeps the last diagram on screen and says where the parser stopped.
+    fn draw(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let theme = *Theme::global(cx);
+        let measure = SceneMeasure::new(
+            window.text_system().clone(),
+            theme.font_sans,
+            theme.font_mono,
+        );
+        let drawn = source::render(&self.source, &self.canvas.layout_json, &measure);
+        self.node_ids = source::node_ids(&self.source);
+        match drawn {
+            Ok(scene) => {
+                self.view.update(cx, |view, cx| view.set_scene(scene, cx));
+                self.render_error = None;
+                self.unsupported = None;
+            }
+            Err(error) => {
+                let message = source::message(&error);
+                self.render_error = Some(message.clone());
+                self.unsupported = source::unsupported(&error).then(|| {
+                    format!(
+                        "{message}. This canvas shows its source until the renderer draws that diagram type."
+                    )
+                });
+                self.source_open = true;
+            }
+        }
+        self.render_due = false;
+    }
+
+    /// Draws the source again after a short pause, so typing does not lay the diagram out on
+    /// every keystroke.
+    fn draw_soon(&mut self, cx: &mut Context<Self>) {
+        self.render_timer = Some(cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(RENDER_DELAY).await;
+            let _ = this.update(cx, |this, cx| {
+                this.render_due = true;
+                cx.notify();
+            });
+        }));
+        cx.notify();
+    }
+
+    /// Puts the pan and zoom waiting to be restored on screen. `MermaidView` measures itself
+    /// on its first paint, so the wish is kept until it has.
+    fn place_viewport(&mut self, cx: &mut Context<Self>) {
+        let Some(target) = self.restore_viewport else {
+            return;
+        };
+        let Some(current) = self.view.read(cx).viewport() else {
+            return;
+        };
+        self.restore_viewport = None;
+        // The view zooms around a point rather than taking a viewport, so this picks the point
+        // that lands the scene where `target` has it. A ratio of one cannot move the pan, so
+        // the pan is set by zooming out a step and back in on the target's origin.
+        let ratio = target.zoom / current.zoom;
+        if (ratio - 1.0).abs() < 1e-4 {
+            let half = 0.5;
+            let focus = point(
+                px((target.x - current.x * half) / (1.0 - half)),
+                px((target.y - current.y * half) / (1.0 - half)),
+            );
+            self.view.update(cx, |view, cx| {
+                view.zoom_at(focus, current.zoom * half, cx);
+                view.zoom_at(point(px(target.x), px(target.y)), target.zoom, cx);
+            });
+        } else {
+            let focus = point(
+                px((target.x - current.x * ratio) / (1.0 - ratio)),
+                px((target.y - current.y * ratio) / (1.0 - ratio)),
+            );
+            self.view
+                .update(cx, |view, cx| view.zoom_at(focus, target.zoom, cx));
+        }
+    }
+
+    /// The pan and zoom on screen, as the layout keeps them.
+    fn viewport(&self, cx: &App) -> Option<SceneViewport> {
+        self.view.read(cx).viewport()
+    }
+
+    /// Counts a moved viewport as an edit, so leaving writes where the canvas was left.
+    fn touch_viewport(&mut self, cx: &App) {
+        if self.viewport(cx) == self.opened_viewport {
+            return;
+        }
+        self.version += 1;
+        self.save_state = SaveState::Pending;
+    }
+
+    /// Follows a click in the diagram: the node or edge it hit opens in the inspector, and
+    /// empty space closes it. A diagram id that stands for a canvas node (`u1@{ id: ... }`)
+    /// is followed to that node, which is the one the inspector knows.
+    fn select(&mut self, hit: Option<&polterware_ui::mermaid::SceneHit>, cx: &mut Context<Self>) {
+        use polterware_mermaid::scene::SourceKind;
+        let canvas_id = |id: &str| {
+            self.node_ids
+                .get(id)
+                .cloned()
+                .unwrap_or_else(|| id.to_string())
+        };
+        let selection = match hit {
+            Some(hit) if hit.source.kind == SourceKind::Node => {
+                let id = canvas_id(&hit.source.id);
+                self.doc
+                    .node(&id)
+                    .map_or(Selection::default(), |_| Selection::node(&id))
+            }
+            Some(hit) if hit.source.kind == SourceKind::Edge => {
+                let id = canvas_id(&hit.source.id);
+                self.doc
+                    .edge(&id)
+                    .map_or(Selection::default(), |_| Selection::edge(&id))
+            }
+            _ => Selection::default(),
+        };
+        if selection == self.selection {
+            return;
+        }
+        self.selection = selection;
+        self.inspector_panel
+            .update(cx, |panel, _| panel.set_open(!self.selection.is_empty()));
+        cx.notify();
     }
 
     /// Selects the canvas's first node, as a click on it would, so its inspector shows (the
@@ -338,13 +559,17 @@ impl CanvasEditor {
         cx.notify();
     }
 
-    fn patch(&self) -> CanvasPatch {
-        let (graph, layout_json) = serialize(&self.doc, &self.canvas.layout_json);
+    fn patch(&self, cx: &App) -> CanvasPatch {
+        let layout_json = match self.viewport(cx) {
+            Some(viewport) => source::with_viewport(&self.canvas.layout_json, viewport),
+            None => self.canvas.layout_json.clone(),
+        };
         CanvasPatch {
             name: Some(self.name.trim().to_string()),
             agent_visible: Some(self.agent_visible),
-            graph: Some(graph),
+            source: Some(self.source.clone()),
             layout_json: Some(layout_json),
+            ..CanvasPatch::default()
         }
     }
 
@@ -365,7 +590,7 @@ impl CanvasEditor {
             return;
         }
         let version = self.version;
-        let patch = self.patch();
+        let patch = self.patch(cx);
         let (project, id) = (self.canvas.project_id.clone(), self.canvas.id.clone());
         self.saving = true;
         self.save_state = SaveState::Saving;
@@ -379,6 +604,7 @@ impl CanvasEditor {
                 match result {
                     Ok(()) => {
                         this.saved_version = this.saved_version.max(version);
+                        this.opened_viewport = this.viewport(cx);
                         if this.version > this.saved_version {
                             this.flush(cx);
                         } else {
@@ -405,11 +631,12 @@ impl CanvasEditor {
 
     /// Writes what is unsaved when the editor goes away without Back; a refusal is a toast.
     pub fn save_on_close(&mut self, cx: &mut Context<Self>) {
+        self.touch_viewport(cx);
         if self.version <= self.saved_version || self.name.trim().is_empty() {
             return;
         }
         self.saved_version = self.version;
-        let patch = self.patch();
+        let patch = self.patch(cx);
         let (project, id, name) = (
             self.canvas.project_id.clone(),
             self.canvas.id.clone(),
@@ -433,6 +660,7 @@ impl CanvasEditor {
 
     fn back(&mut self, cx: &mut Context<Self>) {
         self.finish_label(cx);
+        self.touch_viewport(cx);
         self.leaving = true;
         if self.version <= self.saved_version && !self.saving {
             self.leaving = false;
@@ -521,20 +749,15 @@ impl CanvasEditor {
     }
 
     fn zoom_by(&mut self, factor: f32, cx: &mut Context<Self>) {
-        let (w, h) = self.host_size();
-        let view = self.doc.viewport;
-        self.doc.viewport = view.zoom_at(Pt::new(w / 2.0, h / 2.0), view.zoom * factor);
-        self.schedule(cx);
+        let Some(viewport) = self.view.read(cx).viewport() else {
+            return;
+        };
+        let zoom = viewport.zoom * factor;
+        self.view.update(cx, |view, cx| view.zoom_to(zoom, cx));
     }
 
     fn fit(&mut self, cx: &mut Context<Self>) {
-        if self.doc.nodes.is_empty() {
-            return;
-        }
-        let (w, h) = self.host_size();
-        let bounds = bounds_of(self.doc.nodes.iter().map(|node| node.rect()));
-        self.doc.viewport = Viewport::fit(bounds, w, h, 48.0);
-        self.schedule(cx);
+        self.view.update(cx, |view, cx| view.fit(cx));
     }
 
     fn arrange(&mut self, cx: &mut Context<Self>) {
@@ -839,6 +1062,7 @@ impl CanvasEditor {
     fn toolbar(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = *Theme::global(cx);
         let view = cx.entity().downgrade();
+        let back = view.clone();
         div()
             .absolute()
             .top_0()
@@ -858,7 +1082,7 @@ impl CanvasEditor {
                     .tooltip("Canvases")
                     .disabled(self.leaving)
                     .on_click(move |_, cx| {
-                        let _ = view.update(cx, |this, cx| this.back(cx));
+                        let _ = back.update(cx, |this, cx| this.back(cx));
                     }),
             )
             .child(div().w(px(224.0)).child(self.name_input.clone()))
@@ -873,6 +1097,26 @@ impl CanvasEditor {
                         theme.color_text_muted
                     })
                     .child(self.save_label()),
+            )
+            .child(
+                Button::new("canvas-source-toggle", ButtonKind::Secondary)
+                    .size(ButtonSize::Icon)
+                    .icon(Icon::SourceCodeIcon)
+                    .selected(self.source_open)
+                    .tooltip(if self.source_open {
+                        "Hide Mermaid source"
+                    } else {
+                        "Mermaid source"
+                    })
+                    .on_click({
+                        let view = view.clone();
+                        move |_, cx| {
+                            let _ = view.update(cx, |this, cx| {
+                                this.source_open = !this.source_open;
+                                cx.notify();
+                            });
+                        }
+                    }),
             )
             .child(div().flex_1().h_full().window_drag_region())
     }
@@ -989,7 +1233,13 @@ impl CanvasEditor {
                 cx,
                 |this, _, cx| this.zoom_by(0.8, cx),
             ))
-            .child(zoom_level(self.doc.viewport.zoom, cx))
+            .child(zoom_level(
+                self.view
+                    .read(cx)
+                    .viewport()
+                    .map_or(1.0, |viewport| viewport.zoom),
+                cx,
+            ))
             .child(self.dock_button(
                 "canvas-zoom-in",
                 Icon::Plus,
@@ -1150,107 +1400,54 @@ impl CanvasEditor {
             .collect()
     }
 
+    /// The diagram, and the source pane beside it when it is open. The view draws the
+    /// canvas's Mermaid source with the window's measurement, so labels wrap as they paint,
+    /// and a click in it selects the node or edge under the pointer.
     fn well(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let theme = *Theme::global(cx);
-        let view = self.doc.viewport;
-        self.sync_label_type(cx);
-        let entities = self.entities(cx);
-        let (back, front) = layers(&self.doc);
-        let label = |this: &Self, id: &str| {
-            (this.editing.as_deref() == Some(id)).then(|| {
-                div()
-                    .w_full()
-                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .child(this.label_input.clone())
-                    .into_any_element()
-            })
-        };
-        let draw = |this: &Self, node: &crate::canvas::document::Node| {
-            node_view(
-                node,
-                &entities,
-                view,
-                NodeDecor {
-                    selected: this.selection.nodes.contains(&node.id),
-                    decorations: true,
-                    editing: label(this, &node.id),
-                },
-                &theme,
-            )
-        };
-        let back: Vec<AnyElement> = back.into_iter().map(|node| draw(self, node)).collect();
-        let front: Vec<AnyElement> = front.into_iter().map(|node| draw(self, node)).collect();
-        let (selected, hovered) = (self.selection.edges.clone(), self.hover_edge.clone());
-        let edges = edges_view(&self.doc, view, move |edge| {
-            if selected.contains(&edge.id) {
-                theme.color_info
-            } else if hovered.as_deref() == Some(edge.id.as_str()) {
-                theme.color_text_secondary
+        if self.render_due {
+            self.draw(window, cx);
+        }
+        self.place_viewport(cx);
+        // The view measures itself on its first paint, so the remembered pan and zoom waits
+        // for the frame after it; asking for that frame, a few times at most, keeps the wish
+        // from waiting forever.
+        if self.restore_viewport.is_some() && self.unsupported.is_none() {
+            if self.restore_waits > 0 {
+                self.restore_waits -= 1;
+                cx.notify();
             } else {
-                theme.color_text_muted
+                self.restore_viewport = None;
             }
-        });
-        let editor = cx.entity().downgrade();
-        let tracker = self.gesture.is_some().then(|| {
-            let moves = editor.clone();
-            let ups = editor.clone();
-            canvas(
-                |_, _, _| {},
-                move |_, _, window, _| {
-                    window.on_mouse_event({
-                        let editor = moves.clone();
-                        move |event: &MouseMoveEvent, phase, _, cx| {
-                            if phase != DispatchPhase::Bubble {
-                                return;
-                            }
-                            let _ = editor.update(cx, |this, cx| {
-                                if event.pressed_button.is_none() {
-                                    this.released(cx);
-                                } else {
-                                    this.dragged(event.position, cx);
-                                }
-                            });
-                        }
-                    });
-                    window.on_mouse_event({
-                        let editor = ups.clone();
-                        move |_: &MouseUpEvent, phase, _, cx| {
-                            if phase == DispatchPhase::Bubble {
-                                let _ = editor.update(cx, |this, cx| this.released(cx));
-                            }
-                        }
-                    });
-                },
-            )
-            .absolute()
-            .size_0()
-        });
-        let empty = self.doc.nodes.is_empty().then(|| {
-            div()
-                .absolute()
-                .inset_0()
+        }
+        let diagram = match self.unsupported.clone() {
+            Some(note) => div()
+                .size_full()
                 .flex()
+                .flex_col()
                 .items_center()
                 .justify_center()
-                .text_size(px(13.0))
-                .text_color(theme.color_text_muted)
-                .child("This canvas is empty. Click or drag a shape from the library.")
-        });
-        let handles = self.handles(cx);
-        let labels = self.edge_labels(cx);
-        let cursor = match (&self.gesture, self.tool) {
-            (
-                Some(Gesture {
-                    mode: GestureMode::Pan,
-                    ..
-                }),
-                _,
-            ) => CursorStyle::ClosedHand,
-            (_, Tool::Pan) => CursorStyle::OpenHand,
-            _ if self.hover_edge.is_some() => CursorStyle::PointingHand,
-            _ => CursorStyle::Arrow,
+                .gap(px(6.0))
+                .p(px(24.0))
+                .text_center()
+                .child(
+                    div()
+                        .text_size(px(13.0))
+                        .text_color(theme.color_text_primary)
+                        .child(note),
+                )
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .text_color(theme.color_text_muted)
+                        .child("The source stays editable in the pane."),
+                )
+                .into_any_element(),
+            None => div()
+                .size_full()
+                .child(self.view.clone())
+                .into_any_element(),
         };
-        let _ = window;
         div()
             .id("canvas-well")
             .track_focus(&self.focus)
@@ -1259,33 +1456,70 @@ impl CanvasEditor {
             .size_full()
             .overflow_hidden()
             .bg(theme.color_app_background)
-            .cursor(cursor)
-            .child(self.host.probe())
-            .child(dot_grid(view, 1.0, theme.color_border_default))
-            .children(empty)
-            .children(back)
-            .child(edges)
-            .children(labels)
-            .children(front)
-            .children(handles)
-            .children(tracker)
-            .on_mouse_down(MouseButton::Left, cx.listener(Self::pressed))
-            .on_mouse_down(MouseButton::Middle, cx.listener(Self::pressed))
-            .on_mouse_move(cx.listener(|this, event, _, cx| this.hovered(event, cx)))
-            .on_scroll_wheel(
-                cx.listener(|this, event, window, cx| this.scrolled(event, window, cx)),
+            .flex()
+            .child(
+                div()
+                    .relative()
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .child(self.host.probe())
+                    .child(diagram),
             )
-            .on_key_down(cx.listener(Self::key))
+            .when(self.source_open, |well| well.child(self.source_pane(cx)))
             .on_action(cx.listener(|this, _: &CloseOverlay, _, cx| this.escape(cx)))
-            .on_drop(cx.listener(|this, drag: &LibraryDrag, window, cx| {
-                let at = this
-                    .doc
-                    .viewport
-                    .to_document(this.local(window.mouse_position()));
-                let drag = drag.clone();
-                this.insert(&drag.kind, Some(at), drag.entity, cx);
-                cx.notify();
-            }))
+            .into_any_element()
+    }
+
+    /// The canvas's Mermaid text beside the diagram, with the place the parser stopped when
+    /// the text does not draw.
+    fn source_pane(&self, cx: &mut Context<Self>) -> AnyElement {
+        let theme = *Theme::global(cx);
+        div()
+            .id("canvas-source-pane")
+            .flex_none()
+            .w(px(SOURCE_PANE_WIDTH))
+            .h_full()
+            .flex()
+            .flex_col()
+            .border_l_1()
+            .border_color(theme.color_border_default)
+            .bg(theme.color_surface)
+            .child(
+                div()
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.0))
+                    .h(px(32.0))
+                    .px(px(12.0))
+                    .text_size(px(12.0))
+                    .text_color(theme.color_text_secondary)
+                    .child("Mermaid source"),
+            )
+            .child(
+                div()
+                    .id("canvas-source-scroll")
+                    .min_h_0()
+                    .flex_1()
+                    .overflow_y_scroll()
+                    .px(px(12.0))
+                    .pb(px(12.0))
+                    .child(self.source_input.clone()),
+            )
+            .when_some(self.render_error.clone(), |pane, error| {
+                pane.child(
+                    div()
+                        .flex_none()
+                        .border_t_1()
+                        .border_color(theme.color_border_default)
+                        .px(px(12.0))
+                        .py(px(8.0))
+                        .text_size(px(12.0))
+                        .text_color(theme.color_danger)
+                        .child(error),
+                )
+            })
             .into_any_element()
     }
 }
@@ -1317,12 +1551,7 @@ fn uuid() -> String {
 impl Render for CanvasEditor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = *Theme::global(cx);
-        let inspecting = !self.selection.nodes.is_empty()
-            || self
-                .selection
-                .edges
-                .first()
-                .is_some_and(|id| self.doc.edge(id).is_some());
+        let inspecting = !self.selection.is_empty();
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(inspecting));
         let well = self.well(window, cx);
@@ -1345,11 +1574,14 @@ impl Render for CanvasEditor {
                     .child(format!("Pick the target shape for the {kind} connection.")),
             )
         });
-        let overlay = div()
+        // The diagram is the main area between the two panels, so the source pane beside it
+        // stays in reach whatever the panels' widths are.
+        let main = div()
             .relative()
             .size_full()
-            .child(self.toolbar(cx))
+            .child(well)
             .children(hint)
+            .child(self.toolbar(cx))
             .child(self.tools_dock(cx))
             .into_any_element();
         let inspector = self.inspector_view(window, cx);
@@ -1358,7 +1590,7 @@ impl Render for CanvasEditor {
             panel.render(
                 &inspector_panel,
                 panel_frame("canvas-inspector-panel", inspector, PanelSide::Right, cx),
-                overlay,
+                main,
                 window,
                 cx,
             )
@@ -1405,14 +1637,7 @@ impl Render for CanvasEditor {
             .flex()
             .flex_col()
             .children(alert)
-            .child(
-                div()
-                    .relative()
-                    .min_h_0()
-                    .flex_1()
-                    .child(well)
-                    .child(div().absolute().inset_0().child(workspace)),
-            )
+            .child(div().min_h_0().flex_1().child(workspace))
             .children(self.inspector.layers(cx))
     }
 }

@@ -145,7 +145,10 @@ fn number(value: f32) -> Value {
 }
 
 /// The document as the service stores it (`serializeCanvas`): the graph, and the layout with
-/// every field it had besides the viewport and each node's box.
+/// every field it had besides the viewport and each node's box. The editor writes the canvas
+/// as its Mermaid source now; the next change that writes inspector edits back to the source
+/// takes the pins from here.
+#[allow(dead_code)]
 pub fn serialize(doc: &Doc, original_layout: &str) -> (CanvasGraph, String) {
     let mut layout = object(original_layout);
     let previous = layout

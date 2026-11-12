@@ -4184,6 +4184,7 @@ dependencies = [
  "gpui",
  "libc",
  "objc",
+ "polterware-mermaid",
  "polterware-ui",
  "serde",
  "serde_json",

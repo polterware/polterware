@@ -47,6 +47,8 @@ pub struct OpenCanvas {
 pub struct CanvasPatch {
     pub name: Option<String>,
     pub agent_visible: Option<bool>,
+    /// The canvas as Mermaid text; the core reads the graph back from it.
+    pub source: Option<String>,
     pub graph: Option<CanvasGraph>,
     pub layout_json: Option<String>,
 }
@@ -162,6 +164,7 @@ fn update_request(project: &str, id: &str, patch: CanvasPatch) -> UpdateCanvasRe
         )),
         name: patch.name,
         agent_visible: patch.agent_visible,
+        source: patch.source,
         graph: patch.graph,
         layout_json: patch.layout_json,
         ..UpdateCanvasRequest::default()
