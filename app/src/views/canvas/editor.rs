@@ -767,9 +767,11 @@ impl CanvasEditor {
         let mermaid = self.mermaid(&node.id)?;
         let (x, y, width, height) = self.boxes.get(&mermaid).copied()?;
         let viewport = self.view.read(cx).viewport()?;
-        let theme = Theme::global(cx);
-        let origin_x = theme.sidebar_width + self.library_panel.read(cx).width() + PANEL_INSET;
-        let origin_y = theme.titlebar_height;
+        // The diagram spans the whole surface under the floating panels, so its viewport
+        // starts at the surface's own corner, not after the library.
+        let surface = self.host.get()?;
+        let origin_x = f32::from(surface.origin.x);
+        let origin_y = f32::from(surface.origin.y);
         Some((
             origin_x + x * viewport.zoom + viewport.x + width * viewport.zoom / 2.0,
             origin_y + y * viewport.zoom + viewport.y + height * viewport.zoom / 2.0,
