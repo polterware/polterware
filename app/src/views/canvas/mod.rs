@@ -35,7 +35,7 @@ use polterware_ui::card::texture_card;
 use polterware_ui::icon_tile::IconTile;
 use polterware_ui::icons::{Icon, icon_colored};
 use polterware_ui::menu::MenuItem;
-use polterware_ui::mermaid::{SceneViewport, paint_scene};
+use polterware_ui::mermaid::{MermaidView, SceneViewport, paint_scene};
 use polterware_ui::patterns::{
     AnchorSlot, ArchivedItem, ArchivedList, ArchivedListEvent, Composer, ComposerDraft,
     ComposerEvent, ComposerSpec, ConfirmDialog, ContextMenu, MascotMood, modal_layer, page_empty,
@@ -617,6 +617,57 @@ impl CanvasView {
         if let Some((_, editor)) = &self.editor {
             editor.update(cx, |editor, cx| editor.select_first_node(cx));
         }
+    }
+
+    /// Opens or closes the editor's text pane, as the toolbar's Mermaid source button does.
+    pub(crate) fn toggle_source(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        let Some((_, editor)) = &self.editor else {
+            return false;
+        };
+        editor.update(cx, |editor, cx| editor.toggle_source(window, cx));
+        true
+    }
+
+    /// The editor's source, for the tour's checks.
+    pub(crate) fn editor_source(&self, cx: &App) -> Option<String> {
+        self.editor
+            .as_ref()
+            .map(|(_, editor)| editor.read(cx).source().to_string())
+    }
+
+    /// The parser's answer while the editor's source does not draw.
+    pub(crate) fn editor_render_message(&self, cx: &App) -> Option<String> {
+        self.editor
+            .as_ref()
+            .and_then(|(_, editor)| editor.read(cx).render_message().map(str::to_string))
+    }
+
+    /// Whether the editor's last drawing has a node called `name`.
+    pub(crate) fn editor_has_node(&self, name: &str, cx: &App) -> bool {
+        self.editor
+            .as_ref()
+            .is_some_and(|(_, editor)| editor.read(cx).has_node(name))
+    }
+
+    /// The pin the editor's last drag wrote, when its layout carries it.
+    pub(crate) fn editor_dropped_pin(&self, cx: &App) -> Option<(String, f32, f32)> {
+        self.editor
+            .as_ref()
+            .and_then(|(_, editor)| editor.read(cx).dropped_pin())
+    }
+
+    /// The diagram the editor draws, for the tour's scripted pointer.
+    pub(crate) fn editor_diagram(&self, cx: &App) -> Option<Entity<MermaidView>> {
+        self.editor
+            .as_ref()
+            .map(|(_, editor)| editor.read(cx).diagram().clone())
+    }
+
+    /// Where the editor's first node is in the window, for the tour's scripted pointer.
+    pub(crate) fn editor_node_point(&self, cx: &App) -> Option<(f32, f32)> {
+        self.editor
+            .as_ref()
+            .and_then(|(_, editor)| editor.read(cx).node_point(cx))
     }
 
     /// Keeps the editor on the canvas the state has open.
