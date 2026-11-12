@@ -5,7 +5,9 @@
 //! groups and orders its cards, the Polter text each card write sends, and what a card's
 //! page reads about its gate, handoff, and runs.
 
-use crate::contracts::{FeatureCheck, Milestone, SessionHandoff, VerifyCheck, WorkCard, WorkTask};
+use crate::contracts::{
+    FeatureCheck, Milestone, SessionHandoff, VerifyManualItem, WorkCard, WorkTask,
+};
 use crate::dispatch::contracts::DispatchRun;
 use crate::format::instant_millis;
 
@@ -313,39 +315,19 @@ impl ConfirmState {
     }
 }
 
-/// Reads a verify's checks (`confirmChecks`): an acceptance criterion is a `! ` line and a
-/// Rule a `rule <slug>: …` line; a confirmed item is a pass.
-pub fn confirm_state(checks: &[VerifyCheck]) -> ConfirmState {
+/// Reads a verify's manual items: each acceptance criterion and each Rule scoped to the
+/// card's `under:` chain, confirmed or still open. The core lists the same items the Inbox
+/// counts, so the two never disagree.
+pub fn confirm_state(items: &[VerifyManualItem]) -> ConfirmState {
     let mut state = ConfirmState::default();
-    for check in checks {
-        let message = check.message.trim();
-        if let Some(text) = message.strip_prefix("! ") {
-            state.total += 1;
-            if check.status == "pass" {
-                state.confirmed += 1;
-            } else {
-                // An inherited check ends with " (from <node>)": the confirm names the criterion.
-                let text = text.trim();
-                let target = match text.rfind(" (from ") {
-                    Some(at) if text.ends_with(')') => &text[..at],
-                    _ => text,
-                };
-                state.open.push(ConfirmCheck {
-                    label: message.to_string(),
-                    target: format!("! {target}"),
-                });
-            }
-        } else if let Some(rest) = message.strip_prefix("rule ") {
-            if check.status == "pass" {
-                continue;
-            }
-            let slug = rest.split(':').next().unwrap_or_default().trim();
-            if slug.is_empty() {
-                continue;
-            }
+    for item in items {
+        state.total += 1;
+        if item.confirmed {
+            state.confirmed += 1;
+        } else {
             state.open.push(ConfirmCheck {
-                label: message.to_string(),
-                target: format!("rule {slug}"),
+                label: item.label.clone(),
+                target: item.target.clone(),
             });
         }
     }
@@ -907,35 +889,31 @@ mod tests {
 
     #[test]
     fn a_verify_reads_into_confirmed_and_open_checks() {
-        let checks = [
-            VerifyCheck {
-                status: "pass".into(),
-                message: "! No network calls (confirmed by codex)".into(),
+        let items = [
+            VerifyManualItem {
+                label: "! No network calls (confirmed by codex)".into(),
+                target: "! No network calls".into(),
+                confirmed: true,
             },
-            VerifyCheck {
-                status: "manual".into(),
-                message: "! Reads HEAD only".into(),
+            VerifyManualItem {
+                label: "! Reads HEAD only".into(),
+                target: "! Reads HEAD only".into(),
+                confirmed: false,
             },
-            VerifyCheck {
-                status: "manual".into(),
-                message: "! No network calls (from core)".into(),
+            VerifyManualItem {
+                label: "! No network calls (from core)".into(),
+                target: "! No network calls".into(),
+                confirmed: false,
             },
-            VerifyCheck {
-                status: "manual".into(),
-                message: "rule local-only: Never call the network (from core)".into(),
-            },
-            VerifyCheck {
-                status: "pass".into(),
-                message: "rule typed-errors: Handlers return typed errors (whole project)".into(),
-            },
-            VerifyCheck {
-                status: "fail".into(),
-                message: "T2 is open: Stamp facts".into(),
+            VerifyManualItem {
+                label: "rule local-only: Never call the network (from core)".into(),
+                target: "rule local-only".into(),
+                confirmed: false,
             },
         ];
-        let state = confirm_state(&checks);
+        let state = confirm_state(&items);
         assert_eq!(state.confirmed, 1);
-        assert_eq!(state.total, 3);
+        assert_eq!(state.total, 4);
         assert_eq!(
             state.open,
             vec![

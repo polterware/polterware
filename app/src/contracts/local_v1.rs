@@ -122,7 +122,7 @@ pub struct ListChangesRequest {
     #[serde(rename = "scopeNodes")]
     pub scope_nodes: Vec<String>,
     /// subject_id narrows the history to changes that name this entity (a card,
-    /// Decision, doc, fact, or node id) among their subjects. It ignores the scope.
+    /// Decision, doc, rule, or node id) among their subjects. It ignores the scope.
     #[serde(rename = "subjectId")]
     pub subject_id: String,
 }
@@ -342,7 +342,7 @@ pub struct SyncProjectModelResponse {
 // polterware/local/v1/canvas.proto
 
 /// CanvasRef cites another project entity.
-/// kind is "card", "decision", "fact", "rule", or "node" (a structure node).
+/// kind is "card", "rule", or "node" (a structure node).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CanvasRef {
@@ -1155,7 +1155,7 @@ pub struct KnowledgeItem {
     pub project_id: String,
     pub title: String,
     pub body: String,
-    /// kind is doc or decision.
+    /// kind is doc; Rules are their own law and never knowledge items.
     pub kind: String,
     pub tags: Vec<String>,
     pub summary: String,
@@ -1168,13 +1168,13 @@ pub struct KnowledgeItem {
     #[serde(rename = "updatedAt")]
     pub updated_at: String,
     /// scope_node_ids are the Structure nodes the item is about; none is the whole
-    /// project (a decision with none is a principle).
+    /// project.
     #[serde(rename = "scopeNodeIds")]
     pub scope_node_ids: Vec<String>,
     /// archived_at is empty while the item is active (RFC3339 otherwise).
     #[serde(rename = "archivedAt")]
     pub archived_at: String,
-    /// doc_type is doc for a doc and empty for a decision.
+    /// doc_type is doc for a doc.
     #[serde(rename = "docType")]
     pub doc_type: String,
 }
@@ -1254,7 +1254,7 @@ pub struct ListKnowledgeResponse {
 }
 
 /// SetKnowledgeArchived moves an item into the archive (archived = true) or
-/// restores it. Decisions are never archived: supersede them instead.
+/// restores it.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SetKnowledgeArchivedRequest {
@@ -1271,8 +1271,8 @@ pub struct SetKnowledgeArchivedResponse {
     pub item: Option<KnowledgeItem>,
 }
 
-/// DeleteKnowledge removes an archived item for good. Active items and
-/// decisions are refused with FAILED_PRECONDITION.
+/// DeleteKnowledge removes an archived item for good. Active items are refused
+/// with FAILED_PRECONDITION.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DeleteKnowledgeRequest {
@@ -1939,7 +1939,7 @@ pub struct EndSessionResponse {
     pub completed_runs: i32,
 }
 
-/// InboxItem is one derived item that needs a person: a Decision (open
+/// InboxItem is one derived item that needs a person: a Question (open
 /// question) or Setup (a deploy whose provider CLI is not connected).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -1994,8 +1994,8 @@ pub struct ListInboxRequest {
 }
 
 /// SetScopeRequest replaces an entity's contexts with nodes (ids or paths); an
-/// empty list clears them (the whole project). kind is "decision", "fact",
-/// "rule", or "item" (a derived Inbox item, identified by its item key).
+/// empty list clears them (the whole project). kind is "rule" or "item" (a
+/// derived Inbox item, identified by its item key).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SetScopeRequest {
@@ -2222,9 +2222,8 @@ pub struct ListStructureHistoryResponse {
     pub entries: Vec<StructureHistoryEntry>,
 }
 
-/// ExportProjections writes Decision files into docs/decision/ of each governing checkout
-/// and the generated AGENTS.md block of every checkout. The store stays the
-/// source of truth; nothing is read back from the files.
+/// ExportProjections writes the generated AGENTS.md block of every checkout.
+/// The store stays the source of truth; nothing is read back from the files.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ExportProjectionsRequest {
@@ -2452,12 +2451,28 @@ pub struct VerifyCheck {
     pub message: String,
 }
 
+/// VerifyManualItem is one check a person or an agent confirms by hand: an
+/// acceptance criterion or a Rule scoped to the card's under: chain. The same
+/// items are what the Inbox lists as still open, so a board's confirmed/total
+/// and an Inbox count always agree.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct VerifyManualItem {
+    /// label is the line verify prints, with its origin and who confirmed it.
+    pub label: String,
+    pub confirmed: bool,
+    /// target is the confirm: line that answers it, "! <criterion>" or
+    /// "rule <slug>".
+    pub target: String,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct VerifyFeatureResponse {
     pub target: String,
     pub passed: bool,
     pub checks: Vec<VerifyCheck>,
+    pub manual: Vec<VerifyManualItem>,
 }
 
 /// Milestone groups the cards that ship together. A card belongs to at most

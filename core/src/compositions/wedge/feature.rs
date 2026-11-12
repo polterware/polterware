@@ -485,4 +485,122 @@ mod tests {
             "a confirmed card leaves the inbox: {inbox:?}"
         );
     }
+
+    #[test]
+    fn the_inbox_counts_the_manual_items_verify_exposes() {
+        let temp = TempStore::named("verify-items.db");
+        let store = &temp.store;
+        let project = init_project(
+            store,
+            InitInput {
+                name: "Demo".to_string(),
+                ..InitInput::default()
+            },
+        )
+        .expect("init project");
+        let project_id = project.id;
+        apply_text(
+            store,
+            &project_id,
+            "Map",
+            "---\npolter: 1\n---\n\n# app: App\nlevel: domain\n\n# app/core: Core\nlevel: component · under: app\n\n! No inline styles\n",
+        );
+        apply_text(
+            store,
+            &project_id,
+            "Rule",
+            "---\npolter: 1\n---\n\n#### rule local-only: Never call the network\nscope: app/core\nstatus: active\n",
+        );
+        let slug = "git-import";
+        apply_text(
+            store,
+            &project_id,
+            "Specify",
+            &format!(
+                "---\npolter: 1\n---\n## {slug}: Git import\nstage: verify\nunder: app/core\n! No network calls\n- [x] T1 Read HEAD\nbehavior: Import every commit.\n\n#### rule typed-errors: Handlers return typed errors\nstatus: active\n"
+            ),
+        );
+
+        let result = verify_feature(store, &project_id, slug).expect("verify");
+        let labels: Vec<&str> = result
+            .manual
+            .iter()
+            .map(|item| item.label.as_str())
+            .collect();
+        assert_eq!(
+            labels,
+            vec![
+                "! No network calls",
+                "rule : No inline styles (from app/core)",
+                "rule local-only: Never call the network (from app/core)",
+            ],
+            "the card's own invariant and both scoped Rules"
+        );
+        let inherited = &result.manual[1];
+        assert!(
+            inherited.target.starts_with("rule ") && inherited.target != "rule ",
+            "a Rule with no slug is confirmed by its id: {inherited:?}"
+        );
+        assert!(
+            result.manual[2].target == "rule local-only",
+            "a Rule with a slug is confirmed by it: {:?}",
+            result.manual[2]
+        );
+        assert!(
+            result.manual.iter().all(|item| !item.confirmed),
+            "nothing is confirmed yet: {result:?}"
+        );
+        assert!(
+            polter::encode_verify(&result).contains("info  Constitution: 1 rule applies\n"),
+            "a whole-project Rule is info only"
+        );
+
+        let inbox = super::super::inbox::list_inbox(store, &project_id).expect("inbox");
+        let item = inbox
+            .items
+            .iter()
+            .find(|item| item.kind == crate::domains::inbox::KIND_CONFIRM)
+            .unwrap_or_else(|| panic!("a confirm item: {inbox:?}"));
+        assert_eq!(
+            item.title,
+            format!("Confirm {} check(s) for Git import", result.manual.len())
+        );
+        assert_eq!(
+            item.detail,
+            result
+                .manual
+                .iter()
+                .map(|item| item.label.as_str())
+                .collect::<Vec<_>>()
+                .join("; "),
+            "the Inbox lists the same items the board counts"
+        );
+
+        apply_text(
+            store,
+            &project_id,
+            "Confirm",
+            &format!("---\npolter: 1\n---\n## {slug}\nconfirm: rule local-only\n"),
+        );
+        let result = verify_feature(store, &project_id, slug).expect("verify");
+        assert_eq!(result.manual.len(), 3, "confirming keeps the total");
+        assert_eq!(
+            result.manual.iter().filter(|item| item.confirmed).count(),
+            1
+        );
+        let inbox = super::super::inbox::list_inbox(store, &project_id).expect("inbox");
+        let item = inbox
+            .items
+            .iter()
+            .find(|item| item.kind == crate::domains::inbox::KIND_CONFIRM)
+            .unwrap_or_else(|| panic!("a confirm item: {inbox:?}"));
+        assert_eq!(
+            item.title,
+            format!(
+                "Confirm {} check(s) for Git import",
+                result.manual.iter().filter(|item| !item.confirmed).count()
+            ),
+            "an Inbox count is the total minus what is confirmed"
+        );
+    }
 }

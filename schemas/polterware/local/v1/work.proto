@@ -511,10 +511,23 @@ message VerifyCheck {
   string status = 1;
   string message = 2;
 }
+// VerifyManualItem is one check a person or an agent confirms by hand: an
+// acceptance criterion or a Rule scoped to the card's under: chain. The same
+// items are what the Inbox lists as still open, so a board's confirmed/total
+// and an Inbox count always agree.
+message VerifyManualItem {
+  // label is the line verify prints, with its origin and who confirmed it.
+  string label = 1;
+  bool confirmed = 2;
+  // target is the confirm: line that answers it, "! <criterion>" or
+  // "rule <slug>".
+  string target = 3;
+}
 message VerifyFeatureResponse {
   string target = 1;
   bool passed = 2;
   repeated VerifyCheck checks = 3;
+  repeated VerifyManualItem manual = 4;
 }
 
 // Milestone groups the cards that ship together. A card belongs to at most
