@@ -241,6 +241,24 @@ pub fn polter_card(slug: &str, meta: &[(&str, &str)]) -> String {
     format!("{POLTER_HEADER}## {slug}\n{}\n", meta_line(meta))
 }
 
+/// A card's spec section (`behavior:`, `edge-cases:`, or `plan:`) with its Markdown body on the
+/// lines after the key; an empty body clears the section.
+pub fn polter_card_section(slug: &str, key: &str, body: &str) -> String {
+    let body = body.trim();
+    let mut lines = body.lines();
+    let first = lines.next().unwrap_or_default();
+    let mut text = if first.is_empty() {
+        format!("{POLTER_HEADER}## {slug}\n{key}:\n")
+    } else {
+        format!("{POLTER_HEADER}## {slug}\n{key}: {first}\n")
+    };
+    for line in lines {
+        text.push_str(line);
+        text.push('\n');
+    }
+    text
+}
+
 /// One block per card with the same meta line, so the cards move in one write and one change
 /// batch (`polterCardsMeta`).
 pub fn polter_cards(slugs: &[String], meta: &[(&str, &str)]) -> String {
@@ -905,5 +923,17 @@ mod tests {
             .collect();
         assert_eq!(order, ["a", "b"]);
         assert_eq!(list_group_of(&early, Grouping::Milestone), BACKLOG);
+    }
+
+    #[test]
+    fn a_spec_section_keeps_its_body_on_the_lines_after_its_key() {
+        assert_eq!(
+            polter_card_section("imports", "behavior", "Imports commits.\n\n- one\n- two"),
+            "---\npolter: 1\n---\n\n## imports\nbehavior: Imports commits.\n\n- one\n- two\n"
+        );
+        assert_eq!(
+            polter_card_section("imports", "plan", "  "),
+            "---\npolter: 1\n---\n\n## imports\nplan:\n"
+        );
     }
 }
