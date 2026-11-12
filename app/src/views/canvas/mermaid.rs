@@ -11,26 +11,469 @@
 //! does not draw yet reports [`RenderError::Unsupported`], which the editor shows as the text
 //! itself with a note.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
+use gpui::Rgba;
 use polterware_mermaid::DiagramKind;
 use polterware_mermaid::config::Config;
 use polterware_mermaid::error::{ParseError, RenderError};
 use polterware_mermaid::measure::TextMeasure;
-use polterware_mermaid::scene::{Item, PathCommand, Point, Rect, Scene, SourceKind, Transform};
+use polterware_mermaid::scene::{
+    Color, Group, Item, PathCommand, Point, Rect, Scene, SourceKind, TextRun, Transform,
+};
+use polterware_mermaid::theme::Theme as MermaidTheme;
 use polterware_ui::mermaid::SceneViewport;
+use polterware_ui::theme::Theme;
+
+use crate::canvas::catalog::component_of;
 
 /// How near an edge end has to be to a node's box to be read as that node's.
 const END_TOLERANCE: f64 = 0.75;
 /// The room a scene keeps around its content when pins move nodes past the fitted view box.
 const REFIT_PADDING: f64 = 24.0;
 
-/// Renders `source` with the layout's pinned positions applied.
+/// The fill Mermaid's default theme paints a node with.
+const MERMAID_FILL: &str = "#ececff";
+/// The stroke Mermaid's default theme draws a node with.
+const MERMAID_STROKE: &str = "#9370db";
+/// The second fill (clusters, notes) of Mermaid's default theme.
+const MERMAID_SECOND_FILL: &str = "#ffffde";
+/// The cluster border of Mermaid's default theme.
+const MERMAID_CLUSTER_STROKE: &str = "#aaaa33";
+/// The line color Mermaid's default theme draws edges with.
+const MERMAID_LINE: &str = "#333333";
+/// The label background Mermaid's default theme paints edge labels with.
+const MERMAID_LABEL_BACKGROUND: &str = "rgba(232,232,232, 0.8)";
+/// The dash a kind drawn as an external thing wears.
+const DASHED_STROKE: &str = "4 4";
+
+/// The colors the app draws a Mermaid scene with, built from its theme tokens.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct Palette {
+    pub node_fill: String,
+    pub node_stroke: String,
+    pub text: String,
+    pub line: String,
+    pub cluster_fill: String,
+    pub cluster_stroke: String,
+    pub label_background: String,
+    pub muted: String,
+}
+
+/// The shapes a node with `kind` draws as when its text names none.
+///
+/// This is the one table for the editor's drawing, the library's insert, and the inspector's
+/// kind changes; the core keeps the same mapping for the agent export.
+pub(super) fn shape_for_kind(kind: &str) -> Option<&'static str> {
+    Some(match kind {
+        "rectangle" => "rect",
+        "rounded" => "rounded",
+        "circle" => "circle",
+        "diamond" => "diamond",
+        "triangle" => "triangle",
+        "hexagon" => "hex",
+        "trapezoid" => "trapezoid",
+        "cylinder" | "database" | "cache" | "storage" | "warehouse" | "dataset" | "logs" => "cyl",
+        "cloud" | "cdn" | "cluster" | "firewall" | "kms" => "cloud",
+        "document" | "spec" => "doc",
+        "process" => "process",
+        "manual-input" => "manual-input",
+        "delay" => "delay",
+        "display" => "display",
+        "queue" | "stream" => "datastore",
+        "llm" | "agent" | "mcp" | "vector" => "hex",
+        "user" | "team" => "stadium",
+        "scheduler" | "pipeline" | "ci" => "lean-r",
+        "note" => "rounded",
+        "text" => "text",
+        "domain" | "component" => "rounded",
+        _ if component_of(kind).is_some() => "rounded",
+        _ => return None,
+    })
+}
+
+/// Whether a kind is drawn with a dashed outline: something the project does not own.
+pub(super) fn dashed_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "external" | "payment" | "email" | "webhook" | "secrets" | "firewall"
+    )
+}
+
+/// The source as the drawing reads it: a node whose text names no shape takes its kind's,
+/// and a kind drawn as external gains the dashed style line it wears.
+pub(super) fn styled_source(source: &str) -> String {
+    let mut out = String::with_capacity(source.len() + 64);
+    let mut dashed: Vec<String> = Vec::new();
+    let styled: HashSet<String> = source
+        .lines()
+        .filter_map(|line| {
+            let rest = line.trim_start().strip_prefix("style ")?;
+            rest.split_whitespace().next().map(str::to_string)
+        })
+        .collect();
+    for line in source.split_inclusive('\n') {
+        let Some((id, open, close)) = node_block(line) else {
+            out.push_str(line);
+            continue;
+        };
+        let inner = &line[open + 1..close];
+        let kind = field(inner, "kind");
+        let mut line = line.to_string();
+        if let Some(kind) = &kind
+            && field(inner, "shape").is_none()
+            && let Some(shape) = shape_for_kind(kind)
+        {
+            let head = line[..close].trim_end();
+            line = format!("{head}, shape: {shape}{}", &line[close..]);
+        }
+        if let Some(kind) = &kind
+            && dashed_kind(kind)
+            && !styled.contains(&id)
+        {
+            dashed.push(id);
+        }
+        out.push_str(&line);
+    }
+    for id in dashed {
+        if !out.ends_with('\n') {
+            out.push('\n');
+        }
+        out.push_str(&format!("  style {id} stroke-dasharray: {DASHED_STROKE}\n"));
+    }
+    out
+}
+
+/// The canvas node line's block: its id and the byte range of the braces.
+fn node_block(line: &str) -> Option<(String, usize, usize)> {
+    let at = line.find("@{")?;
+    let open = at + 1;
+    let close = matching_brace(line, open)?;
+    let id = id_before(line, at);
+    (!id.is_empty()).then_some((id, open, close))
+}
+
+/// The palette the app draws a scene with, from its theme tokens.
+pub(super) fn palette(theme: &Theme) -> Palette {
+    let dark = luminance(theme.color_app_background) < 0.5;
+    let mut overrides = serde_json::Map::new();
+    let mut set = |key: &str, value: String| {
+        overrides.insert(key.to_string(), serde_json::json!(value));
+    };
+    set("primaryColor", css(theme.color_surface));
+    set("mainBkg", css(theme.color_surface));
+    set("nodeBkg", css(theme.color_surface));
+    set("primaryTextColor", css(theme.color_text_primary));
+    set("textColor", css(theme.color_text_secondary));
+    set("titleColor", css(theme.color_text_primary));
+    set("primaryBorderColor", css(theme.color_text_muted));
+    set("nodeBorder", css(theme.color_text_muted));
+    set("lineColor", css(theme.color_text_muted));
+    set("background", css(theme.color_app_background));
+    set("secondaryColor", css(theme.color_surface_subtle));
+    set("tertiaryColor", css(theme.color_surface_subtle));
+    set("clusterBkg", css(theme.color_surface_subtle));
+    set("clusterBorder", css(theme.color_text_muted));
+    set("edgeLabelBackground", css(theme.color_surface_raised));
+    set("actorBkg", css(theme.color_surface));
+    set("actorBorder", css(theme.color_text_muted));
+    set("actorTextColor", css(theme.color_text_primary));
+    set("labelBoxBkgColor", css(theme.color_surface));
+    set("labelBoxBorderColor", css(theme.color_text_muted));
+    set("labelTextColor", css(theme.color_text_primary));
+    set("fontFamily", theme.font_sans.to_string());
+    set("fontSize", "13px".to_string());
+    let mermaid = if dark {
+        MermaidTheme::Dark
+    } else {
+        MermaidTheme::Base
+    };
+    let variables = mermaid.variables(&overrides).unwrap_or_default();
+    let pick =
+        |key: &str, fallback: String| variables.color(key).map(str::to_string).unwrap_or(fallback);
+    Palette {
+        node_fill: pick("primaryColor", css(theme.color_surface)),
+        node_stroke: pick("primaryBorderColor", css(theme.color_text_muted)),
+        text: pick("primaryTextColor", css(theme.color_text_primary)),
+        line: pick("lineColor", css(theme.color_text_muted)),
+        cluster_fill: pick("clusterBkg", css(theme.color_surface_subtle)),
+        cluster_stroke: pick("clusterBorder", css(theme.color_text_muted)),
+        label_background: pick("edgeLabelBackground", css(theme.color_surface_raised)),
+        muted: css(theme.color_text_muted),
+    }
+}
+
+/// A theme color as a CSS hex string.
+pub(super) fn css(color: Rgba) -> String {
+    let channel = |value: f32| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
+    format!(
+        "#{:02x}{:02x}{:02x}",
+        channel(color.r),
+        channel(color.g),
+        channel(color.b)
+    )
+}
+
+fn luminance(color: Rgba) -> f32 {
+    0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b
+}
+
+/// Replaces Mermaid's own theme colors with the app's, keeping colors a style line names.
+fn apply_theme(scene: &mut Scene, palette: &Palette) {
+    for item in &mut scene.items {
+        theme_item(item, palette);
+    }
+    for marker in &mut scene.defs {
+        for shape in &mut marker.shapes {
+            theme_style(&mut shape.style, palette);
+        }
+    }
+}
+
+fn theme_item(item: &mut Item, palette: &Palette) {
+    match item {
+        Item::Group(group) => {
+            for item in &mut group.items {
+                theme_item(item, palette);
+            }
+        }
+        Item::Rect(rect) => theme_style(&mut rect.style, palette),
+        Item::Path(path) => theme_style(&mut path.style, palette),
+        Item::Ellipse(ellipse) => theme_style(&mut ellipse.style, palette),
+        Item::Text(text) => theme_text(text, palette),
+        Item::Image(_) => {}
+    }
+}
+
+fn theme_style(style: &mut polterware_mermaid::scene::PathStyle, palette: &Palette) {
+    if let Some(fill) = &style.fill {
+        style.fill = mapped_fill(&fill.0, palette);
+    }
+    if let Some(stroke) = &style.stroke {
+        style.stroke = mapped_stroke(&stroke.0, palette);
+    }
+}
+
+fn mapped_fill(css: &str, palette: &Palette) -> Option<Color> {
+    let lower = css.trim().to_ascii_lowercase();
+    let mapped = match lower.as_str() {
+        MERMAID_FILL | "white" | "#ffffff" => palette.node_fill.clone(),
+        MERMAID_SECOND_FILL => palette.cluster_fill.clone(),
+        MERMAID_LABEL_BACKGROUND | "rgba(232,232,232,0.8)" => palette.label_background.clone(),
+        "none" | "transparent" => return Some(Color::new(css.trim())),
+        _ => css.to_string(),
+    };
+    Some(Color::new(mapped))
+}
+
+fn mapped_stroke(css: &str, palette: &Palette) -> Option<Color> {
+    let lower = css.trim().to_ascii_lowercase();
+    let mapped = match lower.as_str() {
+        MERMAID_STROKE | "black" => palette.node_stroke.clone(),
+        MERMAID_CLUSTER_STROKE => palette.cluster_stroke.clone(),
+        MERMAID_LINE => palette.line.clone(),
+        "none" | "transparent" => return Some(Color::new(css.trim())),
+        _ => css.to_string(),
+    };
+    Some(Color::new(mapped))
+}
+
+fn theme_text(text: &mut TextRun, palette: &Palette) {
+    let default = match text.fill.as_ref() {
+        None => true,
+        Some(fill) => matches!(
+            fill.0.trim().to_ascii_lowercase().as_str(),
+            "#333" | "#333333" | "#131300" | "black" | "#000021"
+        ),
+    };
+    if default {
+        text.fill = Some(Color::new(palette.text.clone()));
+    }
+}
+
+/// The `style` and `classDef`/`class` declarations of a source, by node id.
+fn css_styles(source: &str) -> HashMap<String, CssStyle> {
+    let mut classes: HashMap<String, CssStyle> = HashMap::new();
+    let mut members: Vec<(String, String)> = Vec::new();
+    let mut styles: HashMap<String, CssStyle> = HashMap::new();
+    for line in source.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("classDef ") {
+            let mut parts = rest.splitn(2, char::is_whitespace);
+            if let Some(name) = parts.next() {
+                let style = parts.next().map(CssStyle::parse).unwrap_or_default();
+                classes.insert(name.to_string(), style);
+            }
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("class ") {
+            let mut parts = rest.splitn(2, char::is_whitespace);
+            if let (Some(ids), Some(name)) = (parts.next(), parts.next()) {
+                for id in ids.split(',') {
+                    members.push((id.trim().to_string(), name.trim().to_string()));
+                }
+            }
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("style ") {
+            let mut parts = rest.splitn(2, char::is_whitespace);
+            if let Some(id) = parts.next() {
+                let style = parts.next().map(CssStyle::parse).unwrap_or_default();
+                styles.insert(id.to_string(), style);
+            }
+        }
+    }
+    let mut merged: HashMap<String, CssStyle> = HashMap::new();
+    for (id, name) in members {
+        let style = classes.get(&name).cloned().unwrap_or_else(|| {
+            // The export marks unverified nodes as dashed; that class has no definition.
+            if name == "unverified" {
+                CssStyle {
+                    dash: Some(DASHED_STROKE.to_string()),
+                    ..CssStyle::default()
+                }
+            } else {
+                CssStyle::default()
+            }
+        });
+        merged.entry(id).or_default().merge(style);
+    }
+    // A style line is written for one node and wins over its class.
+    for (id, style) in styles {
+        merged.entry(id).or_default().merge(style);
+    }
+    merged
+}
+
+/// A node's CSS-style declaration, as a `style` line or a class carries it.
+#[derive(Clone, Debug, Default, PartialEq)]
+struct CssStyle {
+    fill: Option<String>,
+    stroke: Option<String>,
+    width: Option<f64>,
+    dash: Option<String>,
+}
+
+impl CssStyle {
+    fn parse(text: &str) -> Self {
+        let mut style = Self::default();
+        for part in text.split(',') {
+            let Some((name, value)) = part.split_once(':') else {
+                continue;
+            };
+            let value = value.trim().to_string();
+            match name.trim() {
+                "fill" => style.fill = Some(value),
+                "stroke" => style.stroke = Some(value),
+                "stroke-width" => {
+                    style.width = value.trim_end_matches("px").trim().parse().ok();
+                }
+                "stroke-dasharray" => style.dash = Some(value),
+                _ => {}
+            }
+        }
+        style
+    }
+
+    fn merge(&mut self, other: Self) {
+        if other.fill.is_some() {
+            self.fill = other.fill;
+        }
+        if other.stroke.is_some() {
+            self.stroke = other.stroke;
+        }
+        if other.width.is_some() {
+            self.width = other.width;
+        }
+        if other.dash.is_some() {
+            self.dash = other.dash;
+        }
+    }
+}
+
+/// Paints each `style` line onto its node's shapes, over the theme.
+fn apply_styles(scene: &mut Scene, styles: &HashMap<String, CssStyle>) {
+    if styles.is_empty() {
+        return;
+    }
+    apply_item_styles(&mut scene.items, styles);
+}
+
+fn apply_item_styles(items: &mut [Item], styles: &HashMap<String, CssStyle>) {
+    for item in items {
+        let Item::Group(group) = item else {
+            continue;
+        };
+        if let Some(source) = &group.source
+            && source.kind == SourceKind::Node
+            && let Some(style) = styles.get(&source.id)
+        {
+            for inner in &mut group.items {
+                paint_style(inner, style);
+            }
+        }
+        apply_item_styles(&mut group.items, styles);
+    }
+}
+
+fn paint_style(item: &mut Item, style: &CssStyle) {
+    let target = match item {
+        Item::Group(group) => {
+            for item in &mut group.items {
+                paint_style(item, style);
+            }
+            return;
+        }
+        Item::Rect(rect) => &mut rect.style,
+        Item::Path(path) => &mut path.style,
+        Item::Ellipse(ellipse) => &mut ellipse.style,
+        _ => return,
+    };
+    if let Some(fill) = &style.fill {
+        target.fill = Some(Color::new(fill.clone()));
+    }
+    if let Some(stroke) = &style.stroke {
+        target.stroke = Some(Color::new(stroke.clone()));
+    }
+    if let Some(width) = style.width {
+        target.stroke_width = width;
+    }
+    if let Some(dash) = &style.dash {
+        target.dash = dash
+            .split_whitespace()
+            .filter_map(|value| value.parse::<f64>().ok())
+            .collect();
+    }
+}
+
+/// Renders `source` with the layout's pinned positions applied, in the app's colors.
 pub(super) fn render(
     source: &str,
     layout_json: &str,
     measure: &dyn TextMeasure,
+    palette: &Palette,
 ) -> Result<Scene, RenderError> {
+    let styled = styled_source(source);
+    let mut scene = draw(&styled, measure)?;
+    apply_theme(&mut scene, palette);
+    apply_styles(&mut scene, &css_styles(&styled));
+    center_labels(&mut scene.items);
+    apply_pins(&mut scene, &pins_for(&styled, layout_json));
+    Ok(scene)
+}
+
+/// Renders `source` for a preview: no pins, in the app's colors.
+pub(super) fn preview(source: &str, measure: &dyn TextMeasure, palette: &Palette) -> Option<Scene> {
+    let styled = styled_source(source);
+    let mut scene = draw(&styled, measure).ok()?;
+    apply_theme(&mut scene, palette);
+    apply_styles(&mut scene, &css_styles(&styled));
+    center_labels(&mut scene.items);
+    Some(scene)
+}
+
+/// Lays a source out into a scene, as the renderer draws it.
+fn draw(source: &str, measure: &dyn TextMeasure) -> Result<Scene, RenderError> {
     let preprocessed = polterware_mermaid::preprocess::preprocess(source);
     if let Some(message) = preprocessed.error {
         return Err(RenderError::Parse(ParseError::new(message, None)));
@@ -39,7 +482,7 @@ pub(super) fn render(
         .ok_or_else(|| ParseError::new("No diagram type detected", None))?;
     let mut config = Config::default();
     config.apply(&preprocessed.config)?;
-    let mut scene = match kind {
+    let scene = match kind {
         DiagramKind::Flowchart => polterware_mermaid::diagrams::flowchart::render::draw(
             &preprocessed.body,
             &config,
@@ -47,12 +490,11 @@ pub(super) fn render(
         )?,
         other => return Err(RenderError::Unsupported(format!("{other:?}"))),
     };
-    apply_pins(&mut scene, &pins_for(source, layout_json));
     Ok(scene)
 }
 
 /// The pins the layout holds, by both the diagram id and the canvas id the source gives a node.
-fn pins_for(source: &str, layout_json: &str) -> HashMap<String, Point> {
+fn pins_for(source: &str, layout_json: &str) -> HashMap<String, Pin> {
     let mut pinned = pins(layout_json);
     let aliases: Vec<(String, String)> = node_ids(source)
         .into_iter()
@@ -326,8 +768,17 @@ fn split_top_level(text: &str) -> Vec<&str> {
     parts
 }
 
+/// A node's remembered place in the layout: its top-left, and the box size a person gave it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Pin {
+    x: f64,
+    y: f64,
+    width: Option<f64>,
+    height: Option<f64>,
+}
+
 /// The nodes the layout pins, by the id the source gives them.
-fn pins(layout_json: &str) -> HashMap<String, Point> {
+fn pins(layout_json: &str) -> HashMap<String, Pin> {
     let Ok(layout) = serde_json::from_str::<serde_json::Value>(layout_json) else {
         return HashMap::new();
     };
@@ -347,15 +798,35 @@ fn pins(layout_json: &str) -> HashMap<String, Point> {
             }
             let x = position.get("x").and_then(serde_json::Value::as_f64)?;
             let y = position.get("y").and_then(serde_json::Value::as_f64)?;
-            Some((id.clone(), Point::new(x, y)))
+            let size = |key: &str| {
+                position
+                    .get(key)
+                    .and_then(serde_json::Value::as_f64)
+                    .filter(|value| *value > 0.0)
+            };
+            Some((
+                id.clone(),
+                Pin {
+                    x,
+                    y,
+                    width: size("width"),
+                    height: size("height"),
+                },
+            ))
         })
         .collect()
 }
 
-/// Moves every pinned node onto its place, and the edge ends that touch it with it.
-fn apply_pins(scene: &mut Scene, pins: &HashMap<String, Point>) {
+/// Moves every pinned node onto its place, sizes it as the layout remembers it, and the edge
+/// ends that touch it with it.
+fn apply_pins(scene: &mut Scene, pins: &HashMap<String, Pin>) {
     if pins.is_empty() {
         return;
+    }
+    for (id, pin) in pins {
+        if pin.width.is_some() || pin.height.is_some() {
+            resize_node(&mut scene.items, id, pin.width, pin.height);
+        }
     }
     let mut boxes = HashMap::new();
     collect_node_boxes(&scene.items, Transform::IDENTITY, &mut boxes);
@@ -367,12 +838,187 @@ fn apply_pins(scene: &mut Scene, pins: &HashMap<String, Point>) {
         })
         .filter(|(_, delta)| delta.x != 0.0 || delta.y != 0.0)
         .collect();
-    if deltas.is_empty() {
-        return;
-    }
     shift_nodes(&mut scene.items, Transform::IDENTITY, &deltas);
     shift_edges(&mut scene.items, &boxes, &deltas);
+    center_labels(&mut scene.items);
     refit(scene);
+}
+
+/// Sizes a pinned node's shape (not its label) to the box the layout remembers.
+fn resize_node(items: &mut [Item], id: &str, width: Option<f64>, height: Option<f64>) {
+    for item in items {
+        let Item::Group(group) = item else {
+            continue;
+        };
+        if group
+            .source
+            .as_ref()
+            .is_some_and(|source| source.kind == SourceKind::Node && source.id == id)
+        {
+            resize_group(group, width, height);
+            // The node group's box may sit under a translated parent; the group's own
+            // transform puts the resized box's top-left back where the pin expects it.
+            return;
+        }
+        resize_node(&mut group.items, id, width, height);
+    }
+}
+
+/// Scales a node's shape about its center, then moves the group so the box keeps its place.
+fn resize_group(group: &mut Group, width: Option<f64>, height: Option<f64>) {
+    let Some(bounds) = shape_bounds(&group.items) else {
+        return;
+    };
+    let sx = width.map_or(1.0, |width| width / bounds.width.max(1e-6));
+    let sy = height.map_or(1.0, |height| height / bounds.height.max(1e-6));
+    if (sx - 1.0).abs() < 1e-9 && (sy - 1.0).abs() < 1e-9 {
+        return;
+    }
+    let center = Point::new(
+        bounds.x + bounds.width / 2.0,
+        bounds.y + bounds.height / 2.0,
+    );
+    scale_items(&mut group.items, center, sx, sy);
+}
+
+/// The bounds of the painted shape of a node's group, in the group's own coordinates.
+fn shape_bounds(items: &[Item]) -> Option<Rect> {
+    items
+        .iter()
+        .filter(|item| !matches!(item, Item::Text(_)) && !is_label_group(item))
+        .filter_map(|item| item_bounds(item, Transform::IDENTITY))
+        .reduce(Rect::union)
+}
+
+fn is_label_group(item: &Item) -> bool {
+    matches!(
+        item,
+        Item::Group(group)
+            if group.class.as_deref().is_some_and(|classes| {
+                classes.split_whitespace().any(|class| class == "label")
+            })
+    )
+}
+
+/// Scales the shapes in a node (never its text) about `center`.
+fn scale_items(items: &mut [Item], center: Point, sx: f64, sy: f64) {
+    let scale = |point: Point| {
+        Point::new(
+            center.x + (point.x - center.x) * sx,
+            center.y + (point.y - center.y) * sy,
+        )
+    };
+    for item in items {
+        match item {
+            Item::Rect(rect) => {
+                let at = scale(Point::new(rect.rect.x, rect.rect.y));
+                rect.rect.x = at.x;
+                rect.rect.y = at.y;
+                rect.rect.width *= sx;
+                rect.rect.height *= sy;
+                rect.rx *= sx.min(sy);
+                rect.ry *= sx.min(sy);
+            }
+            Item::Ellipse(ellipse) => {
+                ellipse.center = scale(ellipse.center);
+                ellipse.radius_x *= sx;
+                ellipse.radius_y *= sy;
+            }
+            Item::Path(path) => scale_path(&mut path.path, scale),
+            Item::Image(image) => {
+                let at = scale(Point::new(image.rect.x, image.rect.y));
+                image.rect.x = at.x;
+                image.rect.y = at.y;
+                image.rect.width *= sx;
+                image.rect.height *= sy;
+            }
+            Item::Group(group) => scale_items(&mut group.items, center, sx, sy),
+            Item::Text(_) => {}
+        }
+    }
+}
+
+fn scale_path(path: &mut polterware_mermaid::scene::Path, scale: impl Fn(Point) -> Point) {
+    for command in &mut path.commands {
+        match command {
+            PathCommand::MoveTo { x, y } | PathCommand::LineTo { x, y } => {
+                let at = scale(Point::new(*x, *y));
+                *x = at.x;
+                *y = at.y;
+            }
+            PathCommand::CubicTo {
+                c1x,
+                c1y,
+                c2x,
+                c2y,
+                x,
+                y,
+            } => {
+                let c1 = scale(Point::new(*c1x, *c1y));
+                let c2 = scale(Point::new(*c2x, *c2y));
+                let end = scale(Point::new(*x, *y));
+                (*c1x, *c1y) = (c1.x, c1.y);
+                (*c2x, *c2y) = (c2.x, c2.y);
+                (*x, *y) = (end.x, end.y);
+            }
+            PathCommand::QuadTo { cx, cy, x, y } => {
+                let control = scale(Point::new(*cx, *cy));
+                let end = scale(Point::new(*x, *y));
+                (*cx, *cy) = (control.x, control.y);
+                (*x, *y) = (end.x, end.y);
+            }
+            PathCommand::ArcTo { x, y, .. } => {
+                let end = scale(Point::new(*x, *y));
+                (*x, *y) = (end.x, end.y);
+            }
+            PathCommand::Close => {}
+        }
+    }
+}
+
+/// Keeps every node's label centered on its shape, whatever the layout gave the node.
+///
+/// The renderer places a label group by its own box and the painter draws a text block from
+/// its baseline; putting the run at the shape's center makes both agree, so a pinned node and
+/// an automatically placed one read the same.
+fn center_labels(items: &mut [Item]) {
+    for item in items {
+        let Item::Group(group) = item else {
+            continue;
+        };
+        let node = group
+            .source
+            .as_ref()
+            .is_some_and(|source| source.kind == SourceKind::Node);
+        if node {
+            center_node_labels(group);
+        }
+        center_labels(&mut group.items);
+    }
+}
+
+fn center_node_labels(group: &mut Group) {
+    for item in &mut group.items {
+        let Item::Group(label) = item else {
+            continue;
+        };
+        let label_group = label
+            .class
+            .as_deref()
+            .is_some_and(|classes| classes.split_whitespace().any(|class| class == "label"));
+        if !label_group {
+            continue;
+        }
+        let mut top = 0.0;
+        for item in &mut label.items {
+            let Item::Text(text) = item else {
+                continue;
+            };
+            text.position = Point::new(-text.size.width / 2.0, text.size.height / 2.0 + top);
+            top += text.line_height.max(text.size.height);
+        }
+        label.transform = Transform::IDENTITY;
+    }
 }
 
 /// The bounds of every node's drawing, in scene coordinates.
@@ -633,14 +1279,18 @@ mod tests {
     use super::*;
     use polterware_mermaid::measure::FallbackMeasure;
 
+    fn test_palette() -> Palette {
+        palette(&Theme::dark())
+    }
+
     #[test]
     fn a_flowchart_draws_and_a_pin_moves_its_node() {
         let source = "flowchart LR\n  a[Start] --> b[End]\n";
-        let scene = render(source, "{}", &FallbackMeasure).expect("a scene");
+        let scene = render(source, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
         assert!(!scene.is_empty());
 
         let layout = r#"{"nodes":{"a":{"x":-40,"y":-30,"pinned":true}}}"#;
-        let pinned = render(source, layout, &FallbackMeasure).expect("a scene");
+        let pinned = render(source, layout, &FallbackMeasure, &test_palette()).expect("a scene");
         let mut boxes = HashMap::new();
         collect_node_boxes(&pinned.items, Transform::IDENTITY, &mut boxes);
         let start = boxes.get("a").expect("the pinned node");
@@ -649,11 +1299,205 @@ mod tests {
     }
 
     #[test]
+    fn kind_selects_its_shape_from_one_table() {
+        assert_eq!(shape_for_kind("database"), Some("cyl"));
+        assert_eq!(shape_for_kind("storage"), Some("cyl"));
+        assert_eq!(shape_for_kind("queue"), Some("datastore"));
+        assert_eq!(shape_for_kind("llm"), Some("hex"));
+        assert_eq!(shape_for_kind("frontend"), Some("rounded"));
+        assert_eq!(shape_for_kind("user"), Some("stadium"));
+        assert_eq!(shape_for_kind("scheduler"), Some("lean-r"));
+        assert_eq!(shape_for_kind("document"), Some("doc"));
+        assert_eq!(shape_for_kind("cloud"), Some("cloud"));
+        assert!(dashed_kind("external"));
+        assert!(shape_for_kind("a-kind-that-does-not-exist").is_none());
+    }
+
+    #[test]
+    fn a_render_adds_the_kind_shape_and_keeps_written_ones() {
+        let source = "flowchart LR\n  a[\"Storage\"]@{ kind: database }\n  b[\"Box\"]@{ kind: database, shape: rect }\n";
+        let styled = styled_source(source);
+        assert!(styled.contains("kind: database, shape: cyl"));
+        assert!(styled.contains("kind: database, shape: rect"));
+        assert_eq!(styled.matches("shape: cyl").count(), 1);
+    }
+
+    #[test]
+    fn a_dashed_kind_gains_a_style_line_once() {
+        let source = "flowchart LR\n  a[\"Stripe\"]@{ kind: payment }\n";
+        let styled = styled_source(source);
+        assert!(styled.contains("style a stroke-dasharray: 4 4"));
+        assert_eq!(styled.matches("stroke-dasharray").count(), 1);
+    }
+
+    #[test]
+    fn a_style_line_reaches_its_node_and_parses_each_control() {
+        let styles = css_styles(
+            "flowchart LR\n  a[\"A\"]\n  style a fill:#ff0000,stroke:#00ff00,stroke-width:2px,stroke-dasharray:4 2\n",
+        );
+        let style = styles.get("a").expect("the style");
+        assert_eq!(style.fill.as_deref(), Some("#ff0000"));
+        assert_eq!(style.stroke.as_deref(), Some("#00ff00"));
+        assert_eq!(style.width, Some(2.0));
+        assert_eq!(style.dash.as_deref(), Some("4 2"));
+        let scene = render(
+            "flowchart LR\n  a[\"A\"]\n  style a fill:#ff0000,stroke-width:2px\n",
+            "{}",
+            &FallbackMeasure,
+            &test_palette(),
+        )
+        .expect("a scene");
+        assert_eq!(
+            first_rect_fill(&scene.items).as_deref(),
+            Some("#ff0000"),
+            "the style line did not reach the shape"
+        );
+    }
+
+    #[test]
+    fn the_theme_replaces_mermaids_default_fill_and_stroke() {
+        let scene = render(
+            "flowchart LR\n  a[Start]\n",
+            "{}",
+            &FallbackMeasure,
+            &test_palette(),
+        )
+        .expect("a scene");
+        let fill = first_rect_fill(&scene.items).expect("a node fill");
+        assert_ne!(
+            fill, MERMAID_FILL,
+            "Mermaid's light fill is still on the dark app"
+        );
+    }
+
+    #[test]
+    fn a_pinned_node_keeps_its_label_centered_on_its_shape() {
+        let source = "flowchart LR\n  a[\"Storage\"]\n";
+        let unpinned = render(source, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
+        assert_centered(&unpinned, "a");
+
+        let layout = r#"{"nodes":{"a":{"x":40,"y":30,"width":220,"height":90,"pinned":true}}}"#;
+        let pinned = render(source, layout, &FallbackMeasure, &test_palette()).expect("a scene");
+        let box_ = node_box(&pinned, "a");
+        assert!((box_.0 - 40.0).abs() < 0.5, "x: {}", box_.0);
+        assert!((box_.1 - 30.0).abs() < 0.5, "y: {}", box_.1);
+        assert!((box_.2 - 220.0).abs() < 0.5, "width: {}", box_.2);
+        assert!((box_.3 - 90.0).abs() < 0.5, "height: {}", box_.3);
+        assert_centered(&pinned, "a");
+    }
+
+    #[test]
+    fn the_reported_unverified_canvas_keeps_every_label_centered() {
+        let source = "flowchart LR\n  a[\"Storage\"]@{ kind: database }\n  b[\"AI\"]@{ kind: llm }\n  c[\"Storage\"]@{ kind: storage }\n  class a,b,c unverified\n";
+        let layout = r#"{"nodes":{"a":{"x":0,"y":0,"width":160,"height":64,"pinned":true},"b":{"x":200,"y":0,"width":160,"height":64,"pinned":true},"c":{"x":400,"y":0,"width":160,"height":64,"pinned":true}}}"#;
+        let scene = render(source, layout, &FallbackMeasure, &test_palette()).expect("a scene");
+        for id in ["a", "b", "c"] {
+            assert_centered(&scene, id);
+        }
+        // The class line draws its dash even before the export writes a classDef.
+        let group = node_group(&scene.items, "a").expect("the node");
+        assert!(
+            has_dashed_shape(&group.items),
+            "the unverified class did not draw a dashed outline"
+        );
+    }
+
+    fn has_dashed_shape(items: &[Item]) -> bool {
+        items.iter().any(|item| match item {
+            Item::Path(path) => !path.style.dash.is_empty(),
+            Item::Group(group) => has_dashed_shape(&group.items),
+            _ => false,
+        })
+    }
+
+    fn node_box(scene: &Scene, id: &str) -> (f32, f32, f32, f32) {
+        *node_boxes(scene).get(id).expect("the node box")
+    }
+
+    /// The node's shape and label centers agree in the scene, in the node's own coordinates.
+    fn assert_centered(scene: &Scene, id: &str) {
+        let group = node_group(&scene.items, id).expect("the node group");
+        let shape = shape_bounds(&group.items).expect("the shape");
+        let shape_center = (shape.x + shape.width / 2.0, shape.y + shape.height / 2.0);
+        let label = group
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Group(label)
+                    if label.class.as_deref().is_some_and(|classes| {
+                        classes.split_whitespace().any(|class| class == "label")
+                    }) =>
+                {
+                    let text = label.items.iter().find_map(|item| match item {
+                        Item::Text(text) => Some(text),
+                        _ => None,
+                    })?;
+                    Some((
+                        label.transform.e + text.position.x + text.size.width / 2.0,
+                        label.transform.f + text.position.y - text.size.height / 2.0,
+                    ))
+                }
+                _ => None,
+            })
+            .expect("the label");
+        assert!(
+            (shape_center.0 - label.0).abs() < 0.5,
+            "label x {} vs shape x {}",
+            label.0,
+            shape_center.0
+        );
+        assert!(
+            (shape_center.1 - label.1).abs() < 0.5,
+            "label y {} vs shape y {}",
+            label.1,
+            shape_center.1
+        );
+    }
+
+    fn node_group<'a>(items: &'a [Item], id: &str) -> Option<&'a Group> {
+        for item in items {
+            if let Item::Group(group) = item {
+                if group
+                    .source
+                    .as_ref()
+                    .is_some_and(|source| source.kind == SourceKind::Node && source.id == id)
+                {
+                    return Some(group);
+                }
+                if let Some(found) = node_group(&group.items, id) {
+                    return Some(found);
+                }
+            }
+        }
+        None
+    }
+
+    fn first_rect_fill(items: &[Item]) -> Option<String> {
+        for item in items {
+            match item {
+                Item::Rect(rect) => {
+                    if let Some(fill) = &rect.style.fill {
+                        return Some(fill.0.clone());
+                    }
+                }
+                Item::Group(group) => {
+                    if let Some(fill) = first_rect_fill(&group.items) {
+                        return Some(fill);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    #[test]
     fn a_parse_error_reads_as_a_line_and_column() {
         let error = render(
             "flowchart LR\n  a@{ shape: nonsense }\n",
             "{}",
             &FallbackMeasure,
+            &test_palette(),
         )
         .expect_err("a bad shape");
         assert_eq!(
@@ -664,14 +1508,20 @@ mod tests {
 
     #[test]
     fn another_diagram_type_is_unsupported() {
-        let error = render("stateDiagram-v2\n  A --> B\n", "{}", &FallbackMeasure)
-            .expect_err("not a flowchart");
+        let error = render(
+            "stateDiagram-v2\n  A --> B\n",
+            "{}",
+            &FallbackMeasure,
+            &test_palette(),
+        )
+        .expect_err("not a flowchart");
         assert!(unsupported(&error));
     }
 
     #[test]
     fn an_empty_canvas_draws_nothing_rather_than_failing() {
-        let scene = render("flowchart LR\n", "{}", &FallbackMeasure).expect("an empty scene");
+        let scene = render("flowchart LR\n", "{}", &FallbackMeasure, &test_palette())
+            .expect("an empty scene");
         assert!(scene.is_empty());
     }
 

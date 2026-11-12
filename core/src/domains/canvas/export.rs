@@ -208,6 +208,10 @@ pub fn export_mermaid(graph: &Graph, layout_json: &str) -> String {
             unverified.join(","),
             TRUST_UNVERIFIED
         ));
+        // The class line needs a definition for the dashed outline it marks.
+        body.push_str(&format!(
+            "  classDef {TRUST_UNVERIFIED} stroke-dasharray: 4 4\n"
+        ));
     }
     body
 }
@@ -740,28 +744,29 @@ mod tests {
             "flowchart LR\n",
             "  frame@{ label: \"Backend\", kind: frame }\n",
             "  subgraph frame[\"Backend\"]\n",
-            "    api[\"API\"]@{ kind: service, ref: node/c, props: \"{\\\"technology\\\":\\\"Go\\\"}\" }\n",
+            "    api[\"API\"]@{ kind: service, ref: node/c, shape: rounded, props: \"{\\\"technology\\\":\\\"Go\\\"}\" }\n",
             "    inner@{ label: \"Workers\", kind: frame }\n",
             "    subgraph inner[\"Workers\"]\n",
-            "      job[\"Mailer\"]@{ kind: worker }\n",
+            "      job[\"Mailer\"]@{ kind: worker, shape: rounded }\n",
             "      decision@{ kind: diamond, shape: diamond }\n",
             "    end\n",
-            "    note-frame@{ label: \"Writes are\\nidempotent\", kind: note }\n",
+            "    note-frame@{ label: \"Writes are\\nidempotent\", kind: note, shape: rounded }\n",
             "  end\n",
-            "  db@{ label: \"Postgres\", kind: database }\n",
+            "  db@{ label: \"Postgres\", kind: database, shape: cyl }\n",
             "  subgraph db[\"Postgres\"]\n",
-            "    note-db[\"Backups nightly\"]@{ kind: note }\n",
+            "    note-db[\"Backups nightly\"]@{ kind: note, shape: rounded }\n",
             "  end\n",
-            "  note-linked[\"Hot path\"]@{ kind: note }\n",
+            "  note-linked[\"Hot path\"]@{ kind: note, shape: rounded }\n",
             "  blank@{ kind: rectangle }\n",
             "  placeholder@{ label: \"New ellipse\", kind: ellipse }\n",
-            "  loose[\"Redis\"]@{ kind: cache }\n",
+            "  loose[\"Redis\"]@{ kind: cache, shape: cyl }\n",
             "  api e1@-->|reads| db\n",
             "  job e2@--> decision\n",
             "  note-linked e3@--> api\n",
             "  api e4@--> inner\n",
             "  e4@{ kind: \"uses|sync\" }\n",
             "  class job,db,loose unverified\n",
+            "  classDef unverified stroke-dasharray: 4 4\n",
         );
         let got = export_mermaid(&graph, layout);
         assert_eq!(got, want, "mermaid");
@@ -795,7 +800,7 @@ mod tests {
         let text = export_format(&graph, "", "").expect("default");
         assert_eq!(
             text,
-            "flowchart LR\n  s[\"API\"]@{ kind: domain, ref: node/structure-1 }\n  n[\"later\"]@{ kind: note }\n  s e@-->|uses| n\n"
+            "flowchart LR\n  s[\"API\"]@{ kind: domain, ref: node/structure-1, shape: rounded }\n  n[\"later\"]@{ kind: note, shape: rounded }\n  s e@-->|uses| n\n"
         );
         let dot = export_format(&graph, "", "dot").expect("dot");
         let want_dot = "digraph canvas {\n  rankdir=LR;\n  \"s\" [label=\"API\" kind=\"domain\" trust=\"referenced\"];\n  \"n\" [label=\"later\" kind=\"note\" trust=\"unverified\"];\n  \"s\" -> \"n\" [label=\"uses\"];\n}\n";
@@ -821,7 +826,7 @@ mod tests {
             "",
         );
         assert!(
-            text.contains(r#"a-b@{ label: "say \"hi\" #1", kind: service }"#),
+            text.contains(r#"a-b@{ label: "say \"hi\" #1", kind: service, shape: rounded }"#),
             "escape:\n{text}"
         );
         let dot = export_dot(&Graph {
