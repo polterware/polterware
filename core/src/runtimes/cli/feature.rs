@@ -2,6 +2,7 @@
 use super::polter::detail_diagnostics;
 use super::{
     core::{dial, resolve_project},
+    flags::FlagSet,
     output::{CliError, CliResult},
     scope::project_flags,
 };
@@ -10,7 +11,7 @@ use crate::{
     local_v1,
     platform::coreclient::{self, CALL_TIMEOUT},
 };
-const USAGE: &str = "usage: polterware feature new \"<intent>\" [--title \"...\"] [--under <node>]\n       polterware feature shape <slug>\n       polterware feature contract <slug> [--accept]\n       polterware feature plan <slug> [--approve]";
+const USAGE: &str = "usage: polterware feature new \"<intent>\" [--title \"...\"] [--under <node>]\n       polterware feature shape <slug>\n       polterware feature contract <slug> [--accept]\n       polterware feature plan <slug> [--approve]\n       polterware feature confirm <slug> (--criterion \"<text>\" | --rule <slug or id>)";
 pub fn run_feature(db: &str, args: &[String]) -> CliResult {
     let Some(action) = args.first().map(String::as_str) else {
         return Err(CliError::message(USAGE));
@@ -20,6 +21,7 @@ pub fn run_feature(db: &str, args: &[String]) -> CliResult {
         "shape" => "feature shape",
         "contract" => "feature contract",
         "plan" => "feature plan",
+        "confirm" => "feature confirm",
         _ => return Err(CliError::message(USAGE)),
     };
     let mut f = project_flags(name);
@@ -42,6 +44,10 @@ pub fn run_feature(db: &str, args: &[String]) -> CliResult {
             false,
             "approve the plan and move the card to build",
         ),
+        "confirm" => {
+            f.string_flag("criterion", "", "the acceptance criterion to confirm");
+            f.string_flag("rule", "", "the Rule slug or id to confirm");
+        }
         _ => {}
     }
     f.parse_interspersed(&args[1..])
@@ -56,6 +62,9 @@ pub fn run_feature(db: &str, args: &[String]) -> CliResult {
     let session_label = std::env::var("POLTERWARE_AGENT_LABEL").unwrap_or_default();
     let mut slug = f.rest()[0].trim().to_owned();
     let mut step = action;
+    if action == "confirm" {
+        return confirm_feature(&c, &project.id, &slug, &f, session_id, session_label);
+    }
     if action == "new" {
         let r: local_v1::CreateFeatureResponse = c
             .unary(
@@ -143,6 +152,51 @@ pub fn run_verify(db: &str, args: &[String]) -> CliResult {
     if !result.passed {
         return Err(CliError::Exit(1));
     }
+    Ok(())
+}
+
+/// `polterware feature confirm <slug> --criterion "<text>" | --rule <slug|id>`.
+/// It writes a `confirm:` line through the Polter apply path.
+fn confirm_feature(
+    c: &coreclient::Clients,
+    project_id: &str,
+    slug: &str,
+    f: &FlagSet,
+    session_id: String,
+    session_label: String,
+) -> CliResult {
+    let criterion = f.string_value("criterion").trim().to_string();
+    let rule = f.string_value("rule").trim().to_string();
+    let target = match (criterion.is_empty(), rule.is_empty()) {
+        (false, true) => format!("! {criterion}"),
+        (true, false) => format!("rule {rule}"),
+        (false, false) => {
+            return Err(CliError::message(
+                "feature confirm takes --criterion or --rule, not both",
+            ));
+        }
+        (true, true) => {
+            return Err(CliError::message(
+                "usage: polterware feature confirm <slug> (--criterion \"<text>\" | --rule <slug or id>)",
+            ));
+        }
+    };
+    let text = format!(
+        "---\npolter: 1\nsummary: Confirm {target} for {slug}\nrationale: Checked against the card's spec and the Rules that apply\n---\n\n## {slug}\nconfirm: {target}\n"
+    );
+    let r = super::polter::apply(
+        c,
+        &local_v1::ApplyPolterRequest {
+            project_id: project_id.to_string(),
+            text,
+            session_label,
+            session_id,
+            ..Default::default()
+        },
+        "feature",
+        false,
+    )?;
+    println!("{}", r.ops.join("\n"));
     Ok(())
 }
 

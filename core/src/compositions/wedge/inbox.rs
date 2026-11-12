@@ -104,12 +104,56 @@ pub(super) fn list_inbox_for(
     let dispositions = store.list_inbox_dispositions(&snapshot.project_id)?;
     let mut deploys = inbox::failed_deploys(&links);
     deploys.extend(inbox::unconnected_deploys(&links, &probes));
-    Ok(inbox::derive(
+    let checklists = verify_checklists(store, snapshot)?;
+    Ok(inbox::derive_with(
         &conflicts,
         &questions,
         &deploys,
+        &checklists,
         &dispositions,
     ))
+}
+
+/// One item per card in the verify stage whose acceptance criteria and Rules
+/// are not all confirmed yet.
+fn verify_checklists(
+    store: &storepkg::Store,
+    snapshot: &work::Snapshot,
+) -> anyhow::Result<Vec<inbox::Checklist>> {
+    let mut checklists: Vec<inbox::Checklist> = Vec::new();
+    if !snapshot
+        .cards
+        .iter()
+        .any(|card| card.status == work::CARD_ACTIVE && card.stage == work::STAGE_VERIFY)
+    {
+        return Ok(checklists);
+    }
+    let confirmed = store.list_card_confirmations(&snapshot.project_id)?;
+    for card in &snapshot.cards {
+        if card.status != work::CARD_ACTIVE || card.stage != work::STAGE_VERIFY {
+            continue;
+        }
+        let (contract, rules) = super::feature::card_checks(snapshot, card);
+        let own: Vec<work::Confirmation> = confirmed
+            .iter()
+            .filter(|item| item.card_id == card.id)
+            .cloned()
+            .collect();
+        let items: Vec<String> = polter::manual_checks(&contract, &rules, &own)
+            .into_iter()
+            .filter(|check| check.status == polter::VERIFY_MANUAL)
+            .map(|check| check.message)
+            .collect();
+        if items.is_empty() {
+            continue;
+        }
+        checklists.push(inbox::Checklist {
+            card_slug: card.slug.clone(),
+            card_title: card.title.clone(),
+            items,
+        });
+    }
+    Ok(checklists)
 }
 
 /// One action on one Inbox item.

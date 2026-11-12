@@ -1,7 +1,9 @@
 //! Port of `backend/domains/polter/verify.go`.
 //!
 //! Verify reports whether a card (or one task) is finished. It is a read: it
-//! never moves the stored stage.
+//! never moves the stored stage. Beyond tasks and questions it lists the card's
+//! acceptance criteria and the binding Rules that apply as manual checks, each a
+//! pass once a person or an agent confirmed it.
 
 use crate::domains::work;
 
@@ -22,8 +24,23 @@ pub struct VerifyInput {
     pub task: i32,
     /// True when HEAD is an ancestor of local main or master.
     pub delivered: bool,
-    /// The card's own and inherited invariants.
+    /// The card's own invariants (its acceptance criteria).
     pub contract: Vec<ReviewInvariant>,
+    /// The binding Rules that apply to the card: its `under:` chain's and the
+    /// whole project's. Each is a manual check.
+    pub rules: Vec<VerifyRule>,
+    /// What a person or an agent already confirmed for the card.
+    pub confirmed: Vec<work::Confirmation>,
+}
+
+/// One Rule that applies to the card, as a manual check. `scope` is the node
+/// path that brings it in, empty for a whole-project Rule.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct VerifyRule {
+    pub id: String,
+    pub slug: String,
+    pub statement: String,
+    pub scope: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -37,6 +54,94 @@ pub struct VerifyResult {
     pub target: String,
     pub passed: bool,
     pub checks: Vec<VerifyCheck>,
+}
+
+/// The manual checks a person or an agent has not confirmed yet.
+pub fn unconfirmed(result: &VerifyResult) -> Vec<String> {
+    result
+        .checks
+        .iter()
+        .filter(|check| check.status == VERIFY_MANUAL)
+        .map(|check| check.message.clone())
+        .collect()
+}
+
+/// Names who confirmed an item, for the pass line.
+fn confirmed_by(confirmation: &work::Confirmation) -> String {
+    let who = confirmation.confirmed_by.trim();
+    if who.is_empty() {
+        "a person".to_string()
+    } else {
+        who.to_string()
+    }
+}
+
+fn confirmation_for<'a>(
+    confirmed: &'a [work::Confirmation],
+    kind: &str,
+    target_id: &str,
+) -> Option<&'a work::Confirmation> {
+    if target_id.is_empty() {
+        return None;
+    }
+    confirmed
+        .iter()
+        .find(|item| item.kind == kind && item.target_id == target_id)
+}
+
+/// The card's manual checks: one per acceptance criterion and one per binding
+/// Rule that applies. A confirmed item is a pass that names who confirmed it;
+/// the rest stay manual for a person or an agent to confirm.
+pub fn manual_checks(
+    contract: &[ReviewInvariant],
+    rules: &[VerifyRule],
+    confirmed: &[work::Confirmation],
+) -> Vec<VerifyCheck> {
+    let mut checks: Vec<VerifyCheck> = Vec::new();
+    for invariant in contract {
+        let from = if invariant.from.is_empty() || invariant.from == "card" {
+            String::new()
+        } else {
+            format!(" (from {})", invariant.from)
+        };
+        match confirmation_for(confirmed, work::CONFIRMATION_INVARIANT, &invariant.id) {
+            Some(item) => checks.push(VerifyCheck {
+                status: VERIFY_PASS.to_string(),
+                message: format!(
+                    "! {}{from} (confirmed by {})",
+                    invariant.text,
+                    confirmed_by(item)
+                ),
+            }),
+            None => checks.push(VerifyCheck {
+                status: VERIFY_MANUAL.to_string(),
+                message: format!("! {}{from}", invariant.text),
+            }),
+        }
+    }
+    for rule in rules {
+        let scope = if rule.scope.is_empty() {
+            " (whole project)".to_string()
+        } else {
+            format!(" (from {})", rule.scope)
+        };
+        match confirmation_for(confirmed, work::CONFIRMATION_RULE, &rule.id) {
+            Some(item) => checks.push(VerifyCheck {
+                status: VERIFY_PASS.to_string(),
+                message: format!(
+                    "rule {}: {}{scope} (confirmed by {})",
+                    rule.slug,
+                    rule.statement,
+                    confirmed_by(item)
+                ),
+            }),
+            None => checks.push(VerifyCheck {
+                status: VERIFY_MANUAL.to_string(),
+                message: format!("rule {}: {}{scope}", rule.slug, rule.statement),
+            }),
+        }
+    }
+    checks
 }
 
 /// Reports whether a card (or one task) is finished: tasks done or dropped, no
@@ -108,17 +213,11 @@ pub fn verify_feature(input: &VerifyInput) -> Result<VerifyResult, String> {
             });
         }
     }
-    for invariant in &input.contract {
-        let from = if invariant.from.is_empty() || invariant.from == "card" {
-            String::new()
-        } else {
-            format!(" (from {})", invariant.from)
-        };
-        result.checks.push(VerifyCheck {
-            status: VERIFY_MANUAL.to_string(),
-            message: format!("! {}{from}", invariant.text),
-        });
-    }
+    result.checks.extend(manual_checks(
+        &input.contract,
+        &input.rules,
+        &input.confirmed,
+    ));
     if input.delivered {
         result.checks.push(VerifyCheck {
             status: VERIFY_INFO.to_string(),
@@ -198,6 +297,7 @@ mod tests {
             contract: vec![ReviewInvariant {
                 text: "No network calls".to_string(),
                 from: "core".to_string(),
+                ..ReviewInvariant::default()
             }],
             ..VerifyInput::default()
         };
@@ -282,6 +382,7 @@ mod tests {
             contract: vec![ReviewInvariant {
                 text: "No network calls".to_string(),
                 from: "card".to_string(),
+                ..ReviewInvariant::default()
             }],
             ..VerifyInput::default()
         })
@@ -317,6 +418,157 @@ mod tests {
         assert!(
             text.contains("info  Git: HEAD is not on main yet; the stored stage stays verify"),
             "{text}"
+        );
+    }
+
+    #[test]
+    fn verify_lists_binding_rules_and_confirmed_items_pass() {
+        let card = work::Card {
+            id: "c1".to_string(),
+            slug: "git-import".to_string(),
+            stage: work::STAGE_VERIFY.to_string(),
+            tasks: vec![work::Task {
+                number: 1,
+                title: "Read HEAD".to_string(),
+                state: work::TASK_DONE.to_string(),
+                ..work::Task::default()
+            }],
+            ..work::Card::default()
+        };
+        let contract = vec![
+            ReviewInvariant {
+                id: "inv-1".to_string(),
+                text: "No network calls".to_string(),
+                from: "card".to_string(),
+            },
+            ReviewInvariant {
+                id: "inv-2".to_string(),
+                text: "Reads HEAD only".to_string(),
+                from: "card".to_string(),
+            },
+        ];
+        let rules = vec![
+            VerifyRule {
+                id: "r1".to_string(),
+                slug: "local-only".to_string(),
+                statement: "Never call the network".to_string(),
+                scope: "core".to_string(),
+            },
+            VerifyRule {
+                id: "r2".to_string(),
+                slug: "typed-errors".to_string(),
+                statement: "Handlers return typed errors".to_string(),
+                scope: String::new(),
+            },
+        ];
+        let confirmed = vec![work::Confirmation {
+            card_id: "c1".to_string(),
+            kind: work::CONFIRMATION_INVARIANT.to_string(),
+            target_id: "inv-1".to_string(),
+            confirmed_by: "codex".to_string(),
+            ..work::Confirmation::default()
+        }];
+        let input = VerifyInput {
+            card: card.clone(),
+            delivered: true,
+            contract: contract.clone(),
+            rules: rules.clone(),
+            confirmed: confirmed.clone(),
+            ..VerifyInput::default()
+        };
+        let result = verify_feature(&input).expect("a card");
+        assert!(result.passed, "manual checks do not fail: {result:?}");
+        let text = encode_verify(&result);
+        assert!(
+            text.contains("pass  ! No network calls (confirmed by codex)\n"),
+            "{text}"
+        );
+        assert!(text.contains("check ! Reads HEAD only\n"), "{text}");
+        assert!(
+            text.contains("check rule local-only: Never call the network (from core)\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains(
+                "check rule typed-errors: Handlers return typed errors (whole project)\n"
+            ),
+            "{text}"
+        );
+        assert_eq!(
+            unconfirmed(&result),
+            vec![
+                "! Reads HEAD only".to_string(),
+                "rule local-only: Never call the network (from core)".to_string(),
+                "rule typed-errors: Handlers return typed errors (whole project)".to_string(),
+            ]
+        );
+
+        let rule_confirmed = verify_feature(&VerifyInput {
+            card: card.clone(),
+            delivered: true,
+            contract: contract.clone(),
+            rules: rules.clone(),
+            confirmed: vec![work::Confirmation {
+                card_id: "c1".to_string(),
+                kind: work::CONFIRMATION_RULE.to_string(),
+                target_id: "r2".to_string(),
+                confirmed_by: "person".to_string(),
+                ..work::Confirmation::default()
+            }],
+            ..VerifyInput::default()
+        })
+        .expect("a card");
+        let text = encode_verify(&rule_confirmed);
+        assert!(
+            text.contains("pass  rule typed-errors: Handlers return typed errors (whole project) (confirmed by person)\n"),
+            "{text}"
+        );
+        assert!(
+            !text.contains("confirmed by person (whole project)"),
+            "{text}"
+        );
+
+        let all = manual_checks(
+            &contract,
+            &rules,
+            &[
+                confirmed[0].clone(),
+                work::Confirmation {
+                    card_id: "c1".to_string(),
+                    kind: work::CONFIRMATION_INVARIANT.to_string(),
+                    target_id: "inv-2".to_string(),
+                    confirmed_by: "codex".to_string(),
+                    ..work::Confirmation::default()
+                },
+                work::Confirmation {
+                    card_id: "c1".to_string(),
+                    kind: work::CONFIRMATION_RULE.to_string(),
+                    target_id: "r1".to_string(),
+                    confirmed_by: "codex".to_string(),
+                    ..work::Confirmation::default()
+                },
+                work::Confirmation {
+                    card_id: "c1".to_string(),
+                    kind: work::CONFIRMATION_RULE.to_string(),
+                    target_id: "r2".to_string(),
+                    confirmed_by: String::new(),
+                    ..work::Confirmation::default()
+                },
+            ],
+        );
+        assert!(
+            all.iter().all(|check| check.status == VERIFY_PASS),
+            "every item is confirmed: {all:?}"
+        );
+        assert!(
+            all.iter()
+                .any(|check| check.message.contains("confirmed by codex")),
+            "{all:?}"
+        );
+        assert!(
+            all.iter()
+                .any(|check| check.message.contains("confirmed by a person")),
+            "an empty name reads as a person: {all:?}"
         );
     }
 }

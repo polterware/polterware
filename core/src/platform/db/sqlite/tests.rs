@@ -497,6 +497,59 @@ fn card_spec_migration_adds_the_spec_sections() {
 }
 
 #[test]
+fn card_confirmations_migration_creates_the_table() {
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let mut db = open(tmp.path().join("confirmations.db")).expect("open");
+    migrate_before(&mut db, "0060");
+    for statement in [
+        "INSERT INTO projects(id, name, created_at, updated_at, status, archived_at) VALUES('p', 'Project', 'now', 'now', 'active', '')",
+        "INSERT INTO work_cards(id,project_id,slug,title,created_at,updated_at) VALUES('c1','p','signup','Signup','now','now')",
+    ] {
+        db.execute(statement, [])
+            .unwrap_or_else(|err| panic!("{statement}: {err}"));
+    }
+    apply_migration(&mut db, "0060_card_confirmations.sql");
+    db.execute(
+        "INSERT INTO card_confirmations(card_id,kind,target_id,confirmed_by,confirmed_at) VALUES('c1','invariant','inv-1','codex','now')",
+        [],
+    )
+    .expect("a confirmation");
+    let kind: String = db
+        .query_row(
+            "SELECT kind FROM card_confirmations WHERE card_id='c1'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("the confirmation");
+    assert_eq!(kind, "invariant");
+    assert!(
+        db.execute(
+            "INSERT INTO card_confirmations(card_id,kind,target_id,confirmed_by,confirmed_at) VALUES('c1','invariant','inv-2','codex','now')",
+            [],
+        )
+        .is_ok(),
+        "a card holds several confirmations"
+    );
+    assert!(
+        db.execute(
+            "INSERT INTO card_confirmations(card_id,kind,target_id,confirmed_by,confirmed_at) VALUES('c1','other','inv-1','codex','now')",
+            [],
+        )
+        .is_err(),
+        "only invariant and rule are confirmable"
+    );
+    assert!(
+        db.execute(
+            "INSERT INTO change_ops(id,project_id,batch_id,entity,entity_id,op,created_at) VALUES('o1','p','b','confirmation','inv-1','create','now')",
+            [],
+        )
+        .is_ok(),
+        "change_ops records confirmation writes"
+    );
+    assert_no_foreign_key_violations(&db);
+}
+
+#[test]
 fn milestones_migration() {
     let tmp = tempfile::tempdir().expect("temp dir");
     let mut db = open(tmp.path().join("milestones.db")).expect("open");

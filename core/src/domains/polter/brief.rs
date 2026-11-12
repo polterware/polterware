@@ -61,12 +61,13 @@ pub struct Doc {
 }
 
 /// Renders what an agent reads before it works on a card or a Structure node,
-/// most important first: the target with its kind and technology, the Rules
-/// that hold for it (its node's, its ancestors', and the project's), open tasks
-/// and questions with the last handoff, the card's invariants, the milestone
-/// goal, canvas links, and doc titles. It is deterministic. A tight budget cuts lines from the end, so the
-/// lowest-priority blocks go first, and the last line says what was cut; the
-/// target and the Rules are never cut.
+/// most important first: the target with its kind and technology; on a card its
+/// spec (behavior, edge cases, plan), its acceptance criteria, and its open
+/// tasks and questions with the last handoff; then the Rules that hold for it
+/// (its node's, its ancestors', and the project's), its milestone goal, canvas
+/// links, and doc titles. It is deterministic. A tight budget cuts lines from
+/// the end, so the lowest-priority blocks go first, and the last line says what
+/// was cut; the target and the Rules are never cut.
 pub fn brief(input: &BriefInput, target: &str, budget: i32) -> Result<String, BriefError> {
     let budget = context::normalize_budget(budget);
     let target = target.trim();
@@ -87,7 +88,7 @@ pub fn brief(input: &BriefInput, target: &str, budget: i32) -> Result<String, Br
         focus,
         chain,
     };
-    Ok(pack_brief(&builder.blocks(), budget, 2))
+    Ok(pack_brief(&builder.blocks(), budget, &[0, 4]))
 }
 
 /// Finds a card by slug, then a node by path or id.
@@ -127,14 +128,40 @@ impl BriefBuilder<'_> {
     fn blocks(&self) -> Vec<Vec<String>> {
         vec![
             self.target(),
+            self.spec(),
+            self.invariants(),
+            self.open_work(),
             self.rules(),
             self.conflicts(),
-            self.open_work(),
-            self.invariants(),
             self.milestone(),
             self.canvas(),
             self.docs(),
         ]
+    }
+
+    /// The card's spec: what it does (`behavior:`), the cases it must handle
+    /// (`edge-cases:`), and the technical plan (`plan:`), in that order.
+    fn spec(&self) -> Vec<String> {
+        let Some(card) = self.card else {
+            return Vec::new();
+        };
+        let mut lines: Vec<String> = Vec::new();
+        for (label, body) in [
+            ("Behavior:", &card.behavior),
+            ("Edge cases:", &card.edge_cases),
+            ("Plan:", &card.plan),
+        ] {
+            let body = body.trim();
+            if body.is_empty() {
+                continue;
+            }
+            if !lines.is_empty() {
+                lines.push(String::new());
+            }
+            lines.push(label.to_string());
+            lines.extend(body.split('\n').map(str::to_string));
+        }
+        lines
     }
 
     fn target(&self) -> Vec<String> {
@@ -273,7 +300,7 @@ impl BriefBuilder<'_> {
         out
     }
 
-    /// The card's own constraints.
+    /// The card's acceptance criteria.
     fn invariants(&self) -> Vec<String> {
         let Some(card) = self.card else {
             return Vec::new();
@@ -284,7 +311,12 @@ impl BriefBuilder<'_> {
                 lines.push(format!("! {}", invariant.text));
             }
         }
-        lines
+        if lines.is_empty() {
+            return Vec::new();
+        }
+        let mut out = vec!["Acceptance:".to_string()];
+        out.extend(lines);
+        out
     }
 
     fn milestone(&self) -> Vec<String> {
@@ -599,45 +631,55 @@ fn first_sentence(body: &str) -> String {
 }
 
 /// Joins the blocks with blank lines and, over budget, drops lines from the
-/// end. The first `keep` blocks (the target and the Rules) always stay whole,
-/// and a block header or blank line is never left dangling.
-pub(super) fn pack_brief(blocks: &[Vec<String>], budget: i32, keep: usize) -> String {
-    let mut lines: Vec<String> = Vec::new();
-    let mut floor = 0;
-    for (i, block) in blocks.iter().enumerate() {
-        if block.is_empty() {
-            continue;
+/// end of the last block that is not kept. The blocks in `keep` (the target and
+/// the Rules) always stay whole, and a block header or blank line is never left
+/// dangling.
+pub(super) fn pack_brief(blocks: &[Vec<String>], budget: i32, keep: &[usize]) -> String {
+    let keep_block = |i: usize| keep.contains(&i);
+    let render = |blocks: &[Vec<String>]| {
+        let mut lines: Vec<String> = Vec::new();
+        for block in blocks.iter().filter(|block| !block.is_empty()) {
+            if !lines.is_empty() {
+                lines.push(String::new());
+            }
+            lines.extend(block.iter().cloned());
         }
-        if !lines.is_empty() {
-            lines.push(String::new());
-        }
-        lines.extend(block.iter().cloned());
-        if i < keep {
-            floor = lines.len();
-        }
-    }
-    floor = floor.max(lines.len().min(2));
+        lines
+    };
+    let total: usize = blocks.iter().map(|block| block.len()).sum();
+    let mut body: Vec<Vec<String>> = blocks.to_vec();
+    let lines = render(&body);
     let mut text = format!("{}\n", lines.join("\n"));
     if context::estimate_tokens(&text) <= budget {
         return text;
     }
-    let mut kept = lines.len();
-    while kept > floor {
-        kept -= 1;
-        while kept > floor
-            && (lines[kept - 1].is_empty()
-                || (lines[kept - 1].ends_with(':') && !lines[kept - 1].contains(' ')))
+    let floor = lines.len().min(2);
+    loop {
+        let Some(i) = (0..body.len())
+            .rev()
+            .find(|&i| !body[i].is_empty() && !keep_block(i))
+        else {
+            return text;
+        };
+        body[i].pop();
+        while body[i]
+            .last()
+            .is_some_and(|line| line.is_empty() || (line.ends_with(':') && !line.contains(' ')))
         {
-            kept -= 1;
+            body[i].pop();
         }
-        let cut = lines[kept..].iter().filter(|line| !line.is_empty()).count();
+        let lines = render(&body);
+        if lines.len() <= floor {
+            return text;
+        }
+        let kept_lines: usize = body.iter().map(|block| block.len()).sum();
+        let cut = total.saturating_sub(kept_lines);
         let note = format!("({cut} more lines cut to fit budget:{budget})");
-        text = format!("{}\n{note}\n", lines[..kept].join("\n"));
+        text = format!("{}\n{note}\n", lines.join("\n"));
         if context::estimate_tokens(&text) <= budget {
             return text;
         }
     }
-    text
 }
 
 #[cfg(test)]
@@ -684,6 +726,9 @@ mod tests {
             status: work::CARD_ACTIVE.into(),
             under: "app/api".into(),
             intent: "Sign people in.".into(),
+            behavior: "Sign people in with a session cookie.".into(),
+            edge_cases: "The cookie expires every hour.".into(),
+            plan: "A session table and a login route.".into(),
             decisions: vec!["Decision-0001".into()],
             milestone_id: "m1".into(),
             milestone: "beta".into(),
@@ -829,17 +874,27 @@ stage: build · under: app/api · milestone: beta · claim: codex
 kind: service · tech: Go · path: backend
 Sign people in.
 
-Rules:
-- Handlers return typed errors (from app/api)
-- No secrets in logs (from app)
-- Never commit credentials (whole project)
+Behavior:
+Sign people in with a session cookie.
+
+Edge cases:
+The cookie expires every hour.
+
+Plan:
+A session table and a login route.
+
+Acceptance:
+! Rate limit attempts
 
 - [ ] T2 Login route
 ? Which hash? [blocking] (argon2 | bcrypt)
 ? Remember me?
 handoff codex on feat/login: next: wire the route
 
-! Rate limit attempts
+Rules:
+- Handlers return typed errors (from app/api)
+- No secrets in logs (from app)
+- Never commit credentials (whole project)
 
 milestone beta: Beta · active · target 2026-12-01
 goal: Outside users sign in.

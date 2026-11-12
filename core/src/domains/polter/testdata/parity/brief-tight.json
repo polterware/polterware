@@ -18,7 +18,7 @@
       "Body": "Unrelated."
     }
   ],
-  "expected": "## decode\n## plan diagnostics\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n## rich-card: Rich card\nstage: build \u00b7 under: core/api \u00b7 milestone: beta\nkind: api \u00b7 tech: Go \u00b7 repo: api \u00b7 path: cmd/api\ndeploys: production=vercel:api (failed: error \u00b7 https://api-1.vercel.app), local=docker:api (ok)\nEverything a brief reads.\n\nRules:\n- Version the API. (from core/api)\n- Never call the network. (from core)\n- Keep changes small. (whole project)\n\n- [ ] T1 First task [repo: api] `src/*`\n? Ship it? [blocking] (yes | no)\n(7 more lines cut to fit budget:120)\n",
+  "expected": "## decode\n## plan diagnostics\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n## rich-card: Rich card\nstage: build \u00b7 under: core/api \u00b7 milestone: beta\nkind: api \u00b7 tech: Go \u00b7 repo: api \u00b7 path: cmd/api\ndeploys: production=vercel:api (failed: error \u00b7 https://api-1.vercel.app), local=docker:api (ok)\nEverything a brief reads.\n\nAcceptance:\n! Keep the API stable\n\n- [ ] T1 First task [repo: api] `src/*`\n\nRules:\n- Version the API. (from core/api)\n- Never call the network. (from core)\n- Keep changes small. (whole project)\n(7 more lines cut to fit budget:120)\n",
   "name": "brief-tight",
   "snapshot": {
     "Cards": [

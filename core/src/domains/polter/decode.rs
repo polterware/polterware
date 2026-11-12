@@ -81,6 +81,9 @@ static COORD_LINE: LazyLock<Regex> = LazyLock::new(|| {
 static COORD_TASK: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[Tt]([1-9][0-9]*)$").expect("the coordination task pattern"));
 
+static CONFIRM_LINE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^confirm:[\t\n\f\r ]*(.*)$").expect("the confirm pattern"));
+
 /// Bounds `tech:` so it stays a technology name, not prose.
 pub const MAX_TECH_RUNES: usize = 80;
 
@@ -339,6 +342,11 @@ impl Decoder {
                     n,
                     "claim outside a card: move under a \"## slug: title\"".to_string(),
                 );
+            } else if CONFIRM_LINE.is_match(trimmed) {
+                self.errorf(
+                    n,
+                    "confirm outside a card: move under a \"## slug: title\"".to_string(),
+                );
             }
             return;
         }
@@ -369,16 +377,20 @@ impl Decoder {
         }
 
         if self.in_meta {
-            if META_KEY.is_match(trimmed) {
+            if COORD_LINE.is_match(trimmed) || CONFIRM_LINE.is_match(trimmed) {
+                self.in_meta = false;
+            } else if META_KEY.is_match(trimmed) {
                 self.meta(n, trimmed);
                 return;
+            } else {
+                self.in_meta = false;
             }
-            self.in_meta = false;
         }
 
         if self.card_section.is_some()
             && !trimmed.starts_with("handoff:")
             && !COORD_LINE.is_match(trimmed)
+            && !CONFIRM_LINE.is_match(trimmed)
             && !TASK_LINE.is_match(trimmed)
             && !BAD_TASK_LINE.is_match(trimmed)
             && !trimmed.starts_with("? ")
@@ -398,6 +410,9 @@ impl Decoder {
             let action = m.get(1).expect("group 1").as_str().to_string();
             let value = m.get(2).expect("group 2").as_str().trim().to_string();
             self.coord(n, &action, &value);
+        } else if let Some(m) = CONFIRM_LINE.captures(trimmed) {
+            let value = m.get(1).expect("group 1").as_str().trim().to_string();
+            self.confirm(n, &value);
         } else if TASK_LINE.is_match(trimmed) {
             self.task(n, trimmed);
         } else if BAD_TASK_LINE.is_match(trimmed) {
@@ -586,6 +601,38 @@ impl Decoder {
                     number,
                 });
             }
+        }
+    }
+
+    /// Reads one `confirm:` line: `! <criterion>` or `rule <slug or id>`.
+    fn confirm(&mut self, n: i32, value: &str) {
+        self.in_meta = false;
+        let value = value.trim();
+        let (kind, target) = if let Some(rest) = value.strip_prefix('!') {
+            (CONFIRM_INVARIANT, rest.trim())
+        } else if value == "rule" || value.starts_with("rule ") {
+            (CONFIRM_RULE, value["rule".len()..].trim())
+        } else {
+            self.errorf(
+                n,
+                "confirm needs `! <criterion>` or `rule <slug or id>`".to_string(),
+            );
+            return;
+        };
+        if target.is_empty() {
+            self.errorf(
+                n,
+                "confirm without a target: write `confirm: ! <criterion>` or `confirm: rule <slug or id>`"
+                    .to_string(),
+            );
+            return;
+        }
+        if let Some(card) = self.card.as_mut() {
+            card.confirmations.push(ConfirmNode {
+                line: n,
+                kind: kind.to_string(),
+                target: target.to_string(),
+            });
         }
     }
 

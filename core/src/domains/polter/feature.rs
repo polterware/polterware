@@ -56,9 +56,12 @@ pub struct ReviewRule {
     pub from: String,
 }
 
-/// One active invariant inherited from a node.
+/// One acceptance criterion (a card invariant, or a Rule that holds for the
+/// card), with the node path it came from.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ReviewInvariant {
+    /// The invariant's id, or the Rule's id when the text came from a Rule.
+    pub id: String,
     pub text: String,
     /// The node path the invariant came from, or `card` for the card's own.
     pub from: String,
@@ -146,6 +149,7 @@ pub fn review_feature(
         for rule in &snapshot.rules {
             if rule.binding() && rule.scopes.contains(&node.path) {
                 review.inherited.push(ReviewInvariant {
+                    id: rule.id.clone(),
                     text: rule.statement.clone(),
                     from: node.path.clone(),
                 });

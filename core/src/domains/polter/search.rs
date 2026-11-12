@@ -80,7 +80,7 @@ pub fn search(input: &BriefInput, terms: &str, budget: i32) -> String {
     if lines.is_empty() {
         return format!("no matches for {}\n", go_quote(terms.trim()));
     }
-    pack_brief(&[lines], budget, 0)
+    pack_brief(&[lines], budget, &[])
 }
 
 /// Up to 100 runes of body around the first term it holds.

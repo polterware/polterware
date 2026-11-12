@@ -316,6 +316,32 @@ impl super::Store {
         Ok(snapshot)
     }
 
+    /// Lists the confirmations of a project's cards: one row per acceptance
+    /// criterion or Rule a person or an agent confirmed.
+    pub fn list_card_confirmations(&self, project_id: &str) -> Result<Vec<work::Confirmation>> {
+        let mut out = Vec::new();
+        self.each_row(
+            &format!(
+                r#"SELECT card_confirmations.card_id,card_confirmations.kind,target_id,confirmed_by,confirmed_at
+		FROM card_confirmations INNER JOIN work_cards ON work_cards.id=card_confirmations.card_id
+		WHERE work_cards.project_id=? ORDER BY confirmed_at"#
+            ),
+            params![project_id],
+            |row| {
+                let confirmed: String = row.get(4)?;
+                out.push(work::Confirmation {
+                    card_id: row.get(0)?,
+                    kind: row.get(1)?,
+                    target_id: row.get(2)?,
+                    confirmed_by: row.get(3)?,
+                    confirmed_at: parse_rfc3339(&confirmed),
+                });
+                Ok(())
+            },
+        )?;
+        Ok(out)
+    }
+
     /// Lists the project's repository names.
     fn load_repo_names(&self, project_id: &str) -> Result<Vec<String>> {
         let mut names = Vec::new();
@@ -461,6 +487,7 @@ fn apply_work_op(tx: &Connection, project_id: &str, op: &work::Op, now: &str) ->
         work::ENTITY_NODE => return super::structure::apply_structure_op(tx, project_id, op, now),
         work::ENTITY_RULE => return apply_rule_op(tx, project_id, op, now),
         work::ENTITY_CONFLICT => return apply_conflict_op(tx, project_id, op, now),
+        work::ENTITY_CONFIRMATION => return apply_confirmation_op(tx, project_id, op, now),
         _ => {}
     }
     let Some(table) = work_table(&op.entity) else {
@@ -657,6 +684,57 @@ fn apply_claim_op(tx: &Connection, project_id: &str, op: &work::Op, now: &str) -
     }
 }
 
+/// Inserts or deletes one `card_confirmations` row. The planner resolved the
+/// criterion or the Rule; `(card_id, kind, target_id)` is the key.
+fn apply_confirmation_op(
+    tx: &Connection,
+    _project_id: &str,
+    op: &work::Op,
+    now: &str,
+) -> Result<()> {
+    let kind = field_str(&op.fields, "kind");
+    let target_id = field_str(&op.fields, "target_id");
+    match op.kind.as_str() {
+        work::OP_CREATE | work::OP_UPDATE => {
+            if kind.is_empty() || target_id.is_empty() || op.card_id.is_empty() {
+                return Err(Error::message(
+                    "a confirmation needs a card, a kind, and a target".to_string(),
+                ));
+            }
+            tx.execute(
+                r#"INSERT INTO card_confirmations(card_id,kind,target_id,confirmed_by,confirmed_at)
+			VALUES(?,?,?,?,?)
+			ON CONFLICT(card_id,kind,target_id) DO UPDATE SET confirmed_by=excluded.confirmed_by,confirmed_at=excluded.confirmed_at"#,
+                params![
+                    op.card_id,
+                    kind,
+                    target_id,
+                    field_str(&op.fields, "confirmed_by"),
+                    now
+                ],
+            )?;
+            Ok(())
+        }
+        work::OP_REMOVE => {
+            let removed = tx.execute(
+                r#"DELETE FROM card_confirmations WHERE card_id=? AND kind=? AND target_id=?"#,
+                params![op.card_id, kind, target_id],
+            )?;
+            if removed == 0 {
+                return Err(Error::message(format!(
+                    "confirmation {kind} {target_id} of {} not found",
+                    op.card_slug
+                )));
+            }
+            Ok(())
+        }
+        _ => Err(Error::message(format!(
+            "unsupported confirmation op {:?}",
+            op.kind
+        ))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
@@ -797,6 +875,67 @@ mod tests {
             )
             .expect("milestone");
         assert_eq!(stored, None, "an empty milestone must be the Backlog");
+    }
+
+    #[test]
+    fn confirmations_are_written_and_read_per_card() {
+        let holder = TempStore::new();
+        let store = &holder.store;
+        save_project(store, "proj", now());
+        let card = card_op("card-a", "a", work::STAGE_VERIFY);
+        store
+            .apply_work_ops("proj", "", "batch-1", &[card])
+            .expect("apply card");
+        let confirmation = |target: &str| work::Op {
+            entity: work::ENTITY_CONFIRMATION.to_string(),
+            kind: work::OP_CREATE.to_string(),
+            entity_id: format!("card-a:invariant:{target}"),
+            card_id: "card-a".to_string(),
+            card_slug: "a".to_string(),
+            label: "! No network calls".to_string(),
+            fields: fields(&[
+                ("kind", json!(work::CONFIRMATION_INVARIANT)),
+                ("target_id", json!(target)),
+                ("confirmed_by", json!("codex")),
+            ]),
+            ..work::Op::default()
+        };
+        store
+            .apply_work_ops(
+                "proj",
+                "",
+                "batch-2",
+                &[confirmation("inv-1"), confirmation("inv-2")],
+            )
+            .expect("apply confirmations");
+        let listed = store.list_card_confirmations("proj").expect("read");
+        assert_eq!(listed.len(), 2, "confirmations = {listed:?}");
+        assert_eq!(listed[0].card_id, "card-a");
+        assert_eq!(listed[0].kind, work::CONFIRMATION_INVARIANT);
+        assert_eq!(listed[0].confirmed_by, "codex");
+        assert!(listed[0].confirmed_at != time::OffsetDateTime::UNIX_EPOCH);
+
+        // A second confirmation of the same item updates it in place.
+        let mut again = confirmation("inv-1");
+        again
+            .fields
+            .insert("confirmed_by".to_string(), json!("person"));
+        store
+            .apply_work_ops("proj", "", "batch-3", &[again])
+            .expect("confirm again");
+        let listed = store.list_card_confirmations("proj").expect("read");
+        assert_eq!(listed.len(), 2, "one row per criterion: {listed:?}");
+        assert_eq!(listed[0].confirmed_by, "person");
+
+        let ops = store
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM change_ops WHERE entity='confirmation'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .expect("change ops");
+        assert_eq!(ops, 3, "every write is audited");
     }
 
     #[test]

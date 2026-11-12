@@ -162,6 +162,25 @@ pub struct CardNode {
     /// Claim, done, and release lines. They act on stored tasks for the
     /// session's agent and are never encoded back.
     pub coordination: Vec<CoordNode>,
+    /// `confirm:` lines: one acceptance criterion or one Rule confirmed for
+    /// this card. They are never encoded back.
+    pub confirmations: Vec<ConfirmNode>,
+}
+
+/// What a `confirm:` line confirms: one acceptance criterion (`!` invariant) or
+/// one Rule.
+pub const CONFIRM_INVARIANT: &str = "invariant";
+pub const CONFIRM_RULE: &str = "rule";
+
+/// One confirmation line: `confirm: ! <criterion text>` or
+/// `confirm: rule <slug or id>`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ConfirmNode {
+    pub line: i32,
+    /// [`CONFIRM_INVARIANT`] or [`CONFIRM_RULE`].
+    pub kind: String,
+    /// The criterion's text, or the Rule's slug or id.
+    pub target: String,
 }
 
 pub const COORD_CLAIM: &str = "claim";

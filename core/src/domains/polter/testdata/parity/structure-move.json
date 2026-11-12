@@ -1,7 +1,7 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n## plan diagnostics\n## plan\n+ node tools \"Tools\" [domain]\n~ node tools/web parent_id: n-app → 01M74QGW52JB0JEY9FVX0AZ93F path: app/web → tools/web tech: Rust → \"Rust, WASM\"\n~ node tools/web/ui path: app/web/ui → tools/web/ui\n## summary\n3 ops (3 nodes)\n## brief\n# app/web: Web\nlevel: component · kind: frontend · tech: Rust · repo: api · path: web\n",
+  "expected": "## decode\n## plan diagnostics\n## plan\n+ node tools \"Tools\" [domain]\n~ node tools/web parent_id: n-app \u2192 <ulid> path: app/web \u2192 tools/web tech: Rust \u2192 \"Rust, WASM\"\n~ node tools/web/ui path: app/web/ui \u2192 tools/web/ui\n## summary\n3 ops (3 nodes)\n## brief\n# app/web: Web\nlevel: component \u00b7 kind: frontend \u00b7 tech: Rust \u00b7 repo: api \u00b7 path: web\n",
   "name": "structure-move",
   "snapshot": {
     "Cards": null,
