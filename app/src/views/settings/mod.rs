@@ -289,7 +289,7 @@ impl SettingsView {
             entry(SettingsTab::General, "Project", "Project")
                 .keywords("name description default environment project id"),
             entry(SettingsTab::General, "AGENTS.md", "AGENTS.md sync").keywords(
-                "agents md sync generated block principles rules structure decisions export",
+                "agents md sync generated block rules structure export",
             ),
             entry(SettingsTab::Environments, "Environments", "Environments")
                 .keywords("add environment default delete"),

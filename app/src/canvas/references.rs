@@ -45,15 +45,25 @@ pub struct Reference<'a> {
     pub entity: Option<&'a StoreEntity>,
 }
 
+/// The kind a reference reads as: the retired decision and fact references are Rules, and the
+/// migration kept their ids.
+fn legacy_kind(kind: &str) -> &str {
+    match kind {
+        "decision" | "fact" => "rule",
+        other => other,
+    }
+}
+
 /// `referenceState`: the cited record's title, or a Missing line when it is gone.
 pub fn reference_state<'a>(
     reference: Option<&CanvasRef>,
     entities: &'a [StoreEntity],
 ) -> Reference<'a> {
     let entity = reference.and_then(|reference| {
+        let kind = legacy_kind(&reference.kind);
         entities
             .iter()
-            .find(|entity| entity.kind == reference.kind && entity.id == reference.id)
+            .find(|entity| entity.kind == kind && entity.id == reference.id)
     });
     match (entity, reference) {
         (Some(entity), _) => Reference {

@@ -8,7 +8,7 @@ use polterware_ui::{Commander, CommanderEvent, CommanderGroup, CommanderItem, Ic
 use super::commander_route::Route;
 use crate::shortcuts::{self, Overrides};
 use crate::state::{
-    AppState, CommanderSelection, ComposeRequest, Section, SettingsTab, default_tier,
+    AppState, CommanderSelection, ComposeRequest, KnowledgeTab, Section, SettingsTab, default_tier,
     load_commander_sources,
 };
 
@@ -125,6 +125,14 @@ const ITEMS: &[Item] = &[
         "Actions",
         Icon::Box,
         TileTone::Architecture,
+        None,
+    ),
+    item(
+        "action.create-rule",
+        "New rule",
+        "Actions",
+        Icon::ShieldCheck,
+        TileTone::Knowledge,
         None,
     ),
     item(
@@ -402,6 +410,10 @@ impl CommanderView {
                     cx,
                 ),
                 "action.create-doc" => state.compose(ComposeRequest::Doc, cx),
+                "action.create-rule" => {
+                    state.set_knowledge_tab(KnowledgeTab::Rules, cx);
+                    state.request_rule_compose(cx);
+                }
                 "action.create-node" => state.add_structure_node(cx),
                 "action.copy-brief" => {
                     if let Some(slug) = card {

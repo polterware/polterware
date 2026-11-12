@@ -32,12 +32,12 @@ const SKILL_FILE: &str = "polterware-ai-skill.md";
 /// commands that describe themselves so it never drifts from the binary.
 pub const SKILL_MARKDOWN: &str = r#"# Polterware project context
 
-This project is tracked by Polterware, a local store of the project's Work cards, Structure, Decisions, Facts, and change history. Read it through the `polterware` CLI (or the Polterware MCP server) instead of guessing.
+This project is tracked by Polterware, a local store of the project's Work cards, Structure, Rules, and change history. Read it through the `polterware` CLI (or the Polterware MCP server) instead of guessing.
 
 1. Start a session with `polterware status`.
-2. Before you work on a card, a Structure node, or a file, read `polterware brief <slug|path|file>`: the Rules you must follow, open tasks and questions, the decisions that govern it, scope facts, and the milestone, in one read.
+2. Before you work on a card, a Structure node, or a file, read `polterware brief <slug|path|file>`: the Rules you must follow, open tasks and questions, and the milestone, in one read.
 3. Find anything with `polterware search <terms>`.
-4. Write Work cards, Decisions, and Facts in Polter format: `polterware format` prints the core rules (topics: `structure`, `decisions`, `facts`, `feature`); then `polterware apply <file|-> --dry-run` and apply. Every write needs a summary and a rationale.
+4. Write Work cards and Rules in Polter format: `polterware format` prints the core rules (topics: `structure`, `rules`, `feature`, `conflicts`); then `polterware apply <file|-> --dry-run` and apply. Every write needs a summary and a rationale.
 5. End with `polterware handoff --card <slug> --note "..."`.
 
 Over MCP the server has four tools: `polter.query` for the same reads ("brief …", "search …", "show <id>", "commits <slug>"), `polter.format`, `polter.apply` for Polter writes, and `doc.upsert` for docs with a Markdown body. `polterware --help` lists every command.

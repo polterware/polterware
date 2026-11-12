@@ -55,7 +55,7 @@ pub const HELP_TOPICS: [HelpTopic; 4] = [
             ),
             (
                 Icon::FileText,
-                "Decisions, Rules, and Docs live under Knowledge. Agents read the same model through the CLI and MCP \u{2014} humans and agents work from one model, not a hidden agent-only view.",
+                "Rules and Docs live under Knowledge. Agents read the same model through the CLI and MCP \u{2014} humans and agents work from one model, not a hidden agent-only view.",
             ),
         ],
         link: None,

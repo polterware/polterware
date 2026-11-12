@@ -14,8 +14,9 @@
 //! follow when there are any.
 //!
 //! The rail's Properties hold the Stage (a move back asks why), Slug, Kind, Owner, Component,
-//! Decisions, and Updated, then how agents add to the card; Questions lists its questions; the
-//! rail ends with Remove from board, which asks why.
+//! and Updated, then how agents add to the card; Rules that apply lists the Rules in force for
+//! it, each opening its page; Questions lists its questions; the rail ends with Remove from
+//! board, which asks why.
 
 use std::rc::Rc;
 
@@ -42,6 +43,7 @@ use crate::contracts::{CardCommit, WorkCard, WorkTask};
 use crate::dispatch;
 use crate::format::{format_instant, month_day_time};
 use crate::state::{AppState, CardReads, Load};
+use crate::views::knowledge::{rule_status_label, rule_status_tone};
 use crate::views::knowledge_page::document_activity;
 use crate::views::milestones::MilestonesView;
 use crate::work::{self, Stage};
@@ -202,7 +204,6 @@ impl CardPage {
         ));
         rows.extend(text("Owner", &card.owner, false));
         rows.extend(text("Component", &card.under, true));
-        rows.extend(text("Rules", &card.rules.join(", "), false));
         rows.extend(text("Updated", &format_instant(&card.updated_at), false));
         document_group(
             "Properties",
@@ -289,6 +290,87 @@ impl CardPage {
                     .flex()
                     .flex_col()
                     .gap(px(8.0))
+                    .children(rows),
+                cx,
+            )
+            .into_any_element(),
+        )
+    }
+
+    /// `Rules that apply`: every Rule in force for the card by its statement and status, each
+    /// row opening the Rule's page.
+    fn rules_applying(&self, card: &WorkCard, cx: &mut Context<Self>) -> Option<AnyElement> {
+        if card.rules.is_empty() {
+            return None;
+        }
+        let theme = *Theme::global(cx);
+        let rules = match self.state.read(cx).knowledge() {
+            Load::Ready(knowledge) => knowledge.rules.clone(),
+            _ => Vec::new(),
+        };
+        let state = self.state.clone();
+        let rows = card.rules.iter().enumerate().map(|(index, handle)| {
+            let rule = rules
+                .iter()
+                .find(|rule| &rule.slug == handle || &rule.id == handle);
+            let statement = rule.map_or_else(
+                || handle.clone(),
+                |rule| {
+                    if rule.statement.is_empty() {
+                        handle.clone()
+                    } else {
+                        rule.statement.clone()
+                    }
+                },
+            );
+            let status = rule.map(|rule| rule.status.clone());
+            let id = rule.map(|rule| rule.id.clone());
+            let page = state.clone();
+            div()
+                .id(("card-rule", index))
+                .w_full()
+                .min_w(px(0.0))
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .px(px(4.0))
+                .rounded(px(theme.radius_item))
+                .when(id.is_some(), |row| {
+                    row.cursor_pointer()
+                        .hover(|row| row.bg(theme.color_surface_hover))
+                })
+                .on_click(move |_, _, cx| {
+                    if let Some(id) = id.clone() {
+                        page.update(cx, |state, cx| state.open_rule(id, cx));
+                    }
+                })
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w(px(0.0))
+                        .text_size(px(12.5))
+                        .line_height(px(18.0))
+                        .text_color(theme.color_text_secondary)
+                        .child(wrap_text(statement)),
+                )
+                .children(status.map(|status| {
+                    chip_rounded(
+                        rule_status_label(&status),
+                        rule_status_tone(&status),
+                        CHIP_RADIUS,
+                        cx,
+                    )
+                }))
+        });
+        Some(
+            document_group(
+                "Rules that apply",
+                Icon::ShieldCheck,
+                div()
+                    .px(px(4.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(4.0))
                     .children(rows),
                 cx,
             )
@@ -1120,6 +1202,9 @@ impl Render for CardPage {
             );
         };
         self.sync(&card, cx);
+        // The card's Rules carry their status on this page, from the same read Knowledge makes.
+        self.state
+            .update(cx, |state, cx| state.ensure_knowledge(cx));
         let theme = *Theme::global(cx);
         let reads = if reads.slug == card.slug {
             reads
@@ -1159,6 +1244,9 @@ impl Render for CardPage {
             .on_back(back)
             .rail_state(&self.rail)
             .rail(self.properties(&card, cx));
+        if let Some(rules) = self.rules_applying(&card, cx) {
+            document = document.rail(rules);
+        }
         if let Some(questions) = self.questions(&card, cx) {
             document = document.rail(questions);
         }

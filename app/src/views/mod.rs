@@ -13,6 +13,7 @@ pub mod milestones;
 pub mod new_project;
 pub mod picker;
 pub mod projects;
+pub mod rule_page;
 pub mod scope;
 pub mod settings;
 pub mod sidebar;
