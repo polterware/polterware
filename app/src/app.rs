@@ -122,6 +122,11 @@ impl AppView {
         &self.compose
     }
 
+    /// Canvas's view, which the tour drives to show the editor's inspector.
+    pub(crate) fn canvas(&self) -> &Entity<CanvasView> {
+        &self.canvas
+    }
+
     /// The shell's own chords, which Electron's window listeners take first: ⌘/ shows the
     /// shortcuts (Settings › Shortcuts, as Commander's Keyboard shortcuts opens them), ⌘⇧C
     /// opens Canvas, `[` folds the sidebar (`shell.toggle_sidebar`), and ⌘J closes the open

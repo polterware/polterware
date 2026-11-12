@@ -306,12 +306,14 @@ fn doc_record(item: &KnowledgeItem) -> Record {
     }
 }
 
-/// Everything in the project, for the project's own document.
+/// Everything in the project, for the project's own document: the cards, the docs, and the
+/// Rules that hold everywhere, the constitution. A Rule scoped to a node lists on that node.
 pub fn project_records(structure: &Structure) -> Records {
     Records {
         rules: structure
             .rules
             .iter()
+            .filter(|rule| rule.scope_node_ids.is_empty())
             .map(|rule| rule_record(rule, ""))
             .collect(),
         cards: structure.cards.iter().map(card_record).collect(),
@@ -2868,7 +2870,9 @@ mod tests {
         assert!(records.cards[0].direct);
         assert_eq!(records.docs[0].caption, "ops");
         let project = project_records(&structure);
-        assert_eq!(project.rules.len(), 4);
+        // The project's own document lists the constitution: the Rules that hold everywhere.
+        assert_eq!(project.rules.len(), 1);
+        assert_eq!(project.rules[0].id, "whole");
         assert_eq!(project.docs.len(), 1);
     }
 }

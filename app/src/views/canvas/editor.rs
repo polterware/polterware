@@ -296,6 +296,18 @@ impl CanvasEditor {
         self.state.read(cx).canvas_entities().to_vec()
     }
 
+    /// Selects the canvas's first node, as a click on it would, so its inspector shows (the
+    /// screenshot tour's stop).
+    pub(crate) fn select_first_node(&mut self, cx: &mut Context<Self>) {
+        let Some(id) = self.doc.nodes.first().map(|node| node.id.clone()) else {
+            return;
+        };
+        self.selection = Selection::node(&id);
+        self.inspector_panel
+            .update(cx, |panel, _| panel.set_open(true));
+        cx.notify();
+    }
+
     /// The well's size, once a frame has laid it out.
     fn host_size(&self) -> (f32, f32) {
         self.host.get().map_or((960.0, 640.0), |bounds| {

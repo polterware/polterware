@@ -16,7 +16,7 @@ use polterware_ui::canvas::{Viewport, shape_of};
 use polterware_ui::icons::{Icon, icon_colored};
 use polterware_ui::patterns::{CollapsibleSection, SectionBody};
 use polterware_ui::text_input::TextInput;
-use polterware_ui::theme::Theme;
+use polterware_ui::theme::{Theme, tw};
 
 use super::editor::{CanvasEditor, DragPreview, LibraryDrag};
 use super::scene::{NodeDecor, node_view};
@@ -31,8 +31,17 @@ use crate::canvas::references::{StoreEntity, structure_entities};
 const PAD: f32 = 12.0;
 const LABEL_BELOW: f32 = 36.0;
 pub(super) const ART_HEIGHT: f32 = 52.0;
+/// The gap between a row of tiles and the next.
+const ROW_GAP: f32 = 4.0;
 const STRUCTURE: &str = "structure";
 const LEVELS: [(&str, &str); 2] = [("domain", "Domains"), ("component", "Components")];
+
+/// What a compact section leaves over its body: the toggle's `py`, the heading's `pb` (a
+/// non-large section's `tw(4)`), and the body's own `pt`. A library body takes it back so its
+/// first row of tiles sits one row gap under the heading, as the rows do from each other.
+fn body_lift() -> f32 {
+    ROW_GAP - (6.0 + tw(4.0) + 10.0)
+}
 
 pub(super) struct LibraryState {
     search: Entity<TextInput>,
@@ -245,7 +254,7 @@ fn tiles(items: Vec<AnyElement>) -> AnyElement {
         rows.push(
             div()
                 .flex()
-                .gap(px(4.0))
+                .gap(px(ROW_GAP))
                 .children(
                     row.into_iter()
                         .map(|item| div().flex_1().min_w_0().child(item)),
@@ -257,7 +266,7 @@ fn tiles(items: Vec<AnyElement>) -> AnyElement {
     div()
         .flex()
         .flex_col()
-        .gap(px(4.0))
+        .gap(px(ROW_GAP))
         .children(rows)
         .into_any_element()
 }
@@ -314,7 +323,11 @@ impl CanvasEditor {
                         )
                     })
                     .collect();
-                tiles(items)
+                // The heading sits one row gap over its first row.
+                div()
+                    .mt(px(body_lift()))
+                    .child(tiles(items))
+                    .into_any_element()
             });
             section.update(cx, |section, _| section.set_body(body));
             sections.push(div().w_full().child(section).into_any_element());
@@ -372,7 +385,8 @@ impl CanvasEditor {
                     out = out
                         .child(note("No matching domain or component nodes.", &theme).px(px(8.0)));
                 }
-                out.into_any_element()
+                // The heading sits one row gap over its first row.
+                div().mt(px(body_lift())).child(out).into_any_element()
             });
             section.update(cx, |section, _| section.set_body(body));
             sections.push(div().w_full().child(section).into_any_element());

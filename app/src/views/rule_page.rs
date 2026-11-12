@@ -25,8 +25,8 @@ use polterware_ui::list_popover::{ListPopover, ListRow};
 use polterware_ui::markdown::{MarkdownEditor, MarkdownEditorEvent};
 use polterware_ui::patterns::{
     AnchorSlot, ConfirmDialog, DocumentPage, PropertyPills, PropertyPillsEvent, RailState,
-    document_footer, document_group, document_title, modal_layer, rail_properties, rail_property,
-    rail_select, window_anchor, window_layer,
+    document_footer, document_group, document_group_with, document_title, modal_layer,
+    rail_properties, rail_property, rail_select, window_anchor, window_layer,
 };
 use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::Theme;
@@ -45,6 +45,8 @@ const AUTOSAVE: Duration = Duration::from_millis(800);
 const CHIP_RADIUS: f32 = 6.0;
 /// The Replace list's least width, wider than its trigger.
 const SELECT_WIDTH: f32 = 260.0;
+/// What an empty why reads.
+const WHY_HINT: &str = "Add a why…";
 
 /// A question asked before a write.
 #[derive(Clone, Debug, PartialEq)]
@@ -53,6 +55,15 @@ enum Ask {
     Review,
     Remove,
     Replace { by: String, by_statement: String },
+}
+
+/// The why's editor: the Rule's Markdown, or the hint an empty one reads.
+fn why_editor(source: impl Into<String>, cx: &mut Context<RulePage>) -> Entity<MarkdownEditor> {
+    cx.new(|cx| {
+        let mut why = MarkdownEditor::new(source, cx);
+        why.set_placeholder(WHY_HINT);
+        why
+    })
 }
 
 pub struct RulePage {
@@ -98,7 +109,7 @@ impl RulePage {
         });
         cx.observe(&statement, |this, _, cx| this.statement_typed(cx))
             .detach();
-        let why = cx.new(|cx| MarkdownEditor::new("", cx));
+        let why = why_editor("", cx);
         let why_changes = cx.subscribe(&why, Self::why_typed);
         cx.observe(&why, |_, _, cx| cx.notify()).detach();
         let context = cx.new(PropertyPills::new);
@@ -170,7 +181,7 @@ impl RulePage {
                 statement.set_text(rule.statement.clone(), cx)
             });
             // A new editor, so nothing of the last Rule's open block comes along.
-            self.why = cx.new(|cx| MarkdownEditor::new(rule.why.clone(), cx));
+            self.why = why_editor(rule.why.clone(), cx);
             self._why_changes = cx.subscribe(&self.why, Self::why_typed);
             cx.observe(&self.why, |_, _, cx| cx.notify()).detach();
             let id = rule.id.clone();
@@ -626,7 +637,16 @@ impl Render for RulePage {
                     .mb(px(8.0))
                     .child(self.statement.clone()),
             )
-            .child(self.why.clone())
+            // The why, the statement's reason in Markdown, under its own group as a card's
+            // sections are.
+            .child(div().w_full().mt(px(24.0)).child(document_group_with(
+                "Why",
+                Icon::HelpCircle,
+                None,
+                true,
+                self.why.clone(),
+                cx,
+            )))
             .children(document_activity(&self.state, &rule.id, cx));
         let remove = Button::new("rule-remove", ButtonKind::Danger)
             .size(ButtonSize::Sm)
