@@ -234,6 +234,10 @@ pub fn apply_polter(
     let (doc, diags) = polter::lint(&text, Some(&references));
     let (ops, plan_diags) = polter::plan_as(&doc, &snapshot, &in_.agent);
     result.diagnostics = merge_diagnostics(&diags, &plan_diags);
+    result.diagnostics.extend(
+        stage_gate_diagnostics(store, &snapshot, &ops, &references.decisions)
+            .map_err(|error| fail(&result, error))?,
+    );
     if polter::has_errors(&result.diagnostics) {
         return Err(fail(&result, Error::PolterInvalid));
     }
@@ -428,6 +432,112 @@ fn query_status(store: &Store, snapshot: &work::Snapshot, scope: &structure::Mul
 /// Folds a sibling read's error into this file's error, keeping its text.
 fn message_error(err: impl std::fmt::Display) -> Error {
     Error::Message(err.to_string())
+}
+
+/// The diagnostics that stop a card from moving forward through a gate. The
+/// planned ops are applied to a copy of the snapshot first, so a text that
+/// writes the contract, plan, tasks, or confirmations and the stage together
+/// passes only when every gate it crosses would pass on the stored state.
+fn stage_gate_diagnostics(
+    store: &Store,
+    snapshot: &work::Snapshot,
+    ops: &[work::Op],
+    decisions: &[polter::DecisionRef],
+) -> Result<Vec<polter::Diagnostic>> {
+    let mut next = snapshot.clone();
+    let created = next.apply_ops(ops);
+    let mut confirmed = store.list_card_confirmations(&snapshot.project_id)?;
+    confirmed.extend(created);
+    let mut diags: Vec<polter::Diagnostic> = Vec::new();
+    for card in &next.cards {
+        if card.status != work::CARD_ACTIVE {
+            continue;
+        }
+        let from = snapshot
+            .cards
+            .iter()
+            .find(|stored| stored.id == card.id)
+            .map(|stored| stored.stage.clone());
+        let Some(from) = from else {
+            continue;
+        };
+        let gates = polter::gates_between(&from, &card.stage);
+        if gates.is_empty() {
+            continue;
+        }
+        let review = if gates.iter().any(|gate| *gate != polter::GATE_DELIVERED) {
+            Some(
+                polter::review_feature(
+                    &next,
+                    &card.slug,
+                    decisions,
+                    &std::collections::HashMap::new(),
+                )
+                .map_err(Error::Message)?,
+            )
+        } else {
+            None
+        };
+        for gate in gates {
+            let messages: Vec<String> = if gate == polter::GATE_DELIVERED {
+                delivered_gate_diagnostics(&next, card, &confirmed)
+            } else if let Some(review) = &review {
+                polter::gate_errors(review, gate)
+                    .into_iter()
+                    .map(|diag| diag.message)
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            diags.extend(messages.into_iter().map(|message| polter::Diagnostic {
+                line: 0,
+                severity: polter::SEVERITY_ERROR.to_string(),
+                message: format!("card {}: {message}", card.slug),
+            }));
+        }
+    }
+    Ok(diags)
+}
+
+/// What the Done gate needs beyond a passing verify: every acceptance
+/// criterion and scoped Rule confirmed. Whole-project Rules stay one info line.
+fn delivered_gate_diagnostics(
+    snapshot: &work::Snapshot,
+    card: &work::Card,
+    confirmed: &[work::Confirmation],
+) -> Vec<String> {
+    let (contract, rules) = super::feature::card_checks(snapshot, card);
+    let own: Vec<work::Confirmation> = confirmed
+        .iter()
+        .filter(|item| item.card_id == card.id)
+        .cloned()
+        .collect();
+    let input = polter::VerifyInput {
+        card: card.clone(),
+        task: 0,
+        delivered: false,
+        contract,
+        rules,
+        confirmed: own,
+    };
+    let result = match polter::verify_feature(&input) {
+        Ok(result) => result,
+        Err(err) => return vec![format!("verify fails: {err}")],
+    };
+    let mut messages: Vec<String> = result
+        .checks
+        .iter()
+        .filter(|check| check.status == polter::VERIFY_FAIL)
+        .map(|check| format!("verify fails: {}", check.message))
+        .collect();
+    messages.extend(
+        result
+            .manual
+            .iter()
+            .filter(|item| !item.confirmed)
+            .map(|item| format!("not confirmed: {} (confirm: {})", item.label, item.target)),
+    );
+    messages
 }
 
 /// Keeps lint output, then plan diagnostics that lint did not already report
@@ -792,7 +902,7 @@ stage: build
             &store,
             ApplyInput {
                 project_id: project.id.clone(),
-                text: "---\npolter: 1\n---\n\n## login\nstage: plan\n".to_string(),
+                text: "---\npolter: 1\n---\n\n## login: Sign people in now\n".to_string(),
                 actor_kind: agentrun::ACTOR_KIND_HUMAN.to_string(),
                 tool: "desktop.work.apply".to_string(),
                 ..ApplyInput::default()
@@ -965,6 +1075,164 @@ tech: SQLite
             )
             .expect("work_claims rows");
         assert_eq!(rows, 1);
+    }
+
+    /// The diagnostics of an apply the gates must refuse.
+    fn refuse(store: &Store, project_id: &str, text: &str) -> String {
+        match apply_polter(
+            store,
+            ApplyInput {
+                project_id: project_id.to_string(),
+                text: text.to_string(),
+                auto_start_label: "cli".to_string(),
+                ..ApplyInput::default()
+            },
+        ) {
+            Ok(result) => panic!("apply should be refused, got {result:?}"),
+            Err(failure) => failure
+                .result
+                .diagnostics
+                .iter()
+                .map(|diag| diag.message.clone())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        }
+    }
+
+    fn card_stage(store: &Store, project_id: &str, slug: &str) -> String {
+        let snapshot = store.load_work_snapshot(project_id).expect("snapshot");
+        snapshot.card(slug).expect("card").stage.clone()
+    }
+
+    const GATE_HEADER: &str =
+        "---\npolter: 1\nsummary: Gate test\nrationale: Exercise the flow\n---\n\n";
+
+    #[test]
+    fn apply_runs_the_contract_gate_on_a_forward_move() {
+        let TempStore { store, .. } = TempStore::new();
+        let project = init_test_project(&store, "Gates");
+        apply(
+            &store,
+            &project.id,
+            &format!("{GATE_HEADER}## gate-card: Gate card\n\nDo it.\n"),
+        );
+
+        let errors = refuse(
+            &store,
+            &project.id,
+            &format!("{GATE_HEADER}## gate-card\nstage: plan\n"),
+        );
+        assert!(errors.contains("no behavior"), "{errors}");
+        assert_eq!(
+            card_stage(&store, &project.id, "gate-card"),
+            work::STAGE_SHAPE,
+            "a refused gate must not move the card"
+        );
+
+        apply(
+            &store,
+            &project.id,
+            &format!("{GATE_HEADER}## gate-card\nstage: plan\nbehavior: Do the thing.\n"),
+        );
+        assert_eq!(
+            card_stage(&store, &project.id, "gate-card"),
+            work::STAGE_PLAN
+        );
+    }
+
+    #[test]
+    fn apply_runs_the_plan_gate_on_a_forward_move() {
+        let TempStore { store, .. } = TempStore::new();
+        let project = init_test_project(&store, "Gates");
+        apply(
+            &store,
+            &project.id,
+            &format!("{GATE_HEADER}## plan-card: Plan card\nstage: plan\nbehavior: Do it.\n"),
+        );
+
+        let errors = refuse(
+            &store,
+            &project.id,
+            &format!("{GATE_HEADER}## plan-card\nstage: build\n"),
+        );
+        assert!(errors.contains("no plan"), "{errors}");
+        assert_eq!(
+            card_stage(&store, &project.id, "plan-card"),
+            work::STAGE_PLAN
+        );
+
+        apply(
+            &store,
+            &project.id,
+            &format!(
+                "{GATE_HEADER}## plan-card\nstage: build\n- [ ] T1 Do it\nplan: Touch the core.\n"
+            ),
+        );
+        assert_eq!(
+            card_stage(&store, &project.id, "plan-card"),
+            work::STAGE_BUILD
+        );
+    }
+
+    #[test]
+    fn apply_runs_the_delivered_gate_with_acceptance_and_rules_confirmed() {
+        let TempStore { store, .. } = TempStore::new();
+        let project = init_test_project(&store, "Gates");
+        apply(
+            &store,
+            &project.id,
+            &format!(
+                "{GATE_HEADER}# core: Core\nlevel: component\n\n#### rule local-only: Never call the network\nscope: core\nstatus: active\n\n## done-card: Done card\nstage: verify\nunder: core\n! No network calls\n- [ ] T1 Read HEAD\nbehavior: Import commits.\n"
+            ),
+        );
+
+        let errors = refuse(
+            &store,
+            &project.id,
+            &format!("{GATE_HEADER}## done-card\nstage: delivered\n"),
+        );
+        assert!(errors.contains("T1 is open"), "{errors}");
+        assert!(
+            errors.contains("not confirmed: ! No network calls"),
+            "{errors}"
+        );
+        assert!(errors.contains("rule local-only"), "{errors}");
+        assert_eq!(
+            card_stage(&store, &project.id, "done-card"),
+            work::STAGE_VERIFY
+        );
+
+        apply(
+            &store,
+            &project.id,
+            &format!(
+                "{GATE_HEADER}## done-card\nstage: delivered\n- [x] T1 Read HEAD\nconfirm: ! No network calls\nconfirm: rule local-only\n"
+            ),
+        );
+        assert_eq!(
+            card_stage(&store, &project.id, "done-card"),
+            work::STAGE_DELIVERED
+        );
+    }
+
+    #[test]
+    fn moving_a_card_backwards_needs_no_gate() {
+        let TempStore { store, .. } = TempStore::new();
+        let project = init_test_project(&store, "Gates");
+        apply(
+            &store,
+            &project.id,
+            &format!("{GATE_HEADER}## back-card: Back card\nstage: verify\nbehavior: Do it.\n"),
+        );
+        apply(
+            &store,
+            &project.id,
+            &format!("{GATE_HEADER}## back-card\nstage: shape\n"),
+        );
+        assert_eq!(
+            card_stage(&store, &project.id, "back-card"),
+            work::STAGE_SHAPE
+        );
     }
 
     /// The node at `path`, as Go's `nodeByPath` helper reads it.

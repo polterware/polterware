@@ -336,6 +336,51 @@ impl FeatureReview {
     }
 }
 
+/// The step that guards the Done column: `verify` passing, with every
+/// acceptance criterion and scoped Rule confirmed.
+pub const GATE_DELIVERED: &str = "delivered";
+
+/// The gates a forward move from `from` to `to` passes, in board order:
+/// `contract` entering plan, `plan` entering build, and `delivered` entering
+/// Done. A move that does not go forward crosses none, so moving a card back
+/// stays free.
+pub fn gates_between(from: &str, to: &str) -> Vec<&'static str> {
+    let index = |stage: &str| {
+        work::STAGES
+            .iter()
+            .position(|candidate| *candidate == stage)
+    };
+    let (Some(from), Some(to)) = (index(from), index(to)) else {
+        return Vec::new();
+    };
+    let mut gates: Vec<&'static str> = Vec::new();
+    if from < 1 && to >= 1 {
+        gates.push(FEATURE_STEP_CONTRACT);
+    }
+    if from < 2 && to >= 2 {
+        gates.push(FEATURE_STEP_PLAN);
+    }
+    if from < 4 && to >= 4 {
+        gates.push(GATE_DELIVERED);
+    }
+    gates
+}
+
+/// The error diagnostics of a contract or plan gate, without the stage check:
+/// the card is already at the stage its move produces.
+pub fn gate_errors(review: &FeatureReview, step: &str) -> Vec<Diagnostic> {
+    review
+        .step_checks(step)
+        .into_iter()
+        .filter(|check| check.severity == SEVERITY_ERROR)
+        .map(|check| Diagnostic {
+            line: 0,
+            severity: SEVERITY_ERROR.to_string(),
+            message: check.message,
+        })
+        .collect()
+}
+
 /// The Polter text that moves a card through a gate: contract (shape → plan)
 /// or plan (plan → build). It returns error diagnostics instead when the card
 /// is at another stage or a gate check fails.

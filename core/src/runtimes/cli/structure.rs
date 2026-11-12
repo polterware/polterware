@@ -12,7 +12,8 @@ pub fn run_structure(db: &str, args: &[String]) -> CliResult {
         "",
         "point in time: a change batch id, an RFC3339 time, a YYYY-MM-DD day, or a commit sha",
     );
-    f.parse(args).map_err(|e| CliError::message(e.message()))?;
+    f.parse_interspersed(args)
+        .map_err(|e| CliError::message(e.message()))?;
     let history = f.rest().len() == 1 && f.rest()[0] == "history";
     if !f.rest().is_empty() && !history {
         return Err(CliError::message(format!(

@@ -152,7 +152,7 @@ mod tests {
             &mut session,
             ApplyInput {
                 project_id: project.id.clone(),
-                text: "---\npolter: 1\nsummary: Start build\nrationale: Plan approved\n---\n\n## git-metadata-import\nstage: build\n".to_string(),
+                text: "---\npolter: 1\nsummary: Start build\nrationale: Plan approved\n---\n\n## git-metadata-import\nstage: build\n? Include merge commits? -> yes\nplan: Follow the commitref provider.\n".to_string(),
                 ..ApplyInput::default()
             },
         )

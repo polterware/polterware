@@ -322,6 +322,69 @@ mod tests {
     }
 
     #[test]
+    fn polter_apply_runs_each_stage_gate() {
+        let mut server = TestServer::new();
+        let header = "---\npolter: 1\nsummary: Gate test\nrationale: Exercise the flow\n---\n\n";
+
+        let create = format!("{header}## gate-card: Gate card\n\nDo it.\n");
+        let args = server.args(&[("text", json!(create))]);
+        server.call(TOOL_POLTER_APPLY, args).expect("create");
+
+        let plan = format!("{header}## gate-card\nstage: plan\n");
+        let args = server.args(&[("text", json!(plan))]);
+        let error = match server.call(TOOL_POLTER_APPLY, args) {
+            Ok(text) => panic!("the contract gate should refuse: {text}"),
+            Err(error) => error,
+        };
+        assert!(error.0.contains("no behavior"), "{error}");
+        assert!(server.query("card gate-card").contains("stage: shape"));
+
+        let accepted = format!("{header}## gate-card\nstage: plan\nbehavior: Do the thing.\n");
+        let args = server.args(&[("text", json!(accepted))]);
+        server.call(TOOL_POLTER_APPLY, args).expect("accept");
+        assert!(server.query("card gate-card").contains("stage: plan"));
+
+        let build = format!("{header}## gate-card\nstage: build\n");
+        let args = server.args(&[("text", json!(build))]);
+        let error = match server.call(TOOL_POLTER_APPLY, args) {
+            Ok(text) => panic!("the plan gate should refuse: {text}"),
+            Err(error) => error,
+        };
+        assert!(error.0.contains("no plan"), "{error}");
+
+        let approved =
+            format!("{header}## gate-card\nstage: build\n- [ ] T1 Do it\nplan: Touch the core.\n");
+        let args = server.args(&[("text", json!(approved))]);
+        server.call(TOOL_POLTER_APPLY, args).expect("approve");
+
+        let delivered_card = format!(
+            "{header}## done-card: Done card\nstage: verify\n! No network calls\n- [ ] T1 Read HEAD\nbehavior: Import.\n"
+        );
+        let args = server.args(&[("text", json!(delivered_card))]);
+        server.call(TOOL_POLTER_APPLY, args).expect("create done");
+
+        let delivered = format!("{header}## done-card\nstage: delivered\n");
+        let args = server.args(&[("text", json!(delivered))]);
+        let error = match server.call(TOOL_POLTER_APPLY, args) {
+            Ok(text) => panic!("the delivered gate should refuse: {text}"),
+            Err(error) => error,
+        };
+        assert!(error.0.contains("T1 is open"), "{error}");
+        assert!(
+            error.0.contains("not confirmed: ! No network calls"),
+            "{error}"
+        );
+        assert!(server.query("card done-card").contains("stage: verify"));
+
+        let done = format!(
+            "{header}## done-card\nstage: delivered\n- [x] T1 Read HEAD\nconfirm: ! No network calls\n"
+        );
+        let args = server.args(&[("text", json!(done))]);
+        server.call(TOOL_POLTER_APPLY, args).expect("deliver");
+        assert!(server.query("card done-card").contains("stage: delivered"));
+    }
+
+    #[test]
     fn polter_apply_uses_one_session_run() {
         let mut server = TestServer::new();
         server.server.session.label = "claude-code".to_string();

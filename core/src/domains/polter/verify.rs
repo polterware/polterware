@@ -140,17 +140,17 @@ pub fn manual_items(
         );
     }
     for rule in rules.iter().filter(|rule| !rule.scope.is_empty()) {
-        let label = format!(
-            "rule {}: {} (from {})",
-            rule.slug, rule.statement, rule.scope
-        );
         // A node's `!` line becomes a Rule with no slug; its id still names it.
-        let key = if rule.slug.is_empty() {
+        let reference = if rule.slug.is_empty() {
             rule.id.as_str()
         } else {
             rule.slug.as_str()
         };
-        let target = format!("rule {key}");
+        let label = format!(
+            "rule {}: {} (from {})",
+            reference, rule.statement, rule.scope
+        );
+        let target = format!("rule {reference}");
         items.push(
             match confirmation_for(confirmed, work::CONFIRMATION_RULE, &rule.id) {
                 Some(item) => ManualItem {
@@ -479,6 +479,41 @@ mod tests {
         );
         assert!(
             text.contains("info  Git: HEAD is not on main yet; the stored stage stays verify"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn a_rule_without_a_slug_is_named_by_its_id() {
+        let rules = vec![VerifyRule {
+            id: "rule-1".to_string(),
+            slug: String::new(),
+            statement: "Keep it local".to_string(),
+            scope: "core".to_string(),
+        }];
+        let items = manual_items(&[], &rules, &[]);
+        assert_eq!(items.len(), 1, "items = {items:?}");
+        assert_eq!(items[0].label, "rule rule-1: Keep it local (from core)");
+        assert_eq!(items[0].target, "rule rule-1");
+        let result = verify_feature(&VerifyInput {
+            card: work::Card {
+                slug: "git-import".to_string(),
+                stage: work::STAGE_VERIFY.to_string(),
+                tasks: vec![work::Task {
+                    number: 1,
+                    title: "Read HEAD".to_string(),
+                    state: work::TASK_DONE.to_string(),
+                    ..work::Task::default()
+                }],
+                ..work::Card::default()
+            },
+            rules,
+            ..VerifyInput::default()
+        })
+        .expect("a card");
+        let text = encode_verify(&result);
+        assert!(
+            text.contains("check rule rule-1: Keep it local (from core)\n"),
             "{text}"
         );
     }

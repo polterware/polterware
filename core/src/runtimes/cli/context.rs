@@ -14,7 +14,8 @@ fn run(db: &str, args: &[String], brief: bool) -> CliResult {
     let mut f = project_flags(kind);
     f.string_flag("budget", "0", "token budget (default 1200)");
     add_scope_flags(&mut f);
-    f.parse(args).map_err(|e| CliError::message(e.message()))?;
+    f.parse_interspersed(args)
+        .map_err(|e| CliError::message(e.message()))?;
     let budget: i64 = f.string_value("budget").parse().map_err(|_| {
         CliError::message(format!(
             "invalid value \"{}\" for flag -budget: parse error",

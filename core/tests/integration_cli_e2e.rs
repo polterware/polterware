@@ -170,6 +170,33 @@ fn test_binary_init_apply_query_round_trip() {
 }
 
 #[test]
+fn test_binary_brief_accepts_flags_before_or_after_the_target() {
+    let harness = CliHarness::new();
+    let root = tempfile::tempdir().unwrap();
+    harness.must_run(
+        "",
+        &[
+            "init",
+            "--id",
+            "proj-brief",
+            "--name",
+            "Brief",
+            "--path",
+            root.path().to_str().unwrap(),
+        ],
+    );
+    harness.must_run(E2E_ROADMAP, &["apply", "-", "--project", "proj-brief"]);
+
+    let before = harness.must_run("", &["brief", "--project", "proj-brief", "local-build"]);
+    let after = harness.must_run("", &["brief", "local-build", "--project", "proj-brief"]);
+    assert!(
+        before.contains("local-build"),
+        "brief before flags: {before}"
+    );
+    assert_eq!(before, after, "flags after the target must read the same");
+}
+
+#[test]
 fn test_binary_apply_rejects_invalid_polter_with_diagnostics() {
     let harness = CliHarness::new();
     let root = tempfile::tempdir().unwrap();
