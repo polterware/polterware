@@ -7,7 +7,10 @@
 //! its Inbox, with the open item's Decide and Later panels, Switch project, Help and a topic,
 //! and every other section (Activity with a change open, then a Dispatch entry; Knowledge's
 //! first rule in the Composer, the Docs tab's Add doc Composer and its archive, and the first
-//! doc), Project settings, Commander, and App settings.
+//! doc), Project settings, Commander, and App settings. Then, back in the project, the first
+//! milestone's board, a card's page (one in review first), a Rule's page, the canvas editor
+//! with a node selected so its inspector shows, and the first Inbox item that asks for a
+//! confirmation.
 //!
 //! `POLTERWARE_BENCH=<file>`: appends `{"app","event","at"}` lines (`at` in epoch milliseconds)
 //! when the Projects screen first shows rows (`projects-ready`), for `tooling/bench`.
@@ -24,6 +27,7 @@ use crate::state::{
     AppState, ComposeRequest, DISPATCH_ROW, KnowledgeTab, Load, Section, SettingsTab,
 };
 use crate::views::knowledge::first_row;
+use crate::work::{ALL_CARDS, Stage};
 
 /// The project the tour opens: the seed's main one (`tooling/bench/seed.mjs`), else the first.
 const TOUR_PROJECT: &str = "Atlas";
@@ -238,6 +242,88 @@ pub fn start_tour(
                 state.open_settings(SettingsTab::AgentsMcp, cx);
             });
             shot(cx, &dir, "10-app-settings").await;
+            let in_project = cx
+                .update(|_, app| state.read(app).section().is_some())
+                .unwrap_or(false);
+            if in_project {
+                update(cx, &state, |state, _| state.close_settings());
+                settle(cx, 600).await;
+                // The first milestone's board, or All cards when there is none.
+                update(cx, &state, |state, cx| {
+                    let board = match state.work() {
+                        Load::Ready(work) => work
+                            .milestones
+                            .first()
+                            .map(|milestone| milestone.id.clone()),
+                        _ => None,
+                    };
+                    state.open_board(Some(board.unwrap_or_else(|| ALL_CARDS.to_string())), cx);
+                });
+                shot(cx, &dir, "11-board").await;
+                // A card's page, one in review when the board has one.
+                update(cx, &state, |state, cx| {
+                    let Load::Ready(work) = state.work() else {
+                        return;
+                    };
+                    let slug = work
+                        .cards
+                        .iter()
+                        .find(|card| card.stage == Stage::Verify.id())
+                        .or_else(|| work.cards.first())
+                        .map(|card| card.slug.clone());
+                    if let Some(slug) = slug {
+                        state.open_card(slug, cx);
+                    }
+                });
+                shot(cx, &dir, "12-card").await;
+                // The first Rule's page.
+                update(cx, &state, |state, cx| {
+                    state.go_section(Section::Knowledge, cx);
+                    state.set_knowledge_tab(KnowledgeTab::Rules, cx);
+                    let first = match state.knowledge() {
+                        Load::Ready(knowledge) => first_row(KnowledgeTab::Rules, knowledge),
+                        _ => None,
+                    };
+                    if let Some(id) = first {
+                        state.open_knowledge_page(id, cx);
+                    }
+                });
+                settle(cx, 600).await;
+                shot(cx, &dir, "13-rule").await;
+                // The canvas editor with a node selected, so its inspector shows.
+                update(cx, &state, |state, cx| {
+                    state.go_section(Section::Canvas, cx);
+                    let first = match state.canvas_list() {
+                        Load::Ready(list) => list.canvases.first().map(|canvas| canvas.id.clone()),
+                        _ => None,
+                    };
+                    if let Some(id) = first {
+                        state.open_canvas_by_id(id, cx);
+                    }
+                });
+                settle(cx, 1500).await;
+                on_view(cx, &view, |view, _, cx| {
+                    view.canvas()
+                        .update(cx, |canvas, cx| canvas.select_first_node(cx))
+                });
+                shot(cx, &dir, "14-canvas-inspector").await;
+                // The first Inbox item that asks for a confirmation, opened.
+                update(cx, &state, |state, cx| {
+                    state.go_section(Section::Inbox, cx);
+                    let confirm = match state.inbox() {
+                        Load::Ready(inbox) => inbox
+                            .items
+                            .iter()
+                            .find(|item| item.kind == "confirm")
+                            .map(|item| item.id.clone()),
+                        _ => None,
+                    };
+                    if let Some(id) = confirm {
+                        state.open_inbox_item(id);
+                    }
+                });
+                shot(cx, &dir, "15-inbox-confirm").await;
+            }
             let _ = cx.update(|_, app| app.quit());
         })
         .detach();

@@ -1001,12 +1001,16 @@ impl KnowledgeView {
             .child(tabs)
             .child(div().flex_1().h_full().window_drag_region())
             .child(actions);
+        // The active filters' row: the pills grow and Clear ends it, one line on the whole
+        // width, as Inbox's and Milestones' bars are.
         let filter_bar = FilterPopover::bar(self.filters_for(tab), window, cx).map(|bar| {
             div()
                 .flex_none()
+                .w_full()
+                .min_w(px(0.0))
                 .px(px(theme.space_2))
                 .pb(px(theme.space_2))
-                .child(bar)
+                .child(div().flex_1().min_w(px(0.0)).child(bar))
         });
         div()
             .flex_none()

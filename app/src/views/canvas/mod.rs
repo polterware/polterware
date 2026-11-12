@@ -588,6 +588,14 @@ impl CanvasView {
         Some(window_layer(modal_layer(1.0, true, close, dialog, &theme)))
     }
 
+    /// Selects the open canvas's first node, so the editor's inspector shows (the screenshot
+    /// tour's stop).
+    pub(crate) fn select_first_node(&mut self, cx: &mut Context<Self>) {
+        if let Some((_, editor)) = &self.editor {
+            editor.update(cx, |editor, cx| editor.select_first_node(cx));
+        }
+    }
+
     /// Keeps the editor on the canvas the state has open.
     fn follow_open(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let open = self.state.read(cx).open_canvas().cloned();
