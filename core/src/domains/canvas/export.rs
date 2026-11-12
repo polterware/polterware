@@ -6,9 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use super::model::{go_json_escape, normalize, normalize_numbers_in, null_as_default};
-use super::{
-    COMPONENT_KINDS, Error, Graph, Node, REF_NODE, Ref, Result, STRUCTURE_KINDS,
-};
+use super::{COMPONENT_KINDS, Error, Graph, Node, REF_NODE, Ref, Result, STRUCTURE_KINDS};
 use crate::domains::structure;
 
 /// Marks a node that cites a store entity.
@@ -245,12 +243,8 @@ fn write_tree(
         // A frame is a node and a subgraph: its properties sit on a node line
         // before the block, because Mermaid reads a subgraph's own `@{ }` block
         // only after it exists, and the block must stay readable on its own.
-        body.push_str(&format!(
-            "{indent}{id}{}\n",
-            node_metadata(node, id, false)
-        ));
-        let title = bracket_label(node, id)
-            .unwrap_or_else(|| mermaid_text(&label_or_kind(node)));
+        body.push_str(&format!("{indent}{id}{}\n", node_metadata(node, id, false)));
+        let title = bracket_label(node, id).unwrap_or_else(|| mermaid_text(&label_or_kind(node)));
         body.push_str(&format!("{indent}subgraph {id}[\"{title}\"]\n"));
         write_tree(body, nodes, ids, children, &node.id, depth + 1);
         body.push_str(&format!("{indent}end\n"));
@@ -312,7 +306,10 @@ fn metadata_scalar(text: &str) -> String {
         && text
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'/'))
-        && !matches!(text, "true" | "false" | "null" | "yes" | "no" | "on" | "off")
+        && !matches!(
+            text,
+            "true" | "false" | "null" | "yes" | "no" | "on" | "off"
+        )
         && text.parse::<f64>().is_err();
     if plain {
         text.to_string()
@@ -387,7 +384,6 @@ fn layout_rects(layout_json: &str) -> HashMap<String, Rect> {
     out
 }
 
-
 /// Maps each node to the smallest larger node whose rectangle holds its center.
 /// Nodes without a layout position sit at the top level.
 fn containers(nodes: &[Node], rects: &HashMap<String, Rect>) -> HashMap<String, String> {
@@ -430,7 +426,6 @@ fn smallest_containing(
     best
 }
 
-
 /// What the person wrote; the editor's "New <kind>" placeholder counts as no
 /// label.
 fn label(node: &Node) -> String {
@@ -453,8 +448,6 @@ fn label_or_kind(node: &Node) -> String {
 fn is_semantic(kind: &str) -> bool {
     COMPONENT_KINDS.contains(&kind) || STRUCTURE_KINDS.contains(&kind)
 }
-
-
 
 /// Writes a Graphviz digraph. Edge kinds are link labels, and each node carries
 /// a trust attribute. Layout is omitted.
@@ -782,8 +775,8 @@ mod tests {
         );
         let flat = export_mermaid(&graph, "not json");
         assert!(
-            !flat.contains("subgraph") && flat.contains("  frame@{"),
-            "without a layout every node is top level:\n{flat}"
+            !flat.contains("subgraph") && flat.contains("  frame[\"Backend\"]@{ kind: frame }"),
+            "without a layout every node is top level and keeps its label:\n{flat}"
         );
     }
 

@@ -126,7 +126,11 @@ fn parse_canvas_show(args: &[String]) -> Result<CanvasShowArgs, CliError> {
 
 fn parse_canvas_save(args: &[String]) -> Result<CanvasSaveArgs, CliError> {
     let mut f = flags("canvas save");
-    f.string_flag("source", "", "file holding the Mermaid source, or - for stdin");
+    f.string_flag(
+        "source",
+        "",
+        "file holding the Mermaid source, or - for stdin",
+    );
     f.parse_interspersed(args).map_err(parse_err)?;
     if f.rest().len() != 1 || f.string_value("source").is_empty() {
         return Err(CliError::message(USAGE));
@@ -438,6 +442,26 @@ mod tests {
         );
         assert!(parse_canvas_show(&[]).is_err());
         assert!(parse_canvas_show(&args(&["id-1", "--format", "yaml"])).is_err());
+    }
+
+    #[test]
+    fn parses_canvas_save() {
+        let got = parse_canvas_save(&args(&[
+            "Platform map",
+            "--source",
+            "map.mmd",
+            "--project",
+            "p1",
+        ]))
+        .unwrap();
+        assert_eq!(got.reference, "Platform map");
+        assert_eq!(got.source, "map.mmd");
+        assert_eq!(got.project, "p1");
+        let stdin = parse_canvas_save(&args(&["--source", "-", "id-1"])).unwrap();
+        assert_eq!(stdin.source, "-");
+        assert_eq!(stdin.reference, "id-1");
+        assert!(parse_canvas_save(&args(&["id-1"])).is_err());
+        assert!(parse_canvas_save(&args(&["--source", "map.mmd"])).is_err());
     }
 
     #[test]

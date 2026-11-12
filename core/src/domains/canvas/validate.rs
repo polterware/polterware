@@ -148,7 +148,15 @@ pub fn prepare(mut item: Canvas) -> Result<Canvas> {
     item.layout_json = layout;
     let source = item.source.trim().to_string();
     if source.is_empty() {
-        item.source = super::export_mermaid(&item.graph, &item.layout_json);
+        item.source = super::export_mermaid(&item.graph, &item.layout_json)
+            .trim_end()
+            .to_string();
+    } else if source == super::export_mermaid(&item.graph, &item.layout_json).trim_end() {
+        // The canonical source of the graph already at hand: reading it back
+        // would drop only what the text cannot carry (the editor's `style` prop
+        // and edge props), so a write that sends the graph keeps them and
+        // `prepare` stays idempotent.
+        item.source = source;
     } else {
         item.graph = super::graph_from_source(&source)?;
         item.source = source;
@@ -408,6 +416,58 @@ mod tests {
         assert_eq!(item.name, "Map");
         assert_eq!(item.r#type, TYPE_CANVAS);
         assert_eq!(item.layout_json, "{}");
+    }
+
+    #[test]
+    fn prepare_keeps_what_the_source_cannot_carry_when_the_graph_is_sent() {
+        let mut props: Map<String, Value> = Map::new();
+        props.insert("style".to_string(), serde_json::json!({"fill": "red"}));
+        let mut edge_props: Map<String, Value> = Map::new();
+        edge_props.insert("sync".to_string(), Value::Bool(true));
+        let once = prepare(Canvas {
+            name: "Map".to_string(),
+            graph: Graph {
+                nodes: vec![
+                    Node {
+                        props,
+                        ..with_label(node("a", "service"), "API")
+                    },
+                    with_label(node("b", "database"), "Postgres"),
+                ],
+                edges: vec![Edge {
+                    props: edge_props,
+                    ..edge("e", "a", "b", EDGE_READS)
+                }],
+            },
+            ..Canvas::default()
+        })
+        .expect("prepare");
+        assert!(
+            once.source.contains("flowchart LR"),
+            "no source: {}",
+            once.source
+        );
+        // The store prepares again on its way in; the graph the person sent is
+        // still the one stored, style and edge props included.
+        let twice = prepare(once.clone()).expect("prepare again");
+        assert_eq!(twice.source, once.source);
+        assert_eq!(twice.graph, once.graph);
+        assert_eq!(
+            twice.graph.nodes[0].props.get("style"),
+            Some(&serde_json::json!({"fill": "red"}))
+        );
+        assert_eq!(
+            twice.graph.edges[0].props.get("sync"),
+            Some(&Value::Bool(true))
+        );
+        // A source that is not the graph's own is the canvas, and it wins.
+        let edited = prepare(Canvas {
+            source: "flowchart LR\n  a@{ label: \"One\", kind: service }\n".to_string(),
+            ..once
+        })
+        .expect("source write");
+        assert_eq!(edited.graph.nodes.len(), 1);
+        assert_eq!(edited.graph.nodes[0].label, "One");
     }
 
     #[test]

@@ -82,11 +82,12 @@ pub fn usage_text() -> &'static str {
   polterware [-db path] structure history [--project <id>]
   polterware [-db path] canvas ls [--agents] [--scope <node>[,<node>]] [--exact] [--project <id>]
   polterware [-db path] canvas show <id|name> [--format mermaid|json|dot] [--project <id>]
+  polterware [-db path] canvas save <id|name> --source <file|-> [--project <id>]
   polterware [-db path] canvas share <id|name> on|off [--project <id>]
   polterware [-db path] export [--dry-run] [--sync on|off] [--json] [--project <id>]
   polterware [-db path] apply <file|-> [--dry-run] [--project <id>] [--summary ...] [--rationale ...] [--agent-run-id ...]
   polterware [-db path] lint <file|dir|-> [--project <id>]   (silent on success)
-  polterware [-db path] format [structure|rules|feature|conflicts]   (the Polter format core, or one topic)
+  polterware [-db path] format [structure|rules|feature|conflicts|canvas]   (the Polter format core, or one topic)
   polterware [-db path] query "cards" | "card <slug>" | "status" | "inbox" | "handoff <slug>" | "brief <target>" | "search <terms>" | "show <id>" | "commits <slug>" | "conflicts" | "conflict <slug>" | "structure [<path>] [at <point>]" | "structure history" | "rules [status]" | "feature <slug> [step]" | "verify <slug>" | "milestones" | "roadmap" | "canvas [<name|id>]" [--scope <node>[,<node>]] [--exact] [--project <id>]
   polterware [-db path] status [--scope <node>[,<node>]] [--exact] [--project <id>]
   polterware [-db path] handoff [--card <slug>] [--note "..."] [--project <id>]
@@ -381,7 +382,7 @@ mod tests {
         let text = usage_text();
         assert!(text.starts_with("Usage:\n  polterware [-db path] init"));
         assert!(text.ends_with("(MCP server over stdio for coding agents)\n"));
-        assert_eq!(text.lines().count(), 32);
+        assert_eq!(text.lines().count(), 33);
     }
 
     #[test]

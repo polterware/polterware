@@ -744,12 +744,14 @@ mod tests {
         }
 
         let body = server.query("canvas Shared map");
+        // The source is the canvas: every node keeps its id, and its kind and
+        // ref ride in the metadata block so the graph reads back unchanged.
         let want = concat!(
             "flowchart LR\n",
-            "  n1@{ id: \"api\", label: \"Public API\", kind: \"service\", ref: \"fact/fact-1\" }\n",
-            "  n2@{ id: \"db\", label: \"Store\", kind: \"database\" }\n",
-            "  n3@{ id: \"note\", label: \"Sketch\", kind: \"note\" }\n",
-            "  class n2 unverified\n",
+            "  api[\"Public API\"]@{ kind: service, ref: fact/fact-1 }\n",
+            "  db[\"Store\"]@{ kind: database }\n",
+            "  note[\"Sketch\"]@{ kind: note }\n",
+            "  class db unverified\n",
         );
         assert_eq!(body, want, "export:\n{body}\nwant:\n{want}");
         assert!(

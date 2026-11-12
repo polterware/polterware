@@ -8,12 +8,14 @@ use serde_json::{Value, json};
 // These ceilings ratchet the text an agent receives from the seeded project.
 const TOKEN_CEILINGS: &[(&str, i32)] = &[
     ("mcp.initialize", 237),
-    ("mcp.tools_list", 702),
+    ("mcp.tools_list", 738),
     ("polter.format", 397),
     ("card.context", 341),
     ("node.context", 266),
     ("search", 36),
-    ("canvas.show", 91),
+    // The canvas source is the whole canvas: ids, kinds, refs, and props ride
+    // in each node's metadata so the text reads back unchanged.
+    ("canvas.show", 228),
 ];
 
 #[test]

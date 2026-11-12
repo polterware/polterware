@@ -82,10 +82,7 @@ pub fn graph_from_source(source: &str) -> Result<Graph> {
 
     let mut edges: Vec<Edge> = Vec::new();
     for (index, edge) in ast.edges.iter().enumerate() {
-        let link = edge
-            .id
-            .clone()
-            .unwrap_or_else(|| format!("l{}", index + 1));
+        let link = edge.id.clone().unwrap_or_else(|| format!("l{}", index + 1));
         let metadata = blocks.get(&link);
         let id = metadata_string(metadata, "id").unwrap_or_else(|| link.clone());
         if edges.iter().any(|existing| existing.id == id) {
@@ -253,7 +250,12 @@ fn id_before(source: &str, at: usize) -> String {
         }
     }
     let kept = kept.trim_end();
-    let start = kept.len() - kept.bytes().rev().take_while(|byte| is_id_byte(*byte)).count();
+    let start = kept.len()
+        - kept
+            .bytes()
+            .rev()
+            .take_while(|byte| is_id_byte(*byte))
+            .count();
     kept[start..].to_string()
 }
 
@@ -423,9 +425,15 @@ fn split_key_value(part: &str) -> Option<(&str, &str)> {
 }
 
 fn metadata_value(raw: &str) -> Value {
-    let unquoted = match raw.strip_prefix('"').and_then(|text| text.strip_suffix('"')) {
+    let unquoted = match raw
+        .strip_prefix('"')
+        .and_then(|text| text.strip_suffix('"'))
+    {
         Some(inner) => unescape(inner),
-        None => match raw.strip_prefix('\'').and_then(|text| text.strip_suffix('\'')) {
+        None => match raw
+            .strip_prefix('\'')
+            .and_then(|text| text.strip_suffix('\''))
+        {
             Some(inner) => inner.replace("''", "'"),
             None => raw.to_string(),
         },
@@ -522,8 +530,14 @@ mod tests {
             "flowchart LR\n  n1@{ shape: rect, label: \"Say \\\"hi\\\"\", kind: service, ref: node/n1, props: \"{\\\"technology\\\":\\\"Go\\\"}\" }\n",
         );
         let block = blocks.get("n1").expect("n1 metadata");
-        assert_eq!(metadata_string(Some(block), "label"), Some("Say \"hi\"".to_string()));
-        assert_eq!(metadata_string(Some(block), "kind"), Some("service".to_string()));
+        assert_eq!(
+            metadata_string(Some(block), "label"),
+            Some("Say \"hi\"".to_string())
+        );
+        assert_eq!(
+            metadata_string(Some(block), "kind"),
+            Some("service".to_string())
+        );
         assert_eq!(
             metadata_ref(Some(block)),
             Some(Ref {
@@ -541,8 +555,14 @@ mod tests {
     fn a_label_with_a_brace_or_comma_does_not_split_the_block() {
         let blocks = metadata_blocks("flowchart LR\n  n1@{ label: \"a, b { c }\", kind: note }\n");
         let block = blocks.get("n1").expect("n1 metadata");
-        assert_eq!(metadata_string(Some(block), "label"), Some("a, b { c }".to_string()));
-        assert_eq!(metadata_string(Some(block), "kind"), Some(KIND_NOTE.to_string()));
+        assert_eq!(
+            metadata_string(Some(block), "label"),
+            Some("a, b { c }".to_string())
+        );
+        assert_eq!(
+            metadata_string(Some(block), "kind"),
+            Some(KIND_NOTE.to_string())
+        );
     }
 
     fn sorted(mut graph: Graph) -> Graph {
@@ -621,7 +641,8 @@ mod tests {
         let layout = r#"{"nodes":{"01HORDERS":{"x":10,"y":20},"web":{"x":260,"y":20},"frame-1":{"x":0,"y":0,"width":600,"height":400}},"viewport":{"x":1,"y":2,"zoom":1}}"#;
         let pinned = pin_layout(layout);
         let source = super::super::export_mermaid(&graph, &pinned);
-        let back = graph_from_source(&source).unwrap_or_else(|err| panic!("parse: {err}\n{source}"));
+        let back =
+            graph_from_source(&source).unwrap_or_else(|err| panic!("parse: {err}\n{source}"));
         assert_eq!(sorted(back), sorted(graph.clone()), "source:\n{source}");
         let layout: Value = serde_json::from_str(&pinned).expect("pinned layout");
         for (id, _) in graph.nodes.iter().map(|node| (node.id.as_str(), node)) {
@@ -638,8 +659,12 @@ mod tests {
 
     #[test]
     fn a_parse_failure_carries_the_line_and_column() {
-        let err = graph_from_source("flowchart LR\n  A@{ shape: nonsense }\n").expect_err("bad shape");
-        assert_eq!(err.to_string(), "line 2, column 4: No such shape: nonsense.");
+        let err =
+            graph_from_source("flowchart LR\n  A@{ shape: nonsense }\n").expect_err("bad shape");
+        assert_eq!(
+            err.to_string(),
+            "line 2, column 4: No such shape: nonsense."
+        );
         let err = graph_from_source("stateDiagram-v2\n  A --> B\n").expect_err("not a flowchart");
         assert_eq!(
             err.to_string(),
@@ -670,7 +695,35 @@ mod tests {
     }
 
     #[test]
-    fn pinning_keeps_every_position_and_the_viewport() {        let pinned = pin_layout(r#"{"nodes":{"a":{"x":1,"y":2}},"viewport":{"x":4,"y":5,"zoom":2}}"#);
+    fn every_shape_the_registry_draws_parses_back() {
+        let mut shapes = 0;
+        for kind in crate::domains::canvas::SHAPE_KINDS {
+            if mermaid_shape(kind).is_none() {
+                continue;
+            }
+            shapes += 1;
+            let graph = Graph {
+                nodes: vec![Node {
+                    id: "shape".to_string(),
+                    kind: kind.to_string(),
+                    label: "One".to_string(),
+                    ..Node::default()
+                }],
+                edges: Vec::new(),
+            };
+            let source = super::super::export_mermaid(&graph, "");
+            let back = graph_from_source(&source)
+                .unwrap_or_else(|err| panic!("{kind} does not parse: {err}\n{source}"));
+            assert_eq!(back.nodes[0].kind, kind, "kind of {kind}:\n{source}");
+            assert_eq!(back.nodes[0].label, "One", "label of {kind}:\n{source}");
+        }
+        assert!(shapes > 0, "no shape is drawn from the registry");
+    }
+
+    #[test]
+    fn pinning_keeps_every_position_and_the_viewport() {
+        let pinned =
+            pin_layout(r#"{"nodes":{"a":{"x":1,"y":2}},"viewport":{"x":4,"y":5,"zoom":2}}"#);
         let value: Value = serde_json::from_str(&pinned).expect("layout");
         assert_eq!(value["nodes"]["a"]["pinned"], Value::Bool(true));
         assert_eq!(value["nodes"]["a"]["x"], serde_json::json!(1));
