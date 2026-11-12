@@ -60,4 +60,6 @@ pub fn open(path: impl AsRef<Path>) -> Result<Connection> {
 }
 
 #[cfg(test)]
+mod rules_unify_tests;
+#[cfg(test)]
 mod tests;
