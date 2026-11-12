@@ -133,6 +133,54 @@ struct CardWrite {
     restore: Vec<(String, String)>,
 }
 
+/// A card's spec sections its page edits in place: `behavior:`, `edge-cases:`, and `plan:`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CardSpec {
+    Behavior,
+    EdgeCases,
+    Plan,
+}
+
+impl CardSpec {
+    pub const ALL: [CardSpec; 3] = [CardSpec::Behavior, CardSpec::EdgeCases, CardSpec::Plan];
+
+    /// The section's Polter key.
+    pub fn key(self) -> &'static str {
+        match self {
+            CardSpec::Behavior => "behavior",
+            CardSpec::EdgeCases => "edge-cases",
+            CardSpec::Plan => "plan",
+        }
+    }
+
+    /// The section's words, as a change's summary names it.
+    pub fn label(self) -> &'static str {
+        match self {
+            CardSpec::Behavior => "behavior",
+            CardSpec::EdgeCases => "edge cases",
+            CardSpec::Plan => "plan",
+        }
+    }
+
+    /// The section's place in `ALL`, as a page's pending fields key it.
+    pub fn index(self) -> usize {
+        match self {
+            CardSpec::Behavior => 0,
+            CardSpec::EdgeCases => 1,
+            CardSpec::Plan => 2,
+        }
+    }
+
+    /// The section's body on `card`.
+    pub fn value(self, card: &WorkCard) -> &str {
+        match self {
+            CardSpec::Behavior => &card.behavior,
+            CardSpec::EdgeCases => &card.edge_cases,
+            CardSpec::Plan => &card.plan,
+        }
+    }
+}
+
 impl AppState {
     pub fn work(&self) -> &Load<Work> {
         &self.work
@@ -784,6 +832,29 @@ impl AppState {
                 rationale: String::new(),
                 written: None,
                 failed: "Could not update the task.",
+                restore: Vec::new(),
+            },
+            |_, _| {},
+            cx,
+        );
+    }
+
+    /// Writes one of the open card's spec sections (`behavior:`, `edge-cases:`, or `plan:`) with
+    /// its Markdown body, with no why: its page edits them in place.
+    pub fn save_card_spec(
+        &mut self,
+        slug: String,
+        spec: CardSpec,
+        body: String,
+        cx: &mut Context<Self>,
+    ) {
+        self.write_cards(
+            CardWrite {
+                text: work::polter_card_section(&slug, spec.key(), &body),
+                summary: format!("Update card {}: {slug}", spec.label()),
+                rationale: String::new(),
+                written: None,
+                failed: "Could not update the card.",
                 restore: Vec::new(),
             },
             |_, _| {},

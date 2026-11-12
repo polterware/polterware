@@ -36,7 +36,7 @@ mod settings;
 mod structure;
 pub use canvas::{CanvasList, CanvasPatch, OpenCanvas};
 pub use compose::ComposeRequest;
-pub use milestones::{BoardRoute, BoardTab, CardReads, MilestoneAction, Work};
+pub use milestones::{BoardRoute, BoardTab, CardReads, CardSpec, MilestoneAction, Work};
 pub use scope::{ScopeCatalog, ScopeKey, ScopeToken};
 pub use settings::{
     CoreRun, Platforms, ProjectSettingsData, SettingsScope, SettingsTab, default_protection,

@@ -1,34 +1,43 @@
 //! A card's page (`work-card-detail.tsx`, `work-card-work.tsx` on `KnowledgeDocumentShell`):
 //! a [`DocumentPage`] whose column holds the card's title and its intent (read-only: agents
-//! write cards with Polter), then what the card needs to move on, 32px apart and 48px under the
-//! intent, then its Activity.
+//! write cards with Polter), then the spec-driven flow, top to bottom, 32px apart and 48px
+//! under the intent: Spec, Plan, Tasks, Rules that apply, Analyze, and then what the card left
+//! behind (Commits, the last handoff, Runs, the Agent brief), then its Activity. Each group's
+//! header carries the stage it belongs to as a chip: Specify, Plan, Implement, or Analyze.
+//!
+//! Spec holds Behavior, Acceptance criteria (the card's invariants), and Edge cases, with the
+//! contract gate (Move to Planned) beside its header and the review's checks that hold it at
+//! its end. Behavior and Edge cases are Markdown, edited in place and saved 800ms after the
+//! last keystroke as a card block's `behavior:` and `edge-cases:` sections. Plan holds the plan
+//! text, edited the same way and written as the card's `plan:` section, with the plan gate
+//! (Start work) beside its header. Every empty section reads a one-line hint of what goes
+//! there.
 //!
 //! Tasks lists every task with its box (done and open; a dropped one opens again), its number,
-//! title, scope, and claim, and drops an open one from the × under the pointer; Invariants
-//! lists them. The next stage gate (Contract gate for an idea, Plan gate for a planned card)
-//! shows the review's checks that hold it, an error blocking its button (Move to Planned,
-//! Start work), and a refusal's lines above them. Verification reads whether the tasks and
-//! checks are done, never writing. Commits lists the ones linked to a task or citing it, opens
-//! one on GitHub, unlinks a linked one, and links one from the "+" Morph (a task, then a sha).
-//! Last handoff, Runs (each opening in Dispatch), and the Agent brief (previewed or copied)
-//! follow when there are any.
+//! title, scope, and claim, and drops an open one from the × under the pointer. Rules that
+//! apply lists the Rules in force for the card, each opening its page. Analyze reads whether
+//! the tasks, acceptance criteria, and Rules are met, never writing.
+//!
+//! Commits lists the ones linked to a task or citing it, opens one on GitHub, unlinks a linked
+//! one, and links one from the "+" Morph (a task, then a sha). Last handoff, Runs (each opening
+//! in Dispatch), and the Agent brief (previewed or copied) follow when there are any.
 //!
 //! The rail's Properties hold the Stage (a move back asks why), Slug, Kind, Owner, Component,
-//! and Updated, then how agents add to the card; Rules that apply lists the Rules in force for
-//! it, each opening its page; Questions lists its questions; the rail ends with Remove from
-//! board, which asks why.
+//! and Updated, then how agents add to the card; Questions lists its questions; the rail ends
+//! with Remove from board, which asks why.
 
 use std::rc::Rc;
+use std::time::Duration;
 
 use gpui::{
     AnyElement, App, AppContext as _, ClipboardItem, Context, Entity, IntoElement, Render,
-    SharedString, WeakEntity, Window, div, prelude::*, px,
+    SharedString, Subscription, WeakEntity, Window, div, prelude::*, px,
 };
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
 use polterware_ui::checkbox::checkbox_mark;
 use polterware_ui::chip::chip_rounded;
 use polterware_ui::icons::{Icon, icon_colored};
-use polterware_ui::markdown::markdown_view;
+use polterware_ui::markdown::{MarkdownEditor, MarkdownEditorEvent, markdown_view};
 use polterware_ui::menu::MenuItem;
 use polterware_ui::patterns::{
     ContextMenu, DocumentPage, Morph, MorphAlign, RailState, document_footer, document_group,
@@ -42,7 +51,7 @@ use polterware_ui::wrap::wrap_text;
 use crate::contracts::{CardCommit, WorkCard, WorkTask};
 use crate::dispatch;
 use crate::format::{format_instant, month_day_time};
-use crate::state::{AppState, CardReads, Load};
+use crate::state::{AppState, CardReads, CardSpec, Load};
 use crate::views::knowledge::{rule_status_label, rule_status_tone};
 use crate::views::knowledge_page::document_activity;
 use crate::views::milestones::MilestonesView;
@@ -50,6 +59,14 @@ use crate::work::{self, Stage};
 
 /// The StatusChip's radius on the web.
 const CHIP_RADIUS: f32 = 6.0;
+/// `createDocumentAutosave`'s debounce, for the spec sections the page edits.
+const AUTOSAVE: Duration = Duration::from_millis(800);
+/// What an empty Behavior section says to write there.
+const BEHAVIOR_HINT: &str = "What the feature does.";
+/// What an empty Edge cases section says to write there.
+const EDGE_CASES_HINT: &str = "The cases it must handle.";
+/// What an empty Plan section says to write there.
+const PLAN_HINT: &str = "Architecture, APIs, and files touched.";
 /// A sha the Link a commit form takes (`/^[0-9a-f]{4,40}$/i`).
 fn sha_ok(sha: &str) -> bool {
     (4..=40).contains(&sha.len()) && sha.chars().all(|letter| letter.is_ascii_hexdigit())
@@ -65,6 +82,17 @@ fn run_tone(status: &str) -> StatusTone {
     }
 }
 
+/// A spec section's editor: its Markdown, and the hint an empty one reads.
+fn spec_editor(
+    hint: &'static str,
+    source: &str,
+    cx: &mut Context<MarkdownEditor>,
+) -> MarkdownEditor {
+    let mut editor = MarkdownEditor::new(source, cx);
+    editor.set_placeholder(hint);
+    editor
+}
+
 pub struct CardPage {
     state: Entity<AppState>,
     host: WeakEntity<MilestonesView>,
@@ -78,6 +106,17 @@ pub struct CardPage {
     brief_open: bool,
     /// The card whose Activity was read.
     activity_for: Option<String>,
+    /// The spec sections' Markdown editors: Behavior, Edge cases, and Plan.
+    behavior: Entity<MarkdownEditor>,
+    edge_cases: Entity<MarkdownEditor>,
+    plan: Entity<MarkdownEditor>,
+    /// The card the spec editors hold.
+    spec_for: Option<String>,
+    /// A section waiting out the autosave (keyed by `CardSpec::index`): the card and the value.
+    pending_spec: [Option<(String, String)>; 3],
+    /// Bumped by each keystroke, so only the last one's timer saves.
+    spec_due: [u64; 3],
+    _spec_changes: [Subscription; 3],
 }
 
 impl CardPage {
@@ -91,6 +130,17 @@ impl CardPage {
         let menu = cx.new(ContextMenu::new);
         cx.observe(&menu, |_, _, cx| cx.notify()).detach();
         cx.observe(&state, |_, _, cx| cx.notify()).detach();
+        let behavior = cx.new(|cx| spec_editor(BEHAVIOR_HINT, "", cx));
+        let edge_cases = cx.new(|cx| spec_editor(EDGE_CASES_HINT, "", cx));
+        let plan = cx.new(|cx| spec_editor(PLAN_HINT, "", cx));
+        for editor in [&behavior, &edge_cases, &plan] {
+            cx.observe(editor, |_, _, cx| cx.notify()).detach();
+        }
+        let spec_changes = [
+            cx.subscribe(&behavior, CardPage::behavior_typed),
+            cx.subscribe(&edge_cases, CardPage::edge_cases_typed),
+            cx.subscribe(&plan, CardPage::plan_typed),
+        ];
         Self {
             state,
             host,
@@ -102,10 +152,20 @@ impl CardPage {
             link_saving: false,
             brief_open: false,
             activity_for: None,
+            behavior,
+            edge_cases,
+            plan,
+            spec_for: None,
+            pending_spec: [None, None, None],
+            spec_due: [0, 0, 0],
+            _spec_changes: spec_changes,
         }
     }
 
     fn back(&mut self, cx: &mut Context<Self>) {
+        for field in 0..3 {
+            self.flush_spec(field, cx);
+        }
         self.state.update(cx, |state, cx| {
             if state.can_go_back() {
                 state.go_back(cx);
@@ -119,8 +179,9 @@ impl CardPage {
         });
     }
 
-    /// Reads the card's Activity when another card opens.
+    /// Reads the card's Activity when another card opens, and shows its spec sections.
     fn sync(&mut self, card: &WorkCard, cx: &mut Context<Self>) {
+        self.sync_spec(card, cx);
         if self.activity_for.as_deref() == Some(card.id.as_str()) {
             return;
         }
@@ -132,6 +193,125 @@ impl CardPage {
         let subject = card.id.clone();
         self.state
             .update(cx, |state, cx| state.load_document_activity(subject, cx));
+    }
+
+    /// Shows `card`'s spec sections: new editors for another card (writing what the last one
+    /// still held), else only what changed elsewhere and is not being typed.
+    fn sync_spec(&mut self, card: &WorkCard, cx: &mut Context<Self>) {
+        if self.spec_for.as_deref() != Some(card.id.as_str()) {
+            for field in 0..3 {
+                self.flush_spec(field, cx);
+            }
+            self.spec_for = Some(card.id.clone());
+            let behavior = card.behavior.clone();
+            self.behavior = cx.new(|cx| spec_editor(BEHAVIOR_HINT, &behavior, cx));
+            let edge_cases = card.edge_cases.clone();
+            self.edge_cases = cx.new(|cx| spec_editor(EDGE_CASES_HINT, &edge_cases, cx));
+            let plan = card.plan.clone();
+            self.plan = cx.new(|cx| spec_editor(PLAN_HINT, &plan, cx));
+            for editor in [&self.behavior, &self.edge_cases, &self.plan] {
+                cx.observe(editor, |_, _, cx| cx.notify()).detach();
+            }
+            self._spec_changes = [
+                cx.subscribe(&self.behavior, CardPage::behavior_typed),
+                cx.subscribe(&self.edge_cases, CardPage::edge_cases_typed),
+                cx.subscribe(&self.plan, CardPage::plan_typed),
+            ];
+            return;
+        }
+        let editors = [
+            self.behavior.clone(),
+            self.edge_cases.clone(),
+            self.plan.clone(),
+        ];
+        for (spec, editor) in CardSpec::ALL.into_iter().zip(editors) {
+            if self.pending_spec[spec.index()].is_some() {
+                continue;
+            }
+            let saved = spec.value(card);
+            if editor.read(cx).source() != saved {
+                editor.update(cx, |editor, cx| editor.set_source(saved, cx));
+            }
+        }
+    }
+
+    fn behavior_typed(
+        &mut self,
+        _: Entity<MarkdownEditor>,
+        event: &MarkdownEditorEvent,
+        cx: &mut Context<Self>,
+    ) {
+        self.spec_typed(CardSpec::Behavior, event, cx);
+    }
+
+    fn edge_cases_typed(
+        &mut self,
+        _: Entity<MarkdownEditor>,
+        event: &MarkdownEditorEvent,
+        cx: &mut Context<Self>,
+    ) {
+        self.spec_typed(CardSpec::EdgeCases, event, cx);
+    }
+
+    fn plan_typed(
+        &mut self,
+        _: Entity<MarkdownEditor>,
+        event: &MarkdownEditorEvent,
+        cx: &mut Context<Self>,
+    ) {
+        self.spec_typed(CardSpec::Plan, event, cx);
+    }
+
+    /// Keeps a section's new Markdown until no keystroke comes for a while.
+    fn spec_typed(&mut self, spec: CardSpec, event: &MarkdownEditorEvent, cx: &mut Context<Self>) {
+        let MarkdownEditorEvent::Changed(source) = event;
+        let Some(slug) = self.spec_for.clone() else {
+            return;
+        };
+        if self.saved_spec(&slug, spec, cx).as_deref() == Some(source.trim()) {
+            self.pending_spec[spec.index()] = None;
+            return;
+        }
+        self.pending_spec[spec.index()] = Some((slug, source.clone()));
+        self.schedule_spec(spec.index(), cx);
+    }
+
+    /// The section's body as the card holds it now.
+    fn saved_spec(&self, slug: &str, spec: CardSpec, cx: &App) -> Option<String> {
+        match self.state.read(cx).work() {
+            Load::Ready(work) => work
+                .card(slug)
+                .map(|card| spec.value(card).trim().to_string()),
+            _ => None,
+        }
+    }
+
+    /// Saves section `field` once no keystroke came for a while.
+    fn schedule_spec(&mut self, field: usize, cx: &mut Context<Self>) {
+        self.spec_due[field] += 1;
+        let due = self.spec_due[field];
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(AUTOSAVE).await;
+            let _ = this.update(cx, |this, cx| {
+                if this.spec_due[field] == due {
+                    this.flush_spec(field, cx);
+                }
+            });
+        })
+        .detach();
+    }
+
+    /// Writes section `field` now, when it waits.
+    fn flush_spec(&mut self, field: usize, cx: &mut Context<Self>) {
+        let Some((slug, body)) = self.pending_spec[field].take() else {
+            return;
+        };
+        let spec = CardSpec::ALL[field];
+        if self.saved_spec(&slug, spec, cx).as_deref() == Some(body.trim()) {
+            return;
+        }
+        self.state
+            .update(cx, |state, cx| state.save_card_spec(slug, spec, body, cx));
     }
 
     fn set_task(&self, slug: &str, task: &WorkTask, next: &str, cx: &mut Context<Self>) {
@@ -298,84 +478,88 @@ impl CardPage {
     }
 
     /// `Rules that apply`: every Rule in force for the card by its statement and status, each
-    /// row opening the Rule's page.
-    fn rules_applying(&self, card: &WorkCard, cx: &mut Context<Self>) -> Option<AnyElement> {
-        if card.rules.is_empty() {
-            return None;
-        }
+    /// row opening the Rule's page; the law the implementation keeps and Analyze confirms.
+    fn rules_applying(&self, card: &WorkCard, cx: &mut Context<Self>) -> AnyElement {
         let theme = *Theme::global(cx);
         let rules = match self.state.read(cx).knowledge() {
             Load::Ready(knowledge) => knowledge.rules.clone(),
             _ => Vec::new(),
         };
-        let state = self.state.clone();
-        let rows = card.rules.iter().enumerate().map(|(index, handle)| {
-            let rule = rules
-                .iter()
-                .find(|rule| &rule.slug == handle || &rule.id == handle);
-            let statement = rule.map_or_else(
-                || handle.clone(),
-                |rule| {
-                    if rule.statement.is_empty() {
-                        handle.clone()
-                    } else {
-                        rule.statement.clone()
-                    }
-                },
-            );
-            let status = rule.map(|rule| rule.status.clone());
-            let id = rule.map(|rule| rule.id.clone());
-            let page = state.clone();
-            div()
-                .id(("card-rule", index))
-                .w_full()
-                .min_w(px(0.0))
-                .flex()
-                .items_center()
-                .gap(px(8.0))
-                .px(px(4.0))
-                .rounded(px(theme.radius_item))
-                .when(id.is_some(), |row| {
-                    row.cursor_pointer()
-                        .hover(|row| row.bg(theme.color_surface_hover))
-                })
-                .on_click(move |_, _, cx| {
-                    if let Some(id) = id.clone() {
-                        page.update(cx, |state, cx| state.open_rule(id, cx));
-                    }
-                })
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .text_size(px(12.5))
-                        .line_height(px(18.0))
-                        .text_color(theme.color_text_secondary)
-                        .child(wrap_text(statement)),
-                )
-                .children(status.map(|status| {
-                    chip_rounded(
-                        rule_status_label(&status),
-                        rule_status_tone(&status),
-                        CHIP_RADIUS,
-                        cx,
-                    )
-                }))
-        });
-        Some(
-            document_group(
-                "Rules that apply",
-                Icon::ShieldCheck,
+        let content = if card.rules.is_empty() {
+            Self::muted("No Rules apply to this card.", cx)
+        } else {
+            let state = self.state.clone();
+            let rows = card.rules.iter().enumerate().map(|(index, handle)| {
+                let rule = rules
+                    .iter()
+                    .find(|rule| &rule.slug == handle || &rule.id == handle);
+                let statement = rule.map_or_else(
+                    || handle.clone(),
+                    |rule| {
+                        if rule.statement.is_empty() {
+                            handle.clone()
+                        } else {
+                            rule.statement.clone()
+                        }
+                    },
+                );
+                let status = rule.map(|rule| rule.status.clone());
+                let id = rule.map(|rule| rule.id.clone());
+                let page = state.clone();
                 div()
-                    .px(px(4.0))
+                    .id(("card-rule", index))
+                    .w_full()
+                    .min_w(px(0.0))
                     .flex()
-                    .flex_col()
-                    .gap(px(4.0))
-                    .children(rows),
-                cx,
-            )
-            .into_any_element(),
+                    .items_center()
+                    .gap(px(8.0))
+                    .px(px(4.0))
+                    .rounded(px(theme.radius_item))
+                    .when(id.is_some(), |row| {
+                        row.cursor_pointer()
+                            .hover(|row| row.bg(theme.color_surface_hover))
+                    })
+                    .on_click(move |_, _, cx| {
+                        if let Some(id) = id.clone() {
+                            page.update(cx, |state, cx| state.open_rule(id, cx));
+                        }
+                    })
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w(px(0.0))
+                            .text_size(px(12.5))
+                            .line_height(px(18.0))
+                            .text_color(theme.color_text_secondary)
+                            .child(wrap_text(statement)),
+                    )
+                    .children(status.map(|status| {
+                        chip_rounded(
+                            rule_status_label(&status),
+                            rule_status_tone(&status),
+                            CHIP_RADIUS,
+                            cx,
+                        )
+                    }))
+            });
+            div()
+                .px(px(4.0))
+                .flex()
+                .flex_col()
+                .gap(px(4.0))
+                .children(rows)
+                .into_any_element()
+        };
+        let aside = Self::group_aside(Self::stage_chip("Implement", cx), None);
+        document_group_with(
+            "Rules that apply",
+            Icon::ShieldCheck,
+            Some(aside),
+            true,
+            content,
+            cx,
         )
+        .into_any_element()
     }
 
     fn muted(text: impl Into<SharedString>, cx: &App) -> AnyElement {
@@ -418,7 +602,7 @@ impl CardPage {
     fn tasks(&self, card: &WorkCard, pending: bool, cx: &mut Context<Self>) -> AnyElement {
         let theme = *Theme::global(cx);
         let (done, total) = work::task_progress(card);
-        let aside = (total > 0).then(|| {
+        let progress = (total > 0).then(|| {
             chip_rounded(
                 format!("{done}/{total}"),
                 if done == total {
@@ -431,6 +615,7 @@ impl CardPage {
             )
             .into_any_element()
         });
+        let aside = Self::group_aside(Self::stage_chip("Implement", cx), progress);
         let content = if card.tasks.is_empty() {
             div()
                 .px(px(4.0))
@@ -541,59 +726,151 @@ impl CardPage {
                 .children(rows)
                 .into_any_element()
         };
-        document_group_with("Tasks", Icon::ListChecks, aside, true, content, cx).into_any_element()
+        document_group_with("Tasks", Icon::ListChecks, Some(aside), true, content, cx)
+            .into_any_element()
     }
 
-    fn invariants(card: &WorkCard, cx: &App) -> Option<AnyElement> {
-        if card.invariants.is_empty() {
-            return None;
-        }
+    /// A group's stage chip, as every group of the card's flow carries one: Specify, Plan,
+    /// Implement, or Analyze.
+    fn stage_chip(label: &'static str, cx: &App) -> AnyElement {
+        chip_rounded(label, StatusTone::Muted, CHIP_RADIUS, cx).into_any_element()
+    }
+
+    /// A group's aside: its stage chip, then what its header also holds.
+    fn group_aside(chip: AnyElement, extra: Option<AnyElement>) -> AnyElement {
+        div()
+            .flex()
+            .items_center()
+            .gap(px(8.0))
+            .child(chip)
+            .children(extra)
+            .into_any_element()
+    }
+
+    /// A section's name inside a group, above its Markdown or list.
+    fn section_label(label: &'static str, cx: &App) -> AnyElement {
         let theme = Theme::global(cx);
-        let rows = card.invariants.iter().map(|invariant| {
-            div()
-                .flex()
-                .gap(px(8.0))
-                .child(div().flex_none().child("•"))
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .child(wrap_text(invariant.text.clone())),
-                )
-        });
-        Some(
-            document_group_with(
-                "Invariants",
-                Icon::ShieldCheck,
-                None,
-                true,
-                div()
-                    .pl(px(8.0))
-                    .pr(px(4.0))
-                    .flex()
-                    .flex_col()
-                    .gap(px(4.0))
-                    .text_size(px(13.0))
-                    .text_color(theme.color_text_secondary)
-                    .children(rows),
-                cx,
-            )
-            .into_any_element(),
-        )
+        div()
+            .text_size(px(12.5))
+            .line_height(px(18.0))
+            .font_weight(gpui::FontWeight::MEDIUM)
+            .text_color(theme.color_text_muted)
+            .child(label)
+            .into_any_element()
     }
 
-    fn gate(
+    /// The spec's third part: the acceptance criteria, which are the card's invariants.
+    fn acceptance(card: &WorkCard, cx: &App) -> AnyElement {
+        let theme = Theme::global(cx);
+        let content = if card.invariants.is_empty() {
+            Self::muted("No acceptance criteria yet.", cx)
+        } else {
+            let rows = card.invariants.iter().map(|invariant| {
+                div()
+                    .flex()
+                    .gap(px(8.0))
+                    .child(div().flex_none().child("•"))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w(px(0.0))
+                            .child(wrap_text(invariant.text.clone())),
+                    )
+            });
+            div()
+                .pl(px(8.0))
+                .pr(px(4.0))
+                .flex()
+                .flex_col()
+                .gap(px(4.0))
+                .text_size(px(13.0))
+                .line_height(px(20.0))
+                .text_color(theme.color_text_secondary)
+                .children(rows)
+                .into_any_element()
+        };
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(6.0))
+            .child(Self::section_label("Acceptance criteria", cx))
+            .child(content)
+            .into_any_element()
+    }
+
+    /// Spec: what the card does, the acceptance criteria its contract accepts, and the cases it
+    /// must handle. The contract gate and what holds it sit here, under the "Specify" chip.
+    fn spec(
         &self,
         card: &WorkCard,
         reads: &CardReads,
+        gate: Option<work::Gate>,
         cx: &mut Context<Self>,
-    ) -> Option<AnyElement> {
-        let theme = *Theme::global(cx);
-        let gate = work::next_gate(Stage::of(card))?;
+    ) -> AnyElement {
+        let contract = gate.filter(|gate| gate.step == "contract");
+        let aside = Self::group_aside(
+            Self::stage_chip("Specify", cx),
+            contract.map(|gate| self.gate_action(card, gate, reads)),
+        );
+        let notes = contract.and_then(|_| self.gate_notes(reads, cx));
+        let content = div()
+            .px(px(4.0))
+            .flex()
+            .flex_col()
+            .gap(px(16.0))
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(6.0))
+                    .child(Self::section_label("Behavior", cx))
+                    .child(self.behavior.clone()),
+            )
+            .child(Self::acceptance(card, cx))
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(6.0))
+                    .child(Self::section_label("Edge cases", cx))
+                    .child(self.edge_cases.clone()),
+            )
+            .children(notes);
+        document_group_with("Spec", Icon::FileText, Some(aside), true, content, cx)
+            .into_any_element()
+    }
+
+    /// Plan: the architecture, APIs, and files touched, with the plan gate's approve action and
+    /// what holds it, under the "Plan" chip.
+    fn plan_group(
+        &self,
+        card: &WorkCard,
+        reads: &CardReads,
+        gate: Option<work::Gate>,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let plan = gate.filter(|gate| gate.step == "plan");
+        let aside = Self::group_aside(
+            Self::stage_chip("Plan", cx),
+            plan.map(|gate| self.gate_action(card, gate, reads)),
+        );
+        let notes = plan.and_then(|_| self.gate_notes(reads, cx));
+        let content = div()
+            .px(px(4.0))
+            .flex()
+            .flex_col()
+            .gap(px(16.0))
+            .child(self.plan.clone())
+            .children(notes);
+        document_group_with("Plan", Icon::Route, Some(aside), true, content, cx).into_any_element()
+    }
+
+    /// The button that passes `gate` (`AdvanceFeature`), which asks no why.
+    fn gate_action(&self, card: &WorkCard, gate: work::Gate, reads: &CardReads) -> AnyElement {
         let blocked = reads.checks.iter().any(|check| check.error);
         let state = self.state.clone();
         let slug = card.slug.clone();
-        let button = Button::new("card-gate", ButtonKind::Secondary)
+        Button::new("card-gate", ButtonKind::Secondary)
             .size(ButtonSize::Sm)
             .label(if reads.advancing {
                 "Moving…"
@@ -605,48 +882,38 @@ impl CardPage {
                 let slug = slug.clone();
                 state.update(cx, |state, cx| state.advance_card(slug, gate.step, cx));
             })
-            .into_any_element();
-        let content = if reads.checks.is_empty() && reads.refusal.is_empty() {
-            Self::muted("Nothing holds this card back.", cx)
-        } else {
-            let lines = reads
-                .refusal
-                .iter()
-                .map(|message| Self::check_line(Icon::Close, theme.color_danger, message, cx))
-                .chain(reads.checks.iter().map(|check| {
-                    if check.error {
-                        Self::check_line(Icon::Close, theme.color_danger, &check.message, cx)
-                    } else {
-                        Self::check_line(
-                            Icon::HelpCircle,
-                            theme.color_text_muted,
-                            &check.message,
-                            cx,
-                        )
-                    }
-                }));
+            .into_any_element()
+    }
+
+    /// What holds the next gate: the refusal's lines, then the review's checks.
+    fn gate_notes(&self, reads: &CardReads, cx: &App) -> Option<AnyElement> {
+        if reads.checks.is_empty() && reads.refusal.is_empty() {
+            return None;
+        }
+        let theme = *Theme::global(cx);
+        let lines = reads
+            .refusal
+            .iter()
+            .map(|message| Self::check_line(Icon::Close, theme.color_danger, message, cx))
+            .chain(reads.checks.iter().map(|check| {
+                if check.error {
+                    Self::check_line(Icon::Close, theme.color_danger, &check.message, cx)
+                } else {
+                    Self::check_line(Icon::HelpCircle, theme.color_text_muted, &check.message, cx)
+                }
+            }));
+        Some(
             div()
-                .mt(px(8.0))
                 .flex()
                 .flex_col()
                 .gap(px(8.0))
                 .children(lines)
-                .into_any_element()
-        };
-        Some(
-            document_group_with(
-                gate.title,
-                Icon::ShieldCheck,
-                Some(button),
-                true,
-                content,
-                cx,
-            )
-            .into_any_element(),
+                .into_any_element(),
         )
     }
 
-    fn verification(&self, reads: &CardReads, cx: &mut Context<Self>) -> AnyElement {
+    /// Analyze: what `verify` read about the card, and the button that reads it again.
+    fn analyze(&self, reads: &CardReads, cx: &mut Context<Self>) -> AnyElement {
         let theme = *Theme::global(cx);
         let state = self.state.clone();
         let button = Button::new("card-verify", ButtonKind::Secondary)
@@ -659,13 +926,14 @@ impl CardPage {
             .disabled(reads.verifying)
             .on_click(move |_, cx| state.update(cx, |state, cx| state.verify_card(cx)))
             .into_any_element();
-        let content =
-            match &reads.verification {
-                None => Self::muted(
-                    "Verify reads whether the card's tasks and checks are done. It never writes.",
-                    cx,
-                ),
-                Some(result) => div()
+        let aside = Self::group_aside(Self::stage_chip("Analyze", cx), Some(button));
+        let content = match &reads.verification {
+            None => Self::muted(
+                "Verify reads whether the card's tasks, acceptance criteria, and Rules are met. It never writes.",
+                cx,
+            ),
+            Some(result) => {
+                div()
                     .flex()
                     .flex_col()
                     .items_start()
@@ -713,9 +981,10 @@ impl CardPage {
                                 },
                             )),
                     )
-                    .into_any_element(),
-            };
-        document_group_with("Verification", Icon::Check, Some(button), true, content, cx)
+                    .into_any_element()
+            }
+        };
+        document_group_with("Analyze", Icon::Check, Some(aside), true, content, cx)
             .into_any_element()
     }
 
@@ -1221,10 +1490,14 @@ impl Render for CardPage {
         } else {
             markdown_view(&card.intent, cx).into_any_element()
         };
-        let mut groups: Vec<AnyElement> = vec![self.tasks(&card, pending, cx)];
-        groups.extend(Self::invariants(&card, cx));
-        groups.extend(self.gate(&card, &reads, cx));
-        groups.push(self.verification(&reads, cx));
+        let gate = work::next_gate(Stage::of(&card));
+        let mut groups: Vec<AnyElement> = vec![
+            self.spec(&card, &reads, gate, cx),
+            self.plan_group(&card, &reads, gate, cx),
+            self.tasks(&card, pending, cx),
+            self.rules_applying(&card, cx),
+            self.analyze(&reads, cx),
+        ];
         groups.push(self.commits(&card, &reads, cx));
         groups.extend(Self::handoff(&reads, cx));
         groups.extend(Self::runs(&reads, cx));
@@ -1244,9 +1517,6 @@ impl Render for CardPage {
             .on_back(back)
             .rail_state(&self.rail)
             .rail(self.properties(&card, cx));
-        if let Some(rules) = self.rules_applying(&card, cx) {
-            document = document.rail(rules);
-        }
         if let Some(questions) = self.questions(&card, cx) {
             document = document.rail(questions);
         }
