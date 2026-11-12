@@ -324,7 +324,7 @@ mod tests {
             &project_id,
             "Ask",
             &format!(
-                "---\npolter: 1\n---\n## {slug}\nbehavior: Import every commit of the checkout.\n? Include merge commits? [blocking]\n! No network calls during scan\n"
+                "---\npolter: 1\n---\n## {slug}\n? Include merge commits? [blocking]\n! No network calls during scan\nbehavior: Import every commit of the checkout.\n"
             ),
         );
         let (_, _, diags) =
@@ -358,7 +358,7 @@ mod tests {
             &project_id,
             "Plan",
             &format!(
-                "---\npolter: 1\n---\n## {slug}\nplan: Read HEAD, then stamp each fact.\nFiles: backend/git/*, core/work/*\n- [ ] Read HEAD `backend/git/*`\n- [ ] Stamp facts\n"
+                "---\npolter: 1\n---\n## {slug}\n- [ ] Read HEAD `backend/git/*`\n- [ ] Stamp facts\nplan: Read HEAD, then stamp each fact.\nFiles: backend/git/*, core/work/*\n"
             ),
         );
         let (advance, _, diags) =
@@ -422,7 +422,7 @@ mod tests {
             &project_id,
             "Specify",
             &format!(
-                "---\npolter: 1\n---\n## {slug}: Git import\nstage: verify\nbehavior: Import every commit.\n! No network calls\n- [x] T1 Read HEAD\n\n#### rule local-only: Never call the network\nstatus: active\n"
+                "---\npolter: 1\n---\n## {slug}: Git import\nstage: verify\n! No network calls\n- [x] T1 Read HEAD\nbehavior: Import every commit.\n\n#### rule local-only: Never call the network\nstatus: active\n"
             ),
         );
 

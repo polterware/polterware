@@ -26,10 +26,6 @@ pub fn format(doc: &Document) -> String {
         out.push('\n');
         write_structure_node(&mut out, node);
     }
-    for card in &doc.cards {
-        out.push('\n');
-        write_card(&mut out, card);
-    }
     for decision in &doc.decisions {
         out.push('\n');
         write_decision(&mut out, decision);
@@ -77,6 +73,12 @@ pub fn format(doc: &Document) -> String {
                 out.push_str(&format!("{key}: {value}\n"));
             }
         }
+    }
+    // Cards come last: a card body is Markdown that runs to the end of its
+    // block, so nothing but another block may follow one.
+    for card in &doc.cards {
+        out.push('\n');
+        write_card(&mut out, card);
     }
     out
 }
@@ -266,17 +268,6 @@ fn write_card(out: &mut String, card: &CardNode) {
         out.push_str(&card.intent);
         out.push('\n');
     }
-    for (key, value) in [
-        ("behavior", &card.behavior),
-        ("edge-cases", &card.edge_cases),
-        ("plan", &card.plan),
-    ] {
-        if value.trim().is_empty() {
-            continue;
-        }
-        out.push('\n');
-        write_card_section(out, key, value);
-    }
     if !card.tasks.is_empty() || !card.questions.is_empty() || !card.invariants.is_empty() {
         out.push('\n');
     }
@@ -323,6 +314,19 @@ fn write_card(out: &mut String, card: &CardNode) {
             out.push_str(" [removed]");
         }
         out.push('\n');
+    }
+    // The spec comes last: a section body runs to the next section or the end
+    // of the card, so no card line may follow one.
+    for (key, value) in [
+        ("behavior", &card.behavior),
+        ("edge-cases", &card.edge_cases),
+        ("plan", &card.plan),
+    ] {
+        if value.trim().is_empty() {
+            continue;
+        }
+        out.push('\n');
+        write_card_section(out, key, value);
     }
 }
 
@@ -593,6 +597,77 @@ mod tests {
                 && text.contains("\nplan: Read HEAD, then write facts.\n"),
             "each section starts on its own line:\n{text}"
         );
+    }
+
+    #[test]
+    fn a_card_body_round_trips_its_markdown() {
+        let text = concat!(
+            "---\npolter: 1\n---\n",
+            "## git-import: Git import\n",
+            "! No network calls\n",
+            "- [ ] T1 Wire import\n",
+            "behavior: Import every commit.\n",
+            "\n",
+            "### How it reads\n",
+            "! A bang line stays text\n",
+            "- [ ] a checklist item stays text\n",
+            "? and a question stays text\n",
+            "\n",
+            "#### rule local-only: Never call the network\n",
+            "status: active\n",
+        );
+        let (doc, diags) = decode(text);
+        assert!(!has_errors(&diags), "decode: {diags:?}");
+        let card = &doc.cards[0];
+        assert_eq!(card.tasks.len(), 1, "the task before the section");
+        assert_eq!(card.invariants.len(), 1, "the invariant before the section");
+        assert_eq!(card.questions.len(), 0, "no question: it is body text");
+        assert_eq!(
+            card.behavior,
+            "Import every commit.\n\n### How it reads\n! A bang line stays text\n- [ ] a checklist item stays text\n? and a question stays text",
+            "the body keeps its Markdown"
+        );
+        assert_eq!(doc.rules.len(), 1, "the Rule still starts its block");
+
+        let once = format(&doc);
+        let (again, diags) = decode(&once);
+        assert!(!has_errors(&diags), "canonical text: {diags:?}\n{once}");
+        assert_eq!(
+            again.cards[0].behavior, card.behavior,
+            "the body round-trips"
+        );
+        assert_eq!(format(&again), once, "the round trip differs");
+    }
+
+    #[test]
+    fn a_rule_why_body_round_trips_its_markdown() {
+        let text = concat!(
+            "---\npolter: 1\n---\n",
+            "#### rule local-only: Never call the network from the core.\n",
+            "status: active\n",
+            "why: The core reads the local store only.\n",
+            "\n",
+            "##### Caching\n",
+            "! A bang line stays text\n",
+            "- [ ] a checklist item stays text\n",
+            "\n",
+            "#### rule read-store: Read the store.\n",
+            "status: active\n",
+        );
+        let (doc, diags) = decode(text);
+        assert!(!has_errors(&diags), "decode: {diags:?}");
+        assert_eq!(
+            doc.rules[0].why,
+            "The core reads the local store only.\n\n##### Caching\n! A bang line stays text\n- [ ] a checklist item stays text",
+            "the reason keeps its Markdown"
+        );
+        assert_eq!(doc.rules.len(), 2, "the next Rule starts its block");
+
+        let once = format(&doc);
+        let (again, diags) = decode(&once);
+        assert!(!has_errors(&diags), "canonical text: {diags:?}\n{once}");
+        assert_eq!(again.rules[0].why, doc.rules[0].why, "why round-trips");
+        assert_eq!(format(&again), once, "the round trip differs");
     }
 
     #[test]
