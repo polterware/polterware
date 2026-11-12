@@ -72,6 +72,8 @@ const RESTORE_FRAMES: u8 = 4;
 /// How many frames a reveal runs for: the inspector's panel slides in over the diagram, and
 /// every frame it moves leaves a different room to fit the drawing into.
 const REVEAL_FRAMES: u8 = 12;
+/// The floating controls' height, including the dock's padding.
+const DOCK_HEIGHT: f32 = 40.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Tool {
@@ -174,6 +176,9 @@ pub struct CanvasEditor {
     /// itself, and the frames left to wait for that.
     restore_viewport: Option<SceneViewport>,
     restore_waits: u8,
+    /// The last library inset, so opening or closing it keeps the free area's origin fixed
+    /// relative to the drawing.
+    last_left_inset: Option<f32>,
     /// The diagram has never been fitted: it opens fitted to the whole drawing, and a canvas
     /// with a saved viewport restores that instead.
     fit_on_open: bool,
@@ -326,6 +331,7 @@ impl CanvasEditor {
             view,
             restore_viewport: opened_viewport,
             restore_waits: RESTORE_FRAMES,
+            last_left_inset: None,
             fit_on_open: opened_viewport.is_none(),
             fit_waits: RESTORE_FRAMES,
             opened_viewport,
@@ -414,14 +420,77 @@ impl CanvasEditor {
     /// Puts the pan and zoom waiting to be restored on screen. `MermaidView` measures itself
     /// on its first paint, so the wish is kept until it has.
     fn place_viewport(&mut self, cx: &mut Context<Self>) {
-        let Some(target) = self.restore_viewport else {
+        let Some(saved) = self.restore_viewport else {
             return;
         };
         if self.view.read(cx).viewport().is_none() {
             return;
         }
         self.restore_viewport = None;
+        let insets = self.free_area_insets(cx);
+        let target = source::viewport_from_free_origin(saved, insets.0, insets.2);
+        let Some(bounds) = self.host.get() else {
+            self.restore_viewport = Some(saved);
+            return;
+        };
+        let free_area = Self::free_area_rect(
+            (f32::from(bounds.size.width), f32::from(bounds.size.height)),
+            insets,
+        );
+        let target = if source::restored_view_needs_fit(
+            self.view.read(cx).scene().view_box,
+            target,
+            free_area,
+        ) {
+            source::fit_viewport_in_area(
+                self.view.read(cx).scene().view_box,
+                (f32::from(bounds.size.width), f32::from(bounds.size.height)),
+                insets,
+                source::REVEAL_MARGIN,
+            )
+        } else {
+            target
+        };
         self.apply_view(target, cx);
+        self.opened_viewport = Some(target);
+    }
+
+    fn free_area_insets(&self, cx: &App) -> (f32, f32, f32, f32) {
+        (
+            self.open_panel_width(PanelSide::Left, cx),
+            self.open_panel_width(PanelSide::Right, cx),
+            PANEL_INSET + Theme::global(cx).page_header_height,
+            PANEL_INSET + DOCK_HEIGHT,
+        )
+    }
+
+    fn free_area_rect(surface: (f32, f32), insets: (f32, f32, f32, f32)) -> Rect {
+        let (width, height) = surface;
+        let (left, right, top, bottom) = insets;
+        Rect::new(
+            f64::from(left),
+            f64::from(top),
+            f64::from((width - left - right).max(0.0)),
+            f64::from((height - top - bottom).max(0.0)),
+        )
+    }
+
+    fn preserve_free_area_origin(&mut self, cx: &mut Context<Self>) {
+        let left = self.free_area_insets(cx).0;
+        if let Some(previous) = self.last_left_inset.replace(left) {
+            let delta = left - previous;
+            if delta.abs() > 0.5
+                && let Some(viewport) = self.view.read(cx).viewport()
+            {
+                self.apply_view(
+                    SceneViewport::new(viewport.x + delta, viewport.y, viewport.zoom),
+                    cx,
+                );
+                if let Some(opened) = self.opened_viewport.as_mut() {
+                    opened.x += delta;
+                }
+            }
+        }
     }
 
     /// Moves the pan and zoom to `target`. `MermaidView` zooms around a point rather than
@@ -473,22 +542,22 @@ impl CanvasEditor {
         };
         let full_width = f32::from(bounds.size.width);
         let height = f32::from(bounds.size.height);
-        let left = self.open_panel_width(PanelSide::Left, cx);
-        let right = self.open_panel_width(PanelSide::Right, cx);
+        let (left, right, top, bottom) = self.free_area_insets(cx);
         let room_width = (full_width - left - right).max(1.0);
+        let room_height = (height - top - bottom).max(1.0);
         let focus = Rect::new(f64::from(bx), f64::from(by), f64::from(bw), f64::from(bh));
         let view_box = self.view.read(cx).scene().view_box;
-        let local_current = SceneViewport::new(current.x - left, current.y, current.zoom);
+        let local_current = source::viewport_at_free_origin(current, left, top);
         let Some(mut target) = source::reveal_view(
             local_current,
             view_box,
-            (room_width, height),
+            (room_width, room_height),
             focus,
             source::REVEAL_MARGIN,
         ) else {
             return false;
         };
-        target.x += left;
+        target = source::viewport_from_free_origin(target, left, top);
         self.apply_view(target, cx);
         true
     }
@@ -502,7 +571,7 @@ impl CanvasEditor {
             PanelSide::Right => &self.inspector_panel,
         };
         if panel.read(cx).is_open() {
-            panel.read(cx).width()
+            panel.read(cx).width() + PANEL_INSET
         } else {
             0.0
         }
@@ -515,11 +584,10 @@ impl CanvasEditor {
         if self.view.read(cx).viewport().is_none() {
             return false;
         }
-        let target = source::fit_viewport_inset(
+        let target = source::fit_viewport_in_area(
             self.view.read(cx).scene().view_box,
             (f32::from(bounds.size.width), f32::from(bounds.size.height)),
-            self.open_panel_width(PanelSide::Left, cx),
-            self.open_panel_width(PanelSide::Right, cx),
+            self.free_area_insets(cx),
             source::REVEAL_MARGIN,
         );
         self.apply_view(target, cx);
@@ -700,7 +768,7 @@ impl CanvasEditor {
         let (x, y, width, height) = self.boxes.get(&mermaid).copied()?;
         let viewport = self.view.read(cx).viewport()?;
         let theme = Theme::global(cx);
-        let origin_x = theme.sidebar_width + self.library_panel.read(cx).width();
+        let origin_x = theme.sidebar_width + self.library_panel.read(cx).width() + PANEL_INSET;
         let origin_y = theme.titlebar_height;
         Some((
             origin_x + x * viewport.zoom + viewport.x + width * viewport.zoom / 2.0,
@@ -737,7 +805,14 @@ impl CanvasEditor {
 
     fn patch(&self, cx: &App) -> CanvasPatch {
         let layout_json = match self.viewport(cx) {
-            Some(viewport) => source::with_viewport(&self.layout, viewport),
+            Some(viewport) => source::with_viewport(
+                &self.layout,
+                source::viewport_at_free_origin(
+                    viewport,
+                    self.free_area_insets(cx).0,
+                    self.free_area_insets(cx).2,
+                ),
+            ),
             None => self.layout.clone(),
         };
         CanvasPatch {
@@ -1398,6 +1473,7 @@ impl CanvasEditor {
         if self.render_due {
             self.draw(window, cx);
         }
+        self.preserve_free_area_origin(cx);
         self.place_viewport(cx);
         // A canvas opened without a saved viewport opens on the whole drawing, so a wide
         // diagram does not open at 100% with its right-hand node cut off. The view fits
