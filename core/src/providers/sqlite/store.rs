@@ -29,7 +29,9 @@ impl Store {
         let mut db = crate::platform::db::sqlite::open(path)?;
         crate::platform::db::sqlite::migrate(&mut db)?;
         crate::platform::db::sqlite::load_project_columns(&db)?;
-        Ok(Store { db })
+        let store = Store { db };
+        store.backfill_canvas_sources()?;
+        Ok(store)
     }
 
     /// Closes the store.

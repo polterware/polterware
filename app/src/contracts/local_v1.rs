@@ -384,8 +384,9 @@ pub struct CanvasGraph {
     pub edges: Vec<CanvasEdge>,
 }
 
-/// Canvas is one saved surface. layout_json holds positions, sizes, and groups
-/// and is not interpreted as graph semantics.
+/// Canvas is one saved surface. source is the canvas as Mermaid text, and the
+/// graph is read from it; layout_json holds positions, sizes, and groups and is
+/// not interpreted as graph semantics.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Canvas {
@@ -410,6 +411,8 @@ pub struct Canvas {
     /// archived_at is empty while the canvas is active (RFC3339 otherwise).
     #[serde(rename = "archivedAt")]
     pub archived_at: String,
+    /// source is the canvas: Mermaid text, with Polterware metadata in @{ } blocks.
+    pub source: String,
 }
 
 /// CanvasTypeDefinition is the palette and the rules of the canvas type.
@@ -484,6 +487,8 @@ pub struct CreateCanvasRequest {
     pub change: Option<ChangeEnvelope>,
     /// id is optional; the server assigns one when it is empty.
     pub id: String,
+    /// source is the canvas as Mermaid text. When it is set, graph is read from it.
+    pub source: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -494,7 +499,8 @@ pub struct CreateCanvasResponse {
 }
 
 /// UpdateCanvas changes only the parts that are set. Omitted parts stay as stored.
-/// graph, layout_json, name, and agent_visible are independent.
+/// graph, layout_json, name, and agent_visible are independent. source is the
+/// canvas as Mermaid text and wins over graph when both are set.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UpdateCanvasRequest {
@@ -513,6 +519,8 @@ pub struct UpdateCanvasRequest {
     pub layout_json: Option<String>,
     #[serde(rename = "scopeNodeId", skip_serializing_if = "Option::is_none")]
     pub scope_node_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

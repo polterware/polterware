@@ -4,7 +4,10 @@
 use serde_json::{Map, Value};
 
 use crate::compositions::wedge;
+use crate::domains::agentrun;
+use crate::domains::canvas;
 use crate::domains::polter;
+use crate::platform::ids;
 use crate::providers::sqlite::Store;
 
 use super::helpers::{bool_from, scope_refs_from, string_from};
@@ -21,6 +24,10 @@ impl super::Server {
         let project_id = string_from(args.get("project_id"));
         if project_id.is_empty() {
             return Err(Error::message("project_id is required"));
+        }
+        let canvas = string_from(args.get("canvas"));
+        if !canvas.trim().is_empty() {
+            return self.canvas_write(store, args, canvas.trim());
         }
         let text = string_from(args.get("text"));
         if text.trim().is_empty() {
@@ -61,6 +68,77 @@ impl super::Server {
             polter::summarize(&result.ops),
             result.agent_run_id
         ))
+    }
+
+    /// Writes a canvas from its Mermaid source in one audited write that joins
+    /// this session's run. The graph is read from the text, so a parse failure
+    /// answers with the line and column it stopped at.
+    fn canvas_write(
+        &mut self,
+        store: &Store,
+        args: &Map<String, Value>,
+        reference: &str,
+    ) -> Result<String> {
+        let project_id = string_from(args.get("project_id"));
+        if project_id.is_empty() {
+            return Err(Error::message("project_id is required"));
+        }
+        let source = string_from(args.get("text"));
+        if source.trim().is_empty() {
+            return Err(Error::message(
+                "text is the canvas Mermaid source; read polter.format topic canvas",
+            ));
+        }
+        let existing = store
+            .list_canvases(&project_id)
+            .map_err(|err| Error::message(err.to_string()))?;
+        let mut found = existing
+            .into_iter()
+            .find(|item| item.id == reference || item.name == reference);
+        let created = found.is_none();
+        let mut item = found.take().unwrap_or_else(|| canvas::Canvas {
+            name: reference.to_string(),
+            r#type: canvas::TYPE_CANVAS.to_string(),
+            ..canvas::Canvas::default()
+        });
+        item.project_id = project_id.clone();
+        item.source = source;
+        let prepared = canvas::prepare(item).map_err(|err| Error::message(err.to_string()))?;
+        if bool_from(args.get("dry_run")) {
+            return Ok(format!("would save canvas {}\n", prepared.name));
+        }
+        let summary = string_from(args.get("summary"));
+        let rationale = string_from(args.get("rationale"));
+        let run_id = self
+            .session
+            .run_for(store, &project_id, &summary)
+            .map_err(|err| Error::message(err.to_string()))?;
+        let batch_id = ids::new_ulid();
+        let env = wedge::ChangeEnvelope {
+            summary,
+            rationale,
+            agent_run_id: run_id,
+            project_id: project_id.clone(),
+            batch_id: batch_id.clone(),
+            ..wedge::ChangeEnvelope::default()
+        };
+        let written = wedge::execute_audited_write(
+            store,
+            env,
+            agentrun::ACTOR_KIND_AGENT,
+            "mcp.canvas",
+            |run| {
+                let saved = if created {
+                    store.create_canvas(prepared.clone(), &run.id, &batch_id)?
+                } else {
+                    store.update_canvas(prepared.clone(), &run.id, &batch_id)?
+                };
+                Ok((vec![saved.id.clone()], saved))
+            },
+        )
+        .map_err(|err| Error::message(err.to_string()))?;
+        let saved = written.result;
+        Ok(format!("saved canvas {} ({})\n", saved.name, saved.id))
     }
 
     /// Answers one Polter read inside the resolved scope.
@@ -124,6 +202,64 @@ mod tests {
     use super::super::{TOOL_POLTER_APPLY, TOOL_POLTER_FORMAT};
     use crate::domains::agentrun;
     use crate::domains::polter::{SPEC_CORE, spec_topics};
+
+    #[test]
+    fn polter_apply_writes_a_canvas_from_mermaid_source() {
+        let mut server = TestServer::new();
+        let source = "flowchart LR\n  a@{ label: \"Orders\", kind: service }\n  b@{ label: \"Postgres\", kind: database }\n  a l1@-->|reads| b";
+        let args = server.args(&[
+            ("canvas", json!("Orders map")),
+            ("text", json!(source)),
+            ("summary", json!("Save the canvas")),
+            ("rationale", json!("The map is Mermaid now")),
+        ]);
+        let text = server.call(TOOL_POLTER_APPLY, args).expect("canvas write");
+        assert!(text.starts_with("saved canvas Orders map"), "{text}");
+
+        let items = server
+            .store()
+            .list_canvases(server.project_id())
+            .expect("canvases");
+        assert_eq!(items.len(), 1, "canvases = {items:?}");
+        assert_eq!(items[0].source, source);
+        assert_eq!(items[0].graph.nodes.len(), 2);
+        assert_eq!(items[0].graph.edges[0].kind, "reads");
+        assert_eq!(items[0].graph.nodes[0].label, "Orders");
+        let runs = server
+            .store()
+            .list_agent_runs(server.project_id(), 10)
+            .expect("runs");
+        assert!(
+            runs.iter()
+                .any(|run| run.actor_kind == agentrun::ACTOR_KIND_AGENT),
+            "the canvas write did not join an agent run: {runs:?}"
+        );
+
+        let args = server.args(&[
+            ("canvas", json!("Orders map")),
+            ("text", json!("flowchart LR\n  a@{ shape: nonsense }\n")),
+            ("summary", json!("Save the canvas")),
+            ("rationale", json!("Broken edit")),
+        ]);
+        let error = server
+            .call(TOOL_POLTER_APPLY, args)
+            .expect_err("parse error");
+        assert!(error.0.starts_with("line 2, column"), "{error:?}");
+
+        let args = server.args(&[
+            ("canvas", json!("Orders map")),
+            ("text", json!("flowchart LR\n  a[Orders]\n")),
+            ("summary", json!("Clear the canvas")),
+            ("rationale", json!("Only one box is left")),
+        ]);
+        server.call(TOOL_POLTER_APPLY, args).expect("second write");
+        let items = server
+            .store()
+            .list_canvases(server.project_id())
+            .expect("canvases");
+        assert_eq!(items.len(), 1, "an existing canvas was duplicated");
+        assert_eq!(items[0].graph.nodes.len(), 1);
+    }
 
     #[test]
     fn polter_format_returns_the_spec() {

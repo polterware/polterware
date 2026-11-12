@@ -35,8 +35,9 @@ message CanvasGraph {
   repeated CanvasEdge edges = 2;
 }
 
-// Canvas is one saved surface. layout_json holds positions, sizes, and groups
-// and is not interpreted as graph semantics.
+// Canvas is one saved surface. source is the canvas as Mermaid text, and the
+// graph is read from it; layout_json holds positions, sizes, and groups and is
+// not interpreted as graph semantics.
 message Canvas {
   string id = 1;
   string project_id = 2;
@@ -51,6 +52,8 @@ message Canvas {
   string updated_at = 10;
   // archived_at is empty while the canvas is active (RFC3339 otherwise).
   string archived_at = 11;
+  // source is the canvas: Mermaid text, with Polterware metadata in @{ } blocks.
+  string source = 12;
 }
 
 // CanvasTypeDefinition is the palette and the rules of the canvas type.
@@ -94,11 +97,14 @@ message CreateCanvasRequest {
   ChangeEnvelope change = 8;
   // id is optional; the server assigns one when it is empty.
   string id = 9;
+  // source is the canvas as Mermaid text. When it is set, graph is read from it.
+  string source = 10;
 }
 message CreateCanvasResponse { Canvas canvas = 1; }
 
 // UpdateCanvas changes only the parts that are set. Omitted parts stay as stored.
-// graph, layout_json, name, and agent_visible are independent.
+// graph, layout_json, name, and agent_visible are independent. source is the
+// canvas as Mermaid text and wins over graph when both are set.
 message UpdateCanvasRequest {
   string project_id = 1;
   string id = 2;
@@ -108,6 +114,7 @@ message UpdateCanvasRequest {
   optional CanvasGraph graph = 6;
   optional string layout_json = 7;
   optional string scope_node_id = 8;
+  optional string source = 9;
 }
 message UpdateCanvasResponse { Canvas canvas = 1; }
 

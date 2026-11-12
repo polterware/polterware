@@ -138,7 +138,8 @@ pub struct Graph {
     pub edges: Vec<Edge>,
 }
 
-/// One saved surface. `layout_json` is opaque to the graph.
+/// One saved surface. `source` is the canvas as Mermaid text; `layout_json` is
+/// the positions people gave its nodes, which the source does not carry.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Canvas {
     pub id: String,
@@ -147,6 +148,7 @@ pub struct Canvas {
     pub r#type: String,
     pub agent_visible: bool,
     pub graph: Graph,
+    pub source: String,
     pub layout_json: String,
     pub scope_node_id: String,
     pub created_at: OffsetDateTime,
@@ -164,6 +166,7 @@ impl Default for Canvas {
             r#type: String::new(),
             agent_visible: false,
             graph: Graph::default(),
+            source: String::new(),
             layout_json: String::new(),
             scope_node_id: String::new(),
             created_at: OffsetDateTime::UNIX_EPOCH,

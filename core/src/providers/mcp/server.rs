@@ -25,7 +25,7 @@ pub const SERVER_VERSION: &str = "0.6.0";
 pub const PROTOCOL_VERSION: &str = "2024-11-05";
 
 /// What `initialize` tells the agent: the four tools and when to read what.
-pub const INSTRUCTIONS: &str = "Polterware MCP: four tools. polter.query reads compact text: \"brief <slug|path|file>\" before you work on a card, node, or file (tasks, invariants, the Rules that bind it, milestone); \"search <terms>\" finds anything; \"show <id>\" opens one record; also \"commits <slug>\", \"status\", \"inbox\", \"cards\", \"handoff <slug>\", \"structure [<path>]\", \"rules [status]\", \"milestones\", \"roadmap\", and \"canvas [<name|id>]\" (agent-visible canvases only). polter.apply writes Work cards, Structure nodes, and Rules as Polter text with summary and rationale (read polter.format once; pass topic for the rest). doc.upsert writes a doc with a Markdown body. Writes join this session's run; there is nothing to start or complete.";
+pub const INSTRUCTIONS: &str = "Polterware MCP: four tools. polter.query reads compact text: \"brief <slug|path|file>\" before you work on a card, node, or file (tasks, invariants, the Rules that bind it, milestone); \"search <terms>\" finds anything; \"show <id>\" opens one record; also \"commits <slug>\", \"status\", \"inbox\", \"cards\", \"handoff <slug>\", \"structure [<path>]\", \"rules [status]\", \"milestones\", \"roadmap\", and \"canvas [<name|id>]\" (agent-visible canvases only). polter.apply writes Work cards, Structure nodes, and Rules as Polter text with summary and rationale, and a canvas from Mermaid source (canvas: <name|id>; \"canvas\" is a polter.format topic). doc.upsert writes a doc with a Markdown body. Writes join this session's run; there is nothing to start or complete.";
 
 /// One line as Go's `bufio.Scanner` bounds it (the initial buffer is 64 KiB).
 const MAX_LINE: usize = 1024 * 1024;
@@ -744,7 +744,13 @@ mod tests {
         }
 
         let body = server.query("canvas Shared map");
-        let want = "flowchart LR\n  n1[\"Public API · service\"]\n  n2[\"Store · database\"]\n  %% note: Sketch\n  class n2 unverified\n";
+        let want = concat!(
+            "flowchart LR\n",
+            "  n1@{ id: \"api\", label: \"Public API\", kind: \"service\", ref: \"fact/fact-1\" }\n",
+            "  n2@{ id: \"db\", label: \"Store\", kind: \"database\" }\n",
+            "  n3@{ id: \"note\", label: \"Sketch\", kind: \"note\" }\n",
+            "  class n2 unverified\n",
+        );
         assert_eq!(body, want, "export:\n{body}\nwant:\n{want}");
         assert!(
             !body.contains("LAYOUT_ONLY_SECRET")

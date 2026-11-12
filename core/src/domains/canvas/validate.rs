@@ -121,6 +121,10 @@ pub fn validate(def: &Definition, graph: &Graph) -> Vec<Violation> {
 
 /// Trims identity fields, defaults an empty layout to "{}", and validates the
 /// graph against the canvas type. Layout is checked only as JSON.
+///
+/// The source is the canvas: a write that sends Mermaid text has its graph read
+/// from it, and a write that sends only the graph gets the canonical source the
+/// text would have, so the two never disagree.
 pub fn prepare(mut item: Canvas) -> Result<Canvas> {
     item.name = item.name.trim().to_string();
     item.r#type = item.r#type.trim().to_string();
@@ -142,6 +146,13 @@ pub fn prepare(mut item: Canvas) -> Result<Canvas> {
         return Err(Error::Layout);
     }
     item.layout_json = layout;
+    let source = item.source.trim().to_string();
+    if source.is_empty() {
+        item.source = super::export_mermaid(&item.graph, &item.layout_json);
+    } else {
+        item.graph = super::graph_from_source(&source)?;
+        item.source = source;
+    }
     normalize(&mut item.graph);
     let violations = validate(&def, &item.graph);
     if !violations.is_empty() {

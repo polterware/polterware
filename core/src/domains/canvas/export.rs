@@ -1,6 +1,5 @@
 //! A canvas as a Mermaid flowchart for agents.
 
-use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
@@ -8,8 +7,7 @@ use serde_json::{Map, Value};
 
 use super::model::{go_json_escape, normalize, normalize_numbers_in, null_as_default};
 use super::{
-    COMPONENT_KINDS, Edge, Error, Graph, KIND_NOTE, KIND_TEXT, Node, REF_NODE, Ref, Result,
-    STRUCTURE_KINDS,
+    COMPONENT_KINDS, Error, Graph, Node, REF_NODE, Ref, Result, STRUCTURE_KINDS,
 };
 use crate::domains::structure;
 
@@ -127,132 +125,79 @@ pub fn export_format(graph: &Graph, layout_json: &str, format: &str) -> Result<S
     }
 }
 
-/// Writes the canvas as a left-to-right flowchart for agents. A node drawn
-/// inside another (its center within the other's rectangle in the layout) sits
-/// in that node's subgraph, so frames become subgraphs. Notes and text become
-/// comments in their container. Drawing shapes with no label, no links, and
-/// nothing inside are dropped. A component or Structure node shows its kind and
-/// technology, and the closing class line lists the nodes with no ref, which are
-/// unverified.
+/// Writes the canvas as a left-to-right flowchart: the canvas source. Every
+/// node keeps its id, kind, label, ref, and props in a Mermaid `@{ ... }` block,
+/// and every edge keeps its id and kind there too, so
+/// [`graph_from_source`](super::graph_from_source) reads the same graph back. A
+/// node drawn inside another (its center within the other's rectangle in the
+/// layout) sits in that node's subgraph, so frames become subgraphs. The
+/// closing class line lists the nodes with no ref, which are unverified.
 pub fn export_mermaid(graph: &Graph, layout_json: &str) -> String {
     let mut graph = graph.clone();
     normalize(&mut graph);
     let Graph { nodes, edges } = graph;
     let rects = layout_rects(layout_json);
-    let mut vertices: Vec<Node> = Vec::with_capacity(nodes.len());
-    let mut notes: Vec<Node> = Vec::new();
-    for node in nodes {
-        if node.kind == KIND_NOTE || node.kind == KIND_TEXT {
-            if !label(&node).is_empty() {
-                notes.push(node);
-            }
-            continue;
-        }
-        vertices.push(node);
-    }
-    let mut linked: HashSet<&str> = HashSet::new();
-    for edge in &edges {
-        linked.insert(edge.from.as_str());
-        linked.insert(edge.to.as_str());
-    }
-
-    let parent = containers(&vertices, &rects);
-    let mut kept: HashSet<String> = HashSet::new();
-    let mut by_area: Vec<&Node> = vertices.iter().collect();
-    by_area.sort_by(|a, b| {
-        area_of(&rects, &a.id)
-            .partial_cmp(&area_of(&rects, &b.id))
-            .unwrap_or(Ordering::Equal)
-    });
-    for node in by_area {
-        if !label(node).is_empty() || linked.contains(node.id.as_str()) || kept.contains(&node.id) {
-            kept.insert(node.id.clone());
-            if let Some(home) = parent.get(&node.id).filter(|home| !home.is_empty()) {
-                kept.insert(home.clone());
-            }
-        }
-    }
-    let kept_parent = |id: &str| -> String {
-        let mut home = parent.get(id).cloned().unwrap_or_default();
-        while !home.is_empty() {
-            if kept.contains(&home) {
-                return home;
-            }
-            home = parent.get(&home).cloned().unwrap_or_default();
-        }
-        String::new()
-    };
-
+    let mut taken: HashSet<String> = HashSet::new();
     let mut ids: HashMap<String, String> = HashMap::new();
-    let mut children: HashMap<String, Vec<Node>> = HashMap::new();
-    for node in &vertices {
-        if kept.contains(&node.id) {
-            ids.insert(node.id.clone(), format!("n{}", ids.len() + 1));
-            children
-                .entry(kept_parent(&node.id))
-                .or_default()
-                .push(node.clone());
-        }
-    }
-    let mut labels: HashMap<String, String> = HashMap::new();
-    for node in &vertices {
-        labels.insert(node.id.clone(), label_or_kind(node));
-    }
-    let mut note_lines: HashMap<String, Vec<String>> = HashMap::new();
-    for note in &notes {
-        let mut home = String::new();
-        if let Some(rect) = rects.get(&note.id) {
-            home = smallest_containing(&vertices, &rects, *rect, &|id: &str| kept.contains(id));
-        }
-        let mut line = format!("%% note: {}", comment_text(&label(note)));
-        let mut targets: Vec<String> = Vec::new();
-        for edge in &edges {
-            let other = other_end(edge, &note.id);
-            if other.is_empty() || ids.get(&other).is_none_or(|id| id.is_empty()) {
-                continue;
+    for (index, node) in nodes.iter().enumerate() {
+        let id = if super::is_mermaid_id(&node.id) && !taken.contains(&node.id) {
+            node.id.clone()
+        } else {
+            let mut next = index + 1;
+            while taken.contains(&format!("u{next}")) {
+                next += 1;
             }
-            if let Some(label) = labels.get(&other) {
-                targets.push(label.clone());
-            }
-        }
-        if targets.is_empty()
-            && !home.is_empty()
-            && children.get(&home).is_none_or(|kids| kids.is_empty())
-            && let Some(label) = labels.get(&home)
-        {
-            targets = vec![label.clone()];
-        }
-        if !targets.is_empty() {
-            line = format!(
-                "%% note on {}: {}",
-                comment_text(&targets.join(", ")),
-                comment_text(&label(note))
-            );
-        }
-        note_lines.entry(home).or_default().push(line);
+            format!("u{next}")
+        };
+        taken.insert(id.clone());
+        ids.insert(node.id.clone(), id);
+    }
+    let parent = containers(&nodes, &rects);
+    let mut children: HashMap<String, Vec<usize>> = HashMap::new();
+    for (index, node) in nodes.iter().enumerate() {
+        let home = parent.get(&node.id).cloned().unwrap_or_default();
+        children.entry(home).or_default().push(index);
     }
 
     let mut body = String::from("flowchart LR\n");
-    write_tree(&mut body, &children, &ids, &note_lines, "", 1);
-    for edge in &edges {
+    write_tree(&mut body, &nodes, &ids, &children, "", 1);
+    for (index, edge) in edges.iter().enumerate() {
         let (Some(from), Some(to)) = (ids.get(&edge.from), ids.get(&edge.to)) else {
             continue;
         };
-        if from.is_empty() || to.is_empty() {
-            continue;
-        }
-        if edge.kind.is_empty() || edge.kind == super::EDGE_RELATES {
-            body.push_str(&format!("  {from} --> {to}\n"));
+        let link = if super::is_mermaid_id(&edge.id) && !taken.contains(&edge.id) {
+            edge.id.clone()
         } else {
-            body.push_str(&format!(
-                "  {from} -->|{}| {to}\n",
-                mermaid_text(&edge.kind)
-            ));
+            let mut next = index + 1;
+            while taken.contains(&format!("l{next}")) {
+                next += 1;
+            }
+            format!("l{next}")
+        };
+        taken.insert(link.clone());
+        let labelled = !edge.kind.is_empty()
+            && edge.kind != super::EDGE_RELATES
+            && mermaid_text(&edge.kind) == edge.kind;
+        if labelled {
+            body.push_str(&format!("  {from} {link}@-->|{}| {to}\n", edge.kind));
+        } else {
+            body.push_str(&format!("  {from} {link}@--> {to}\n"));
+        }
+        let mut fields: Vec<String> = Vec::new();
+        // A link with no label already reads as relates.
+        if !labelled && !edge.kind.is_empty() && edge.kind != super::EDGE_RELATES {
+            fields.push(format!("kind: {}", metadata_text(&edge.kind)));
+        }
+        if edge.id != link {
+            fields.push(format!("id: {}", metadata_text(&edge.id)));
+        }
+        if !fields.is_empty() {
+            body.push_str(&format!("  {link}@{{ {} }}\n", fields.join(", ")));
         }
     }
     let mut unverified: Vec<String> = Vec::new();
-    for node in &vertices {
-        if !kept.contains(&node.id) || node.r#ref.is_some() || !is_semantic(&node.kind) {
+    for node in &nodes {
+        if node.r#ref.is_some() || !is_semantic(&node.kind) {
             continue;
         }
         if let Some(id) = ids.get(&node.id) {
@@ -271,37 +216,108 @@ pub fn export_mermaid(graph: &Graph, layout_json: &str) -> String {
 
 fn write_tree(
     body: &mut String,
-    children: &HashMap<String, Vec<Node>>,
+    nodes: &[Node],
     ids: &HashMap<String, String>,
-    note_lines: &HashMap<String, Vec<String>>,
+    children: &HashMap<String, Vec<usize>>,
     container: &str,
     depth: usize,
 ) {
     let indent = "  ".repeat(depth);
-    if let Some(kids) = children.get(container) {
-        for node in kids {
-            let Some(id) = ids.get(&node.id) else {
-                continue;
+    let Some(kids) = children.get(container) else {
+        return;
+    };
+    for index in kids {
+        let node = &nodes[*index];
+        let Some(id) = ids.get(&node.id) else {
+            continue;
+        };
+        if children.get(&node.id).is_none_or(|kids| kids.is_empty()) {
+            let bracket = match bracket_label(node, id) {
+                Some(label) => format!("[\"{label}\"]"),
+                None => String::new(),
             };
-            let text = mermaid_text(&vertex_label(node));
-            if children.get(&node.id).is_none_or(|kids| kids.is_empty()) {
-                body.push_str(&format!("{indent}{id}[\"{text}\"]\n"));
-                if let Some(lines) = note_lines.get(&node.id) {
-                    for line in lines {
-                        body.push_str(&format!("{indent}{line}\n"));
-                    }
-                }
-                continue;
-            }
-            body.push_str(&format!("{indent}subgraph {id}[\"{text}\"]\n"));
-            write_tree(body, children, ids, note_lines, &node.id, depth + 1);
-            body.push_str(&format!("{indent}end\n"));
+            body.push_str(&format!(
+                "{indent}{id}{bracket}{}\n",
+                node_metadata(node, id, !bracket.is_empty())
+            ));
+            continue;
         }
+        // A frame is a node and a subgraph: its properties sit on a node line
+        // before the block, because Mermaid reads a subgraph's own `@{ }` block
+        // only after it exists, and the block must stay readable on its own.
+        body.push_str(&format!(
+            "{indent}{id}{}\n",
+            node_metadata(node, id, false)
+        ));
+        let title = bracket_label(node, id)
+            .unwrap_or_else(|| mermaid_text(&label_or_kind(node)));
+        body.push_str(&format!("{indent}subgraph {id}[\"{title}\"]\n"));
+        write_tree(body, nodes, ids, children, &node.id, depth + 1);
+        body.push_str(&format!("{indent}end\n"));
     }
-    if let Some(lines) = note_lines.get(container) {
-        for line in lines {
-            body.push_str(&format!("{indent}{line}\n"));
-        }
+}
+
+/// The node's label as bracket text, when the text reaches the reader unchanged
+/// and is not just the node id (which Mermaid substitutes for a missing label).
+fn bracket_label(node: &Node, mermaid_id: &str) -> Option<String> {
+    let label = label(node);
+    if label.is_empty() || label == mermaid_id || mermaid_text(&label) != label {
+        return None;
+    }
+    Some(label)
+}
+
+/// The Polterware part of a node: everything the text does not say by itself.
+/// `bracketed` is true when the line carries the label in brackets.
+fn node_metadata(node: &Node, mermaid_id: &str, bracketed: bool) -> String {
+    let mut fields: Vec<String> = Vec::new();
+    if node.id != mermaid_id {
+        fields.push(format!("id: {}", metadata_text(&node.id)));
+    }
+    if !bracketed && !node.label.is_empty() {
+        fields.push(format!("label: {}", metadata_text(&node.label)));
+    }
+    if !node.kind.is_empty() {
+        fields.push(format!("kind: {}", metadata_scalar(&node.kind)));
+    }
+    if let Some(reference) = &node.r#ref {
+        fields.push(format!(
+            "ref: {}",
+            metadata_scalar(&format!("{}/{}", reference.kind, reference.id))
+        ));
+    }
+    let shape = super::mermaid_shape(&node.kind).filter(|shape| *shape != "rect");
+    if let Some(shape) = shape {
+        fields.push(format!("shape: {shape}"));
+    }
+    let props = without_style(&node.props);
+    if !props.is_empty() {
+        let json = serde_json::to_string(&Value::Object(props)).unwrap_or_default();
+        fields.push(format!("props: {}", metadata_text(&json)));
+    }
+    if fields.is_empty() {
+        return String::new();
+    }
+    format!("@{{ {} }}", fields.join(", "))
+}
+
+/// A metadata scalar: a JSON string, which is also a YAML double-quoted scalar.
+fn metadata_text(text: &str) -> String {
+    serde_json::to_string(text).unwrap_or_else(|_| "\"\"".to_string())
+}
+
+/// A metadata scalar written plainly when YAML reads it back unchanged.
+fn metadata_scalar(text: &str) -> String {
+    let plain = !text.is_empty()
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'/'))
+        && !matches!(text, "true" | "false" | "null" | "yes" | "no" | "on" | "off")
+        && text.parse::<f64>().is_err();
+    if plain {
+        text.to_string()
+    } else {
+        metadata_text(text)
     }
 }
 
@@ -371,9 +387,6 @@ fn layout_rects(layout_json: &str) -> HashMap<String, Rect> {
     out
 }
 
-fn area_of(rects: &HashMap<String, Rect>, id: &str) -> f64 {
-    rects.get(id).map_or(0.0, Rect::area)
-}
 
 /// Maps each node to the smallest larger node whose rectangle holds its center.
 /// Nodes without a layout position sit at the top level.
@@ -417,15 +430,6 @@ fn smallest_containing(
     best
 }
 
-fn other_end(edge: &Edge, id: &str) -> String {
-    if id == edge.from {
-        return edge.to.clone();
-    }
-    if id == edge.to {
-        return edge.from.clone();
-    }
-    String::new()
-}
 
 /// What the person wrote; the editor's "New <kind>" placeholder counts as no
 /// label.
@@ -450,23 +454,7 @@ fn is_semantic(kind: &str) -> bool {
     COMPONENT_KINDS.contains(&kind) || STRUCTURE_KINDS.contains(&kind)
 }
 
-fn vertex_label(node: &Node) -> String {
-    let mut parts = vec![label_or_kind(node)];
-    if is_semantic(&node.kind) {
-        parts.push(node.kind.clone());
-        if let Some(Value::String(tech)) = node.props.get("technology") {
-            let tech = tech.trim();
-            if !tech.is_empty() {
-                parts.push(tech.to_string());
-            }
-        }
-    }
-    parts.join(" · ")
-}
 
-fn comment_text(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
 
 /// Writes a Graphviz digraph. Edge kinds are link labels, and each node carries
 /// a trust attribute. Layout is omitted.
@@ -552,8 +540,8 @@ mod tests {
 
     use super::*;
     use crate::domains::canvas::{
-        EDGE_READS, EDGE_RELATES, EDGE_USES, KIND_COMPONENT, KIND_DOMAIN, Ref, marshal_graph,
-        unmarshal_graph,
+        EDGE_READS, EDGE_RELATES, EDGE_USES, Edge, KIND_COMPONENT, KIND_DOMAIN, KIND_NOTE, Ref,
+        marshal_graph, unmarshal_graph,
     };
     use crate::domains::structure::{NODE_ACTIVE, Node as StructureNode};
 
@@ -752,36 +740,49 @@ mod tests {
     }
 
     #[test]
-    fn test_export_mermaid_nests_by_layout_and_drops_blank_shapes() {
+    fn test_export_mermaid_nests_by_layout_and_keeps_every_node() {
         let graph = mermaid_graph();
         let layout = r#"{"nodes":{"frame":{"x":0,"y":0,"width":1000,"height":600},"api":{"x":40,"y":40},"inner":{"x":400,"y":200,"width":500,"height":300},"job":{"x":450,"y":250},"note-frame":{"x":40,"y":400,"width":200,"height":100},"db":{"x":1200,"y":40},"note-db":{"x":1210,"y":50,"width":100,"height":40},"blank":{"x":1500,"y":0},"placeholder":{"x":1500,"y":300},"decision":{"x":700,"y":250,"width":80,"height":80}}}"#;
-        let want = r#"flowchart LR
-  subgraph n1["Backend"]
-    n2["API · service · Go"]
-    subgraph n3["Workers"]
-      n4["Mailer · worker"]
-      n6["diamond"]
-    end
-    %% note: Writes are idempotent
-  end
-  n5["Postgres · database"]
-  %% note on Postgres: Backups nightly
-  n7["Redis · cache"]
-  %% note on API: Hot path
-  n2 -->|reads| n5
-  n4 --> n6
-  n2 -->|uses#124;sync| n3
-  class n4,n5,n7 unverified
-"#;
+        let want = concat!(
+            "flowchart LR\n",
+            "  frame@{ label: \"Backend\", kind: frame }\n",
+            "  subgraph frame[\"Backend\"]\n",
+            "    api[\"API\"]@{ kind: service, ref: node/c, props: \"{\\\"technology\\\":\\\"Go\\\"}\" }\n",
+            "    inner@{ label: \"Workers\", kind: frame }\n",
+            "    subgraph inner[\"Workers\"]\n",
+            "      job[\"Mailer\"]@{ kind: worker }\n",
+            "      decision@{ kind: diamond, shape: diamond }\n",
+            "    end\n",
+            "    note-frame@{ label: \"Writes are\\nidempotent\", kind: note }\n",
+            "  end\n",
+            "  db@{ label: \"Postgres\", kind: database }\n",
+            "  subgraph db[\"Postgres\"]\n",
+            "    note-db[\"Backups nightly\"]@{ kind: note }\n",
+            "  end\n",
+            "  note-linked[\"Hot path\"]@{ kind: note }\n",
+            "  blank@{ kind: rectangle }\n",
+            "  placeholder@{ label: \"New ellipse\", kind: ellipse }\n",
+            "  loose[\"Redis\"]@{ kind: cache }\n",
+            "  api e1@-->|reads| db\n",
+            "  job e2@--> decision\n",
+            "  note-linked e3@--> api\n",
+            "  api e4@--> inner\n",
+            "  e4@{ kind: \"uses|sync\" }\n",
+            "  class job,db,loose unverified\n",
+        );
         let got = export_mermaid(&graph, layout);
         assert_eq!(got, want, "mermaid");
         assert!(
             !got.contains("fill") && !got.contains("1200"),
             "style or layout leaked into the export"
         );
+        assert!(
+            got.contains("blank@{ kind: rectangle }"),
+            "a shape with no label and no links is still a node:\n{got}"
+        );
         let flat = export_mermaid(&graph, "not json");
         assert!(
-            !flat.contains("subgraph") && flat.contains("  n1[\"Backend\"]\n"),
+            !flat.contains("subgraph") && flat.contains("  frame@{"),
             "without a layout every node is top level:\n{flat}"
         );
     }
@@ -801,7 +802,7 @@ mod tests {
         let text = export_format(&graph, "", "").expect("default");
         assert_eq!(
             text,
-            "flowchart LR\n  n1[\"API · domain\"]\n  %% note on API: later\n"
+            "flowchart LR\n  s[\"API\"]@{ kind: domain, ref: node/structure-1 }\n  n[\"later\"]@{ kind: note }\n  s e@-->|uses| n\n"
         );
         let dot = export_format(&graph, "", "dot").expect("dot");
         let want_dot = "digraph canvas {\n  rankdir=LR;\n  \"s\" [label=\"API\" kind=\"domain\" trust=\"referenced\"];\n  \"n\" [label=\"later\" kind=\"note\" trust=\"unverified\"];\n  \"s\" -> \"n\" [label=\"uses\"];\n}\n";
@@ -827,7 +828,7 @@ mod tests {
             "",
         );
         assert!(
-            text.contains(r#"n1["say #quot;hi#quot; #35;1 · service"]"#),
+            text.contains(r#"a-b@{ label: "say \"hi\" #1", kind: service }"#),
             "escape:\n{text}"
         );
         let dot = export_dot(&Graph {

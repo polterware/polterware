@@ -30,6 +30,8 @@ time = { version = "0.3", features = ["formatting", "parsing", "macros", "serde"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 futures-util = "0.3"
+# A sibling checkout replaces it through the workspace's .cargo/config.toml [patch].
+polterware-mermaid = { git = "https://github.com/polterware/ui" }
 unicode-normalization = "0.1"
 ureq = { version = "3.5.1", default-features = false }
 uuid = { version = "1", features = ["v4", "v7"] }

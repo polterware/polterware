@@ -4157,6 +4157,7 @@ dependencies = [
  "base64 0.22.1",
  "futures-util",
  "hex",
+ "polterware-mermaid",
  "portable-pty",
  "pretty_assertions",
  "rand 0.9.5",
@@ -4190,6 +4191,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "polterware-mermaid"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "polterware-motion"
 version = "0.1.0"
 dependencies = [
@@ -4214,6 +4223,7 @@ dependencies = [
  "gpui",
  "image",
  "polterware-assets",
+ "polterware-mermaid",
  "polterware-motion",
  "polterware-theme",
  "polterware-window",
