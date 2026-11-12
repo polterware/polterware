@@ -9,19 +9,18 @@
 //! and its right click rename it (the Composer again), move it up or down, or archive it once
 //! confirmed, its cards moving to the Backlog.
 //!
-//! A board's toolbar goes back to the Roadmap, switches Board and List, and searches and
-//! filters its cards (by stage, and by open questions). The board opens on the Constitution,
-//! a chip counting the project's active Rules. It holds the five stage columns: a card drags
-//! to another column, which runs that column's gate (Planned accepts the contract, In progress
-//! approves the plan, Done needs verify passing with every check confirmed) and refuses
-//! without moving, while a move back is free; a verify card shows its confirmed acceptance;
-//! its Tasks open in a Morph where they are checked off; a column's "+" opens the app's shared
-//! Composer for a new card there, on the board's milestone, and so does C anywhere on
-//! Milestones. The
-//! List groups the cards by stage (each group's "+" adds one), orders them by when they
-//! changed, and its headers sort by title, stage, or change; picked cards move to a stage or a
-//! milestone, or archive once confirmed. Space peeks at the marked card; a row or a card opens
-//! its page.
+//! A board's toolbar goes back to the Roadmap, switches Board and List, counts the project's
+//! active Rules (the Constitution chip, which opens them in Knowledge), and searches and
+//! filters its cards (by stage, and by open questions). The board holds the five stage
+//! columns: a card drags to another column, which runs that column's gate (Planned accepts the
+//! contract, In progress approves the plan, Done needs verify passing with every check
+//! confirmed) and refuses without moving, while a move back is free; a verify card shows its
+//! confirmed acceptance once it has a check to confirm; its Tasks open in a Morph where they
+//! are checked off; a column's "+" opens the app's shared Composer for a new card there, on the
+//! board's milestone, and so does C anywhere on Milestones. The List groups the cards by stage
+//! (each group's "+" adds one), orders them by when they changed, and its headers sort by
+//! title, stage, or change; picked cards move to a stage or a milestone, or archive once
+//! confirmed. Space peeks at the marked card; a row or a card opens its page.
 
 use std::collections::BTreeSet;
 use std::rc::Rc;
@@ -1103,11 +1102,31 @@ impl MilestonesView {
                 }
             });
         let _ = name;
+        let rules = match self.state.read(cx).work() {
+            Load::Ready(work) => work.active_rules(),
+            _ => 0,
+        };
+        let state = self.state.clone();
+        let constitution = Button::new("milestones-constitution", ButtonKind::Ghost)
+            .size(ButtonSize::Sm)
+            .icon(Icon::ShieldCheck)
+            .label(format!(
+                "{rules} active {}",
+                if rules == 1 { "Rule" } else { "Rules" }
+            ))
+            .tooltip("The Rules agents read: open them in Knowledge")
+            .on_click(move |_, cx| {
+                state.update(cx, |state, cx| {
+                    state.set_knowledge_tab(KnowledgeTab::Rules, cx);
+                    cx.notify();
+                });
+            });
         let actions = div()
             .flex_none()
             .flex()
             .items_center()
             .gap(px(8.0))
+            .child(constitution)
             .child(div().w(px(200.0)).child(self.card_search.clone()))
             .child(self.filters.clone());
         let bar = div()
@@ -1365,34 +1384,10 @@ impl MilestonesView {
                 }
             }))
             .build(window, cx);
-        // The Constitution: the project's active Rules, which bind every card on the board.
-        let rules = work.active_rules();
-        let state = self.state.clone();
-        let constitution = Button::new("milestones-constitution", ButtonKind::Ghost)
-            .size(ButtonSize::Sm)
-            .icon(Icon::ShieldCheck)
-            .label(format!(
-                "{rules} active {}",
-                if rules == 1 { "Rule" } else { "Rules" }
-            ))
-            .tooltip("The Rules agents read: open them in Knowledge")
-            .on_click(move |_, cx| {
-                state.update(cx, |state, cx| {
-                    state.set_knowledge_tab(KnowledgeTab::Rules, cx);
-                    cx.notify();
-                });
-            });
         div()
             .size_full()
             .flex()
             .flex_col()
-            .child(
-                div()
-                    .flex_none()
-                    .px(px(theme.space_2))
-                    .pb(px(theme.space_1))
-                    .child(constitution),
-            )
             .child(div().flex_1().min_h(px(0.0)).child(columns))
             .into_any_element()
     }
@@ -2054,12 +2049,16 @@ fn list_cell(
     }
 }
 
-/// A verify-stage card's acceptance on its face: "x/y confirmed", once its checks were read.
+/// A verify-stage card's acceptance on its face: "x/y confirmed", once its checks were read and
+/// there is at least one to confirm.
 fn acceptance_line(card: &WorkCard, app: &AppState, theme: &Theme) -> Option<AnyElement> {
     if Stage::of(card) != Stage::Verify {
         return None;
     }
     let checks = app.confirm_state(&card.slug)?;
+    if checks.total == 0 {
+        return None;
+    }
     let label = format!("{}/{} confirmed", checks.confirmed, checks.total);
     Some(
         div()
