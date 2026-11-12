@@ -144,6 +144,12 @@ pub struct CanvasEditor {
     pub(super) layout: String,
     /// The canvas node each diagram id stands for, read from the source's `@{ }` blocks.
     node_ids: HashMap<String, String>,
+    /// The box each diagram node's drawing covered on the last render, by Mermaid id.
+    boxes: HashMap<String, (f32, f32, f32, f32)>,
+    /// The colors the diagram was last drawn with.
+    colors: source::Palette,
+    /// The selected node wants to be panned into view.
+    reveal: bool,
     source_input: Entity<TextInput>,
     source_open: bool,
     /// The source does not draw: the parser's place or the renderer's answer.
@@ -288,6 +294,9 @@ impl CanvasEditor {
             doc,
             selection: Selection::default(),
             node_ids: source::node_ids(&text),
+            boxes: HashMap::new(),
+            colors: source::palette(Theme::global(cx)),
+            reveal: false,
             source: text,
             layout,
             source_input,
@@ -330,17 +339,19 @@ impl CanvasEditor {
     /// keeps the last diagram on screen and says where the parser stopped.
     fn draw(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let theme = *Theme::global(cx);
+        let palette = source::palette(&theme);
         let measure = SceneMeasure::new(
             window.text_system().clone(),
             theme.font_sans,
             theme.font_mono,
         );
-        let drawn = source::render(&self.source, &self.layout, &measure);
+        let drawn = source::render(&self.source, &self.layout, &measure, &palette);
         self.node_ids = source::node_ids(&self.source);
         match drawn {
             Ok(scene) => {
-                let boxes = source::node_boxes(&scene);
-                self.doc = source_edit::document(&self.source, &self.layout, &boxes);
+                self.boxes = source::node_boxes(&scene);
+                self.doc = source_edit::document(&self.source, &self.layout, &self.boxes);
+                self.colors = palette;
                 let first = self.view.read(cx).viewport().is_none();
                 self.view.update(cx, |view, cx| {
                     if first {
@@ -385,13 +396,20 @@ impl CanvasEditor {
         let Some(target) = self.restore_viewport else {
             return;
         };
+        if self.view.read(cx).viewport().is_none() {
+            return;
+        }
+        self.restore_viewport = None;
+        self.apply_view(target, cx);
+    }
+
+    /// Moves the pan and zoom to `target`. `MermaidView` zooms around a point rather than
+    /// taking a viewport, so this picks the point that lands the scene where `target` has it;
+    /// a ratio of one cannot move the pan, so a same-zoom move goes out a step and back in.
+    fn apply_view(&mut self, target: SceneViewport, cx: &mut Context<Self>) {
         let Some(current) = self.view.read(cx).viewport() else {
             return;
         };
-        self.restore_viewport = None;
-        // The view zooms around a point rather than taking a viewport, so this picks the point
-        // that lands the scene where `target` has it. A ratio of one cannot move the pan, so
-        // the pan is set by zooming out a step and back in on the target's origin.
         let ratio = target.zoom / current.zoom;
         if (ratio - 1.0).abs() < 1e-4 {
             let half = 0.5;
@@ -411,6 +429,60 @@ impl CanvasEditor {
             self.view
                 .update(cx, |view, cx| view.zoom_at(focus, target.zoom, cx));
         }
+    }
+
+    /// Pans the selected node into the room the diagram has while the inspector is open.
+    fn reveal_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.reveal = false;
+        let Some(id) = self.selection.nodes.first() else {
+            return;
+        };
+        let Some(mermaid) = self.mermaid(id) else {
+            return;
+        };
+        let Some((bx, by, bw, bh)) = self.boxes.get(&mermaid).copied() else {
+            return;
+        };
+        let Some(current) = self.view.read(cx).viewport() else {
+            return;
+        };
+        let theme = *Theme::global(cx);
+        let size = window.viewport_size();
+        let library = self.library_panel.read(cx).width() + PANEL_INSET * 2.0;
+        let inspector = if self.selection.is_empty() {
+            0.0
+        } else {
+            self.inspector_panel.read(cx).width() + PANEL_INSET * 2.0
+        };
+        let visible_width =
+            (f32::from(size.width) - theme.sidebar_width - library - inspector).max(1.0);
+        let visible_height =
+            (f32::from(size.height) - theme.titlebar_height - theme.page_header_height - 48.0)
+                .max(1.0);
+        let margin = 24.0;
+        let left = bx * current.zoom + current.x;
+        let top = by * current.zoom + current.y;
+        let right = left + bw * current.zoom;
+        let bottom = top + bh * current.zoom;
+        let dx = if right > visible_width - margin {
+            visible_width - margin - right
+        } else if left < margin {
+            margin - left
+        } else {
+            0.0
+        };
+        let dy = if bottom > visible_height - margin {
+            visible_height - margin - bottom
+        } else if top < theme.page_header_height + margin {
+            theme.page_header_height + margin - top
+        } else {
+            0.0
+        };
+        if dx.abs() < 0.5 && dy.abs() < 0.5 {
+            return;
+        }
+        let target = SceneViewport::new(current.x + dx, current.y + dy, current.zoom);
+        self.apply_view(target, cx);
     }
 
     /// The pan and zoom on screen, as the layout keeps them.
@@ -467,6 +539,7 @@ impl CanvasEditor {
             self.connect_from = None;
         }
         self.selection = selection;
+        self.reveal = !self.selection.nodes.is_empty();
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(!self.selection.is_empty()));
         cx.notify();
@@ -514,6 +587,7 @@ impl CanvasEditor {
             return;
         };
         self.selection = Selection::node(&id);
+        self.reveal = true;
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(true));
         cx.notify();
@@ -800,6 +874,7 @@ impl CanvasEditor {
         self.error = None;
         self.apply_source(source, Capture::Immediately, cx);
         self.selection = Selection::node(&canvas);
+        self.reveal = true;
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(true));
         cx.notify();
@@ -1329,6 +1404,12 @@ impl Render for CanvasEditor {
         let inspecting = !self.selection.is_empty();
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(inspecting));
+        if source::palette(&theme) != self.colors {
+            self.render_due = true;
+        }
+        if self.reveal {
+            self.reveal_selection(window, cx);
+        }
         let well = self.well(window, cx);
         let hint = self.connect_from.as_ref().map(|_| {
             let kind = edge_palette(&self.definition)

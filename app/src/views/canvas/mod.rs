@@ -28,7 +28,7 @@ use gpui::{
     AnyElement, App, AppContext as _, Context, Entity, FocusHandle, FontWeight, IntoElement,
     Render, SharedString, Window, canvas, div, linear_color_stop, linear_gradient, prelude::*, px,
 };
-use polterware_mermaid::config::Config;
+use polterware_mermaid::measure::FallbackMeasure;
 use polterware_mermaid::scene::Scene;
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
 use polterware_ui::card::texture_card;
@@ -84,7 +84,7 @@ pub struct CanvasView {
     /// Each card's bounds, which its miniature fits.
     cards: HashMap<String, AnchorSlot>,
     /// Each canvas's drawing, by id, with the source it was drawn from.
-    previews: HashMap<String, (String, Rc<Scene>)>,
+    previews: HashMap<String, (String, mermaid::Palette, Rc<Scene>)>,
     editor: Option<(u64, Entity<CanvasEditor>)>,
 }
 
@@ -388,8 +388,10 @@ impl CanvasView {
             Load::Ready(list) => list.types.clone(),
             _ => Vec::new(),
         };
-        let previews: Vec<Option<Rc<Scene>>> =
-            canvases.iter().map(|canvas| self.preview(canvas)).collect();
+        let previews: Vec<Option<Rc<Scene>>> = canvases
+            .iter()
+            .map(|canvas| self.preview(canvas, &theme))
+            .collect();
         let cards: Vec<AnyElement> = canvases
             .iter()
             .zip(previews)
@@ -434,21 +436,25 @@ impl CanvasView {
             .into_any_element()
     }
 
-    /// The drawing a card shows: the canvas's Mermaid source rendered once per source, so a
-    /// grid of cards does not lay every diagram out again on each frame.
-    fn preview(&mut self, canvas: &Canvas) -> Option<Rc<Scene>> {
+    /// The drawing a card shows: the canvas's Mermaid source rendered once per source and
+    /// theme, so a grid of cards does not lay every diagram out again on each frame.
+    fn preview(&mut self, canvas: &Canvas, theme: &Theme) -> Option<Rc<Scene>> {
         let source = canvas.source.trim();
         if source.is_empty() {
             return None;
         }
-        if let Some((cached, scene)) = self.previews.get(&canvas.id)
+        let palette = mermaid::palette(theme);
+        if let Some((cached, cached_palette, scene)) = self.previews.get(&canvas.id)
             && cached == source
+            && cached_palette == &palette
         {
             return Some(scene.clone());
         }
-        let scene = Rc::new(polterware_mermaid::render_diagram(source, &Config::default()).ok()?);
-        self.previews
-            .insert(canvas.id.clone(), (source.to_string(), scene.clone()));
+        let scene = Rc::new(mermaid::preview(source, &FallbackMeasure, &palette)?);
+        self.previews.insert(
+            canvas.id.clone(),
+            (source.to_string(), palette, scene.clone()),
+        );
         Some(scene)
     }
 

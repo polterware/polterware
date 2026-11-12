@@ -748,10 +748,11 @@ mod tests {
         // ref ride in the metadata block so the graph reads back unchanged.
         let want = concat!(
             "flowchart LR\n",
-            "  api[\"Public API\"]@{ kind: service, ref: fact/fact-1 }\n",
-            "  db[\"Store\"]@{ kind: database }\n",
-            "  note[\"Sketch\"]@{ kind: note }\n",
+            "  api[\"Public API\"]@{ kind: service, ref: fact/fact-1, shape: rounded }\n",
+            "  db[\"Store\"]@{ kind: database, shape: cyl }\n",
+            "  note[\"Sketch\"]@{ kind: note, shape: rounded }\n",
             "  class db unverified\n",
+            "  classDef unverified stroke-dasharray: 4 4\n",
         );
         assert_eq!(body, want, "export:\n{body}\nwant:\n{want}");
         assert!(

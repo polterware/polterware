@@ -39,7 +39,7 @@ use crate::canvas::catalog::{
     COMPONENTS, component_of, edge_palette, family_for, kind_label, structure_kind,
 };
 use crate::canvas::document::{
-    COLOR_TAGS, Node, ShapeStyle, TextAlign, TextSize, property_text, read_style, write_style,
+    COLOR_TAGS, Node, ShapeStyle, property_text, read_style, write_style,
 };
 use crate::canvas::references::{
     PromotionKind, StoreEntity, build_ref, can_promote, derive_slug, linked_facts, ref_label,
@@ -275,6 +275,27 @@ impl InspectorState {
         out.push(self.composer.clone().into_any_element());
         out
     }
+}
+
+/// The `style` line a shape's style writes, in the colors the theme paints its tags.
+fn style_line(style: &ShapeStyle, theme: &Theme) -> String {
+    let fill = match fill_color(&style.fill, theme) {
+        Some(color) => format!("fill:{}", super::mermaid::css(color)),
+        None => "fill:none".to_string(),
+    };
+    let stroke = match stroke_color(&style.stroke, theme) {
+        Some(color) => format!("stroke:{}", super::mermaid::css(color)),
+        None => "stroke:none".to_string(),
+    };
+    let mut parts = vec![
+        fill,
+        stroke,
+        format!("stroke-width:{}px", style.stroke_width),
+    ];
+    if style.dashed {
+        parts.push("stroke-dasharray:4 4".to_string());
+    }
+    parts.join(",")
 }
 
 /// Shows `text` in `field` unless someone is typing in it.
@@ -527,17 +548,28 @@ impl CanvasEditor {
         self.apply_source(source, capture, cx);
     }
 
-    fn set_style(&mut self, change: impl FnOnce(&mut ShapeStyle), cx: &mut Context<Self>) {
-        self.edit_node(
-            |node| {
-                let mut style = read_style(&node.props);
-                change(&mut style);
-                write_style(&mut node.props, &style);
-                true
-            },
-            Capture::Immediately,
-            cx,
-        );
+    fn set_style(
+        &mut self,
+        change: impl FnOnce(&mut ShapeStyle),
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(id) = self.selected_node() else {
+            return;
+        };
+        let Some(mut after) = self.doc.node(&id).cloned() else {
+            return;
+        };
+        let mut style = read_style(&after.props);
+        change(&mut style);
+        write_style(&mut after.props, &style);
+        let Some(mermaid) = self.mermaid(&id) else {
+            return;
+        };
+        let source =
+            super::source_edit::set_style_line(&self.source, &mermaid, &style_line(&style, theme));
+        self.doc = crate::canvas::document::update_node(&self.doc, &id, |node| *node = after);
+        self.apply_source(source, Capture::Immediately, cx);
     }
 
     fn set_geometry(&mut self, geometry: Geometry, value: f64, cx: &mut Context<Self>) {
@@ -936,7 +968,6 @@ impl CanvasEditor {
     ) -> AnyElement {
         let entities = self.entities(cx);
         let library = shape_of(&node.kind).is_some() || component_of(&node.kind).is_some();
-        let semantic = component_of(&node.kind).is_some() || structure_kind(&node.kind);
         let is_note = node.kind == "note";
         let style = read_style(&node.props);
         let linked = linked_facts(node, &entities);
@@ -995,7 +1026,7 @@ impl CanvasEditor {
             });
         let page = match tab {
             Tab::Style => self.style_tab(node, &style, width, editor, theme, cx),
-            Tab::Text => self.text_tab(node, &style, is_note, semantic, editor, theme),
+            Tab::Text => self.text_tab(node, is_note, editor, theme),
             Tab::Arrange => self.arrange_tab(editor, theme),
             Tab::Data => self.data_tab(
                 node,
@@ -1084,13 +1115,14 @@ impl CanvasEditor {
                 ));
         }
         let widths = ["1 px", "2 px", "3 px"];
+        let theme_value = *theme;
         out.child(swatches(
             "canvas-fill",
             "Fill",
             &style.fill,
             true,
             fill_color,
-            |this, tag, cx| this.set_style(|style| style.fill = tag, cx),
+            move |this, tag, cx| this.set_style(|style| style.fill = tag, &theme_value, cx),
             editor,
             theme,
         ))
@@ -1100,7 +1132,7 @@ impl CanvasEditor {
             &style.stroke,
             true,
             stroke_color,
-            |this, tag, cx| this.set_style(|style| style.stroke = tag, cx),
+            move |this, tag, cx| this.set_style(|style| style.stroke = tag, &theme_value, cx),
             editor,
             theme,
         ))
@@ -1109,7 +1141,13 @@ impl CanvasEditor {
             "Line width",
             &widths,
             usize::from(style.stroke_width.clamp(1, 3) - 1),
-            |this, index, cx| this.set_style(|style| style.stroke_width = index as u8 + 1, cx),
+            move |this, index, cx| {
+                this.set_style(
+                    |style| style.stroke_width = index as u8 + 1,
+                    &theme_value,
+                    cx,
+                )
+            },
             editor,
             theme,
         ))
@@ -1118,7 +1156,9 @@ impl CanvasEditor {
             "Line pattern",
             &["Solid", "Dashed"],
             usize::from(style.dashed),
-            |this, index, cx| this.set_style(|style| style.dashed = index == 1, cx),
+            move |this, index, cx| {
+                this.set_style(|style| style.dashed = index == 1, &theme_value, cx)
+            },
             editor,
             theme,
         ))
@@ -1128,13 +1168,12 @@ impl CanvasEditor {
     fn text_tab(
         &self,
         node: &Node,
-        style: &ShapeStyle,
         is_note: bool,
-        semantic: bool,
         editor: &WeakEntity<Self>,
         theme: &Theme,
     ) -> AnyElement {
         let mut out = form(12.0);
+        let theme_value = *theme;
         if is_note {
             let color = property_text(&node.props, "color");
             let color = if color.is_empty() {
@@ -1148,10 +1187,12 @@ impl CanvasEditor {
                 &color,
                 false,
                 fill_color,
-                |this, tag, cx| {
+                move |this, tag, cx| {
+                    let picked = tag.clone();
+                    this.set_style(|style| style.fill = tag, &theme_value, cx);
                     this.edit_node(
                         |node| {
-                            node.props.insert("color".into(), tag.into());
+                            node.props.insert("color".into(), picked.into());
                             true
                         },
                         Capture::Immediately,
@@ -1188,53 +1229,9 @@ impl CanvasEditor {
                 ))
                 .into_any_element();
         }
-        let size = match style.text_size {
-            TextSize::Sm => 0,
-            TextSize::Md => 1,
-            TextSize::Lg => 2,
-        };
-        out = out.child(segments(
-            "canvas-text-size",
-            "Text size",
-            &["Small", "Medium", "Large"],
-            size,
-            |this, index, cx| {
-                let size = [TextSize::Sm, TextSize::Md, TextSize::Lg][index.min(2)];
-                this.set_style(|style| style.text_size = size, cx)
-            },
-            editor,
-            theme,
-        ));
-        if !semantic {
-            let align = match style.text_align {
-                TextAlign::Left => 0,
-                TextAlign::Center => 1,
-                TextAlign::Right => 2,
-            };
-            out = out.child(segments(
-                "canvas-text-align",
-                "Alignment",
-                &["Left", "Center", "Right"],
-                align,
-                |this, index, cx| {
-                    let align =
-                        [TextAlign::Left, TextAlign::Center, TextAlign::Right][index.min(2)];
-                    this.set_style(|style| style.text_align = align, cx)
-                },
-                editor,
-                theme,
-            ));
-        }
-        out.child(segments(
-            "canvas-text-weight",
-            "Weight",
-            &["Regular", "Bold"],
-            usize::from(style.bold),
-            |this, index, cx| this.set_style(|style| style.bold = index == 1, cx),
-            editor,
-            theme,
-        ))
-        .into_any_element()
+        // Text size, alignment, and weight have no Mermaid spelling: a `style` line carries
+        // fill, stroke, width, and dash only, so the panel offers what the source can keep.
+        out.into_any_element()
     }
 
     fn arrange_tab(&self, editor: &WeakEntity<Self>, theme: &Theme) -> AnyElement {

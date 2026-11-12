@@ -272,9 +272,78 @@ pub(super) fn insert_node(
     (append(source, &[line]), id, canvas_id)
 }
 
-/// Sets a node's label, leaving the rest of its line as it was.
+/// Sets a node's label, in the bracket the diagram draws and in its metadata.
 pub(super) fn set_label(source: &str, id: &str, label: &str) -> String {
-    set_field(source, id, "label", Some(&text(label)))
+    let source = bracket_label(source, id, label);
+    set_field(&source, id, "label", Some(&text(label)))
+}
+
+/// Rewrites a node's bracket label, which is the text Mermaid draws.
+fn bracket_label(source: &str, id: &str, label: &str) -> String {
+    let Some((start, end)) = node_line(source, id) else {
+        return source.to_string();
+    };
+    let line = &source[start..end];
+    let trimmed = line.len() - line.trim_start().len();
+    let head = trimmed + leading_id(line).map_or(0, str::len);
+    let after = &line[head..];
+    let quoted = text(label);
+    let rewritten = match bracket_span(after) {
+        Some((open, close)) => {
+            let mut rewritten = String::with_capacity(after.len() + quoted.len());
+            rewritten.push_str(&after[..open + 1]);
+            rewritten.push_str(&quoted);
+            rewritten.push_str(&after[close..]);
+            rewritten
+        }
+        None => format!("[{quoted}]{after}"),
+    };
+    let mut out = String::with_capacity(source.len() + rewritten.len());
+    out.push_str(&source[..start]);
+    out.push_str(&line[..head]);
+    out.push_str(&rewritten);
+    out.push_str(&source[end..]);
+    out
+}
+
+/// The byte range of the `[` and `]` a node's label sits between, when it has one.
+fn bracket_span(text: &str) -> Option<(usize, usize)> {
+    let open = text.find('[')?;
+    let bytes = text.as_bytes();
+    let mut quote = false;
+    let mut index = open + 1;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'\\' if quote => index += 1,
+            b'"' => quote = !quote,
+            b']' if !quote => return Some((open, index)),
+            _ => {}
+        }
+        index += 1;
+    }
+    None
+}
+
+/// Sets a node's `style` line, replacing the one it already has.
+pub(super) fn set_style_line(source: &str, id: &str, style: &str) -> String {
+    let mut out = String::with_capacity(source.len() + style.len() + 16);
+    for line in source.split_inclusive('\n') {
+        let is_style = line
+            .trim_start()
+            .strip_prefix("style ")
+            .is_some_and(|rest| rest.split_whitespace().next() == Some(id));
+        if !is_style {
+            out.push_str(line);
+        }
+    }
+    if style.trim().is_empty() {
+        return out;
+    }
+    if !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out.push_str(&format!("  style {id} {style}\n"));
+    out
 }
 
 /// Sets a node's kind, and the Mermaid shape the drawing uses for it.
@@ -842,23 +911,7 @@ fn scalar(value: &str) -> String {
 
 /// The Mermaid shape a canvas kind draws as, as the core writes it.
 pub(super) fn mermaid_shape(kind: &str) -> Option<&'static str> {
-    match kind {
-        "rectangle" => Some("rect"),
-        "rounded" => Some("rounded"),
-        "circle" => Some("circle"),
-        "diamond" => Some("diamond"),
-        "triangle" => Some("triangle"),
-        "hexagon" => Some("hexagon"),
-        "trapezoid" => Some("trapezoid"),
-        "cylinder" => Some("cylinder"),
-        "cloud" => Some("cloud"),
-        "document" => Some("document"),
-        "process" => Some("process"),
-        "manual-input" => Some("manual-input"),
-        "delay" => Some("delay"),
-        "display" => Some("display"),
-        _ => None,
-    }
+    super::mermaid::shape_for_kind(kind)
 }
 
 /// The canvas kind a shape drawn without metadata reads as, as the core reads it.
@@ -938,12 +991,39 @@ mod tests {
     fn a_kind_edit_writes_the_shape_too() {
         let source = set_kind(SOURCE, "b", "cylinder");
         assert!(source.contains("kind: cylinder"));
-        assert!(source.contains("shape: cylinder"));
+        assert!(source.contains("shape: cyl"));
         let doc = document(&source, "{}", &HashMap::new());
         assert_eq!(doc.node("b").expect("the node").kind, "cylinder");
+        let source = set_kind(&source, "b", "database");
+        assert!(source.contains("shape: cyl"));
         let source = set_kind(&source, "b", "component");
-        assert!(!source.contains("shape:"));
+        assert!(source.contains("shape: rounded"));
         assert!(source.contains("kind: component"));
+    }
+
+    #[test]
+    fn a_label_edit_rewrites_the_bracket_the_diagram_draws() {
+        let source = set_label(SOURCE, "a", "Checkout");
+        assert!(source.contains("a[\"Checkout\"]@{"), "{source}");
+        let doc = document(&source, "{}", &HashMap::new());
+        assert_eq!(doc.node("01HORDERS").expect("the node").name, "Checkout");
+        let source = set_label(SOURCE, "b", "Store");
+        assert!(source.contains("b[\"Store\"]@{"), "{source}");
+    }
+
+    #[test]
+    fn a_style_line_replaces_the_one_the_node_had() {
+        let source = "flowchart LR\n  a[\"A\"]@{ kind: database }\n  style a fill:#000000\n";
+        let styled = set_style_line(
+            source,
+            "a",
+            "fill:#ff0000,stroke:#00ff00,stroke-width:2px,stroke-dasharray:4 4",
+        );
+        assert_eq!(styled.matches("style a ").count(), 1, "{styled}");
+        assert!(!styled.contains("fill:#000000"));
+        assert!(styled.contains("stroke-dasharray:4 4"));
+        let cleared = set_style_line(&styled, "a", "");
+        assert!(!cleared.contains("style a "));
     }
 
     #[test]

@@ -15,7 +15,9 @@ use std::collections::HashMap;
 
 use serde_json::{Map, Value};
 
-use super::{EDGE_RELATES, Edge, Error, Graph, KIND_NOTE, Node, Ref, Result, valid_ref_kind};
+use super::{
+    COMPONENT_KINDS, EDGE_RELATES, Edge, Error, Graph, KIND_NOTE, Node, Ref, Result, valid_ref_kind,
+};
 
 /// The `@{ ... }` metadata blocks of the source, by the id before them.
 type Blocks = HashMap<String, Map<String, Value>>;
@@ -471,25 +473,35 @@ fn unescape(text: &str) -> String {
 }
 
 /// The Mermaid shape a canvas kind draws as, when the shape registry names it.
-/// A kind without one keeps its metadata only.
+/// A kind without one keeps its metadata only. The editor keeps the same table for
+/// the drawing it shows; this one is what the agent export writes back.
 pub fn mermaid_shape(kind: &str) -> Option<&'static str> {
-    match kind {
-        "rectangle" => Some("rect"),
-        "rounded" => Some("rounded"),
-        "circle" => Some("circle"),
-        "diamond" => Some("diamond"),
-        "triangle" => Some("triangle"),
-        "hexagon" => Some("hexagon"),
-        "trapezoid" => Some("trapezoid"),
-        "cylinder" => Some("cylinder"),
-        "cloud" => Some("cloud"),
-        "document" => Some("document"),
-        "process" => Some("process"),
-        "manual-input" => Some("manual-input"),
-        "delay" => Some("delay"),
-        "display" => Some("display"),
-        _ => None,
-    }
+    Some(match kind {
+        "rectangle" => "rect",
+        "rounded" => "rounded",
+        "circle" => "circle",
+        "diamond" => "diamond",
+        "triangle" => "triangle",
+        "hexagon" => "hexagon",
+        "trapezoid" => "trapezoid",
+        "cylinder" | "database" | "cache" | "storage" | "warehouse" | "dataset" | "logs" => "cyl",
+        "cloud" | "cdn" | "cluster" | "firewall" | "kms" => "cloud",
+        "document" => "document",
+        "spec" => "doc",
+        "process" => "process",
+        "manual-input" => "manual-input",
+        "delay" => "delay",
+        "display" => "display",
+        "queue" | "stream" => "datastore",
+        "llm" | "agent" | "mcp" | "vector" => "hex",
+        "user" | "team" => "stadium",
+        "scheduler" | "pipeline" | "ci" => "lean-r",
+        "note" => "rounded",
+        "text" => "text",
+        "domain" | "component" => "rounded",
+        _ if COMPONENT_KINDS.contains(&kind) => "rounded",
+        _ => return None,
+    })
 }
 
 /// Whether a canvas node id can be a Mermaid id as written.
