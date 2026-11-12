@@ -53,6 +53,14 @@ static CARD_SECTION_KEY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^(behavior|edge-cases|plan):[\t\n\f\r ]*(.*)$").expect("the card section pattern")
 });
 
+/// The heading level of a card (`##`). A card's body ends at this level or
+/// shallower.
+const CARD_HEADING_LEVEL: usize = 2;
+
+/// The heading level of a Rule block (`####`). A Rule's `why:` body ends at
+/// this level or shallower.
+const RULE_HEADING_LEVEL: usize = 4;
+
 /// A Rule's single-line metadata key; `replaced-by:` carries a hyphen.
 static RULE_META_KEY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^([a-z][a-z-]*):[\t\n\f\r ]*(.*)$").expect("the rule metadata pattern")
@@ -121,7 +129,8 @@ struct Decoder {
     in_fence: bool,
     intent: Vec<String>,
     /// The card section being read (`behavior`, `edge-cases`, or `plan`) and
-    /// its body so far.
+    /// its body so far. Every line stays in it until the next section key or
+    /// the end of the card.
     card_section: Option<String>,
     section: Vec<String>,
     slug_lines: HashMap<String, i32>,
@@ -232,6 +241,22 @@ impl Decoder {
             if trimmed.starts_with("```") {
                 self.in_fence = false;
             }
+            return;
+        }
+
+        // A body is Markdown: it keeps every line until its block ends, so a
+        // deeper heading, a `!` line, and a checklist inside it stay text.
+        if self.card_section.is_some()
+            && !CARD_SECTION_KEY.is_match(trimmed)
+            && !ends_card_body(trimmed)
+        {
+            self.push_body_line(raw, trimmed, true);
+            return;
+        }
+        if self.rule.as_ref().is_some_and(|rule| rule.why_set)
+            && heading_level(trimmed).is_none_or(|level| level > RULE_HEADING_LEVEL)
+        {
+            self.push_body_line(raw, trimmed, false);
             return;
         }
 
@@ -386,23 +411,6 @@ impl Decoder {
                 self.in_meta = false;
             }
         }
-
-        if self.card_section.is_some()
-            && !trimmed.starts_with("handoff:")
-            && !COORD_LINE.is_match(trimmed)
-            && !CONFIRM_LINE.is_match(trimmed)
-            && !TASK_LINE.is_match(trimmed)
-            && !BAD_TASK_LINE.is_match(trimmed)
-            && !trimmed.starts_with("? ")
-            && !trimmed.starts_with("! ")
-        {
-            if trimmed.starts_with("```") {
-                self.in_fence = true;
-            }
-            self.section.push(raw.to_string());
-            return;
-        }
-        self.flush_card_section();
 
         if trimmed.starts_with("handoff:") {
             self.start_handoff(n, trimmed);
@@ -963,6 +971,18 @@ impl Decoder {
             body = m.get(1).expect("group 1").as_str().trim().to_string();
         }
         (body, tags)
+    }
+
+    /// Appends one line to the open body: a card section or a Rule's `why:`.
+    fn push_body_line(&mut self, raw: &str, trimmed: &str, card: bool) {
+        if trimmed.starts_with("```") {
+            self.in_fence = true;
+        }
+        if card {
+            self.section.push(raw.to_string());
+        } else {
+            self.intent.push(raw.to_string());
+        }
     }
 
     /// Stores the section being read on the card, if any.
@@ -1570,11 +1590,8 @@ impl Decoder {
         self.in_meta = true;
     }
 
-    fn rule_line(&mut self, n: i32, raw: &str, line: &str) {
+    fn rule_line(&mut self, n: i32, _raw: &str, line: &str) {
         if line.is_empty() {
-            if self.rule.as_ref().is_some_and(|rule| rule.why_set) {
-                self.intent.push(String::new());
-            }
             self.in_meta = false;
             return;
         }
@@ -1641,13 +1658,6 @@ impl Decoder {
                 return;
             }
             self.in_meta = false;
-        }
-        if self.rule.as_ref().is_some_and(|rule| rule.why_set) {
-            if line.starts_with("```") {
-                self.in_fence = true;
-            }
-            self.intent.push(raw.to_string());
-            return;
         }
         self.errorf(
             n,
@@ -1763,6 +1773,33 @@ impl Decoder {
         self.intent.clear();
         self.in_meta = false;
     }
+}
+
+/// The level of a Markdown heading line (`#` run then a space), if any.
+fn heading_level(line: &str) -> Option<usize> {
+    let level = line.len() - line.trim_start_matches('#').len();
+    if level == 0 || level > 6 || !line[level..].starts_with(' ') {
+        return None;
+    }
+    Some(level)
+}
+
+/// Reports whether a line ends an open card body: a heading at the card's
+/// level or shallower, or a `#### rule` or `#### conflict` block, which starts
+/// a block even though it sits below the card. Every other heading, including
+/// `###`, and every card line inside the body is text.
+fn ends_card_body(line: &str) -> bool {
+    let Some(level) = heading_level(line) else {
+        return false;
+    };
+    if level <= CARD_HEADING_LEVEL {
+        return true;
+    }
+    let Some(body) = line.strip_prefix("#### ") else {
+        return false;
+    };
+    let body = body.trim();
+    body.starts_with(RULE_HEADING_PREFIX) || body.starts_with(CONFLICT_HEADING_PREFIX)
 }
 
 /// Splits `# path: Title`. `ok` is a node heading; `invalid` is a colon whose
@@ -2076,6 +2113,37 @@ options: Keep it local | Allow Redis
         assert!(has_diag(&diags, 5, "invalid scope"), "{diags:?}");
         let (_, diags) = decode("---\npolter: 1\n---\n## a: A\n- [ ] T1 Fix `api:src/auth/*`\n");
         assert!(!has_errors(&diags), "{diags:?}");
+    }
+
+    #[test]
+    fn a_card_section_keeps_deeper_headings_and_card_lines_as_text() {
+        let text = concat!(
+            "---\npolter: 1\n---\n",
+            "## a: A\n",
+            "plan: Read the store.\n",
+            "### Storage\n",
+            "! A bang line stays text\n",
+            "- [ ] a checklist item stays text\n",
+            "confirm: ! still text\n",
+            "\n",
+            "## b: B\n",
+            "! No network calls\n",
+        );
+        let doc = must_decode(text);
+        assert_eq!(doc.cards.len(), 2, "the next card starts a block");
+        let card = &doc.cards[0];
+        assert_eq!(
+            card.plan,
+            "Read the store.\n### Storage\n! A bang line stays text\n- [ ] a checklist item stays text\nconfirm: ! still text",
+            "the body keeps every line"
+        );
+        assert!(card.invariants.is_empty(), "no invariant from the body");
+        assert!(card.tasks.is_empty(), "no task from the body");
+        assert!(
+            card.confirmations.is_empty(),
+            "no confirmation from the body"
+        );
+        assert_eq!(doc.cards[1].invariants.len(), 1, "the next card's line");
     }
 
     #[test]

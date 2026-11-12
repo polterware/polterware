@@ -258,7 +258,9 @@ pub const META_KEYS: [&str; 7] = [
 
 /// The card sections that carry the spec and the plan. Each starts with its key
 /// on a line of its own and keeps the lines after it as a Markdown body: the
-/// counterpart of a Rule's `why:`.
+/// counterpart of a Rule's `why:`. A body runs until the next section, a `#` or
+/// `##` heading, or a `#### rule` / `#### conflict` block, so headings deeper
+/// than the card, `!` lines, and checklists inside it stay text.
 pub const CARD_SECTION_KEYS: [&str; 3] = ["behavior", "edge-cases", "plan"];
 
 /// The Structure node metadata keys. `repo:` names a registered checkout
