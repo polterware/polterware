@@ -149,7 +149,7 @@ pub fn unverified(node: &Node, entities: &[StoreEntity]) -> bool {
 pub fn entity_icon(kind: &str) -> Icon {
     match kind {
         "card" => Icon::ListChecks,
-        "decision" => Icon::ShieldCheck,
+        "rule" | "decision" | "fact" => Icon::ShieldCheck,
         "node" => Icon::GitBranch,
         _ => Icon::ScrollText,
     }

@@ -120,14 +120,6 @@ const ITEMS: &[Item] = &[
         Some("shell.create"),
     ),
     item(
-        "action.create-decision",
-        "New decision",
-        "Actions",
-        Icon::Box,
-        TileTone::Architecture,
-        None,
-    ),
-    item(
         "action.create-doc",
         "New doc",
         "Actions",
@@ -409,7 +401,6 @@ impl CommanderView {
                     },
                     cx,
                 ),
-                "action.create-decision" => state.compose(ComposeRequest::Decision, cx),
                 "action.create-doc" => state.compose(ComposeRequest::Doc, cx),
                 "action.create-node" => state.add_structure_node(cx),
                 "action.copy-brief" => {

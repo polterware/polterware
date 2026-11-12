@@ -200,7 +200,7 @@ fn feature_review_proto(review: &crate::domains::polter::FeatureReview) -> local
         });
     }
     for rule in &review.rules {
-        out.decisions.push(local_v1::FeatureDecision {
+        out.rules.push(local_v1::FeatureRule {
             r#ref: rule.reference.clone(),
             id: rule.id.clone(),
             title: rule.title.clone(),

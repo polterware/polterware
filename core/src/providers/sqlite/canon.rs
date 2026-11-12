@@ -880,7 +880,7 @@ mod tests {
         );
         assert!(
             store
-                .search_knowledge("p", "database", knowledge::KIND_DECISION, 10)
+                .search_knowledge("p", "database", "evidence", 10)
                 .expect("kind filter")
                 .is_empty(),
             "the kind filter applies to the index"

@@ -18,37 +18,36 @@ use super::local_v1::{
     EndSessionRequest, EndSessionResponse, ExportProjectionsRequest, ExportProjectionsResponse,
     FileContextRequest, FileContextResponse, GetAgentRunRequest, GetAgentRunResponse,
     GetAgentSetupRequest, GetAgentSetupResponse, GetCanvasRequest, GetCanvasResponse,
-    GetEntityRequest, GetEntityResponse, GetFactRequest, GetFactResponse,
-    GetProjectSettingsRequest, GetProjectSettingsResponse, GetStoreHealthRequest,
-    GetStoreHealthResponse, InitProjectRequest, InitProjectResponse, LinkTaskCommitRequest,
-    LinkTaskCommitResponse, LintPolterRequest, LintPolterResponse, ListAgentRunsRequest,
-    ListAgentRunsResponse, ListAgentSessionsRequest, ListAgentSessionsResponse,
-    ListAgentToolCallsRequest, ListAgentToolCallsResponse, ListCanvasTypesRequest,
-    ListCanvasTypesResponse, ListCanvasesRequest, ListCanvasesResponse, ListCardCommitsRequest,
-    ListCardCommitsResponse, ListChangesRequest, ListChangesResponse, ListCliProvidersRequest,
-    ListCliProvidersResponse, ListDeployTargetsRequest, ListDeployTargetsResponse,
-    ListEntitiesRequest, ListEntitiesResponse, ListEnvironmentsRequest, ListEnvironmentsResponse,
-    ListFactsRequest, ListFactsResponse, ListHookSwitchesRequest, ListHookSwitchesResponse,
-    ListHostCardsRequest, ListHostCardsResponse, ListHostProjectsRequest, ListHostProjectsResponse,
-    ListInboxRequest, ListInboxResponse, ListIntegrationConnectionsRequest,
-    ListIntegrationConnectionsResponse, ListIntegrationResourcesRequest,
-    ListIntegrationResourcesResponse, ListIntegrationSyncRunsRequest,
-    ListIntegrationSyncRunsResponse, ListKnowledgeLinksRequest, ListKnowledgeLinksResponse,
-    ListKnowledgeRequest, ListKnowledgeResponse, ListMcpSessionsRequest, ListMcpSessionsResponse,
-    ListMilestonesRequest, ListMilestonesResponse, ListProjectReposRequest,
-    ListProjectReposResponse, ListProjectsRequest, ListProjectsResponse, ListRelationshipsRequest,
-    ListRelationshipsResponse, ListRulesRequest, ListRulesResponse, ListSavedFiltersRequest,
-    ListSavedFiltersResponse, ListStructureHistoryRequest, ListStructureHistoryResponse,
-    ListStructureRequest, ListStructureResponse, ListTerminalSessionsRequest,
-    ListTerminalSessionsResponse, ListWorkCardsRequest, ListWorkCardsResponse,
-    ProbeCliProviderRequest, ProbeCliProviderResponse, QueryPolterRequest, QueryPolterResponse,
-    ReadTerminalOutputRequest, ReadTerminalOutputResponse, ReorderMilestonesRequest,
-    ReorderMilestonesResponse, ResetLocalStoreRequest, ResetLocalStoreResponse,
-    ResizeTerminalSessionRequest, ResizeTerminalSessionResponse, ResolveHostProjectRequest,
-    ResolveHostProjectResponse, ResolveInboxItemRequest, ResolveInboxItemResponse,
-    ResolveProjectRequest, ResolveProjectResponse, ResolveRunRequest, ResolveRunResponse,
-    ReviewFeatureRequest, ReviewFeatureResponse, SaveEnvironmentRequest, SaveEnvironmentResponse,
-    SaveIntegrationConnectionRequest, SaveIntegrationConnectionResponse,
+    GetEntityRequest, GetEntityResponse, GetProjectSettingsRequest, GetProjectSettingsResponse,
+    GetRuleRequest, GetRuleResponse, GetStoreHealthRequest, GetStoreHealthResponse,
+    InitProjectRequest, InitProjectResponse, LinkTaskCommitRequest, LinkTaskCommitResponse,
+    LintPolterRequest, LintPolterResponse, ListAgentRunsRequest, ListAgentRunsResponse,
+    ListAgentSessionsRequest, ListAgentSessionsResponse, ListAgentToolCallsRequest,
+    ListAgentToolCallsResponse, ListCanvasTypesRequest, ListCanvasTypesResponse,
+    ListCanvasesRequest, ListCanvasesResponse, ListCardCommitsRequest, ListCardCommitsResponse,
+    ListChangesRequest, ListChangesResponse, ListCliProvidersRequest, ListCliProvidersResponse,
+    ListDeployTargetsRequest, ListDeployTargetsResponse, ListEntitiesRequest, ListEntitiesResponse,
+    ListEnvironmentsRequest, ListEnvironmentsResponse, ListHookSwitchesRequest,
+    ListHookSwitchesResponse, ListHostCardsRequest, ListHostCardsResponse, ListHostProjectsRequest,
+    ListHostProjectsResponse, ListInboxRequest, ListInboxResponse,
+    ListIntegrationConnectionsRequest, ListIntegrationConnectionsResponse,
+    ListIntegrationResourcesRequest, ListIntegrationResourcesResponse,
+    ListIntegrationSyncRunsRequest, ListIntegrationSyncRunsResponse, ListKnowledgeLinksRequest,
+    ListKnowledgeLinksResponse, ListKnowledgeRequest, ListKnowledgeResponse,
+    ListMcpSessionsRequest, ListMcpSessionsResponse, ListMilestonesRequest, ListMilestonesResponse,
+    ListProjectReposRequest, ListProjectReposResponse, ListProjectsRequest, ListProjectsResponse,
+    ListRelationshipsRequest, ListRelationshipsResponse, ListRulesRequest, ListRulesResponse,
+    ListSavedFiltersRequest, ListSavedFiltersResponse, ListStructureHistoryRequest,
+    ListStructureHistoryResponse, ListStructureRequest, ListStructureResponse,
+    ListTerminalSessionsRequest, ListTerminalSessionsResponse, ListWorkCardsRequest,
+    ListWorkCardsResponse, ProbeCliProviderRequest, ProbeCliProviderResponse, QueryPolterRequest,
+    QueryPolterResponse, ReadTerminalOutputRequest, ReadTerminalOutputResponse,
+    ReorderMilestonesRequest, ReorderMilestonesResponse, ResetLocalStoreRequest,
+    ResetLocalStoreResponse, ResizeTerminalSessionRequest, ResizeTerminalSessionResponse,
+    ResolveHostProjectRequest, ResolveHostProjectResponse, ResolveInboxItemRequest,
+    ResolveInboxItemResponse, ResolveProjectRequest, ResolveProjectResponse, ResolveRunRequest,
+    ResolveRunResponse, ReviewFeatureRequest, ReviewFeatureResponse, SaveEnvironmentRequest,
+    SaveEnvironmentResponse, SaveIntegrationConnectionRequest, SaveIntegrationConnectionResponse,
     SaveIntegrationSyncRunRequest, SaveIntegrationSyncRunResponse, SaveKnowledgeLinkRequest,
     SaveKnowledgeLinkResponse, SaveKnowledgeRequest, SaveKnowledgeResponse, SaveProjectRequest,
     SaveProjectResponse, SaveProjectSettingsRequest, SaveProjectSettingsResponse,
@@ -60,8 +59,8 @@ use super::local_v1::{
     SyncIntegrationConnectionRequest, SyncIntegrationConnectionResponse, SyncProjectModelRequest,
     SyncProjectModelResponse, UnlinkTaskCommitRequest, UnlinkTaskCommitResponse,
     UpdateCanvasRequest, UpdateCanvasResponse, UpdateMilestoneRequest, UpdateMilestoneResponse,
-    UpsertFactRequest, UpsertFactResponse, VerifyFeatureRequest, VerifyFeatureResponse,
-    WatchChangesRequest, WatchChangesResponse, WriteHandoffRequest, WriteHandoffResponse,
+    VerifyFeatureRequest, VerifyFeatureResponse, WatchChangesRequest, WatchChangesResponse,
+    WriteHandoffRequest, WriteHandoffResponse, WriteRuleRequest, WriteRuleResponse,
     WriteTerminalSessionRequest, WriteTerminalSessionResponse,
 };
 
@@ -643,26 +642,6 @@ impl ProjectModelService<'_> {
             request,
         )
     }
-
-    pub fn list_facts(&self, request: &ListFactsRequest) -> Result<ListFactsResponse, CoreError> {
-        self.0
-            .unary("polterware.local.v1.ProjectModelService/ListFacts", request)
-    }
-
-    pub fn get_fact(&self, request: &GetFactRequest) -> Result<GetFactResponse, CoreError> {
-        self.0
-            .unary("polterware.local.v1.ProjectModelService/GetFact", request)
-    }
-
-    pub fn upsert_fact(
-        &self,
-        request: &UpsertFactRequest,
-    ) -> Result<UpsertFactResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.ProjectModelService/UpsertFact",
-            request,
-        )
-    }
 }
 
 /// `polterware.local.v1.ProjectService`.
@@ -877,6 +856,16 @@ impl WorkService<'_> {
     pub fn list_rules(&self, request: &ListRulesRequest) -> Result<ListRulesResponse, CoreError> {
         self.0
             .unary("polterware.local.v1.WorkService/ListRules", request)
+    }
+
+    pub fn get_rule(&self, request: &GetRuleRequest) -> Result<GetRuleResponse, CoreError> {
+        self.0
+            .unary("polterware.local.v1.WorkService/GetRule", request)
+    }
+
+    pub fn write_rule(&self, request: &WriteRuleRequest) -> Result<WriteRuleResponse, CoreError> {
+        self.0
+            .unary("polterware.local.v1.WorkService/WriteRule", request)
     }
 
     pub fn list_work_cards(

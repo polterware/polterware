@@ -1,17 +1,14 @@
 //! Port of `backend/compositions/local-core/scope_handlers.go`.
 //!
 //! Sets the Structure contexts of a Rule or a doc, or of a derived Inbox item;
-//! none clears them, which means the whole project. `decision` and `fact` are
-//! read as `rule`, the kind that replaced them.
+//! none clears them, which means the whole project.
 
 use std::sync::Arc;
 
 use crate::compositions::wedge;
 use crate::domains::polter;
 use crate::local_v1;
-use crate::providers::sqlite::{
-    SCOPE_DECISION, SCOPE_FACT, SCOPE_ITEM, SCOPE_KNOWLEDGE, SCOPE_RULE,
-};
+use crate::providers::sqlite::{SCOPE_ITEM, SCOPE_KNOWLEDGE, SCOPE_RULE};
 
 use super::connect::{ConnectError, ConnectRequest, Route};
 use super::server::{Core, internal, invalid};
@@ -36,10 +33,10 @@ pub fn set_scope(
         return Err(invalid("id is required"));
     }
     match msg.kind.as_str() {
-        SCOPE_DECISION | SCOPE_KNOWLEDGE | SCOPE_FACT | SCOPE_RULE | SCOPE_ITEM => {}
+        SCOPE_KNOWLEDGE | SCOPE_RULE | SCOPE_ITEM => {}
         _ => {
             return Err(invalid(format!(
-                "unknown scope kind {}: use decision, knowledge, fact, rule, or item",
+                "unknown scope kind {}: use knowledge, rule, or item",
                 polter::go_quote(&msg.kind)
             )));
         }
@@ -50,7 +47,7 @@ pub fn set_scope(
     let scope = wedge::resolve_scope_refs(&store, &msg.project_id, &msg.nodes, false)
         .map_err(|err| invalid(err.to_string()))?;
     let mut id = msg.id.clone();
-    if matches!(msg.kind.as_str(), SCOPE_RULE | SCOPE_DECISION | SCOPE_FACT) {
+    if msg.kind == SCOPE_RULE {
         // A Rule is named by its slug as often as by its id.
         let rules = store.list_rules(&msg.project_id).map_err(internal)?;
         for rule in &rules {

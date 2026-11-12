@@ -690,7 +690,7 @@ impl CanvasEditor {
                 format!("Promote to {}", ref_label(kind.wire())),
             ])
             .edit();
-        let slugged = kind != PromotionKind::Decision;
+        let slugged = true;
         if slugged {
             spec = spec.field("Slug", "lowercase-kebab");
         }
@@ -705,8 +705,7 @@ impl CanvasEditor {
         // What the promotion makes, then the core's refusal, as Electron's body shows them.
         let line = match kind {
             PromotionKind::Card => "Stage: Idea",
-            PromotionKind::Decision => "Status: Proposed. The core assigns a Decision number.",
-            PromotionKind::Fact => "Agents keep the code to it.",
+            PromotionKind::Rule => "Status: Active. Agents keep the code to it.",
         };
         let error = self.inspector.promotion_error.clone();
         self.inspector.composer.update(cx, |composer, cx| {

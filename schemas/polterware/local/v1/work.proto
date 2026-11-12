@@ -40,7 +40,9 @@ message WorkCard {
   string stage = 6;
   string owner = 7;
   string under = 8;
-  repeated string decisions = 9;
+  // rules are the Rules that apply to the card: its scope chain plus the
+  // project-wide ones.
+  repeated string rules = 9;
   string created_at = 10;
   string updated_at = 11;
   repeated WorkTask tasks = 12;
@@ -144,7 +146,7 @@ message WriteHandoffResponse {
 message EndSessionRequest { string session_id = 1; }
 message EndSessionResponse { int32 completed_runs = 1; }
 
-// InboxItem is one derived item that needs a person: a Decision (open
+// InboxItem is one derived item that needs a person: a Question (open
 // question) or Setup (a deploy whose provider CLI is not connected).
 message InboxItem {
   // id is the short id people type; it is stable while the item is the same.
@@ -189,8 +191,8 @@ message ListInboxRequest {
 }
 
 // SetScopeRequest replaces an entity's contexts with nodes (ids or paths); an
-// empty list clears them (the whole project). kind is "decision", "fact",
-// "rule", or "item" (a derived Inbox item, identified by its item key).
+// empty list clears them (the whole project). kind is "rule" or "item" (a
+// derived Inbox item, identified by its item key).
 message SetScopeRequest {
   string project_id = 1;
   string kind = 2;
@@ -260,7 +262,8 @@ message StructureNode {
   string path = 5;
   string title = 6;
   string intent = 7;
-  repeated string decisions = 8;
+  // rules are the Rule references the node cites.
+  repeated string rules = 8;
   // invariants became Rules with the node as a context.
   reserved 9;
   reserved "invariants";
@@ -350,9 +353,8 @@ message ListAgentSessionsResponse {
 message ListStructureHistoryRequest { string project_id = 1; }
 message ListStructureHistoryResponse { repeated StructureHistoryEntry entries = 1; }
 
-// ExportProjections writes Decision files into docs/decision/ of each governing checkout
-// and the generated AGENTS.md block of every checkout. The store stays the
-// source of truth; nothing is read back from the files.
+// ExportProjections writes the generated AGENTS.md block of every checkout.
+// The store stays the source of truth; nothing is read back from the files.
 message ExportProjectionsRequest {
   string project_id = 1;
   bool dry_run = 2;
@@ -405,9 +407,9 @@ message FeatureTouch {
   string title = 3;
 }
 
-// from is "card" or the node path that cites the decision; status is empty
-// when no Decision matches the reference.
-message FeatureDecision {
+// from is "card" or the node path that cites the Rule; status is empty
+// when no Rule matches the reference.
+message FeatureRule {
   string ref = 1;
   string id = 2;
   string title = 3;
@@ -445,7 +447,7 @@ message FeatureReview {
   // suggested lists component paths for a card without under:.
   repeated string suggested = 4;
   repeated FeatureTouch touches = 5;
-  repeated FeatureDecision decisions = 6;
+  repeated FeatureRule rules = 6;
   repeated FeatureInvariant inherited = 7;
   repeated FeatureQuestion questions = 8;
   repeated FeatureCheck checks = 9;
@@ -580,9 +582,10 @@ message ReorderMilestonesRequest {
 }
 message ReorderMilestonesResponse { repeated Milestone milestones = 1; }
 
-// Rule is a short imperative constraint agents read before they work.
-// scope_node_ids are the Structure nodes it applies to (and every node below
-// them); none is the whole project.
+// Rule is the only law: a short imperative constraint agents read before they
+// work. scope_node_ids are the Structure nodes it applies to (and every node
+// below them); none is the whole project. why is optional Markdown (the old
+// Decision body). Only active and under_review Rules bind.
 message Rule {
   string id = 1;
   string slug = 2;
@@ -590,6 +593,13 @@ message Rule {
   repeated string scope_node_ids = 4;
   // scope_paths are the same nodes as paths, sorted.
   repeated string scope_paths = 5;
+  // why is the optional Markdown rationale, shown on the Rule's page.
+  string why = 6;
+  // status is proposed, active, under_review, replaced, or removed.
+  string status = 7;
+  // replaced_by is the Rule that replaced this one, when status is replaced.
+  string replaced_by = 8;
+  int32 position = 9;
 }
 
 message ListRulesRequest {
@@ -598,8 +608,35 @@ message ListRulesRequest {
   // project-wide ones.
   repeated string scope_nodes = 2;
   bool scope_exact = 3;
+  // statuses keeps the Rules in any of these states; empty keeps every state.
+  repeated string statuses = 4;
 }
 message ListRulesResponse { repeated Rule rules = 1; }
+
+message GetRuleRequest {
+  string id = 1;
+}
+message GetRuleResponse { Rule rule = 1; }
+
+// WriteRule writes Polter rule text: a `#### rule <slug>: Statement` block with
+// its scope, why, status, and replaced-by. dry_run plans it without writing.
+message WriteRuleRequest {
+  string project_id = 1;
+  string text = 2;
+  bool dry_run = 3;
+  ChangeEnvelope change = 4;
+  // session_label is the acting agent; the Desktop writes as "desktop".
+  string session_label = 5;
+}
+message WriteRuleResponse {
+  bool applied = 1;
+  Rule rule = 2;
+  repeated PolterDiagnostic diagnostics = 3;
+  // ops is one terraform-style line per operation (`+`, `~`, `-`).
+  repeated string ops = 4;
+  string agent_run_id = 5;
+  string batch_id = 6;
+}
 
 // CardCommit is one commit of a card's task: linked by an agent or a person,
 // or cited in its subject (slug#T2) and read from a checkout.
@@ -646,6 +683,8 @@ message UnlinkTaskCommitResponse {}
 
 service WorkService {
   rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
+  rpc GetRule(GetRuleRequest) returns (GetRuleResponse);
+  rpc WriteRule(WriteRuleRequest) returns (WriteRuleResponse);
   rpc ListWorkCards(ListWorkCardsRequest) returns (ListWorkCardsResponse);
   rpc ListStructure(ListStructureRequest) returns (ListStructureResponse);
   rpc ListStructureHistory(ListStructureHistoryRequest) returns (ListStructureHistoryResponse);

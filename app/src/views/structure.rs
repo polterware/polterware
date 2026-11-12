@@ -23,7 +23,7 @@
 //! project's checkouts and Choose folder…, with the GitHub button) and Folder; and Deploys as
 //! tokens that open the deploy Composer, lead to the platform, and show the latest check, with
 //! Check deploys, a danger chip per failed deploy, and a warning per platform whose CLI is not
-//! connected. Then the record sections (Rules, Cards, Decisions, Docs; a 16px heading whose
+//! connected. Then the record sections (Rules, Cards, Docs; a 16px heading whose
 //! `+` links one more), each row opening its record and a direct link's × unlinking it, and the
 //! node's Activity. With no node yet, the project's document is followed by the agent prompts.
 //!
@@ -69,8 +69,7 @@ use crate::contracts::{KnowledgeItem, NodeDeployment, ProjectRepo, Rule, Structu
 use crate::state::{
     AppState, DeployInput, Load, NodeDraft, NodePatch, RecordKind, Structure, list_values,
 };
-use crate::views::knowledge::decision_state;
-use crate::views::knowledge_page::{cites, document_activity};
+use crate::views::knowledge_page::document_activity;
 
 /// The project's own row and document (`PROJECT_ID`).
 const PROJECT: &str = "structure:project";
@@ -238,8 +237,8 @@ fn repository_label(repo: &ProjectRepo) -> String {
         .map_or_else(|| repo.name.clone(), str::to_string)
 }
 
-/// One thing that cites a node (`StructureRecord`): a card by its slug, a decision, a Rule, or
-/// a doc, with a muted caption such as its stage; `direct` is a link the node owns, which its
+/// One thing that cites a node (`StructureRecord`): a card by its slug, a Rule, or a doc,
+/// with a muted caption such as its stage; `direct` is a link the node owns, which its
 /// document can remove.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Record {
@@ -254,7 +253,6 @@ pub struct Record {
 pub struct Records {
     pub rules: Vec<Record>,
     pub cards: Vec<Record>,
-    pub decisions: Vec<Record>,
     pub docs: Vec<Record>,
 }
 
@@ -263,7 +261,6 @@ impl Records {
         match kind {
             RecordKind::Rule => &self.rules,
             RecordKind::Card => &self.cards,
-            RecordKind::Decision => &self.decisions,
             RecordKind::Doc => &self.docs,
         }
     }
@@ -274,7 +271,6 @@ fn section_of(kind: RecordKind) -> (&'static str, Icon) {
     match kind {
         RecordKind::Rule => ("Rules", Icon::ShieldCheck),
         RecordKind::Card => ("Cards", Icon::FolderKanban),
-        RecordKind::Decision => ("Decisions", Icon::Scale),
         RecordKind::Doc => ("Docs", Icon::FileText),
     }
 }
@@ -284,15 +280,6 @@ fn card_record(card: &WorkCard) -> Record {
         id: card.slug.clone(),
         title: card.title.clone(),
         caption: capitalize(&card.stage),
-        direct: false,
-    }
-}
-
-fn decision_record(item: &KnowledgeItem) -> Record {
-    Record {
-        id: item.id.clone(),
-        title: item.title.clone(),
-        caption: capitalize(decision_state(&item.status)),
         direct: false,
     }
 }
@@ -328,12 +315,6 @@ pub fn project_records(structure: &Structure) -> Records {
             .map(|rule| rule_record(rule, ""))
             .collect(),
         cards: structure.cards.iter().map(card_record).collect(),
-        decisions: structure
-            .items
-            .iter()
-            .filter(|item| item.kind == "decision")
-            .map(decision_record)
-            .collect(),
         docs: structure
             .items
             .iter()
@@ -343,9 +324,8 @@ pub fn project_records(structure: &Structure) -> Records {
     }
 }
 
-/// `structureRecords`' node: the cards under it, the decisions and docs scoped to it (and the
-/// decisions it governs), and every Rule that holds there: its own (direct), an ancestor's
-/// (`From …`), or the whole project's.
+/// `structureRecords`' node: the cards under it, the docs scoped to it, and every Rule that
+/// holds there: its own (direct), an ancestor's (`From …`), or the whole project's.
 pub fn node_records(structure: &Structure, node: &StructureNode) -> Records {
     let mut ancestors: Vec<&StructureNode> = Vec::new();
     let mut parent = structure
@@ -390,22 +370,6 @@ pub fn node_records(structure: &Structure, node: &StructureNode) -> Records {
             .map(|card| Record {
                 direct: true,
                 ..card_record(card)
-            })
-            .collect(),
-        decisions: structure
-            .items
-            .iter()
-            .filter(|item| item.kind == "decision")
-            .filter(|item| {
-                scoped(&item.scope_node_ids)
-                    || node
-                        .decisions
-                        .iter()
-                        .any(|reference| cites(reference, &item.id, &item.title))
-            })
-            .map(|item| Record {
-                direct: scoped(&item.scope_node_ids),
-                ..decision_record(item)
             })
             .collect(),
         docs: structure
@@ -2854,7 +2818,6 @@ mod tests {
         let billing = node("billing", "", "domain", "Billing");
         let invoices = StructureNode {
             path: "billing/invoices".into(),
-            decisions: vec!["dec-1".into()],
             ..node("invoices", "billing", "component", "Invoices")
         };
         let rule = |id: &str, scope: &[&str]| Rule {
@@ -2872,23 +2835,14 @@ mod tests {
                 under: "billing/invoices".into(),
                 ..WorkCard::default()
             }],
-            items: vec![
-                KnowledgeItem {
-                    id: "dec-1".into(),
-                    title: "Decision 1".into(),
-                    kind: "decision".into(),
-                    status: "accepted".into(),
-                    ..KnowledgeItem::default()
-                },
-                KnowledgeItem {
-                    id: "doc-1".into(),
-                    title: "Runbook".into(),
-                    kind: "doc".into(),
-                    tags: vec!["ops".into()],
-                    scope_node_ids: vec!["invoices".into()],
-                    ..KnowledgeItem::default()
-                },
-            ],
+            items: vec![KnowledgeItem {
+                id: "doc-1".into(),
+                title: "Runbook".into(),
+                kind: "doc".into(),
+                tags: vec!["ops".into()],
+                scope_node_ids: vec!["invoices".into()],
+                ..KnowledgeItem::default()
+            }],
             rules: vec![
                 rule("own", &["invoices"]),
                 rule("whole", &[]),
@@ -2912,11 +2866,6 @@ mod tests {
         );
         assert_eq!(records.cards[0].caption, "Build");
         assert!(records.cards[0].direct);
-        assert_eq!(records.decisions[0].caption, "Active");
-        assert!(
-            !records.decisions[0].direct,
-            "a governed decision is not a direct link"
-        );
         assert_eq!(records.docs[0].caption, "ops");
         let project = project_records(&structure);
         assert_eq!(project.rules.len(), 4);

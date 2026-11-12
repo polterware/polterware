@@ -163,7 +163,7 @@ impl ComposeView {
         let (milestones, nodes) = self.catalog(cx);
         match &self.open {
             Some(ComposeRequest::Card { .. }) => card_properties(&self.card, &milestones, &nodes),
-            Some(ComposeRequest::Decision | ComposeRequest::Doc) if !nodes.is_empty() => {
+            Some(ComposeRequest::Doc) if !nodes.is_empty() => {
                 let ids: Vec<String> = self.contexts.iter().map(|id| id.to_string()).collect();
                 vec![context_property(&ids, &nodes)]
             }
@@ -192,9 +192,6 @@ impl ComposeView {
                     .description("What we want and why…")
                     .why(WHY)
             }
-            ComposeRequest::Decision => ComposerSpec::new("Decision title", "Create decision")
-                .description("Context: what forces this decision…")
-                .why(WHY),
             ComposeRequest::Doc => ComposerSpec::new("Doc title", "Create doc")
                 .description("Write in Markdown…")
                 .why(WHY),
@@ -280,9 +277,8 @@ impl ComposeView {
                 self.state
                     .update(cx, |state, cx| state.create_card(card, done, cx));
             }
-            Some(request @ (ComposeRequest::Decision | ComposeRequest::Doc)) => {
+            Some(ComposeRequest::Doc) => {
                 let record = NewRecord {
-                    decision: request == ComposeRequest::Decision,
                     title: draft.title,
                     body: draft.description,
                     nodes: self.contexts.iter().map(|id| id.to_string()).collect(),

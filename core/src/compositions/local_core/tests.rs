@@ -473,7 +473,7 @@ fn the_package_routes_every_service_method_once() {
     paths.sort();
     paths.dedup();
     assert_eq!(paths.len(), total, "two routes share a path");
-    assert_eq!(total, 101, "every RPC of polterware/local/v1 is registered");
+    assert_eq!(total, 100, "every RPC of polterware/local/v1 is registered");
     assert!(paths.contains(&"/polterware.local.v1.HealthService/Check"));
     assert!(paths.contains(&"/polterware.local.v1.ChangeService/WatchChanges"));
 }

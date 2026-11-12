@@ -70,30 +70,17 @@ impl StructureView {
                     "Edit rule",
                 )
             }
-            RecordKind::Decision | RecordKind::Doc => {
+            RecordKind::Doc => {
                 let Some(item) = structure.items.iter().find(|item| item.id == id) else {
                     return;
                 };
-                let decision = kind == RecordKind::Decision;
                 (
                     item.title.clone(),
                     item.body.clone(),
                     item.scope_node_ids.clone(),
-                    if decision {
-                        "Decision title"
-                    } else {
-                        "Doc title"
-                    },
-                    if decision {
-                        "Save decision"
-                    } else {
-                        "Save doc"
-                    },
-                    if decision {
-                        "Edit decision"
-                    } else {
-                        "Edit doc"
-                    },
+                    "Doc title",
+                    "Save doc",
+                    "Edit doc",
                 )
             }
         };
@@ -118,7 +105,6 @@ impl StructureView {
         if kind != RecordKind::Rule {
             spec = spec.description(match kind {
                 RecordKind::Card => "What we want and why…",
-                RecordKind::Decision => "Context, decision, consequences…",
                 _ => "Write in Markdown…",
             });
         }
@@ -176,7 +162,7 @@ impl StructureView {
                     return done(false, cx);
                 };
                 match kind {
-                    RecordKind::Decision | RecordKind::Doc => {
+                    RecordKind::Doc => {
                         let Some(mut item) =
                             structure.items.iter().find(|item| item.id == id).cloned()
                         else {

@@ -436,11 +436,6 @@ pub fn save_knowledge(
         .map_err(super::audited_write::map_audited_err)?;
     env.project_id = item.project_id.clone();
     let mut kind = item.kind.clone();
-    if kind == knowledge::KIND_DECISION {
-        return Err(invalid(
-            "decisions are Rules now: write #### rule with polterware apply",
-        ));
-    }
     if kind == knowledge::KIND_DOC && !item.doc_type.is_empty() {
         kind = item.doc_type.clone();
     }
@@ -494,9 +489,6 @@ pub fn list_knowledge(
     core: Arc<Core>,
     request: ConnectRequest<local_v1::ListKnowledgeRequest>,
 ) -> Result<local_v1::ListKnowledgeResponse, ConnectError> {
-    if request.message.kind == knowledge::KIND_DECISION {
-        return Ok(local_v1::ListKnowledgeResponse::default());
-    }
     let store = core.store();
     let items = if request.message.archived {
         store.list_archived_knowledge(&request.message.project_id, &request.message.kind)
@@ -550,11 +542,6 @@ pub fn delete_knowledge(
             Err(err) => return Err(internal(err)),
         }
     };
-    if existing.kind == knowledge::KIND_DECISION {
-        return Err(super::audited_write::map_archive_err(
-            knowledge::KnowledgeError::DecisionArchive,
-        ));
-    }
     if !existing.archived() {
         return Err(super::audited_write::map_archive_err(
             knowledge::KnowledgeError::NotArchived,

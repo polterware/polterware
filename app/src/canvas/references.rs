@@ -8,7 +8,7 @@ use crate::contracts::CanvasRef;
 /// and technology.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StoreEntity {
-    /// `card`, `decision`, `fact`, or `node`.
+    /// `card`, `rule`, or `node`.
     pub kind: String,
     pub id: String,
     pub title: String,
@@ -22,8 +22,9 @@ pub struct StoreEntity {
 pub fn ref_label(kind: &str) -> String {
     match kind {
         "card" => "Work card".into(),
-        "decision" => "Decision".into(),
-        "fact" => "Fact".into(),
+        "rule" => "Rule".into(),
+        "decision" => "Rule".into(),
+        "fact" => "Rule".into(),
         "node" => "Structure".into(),
         other => other.into(),
     }
@@ -128,18 +129,16 @@ pub fn can_promote(node: &Node) -> bool {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PromotionKind {
     Card,
-    Decision,
-    Fact,
+    Rule,
 }
 
 impl PromotionKind {
-    pub const ALL: [PromotionKind; 3] = [Self::Card, Self::Decision, Self::Fact];
+    pub const ALL: [PromotionKind; 2] = [Self::Card, Self::Rule];
 
     pub fn wire(self) -> &'static str {
         match self {
             Self::Card => "card",
-            Self::Decision => "decision",
-            Self::Fact => "fact",
+            Self::Rule => "rule",
         }
     }
 }
@@ -222,7 +221,7 @@ pub fn promotion_text(
                     .chars()
                     .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit())
         });
-    if matches!(kind, PromotionKind::Card | PromotionKind::Fact) && !kebab {
+    if !kebab {
         return Err("Use a lowercase-kebab slug.".into());
     }
     let rationale = promotion_rationale(kind, canvas_name);
@@ -230,32 +229,20 @@ pub fn promotion_text(
         "---\npolter: 1\nsummary: Promote canvas item: {title}\nrationale: {rationale}\n---\n\n"
     );
     Ok(match kind {
-        PromotionKind::Fact => format!("{header}#### {slug}: {title}\nkind: declared\n"),
         PromotionKind::Card => format!("{header}## {slug}: {title}\nstage: shape\n"),
-        PromotionKind::Decision => format!("{header}### new: {title}\nstatus: proposed\n"),
+        PromotionKind::Rule => format!("{header}#### rule {slug}: {title}\n"),
     })
 }
 
-/// The change's rationale: a Fact's is lower case without the period.
-pub fn promotion_rationale(kind: PromotionKind, canvas_name: &str) -> String {
-    match kind {
-        PromotionKind::Fact => format!("promoted from canvas {}", one_line(canvas_name)),
-        _ => format!("Promoted from canvas {}.", one_line(canvas_name)),
-    }
+/// The change's rationale.
+pub fn promotion_rationale(_kind: PromotionKind, canvas_name: &str) -> String {
+    format!("Promoted from canvas {}.", one_line(canvas_name))
 }
 
-/// The title a created Decision got: the JSON string ending its `+ decision` plan line.
-pub fn created_decision_title(ops: &[String]) -> Option<String> {
-    let line = ops.iter().find(|line| line.starts_with("+ decision "))?;
-    // The leftmost quote whose JSON string runs to the line's end, as the regex finds it.
-    line.match_indices('"')
-        .find_map(|(at, _)| serde_json::from_str::<String>(&line[at..]).ok())
-}
-
-/// The id a created Fact got: the first field of its `+ fact` plan line.
-pub fn created_fact_id(ops: &[String]) -> Option<String> {
-    let line = ops.iter().find(|line| line.starts_with("+ fact "))?;
-    line.strip_prefix("+ fact ")?
+/// The slug a created Rule got: the first field of its `+ rule` plan line.
+pub fn created_rule_slug(ops: &[String]) -> Option<String> {
+    let line = ops.iter().find(|line| line.starts_with("+ rule "))?;
+    line.strip_prefix("+ rule ")?
         .split_whitespace()
         .next()
         .map(String::from)
@@ -282,17 +269,16 @@ mod tests {
             promotion_text(PromotionKind::Card, " Cap  retries ", "cap-retries", "Map").unwrap(),
             "---\npolter: 1\nsummary: Promote canvas item: Cap retries\nrationale: Promoted from canvas Map.\n---\n\n## cap-retries: Cap retries\nstage: shape\n"
         );
-        assert!(promotion_text(PromotionKind::Fact, "Cap", "Bad Slug", "Map").is_err());
-        assert!(promotion_text(PromotionKind::Decision, "Cap", "", "Map").is_ok());
+        assert_eq!(
+            promotion_text(PromotionKind::Rule, "Cap retries", "cap-retries", "Map").unwrap(),
+            "---\npolter: 1\nsummary: Promote canvas item: Cap retries\nrationale: Promoted from canvas Map.\n---\n\n#### rule cap-retries: Cap retries\n"
+        );
+        assert!(promotion_text(PromotionKind::Rule, "Cap", "Bad Slug", "Map").is_err());
     }
 
     #[test]
     fn plan_lines_name_what_was_created() {
-        let ops = vec![
-            "+ fact retry-cap declared".to_string(),
-            "+ decision 12 \"Cap retries\"".to_string(),
-        ];
-        assert_eq!(created_fact_id(&ops).as_deref(), Some("retry-cap"));
-        assert_eq!(created_decision_title(&ops).as_deref(), Some("Cap retries"));
+        let ops = vec!["+ rule retry-cap \"Cap retries\"".to_string()];
+        assert_eq!(created_rule_slug(&ops).as_deref(), Some("retry-cap"));
     }
 }

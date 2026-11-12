@@ -137,8 +137,8 @@ mod tests {
         let written = execute_audited_write(
             &store,
             ChangeEnvelope {
-                summary: "Create principle".to_string(),
-                rationale: "Project needs governing principles".to_string(),
+                summary: "Create doc".to_string(),
+                rationale: "Project needs its docs recorded".to_string(),
                 project_id: project.id.clone(),
                 ..ChangeEnvelope::default()
             },
@@ -150,7 +150,7 @@ mod tests {
                     &project.id,
                     "Local-first truth",
                     "# Rules",
-                    "decision",
+                    knowledge::KIND_DOC,
                     Vec::new(),
                 )
                 .map_err(|err| sqlite::Error::message(err.to_string()))?;
@@ -177,7 +177,7 @@ mod tests {
             .list_changes(&project.id, agentrun::ACTOR_KIND_HUMAN, 10)
             .expect("changes");
         assert_eq!(changes.len(), 1);
-        assert_eq!(changes[0].summary, "Create principle");
+        assert_eq!(changes[0].summary, "Create doc");
 
         // One entity's history: the change that named it, and nothing for
         // another id.
@@ -185,7 +185,7 @@ mod tests {
             .list_subject_changes(&project.id, "", "kn-1", 10)
             .expect("subject changes");
         assert_eq!(subject.len(), 1);
-        assert_eq!(subject[0].summary, "Create principle");
+        assert_eq!(subject[0].summary, "Create doc");
         let other = store
             .list_subject_changes(&project.id, "", "kn-2", 10)
             .expect("other subject");

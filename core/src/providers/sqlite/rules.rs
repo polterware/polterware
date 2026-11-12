@@ -75,6 +75,17 @@ impl super::Store {
         rule.scopes = contexts.get(&rule.id).cloned().unwrap_or_default();
         Ok(rule)
     }
+
+    /// Returns the id of the project that owns a Rule.
+    pub fn rule_project(&self, id: &str) -> Result<String> {
+        self.db
+            .query_row(
+                r#"SELECT project_id FROM rules WHERE id=?"#,
+                params![id],
+                |row| row.get(0),
+            )
+            .map_err(Error::from)
+    }
 }
 
 /// Writes a Rule in the same transaction as `change_ops`.

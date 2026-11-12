@@ -7,21 +7,60 @@
 use std::sync::Arc;
 
 use crate::compositions::wedge;
+use crate::domains::work;
 use crate::local_v1;
+use crate::providers::sqlite;
 
 use super::connect::{ConnectError, ConnectRequest, Route};
 use super::server::{Core, internal, invalid};
+use super::work_handlers::{apply_as, diagnostics_proto, plan_lines};
 
 pub fn routes() -> Vec<Route> {
-    vec![Route::unary(
-        "/polterware.local.v1.WorkService/ListRules",
-        list_rules,
-    )]
+    vec![
+        Route::unary("/polterware.local.v1.WorkService/ListRules", list_rules),
+        Route::unary("/polterware.local.v1.WorkService/GetRule", get_rule),
+        Route::unary("/polterware.local.v1.WorkService/WriteRule", write_rule),
+    ]
 }
 
-/// `polterware.local.v1.WorkService.ListRules`: returns the project's active
-/// Rules; a scope keeps the ones with a context inside it plus the
-/// project-wide ones.
+/// The Rule's contexts as proto nodes: the ids, and their paths sorted.
+fn rule_proto(rule: &work::Rule, node_ids: Vec<String>) -> local_v1::Rule {
+    local_v1::Rule {
+        id: rule.id.clone(),
+        slug: rule.slug.clone(),
+        statement: rule.statement.clone(),
+        scope_node_ids: node_ids,
+        scope_paths: rule.scopes.clone(),
+        why: rule.why.clone(),
+        status: rule.status.clone(),
+        replaced_by: rule.replaced_by.clone(),
+        position: rule.position,
+    }
+}
+
+/// Returns a Rule by slug or id with the project's context ids.
+fn rule_by_handle(
+    store: &sqlite::Store,
+    project_id: &str,
+    handle: &str,
+) -> Result<local_v1::Rule, ConnectError> {
+    let rules = store.list_rules(project_id).map_err(internal)?;
+    let rule = rules
+        .iter()
+        .find(|rule| rule.id == handle || (!rule.slug.is_empty() && rule.slug == handle))
+        .ok_or_else(|| ConnectError::new(super::connect::Code::NotFound, "unknown rule"))?;
+    let ids = store
+        .scope_map(project_id, sqlite::SCOPE_RULE)
+        .map_err(internal)?;
+    Ok(rule_proto(
+        rule,
+        ids.get(&rule.id).cloned().unwrap_or_default(),
+    ))
+}
+
+/// `polterware.local.v1.WorkService.ListRules`: returns the project's Rules,
+/// optionally only those in the requested states; a scope keeps the ones with a
+/// context inside it plus the project-wide ones.
 pub fn list_rules(
     core: Arc<Core>,
     request: ConnectRequest<local_v1::ListRulesRequest>,
@@ -34,20 +73,97 @@ pub fn list_rules(
     let rules = store.list_rules(&msg.project_id).map_err(internal)?;
     let scope = wedge::load_node_scopes(&store, &msg.project_id, &msg.scope_nodes, msg.scope_exact)
         .map_err(|err| invalid(err.to_string()))?;
-    let ids = store.scope_map(&msg.project_id, "rule").map_err(internal)?;
+    let ids = store
+        .scope_map(&msg.project_id, sqlite::SCOPE_RULE)
+        .map_err(internal)?;
     let mut out = local_v1::ListRulesResponse::default();
     for rule in &rules {
+        if !msg.statuses.is_empty() && !msg.statuses.iter().any(|status| status == &rule.status) {
+            continue;
+        }
         let node_ids = ids.get(&rule.id).cloned().unwrap_or_default();
         if !scope.matches_any(&node_ids) {
             continue;
         }
-        out.rules.push(local_v1::Rule {
-            id: rule.id.clone(),
-            slug: rule.slug.clone(),
-            statement: rule.statement.clone(),
-            scope_node_ids: node_ids,
-            scope_paths: rule.scopes.clone(),
-        });
+        out.rules.push(rule_proto(rule, node_ids));
+    }
+    Ok(out)
+}
+
+/// `polterware.local.v1.WorkService.GetRule`: one Rule by id.
+pub fn get_rule(
+    core: Arc<Core>,
+    request: ConnectRequest<local_v1::GetRuleRequest>,
+) -> Result<local_v1::GetRuleResponse, ConnectError> {
+    let id = request.message.id;
+    if id.is_empty() {
+        return Err(invalid("rule id is required"));
+    }
+    let store = core.store();
+    let project_id = rule_project(&store, &id)?;
+    let rule = rule_by_handle(&store, &project_id, &id)?;
+    Ok(local_v1::GetRuleResponse { rule: Some(rule) })
+}
+
+/// The project that owns a Rule.
+fn rule_project(store: &sqlite::Store, id: &str) -> Result<String, ConnectError> {
+    store.rule_project(id).map_err(|err| {
+        if err.is_no_rows() {
+            ConnectError::new(super::connect::Code::NotFound, "unknown rule")
+        } else {
+            internal(err)
+        }
+    })
+}
+
+/// `polterware.local.v1.WorkService.WriteRule`: writes one Polter rule block and
+/// answers with the Rule it created or updated.
+pub fn write_rule(
+    core: Arc<Core>,
+    request: ConnectRequest<local_v1::WriteRuleRequest>,
+) -> Result<local_v1::WriteRuleResponse, ConnectError> {
+    let msg = request.message;
+    if msg.project_id.is_empty() {
+        return Err(invalid("project id is required"));
+    }
+    let change = msg.change.as_ref();
+    let in_ = wedge::ApplyInput {
+        project_id: msg.project_id.clone(),
+        text: msg.text.clone(),
+        dry_run: msg.dry_run,
+        summary: change
+            .map(|change| change.summary.clone())
+            .unwrap_or_default(),
+        rationale: change
+            .map(|change| change.rationale.clone())
+            .unwrap_or_default(),
+        agent_run_id: change
+            .map(|change| change.agent_run_id.clone())
+            .unwrap_or_default(),
+        ..wedge::ApplyInput::default()
+    };
+    let client = super::lifecycle::client_of(&request.headers);
+    let result = apply_as(
+        &core,
+        &client,
+        "",
+        &msg.session_label,
+        "desktop.rule.write",
+        in_,
+    )?;
+    let mut out = local_v1::WriteRuleResponse {
+        applied: result.applied,
+        ops: plan_lines(&result.ops),
+        diagnostics: diagnostics_proto(&result.diagnostics),
+        agent_run_id: result.agent_run_id.clone(),
+        batch_id: result.batch_id.clone(),
+        ..local_v1::WriteRuleResponse::default()
+    };
+    if let Some(op) = result.ops.iter().find(|op| op.entity == work::ENTITY_RULE)
+        && !op.entity_id.is_empty()
+        && let Ok(rule) = rule_by_handle(&core.store(), &msg.project_id, &op.entity_id)
+    {
+        out.rule = Some(rule);
     }
     Ok(out)
 }
@@ -123,6 +239,25 @@ mod tests {
         assert_eq!(rule.statement, "Never commit secrets.");
         assert_eq!(rule.scope_paths, vec!["auth"], "rule = {rule:?}");
         assert_eq!(rule.scope_node_ids.len(), 1, "rule = {rule:?}");
+        assert_eq!(rule.status, "active", "rule = {rule:?}");
+        let got = get_rule(
+            Arc::clone(&core),
+            request(local_v1::GetRuleRequest {
+                id: rule.id.clone(),
+            }),
+        )
+        .expect("get rule");
+        assert_eq!(got.rule.expect("rule").statement, rule.statement);
+        let none = list_rules(
+            Arc::clone(&core),
+            request(local_v1::ListRulesRequest {
+                project_id: project_id.clone(),
+                statuses: vec!["proposed".to_string()],
+                ..local_v1::ListRulesRequest::default()
+            }),
+        )
+        .expect("list by status");
+        assert!(none.rules.is_empty(), "proposed rules = {none:?}");
 
         let node_id = rule.scope_node_ids[0].clone();
         let unchanged = list_rules(
@@ -194,7 +329,7 @@ mod tests {
         assert_eq!(refused.code, Code::InvalidArgument);
         assert_eq!(
             refused.message,
-            "unknown scope kind \"bogus\": use decision, knowledge, fact, rule, or item"
+            "unknown scope kind \"bogus\": use knowledge, rule, or item"
         );
         let missing = set_scope(
             Arc::clone(&core),

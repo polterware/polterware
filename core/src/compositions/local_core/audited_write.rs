@@ -58,9 +58,7 @@ pub fn map_archive_err(err: impl Into<sqlite::Error>) -> ConnectError {
     let err = err.into();
     match &err {
         sqlite::Error::Knowledge(
-            knowledge::KnowledgeError::DecisionArchive
-            | knowledge::KnowledgeError::NotArchived
-            | knowledge::KnowledgeError::Archived,
+            knowledge::KnowledgeError::NotArchived | knowledge::KnowledgeError::Archived,
         )
         | sqlite::Error::Canvas(canvas::Error::NotArchived | canvas::Error::Archived) => {
             ConnectError::failed_precondition(err.to_string())
