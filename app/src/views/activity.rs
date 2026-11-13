@@ -353,7 +353,7 @@ impl ActivityView {
         }
         let fields = filter_fields(&known.0, &known.1);
         self.filters
-            .update(cx, |popover, _| set_page_fields(popover, fields));
+            .update(cx, |popover, cx| set_page_fields(popover, fields, cx));
         self.offered = known;
     }
 

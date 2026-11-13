@@ -323,13 +323,14 @@ impl InboxView {
                 .collect(),
         );
         status.plural_label = Some("statuses".into());
-        self.filters.update(cx, |popover, _| {
+        self.filters.update(cx, |popover, cx| {
             set_page_fields(
                 popover,
                 vec![
                     FilterField::new(types, Some(Icon::Scale)),
                     FilterField::new(status, None),
                 ],
+                cx,
             );
         });
     }
