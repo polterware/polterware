@@ -608,8 +608,15 @@ fn resize_component_nodes(
         let content = measure
             .width(&card.title, &title_font)
             .max(measure.width(&card.subtitle, &subtitle_font));
-        let width = (content + 56.0).max(current.width);
-        let height = CARD_MIN_HEIGHT.max(current.height);
+        let inset = card_inset(
+            &card.kind,
+            current.width,
+            CARD_MIN_HEIGHT.max(current.height),
+        );
+        let width =
+            (content + 56.0 + f64::from(inset.left) + f64::from(inset.right)).max(current.width);
+        let height =
+            (CARD_MIN_HEIGHT + f64::from(inset.top) + f64::from(inset.bottom)).max(current.height);
         if width > current.width || height > current.height {
             resize_node(items, id, Some(width), Some(height));
             // The resize grows about the center; the box keeps its top-left, where a pin put it.
@@ -629,6 +636,13 @@ fn resize_component_nodes(
 
 /// A card's two text lines and its icon badge fit inside this height.
 const CARD_MIN_HEIGHT: f64 = 52.0;
+
+/// Where a card's content sits clear of its silhouette's details.
+fn card_inset(kind: &str, width: f64, height: f64) -> polterware_ui::canvas::shapes::Inset {
+    silhouette(kind)
+        .map(|family| (family.inset)(width as f32, height as f32))
+        .unwrap_or_default()
+}
 
 /// The dash a node's painted shape wears, from its kind or its class.
 fn shape_dash(items: &[Item]) -> Vec<f64> {
@@ -738,8 +752,13 @@ fn paint_component_cards(
                     group.items.push(Item::Path(mark));
                 }
             }
-            let center_y = bounds.y + bounds.height / 2.0;
-            let badge_center = Point::new(bounds.x + 24.0, center_y);
+            // The content centers in the part the silhouette leaves clear (a cylinder's cap).
+            let inset = card_inset(&card.kind, bounds.width, bounds.height);
+            let left = bounds.x + f64::from(inset.left);
+            let center_y = bounds.y
+                + f64::from(inset.top)
+                + (bounds.height - f64::from(inset.top) - f64::from(inset.bottom)) / 2.0;
+            let badge_center = Point::new(left + 24.0, center_y);
             group.items.push(Item::Ellipse(EllipseShape::new(
                 badge_center,
                 10.0,
@@ -765,7 +784,7 @@ fn paint_component_cards(
                 measure,
                 palette,
             )));
-            let text_x = bounds.x + 42.0;
+            let text_x = left + 42.0;
             group.items.push(Item::Text(card_text(
                 &card.title,
                 Point::new(text_x, center_y - 7.0),
