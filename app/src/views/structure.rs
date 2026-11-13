@@ -660,6 +660,7 @@ impl StructureView {
                 let section = cx.new(|cx| {
                     let mut section = CollapsibleSection::new(section_of(kind).0, cx);
                     section.set_large_title(true);
+                    section.set_icon(section_of(kind).1, TileTone::Neutral);
                     section
                 });
                 cx.observe(&section, |_, _, cx| cx.notify()).detach();
