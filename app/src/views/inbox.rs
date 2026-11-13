@@ -217,25 +217,6 @@ pub fn active_columns_for(items: &[InboxItem]) -> Vec<InboxCol> {
     cols
 }
 
-fn columns_for(items: &[InboxItem], detail_open: bool) -> Vec<InboxCol> {
-    if detail_open {
-        vec![InboxCol::Item, InboxCol::Status]
-    } else {
-        active_columns_for(items)
-    }
-}
-
-fn sort_index(
-    sort: Option<(InboxCol, SortDirection)>,
-    columns: &[InboxCol],
-) -> Option<(usize, SortDirection)> {
-    let (col, direction) = sort?;
-    columns
-        .iter()
-        .position(|candidate| *candidate == col)
-        .map(|index| (index, direction))
-}
-
 pub struct InboxView {
     state: Entity<AppState>,
     search: Entity<TextInput>,
@@ -246,7 +227,7 @@ pub struct InboxView {
     /// The option picked in Decide.
     picked: Option<String>,
     query: String,
-    sort: Option<(InboxCol, SortDirection)>,
+    sort: Option<(usize, SortDirection)>,
     fields_key: String,
     scope: ScopeFilter,
     detail_width: DetailPanelWidth,
@@ -375,21 +356,10 @@ impl InboxView {
             })
             .cloned()
             .collect();
-        let state = self.state.read(cx);
-        let detail_open = state.inbox_detail_open()
-            && state
-                .inbox_open()
-                .is_some_and(|id| rows.iter().any(|item| item.id == id));
-        let cols = columns_for(&rows, detail_open);
-        let sort = self.sort.map(|(col, direction)| {
-            let col = cols
-                .iter()
-                .copied()
-                .find(|visible| *visible == col)
-                .unwrap_or(col);
-            (col, direction)
-        });
-        if let Some((col, direction)) = sort {
+        let cols = active_columns_for(&rows);
+        if let Some((col_idx, direction)) = self.sort
+            && let Some(&col) = cols.get(col_idx)
+        {
             let group =
                 |item: &InboxItem| INBOX_KINDS.iter().position(|(kind, ..)| *kind == item.kind);
             rows.sort_by(|a, b| {
@@ -641,14 +611,7 @@ impl Render for InboxView {
                 page_empty("No matches", MascotMood::Lost, cx).into_any_element()
             }
             Some(_) => {
-                let table = inbox_table(
-                    visible.clone(),
-                    &active,
-                    &selected,
-                    active.is_some() && shows_detail,
-                    self,
-                    cx,
-                );
+                let table = inbox_table(visible.clone(), &active, &selected, self, cx);
                 // The gutters sit inside the scroll, whose whole width the columns share out, and the
                 // Widths measure every row, as the web table renders them all, and reflow when
                 // the panel changes the scroll width.
@@ -1161,16 +1124,16 @@ impl InboxView {
     }
 }
 
-/// The Inbox `DataTable`, grouped by kind. The detail panel shows Type and Where itself.
+/// The Inbox `DataTable`: the selection column, Item (the kind's tile and the title),
+/// Type, Where, Raised by, Updated, and Status, grouped by kind.
 fn inbox_table(
     rows: Rc<Vec<InboxItem>>,
     active: &Option<InboxItem>,
     selected: &std::collections::BTreeSet<String>,
-    detail_open: bool,
     view: &InboxView,
     cx: &mut Context<InboxView>,
 ) -> DataTable {
-    let cols = columns_for(&rows, detail_open);
+    let cols = active_columns_for(&rows);
     let columns: Vec<Column> = cols
         .iter()
         .map(|col| match col {
@@ -1358,12 +1321,9 @@ fn inbox_table(
             cx.notify();
         });
     })
-    .sort(sort_index(view.sort, &cols), move |column, _, cx| {
+    .sort(view.sort, move |column, _, cx| {
         sorted.update(cx, |view, cx| {
-            let next = next_sort(sort_index(view.sort, &cols), column);
-            view.sort = next.and_then(|(index, direction)| {
-                cols.get(index).copied().map(|col| (col, direction))
-            });
+            view.sort = next_sort(view.sort, column);
             cx.notify();
         });
     })
@@ -1446,27 +1406,6 @@ mod tests {
                 InboxCol::Updated,
                 InboxCol::Status
             ]
-        );
-    }
-
-    #[test]
-    fn detail_columns_keep_item_and_status_only() {
-        let items = vec![sample_item("decision", "card-slug")];
-        assert_eq!(
-            columns_for(&items, true),
-            vec![InboxCol::Item, InboxCol::Status]
-        );
-        assert_eq!(columns_for(&items, false), active_columns_for(&items));
-    }
-
-    #[test]
-    fn sort_column_mapping_survives_detail_column_switch() {
-        let items = vec![sample_item("decision", "card-slug")];
-        let sort = Some((InboxCol::Where, SortDirection::Ascending));
-        assert_eq!(sort_index(sort, &columns_for(&items, true)), None);
-        assert_eq!(
-            sort_index(sort, &columns_for(&items, false)),
-            Some((2, SortDirection::Ascending))
         );
     }
 
