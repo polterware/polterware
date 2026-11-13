@@ -394,8 +394,22 @@ fn polter_composed_card(slug: &str, card: &NewCard, creating: bool) -> String {
             },
         ));
     }
-    let intent: Vec<String> = card
-        .intent
+    let intent = polter_intent(&card.intent);
+    let mut text = format!(
+        "{POLTER_HEADER}## {slug}: {}\n{}\n",
+        one_line(&card.title),
+        meta_line(&meta)
+    );
+    if !intent.is_empty() {
+        text.push_str(&format!("\n{intent}\n"));
+    }
+    text
+}
+
+/// A card's intent as a Polter block's text: a heading's hashes would start another block, so
+/// a heading line keeps only its words.
+fn polter_intent(intent: &str) -> String {
+    let lines: Vec<String> = intent
         .lines()
         .map(|line| {
             let trimmed = line.trim_start();
@@ -407,12 +421,14 @@ fn polter_composed_card(slug: &str, card: &NewCard, creating: bool) -> String {
             }
         })
         .collect();
-    let intent = intent.join("\n").trim().to_string();
-    let mut text = format!(
-        "{POLTER_HEADER}## {slug}: {}\n{}\n",
-        one_line(&card.title),
-        meta_line(&meta)
-    );
+    lines.join("\n").trim().to_string()
+}
+
+/// The card page's title and description, alone: a block with no meta line changes only them.
+/// An empty description is left as it is, since Polter reads no text as no change.
+pub fn polter_card_text(slug: &str, title: &str, intent: &str) -> String {
+    let intent = polter_intent(intent);
+    let mut text = format!("{POLTER_HEADER}## {slug}: {}\n", one_line(title));
     if !intent.is_empty() {
         text.push_str(&format!("\n{intent}\n"));
     }
@@ -949,6 +965,18 @@ mod tests {
         assert_eq!(
             text,
             "---\npolter: 1\n---\n\n## wire: Wire it\nstage: plan · milestone:  · under:  · kind: feature\n\nNew intent\n"
+        );
+    }
+
+    #[test]
+    fn the_card_text_changes_only_the_title_and_the_description() {
+        assert_eq!(
+            polter_card_text("wire", "Wire it\n", "# Why\nBecause."),
+            "---\npolter: 1\n---\n\n## wire: Wire it\n\nWhy\nBecause.\n"
+        );
+        assert_eq!(
+            polter_card_text("wire", "Wire it", "  "),
+            "---\npolter: 1\n---\n\n## wire: Wire it\n"
         );
     }
 

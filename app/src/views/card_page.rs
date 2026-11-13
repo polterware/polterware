@@ -30,14 +30,14 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use gpui::{
-    AnyElement, App, AppContext as _, ClipboardItem, Context, Entity, FontWeight, IntoElement,
-    Render, SharedString, Subscription, WeakEntity, Window, div, prelude::*, px,
+    AnyElement, App, AppContext as _, ClipboardItem, Context, Entity, Focusable, FontWeight,
+    IntoElement, Render, SharedString, Subscription, WeakEntity, Window, div, prelude::*, px,
 };
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
 use polterware_ui::checkbox::checkbox_mark;
 use polterware_ui::chip::chip_rounded;
 use polterware_ui::icons::{Icon, icon_colored};
-use polterware_ui::markdown::{MarkdownEditor, MarkdownEditorEvent, markdown_view};
+use polterware_ui::markdown::{MarkdownEditor, MarkdownEditorEvent};
 use polterware_ui::menu::MenuItem;
 use polterware_ui::patterns::{
     ContextMenu, DocumentPage, Morph, MorphAlign, RailState, document_footer, document_group,
@@ -59,6 +59,8 @@ use crate::work::{self, Stage};
 /// The StatusChip's radius on the web.
 const CHIP_RADIUS: f32 = 6.0;
 /// `createDocumentAutosave`'s debounce, for the spec sections the page edits.
+/// What an empty description reads.
+const INTENT_HINT: &str = "Add a description…";
 const AUTOSAVE: Duration = Duration::from_millis(800);
 /// What an empty Behavior section says to write there.
 const BEHAVIOR_HINT: &str = "What the feature does.";
@@ -79,6 +81,11 @@ fn run_tone(status: &str) -> StatusTone {
         "failed" | "cancelled" | "timeout" => StatusTone::Danger,
         _ => StatusTone::Muted,
     }
+}
+
+/// A rail group's content, 4px in as its heading's words are.
+fn rail_body(content: impl IntoElement) -> gpui::Div {
+    div().w_full().min_w(px(0.0)).px(px(4.0)).child(content)
 }
 
 /// A spec section's editor: its Markdown, and the hint an empty one reads.
@@ -150,6 +157,14 @@ pub struct CardPage {
     /// Bumped by each keystroke, so only the last one's timer saves.
     spec_due: [u64; 3],
     _spec_changes: [Subscription; 3],
+    /// The title and the description, edited in place, with the card they hold.
+    title: Entity<TextInput>,
+    intent: Entity<MarkdownEditor>,
+    text_for: Option<String>,
+    /// The title and description waiting out the autosave: the card, the title, the text.
+    pending_text: Option<(String, String, String)>,
+    text_due: u64,
+    _intent_changes: Subscription,
 }
 
 impl CardPage {
@@ -174,6 +189,30 @@ impl CardPage {
             cx.subscribe(&edge_cases, CardPage::edge_cases_typed),
             cx.subscribe(&plan, CardPage::plan_typed),
         ];
+        let intent = cx.new(|cx| spec_editor(INTENT_HINT, "", cx));
+        cx.observe(&intent, |_, _, cx| cx.notify()).detach();
+        let intent_changes = cx.subscribe(&intent, |this, _, _: &MarkdownEditorEvent, cx| {
+            this.text_typed(cx)
+        });
+        let page = cx.weak_entity();
+        let title = cx.new(|cx| {
+            TextInput::new(cx)
+                .prose(24.0, 32.0, FontWeight::SEMIBOLD)
+                .wrap()
+                .placeholder("Untitled")
+                // Enter moves into the description, after the field's own update.
+                .on_submit(move |_, window, cx| {
+                    let page = page.clone();
+                    window.defer(cx, move |window, cx| {
+                        let _ = page.update(cx, |this, cx| {
+                            this.intent
+                                .update(cx, |intent, cx| intent.edit_start(window, cx));
+                        });
+                    });
+                })
+        });
+        cx.observe(&title, |this, _, cx| this.text_typed(cx))
+            .detach();
         Self {
             state,
             host,
@@ -192,10 +231,94 @@ impl CardPage {
             pending_spec: [None, None, None],
             spec_due: [0, 0, 0],
             _spec_changes: spec_changes,
+            title,
+            intent,
+            text_for: None,
+            pending_text: None,
+            text_due: 0,
+            _intent_changes: intent_changes,
         }
     }
 
+    /// Shows `card`'s title and description: another card's (writing what the last one still
+    /// held), else what changed elsewhere while nothing waits to save and the title is not
+    /// being typed.
+    fn sync_text(&mut self, card: &WorkCard, window: &Window, cx: &mut Context<Self>) {
+        if self.text_for.as_deref() != Some(card.slug.as_str()) {
+            self.flush_text(cx);
+            self.text_for = Some(card.slug.clone());
+        } else if self.pending_text.is_some()
+            || self.title.read(cx).focus_handle(cx).is_focused(window)
+        {
+            return;
+        }
+        if self.title.read(cx).text() != card.title {
+            let title = card.title.clone();
+            self.title.update(cx, |field, cx| field.set_text(title, cx));
+        }
+        if self.intent.read(cx).source() != card.intent && !self.intent.read(cx).is_editing() {
+            let intent = card.intent.clone();
+            self.intent
+                .update(cx, |editor, cx| editor.set_source(&intent, cx));
+        }
+        self.pending_text = None;
+    }
+
+    /// Keeps the new title and description until no keystroke comes for a while. A blank
+    /// title is not a valid card: it waits here until a name is typed.
+    fn text_typed(&mut self, cx: &mut Context<Self>) {
+        let Some(slug) = self.text_for.clone() else {
+            return;
+        };
+        let title = self.title.read(cx).text().trim().to_string();
+        let intent = self.intent.read(cx).source().trim().to_string();
+        let saved = self.saved_text(&slug, cx);
+        if title.is_empty() || saved.as_ref() == Some(&(title.clone(), intent.clone())) {
+            self.pending_text = None;
+            return;
+        }
+        self.pending_text = Some((slug, title, intent));
+        self.text_due += 1;
+        let due = self.text_due;
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(AUTOSAVE).await;
+            let _ = this.update(cx, |this, cx| {
+                if this.text_due == due {
+                    this.flush_text(cx);
+                }
+            });
+        })
+        .detach();
+    }
+
+    /// The title and description as the card holds them now.
+    fn saved_text(&self, slug: &str, cx: &App) -> Option<(String, String)> {
+        match self.state.read(cx).work() {
+            Load::Ready(work) => work.card(slug).map(|card| {
+                (
+                    card.title.trim().to_string(),
+                    card.intent.trim().to_string(),
+                )
+            }),
+            _ => None,
+        }
+    }
+
+    /// Writes the title and description now, when they wait.
+    fn flush_text(&mut self, cx: &mut Context<Self>) {
+        let Some((slug, title, intent)) = self.pending_text.take() else {
+            return;
+        };
+        if self.saved_text(&slug, cx) == Some((title.clone(), intent.clone())) {
+            return;
+        }
+        self.state.update(cx, |state, cx| {
+            state.save_card_text(slug, title, intent, cx)
+        });
+    }
+
     fn back(&mut self, cx: &mut Context<Self>) {
+        self.flush_text(cx);
         for field in 0..3 {
             self.flush_spec(field, cx);
         }
@@ -1018,8 +1141,15 @@ impl CardPage {
                     .into_any_element()
             }
         };
-        document_group_with("Analyze", Icon::Check, Some(aside), true, content, cx)
-            .into_any_element()
+        document_group_with(
+            "Analyze",
+            Icon::Check,
+            Some(aside),
+            false,
+            rail_body(content),
+            cx,
+        )
+        .into_any_element()
     }
 
     /// The "+" Morph that links a commit to a task: the task, then the sha.
@@ -1145,10 +1275,12 @@ impl CardPage {
         let content = if reads.commits.is_empty() {
             let code = |text: String| {
                 div()
+                    .min_w(px(0.0))
+                    .max_w_full()
                     .font_family(theme.font_mono)
                     .text_size(px(12.0))
                     .text_color(theme.color_text_secondary)
-                    .child(text)
+                    .child(wrap_text(text))
             };
             div()
                 .flex()
@@ -1174,7 +1306,15 @@ impl CardPage {
                 .map(|(index, commit)| self.commit_row(index, commit, cx));
             div().flex().flex_col().children(rows).into_any_element()
         };
-        document_group_with("Commits", Icon::GitCommit, aside, true, content, cx).into_any_element()
+        document_group_with(
+            "Commits",
+            Icon::GitCommit,
+            aside,
+            false,
+            rail_body(content),
+            cx,
+        )
+        .into_any_element()
     }
 
     fn commit_row(&self, index: usize, commit: &CardCommit, cx: &mut Context<Self>) -> AnyElement {
@@ -1293,7 +1433,7 @@ impl CardPage {
                 "Last handoff",
                 Icon::History,
                 Some(Self::muted(aside.join(" / "), cx)),
-                true,
+                false,
                 div()
                     .flex()
                     .flex_col()
@@ -1370,7 +1510,7 @@ impl CardPage {
                 "Runs",
                 Icon::Play,
                 Some(Self::muted(reads.runs.len().to_string(), cx)),
-                true,
+                false,
                 div().flex().flex_col().children(rows),
                 cx,
             )
@@ -1461,8 +1601,8 @@ impl CardPage {
                 "Agent brief",
                 Icon::SourceCodeIcon,
                 Some(aside),
-                true,
-                content,
+                false,
+                rail_body(content),
                 cx,
             )
             .into_any_element(),
@@ -1505,37 +1645,29 @@ impl Render for CardPage {
             );
         };
         self.sync(&card, cx);
+        self.sync_text(&card, window, cx);
         // The card's Rules carry their status on this page, from the same read Knowledge makes.
         self.state
             .update(cx, |state, cx| state.ensure_knowledge(cx));
-        let theme = *Theme::global(cx);
         let reads = if reads.slug == card.slug {
             reads
         } else {
             CardReads::default()
         };
-        let body = if card.intent.trim().is_empty() {
-            div()
-                .text_size(px(15.0))
-                .line_height(px(24.0))
-                .text_color(theme.color_text_disabled)
-                .child("Add a description…")
-                .into_any_element()
-        } else {
-            markdown_view(&card.intent, cx).into_any_element()
-        };
+        let body = spec_body("card-intent", INTENT_HINT, &self.intent, cx);
         let gate = work::next_gate(Stage::of(&card));
-        let mut groups: Vec<AnyElement> = vec![
+        let groups: Vec<AnyElement> = vec![
             self.spec(&card, &reads, gate, cx),
             self.plan_group(&card, &reads, gate, cx),
             self.tasks(&card, pending, cx),
             self.rules_applying(&card, cx),
-            self.analyze(&reads, cx),
         ];
-        groups.push(self.commits(&card, &reads, cx));
-        groups.extend(Self::handoff(&reads, cx));
-        groups.extend(Self::runs(&reads, cx));
-        groups.extend(self.brief(&card, &reads, cx));
+        // What agents do with the card stands in the rail, beside its properties.
+        let mut tools: Vec<AnyElement> =
+            vec![self.analyze(&reads, cx), self.commits(&card, &reads, cx)];
+        tools.extend(Self::handoff(&reads, cx));
+        tools.extend(Self::runs(&reads, cx));
+        tools.extend(self.brief(&card, &reads, cx));
         let host = self.host.clone();
         let (remove_slug, remove_title) = (card.slug.clone(), card.title.clone());
         let remove = Button::new("card-remove", ButtonKind::Danger)
@@ -1554,6 +1686,9 @@ impl Render for CardPage {
         if let Some(questions) = self.questions(&card, cx) {
             document = document.rail(questions);
         }
+        for tool in tools {
+            document = document.rail(tool);
+        }
         let document = document
             .rail(document_footer([remove], cx))
             .child(
@@ -1561,7 +1696,7 @@ impl Render for CardPage {
                     .w_full()
                     .mt(px(32.0))
                     .mb(px(8.0))
-                    .child(document_title(card.title.clone(), cx)),
+                    .child(self.title.clone()),
             )
             .child(body)
             .child(
@@ -1574,7 +1709,6 @@ impl Render for CardPage {
                     .children(groups),
             )
             .children(document_activity(&self.state, &card.id, cx));
-        let _ = window;
         div().size_full().child(document).child(self.menu.clone())
     }
 }

@@ -1124,6 +1124,28 @@ impl AppState {
         );
     }
 
+    /// Writes the open card's title and description, as its page edits them in place.
+    pub fn save_card_text(
+        &mut self,
+        slug: String,
+        title: String,
+        intent: String,
+        cx: &mut Context<Self>,
+    ) {
+        self.write_cards(
+            CardWrite {
+                text: work::polter_card_text(&slug, &title, &intent),
+                summary: format!("Update card: {slug}"),
+                rationale: String::new(),
+                written: None,
+                failed: "Could not update the card.",
+                restore: Vec::new(),
+            },
+            |_, _| {},
+            cx,
+        );
+    }
+
     /// Creates a card from the Composer (`createCard`, `persistWorkCreateCard`) under a slug
     /// no card uses; `done` hears whether it went through.
     pub fn create_card(
