@@ -1019,6 +1019,8 @@ impl InboxView {
             title,
         )
         .align(align)
+        // The footer's actions share the panel's width evenly.
+        .grow()
         .open(confirm == Some(action), move |open, _, cx| {
             let action = open.then(|| open_action.clone());
             entity.update(cx, |view, cx| view.open_confirm(action, cx));
@@ -1139,8 +1141,8 @@ fn inbox_table(
         .map(|col| match col {
             InboxCol::Item => Column::new("Item").sortable().shrinks(),
             InboxCol::Type => Column::new("Type").sortable(),
-            InboxCol::Where => Column::new("Where").sortable(),
-            InboxCol::Actor => Column::new("Raised by").sortable(),
+            InboxCol::Where => Column::new("Where").sortable().shrinks(),
+            InboxCol::Actor => Column::new("Raised by").sortable().shrinks(),
             InboxCol::Updated => Column::new("Updated").sortable(),
             InboxCol::Status => Column::new("Status").width(112.0).sortable(),
         })
