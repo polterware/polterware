@@ -1214,14 +1214,19 @@ impl MilestonesView {
                 .flex()
                 .min_w(px(0.0))
                 .items_start()
-                .gap(px(8.0))
-                .py(px(4.0))
+                .gap(px(10.0))
+                .px(px(8.0))
+                .py(px(6.0))
+                .rounded(px(theme.radius_control))
                 .text_color(if checked {
                     theme.color_text_muted
                 } else {
-                    theme.color_text_secondary
+                    theme.color_text_primary
                 })
-                .when(!pending, |row| row.cursor_pointer())
+                .when(!pending, |row| {
+                    row.cursor_pointer()
+                        .hover(|row| row.bg(theme.color_surface_hover))
+                })
                 .on_click(move |_, _, cx| {
                     if pending {
                         return;
@@ -1241,7 +1246,7 @@ impl MilestonesView {
                 })
                 .child(
                     div()
-                        .mt(px(1.0))
+                        .mt(px(2.0))
                         .flex_none()
                         .child(checkbox_mark(checked, 14.0, &theme)),
                 )
@@ -1251,11 +1256,13 @@ impl MilestonesView {
                         .min_w(px(0.0))
                         .flex()
                         .flex_col()
-                        .gap(px(1.0))
+                        .gap(px(2.0))
                         .child(
                             div()
-                                .text_size(px(12.0))
+                                .text_size(px(12.5))
                                 .line_height(px(18.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .when(checked, |title| title.line_through())
                                 .child(task.title.clone()),
                         )
                         .child(
@@ -1296,7 +1303,7 @@ impl MilestonesView {
         .width(300.0)
         .align(MorphAlign::Start)
         .cancel_label("Close")
-        .body(div().flex().flex_col().gap(px(2.0)).children(rows));
+        .body(div().flex().flex_col().gap(px(1.0)).children(rows));
         Some(
             div()
                 .flex()
