@@ -26,8 +26,9 @@ use polterware_ui::filter_popover::{FilterField, FilterPopover, FiltersChanged};
 use polterware_ui::icon_button::icon_button;
 use polterware_ui::icons::{Icon, icon_colored};
 use polterware_ui::patterns::{
-    DetailPanel, MascotMood, detail_properties, detail_property, detail_section,
-    detail_section_with_aside, detail_text, page_empty, page_empty_with,
+    DETAIL_PANEL_INSET, DetailPanel, DetailPanelWidth, MascotMood, detail_properties,
+    detail_property, detail_section, detail_section_with_aside, detail_text, page_empty,
+    page_empty_with,
 };
 use polterware_ui::skeleton::text_skeleton;
 use polterware_ui::tabs::Tabs;
@@ -43,8 +44,6 @@ use crate::state::{ActorFilter, AppState, DISPATCH_ROW, Load};
 use crate::views::core_status::core_status;
 use crate::views::scope::{ScopeFilter, set_page_fields};
 
-/// The room the floating detail keeps beside the list: its 400px and its 8px inset.
-const DETAIL_SPACE: f32 = 408.0;
 /// `.pw-data-table-scroll`'s padding-inline.
 const TABLE_INSET: f32 = 12.0;
 /// The StatusChip's radius on the web.
@@ -312,6 +311,7 @@ pub struct ActivityView {
     offered: (Vec<String>, Vec<String>),
     sort: Option<(usize, SortDirection)>,
     scope: ScopeFilter,
+    detail_width: DetailPanelWidth,
 }
 
 impl ActivityView {
@@ -335,6 +335,7 @@ impl ActivityView {
             offered: (Vec::new(), Vec::new()),
             sort: None,
             scope: ScopeFilter::new(true),
+            detail_width: DetailPanelWidth::new(),
         };
         view.offer_known(cx);
         view
@@ -415,6 +416,7 @@ impl ActivityView {
         let close_state = self.state.clone();
         DetailPanel::new("activity-detail", title)
             .leading(leading)
+            .width(self.detail_width.clone())
             .on_close(Rc::new(move |_, cx: &mut App| {
                 close_state.update(cx, |state, cx| {
                     state.close_change();
@@ -792,15 +794,15 @@ impl Render for ActivityView {
                 page_empty("No changes yet", MascotMood::Sleeping, cx).into_any_element()
             }
             // The gutters sit inside the scroll, whose whole width the columns share out, and the
-            // widths measure every row, as the web table renders them all, and freeze once.
+            // Widths measure every row, as the web table renders them all, and reflow when the
+            // panel changes the scroll width.
             Some(_) => div()
                 .relative()
                 .size_full()
                 .child(
                     activity_table(rows.clone(), groups, self, cx)
                         .gutters(TABLE_INSET)
-                        .measure_every_row()
-                        .freeze_once(),
+                        .measure_every_row(),
                 )
                 .into_any_element(),
         };
@@ -831,7 +833,11 @@ impl Render for ActivityView {
                     .flex()
                     .child(div().flex_1().min_w(px(0.0)).h_full().child(list))
                     .when(has_detail, |body| {
-                        body.child(div().flex_none().w(px(DETAIL_SPACE)))
+                        body.child(
+                            div()
+                                .flex_none()
+                                .w(px(self.detail_width.get() + DETAIL_PANEL_INSET)),
+                        )
                     }),
             )
             .children(detail.map(|detail| {

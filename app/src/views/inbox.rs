@@ -22,12 +22,12 @@ use polterware_ui::data_table::{
 use polterware_ui::filter::{FilterOption, FilterSpec};
 use polterware_ui::filter_popover::{FilterField, FilterPopover, FiltersChanged};
 use polterware_ui::icon_tile::{IconTile, TileTone};
-use polterware_ui::icons::Icon;
+use polterware_ui::icons::{Icon, icon_colored};
 use polterware_ui::menu::MenuItem;
 use polterware_ui::patterns::{
-    ContextMenu, DetailPanel, MascotMood, Morph, MorphAlign, detail_numbered_list,
-    detail_properties, detail_property, detail_section, detail_text, page_empty, page_empty_with,
-    selection_toolbar,
+    ContextMenu, DETAIL_PANEL_INSET, DetailPanel, DetailPanelWidth, MascotMood, Morph, MorphAlign,
+    detail_numbered_list, detail_properties, detail_property, detail_section, detail_text,
+    page_empty, page_empty_with, selection_toolbar,
 };
 use polterware_ui::radio_group::{RadioOption, radio_group};
 use polterware_ui::text_input::TextInput;
@@ -43,8 +43,6 @@ use crate::state::{
 use crate::views::core_status::core_status;
 use crate::views::scope::{ScopeFilter, set_page_fields};
 
-/// `.pw-data-table-scroll`'s padding-inline.
-const DETAIL_SPACE: f32 = 408.0;
 const TABLE_INSET: f32 = 12.0;
 /// The StatusChip's radius on the web.
 const CHIP_RADIUS: f32 = 6.0;
@@ -232,6 +230,7 @@ pub struct InboxView {
     sort: Option<(usize, SortDirection)>,
     fields_key: String,
     scope: ScopeFilter,
+    detail_width: DetailPanelWidth,
 }
 
 impl InboxView {
@@ -272,6 +271,7 @@ impl InboxView {
             sort: None,
             fields_key: String::new(),
             scope: ScopeFilter::new(false),
+            detail_width: DetailPanelWidth::new(),
         }
     }
 
@@ -613,11 +613,12 @@ impl Render for InboxView {
             Some(_) => {
                 let table = inbox_table(visible.clone(), &active, &selected, self, cx);
                 // The gutters sit inside the scroll, whose whole width the columns share out, and the
-                // widths measure every row, as the web table renders them all, and freeze once.
+                // Widths measure every row, as the web table renders them all, and reflow when
+                // the panel changes the scroll width.
                 let mut list = div()
                     .relative()
                     .size_full()
-                    .child(table.gutters(TABLE_INSET).measure_every_row().freeze_once());
+                    .child(table.gutters(TABLE_INSET).measure_every_row());
                 if !selected.is_empty() {
                     list = list.child(self.selection_bar(&visible, &selected, pending, cx));
                 }
@@ -664,7 +665,11 @@ impl Render for InboxView {
                     .flex()
                     .child(div().flex_1().min_w(px(0.0)).h_full().child(list))
                     .when(has_detail, |body| {
-                        body.child(div().flex_none().w(px(DETAIL_SPACE)))
+                        body.child(
+                            div()
+                                .flex_none()
+                                .w(px(self.detail_width.get() + DETAIL_PANEL_INSET)),
+                        )
                     }),
             )
             .children(detail.map(|detail| {
@@ -751,14 +756,10 @@ impl InboxView {
         let theme = *Theme::global(cx);
         let (status, tone) = status_of(item);
         let close_state = self.state.clone();
+        let (_, _, _, item_icon) = kind_entry(&item.kind);
         let mut panel = DetailPanel::new("inbox-detail", item.title.clone())
-            .aside(chip_rounded(
-                kind_label(&item.kind),
-                StatusTone::Muted,
-                CHIP_RADIUS,
-                cx,
-            ))
-            .aside(chip_rounded(status, tone, CHIP_RADIUS, cx))
+            .leading(icon_colored(item_icon, 16.0, theme.color_text_secondary))
+            .width(self.detail_width.clone())
             .on_close(Rc::new(move |_, cx: &mut App| {
                 close_state.update(cx, |state, cx| {
                     state.close_inbox_detail();
@@ -777,6 +778,20 @@ impl InboxView {
                     });
                 })
             });
+
+        panel = panel.section(detail_section(
+            "Properties",
+            Icon::Settings,
+            detail_properties([
+                detail_property(
+                    "Type",
+                    chip_rounded(kind_label(&item.kind), StatusTone::Muted, CHIP_RADIUS, cx),
+                    cx,
+                ),
+                detail_property("Status", chip_rounded(status, tone, CHIP_RADIUS, cx), cx),
+            ]),
+            cx,
+        ));
 
         let detail = |key: &str| {
             item.details
