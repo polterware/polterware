@@ -64,6 +64,11 @@ const WHY: &str = "Optional. Recorded in Activity";
 /// A summary's longest (`slice(0, 120)`).
 const SUMMARY_MAX: usize = 120;
 
+/// Rules have no page-specific filter fields.
+fn rule_filter_fields() -> Vec<FilterField> {
+    Vec::new()
+}
+
 /// The Rule Composer is open for a new Rule, or the Rule being edited.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Compose {
@@ -452,6 +457,9 @@ impl KnowledgeView {
             .detach();
             cx.observe(&popover, |_, _, cx| cx.notify()).detach();
             popover
+        });
+        filters[0].update(cx, |popover, cx| {
+            set_page_fields(popover, rule_filter_fields(), cx)
         });
         filters[1].update(cx, |popover, _| {
             popover.set_fields(vec![FilterField::new(
@@ -932,13 +940,14 @@ impl KnowledgeView {
             .iter()
             .map(|tag| FilterOption::new(tag.clone(), tag.clone()))
             .collect();
-        self.filters[1].update(cx, |popover, _| {
+        self.filters[1].update(cx, |popover, cx| {
             set_page_fields(
                 popover,
                 vec![FilterField::new(
                     FilterSpec::multi("tags", "Tag", options),
                     Some(Icon::FileText),
                 )],
+                cx,
             );
         });
         self.tags = tags;
@@ -1389,6 +1398,22 @@ impl Render for KnowledgeView {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rules_offer_no_status_filter_and_drop_a_stored_status_clause() {
+        let fields = rule_filter_fields();
+        assert!(!fields.iter().any(|field| field.spec.id == "status"));
+        let stored = [polterware_ui::filter::FilterClause {
+            id: "clause-1".into(),
+            field: "status".into(),
+            operator: "is".into(),
+            values: vec!["active".into(), "under_review".into()],
+        }];
+        assert_eq!(
+            crate::views::scope::unoffered_filter_fields(&fields, &stored),
+            ["status"]
+        );
+    }
 
     fn item(id: &str, kind: &str, status: &str, scope: &[&str]) -> KnowledgeItem {
         KnowledgeItem {

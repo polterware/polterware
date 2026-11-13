@@ -6,9 +6,9 @@
 //! page sets it for every scoped page, and a page shows what another one picked when it next
 //! draws. The page's own clauses match its rows; the scope's narrow what the pages read.
 
-use gpui::{App, Entity};
+use gpui::{App, Context, Entity};
 use polterware_ui::Icon;
-use polterware_ui::filter::{FilterOption, FilterSpec};
+use polterware_ui::filter::{FilterClause, FilterOption, FilterSpec};
 use polterware_ui::filter_popover::{FilterField, FilterPopover};
 
 use crate::state::{AppState, Load, ScopeCatalog, ScopeKey, ScopeToken};
@@ -68,14 +68,39 @@ pub fn scope_fields(catalog: &ScopeCatalog, allow_env: bool) -> Vec<FilterField>
 }
 
 /// Sets the page's own fields, after the scope's the popover already shows.
-pub fn set_page_fields(popover: &mut FilterPopover, own: Vec<FilterField>) {
+pub fn set_page_fields(
+    popover: &mut FilterPopover,
+    own: Vec<FilterField>,
+    cx: &mut Context<FilterPopover>,
+) {
     let scope: Vec<FilterField> = popover
         .fields()
         .iter()
         .filter(|field| is_scope_field(&field.spec.id))
         .cloned()
         .collect();
-    popover.set_fields(scope.into_iter().chain(own).collect());
+    let fields: Vec<FilterField> = scope.into_iter().chain(own).collect();
+    let dropped = unoffered_filter_fields(&fields, &popover.filters().clauses);
+    popover.set_fields(fields);
+    for field in dropped {
+        popover.set_filter(&field, &[], cx);
+    }
+}
+
+/// Fields with saved clauses that the current page no longer offers.
+pub(super) fn unoffered_filter_fields(
+    fields: &[FilterField],
+    clauses: &[FilterClause],
+) -> Vec<String> {
+    let mut dropped: Vec<String> = clauses
+        .iter()
+        .filter(|clause| !fields.iter().any(|field| field.spec.id == clause.field))
+        .map(|clause| clause.field.clone())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    dropped.sort();
+    dropped
 }
 
 /// `clearPage`: drops the page's own clauses and keeps the shared scope's.
