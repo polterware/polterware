@@ -4237,6 +4237,8 @@ dependencies = [
 name = "polterware-window"
 version = "0.1.0"
 dependencies = [
+ "async-channel 2.5.0",
+ "block",
  "gpui",
  "image",
  "objc",
