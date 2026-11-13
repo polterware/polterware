@@ -14,9 +14,9 @@
 //! a link, and the text pane types over it. The pins are the one thing the text does not carry,
 //! so a dropped node writes its place into `layout_json` and Reset layout clears them.
 //!
-//! The toolbar floats over the well: Canvases (back), the name in a 224px pill field, the save
-//! state (Unsaved, Saving…, Not saved in the danger color, Saved; 11px muted), and Mermaid
-//! source, which opens the text pane beside the diagram. Typing there re-renders after a short
+//! The page toolbar holds Canvases (back), the inline canvas name, the save state (Unsaved,
+//! Saving…, Not saved in the danger color, Saved; 11px muted), and Mermaid source, which opens
+//! the text pane beside the diagram. Typing there re-renders after a short
 //! pause; a parse error reads as `line L, column C: message` under the text and keeps the last
 //! diagram that drew. The tool dock floats at the bottom center: Select, Pan, Connect; Undo,
 //! Redo; Delete selection, Arrange; Zoom out, the zoom level, Zoom in, Fit canvas, Reset layout;
@@ -233,7 +233,7 @@ impl CanvasEditor {
         let palette = node_palette(&open.definition);
         let groups = palette_groups(&palette);
         let name = open.canvas.name.clone();
-        let name_input = cx.new(|cx| TextInput::new(cx).pill());
+        let name_input = cx.new(TextInput::new);
         name_input.update(cx, |input, cx| input.set_text(name.clone(), cx));
         cx.observe(&name_input, |this, input, cx| {
             let text = input.read(cx).text().to_string();
@@ -481,7 +481,7 @@ impl CanvasEditor {
         (
             self.open_panel_width(PanelSide::Left, cx),
             self.open_panel_width(PanelSide::Right, cx),
-            PANEL_INSET + Theme::global(cx).page_header_height,
+            PANEL_INSET,
             PANEL_INSET + DOCK_HEIGHT,
         )
     }
@@ -1283,14 +1283,8 @@ impl CanvasEditor {
         let theme = *Theme::global(cx);
         let view = cx.entity().downgrade();
         let back = view.clone();
-        let toolbar = card(cx)
-            .id("canvas-toolbar")
-            .occlude()
-            .w(px(420.0))
-            .h(px(theme.page_header_height))
-            .pt(px(theme.space_2))
-            .px(px(theme.space_2))
-            .pb(px(theme.space_1))
+        let left = div()
+            .flex_none()
             .flex()
             .items_center()
             .gap(px(8.0))
@@ -1304,7 +1298,17 @@ impl CanvasEditor {
                         let _ = back.update(cx, |this, cx| this.back(cx));
                     }),
             )
-            .child(div().w(px(224.0)).child(self.name_input.clone()))
+            .child(
+                div()
+                    .w(px(224.0))
+                    .text_size(px(15.0))
+                    .child(self.name_input.clone()),
+            );
+        let right = div()
+            .flex_none()
+            .flex()
+            .items_center()
+            .gap(px(8.0))
             .child(
                 div()
                     .flex_none()
@@ -1335,16 +1339,20 @@ impl CanvasEditor {
                             });
                         }
                     }),
-            )
-            .child(div().flex_1().h_full().window_drag_region());
+            );
         div()
-            .absolute()
-            .top(px(PANEL_INSET))
-            .left_0()
-            .right_0()
+            .id("canvas-toolbar")
+            .h(px(theme.page_header_height))
+            .pt(px(theme.space_2))
+            .px(px(theme.space_2))
+            .pb(px(theme.space_1))
             .flex()
-            .justify_center()
-            .child(toolbar)
+            .items_center()
+            .justify_between()
+            .gap(px(theme.space_3))
+            .child(left)
+            .child(div().flex_1().h_full().window_drag_region())
+            .child(right)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1787,9 +1795,9 @@ impl Render for CanvasEditor {
         });
         let mut layer = div()
             .relative()
-            .size_full()
+            .flex_1()
+            .min_h_0()
             .child(well)
-            .child(self.toolbar(cx))
             .child(self.tools_dock(cx))
             .children(hint)
             .child(overlays)
@@ -1806,7 +1814,7 @@ impl Render for CanvasEditor {
             layer = layer.child(
                 div()
                     .absolute()
-                    .top(px(56.0))
+                    .top(px(PANEL_INSET))
                     .bottom(px(64.0))
                     .right(px(PANEL_INSET))
                     .w(px(SOURCE_PANE_WIDTH))
@@ -1842,6 +1850,9 @@ impl Render for CanvasEditor {
         div()
             .relative()
             .size_full()
+            .flex()
+            .flex_col()
+            .child(self.toolbar(cx))
             .child(layer)
             .children(alert.map(|alert| div().absolute().top(px(48.0)).left(px(12.0)).child(alert)))
             .children(self.inspector.layers(cx))
