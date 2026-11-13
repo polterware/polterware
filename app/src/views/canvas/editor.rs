@@ -308,8 +308,15 @@ impl CanvasEditor {
             }
         })
         .detach();
-        let view = cx.new(|cx| {
-            MermaidView::new(Scene::default()).background(Theme::global(cx).color_app_background)
+        let view = cx.new(|_| {
+            // Transparent: the main surface under it paints the rounded face, as GPUI clips a
+            // child's own fill to a rectangle and a painted backdrop would square the corners.
+            MermaidView::new(Scene::default()).background(gpui::Rgba {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                a: 0.0,
+            })
         });
         cx.subscribe(&view, |this, _, event: &MermaidEvent, cx| match event {
             MermaidEvent::Selected(hit) => this.select(hit.as_ref(), cx),
@@ -1605,8 +1612,6 @@ impl CanvasEditor {
             .relative()
             .size_full()
             .overflow_hidden()
-            .rounded(px(theme.radius_card - 2.0))
-            .bg(theme.color_surface)
             .child(self.host.probe())
             .child(diagram)
             .on_drop(cx.listener(|this, drag: &LibraryDrag, window, cx| {
