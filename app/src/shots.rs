@@ -8,7 +8,7 @@
 //! and every other section (Activity with a change open, then a Dispatch entry; Knowledge's
 //! first rule in the Composer, the Docs tab's Add doc Composer and its archive, and the first
 //! doc), Project settings, Commander, and App settings. Then, back in the project, the first
-//! milestone's board, a card's page (one in review first), a Rule's page, the canvas editor
+//! milestone's board, a card's page (one in review first), a Rule's Composer, the canvas editor
 //! with a node selected so its inspector shows, and the first Inbox item that asks for a
 //! confirmation.
 //!
@@ -50,7 +50,7 @@ const SECTIONS: [(&str, Section); 5] = [
 ];
 
 /// Knowledge's tabs as the tour walks them: the list's stop after switching to it (none for
-/// Rules, where Knowledge opens) and the stop of its first row's page.
+/// Rules, where the first row opens in the Composer, and the stop of its first row's detail.
 const KNOWLEDGE_STOPS: [(KnowledgeTab, Option<&str>, Option<&str>); 2] = [
     (KnowledgeTab::Rules, None, Some("07-knowledge-rule")),
     (
@@ -230,6 +230,7 @@ pub fn start_tour(
                                         state.open_knowledge_page(id, cx);
                                     }
                                 });
+                                settle(cx, 1200).await;
                                 shot(cx, &dir, page).await;
                                 update(cx, &state, |state, cx| state.go_back(cx));
                                 settle(cx, 600).await;
@@ -285,7 +286,7 @@ pub fn start_tour(
                     }
                 });
                 shot(cx, &dir, "12-card").await;
-                // The first Rule's page.
+                // The first Rule in its Composer over the Rules list.
                 update(cx, &state, |state, cx| {
                     state.go_section(Section::Knowledge, cx);
                     state.set_knowledge_tab(KnowledgeTab::Rules, cx);
@@ -297,7 +298,7 @@ pub fn start_tour(
                         state.open_knowledge_page(id, cx);
                     }
                 });
-                settle(cx, 600).await;
+                settle(cx, 1200).await;
                 shot(cx, &dir, "13-rule").await;
                 // The canvas editor with a node selected, so its inspector shows.
                 update(cx, &state, |state, cx| {

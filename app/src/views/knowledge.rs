@@ -1,11 +1,9 @@
 //! Knowledge (the `truth` route: `index.tsx`'s `KnowledgeView`, `truth-rules-page.tsx`): the
 //! Rules and Docs tabs on one toolbar with the tab's search, its filters, and its "+". Rules
-//! (`rules-panel.tsx`) lists each Rule by its statement, Context, and Status, filtered by
-//! lifecycle state (active and under review until another state is picked); Docs
+//! (`rules-panel.tsx`) lists each Rule by its statement and Context; Docs
 //! (`docs-table.tsx`) lists the docs by Title, Context, Tags, and Updated, filtered by tag.
-//! Every Context is a chip per Structure node, "Whole project" when there is none. A row opens
-//! its record as a page in place of the list: a Rule's page is `rule_page.rs`, a doc's is
-//! `knowledge_page.rs`.
+//! Every Context is a chip per Structure node, "Whole project" when there is none. A Rule
+//! opens in the Composer over the list; a doc opens as a page in place of the list.
 //!
 //! The toolbar's "+" and C open the app's shared Composer for a new doc, or this page's
 //! (`RuleFormDialog`) for a new Rule (its statement, its Context as tokens, and an optional
@@ -45,12 +43,11 @@ use crate::format::{archive_date, format_instant};
 use crate::state::{AppState, ComposeRequest, Knowledge, KnowledgeTab, Load};
 use crate::views::core_status::core_status;
 use crate::views::knowledge_page::KnowledgePage;
-use crate::views::rule_page::RulePage;
 use crate::views::scope::{ScopeFilter, clear_page, set_page_fields};
 
 /// `.pw-data-table-scroll`'s padding-inline.
 const TABLE_INSET: f32 = 12.0;
-/// The StatusChip's radius on the web.
+/// A Context chip's radius on the web.
 const CHIP_RADIUS: f32 = 6.0;
 /// A default-density row: the 24px tile in the cell's 5px padding.
 const ROW_HEIGHT: f32 = 34.0;
@@ -67,41 +64,18 @@ const WHY: &str = "Optional. Recorded in Activity";
 /// A summary's longest (`slice(0, 120)`).
 const SUMMARY_MAX: usize = 120;
 
+/// The Rule Composer is open for a new Rule, or the Rule being edited.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Compose {
+    Rule(Option<String>),
+}
+
 /// The Rules list's scope cell: a Rule with no context holds for the whole project.
 fn rule_scope_labels(ids: &[String], nodes: &[StructureNode]) -> Vec<String> {
     if ids.is_empty() {
         vec!["Project".into()]
     } else {
         context_labels(ids, nodes)
-    }
-}
-
-/// The lifecycle states the Status filter offers, in its order.
-pub(crate) const RULE_STATES: [(&str, &str); 5] = [
-    ("active", "Active"),
-    ("under_review", "Under review"),
-    ("proposed", "Proposed"),
-    ("replaced", "Replaced"),
-    ("removed", "Removed"),
-];
-
-/// The states the Rules list keeps until another is picked.
-pub(crate) const RULE_BINDING: [&str; 2] = ["active", "under_review"];
-
-/// A stored Rule status in plain words.
-pub(crate) fn rule_status_label(status: &str) -> &'static str {
-    RULE_STATES
-        .iter()
-        .find(|(id, _)| *id == status)
-        .map_or("Proposed", |(_, label)| *label)
-}
-
-/// `ruleStateTone`: a bound Rule reads as settled, under review as a warning.
-pub(crate) fn rule_status_tone(status: &str) -> StatusTone {
-    match status {
-        "active" => StatusTone::Ok,
-        "under_review" => StatusTone::Warn,
-        _ => StatusTone::Muted,
     }
 }
 
@@ -217,27 +191,6 @@ pub(crate) fn context_options(nodes: &[StructureNode]) -> Vec<PropertyOption> {
             })
     })
     .collect()
-}
-
-/// The Rules list's Status field.
-fn status_field() -> FilterField {
-    FilterField::new(
-        FilterSpec::multi(
-            "status",
-            "Status",
-            RULE_STATES
-                .iter()
-                .map(|(id, label)| FilterOption::new(*id, *label))
-                .collect(),
-        )
-        .plural("statuses"),
-        Some(Icon::ShieldCheck),
-    )
-}
-
-/// The states the Rules list keeps until another is picked.
-fn rule_status_defaults() -> Vec<String> {
-    RULE_BINDING.iter().map(|state| state.to_string()).collect()
 }
 
 /// `ContextPicker`: the nodes a record is about as tokens, none being the whole project.
@@ -443,25 +396,24 @@ fn text(value: &str) -> SortValue {
 pub struct KnowledgeView {
     state: Entity<AppState>,
     search: Entity<TextInput>,
-    /// One filter menu per tab, each with its own name (`Library filters`, `Rule filters`,
-    /// `Doc filters`).
+    /// One filter menu per tab, each with its own name (`Rule filters`, `Doc filters`).
     filters: [Entity<FilterPopover>; 2],
     query: String,
     /// The tab the search, filters, and sort were set for; another one clears them.
     tab: KnowledgeTab,
-    /// The Rules list's default Status filter has been put on.
-    status_defaults: bool,
     tags: Vec<String>,
     sort: Option<(usize, SortDirection)>,
     /// The marked row of Rules or Docs; the first one until J, K, or a row moves it.
     active: Option<String>,
-    /// The doc open as a page, and the Rule open as its own.
+    /// The doc open as a page.
     page: Entity<KnowledgePage>,
-    rule_page: Entity<RulePage>,
     composer: Entity<Composer>,
-    /// The Rule Composer is open for a new Rule, and the Context it holds.
-    compose: bool,
+    /// The Rule Composer's target and Context.
+    compose: Option<Compose>,
     contexts: Vec<SharedString>,
+    remove_ask: bool,
+    remove_focus: FocusHandle,
+    remove_focus_due: bool,
     /// Docs shows its archive in place of the list.
     show_archived: bool,
     archived: Entity<ArchivedList>,
@@ -501,9 +453,6 @@ impl KnowledgeView {
             cx.observe(&popover, |_, _, cx| cx.notify()).detach();
             popover
         });
-        filters[0].update(cx, |popover, _| {
-            popover.set_fields(vec![status_field()]);
-        });
         filters[1].update(cx, |popover, _| {
             popover.set_fields(vec![FilterField::new(
                 FilterSpec::multi("tags", "Tag", Vec::new()),
@@ -512,7 +461,6 @@ impl KnowledgeView {
         });
         cx.observe(&state, |_, _, cx| cx.notify()).detach();
         let page = cx.new(|cx| KnowledgePage::new(state.clone(), cx));
-        let rule_page = cx.new(|cx| RulePage::new(state.clone(), cx));
         let composer = cx.new(Composer::new);
         cx.subscribe(&composer, Self::composed).detach();
         let archived = cx.new(|cx| {
@@ -521,10 +469,12 @@ impl KnowledgeView {
         cx.subscribe(&archived, Self::archive_picked).detach();
         Self {
             page,
-            rule_page,
             composer,
-            compose: false,
+            compose: None,
             contexts: Vec::new(),
+            remove_ask: false,
+            remove_focus: cx.focus_handle(),
+            remove_focus_due: false,
             show_archived: false,
             archived,
             delete_ask: None,
@@ -536,7 +486,6 @@ impl KnowledgeView {
             filters,
             query: String::new(),
             tab: KnowledgeTab::default(),
-            status_defaults: false,
             tags: Vec::new(),
             sort: None,
             active: None,
@@ -552,22 +501,47 @@ impl KnowledgeView {
         vec![context_property(&ids, nodes)]
     }
 
-    /// Opens the Composer for a new Rule: its statement, its Context as tokens, and a why.
+    /// Opens the Composer for a new Rule or to edit the selected Rule.
     fn open_composer(
         &mut self,
+        compose: Compose,
         knowledge: &Knowledge,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let spec = ComposerSpec::new(RULE_PLACEHOLDER, "Create rule").why(WHY);
-        self.contexts = self
-            .state
-            .read(cx)
-            .scope_contexts()
-            .into_iter()
-            .map(SharedString::from)
-            .collect();
-        self.compose = true;
+        let rule = match &compose {
+            Compose::Rule(Some(id)) => knowledge.rules.iter().find(|rule| rule.id == *id),
+            _ => None,
+        };
+        let spec = match (&compose, rule) {
+            (Compose::Rule(_), Some(rule)) => ComposerSpec::new(RULE_PLACEHOLDER, "Save rule")
+                .why(WHY)
+                .edit()
+                .action("Remove rule")
+                .initial(ComposerDraft {
+                    title: rule.statement.clone(),
+                    ..ComposerDraft::default()
+                }),
+            (Compose::Rule(_), None) => ComposerSpec::new(RULE_PLACEHOLDER, "Create rule").why(WHY),
+        };
+        self.contexts = rule.map_or_else(
+            || {
+                self.state
+                    .read(cx)
+                    .scope_contexts()
+                    .into_iter()
+                    .map(SharedString::from)
+                    .collect()
+            },
+            |rule| {
+                rule.scope_node_ids
+                    .iter()
+                    .cloned()
+                    .map(SharedString::from)
+                    .collect()
+            },
+        );
+        self.compose = Some(compose);
         let properties = self.context_properties(&knowledge.nodes);
         self.composer.update(cx, |composer, cx| {
             composer.open(spec, properties, window, cx);
@@ -591,7 +565,7 @@ impl KnowledgeView {
                     return;
                 };
                 let knowledge = knowledge.clone();
-                self.open_composer(&knowledge, window, cx);
+                self.open_composer(Compose::Rule(None), &knowledge, window, cx);
             }
         }
     }
@@ -611,8 +585,27 @@ impl KnowledgeView {
                     composer.update(cx, |composer, cx| composer.set_properties(properties, cx));
                 }
             }
-            ComposerEvent::Action => {}
-            ComposerEvent::Closed => self.compose = false,
+            ComposerEvent::Action => {
+                self.remove_ask = true;
+                self.remove_focus_due = true;
+            }
+            ComposerEvent::Closed => {
+                let compose = self.compose.take();
+                self.remove_ask = false;
+                if let Some(Compose::Rule(Some(id))) = compose
+                    && matches!(self.state.read(cx).knowledge_route(),
+                        Some((KnowledgeTab::Rules, Some(page))) if page == id)
+                {
+                    self.state.update(cx, |state, cx| {
+                        if state.can_go_back() {
+                            state.go_back(cx);
+                        } else {
+                            state.set_knowledge_tab(KnowledgeTab::Rules, cx);
+                        }
+                        cx.notify();
+                    });
+                }
+            }
         }
     }
 
@@ -624,22 +617,64 @@ impl KnowledgeView {
                 let _ = composer.update(cx, |composer, cx| composer.finish(written, cx));
             }
         };
-        if !self.compose {
+        let Some(Compose::Rule(id)) = self.compose.clone() else {
             return done(false, cx);
-        }
+        };
         let Load::Ready(knowledge) = self.state.read(cx).knowledge() else {
             return done(false, cx);
         };
         let knowledge = knowledge.clone();
         let ids: Vec<String> = self.contexts.iter().map(|id| id.to_string()).collect();
-        let text = rule_save(None, &knowledge.rules, &draft.title, &ids, &knowledge.nodes);
+        let current = id
+            .as_ref()
+            .and_then(|id| knowledge.rules.iter().find(|rule| rule.id == *id));
+        let text = rule_save(
+            current,
+            &knowledge.rules,
+            &draft.title,
+            &ids,
+            &knowledge.nodes,
+        );
+        let written = if current.is_some() {
+            "Rule updated."
+        } else {
+            "Rule created."
+        };
+        self.state.update(cx, |state, cx| {
+            state.write_rule(text, summary(&draft.title), draft.why, written, done, cx);
+        });
+    }
+
+    /// Confirms and writes the Rule removal before closing the Composer.
+    fn remove_rule(&mut self, composer: Entity<Composer>, cx: &mut Context<Self>) {
+        let Some(Compose::Rule(Some(id))) = self.compose.clone() else {
+            return;
+        };
+        let app = self.state.read(cx);
+        if app.knowledge_pending() {
+            return;
+        }
+        let Load::Ready(knowledge) = app.knowledge() else {
+            return;
+        };
+        let Some(rule) = knowledge.rules.iter().find(|rule| rule.id == id).cloned() else {
+            return;
+        };
+        let text = rule_text(rule_handle(&rule), "", None, None, Some("removed"), None);
+        let reason = summary(&format!("Remove rule: {}", rule.statement));
+        let composer = composer.downgrade();
+        self.remove_ask = false;
         self.state.update(cx, |state, cx| {
             state.write_rule(
                 text,
-                summary(&draft.title),
-                draft.why,
-                "Rule created.",
-                done,
+                reason,
+                String::new(),
+                "Rule removed.",
+                move |written, cx| {
+                    if written {
+                        let _ = composer.update(cx, |composer, cx| composer.close(cx));
+                    }
+                },
                 cx,
             );
         });
@@ -780,6 +815,82 @@ impl KnowledgeView {
         Some(window_layer(modal_layer(1.0, true, close, dialog, &theme)))
     }
 
+    fn remove_confirm(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        if !self.remove_ask {
+            return None;
+        }
+        if std::mem::take(&mut self.remove_focus_due) {
+            self.remove_focus.focus(window);
+        }
+        let Compose::Rule(Some(id)) = self.compose.clone()? else {
+            self.remove_ask = false;
+            return None;
+        };
+        let Load::Ready(knowledge) = self.state.read(cx).knowledge() else {
+            return None;
+        };
+        let rule = knowledge.rules.iter().find(|rule| rule.id == id)?;
+        let title = if rule.statement.is_empty() {
+            rule_handle(rule)
+        } else {
+            &rule.statement
+        };
+        let theme = *Theme::global(cx);
+        let view = cx.entity().downgrade();
+        let composer = self.composer.clone();
+        let dismiss = view.clone();
+        let close: polterware_ui::Handler = Rc::new(move |_, cx: &mut App| {
+            let _ = dismiss.update(cx, |this, cx| {
+                this.remove_ask = false;
+                cx.notify();
+            });
+        });
+        let dialog = ConfirmDialog::new(
+            "knowledge-rule-remove",
+            format!("Remove rule “{title}”?"),
+            "Agents will no longer read this Rule in their brief.",
+        )
+        .confirm_label("Remove rule")
+        .focus(&self.remove_focus)
+        .on_cancel(close.clone())
+        .on_confirm(Rc::new(move |_, cx: &mut App| {
+            let composer = composer.clone();
+            let _ = view.update(cx, |this, cx| this.remove_rule(composer, cx));
+        }))
+        .danger();
+        Some(window_layer(modal_layer(2.0, true, close, dialog, &theme)))
+    }
+
+    fn follow_rule_route(
+        &mut self,
+        tab: KnowledgeTab,
+        page: Option<&str>,
+        knowledge: &Knowledge,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let wanted = (tab == KnowledgeTab::Rules)
+            .then_some(page)
+            .flatten()
+            .filter(|id| knowledge.rules.iter().any(|rule| rule.id == *id));
+        match (&self.compose, wanted) {
+            (Some(Compose::Rule(Some(open))), Some(id)) if open == id => {}
+            (_, Some(id)) => {
+                self.open_composer(Compose::Rule(Some(id.to_string())), knowledge, window, cx)
+            }
+            (Some(Compose::Rule(Some(_))), None) => {
+                self.compose = None;
+                self.remove_ask = false;
+                self.composer.update(cx, |composer, cx| composer.close(cx));
+            }
+            _ => {}
+        }
+    }
+
     pub(crate) fn filters_for(&self, tab: KnowledgeTab) -> &Entity<FilterPopover> {
         &self.filters[KnowledgeTab::ALL
             .iter()
@@ -808,10 +919,6 @@ impl KnowledgeView {
         });
         for popover in &self.filters {
             clear_page(popover, cx);
-        }
-        if tab == KnowledgeTab::Rules {
-            let kept = rule_status_defaults();
-            self.filters[0].update(cx, |popover, cx| popover.set_filter("status", &kept, cx));
         }
     }
 
@@ -871,11 +978,9 @@ impl KnowledgeView {
         }
     }
 
-    /// The Rules the search and Status clauses keep (statement, slug, or Context), then the
-    /// sort.
-    fn visible_rules(&self, rules: &[Rule], nodes: &[StructureNode], cx: &App) -> Vec<Rule> {
+    /// The Rules the search keeps (statement, slug, or Context), then the sort.
+    fn visible_rules(&self, rules: &[Rule], nodes: &[StructureNode]) -> Vec<Rule> {
         let needle = self.needle();
-        let filters = self.filters[0].read(cx).filters();
         let rows: Vec<Rule> = rules
             .iter()
             .filter(|rule| {
@@ -888,16 +993,12 @@ impl KnowledgeView {
                     .iter()
                     .any(|value| value.to_lowercase().contains(&needle))
             })
-            .filter(|rule| {
-                filters.matches(|field| (field == "status").then(|| vec![rule.status.as_str()]))
-            })
             .cloned()
             .collect();
         match self.sort {
             Some((column, direction)) => sort_rows(&rows, direction, |rule| match column {
                 0 => text(&rule.statement),
                 1 => text(&about(&rule.scope_node_ids, nodes)),
-                2 => text(rule_status_label(&rule.status)),
                 _ => SortValue::Missing,
             }),
             None => rows,
@@ -1096,7 +1197,7 @@ impl KnowledgeView {
             )
             .into_any_element();
         }
-        let rows = Rc::new(self.visible_rules(&knowledge.rules, &knowledge.nodes, cx));
+        let rows = Rc::new(self.visible_rules(&knowledge.rules, &knowledge.nodes));
         if rows.is_empty() {
             return page_empty("No matches", MascotMood::Lost, cx).into_any_element();
         }
@@ -1104,7 +1205,6 @@ impl KnowledgeView {
         let columns = vec![
             Column::new("Rule").sortable().shrinks(),
             Column::new("Context").sortable(),
-            Column::new("Status").sortable(),
         ];
         let cells = rows.clone();
         let cell_nodes = nodes.clone();
@@ -1120,19 +1220,10 @@ impl KnowledgeView {
             vec![
                 title_cell(Icon::ShieldCheck, statement, cx),
                 chips(&rule_scope_labels(&rule.scope_node_ids, &cell_nodes), cx),
-                chip_rounded(
-                    rule_status_label(&rule.status),
-                    rule_status_tone(&rule.status),
-                    CHIP_RADIUS,
-                    cx,
-                )
-                .into_any_element(),
             ]
         })
         .measure(move |range, window, cx| {
-            let theme = *Theme::global(cx);
-            let medium = sans(&theme, FontWeight::MEDIUM);
-            let mut widest = [0.0_f32; 3];
+            let mut widest = [0.0_f32; 2];
             for rule in measured.get(range).unwrap_or_default() {
                 let widths = [
                     title_width(&rule.statement, window, cx),
@@ -1141,13 +1232,6 @@ impl KnowledgeView {
                         window,
                         cx,
                     ),
-                    CHIP_FRAME
-                        + text_width(
-                            rule_status_label(&rule.status),
-                            medium.clone(),
-                            11.0,
-                            window,
-                        ),
                 ];
                 for (slot, width) in widest.iter_mut().zip(widths) {
                     *slot = slot.max(width);
@@ -1231,7 +1315,10 @@ impl Render for KnowledgeView {
             return div().size_full().child(page);
         }
         let app = self.state.read(cx);
-        let Some((tab, page)) = app.knowledge_route() else {
+        let Some((tab, page)) = app
+            .knowledge_route()
+            .map(|(tab, page)| (tab, page.map(str::to_string)))
+        else {
             return div().size_full();
         };
         let page_open = page.is_some();
@@ -1254,13 +1341,8 @@ impl Render for KnowledgeView {
             }
             _ => None,
         };
-        if page_open {
-            // The record's page takes the list's place, toolbar and all.
-            return div().size_full().child(if tab == KnowledgeTab::Rules {
-                self.rule_page.clone().into_any_element()
-            } else {
-                self.page.clone().into_any_element()
-            });
+        if page_open && tab == KnowledgeTab::Docs {
+            return div().size_full().child(self.page.clone());
         }
         if let Some(knowledge) = &knowledge
             && self
@@ -1268,16 +1350,12 @@ impl Render for KnowledgeView {
                 .update(cx, |state, _| state.take_rule_compose_request())
         {
             let knowledge = knowledge.clone();
-            self.open_composer(&knowledge, window, cx);
+            self.open_composer(Compose::Rule(None), &knowledge, window, cx);
         }
         self.follow_tab(tab, cx);
-        // The Rules list keeps binding Rules until another state is picked, put on after the
-        // page exists so the filters' event lands where the view can hear it.
-        if !self.status_defaults && tab == KnowledgeTab::Rules {
-            let kept = rule_status_defaults();
-            self.filters[0].update(cx, |popover, cx| popover.set_filter("status", &kept, cx));
+        if let Some(knowledge) = &knowledge {
+            self.follow_rule_route(tab, page.as_deref(), knowledge, window, cx);
         }
-        self.status_defaults = true;
         let index = KnowledgeTab::ALL
             .iter()
             .position(|t| *t == tab)
@@ -1303,6 +1381,7 @@ impl Render for KnowledgeView {
             .child(toolbar)
             .child(div().flex_1().min_h(px(0.0)).child(list))
             .child(self.composer.clone())
+            .children(self.remove_confirm(window, cx))
             .children(self.delete_confirm(window, cx))
     }
 }
@@ -1351,16 +1430,6 @@ mod tests {
         // The Rules list names a Rule that holds everywhere "Project".
         assert_eq!(rule_scope_labels(&ids(&[]), &nodes), ["Project"]);
         assert_eq!(rule_scope_labels(&ids(&["n1"]), &nodes), ["API"]);
-    }
-
-    #[test]
-    fn a_rule_status_reads_in_plain_words() {
-        assert_eq!(rule_status_label("active"), "Active");
-        assert_eq!(rule_status_label("under_review"), "Under review");
-        assert_eq!(rule_status_label("removed"), "Removed");
-        assert_eq!(rule_status_tone("active"), StatusTone::Ok);
-        assert_eq!(rule_status_tone("under_review"), StatusTone::Warn);
-        assert_eq!(rule_status_tone("replaced"), StatusTone::Muted);
     }
 
     fn rule(id: &str, slug: &str, statement: &str, paths: &[&str]) -> Rule {

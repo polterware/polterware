@@ -774,7 +774,7 @@ impl CanvasEditor {
         // What the promotion makes, then the core's refusal, as Electron's body shows them.
         let line = match kind {
             PromotionKind::Card => "Stage: Idea",
-            PromotionKind::Rule => "Status: Active. Agents keep the code to it.",
+            PromotionKind::Rule => "Agents read this Rule in their brief.",
         };
         let error = self.inspector.promotion_error.clone();
         self.inspector.composer.update(cx, |composer, cx| {

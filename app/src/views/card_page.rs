@@ -52,7 +52,6 @@ use crate::contracts::{CardCommit, WorkCard, WorkTask};
 use crate::dispatch;
 use crate::format::{format_instant, month_day_time};
 use crate::state::{AppState, CardReads, CardSpec, Load};
-use crate::views::knowledge::{rule_status_label, rule_status_tone};
 use crate::views::knowledge_page::document_activity;
 use crate::views::milestones::MilestonesView;
 use crate::work::{self, Stage};
@@ -537,7 +536,6 @@ impl CardPage {
                         }
                     },
                 );
-                let status = rule.map(|rule| rule.status.clone());
                 let id = rule.map(|rule| rule.id.clone());
                 let page = state.clone();
                 div()
@@ -567,14 +565,6 @@ impl CardPage {
                             .text_color(theme.color_text_secondary)
                             .child(wrap_text(statement)),
                     )
-                    .children(status.map(|status| {
-                        chip_rounded(
-                            rule_status_label(&status),
-                            rule_status_tone(&status),
-                            CHIP_RADIUS,
-                            cx,
-                        )
-                    }))
             });
             div()
                 .px(px(4.0))
