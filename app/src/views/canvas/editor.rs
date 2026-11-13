@@ -52,8 +52,8 @@ use super::mermaid as source;
 use super::source_edit;
 use crate::app::CloseOverlay;
 use crate::canvas::catalog::{
-    PaletteGroup, component_of, default_props, edge_palette, node_palette, palette_groups,
-    palette_label,
+    PaletteGroup, component_of, default_props, edge_palette, initial_geometry, node_palette,
+    palette_groups, palette_label,
 };
 use crate::canvas::document::{Doc, Selection, update_node};
 use crate::canvas::references::{StoreEntity, build_ref};
@@ -74,6 +74,21 @@ const RESTORE_FRAMES: u8 = 4;
 const REVEAL_FRAMES: u8 = 12;
 /// The floating controls' height, including the dock's padding.
 const DOCK_HEIGHT: f32 = 40.0;
+
+fn window_to_diagram_point(
+    window: (f32, f32),
+    surface_origin: (f32, f32),
+    viewport: SceneViewport,
+) -> Option<(f32, f32)> {
+    if !viewport.zoom.is_finite() || viewport.zoom <= 0.0 {
+        return None;
+    }
+    let point = (
+        (window.0 - surface_origin.0 - viewport.x) / viewport.zoom,
+        (window.1 - surface_origin.1 - viewport.y) / viewport.zoom,
+    );
+    (point.0.is_finite() && point.1.is_finite()).then_some(point)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Tool {
@@ -701,6 +716,31 @@ impl CanvasEditor {
         self.schedule(cx);
     }
 
+    fn drop_library_item(&mut self, drag: &LibraryDrag, window: &Window, cx: &mut Context<Self>) {
+        let Some(surface) = self.host.get() else {
+            return;
+        };
+        let at = window.mouse_position();
+        let origin = (f32::from(surface.origin.x), f32::from(surface.origin.y));
+        let size = (
+            f32::from(surface.size.width),
+            f32::from(surface.size.height),
+        );
+        let local = (f32::from(at.x) - origin.0, f32::from(at.y) - origin.1);
+        if local.0 < 0.0 || local.1 < 0.0 || local.0 > size.0 || local.1 > size.1 {
+            return;
+        }
+        let Some(viewport) = self.view.read(cx).viewport() else {
+            return;
+        };
+        let Some(position) =
+            window_to_diagram_point((f32::from(at.x), f32::from(at.y)), origin, viewport)
+        else {
+            return;
+        };
+        self.insert_at(&drag.kind, drag.entity.clone(), Some(position), cx);
+    }
+
     /// The diagram id a canvas node id stands for.
     pub(super) fn mermaid(&self, canvas_id: &str) -> Option<String> {
         source_edit::mermaid_id(&self.source, canvas_id)
@@ -1067,6 +1107,16 @@ impl CanvasEditor {
         entity: Option<StoreEntity>,
         cx: &mut Context<Self>,
     ) {
+        self.insert_at(kind, entity, None, cx);
+    }
+
+    fn insert_at(
+        &mut self,
+        kind: &str,
+        entity: Option<StoreEntity>,
+        drop_at: Option<(f32, f32)>,
+        cx: &mut Context<Self>,
+    ) {
         if !self.palette.iter().any(|item| item == kind) {
             self.error = Some("This shape is not allowed by the core.".into());
             cx.notify();
@@ -1082,7 +1132,7 @@ impl CanvasEditor {
             .unwrap_or_else(|| palette_label(kind));
         let props = default_props(kind);
         let reference = entity.as_ref().map(build_ref);
-        let (source, _mermaid, canvas) =
+        let (source, mermaid, canvas) =
             source_edit::insert_node(&self.source, kind, &named, reference.as_ref(), &props);
         self.error = None;
         self.apply_source(source, Capture::Immediately, cx);
@@ -1092,6 +1142,17 @@ impl CanvasEditor {
         self.show_selection(cx);
         self.inspector_panel
             .update(cx, |panel, _| panel.set_open(true));
+        if let Some((x, y)) = drop_at {
+            let (width, height, _) = initial_geometry(kind);
+            self.drop_node(
+                &mermaid,
+                polterware_mermaid::scene::Point {
+                    x: f64::from(x - width / 2.0),
+                    y: f64::from(y - height / 2.0),
+                },
+                cx,
+            );
+        }
         cx.notify();
     }
 
@@ -1544,9 +1605,13 @@ impl CanvasEditor {
             .relative()
             .size_full()
             .overflow_hidden()
-            .bg(theme.color_app_background)
+            .rounded(px(theme.radius_card - 2.0))
+            .bg(theme.color_surface)
             .child(self.host.probe())
             .child(diagram)
+            .on_drop(cx.listener(|this, drag: &LibraryDrag, window, cx| {
+                this.drop_library_item(drag, window, cx);
+            }))
             .on_action(cx.listener(|this, _: &CloseOverlay, _, cx| this.escape(cx)))
             .into_any_element()
     }
@@ -1797,4 +1862,22 @@ fn panel_frame(id: &'static str, content: AnyElement, _side: PanelSide, cx: &App
         .p(px(PANEL_INSET))
         .child(frame)
         .into_any_element()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn window_point_maps_through_surface_origin_and_viewport() {
+        let viewport = SceneViewport::new(30.0, -10.0, 2.0);
+        assert_eq!(
+            window_to_diagram_point((150.0, 110.0), (20.0, 40.0), viewport),
+            Some((50.0, 40.0))
+        );
+        assert_eq!(
+            window_to_diagram_point((20.0, 40.0), (20.0, 40.0), viewport),
+            Some((-15.0, 5.0))
+        );
+    }
 }
