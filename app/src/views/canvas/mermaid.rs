@@ -22,15 +22,15 @@ use polterware_mermaid::measure::{Font, TextMeasure, plain_text_block};
 use polterware_mermaid::render::edges::{EdgeData, insert_edge_label};
 use polterware_mermaid::render::markers::marker_placement;
 use polterware_mermaid::scene::{
-    Color, EllipseShape, Group, Item, MarkerDef, MarkerUnits, NORMAL_WEIGHT, Path, PathCommand,
-    PathShape, PathStyle, Point, Rect, RectShape, Scene, SourceKind, SourceRef, TextAnchor,
-    TextBaseline, TextRun, Transform,
+    Color, EllipseShape, Group, ImageRef, Item, MarkerDef, MarkerUnits, NORMAL_WEIGHT, Path,
+    PathCommand, PathShape, PathStyle, Point, Rect, RectShape, Scene, SourceKind, SourceRef,
+    TextAnchor, TextBaseline, TextRun, Transform,
 };
 use polterware_mermaid::theme::Theme as MermaidTheme;
 use polterware_ui::mermaid::SceneViewport;
 use polterware_ui::theme::Theme;
 
-use crate::canvas::catalog::{component_of, silhouette};
+use crate::canvas::catalog::{component_of, node_icon, silhouette};
 
 /// How near an edge end has to be to a node's box to be read as that node's.
 const END_TOLERANCE: f64 = 0.75;
@@ -74,6 +74,11 @@ pub(super) struct Palette {
     pub cluster_stroke: String,
     pub label_background: String,
     pub muted: String,
+    /// A component card's icon badge: its face, its rim, and the mark's color (`IconTile`'s
+    /// Architecture tone).
+    pub badge_face: String,
+    pub badge_rim: String,
+    pub badge_mark: String,
     /// The app's UI font, the family every label is measured and painted in.
     pub font_family: String,
 }
@@ -218,6 +223,9 @@ pub(super) fn palette(theme: &Theme) -> Palette {
         cluster_stroke: pick("clusterBorder", css(theme.color_text_muted)),
         label_background: pick("edgeLabelBackground", css(theme.color_surface_raised)),
         muted: css(theme.color_text_muted),
+        badge_face: css(theme.material_face_top),
+        badge_rim: css(theme.material_highlight_strong),
+        badge_mark: css(theme.chart_blue),
         font_family: theme.font_sans.to_string(),
     }
 }
@@ -522,6 +530,8 @@ struct ComponentCard {
     kind: String,
     title: String,
     subtitle: String,
+    /// The badge's mark, an icon asset path.
+    icon: String,
 }
 
 /// Reads the visible label, kind, and technology for component nodes.
@@ -535,7 +545,11 @@ fn component_cards(source: &str) -> HashMap<String, ComponentCard> {
         let Some(kind) = field(metadata, "kind").filter(|kind| component_of(kind).is_some()) else {
             continue;
         };
-        let Some(title) = bracket_label(line, open) else {
+        // A node the library inserts carries its name only in `label`, with no bracket.
+        let Some(title) = bracket_label(line, open)
+            .or_else(|| field(metadata, "label"))
+            .filter(|title| !title.is_empty())
+        else {
             continue;
         };
         let Some(component) = component_of(&kind) else {
@@ -543,6 +557,11 @@ fn component_cards(source: &str) -> HashMap<String, ComponentCard> {
         };
         let technology = field(metadata, "technology")
             .or_else(|| field(metadata, "tech"))
+            .or_else(|| {
+                field(metadata, "props")
+                    .and_then(|props| serde_json::from_str::<serde_json::Value>(&props).ok())
+                    .and_then(|props| props.get("technology")?.as_str().map(str::to_string))
+            })
             .filter(|technology| !technology.is_empty());
         let type_label = component.label;
         let subtitle = technology.map_or_else(
@@ -552,6 +571,10 @@ fn component_cards(source: &str) -> HashMap<String, ComponentCard> {
         cards.insert(
             id,
             ComponentCard {
+                icon: node_icon(&kind)
+                    .unwrap_or(polterware_ui::Icon::Blockchain01Icon)
+                    .asset_path_stroked(2.5)
+                    .to_string(),
                 kind,
                 title,
                 subtitle,
@@ -613,8 +636,14 @@ fn resize_component_nodes(
             current.width,
             CARD_MIN_HEIGHT.max(current.height),
         );
-        let width =
-            (content + 56.0 + f64::from(inset.left) + f64::from(inset.right)).max(current.width);
+        let width = (content
+            + CARD_PAD_LEFT
+            + BADGE_SIZE
+            + CARD_GAP
+            + CARD_PAD_RIGHT
+            + f64::from(inset.left)
+            + f64::from(inset.right))
+        .max(current.width);
         let height =
             (CARD_MIN_HEIGHT + f64::from(inset.top) + f64::from(inset.bottom)).max(current.height);
         if width > current.width || height > current.height {
@@ -636,6 +665,13 @@ fn resize_component_nodes(
 
 /// A card's two text lines and its icon badge fit inside this height.
 const CARD_MIN_HEIGHT: f64 = 52.0;
+/// The library card's spacing (`scene.rs`'s semantic card): the badge, its mark, the padding
+/// before it and after the text, and the gap between them.
+const BADGE_SIZE: f64 = 28.0;
+const BADGE_MARK: f64 = 16.0;
+const CARD_PAD_LEFT: f64 = 10.0;
+const CARD_PAD_RIGHT: f64 = 12.0;
+const CARD_GAP: f64 = 10.0;
 
 /// Where a card's content sits clear of its silhouette's details.
 fn card_inset(kind: &str, width: f64, height: f64) -> polterware_ui::canvas::shapes::Inset {
@@ -758,33 +794,29 @@ fn paint_component_cards(
             let center_y = bounds.y
                 + f64::from(inset.top)
                 + (bounds.height - f64::from(inset.top) - f64::from(inset.bottom)) / 2.0;
-            let badge_center = Point::new(left + 24.0, center_y);
+            let badge_center = Point::new(left + CARD_PAD_LEFT + BADGE_SIZE / 2.0, center_y);
+            // `IconTile`: a 28px round face with a hairline rim and a 16px mark.
             group.items.push(Item::Ellipse(EllipseShape::new(
                 badge_center,
-                10.0,
-                10.0,
-                PathStyle::filled(Color::new(palette.label_background.clone()))
-                    .with_stroke(Color::new(palette.node_stroke.clone()), 1.0),
+                BADGE_SIZE / 2.0,
+                BADGE_SIZE / 2.0,
+                PathStyle::filled(Color::new(palette.badge_face.clone()))
+                    .with_stroke(Color::new(palette.badge_rim.clone()), 0.5),
             )));
-            let initial = card
-                .kind
-                .chars()
-                .next()
-                .unwrap_or('•')
-                .to_uppercase()
-                .to_string();
-            group.items.push(Item::Text(card_text(
-                &initial,
-                Point::new(badge_center.x, badge_center.y),
-                10.0,
-                NORMAL_WEIGHT,
-                TextAnchor::Middle,
-                TextBaseline::Middle,
-                Color::new(palette.text.clone()),
-                measure,
-                palette,
-            )));
-            let text_x = left + 42.0;
+            group.items.push(Item::Image(
+                ImageRef::new(
+                    card.icon.clone(),
+                    Rect::new(
+                        badge_center.x - BADGE_MARK / 2.0,
+                        badge_center.y - BADGE_MARK / 2.0,
+                        BADGE_MARK,
+                        BADGE_MARK,
+                    ),
+                )
+                .tinted(Color::new(palette.badge_mark.clone()))
+                .with_source(SourceRef::node(source.id.clone())),
+            ));
+            let text_x = badge_center.x + BADGE_SIZE / 2.0 + CARD_GAP;
             group.items.push(Item::Text(card_text(
                 &card.title,
                 Point::new(text_x, center_y - 7.0),
@@ -2460,6 +2492,40 @@ mod tests {
             subtitle.position.x,
             subtitle.size.width
         );
+    }
+
+    #[test]
+    fn a_library_inserted_node_paints_as_a_card_with_its_icon() {
+        // The library writes the name only in `label`, and the technology in `props`.
+        let source = "flowchart LR\n  n1@{ id: \"n1-service\", label: \"Compute\", kind: service, shape: rounded, props: \"{\\\"technology\\\":\\\"Go\\\"}\" }\n";
+        let scene = render(source, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
+        let node = find_node_group(&scene.items, "n1").expect("the inserted node");
+        let texts: Vec<String> = node
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Text(text) => Some(text.lines.iter().map(|line| line.text()).collect()),
+                _ => None,
+            })
+            .collect();
+        assert!(
+            texts.iter().any(|text| text == "Compute"),
+            "texts: {texts:?}"
+        );
+        assert!(
+            texts.iter().any(|text| text == "Service / Go"),
+            "texts: {texts:?}"
+        );
+        let mark = node
+            .items
+            .iter()
+            .find_map(|item| match item {
+                Item::Image(image) => Some(image),
+                _ => None,
+            })
+            .expect("the badge's icon");
+        assert!(mark.name.starts_with("icons/"), "mark: {}", mark.name);
+        assert!(mark.tint.is_some());
     }
 
     #[test]
