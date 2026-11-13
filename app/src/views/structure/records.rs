@@ -1,5 +1,5 @@
 //! Electron `RecordEditor` (`knowledge/src/record-editor.tsx`): cited records edit in
-//! their Composer first. Expand alone navigates to the record's own page.
+//! their Composer first. Expand alone navigates to the record's own page; a Rule has none.
 use super::*;
 use crate::views::{
     compose::{CardProps, card_properties},
@@ -108,7 +108,8 @@ impl StructureView {
                 _ => "Write in Markdown…",
             });
         }
-        let expand: Option<polterware_ui::Handler> = Some({
+        // A Rule is only this dialog: it has no page of its own to expand into.
+        let expand: Option<polterware_ui::Handler> = (kind != RecordKind::Rule).then(|| {
             let view = cx.entity().downgrade();
             Rc::new(move |_: &mut Window, cx: &mut App| {
                 let _ = view.update(cx, |this, cx| {
