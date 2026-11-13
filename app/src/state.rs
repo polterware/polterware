@@ -879,7 +879,7 @@ impl AppState {
         &self.knowledge
     }
 
-    /// Knowledge's tab, and the record open as a page, on a Knowledge route.
+    /// Knowledge's tab, and the record open in its detail view, on a Knowledge route.
     pub fn knowledge_route(&self) -> Option<(KnowledgeTab, Option<&str>)> {
         match &self.route {
             Route::Project {
@@ -909,7 +909,7 @@ impl AppState {
         );
     }
 
-    /// Opens record `id` of Knowledge's tab as a page in place of the list (`navigateToDetail`).
+    /// Opens a Knowledge record; Rules use this route to show their Composer over the list.
     pub fn open_knowledge_page(&mut self, id: String, cx: &mut Context<Self>) {
         let Some((tab, _)) = self.knowledge_route() else {
             return;
@@ -929,7 +929,7 @@ impl AppState {
         );
     }
 
-    /// Opens Rule `id` as its page on Knowledge, wherever the app is.
+    /// Opens Rule `id` in the Rules Composer, wherever the app is.
     pub fn open_rule(&mut self, id: String, cx: &mut Context<Self>) {
         let Some(project) = self.project_id().map(str::to_string) else {
             return;
