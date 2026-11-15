@@ -172,7 +172,7 @@ fn project_actions(state: &Entity<AppState>, id: String) -> Vec<MenuItem> {
         ),
         MenuItem::action(
             "Project settings",
-            Some(Icon::Settings),
+            Some(Icon::Sliders),
             Rc::new(move |_, cx: &mut App| {
                 let id = id.clone();
                 settings_state.update(cx, |state, cx| {

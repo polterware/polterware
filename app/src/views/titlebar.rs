@@ -1,10 +1,10 @@
-//! The title bar (`title-bar.tsx`): past the traffic lights, Go back and Go forward in one
-//! texture pill and Home beside it, ending on the sidebar's right edge in a project (just
+//! The title bar (`title-bar.tsx`): past the traffic lights, Go back, Go forward and Home as
+//! ghost icon buttons, ending on the sidebar's right edge in a project (just
 //! after the traffic lights on the Projects screen); then the breadcrumb, `/` between its
 //! steps: the project, whose crumb opens Switch project (`ProjectSwitcherPopover`: a search,
 //! each project on its folder tile with a check on the open one, and New project), and where
 //! you are in it; drag space;
-//! and Commander and App settings at the end. The empty bar drags the window.
+//! and Help's "?", Commander and App settings at the end. The empty bar drags the window.
 
 use std::rc::Rc;
 use std::time::Duration;
@@ -18,7 +18,6 @@ use polterware_ui::list_popover::{ListPopover, ListRow};
 use polterware_ui::patterns::AnchorSlot;
 use polterware_ui::pointer::{track, use_pointer};
 use polterware_ui::text_input::TextInput;
-use polterware_ui::texture_group::{TextureButtonGroup, TextureGroupItem};
 use polterware_ui::theme::{Theme, tw};
 use polterware_ui::window::window_drag::WindowDragRegion;
 use polterware_ui::{IconTile, TileTone};
@@ -39,12 +38,19 @@ pub struct TitlebarParts {
     pub switcher_anchor: AnchorSlot,
 }
 
+/// Help's popover and where its "?" was laid out.
+pub struct HelpParts {
+    pub popover: Entity<ListPopover>,
+    pub anchor: AnchorSlot,
+}
+
 /// `SELECTION_ACK_MS`: how long a picked project stays checked before the panel closes.
 const SELECTION_HOLD: Duration = Duration::from_millis(300);
 
 pub fn titlebar(
     state: &Entity<AppState>,
     parts: &TitlebarParts,
+    help: &HelpParts,
     window: &mut Window,
     cx: &mut App,
 ) -> impl IntoElement + use<> {
@@ -57,29 +63,30 @@ pub fn titlebar(
 
     let back_state = state.clone();
     let forward_state = state.clone();
-    let history = TextureButtonGroup::new("titlebar-history")
-        .item(
-            TextureGroupItem::new("Go back", Icon::ChevronLeft)
-                .disabled(!app.can_go_back())
-                .on_click(move |_, cx| {
-                    back_state.update(cx, |state, cx| {
-                        state.go_back(cx);
-                        cx.notify();
-                    });
-                }),
-        )
-        .item(
-            TextureGroupItem::new("Go forward", Icon::ChevronRight)
-                .disabled(!app.can_go_forward())
-                .on_click(move |_, cx| {
-                    forward_state.update(cx, |state, cx| {
-                        state.go_forward(cx);
-                        cx.notify();
-                    });
-                }),
-        );
+    let back = Button::new("titlebar-back", ButtonKind::Ghost)
+        .size(ButtonSize::Icon)
+        .icon(Icon::ChevronLeft)
+        .tooltip("Go back")
+        .disabled(!app.can_go_back())
+        .on_click(move |_, cx| {
+            back_state.update(cx, |state, cx| {
+                state.go_back(cx);
+                cx.notify();
+            });
+        });
+    let forward = Button::new("titlebar-forward", ButtonKind::Ghost)
+        .size(ButtonSize::Icon)
+        .icon(Icon::ChevronRight)
+        .tooltip("Go forward")
+        .disabled(!app.can_go_forward())
+        .on_click(move |_, cx| {
+            forward_state.update(cx, |state, cx| {
+                state.go_forward(cx);
+                cx.notify();
+            });
+        });
     let home_state = state.clone();
-    let home = Button::new("titlebar-home", ButtonKind::Secondary)
+    let home = Button::new("titlebar-home", ButtonKind::Ghost)
         .size(ButtonSize::Icon)
         .icon(Icon::Home01Icon)
         .tooltip("Projects")
@@ -100,7 +107,8 @@ pub fn titlebar(
         .items_center()
         .justify_end()
         .gap(px(tw(1.0)))
-        .child(history)
+        .child(back)
+        .child(forward)
         .child(home);
 
     let route = app.route().clone();
@@ -256,8 +264,21 @@ pub fn titlebar(
         )
         .child(div().flex_1().h_full().window_drag_region());
 
+    let help_popover = help.popover.clone();
+    let help_state = state.clone();
+    let help_button = div()
+        .relative()
+        .flex_none()
+        .child(
+            Button::new("titlebar-help", ButtonKind::Ghost)
+                .size(ButtonSize::Icon)
+                .icon(Icon::HelpCircle)
+                .tooltip("Help and about")
+                .on_click(move |window, cx| open_help(&help_popover, &help_state, window, cx)),
+        )
+        .child(help.anchor.probe());
     let commander_state = state.clone();
-    let commander = Button::new("titlebar-commander", ButtonKind::Secondary)
+    let commander = Button::new("titlebar-commander", ButtonKind::Ghost)
         .size(ButtonSize::Icon)
         .icon(Icon::Search)
         .tooltip("Commander (\u{2318}K)")
@@ -269,7 +290,7 @@ pub fn titlebar(
             });
         });
     let settings_state = state.clone();
-    let settings = Button::new("titlebar-settings", ButtonKind::Secondary)
+    let settings = Button::new("titlebar-settings", ButtonKind::Ghost)
         .size(ButtonSize::Icon)
         .icon(Icon::Settings)
         .tooltip("App settings")
@@ -300,6 +321,7 @@ pub fn titlebar(
                 .flex()
                 .items_center()
                 .gap(px(tw(1.0)))
+                .child(help_button)
                 .child(commander)
                 .child(settings),
         )
@@ -359,8 +381,8 @@ fn crumb_box(theme: &Theme) -> gpui::Div {
 }
 
 /// The project's crumb (`.pw-titlebar-crumbs__project`): a muted link, primary on a hover
-/// fill, whose 11px chevron shows under the pointer and while Switch project is open, turned
-/// over then. It opens Switch project: the projects, the open one picked.
+/// fill, whose 11px chevron always shows, in the crumb's ink, turned
+/// over while Switch project is open. It opens Switch project: the projects, the open one picked.
 fn project_crumb(
     state: &Entity<AppState>,
     name: SharedString,
@@ -390,20 +412,41 @@ fn project_crumb(
         .when(lit, |crumb| crumb.bg(theme.color_surface_hover))
         .cursor_pointer()
         .child(div().min_w(px(0.0)).overflow_hidden().child(name))
-        .when(lit, |crumb| {
-            crumb.child(div().ml(px(4.0)).flex_none().child(icon_rotated(
-                Icon::ChevronDown,
-                11.0,
-                ink,
-                if open { std::f32::consts::PI } else { 0.0 },
-            )))
-        })
+        .child(
+            div()
+                .ml(px(4.0))
+                .flex_none()
+                .child(icon_rotated(
+                    Icon::ChevronDown,
+                    11.0,
+                    ink,
+                    if open { std::f32::consts::PI } else { 0.0 },
+                )),
+        )
         .child(parts.switcher_anchor.probe())
         .on_click({
             let search = parts.switcher_search.clone();
             move |_, window, cx| open_switcher(&switcher, &search, &switch_state, window, cx)
         });
     track(crumb, &pointer, true).into_any_element()
+}
+
+/// Opens or closes Help's topics.
+pub fn open_help(
+    popover: &Entity<ListPopover>,
+    state: &Entity<AppState>,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let rows = crate::views::help::help_rows(state);
+    popover.update(cx, |popover, cx| {
+        let open = !popover.is_open();
+        popover.set_width(260.0);
+        popover.set_rows(rows);
+        popover.set_open(open);
+        cx.notify();
+    });
+    window.refresh();
 }
 
 /// Opens or closes Switch project, its search cleared.

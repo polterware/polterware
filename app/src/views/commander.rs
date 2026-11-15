@@ -75,7 +75,7 @@ const ITEMS: &[Item] = &[
         "nav.settings",
         "Open Project settings",
         "Navigation",
-        Icon::Settings,
+        Icon::Sliders,
         TileTone::Neutral,
         None,
     ),

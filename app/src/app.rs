@@ -37,9 +37,8 @@ use crate::views::milestones::MilestonesView;
 use crate::views::new_project::NewProjectView;
 use crate::views::projects::ProjectsView;
 use crate::views::settings::SettingsView;
-use crate::views::sidebar::HelpParts;
 use crate::views::structure::StructureView;
-use crate::views::titlebar::TitlebarParts;
+use crate::views::titlebar::{HelpParts, TitlebarParts};
 use crate::views::{sidebar, titlebar};
 
 actions!(
@@ -535,9 +534,9 @@ impl AppView {
         );
     }
 
-    /// Opens or closes Help's topics, as the sidebar's "?" does.
+    /// Opens or closes Help's topics, as the title bar's "?" does.
     pub fn toggle_help(&self, window: &mut Window, cx: &mut App) {
-        sidebar::open_help(&self.help.popover, &self.state, window, cx);
+        titlebar::open_help(&self.help.popover, &self.state, window, cx);
     }
 
     fn page(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -627,7 +626,7 @@ impl Render for AppView {
             .child(main_surface(page, &theme));
         let mut body = div().flex_1().min_h(px(0.0)).w_full().flex().flex_row();
         if in_project && !self.sidebar_hidden {
-            body = body.child(sidebar::sidebar(&self.state, &self.help, cx));
+            body = body.child(sidebar::sidebar(&self.state, cx));
         }
         body = body.child(frame);
 
@@ -677,7 +676,7 @@ impl Render for AppView {
                     }
                 });
             }))
-            .child(titlebar::titlebar(&self.state, &self.titlebar, window, cx))
+            .child(titlebar::titlebar(&self.state, &self.titlebar, &self.help, window, cx))
             .child(body);
         if let Some(anchor) = self.titlebar.switcher_anchor.get()
             && self.titlebar.switcher.read(cx).is_open()
