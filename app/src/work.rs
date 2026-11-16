@@ -695,6 +695,7 @@ impl Display {
                 .into(),
             descending: self.descending,
             properties: self.properties.iter().map(|p| p.id().into()).collect(),
+            ..Default::default()
         }
     }
     pub fn from_settings(settings: &polterware_ui::display_options::DisplaySettings) -> Self {
