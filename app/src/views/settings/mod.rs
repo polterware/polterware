@@ -321,6 +321,9 @@ impl SettingsView {
             entry(SettingsTab::CliReference, "CLI reference", "CLI reference")
                 .description("Every polterware command, its options, and the interactive keys.")
                 .keywords("command line terminal flags markdown"),
+            entry(SettingsTab::Appearance, "Appearance", "App icon")
+                .description("Choose the Polterware icon shown in the Dock and Finder on macOS.")
+                .keywords("appearance icon dock default ice fire"),
             entry(SettingsTab::Appearance, "Appearance", "Reduce transparency")
                 .description("Use a solid fill instead of the macOS frosted title bar and sidebar.")
                 .keywords("appearance glass vibrancy"),
@@ -519,5 +522,39 @@ impl Render for SettingsView {
             .children(self.connect_dialog(window, cx))
             .children(self.ask_dialog(window, cx))
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use polterware_ui::patterns::search_settings;
+
+    use super::*;
+
+    #[test]
+    fn app_icon_appears_in_app_settings_search() {
+        let app_entries = SettingsView::search_entries(SettingsScope::App);
+        let hits = search_settings(&app_entries, "app icon");
+        assert!(hits.iter().any(|entry| {
+            entry.item == SettingsTab::Appearance.id()
+                && entry
+                    .section
+                    .as_ref()
+                    .is_some_and(|s| s.as_ref() == "Appearance")
+                && entry.label == "App icon"
+        }));
+        assert!(
+            search_settings(&app_entries, "ice")
+                .iter()
+                .any(|e| e.label == "App icon")
+        );
+        assert!(
+            search_settings(&app_entries, "fire")
+                .iter()
+                .any(|e| e.label == "App icon")
+        );
+
+        let project_entries = SettingsView::search_entries(SettingsScope::Project);
+        assert!(search_settings(&project_entries, "app icon").is_empty());
     }
 }

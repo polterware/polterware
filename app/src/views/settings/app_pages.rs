@@ -1,9 +1,9 @@
 //! App settings' own pages: the CLI reference (`CliReferenceSettings`: the usage, every
 //! command by group, the interactive keys, then each command's usage, options, and example,
 //! with Copy full reference as Markdown), Shortcuts (`ShortcutsPage`: each remappable command
-//! by group, recorded from the next key press), Appearance (Reduce transparency), Local core
-//! (`CoreCard`: its status and lifecycle, its idle timeout, start on open, and what quitting
-//! does), Privacy, and the app's Danger zone (Reset local store, after a confirmation).
+//! by group, recorded from the next key press), Appearance (App icon, Reduce transparency),
+//! Local core (`CoreCard`: its status and lifecycle, its idle timeout, start on open, and what
+//! quitting does), Privacy, and the app's Danger zone (Reset local store, after a confirmation).
 
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -12,6 +12,7 @@ use gpui::{
     AnyElement, App, ClipboardItem, Context, FontWeight, IntoElement, SharedString, Window, div,
     prelude::*, px, relative,
 };
+use polterware_ui::IconChoice;
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
 use polterware_ui::chip::chip_rounded;
 use polterware_ui::icon_tile::IconTile;
@@ -28,7 +29,7 @@ use polterware_ui::wrap::wrap_text;
 use super::project::CHIP_RADIUS;
 use super::{Ask, SettingsView};
 use crate::cli_reference::{self, CliCommand, Flag, INTRO};
-use crate::prefs::{Idle, QuitMode};
+use crate::prefs::{AppIcon, Idle, QuitMode};
 use crate::shortcuts::{self, OwnedChord};
 use crate::state::CoreRun;
 
@@ -650,14 +651,37 @@ impl SettingsView {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let reduce = self.state.read(cx).reduce_transparency();
+        let (reduce, icon) = {
+            let app = self.state.read(cx);
+            (app.reduce_transparency(), app.app_icon())
+        };
         self.transparency.update(cx, |switch, _| {
             if switch.is_on() != reduce {
                 switch.set_on(reduce);
             }
         });
+        let state = self.state.clone();
+        let mut icon_choice = IconChoice::new("settings-app-icon")
+            .selected(icon.wire())
+            .on_change(move |key, _, cx| {
+                let Some(next) = AppIcon::from_wire(key.as_str()) else {
+                    return;
+                };
+                state.update(cx, |state, cx| {
+                    state.set_app_icon(next);
+                    cx.notify();
+                });
+            });
+        for variant in AppIcon::ALL {
+            icon_choice = icon_choice.option(variant.wire(), variant.label(), variant.png());
+        }
         settings_group("Appearance")
-            .description("Choose frosted or opaque macOS window chrome on this computer.")
+            .description("Choose the app icon and macOS window chrome on this computer.")
+            .child(
+                settings_row("App icon")
+                    .description("Choose the Polterware icon shown in the Dock and Finder on macOS.")
+                    .child(icon_choice),
+            )
             .child(
                 settings_row("Reduce transparency")
                     .description(

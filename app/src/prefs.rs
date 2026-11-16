@@ -1,9 +1,9 @@
 //! This computer's preferences, in the files the Electron Desktop keeps in its user data
 //! directory (`main/*-preferences.ts`), so both apps read and write the same choices: the
 //! local core's idle timeout and start on open (`core-preferences.json`), what quitting does
-//! to it (`quit-preferences.json`), reduced transparency (`appearance-preferences.json`), and
-//! the remapped shortcuts (`shortcut-preferences.json`). A missing or unreadable file, or one
-//! of another version, reads as the defaults.
+//! to it (`quit-preferences.json`), appearance (`appearance-preferences.json`: reduced
+//! transparency and app icon), and the remapped shortcuts (`shortcut-preferences.json`). A
+//! missing or unreadable file, or one of another version, reads as the defaults.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -175,18 +175,115 @@ pub fn save_quit_mode(dir: &Path, mode: QuitMode) -> std::io::Result<()> {
     )
 }
 
-pub fn reduce_transparency(dir: &Path) -> bool {
-    read(dir, APPEARANCE_FILE)
-        .and_then(|record| record.get("reduceTransparency").and_then(Value::as_bool))
-        .unwrap_or(false)
+const DEFAULT_ICON_PNG: &[u8] = include_bytes!("../resources/polterware-icon.png");
+const ICE_ICON_PNG: &[u8] = include_bytes!("../resources/polterware-ice-icon.png");
+const FIRE_ICON_PNG: &[u8] = include_bytes!("../resources/polterware-fire-icon.png");
+
+/// Which app icon variant is shown in the Dock and on the bundle (`appIcon` in
+/// `appearance-preferences.json`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AppIcon {
+    #[default]
+    Default,
+    Ice,
+    Fire,
 }
 
-pub fn save_reduce_transparency(dir: &Path, reduce: bool) -> std::io::Result<()> {
+impl AppIcon {
+    pub const ALL: [AppIcon; 3] = [AppIcon::Default, AppIcon::Ice, AppIcon::Fire];
+
+    pub fn wire(self) -> &'static str {
+        match self {
+            AppIcon::Default => "default",
+            AppIcon::Ice => "ice",
+            AppIcon::Fire => "fire",
+        }
+    }
+
+    pub fn from_wire(value: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|icon| icon.wire() == value)
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            AppIcon::Default => "Default",
+            AppIcon::Ice => "Ice",
+            AppIcon::Fire => "Fire",
+        }
+    }
+
+    pub fn png(self) -> &'static [u8] {
+        match self {
+            AppIcon::Default => DEFAULT_ICON_PNG,
+            AppIcon::Ice => ICE_ICON_PNG,
+            AppIcon::Fire => FIRE_ICON_PNG,
+        }
+    }
+
+    /// The override PNG passed to `app_icon::apply`: `None` clears custom overrides on a bundle
+    /// and falls back to `Default.png()` when unbundled.
+    pub fn override_png(self) -> Option<&'static [u8]> {
+        match self {
+            AppIcon::Default => None,
+            AppIcon::Ice | AppIcon::Fire => Some(self.png()),
+        }
+    }
+}
+
+/// Appearance choices stored in `appearance-preferences.json`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct AppearancePrefs {
+    pub reduce_transparency: bool,
+    pub app_icon: AppIcon,
+}
+
+pub fn appearance_prefs(dir: &Path) -> AppearancePrefs {
+    let Some(record) = read(dir, APPEARANCE_FILE) else {
+        return AppearancePrefs::default();
+    };
+    AppearancePrefs {
+        reduce_transparency: record
+            .get("reduceTransparency")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        app_icon: record
+            .get("appIcon")
+            .and_then(Value::as_str)
+            .and_then(AppIcon::from_wire)
+            .unwrap_or_default(),
+    }
+}
+
+pub fn save_appearance_prefs(dir: &Path, prefs: AppearancePrefs) -> std::io::Result<()> {
     write(
         dir,
         APPEARANCE_FILE,
-        json!({ "version": VERSION, "reduceTransparency": reduce }),
+        json!({
+            "version": VERSION,
+            "reduceTransparency": prefs.reduce_transparency,
+            "appIcon": prefs.app_icon.wire(),
+        }),
     )
+}
+
+pub fn reduce_transparency(dir: &Path) -> bool {
+    appearance_prefs(dir).reduce_transparency
+}
+
+pub fn save_reduce_transparency(dir: &Path, reduce: bool) -> std::io::Result<()> {
+    let mut prefs = appearance_prefs(dir);
+    prefs.reduce_transparency = reduce;
+    save_appearance_prefs(dir, prefs)
+}
+
+pub fn app_icon(dir: &Path) -> AppIcon {
+    appearance_prefs(dir).app_icon
+}
+
+pub fn save_app_icon(dir: &Path, icon: AppIcon) -> std::io::Result<()> {
+    let mut prefs = appearance_prefs(dir);
+    prefs.app_icon = icon;
+    save_appearance_prefs(dir, prefs)
 }
 
 /// The remapped chords by command id, each as `serializeChord` writes it.
@@ -404,7 +501,9 @@ mod tests {
         let dir = scratch("defaults");
         assert_eq!(core_prefs(&dir), CorePrefs::default());
         assert_eq!(quit_mode(&dir), QuitMode::Ask);
+        assert_eq!(appearance_prefs(&dir), AppearancePrefs::default());
         assert!(!reduce_transparency(&dir));
+        assert_eq!(app_icon(&dir), AppIcon::Default);
         assert!(shortcut_overrides(&dir).is_empty());
     }
 
@@ -443,15 +542,106 @@ mod tests {
     }
 
     #[test]
+    fn app_icon_round_trips_and_falls_back_to_default() {
+        let dir = scratch("app-icon");
+        assert_eq!(app_icon(&dir), AppIcon::Default);
+
+        for icon in AppIcon::ALL {
+            save_app_icon(&dir, icon).unwrap();
+            let stored: Value =
+                serde_json::from_str(&fs::read_to_string(dir.join(APPEARANCE_FILE)).unwrap())
+                    .unwrap();
+            assert_eq!(stored["appIcon"], json!(icon.wire()));
+            assert_eq!(app_icon(&dir), icon);
+        }
+
+        // Changing either field in appearance-preferences.json preserves the other.
+        save_app_icon(&dir, AppIcon::Ice).unwrap();
+        save_reduce_transparency(&dir, true).unwrap();
+        assert_eq!(
+            appearance_prefs(&dir),
+            AppearancePrefs {
+                reduce_transparency: true,
+                app_icon: AppIcon::Ice,
+            }
+        );
+        save_app_icon(&dir, AppIcon::Fire).unwrap();
+        assert!(reduce_transparency(&dir));
+        assert_eq!(app_icon(&dir), AppIcon::Fire);
+
+        // Missing or unknown appIcon reads as default while preserving valid fields.
+        write(
+            &dir,
+            APPEARANCE_FILE,
+            json!({ "version": 1, "reduceTransparency": true }),
+        )
+        .unwrap();
+        assert_eq!(app_icon(&dir), AppIcon::Default);
+        assert!(reduce_transparency(&dir));
+
+        write(
+            &dir,
+            APPEARANCE_FILE,
+            json!({ "version": 1, "reduceTransparency": true, "appIcon": "neon" }),
+        )
+        .unwrap();
+        assert_eq!(app_icon(&dir), AppIcon::Default);
+        assert!(reduce_transparency(&dir));
+
+        write(
+            &dir,
+            APPEARANCE_FILE,
+            json!({ "version": 1, "appIcon": 42 }),
+        )
+        .unwrap();
+        assert_eq!(app_icon(&dir), AppIcon::Default);
+
+        fs::write(dir.join(APPEARANCE_FILE), "invalid").unwrap();
+        assert_eq!(app_icon(&dir), AppIcon::Default);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn app_icon_keys_map_to_distinct_pngs() {
+        let mapped: Vec<(&str, AppIcon, &[u8])> = ["default", "ice", "fire"]
+            .into_iter()
+            .map(|key| {
+                let icon = AppIcon::from_wire(key).expect("known key");
+                (key, icon, icon.png())
+            })
+            .collect();
+        assert_eq!(mapped[0].1, AppIcon::Default);
+        assert_eq!(mapped[1].1, AppIcon::Ice);
+        assert_eq!(mapped[2].1, AppIcon::Fire);
+        assert_eq!(AppIcon::from_wire("unknown"), None);
+
+        for (_, icon, png) in &mapped {
+            assert!(
+                png.starts_with(b"\x89PNG\r\n\x1a\n"),
+                "{icon:?} must be PNG"
+            );
+        }
+        assert_ne!(mapped[0].2, mapped[1].2);
+        assert_ne!(mapped[1].2, mapped[2].2);
+        assert_ne!(mapped[0].2, mapped[2].2);
+
+        assert_eq!(AppIcon::Default.override_png(), None);
+        assert_eq!(AppIcon::Ice.override_png(), Some(AppIcon::Ice.png()));
+        assert_eq!(AppIcon::Fire.override_png(), Some(AppIcon::Fire.png()));
+    }
+
+    #[test]
     fn another_version_reads_as_the_defaults() {
         let dir = scratch("version");
         write(
             &dir,
             APPEARANCE_FILE,
-            json!({ "version": 2, "reduceTransparency": true }),
+            json!({ "version": 2, "reduceTransparency": true, "appIcon": "ice" }),
         )
         .unwrap();
         assert!(!reduce_transparency(&dir));
+        assert_eq!(app_icon(&dir), AppIcon::Default);
         let _ = fs::remove_dir_all(&dir);
     }
 }

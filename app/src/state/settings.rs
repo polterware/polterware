@@ -17,6 +17,7 @@ use std::process::Child;
 use gpui::{App, AppContext as _, Context};
 use polterware_ui::icons::Icon;
 use polterware_ui::toast::ToastTone;
+use polterware_ui::window::app_icon;
 
 use super::{AppState, CoreState, Load, Route, Section, short_id};
 use crate::client::{self, Core, CoreError};
@@ -31,7 +32,7 @@ use crate::contracts::{
     SyncIntegrationConnectionRequest,
 };
 use crate::mcp::{self, McpClient, McpStatus};
-use crate::prefs::{self, CorePrefs, Idle, QuitMode};
+use crate::prefs::{self, AppIcon, AppearancePrefs, CorePrefs, Idle, QuitMode};
 use crate::shortcuts::{self, Overrides, OwnedChord};
 
 /// The demonstration project a reset store reseeds (`refreshWorkspace("proj-polter")`).
@@ -240,7 +241,7 @@ pub struct SettingsState {
     /// The idle timeout the running core started with.
     applied_idle: Idle,
     quit_mode: QuitMode,
-    reduce_transparency: bool,
+    appearance: AppearancePrefs,
     shortcuts: Overrides,
     stopping: bool,
     core_error: Option<String>,
@@ -265,7 +266,7 @@ impl SettingsState {
             mcp_busy: false,
             applied_idle: core_prefs.idle,
             quit_mode: prefs::quit_mode(&user_data),
-            reduce_transparency: prefs::reduce_transparency(&user_data),
+            appearance: prefs::appearance_prefs(&user_data),
             shortcuts: shortcuts::decode(&prefs::shortcut_overrides(&user_data)),
             core_prefs,
             user_data,
@@ -1068,7 +1069,11 @@ impl AppState {
     }
 
     pub fn reduce_transparency(&self) -> bool {
-        self.settings.reduce_transparency
+        self.settings.appearance.reduce_transparency
+    }
+
+    pub fn app_icon(&self) -> AppIcon {
+        self.settings.appearance.app_icon
     }
 
     pub(super) fn idle_flag(&self) -> &'static str {
@@ -1159,8 +1164,20 @@ impl AppState {
     }
 
     pub fn set_reduce_transparency(&mut self, reduce: bool) {
-        self.settings.reduce_transparency = reduce;
-        if let Err(error) = prefs::save_reduce_transparency(&self.settings.user_data, reduce) {
+        self.settings.appearance.reduce_transparency = reduce;
+        self.save_appearance();
+    }
+
+    pub fn set_app_icon(&mut self, icon: AppIcon) {
+        self.settings.appearance.app_icon = icon;
+        self.save_appearance();
+        app_icon::apply(icon.override_png(), AppIcon::Default.png());
+    }
+
+    fn save_appearance(&mut self) {
+        if let Err(error) =
+            prefs::save_appearance_prefs(&self.settings.user_data, self.settings.appearance)
+        {
             self.toast(format!("Could not save the appearance: {error}"), true);
         }
     }

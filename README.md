@@ -47,7 +47,7 @@ Run the same command again to update.
 
 ## Repository
 
-- `app` — the Desktop (Rust, GPUI, on [polterware/ui](https://github.com/polterware/ui)), reading the core over Connect-JSON; its icon is `app/resources/polterware.icon`
+- `app` — the Desktop (Rust, GPUI, on [polterware/ui](https://github.com/polterware/ui)), reading the core over Connect-JSON; its icons are `app/resources/polterware.icon`, `polterware-ice.icon`, and `polterware-fire.icon`
 - `core` — Rust runtime (single `polterware` binary: CLI, `serve`, `mcp`)
 - `schemas` — Protobuf contracts, generated into Rust contracts shared by the core and Desktop (`tooling/gen-contracts`); `schemas/vendor/dispatch` holds Dispatch's contracts, synced by `tooling/sync-dispatch-proto.sh`
 - `DESIGN.md` — visual and interaction contract

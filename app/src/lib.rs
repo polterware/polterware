@@ -7,7 +7,6 @@ pub mod cli_reference;
 pub mod client;
 pub mod contracts;
 pub mod dispatch;
-mod dock_icon;
 pub mod format;
 pub mod mcp;
 pub mod prefs;
@@ -27,7 +26,7 @@ use gpui::{App, AppContext as _, Application, Menu, MenuItem, OsAction, SystemMe
 use polterware_ui::icons::IconAssets;
 use polterware_ui::text_input::{Copy, Cut, Paste, Redo, SelectAll, Undo};
 use polterware_ui::theme::{self, Theme};
-use polterware_ui::window::vibrancy;
+use polterware_ui::window::{app_icon, vibrancy};
 
 /// The design system's root size in the desktop apps.
 const REM: f32 = 13.0;
@@ -38,7 +37,8 @@ pub fn run() {
     // A click on the Dock icon brings back the window that closing hid.
     app.on_reopen(|cx| cx.activate(true));
     app.run(|cx: &mut App| {
-        dock_icon::install();
+        let icon = prefs::app_icon(&prefs::user_data_dir());
+        app_icon::apply(icon.override_png(), prefs::AppIcon::Default.png());
         cx.activate(true);
         theme::set_root_rem(REM);
         cx.set_global(Theme::dark());
