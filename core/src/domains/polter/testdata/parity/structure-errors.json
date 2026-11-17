@@ -1,19 +1,17 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n14:error:unknown level \"system\": use domain|component\n## plan diagnostics\n9:error:unknown node \"app/web\": check the path\n13:error:unknown level \"system\": use domain|component\n16:error:node \"loose\" needs level: use domain|component\n7:error:checkout on domain \"core\": only components have a repo or path (write repo: and path: to clear them)\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n# core: Core\nlevel: domain\n",
+  "expected": "## decode\n14:error:unknown level \"system\": use domain|component\n## plan diagnostics\n9:error:unknown node \"app/web\": check the path\n13:error:unknown level \"system\": use domain|component\n16:error:node \"loose\" needs level: use domain|component\n7:error:checkout on domain \"core\": only components have a repo or path (write repo: and path: to clear them)\n## plan\nno changes\n## summary\n0 ops\n## brief\n# core: Core\nlevel: domain\n",
   "name": "structure-errors",
   "snapshot": {
     "Cards": null,
     "Conflicts": null,
     "Decisions": null,
-    "Environments": null,
     "Facts": null,
     "Milestones": null,
     "Nodes": [
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-core",
         "Intent": "",

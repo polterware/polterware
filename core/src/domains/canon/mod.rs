@@ -13,10 +13,8 @@ pub use layout::*;
 use time::OffsetDateTime;
 
 pub const KIND_COMPONENT: &str = "component";
-pub const KIND_ENVIRONMENT: &str = "environment";
 
 pub const REF_ARCHITECTURE_NODE: &str = "architecture_node";
-pub const REF_ENVIRONMENT: &str = "environment";
 
 pub const TRUTH_DECLARED: &str = "declared";
 pub const TRUTH_OBSERVED: &str = "observed";
@@ -47,7 +45,7 @@ pub enum Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-/// One canon entity: a component or an environment, projected from its ref.
+/// One canon entity: a component, projected from its ref.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entity {
     pub id: String,
@@ -123,11 +121,11 @@ pub struct LayoutNode {
 }
 
 pub fn valid_kind(kind: &str) -> bool {
-    kind == KIND_COMPONENT || kind == KIND_ENVIRONMENT
+    kind == KIND_COMPONENT
 }
 
 pub fn valid_ref_kind(ref_kind: &str) -> bool {
-    ref_kind == REF_ARCHITECTURE_NODE || ref_kind == REF_ENVIRONMENT
+    ref_kind == REF_ARCHITECTURE_NODE
 }
 
 pub fn valid_truth_class(value: &str) -> bool {

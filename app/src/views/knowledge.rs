@@ -37,6 +37,7 @@ use polterware_ui::tabs::Tabs;
 use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::{StatusTone, Theme};
 use polterware_ui::window::window_drag::WindowDragRegion;
+use polterware_ui::{page_under, page_under_inset};
 
 use crate::contracts::{KnowledgeItem, Rule, StructureNode};
 use crate::format::{archive_date, format_instant};
@@ -421,15 +422,20 @@ pub struct KnowledgeView {
     remove_focus_due: bool,
     /// Docs shows its archive in place of the list.
     show_archived: bool,
+    /// How far the list keeps clear of the chrome it runs under, this frame.
+    inset: f32,
     archived: Entity<ArchivedList>,
     /// The archived doc waiting for Delete permanently to be confirmed: its id and title.
     delete_ask: Option<(String, String)>,
     delete_focus: FocusHandle,
     /// The confirm takes the focus on the next frame.
     delete_focus_due: bool,
-    /// Each tab's link to the shared scope; Docs offers environments too.
+    /// Each tab's link to the shared scope.
     scopes: [ScopeFilter; 2],
 }
+
+/// The Knowledge page, whose chrome the lists run under.
+const PAGE_ID: &str = "knowledge-page-list";
 
 impl KnowledgeView {
     pub fn new(state: Entity<AppState>, cx: &mut Context<Self>) -> Self {
@@ -484,11 +490,12 @@ impl KnowledgeView {
             remove_focus: cx.focus_handle(),
             remove_focus_due: false,
             show_archived: false,
+            inset: 0.0,
             archived,
             delete_ask: None,
             delete_focus: cx.focus_handle(),
             delete_focus_due: false,
-            scopes: [ScopeFilter::new(false), ScopeFilter::new(true)],
+            scopes: [ScopeFilter::new(), ScopeFilter::new()],
             state,
             search,
             filters,
@@ -747,7 +754,9 @@ impl KnowledgeView {
                     })
                     .collect();
                 let empty = items.is_empty();
+                let inset = self.inset;
                 self.archived.update(cx, |list, cx| {
+                    list.set_inset_top(inset, cx);
                     list.set_items(items, cx);
                     list.set_busy(busy, cx);
                 });
@@ -760,7 +769,7 @@ impl KnowledgeView {
                     .child(self.archived.clone())
                     .into_any_element()
             }
-            Load::Failed(message) => page_empty_with(
+            Load::Failed(message) => self.clear(page_empty_with(
                 Some("Could not read the archive"),
                 MascotMood::Sad,
                 Some(
@@ -771,13 +780,13 @@ impl KnowledgeView {
                         .into_any_element(),
                 ),
                 cx,
-            )
-            .into_any_element(),
-            _ => div()
-                .size_full()
-                .px(px(TABLE_INSET))
-                .child(text_skeleton(4, 12.0, window, cx))
-                .into_any_element(),
+            )),
+            _ => self.clear(
+                div()
+                    .size_full()
+                    .px(px(TABLE_INSET))
+                    .child(text_skeleton(4, 12.0, window, cx)),
+            ),
         }
     }
 
@@ -1022,12 +1031,13 @@ impl KnowledgeView {
             .or(if ids.is_empty() { None } else { Some(0) })
     }
 
+    /// The `PageToolbar` and, while filters are set, the active filters' row under it.
     fn toolbar(
         &self,
         tab: KnowledgeTab,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) -> AnyElement {
+    ) -> (AnyElement, Option<AnyElement>) {
         let theme = *Theme::global(cx);
         let tab_state = self.state.clone();
         let tabs = KnowledgeTab::ALL
@@ -1119,13 +1129,17 @@ impl KnowledgeView {
                 .px(px(theme.space_2))
                 .pb(px(theme.space_2))
                 .child(bar)
+                .into_any_element()
         });
+        (bar.into_any_element(), filter_bar)
+    }
+
+    /// `element` kept clear of the chrome the list runs under, as an empty page or a skeleton.
+    fn clear(&self, element: impl IntoElement) -> AnyElement {
         div()
-            .flex_none()
-            .flex()
-            .flex_col()
-            .child(bar)
-            .children(filter_bar)
+            .size_full()
+            .pt(px(self.inset))
+            .child(element)
             .into_any_element()
     }
 
@@ -1133,11 +1147,11 @@ impl KnowledgeView {
         let all = doc_rows(&knowledge.items);
         self.sync_tags(&all, cx);
         if all.is_empty() {
-            return page_empty("No docs yet", MascotMood::Sleeping, cx).into_any_element();
+            return self.clear(page_empty("No docs yet", MascotMood::Sleeping, cx));
         }
         let rows = self.visible_docs(all, cx);
         if rows.is_empty() {
-            return page_empty("No matches", MascotMood::Lost, cx).into_any_element();
+            return self.clear(page_empty("No matches", MascotMood::Lost, cx));
         }
         let ids: Vec<&str> = rows.iter().map(|row| row.id.as_str()).collect();
         let marked = self.marked(&ids);
@@ -1192,7 +1206,7 @@ impl KnowledgeView {
     fn rules(&self, knowledge: &Knowledge, cx: &mut Context<Self>) -> AnyElement {
         let theme = *Theme::global(cx);
         if knowledge.rules.is_empty() {
-            return page_empty_with(
+            return self.clear(page_empty_with(
                 Some("No rules yet"),
                 MascotMood::Sleeping,
                 Some(
@@ -1203,12 +1217,11 @@ impl KnowledgeView {
                         .into_any_element(),
                 ),
                 cx,
-            )
-            .into_any_element();
+            ));
         }
         let rows = Rc::new(self.visible_rules(&knowledge.rules, &knowledge.nodes));
         if rows.is_empty() {
-            return page_empty("No matches", MascotMood::Lost, cx).into_any_element();
+            return self.clear(page_empty("No matches", MascotMood::Lost, cx));
         }
         let nodes = Rc::new(knowledge.nodes.clone());
         let columns = vec![
@@ -1279,6 +1292,8 @@ impl KnowledgeView {
         let open_view = view.clone();
         let open_ids = opened.clone();
         let mut table = table
+            .inset_top(self.inset)
+            .fades(Theme::global(cx).color_surface)
             .row_height(ROW_HEIGHT)
             .sort(self.sort, move |column, _, cx| {
                 sorted.update(cx, |view, cx| {
@@ -1370,13 +1385,17 @@ impl Render for KnowledgeView {
             .position(|t| *t == tab)
             .unwrap_or(0);
         self.scopes[index].sync(&self.filters[index], &self.state, cx);
-        let toolbar = self.toolbar(tab, window, cx);
+        let (toolbar, filter_bar) = self.toolbar(tab, window, cx);
+        // The list runs up under the toolbar, which floats on its fade: at rest it keeps clear
+        // of the toolbar and the filter bar, and what scrolls up goes soft beneath them.
+        self.inset = page_under_inset(PAGE_ID, filter_bar.is_some(), 0.0, window, cx);
         let list = match &knowledge {
-            None => div()
-                .size_full()
-                .px(px(TABLE_INSET))
-                .child(text_skeleton(4, 12.0, window, cx))
-                .into_any_element(),
+            None => self.clear(
+                div()
+                    .size_full()
+                    .px(px(TABLE_INSET))
+                    .child(text_skeleton(4, 12.0, window, cx)),
+            ),
             Some(_) if tab == KnowledgeTab::Docs && self.show_archived => self.archive(window, cx),
             Some(knowledge) => match tab {
                 KnowledgeTab::Rules => self.rules(knowledge, cx),
@@ -1387,8 +1406,9 @@ impl Render for KnowledgeView {
             .size_full()
             .flex()
             .flex_col()
-            .child(toolbar)
-            .child(div().flex_1().min_h(px(0.0)).child(list))
+            .child(page_under(
+                PAGE_ID, toolbar, filter_bar, 0.0, list, window, cx,
+            ))
             .child(self.composer.clone())
             .children(self.remove_confirm(window, cx))
             .children(self.delete_confirm(window, cx))

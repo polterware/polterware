@@ -26,7 +26,6 @@ pub struct ContextInput {
 }
 
 /// Compiles context and optionally appends an AgentRun context step.
-/// Environment entities are kept in sync by the environment writes.
 pub fn compile_context(store: &Store, in_: ContextInput) -> sqlite::Result<contextpkg::Package> {
     if in_.project_id.is_empty() {
         return Err(sqlite::Error::message("project_id is required"));
@@ -124,12 +123,6 @@ mod tests {
             snapshot.nodes[0].repo, repos[0].name,
             "init creates one component on the repository"
         );
-        let envs = store.list_environments(&project.id).expect("environments");
-        assert!(
-            envs.len() == 1 && envs[0].is_default,
-            "expected a default local env: {envs:?}"
-        );
-
         let pkg = compile_context(
             &store,
             ContextInput {

@@ -65,7 +65,6 @@ pub fn spec_topics() -> [(&'static str, &'static str); 5] {
                 "\n",
                 "- `# path: Title` is a Structure node. level: domain or component. A domain sits under the project (no under:); a component sits under a domain (under: names its path) or loose under the project. A different under: on an existing component moves it and rewrites its path.\n",
                 "- kind: says what a component is, one or more comma separated (frontend, service, api, worker, database, cache, queue, storage, auth, llm, and the other canvas component kinds; only components have one, empty clears); tech: lists its technologies in free text, comma separated (Go, Postgres; empty clears).\n",
-                "- How nodes relate is drawn on a canvas, not declared here. deploys: lists env=provider:resource[@id] links (comma separated; a present line replaces them, empty clears); @id is the platform's own id for the resource, which the core finds by name when it is left out, and `polterware deploys` shows each link's latest deploy.\n",
                 "- Only a component has a checkout (a domain organizes components; it refuses repo: and path:, and a component that becomes a domain clears them). dir: <folder> links a local clone: it creates the repository (or reuses the one cloned there, or with the same GitHub remote) and becomes repo: <name>. repo: names a repository (`polterware repo list`); with one repository, none is needed. path: is a folder inside it, not the node path. A brief of a file finds the component with the longest repo + path prefix. A repository no node uses is removed.\n",
                 "- migrating: old design -> new design marks a node in transition (empty clears it). A card with `kind: architecture` is an Architecture Change: its under: names the node it changes; clear migrating: when the card is delivered.\n",
                 "- A `!` line under a node is a Rule for that node and every node below it (see `polterware format rules`); `[removed]` retires it.\n",
@@ -199,7 +198,6 @@ pub const QUERY_SHOW: &str = "show";
 pub const QUERY_COMMITS: &str = "commits";
 pub const QUERY_CONFLICTS: &str = "conflicts";
 pub const QUERY_CONFLICT: &str = "conflict";
-pub const QUERY_DEPLOYS: &str = "deploys";
 pub const QUERY_STRUCTURE: &str = "structure";
 pub const QUERY_FEATURE: &str = "feature";
 pub const QUERY_VERIFY: &str = "verify";
@@ -209,7 +207,7 @@ pub const QUERY_CANVAS: &str = "canvas";
 pub const QUERY_MILESTONES: &str = "milestones";
 pub const QUERY_ROADMAP: &str = "roadmap";
 
-const QUERY_USAGE: &str = r##"use "cards", "card <slug>", "status", "inbox", "handoff <slug>", "brief <slug|path|file>", "search <terms>", "show <id>", "commits <slug>", "conflicts", "conflict <slug>", "deploys [<path>]", "structure [<path>] [at <point>]", "structure history", "rules [proposed|active|under_review|replaced|removed]", "feature <slug> [shape|contract|plan]", "verify <slug|slug#T2>", "canvas", "canvas <name|id>", "milestones", or "roadmap""##;
+const QUERY_USAGE: &str = r##"use "cards", "card <slug>", "status", "inbox", "handoff <slug>", "brief <slug|path|file>", "search <terms>", "show <id>", "commits <slug>", "conflicts", "conflict <slug>", "structure [<path>] [at <point>]", "structure history", "rules [proposed|active|under_review|replaced|removed]", "feature <slug> [shape|contract|plan]", "verify <slug|slug#T2>", "canvas", "canvas <name|id>", "milestones", or "roadmap""##;
 
 /// The reads retired when Decisions and Facts became Rules, with the read that
 /// replaced each. They answer an error, never an alias.
@@ -369,11 +367,6 @@ pub fn parse_query(text: &str) -> Result<Query, String> {
                 slug: (*slug).to_string(),
                 ..Query::default()
             }),
-            [first, ..] if *first == QUERY_DEPLOYS && fields.len() <= 2 => Ok(Query {
-                kind: QUERY_DEPLOYS.to_string(),
-                slug: fields[1..].concat(),
-                ..Query::default()
-            }),
             [one] if *one == QUERY_CONFLICTS => Ok(Query {
                 kind: QUERY_CONFLICTS.to_string(),
                 ..Query::default()
@@ -511,8 +504,6 @@ mod tests {
         let query = parse_query("rules under_review").expect("a status");
         assert_eq!(query.kind, QUERY_RULES);
         assert_eq!(query.slug, "under_review");
-        let query = parse_query("deploys core/import").expect("a path");
-        assert_eq!(query.slug, "core/import");
     }
 
     #[test]

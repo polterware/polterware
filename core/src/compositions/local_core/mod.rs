@@ -1,7 +1,7 @@
 //! The core's Connect-JSON server.
 //!
 //! One module per service. [`server`] holds [`Core`], the listener, the router,
-//! and the project, environment, knowledge, and connection handlers; [`connect`]
+//! and the project and knowledge handlers; [`connect`]
 //! is the wire every handler answers on; the rest are the handler modules of the
 //! services, implemented or still stubbed to Connect `unimplemented`.
 
@@ -15,19 +15,16 @@ pub mod canvas_handlers;
 pub mod client_handlers;
 pub mod commit_handlers;
 pub mod connect;
-pub mod deploy_checks;
 pub mod dispatch_host_handlers;
 pub mod extra;
 pub mod feature_handlers;
 pub mod inbox_handlers;
-pub mod integration_sync;
 pub mod lifecycle;
 pub mod repos;
 pub mod rule_handlers;
 pub mod saved_filter_handlers;
 pub mod scope_handlers;
 pub mod server;
-pub mod terminal;
 pub mod work_handlers;
 
 pub use server::{Core, mint_token};
@@ -51,17 +48,14 @@ pub fn routes() -> Vec<connect::Route> {
     routes.extend(canvas_handlers::routes());
     routes.extend(client_handlers::routes());
     routes.extend(commit_handlers::routes());
-    routes.extend(deploy_checks::routes());
     routes.extend(dispatch_host_handlers::routes());
     routes.extend(extra::routes());
     routes.extend(feature_handlers::routes());
     routes.extend(inbox_handlers::routes());
-    routes.extend(integration_sync::routes());
     routes.extend(repos::routes());
     routes.extend(rule_handlers::routes());
     routes.extend(saved_filter_handlers::routes());
     routes.extend(scope_handlers::routes());
-    routes.extend(terminal::routes());
     routes.extend(work_handlers::routes());
     routes.extend(agents_sync::routes());
     routes

@@ -6,13 +6,13 @@ Polterware is a local-first project context and change-intelligence tool for AI 
 
 A local SQLite-backed Desktop over a single Rust binary, `polterware`. The Desktop is a native GPUI app in Rust (`app`), on the shared [polterware/ui](https://github.com/polterware/ui) library. Project navigation:
 
-- **Inbox** — items that need a person: Conflicts an agent raised against a Rule, failed deploys, open card questions, and deploys whose provider CLI is not connected
+- **Inbox** — items that need a person: Conflicts an agent raised against a Rule and open card questions
 - **Milestones** — the Roadmap of boards; each milestone is a Board (cards by stage: Idea, Planned, In progress, In review, Done) and a List of the same cards
-- **Structure** — the project tree of domains and components, each component optionally linked to a repository, with its deploys
+- **Structure** — the project tree of domains and components, each component optionally linked to a repository
 - **Canvas** — canvases that mix drawing shapes with components linked to Structure nodes
 - **Knowledge** — Rules and Docs
 - **Activity** — the Unified Change History of every justified change, by person or agent
-- **Project settings** — General, Environments, Platforms (the provider CLIs, sign-in only), Danger zone
+- **Project settings** — General, Danger zone
 - **App settings** — Agents (MCP server and clients, Agent setup, Hooks, AI skill, CLI reference) and App
 
 Agents talk to Polterware in the Polter format (markdown that writes Work cards, Structure nodes, and Rules) through the CLI or MCP (`polter.apply`, `polter.query`, `polter.format`, plus `doc.upsert`). Every write carries a summary and rationale and lands in one change history.

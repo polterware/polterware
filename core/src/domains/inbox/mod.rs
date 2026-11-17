@@ -2,8 +2,7 @@
 //!
 //! Derives the items that need a person from data the project already has: open
 //! Conflicts (a request against a Rule), open questions (kind "decision"),
-//! deploys whose latest check failed (Deploy), and deploy links whose provider
-//! CLI is not connected (Setup). Items are never stored; only a person's
+//! and verification checklists. Items are never stored; only a person's
 //! disposition is, keyed by the item's stable key.
 
 pub mod text;
@@ -15,13 +14,9 @@ use std::collections::BTreeMap;
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
 
-use crate::domains::integrations::provider_name;
-
 pub const KIND_CONFLICT: &str = "conflict";
 pub const KIND_DECISION: &str = "decision";
 pub const KIND_CONFIRM: &str = "confirm";
-pub const KIND_SETUP: &str = "setup";
-pub const KIND_DEPLOY: &str = "deploy";
 
 pub const STATE_OPEN: &str = "open";
 pub const STATE_DEFERRED: &str = "deferred";
@@ -32,15 +27,13 @@ pub const ACTION_DEFER: &str = "defer";
 pub const ACTION_IGNORE: &str = "ignore";
 
 /// The actions each kind accepts, primary first.
-pub static KIND_ACTIONS: [(&str, &[&str]); 5] = [
+pub static KIND_ACTIONS: [(&str, &[&str]); 3] = [
     (KIND_CONFLICT, &[ACTION_DECIDE, ACTION_DEFER]),
     (
         KIND_DECISION,
         &[ACTION_DECIDE, ACTION_DELEGATE, ACTION_DEFER],
     ),
     (KIND_CONFIRM, &[ACTION_DEFER, ACTION_IGNORE]),
-    (KIND_SETUP, &[ACTION_DEFER, ACTION_IGNORE]),
-    (KIND_DEPLOY, &[ACTION_DEFER, ACTION_IGNORE]),
 ];
 
 /// The actions one kind accepts (Go's `KindActions[kind]`).
@@ -55,10 +48,8 @@ pub fn kind_actions(kind: &str) -> &'static [&'static str] {
 fn kind_order(kind: &str) -> i32 {
     match kind {
         KIND_CONFLICT => 0,
-        KIND_DEPLOY => 1,
         KIND_DECISION => 2,
         KIND_CONFIRM => 3,
-        KIND_SETUP => 4,
         _ => 0,
     }
 }
@@ -109,42 +100,6 @@ pub struct Conflict {
     pub details: BTreeMap<String, String>,
 }
 
-/// One node deployment. A Setup item is derived when its provider CLI is not
-/// connected, and a Deploy item when its latest check failed (`failed`, set by
-/// `failed_deploys`).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct DeployLink {
-    pub id: String,
-    pub node_id: String,
-    pub node_path: String,
-    pub node_title: String,
-    pub environment_id: String,
-    pub environment: String,
-    pub provider: String,
-    pub resource: String,
-    pub target_id: String,
-    pub url: String,
-    /// The latest check: `state` is ok, building, failed, stopped, or unknown.
-    pub state: String,
-    pub summary: String,
-    pub state_url: String,
-    pub checked_at: String,
-    pub failed: bool,
-}
-
-/// One stored CLI connection. Status "connected" matches a successful probe. An
-/// empty `environment_id` covers every environment.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ProviderConnection {
-    pub provider_id: String,
-    pub environment_id: String,
-    pub status: String,
-}
-
-/// The probe status stored when a provider CLI reports an authenticated
-/// session.
-pub const PROVIDER_STATUS_CONNECTED: &str = "connected";
-
 /// The latest thing a person did with one item.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Disposition {
@@ -186,7 +141,7 @@ pub struct Item {
     pub card_slug: String,
     pub question_text: String,
     pub conflict_slug: String,
-    /// The item's facts, such as a setup item's provider.
+    /// The item's structured details.
     pub details: BTreeMap<String, String>,
 }
 
@@ -239,59 +194,6 @@ pub fn short_id(key: &str) -> String {
     format!("i{}", hex::encode(&sum[..4]))
 }
 
-/// The stable key of a Setup item for one node in one environment. It does not
-/// include the provider or resource, so a relink stays the same item.
-pub fn deploy_key(node_id: &str, environment_id: &str) -> String {
-    format!("setup:deploy:{node_id}:{environment_id}")
-}
-
-/// Keeps links whose provider CLI is not connected for that environment. A
-/// connection with an empty environment covers every environment.
-pub fn unconnected_deploys(
-    links: &[DeployLink],
-    connections: &[ProviderConnection],
-) -> Vec<DeployLink> {
-    links
-        .iter()
-        .filter(|link| !provider_connected(&link.provider, &link.environment_id, connections))
-        .cloned()
-        .collect()
-}
-
-/// Keeps the links whose latest check failed, marked failed.
-pub fn failed_deploys(links: &[DeployLink]) -> Vec<DeployLink> {
-    links
-        .iter()
-        .filter(|link| link.state == "failed")
-        .map(|link| DeployLink {
-            failed: true,
-            ..link.clone()
-        })
-        .collect()
-}
-
-/// Names one failure: a later failing deploy (another `state_url`) is a new
-/// item, so dismissing one failure does not hide the next.
-pub fn failed_deploy_key(link: &DeployLink) -> String {
-    format!(
-        "deploy:{}:{}",
-        link.id,
-        short_id(&format!("{}\u{0}{}", link.state_url, link.summary))
-    )
-}
-
-fn provider_connected(
-    provider: &str,
-    environment_id: &str,
-    connections: &[ProviderConnection],
-) -> bool {
-    connections.iter().any(|connection| {
-        connection.provider_id == provider
-            && connection.status == PROVIDER_STATUS_CONNECTED
-            && (connection.environment_id.is_empty() || connection.environment_id == environment_id)
-    })
-}
-
 /// A card in the verify stage whose manual checks are still unconfirmed: each
 /// acceptance criterion and each Rule the card must hold, listed as one item.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -305,10 +207,9 @@ pub struct Checklist {
 pub fn derive(
     conflicts: &[Conflict],
     questions: &[Question],
-    deploys: &[DeployLink],
     dispositions: &[Disposition],
 ) -> Result {
-    derive_with(conflicts, questions, deploys, &[], dispositions)
+    derive_with(conflicts, questions, &[], dispositions)
 }
 
 /// [`derive`] with the verify-stage cards whose manual checks are still
@@ -316,7 +217,6 @@ pub fn derive(
 pub fn derive_with(
     conflicts: &[Conflict],
     questions: &[Question],
-    deploys: &[DeployLink],
     checklists: &[Checklist],
     dispositions: &[Disposition],
 ) -> Result {
@@ -385,68 +285,6 @@ pub fn derive_with(
             ..Item::default()
         });
     }
-    for link in deploys {
-        let mut key = deploy_key(&link.node_id, &link.environment_id);
-        let env = if link.environment.is_empty() {
-            link.environment_id.clone()
-        } else {
-            link.environment.clone()
-        };
-        let where_ = if link.node_path.is_empty() {
-            link.node_id.clone()
-        } else {
-            link.node_path.clone()
-        };
-        if link.failed {
-            key = failed_deploy_key(link);
-            let title = if link.node_title.is_empty() {
-                where_.clone()
-            } else {
-                link.node_title.clone()
-            };
-            let platform = provider_name(&link.provider).to_string();
-            let mut details = BTreeMap::from([
-                ("provider".to_string(), link.provider.clone()),
-                ("platform".to_string(), platform.clone()),
-                ("resource".to_string(), link.resource.clone()),
-                ("node_id".to_string(), link.node_id.clone()),
-            ]);
-            if !link.state_url.is_empty() {
-                details.insert("url".to_string(), link.state_url.clone());
-            }
-            if !link.url.is_empty() {
-                details.insert("dashboard".to_string(), link.url.clone());
-            }
-            items.push(Item {
-                id: short_id(&key),
-                key,
-                kind: KIND_DEPLOY.to_string(),
-                title: format!(
-                    "{} deploy of {} failed on {}",
-                    upper_first(&env),
-                    title,
-                    platform
-                ),
-                detail: link.summary.clone(),
-                where_,
-                source: env,
-                details,
-                ..Item::default()
-            });
-            continue;
-        }
-        items.push(Item {
-            id: short_id(&key),
-            key,
-            kind: KIND_SETUP.to_string(),
-            title: format!("Connect {} for {} in {}", link.provider, where_, env),
-            detail: link.provider.clone(),
-            where_,
-            source: env,
-            ..Item::default()
-        });
-    }
-
     let mut result = Result::default();
     for mut item in items {
         item.state = STATE_OPEN.to_string();
@@ -484,14 +322,6 @@ pub fn derive_with(
     result
 }
 
-fn upper_first(text: &str) -> String {
-    let mut chars = text.chars();
-    match chars.next() {
-        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-        None => String::new(),
-    }
-}
-
 /// The CLI spelling of an action ("update_intent" → "update-intent").
 pub fn action_label(action: &str) -> String {
     action.replace('_', "-")
@@ -524,17 +354,6 @@ mod tests {
         }
     }
 
-    fn vercel_link() -> DeployLink {
-        DeployLink {
-            node_id: "n1".to_string(),
-            node_path: "app/web".to_string(),
-            environment_id: "env-prod".to_string(),
-            environment: "production".to_string(),
-            provider: "vercel".to_string(),
-            ..DeployLink::default()
-        }
-    }
-
     #[test]
     fn derive_sources_and_order() {
         let questions = vec![
@@ -545,7 +364,7 @@ mod tests {
                 ..question("q2", "Include merge commits?")
             },
         ];
-        let result = derive(&[], &questions, &[vercel_link()], &[]);
+        let result = derive(&[], &questions, &[]);
 
         let order: Vec<String> = result
             .items
@@ -557,13 +376,11 @@ mod tests {
             vec![
                 "decision:Include merge commits?",
                 "decision:How many commits back?",
-                "setup:Connect vercel for app/web in production",
             ]
         );
-        assert_eq!(result.open(), 3);
+        assert_eq!(result.open(), 2);
         assert_eq!(result.blocking(), 1);
         assert_eq!(result.items[0].actions, vec!["decide", "delegate", "defer"]);
-        assert_eq!(result.items[2].actions, vec!["defer", "ignore"]);
         let id = &result.items[0].id;
         assert_eq!(id.len(), 9, "short id = {id:?}");
         assert_eq!(id.as_bytes()[0], b'i');
@@ -586,7 +403,7 @@ mod tests {
                 ..Checklist::default()
             },
         ];
-        let result = derive_with(&[], &[], &[], &checklists, &[]);
+        let result = derive_with(&[], &[], &checklists, &[]);
         assert_eq!(
             result.items.len(),
             1,
@@ -612,7 +429,7 @@ mod tests {
             created_at: datetime!(2026-11-12 12:00:00 UTC),
             ..Disposition::default()
         }];
-        let result = derive_with(&[], &[], &[], &checklists, &dispositions);
+        let result = derive_with(&[], &[], &checklists, &dispositions);
         assert_eq!(result.items[0].state, STATE_DEFERRED);
         assert_eq!(result.open(), 0, "a deferred item waits for later");
     }
@@ -654,12 +471,11 @@ mod tests {
             },
         ];
 
-        let result = derive(&[], &questions, &[vercel_link()], &dispositions);
+        let result = derive(&[], &questions, &dispositions);
 
-        assert_eq!(result.items.len(), 2, "items = {:?}", result.items);
-        assert_eq!(result.items[0].kind, KIND_SETUP);
-        assert_eq!(result.items[1].state, STATE_DEFERRED);
-        assert_eq!(result.open(), 1);
+        assert_eq!(result.items.len(), 1, "items = {:?}", result.items);
+        assert_eq!(result.items[0].state, STATE_DEFERRED);
+        assert_eq!(result.open(), 0);
         assert_eq!(result.blocking(), 0);
         assert_eq!(result.routed.len(), 1);
         assert_eq!(result.routed[0].action, ACTION_DELEGATE);
@@ -668,161 +484,6 @@ mod tests {
             result.find(&result.routed[0].item.id).is_some(),
             "find should also match routed items"
         );
-    }
-
-    #[test]
-    fn derive_unconnected_deploy() {
-        let links = vec![
-            DeployLink {
-                resource: "web".to_string(),
-                ..vercel_link()
-            },
-            DeployLink {
-                node_id: "n1".to_string(),
-                node_path: "app/web".to_string(),
-                environment_id: "env-local".to_string(),
-                environment: "local".to_string(),
-                provider: "docker".to_string(),
-                resource: "api".to_string(),
-                ..DeployLink::default()
-            },
-            DeployLink {
-                node_id: "n2".to_string(),
-                node_path: "app/api".to_string(),
-                environment_id: "env-prod".to_string(),
-                environment: "production".to_string(),
-                provider: "aws".to_string(),
-                resource: "fn".to_string(),
-                ..DeployLink::default()
-            },
-        ];
-        let connections = vec![
-            ProviderConnection {
-                provider_id: "docker".to_string(),
-                status: PROVIDER_STATUS_CONNECTED.to_string(),
-                ..ProviderConnection::default()
-            },
-            ProviderConnection {
-                provider_id: "aws".to_string(),
-                environment_id: "env-local".to_string(),
-                status: PROVIDER_STATUS_CONNECTED.to_string(),
-            },
-            ProviderConnection {
-                provider_id: "vercel".to_string(),
-                status: "ready".to_string(),
-                ..ProviderConnection::default()
-            },
-        ];
-        let pending = unconnected_deploys(&links, &connections);
-        assert_eq!(
-            pending.len(),
-            2,
-            "want vercel and aws (other environment, and ready is not connected): {pending:?}"
-        );
-        let result = derive(&[], &[], &pending, &[]);
-        assert_eq!(result.items.len(), 2, "items = {:?}", result.items);
-        assert_eq!(result.items[0].kind, KIND_SETUP);
-        assert_eq!(result.items[1].kind, KIND_SETUP);
-        let key = deploy_key("n1", "env-prod");
-        assert_eq!(result.items[0].key, key);
-        assert_eq!(
-            result.items[0].title,
-            "Connect vercel for app/web in production"
-        );
-        assert_eq!(result.items[0].detail, "vercel");
-        assert_eq!(result.items[0].where_, "app/web");
-        let again = derive(&[], &[], &pending, &[]);
-        assert_eq!(again.items[0].key, result.items[0].key);
-        assert_eq!(again.items[0].id, result.items[0].id);
-        let hidden = derive(
-            &[],
-            &[],
-            &pending,
-            &[Disposition {
-                key: key.clone(),
-                action: ACTION_IGNORE.to_string(),
-                created_at: OffsetDateTime::now_utc(),
-                ..Disposition::default()
-            }],
-        );
-        assert_eq!(hidden.items.len(), 1, "dismiss should hide it: {hidden:?}");
-        assert_ne!(hidden.items[0].key, key);
-        // A connection for the same provider with no environment covers every environment.
-        let covered = unconnected_deploys(
-            &links,
-            &[ProviderConnection {
-                provider_id: "vercel".to_string(),
-                status: PROVIDER_STATUS_CONNECTED.to_string(),
-                ..ProviderConnection::default()
-            }],
-        );
-        assert!(
-            covered.iter().all(|link| link.provider != "vercel"),
-            "global connection should cover vercel: {covered:?}"
-        );
-    }
-
-    #[test]
-    fn failed_deploys_get_their_own_keys() {
-        let failed = DeployLink {
-            id: "link-1".to_string(),
-            node_id: "n1".to_string(),
-            node_path: "app/web".to_string(),
-            node_title: String::new(),
-            environment_id: "env-prod".to_string(),
-            environment: "production".to_string(),
-            provider: "vercel".to_string(),
-            resource: "web".to_string(),
-            state: "failed".to_string(),
-            summary: "Build failed".to_string(),
-            state_url: "https://vercel.com/acme/web/1".to_string(),
-            url: "https://vercel.com/acme/web".to_string(),
-            ..DeployLink::default()
-        };
-        let marked = failed_deploys(std::slice::from_ref(&failed));
-        assert_eq!(marked.len(), 1);
-        assert!(marked[0].failed);
-        let result = derive(&[], &[], &marked, &[]);
-        assert_eq!(result.items.len(), 1);
-        let item = &result.items[0];
-        assert_eq!(item.kind, KIND_DEPLOY);
-        assert_eq!(item.title, "Production deploy of app/web failed on Vercel");
-        assert_eq!(item.detail, "Build failed");
-        assert_eq!(item.where_, "app/web");
-        assert_eq!(item.source, "production");
-        assert_eq!(item.details["provider"], "vercel");
-        assert_eq!(item.details["platform"], "Vercel");
-        assert_eq!(item.details["resource"], "web");
-        assert_eq!(item.details["node_id"], "n1");
-        assert_eq!(item.details["url"], "https://vercel.com/acme/web/1");
-        assert_eq!(item.details["dashboard"], "https://vercel.com/acme/web");
-        let other = DeployLink {
-            state_url: "https://vercel.com/acme/web/2".to_string(),
-            ..failed.clone()
-        };
-        assert_ne!(failed_deploy_key(&failed), failed_deploy_key(&other));
-        assert_eq!(
-            failed_deploy_key(&failed),
-            format!(
-                "deploy:link-1:{}",
-                short_id("https://vercel.com/acme/web/1\u{0}Build failed")
-            )
-        );
-        // A dismissal hides this failure only.
-        let dismissed = derive(
-            &[],
-            &[],
-            &marked,
-            &[Disposition {
-                key: failed_deploy_key(&failed),
-                action: ACTION_IGNORE.to_string(),
-                created_at: OffsetDateTime::now_utc(),
-                ..Disposition::default()
-            }],
-        );
-        assert!(dismissed.items.is_empty());
-        let next = derive(&[], &[], &failed_deploys(&[other]), &[]);
-        assert_eq!(next.items.len(), 1);
     }
 
     #[test]
@@ -835,7 +496,7 @@ mod tests {
             options: vec!["additive only".to_string(), "drop it".to_string()],
             details: BTreeMap::from([("rule".to_string(), "migrations-additive".to_string())]),
         };
-        let result = derive(&[conflict], &[], &[], &[]);
+        let result = derive(&[conflict], &[], &[]);
         assert_eq!(result.items.len(), 1);
         let item = &result.items[0];
         assert_eq!(item.kind, KIND_CONFLICT);
@@ -874,8 +535,8 @@ mod tests {
         assert_eq!(action_label("update_intent"), "update-intent");
         assert!(!valid_action(
             &Item {
-                kind: KIND_SETUP.to_string(),
-                actions: kind_actions(KIND_SETUP)
+                kind: KIND_CONFIRM.to_string(),
+                actions: kind_actions(KIND_CONFIRM)
                     .iter()
                     .map(|action| (*action).to_string())
                     .collect(),

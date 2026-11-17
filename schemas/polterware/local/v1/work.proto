@@ -152,18 +152,17 @@ message WriteHandoffResponse {
 message EndSessionRequest { string session_id = 1; }
 message EndSessionResponse { int32 completed_runs = 1; }
 
-// InboxItem is one derived item that needs a person: a Question (open
-// question) or Setup (a deploy whose provider CLI is not connected).
+// InboxItem is one derived item that needs a person.
 message InboxItem {
   // id is the short id people type; it is stable while the item is the same.
   string id = 1;
-  // kind is "conflict", "decision", or "setup".
+  // kind is "conflict", "decision", or "confirm".
   string kind = 2;
   bool blocking = 3;
   string title = 4;
   string detail = 5;
   repeated string options = 6;
-  // where is the card slug and task, or the deploy.
+  // where is the card slug and task.
   string where = 7;
   string source = 8;
   // state is "open" or "deferred".
@@ -235,29 +234,6 @@ message ResolveInboxItemResponse {
   repeated PolterDiagnostic diagnostics = 4;
 }
 
-// NodeDeployment is where one Structure node is deployed in one environment.
-// provider is a catalog id. resource names the remote target. Credentials
-// are never stored.
-message NodeDeployment {
-  string id = 1;
-  string environment_id = 2;
-  // environment is the environment name, for display.
-  string environment = 3;
-  string provider = 4;
-  string resource = 5;
-  // target_id is the platform's own id for the resource, empty until linked.
-  string target_id = 6;
-  // url is the resource's page on the platform's dashboard.
-  string url = 7;
-  // state is the latest check: ok, building, failed, stopped, or unknown;
-  // empty when never checked.
-  string state = 8;
-  string state_summary = 9;
-  // state_url opens the latest deploy (a deployment, run, or pipeline page).
-  string state_url = 10;
-  string checked_at = 11;
-}
-
 // StructureNode is a system, domain, or component. status is derived:
 // proposed, in_progress, or delivered.
 message StructureNode {
@@ -287,8 +263,8 @@ message StructureNode {
   string migration_to = 17;
   reserved 18;
   reserved "uses";
-  // deploys lists this node's links, one per environment.
-  repeated NodeDeployment deploys = 19;
+  reserved 19;
+  reserved "deploys";
   // kind is what a component is (a canvas component kind); empty on other levels.
   string kind = 20;
   // tech is the free-text technology, such as Go or Postgres.

@@ -1,6 +1,6 @@
 //! The `Store`: one connection per database, and the writes over it.
 //!
-//! The [`Store`] itself, its projects, environments, knowledge items, and
+//! The [`Store`] itself, its projects, knowledge items, and
 //! connections, and the health row the local core exposes.
 
 use std::path::Path;
@@ -8,13 +8,11 @@ use std::path::Path;
 use rusqlite::{Connection, Row, params};
 use time::OffsetDateTime;
 
-use crate::domains::integrations;
 use crate::domains::knowledge;
 use crate::domains::projects;
 
 use super::{
-    Error, Result, format_optional_rfc3339, format_rfc3339, nullable, parse_optional_rfc3339,
-    parse_rfc3339,
+    Error, Result, format_optional_rfc3339, format_rfc3339, parse_optional_rfc3339, parse_rfc3339,
 };
 
 /// The project's local store. The core is the only process that opens it.
@@ -92,95 +90,6 @@ impl Store {
         project.updated_at = now;
         self.save_project(project.clone())?;
         Ok(project)
-    }
-
-    pub fn save_environment(&self, mut environment: projects::Environment) -> Result<()> {
-        if environment.protection.is_empty() {
-            environment.protection = "standard".to_string();
-        }
-        let default_flag = i64::from(environment.is_default);
-        self.db.execute(
-            r#"INSERT INTO environments(id,project_id,name,kind,protection,is_default,description) VALUES(?,?,?,?,?,?,?)
-		ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,name=excluded.name,kind=excluded.kind,protection=excluded.protection,is_default=excluded.is_default,description=excluded.description"#,
-            params![
-                environment.id,
-                environment.project_id,
-                environment.name,
-                environment.kind,
-                environment.protection,
-                default_flag,
-                environment.description,
-            ],
-        )?;
-        let _ = self.sync_project_model(&environment.project_id);
-        Ok(())
-    }
-
-    pub fn list_environments(&self, project_id: &str) -> Result<Vec<projects::Environment>> {
-        let mut stmt = self.db.prepare(
-            r#"SELECT id,project_id,name,kind,protection,is_default,description FROM environments WHERE project_id=? ORDER BY name"#,
-        )?;
-        let rows = stmt.query_map(params![project_id], scan_environment)?;
-        let mut result = Vec::new();
-        for row in rows {
-            result.push(row?);
-        }
-        Ok(result)
-    }
-
-    pub fn get_environment(&self, id: &str) -> Result<projects::Environment> {
-        self.db.query_row(
-            r#"SELECT id,project_id,name,kind,protection,is_default,description FROM environments WHERE id=?"#,
-            params![id],
-            scan_environment,
-        )
-        .map_err(Into::into)
-    }
-
-    pub fn delete_environment(&self, id: &str, project_id: &str) -> Result<()> {
-        let envs = self.list_environments(project_id)?;
-        if envs.len() <= 1 {
-            return Err(Error::message("cannot delete the last environment"));
-        }
-        let mut target: Option<&projects::Environment> = None;
-        let mut replacement: Option<&projects::Environment> = None;
-        for env in &envs {
-            if env.id == id {
-                if env.project_id != project_id {
-                    return Err(Error::message("environment does not belong to project"));
-                }
-                target = Some(env);
-                continue;
-            }
-            if replacement.is_none() {
-                replacement = Some(env);
-            }
-        }
-        let Some(target) = target else {
-            return Err(rusqlite::Error::QueryReturnedNoRows.into());
-        };
-        self.db.execute(
-            r#"DELETE FROM environments WHERE id=? AND project_id=?"#,
-            params![id, project_id],
-        )?;
-        // Environment entities follow every environment write, so reads never sync.
-        self.sync_project_model(project_id)?;
-        if target.is_default
-            && let Some(replacement) = replacement
-        {
-            let mut saved = replacement.clone();
-            saved.is_default = true;
-            self.save_environment(saved)?;
-            match self.get_project_settings(project_id) {
-                Ok(mut settings) => {
-                    settings.default_environment_id = replacement.id.clone();
-                    let _ = self.save_project_settings(settings);
-                }
-                Err(err) if err.is_no_rows() => {}
-                Err(err) => return Err(err),
-            }
-        }
-        Ok(())
     }
 
     pub fn save_knowledge(&self, mut item: knowledge::Item) -> Result<()> {
@@ -324,48 +233,6 @@ impl Store {
         Ok(())
     }
 
-    pub fn save_connection(&self, connection: integrations::Connection) -> Result<()> {
-        self.db.execute(
-            r#"INSERT INTO integration_connections(id,project_id,provider_id,status,label,environment_id,last_sync_at,summary,cli_command,sync_interval,freshness,error_message) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,provider_id=excluded.provider_id,status=excluded.status,label=excluded.label,environment_id=excluded.environment_id,last_sync_at=excluded.last_sync_at,summary=excluded.summary,cli_command=excluded.cli_command,sync_interval=excluded.sync_interval,freshness=excluded.freshness,error_message=excluded.error_message"#,
-            params![
-                connection.id,
-                connection.project_id,
-                connection.provider_id,
-                connection.status,
-                connection.label,
-                nullable(&connection.environment_id),
-                connection.last_sync_at,
-                connection.summary,
-                connection.cli_command,
-                connection.sync_interval,
-                connection.freshness,
-                connection.error_message,
-            ],
-        )?;
-        Ok(())
-    }
-
-    pub fn get_connection(&self, id: &str) -> Result<integrations::Connection> {
-        self.db.query_row(
-            r#"SELECT id,project_id,provider_id,status,label,COALESCE(environment_id,''),last_sync_at,summary,cli_command,sync_interval,freshness,error_message FROM integration_connections WHERE id=?"#,
-            params![id],
-            scan_connection,
-        )
-        .map_err(Into::into)
-    }
-
-    pub fn list_connections(&self, project_id: &str) -> Result<Vec<integrations::Connection>> {
-        let mut stmt = self.db.prepare(
-            r#"SELECT id,project_id,provider_id,status,label,COALESCE(environment_id,''),last_sync_at,summary,cli_command,sync_interval,freshness,error_message FROM integration_connections WHERE project_id=? ORDER BY label"#,
-        )?;
-        let rows = stmt.query_map(params![project_id], scan_connection)?;
-        let mut result = Vec::new();
-        for row in rows {
-            result.push(row?);
-        }
-        Ok(result)
-    }
-
     pub fn store_health(&self) -> Result<(bool, String)> {
         let (quarantined, message): (i64, String) = self.db.query_row(
             r#"SELECT quarantined,message FROM store_health WHERE id=1"#,
@@ -376,15 +243,10 @@ impl Store {
     }
 
     pub fn reset(&self) -> Result<()> {
-        const TABLES: [&str; 9] = [
-            "node_deployments",
-            "integration_sync_runs",
-            "integration_resources",
+        const TABLES: [&str; 4] = [
             "knowledge_items",
             "canvases",
             "project_settings",
-            "integration_connections",
-            "environments",
             "projects",
         ];
         let tx = self.db.unchecked_transaction()?;
@@ -415,19 +277,6 @@ fn scan_project(row: &Row<'_>) -> rusqlite::Result<projects::Project> {
     })
 }
 
-fn scan_environment(row: &Row<'_>) -> rusqlite::Result<projects::Environment> {
-    let default_flag: i64 = row.get(5)?;
-    Ok(projects::Environment {
-        id: row.get(0)?,
-        project_id: row.get(1)?,
-        name: row.get(2)?,
-        kind: row.get(3)?,
-        protection: row.get(4)?,
-        is_default: default_flag != 0,
-        description: row.get(6)?,
-    })
-}
-
 pub(crate) fn scan_knowledge(row: &Row<'_>) -> rusqlite::Result<knowledge::Item> {
     let tags: String = row.get(6)?;
     let created: String = row.get(11)?;
@@ -449,23 +298,6 @@ pub(crate) fn scan_knowledge(row: &Row<'_>) -> rusqlite::Result<knowledge::Item>
         created_at: parse_rfc3339(&created),
         updated_at: parse_rfc3339(&updated),
         archived_at: parse_optional_rfc3339(&archived),
-    })
-}
-
-fn scan_connection(row: &Row<'_>) -> rusqlite::Result<integrations::Connection> {
-    Ok(integrations::Connection {
-        id: row.get(0)?,
-        project_id: row.get(1)?,
-        provider_id: row.get(2)?,
-        status: row.get(3)?,
-        label: row.get(4)?,
-        environment_id: row.get(5)?,
-        last_sync_at: row.get(6)?,
-        summary: row.get(7)?,
-        cli_command: row.get(8)?,
-        sync_interval: row.get(9)?,
-        freshness: row.get(10)?,
-        error_message: row.get(11)?,
     })
 }
 
@@ -571,71 +403,6 @@ mod tests {
         assert!(err.is_no_rows(), "err = {err:?}");
     }
 
-    #[test]
-    fn environments_delete_moves_the_default_and_syncs_canon() {
-        let holder = TempStore::new();
-        let store = &holder.store;
-        let at = now();
-        project_save(store, at);
-        let env = |id: &str, is_default: bool| projects::Environment {
-            id: id.to_string(),
-            project_id: "proj-a".to_string(),
-            name: id.to_string(),
-            kind: "local".to_string(),
-            protection: String::new(),
-            is_default,
-            description: String::new(),
-        };
-        store
-            .save_environment(env("local", true))
-            .expect("local environment");
-        store
-            .save_environment(env("staging", false))
-            .expect("staging environment");
-        store
-            .save_project_settings(projects::Settings {
-                project_id: "proj-a".to_string(),
-                default_environment_id: "local".to_string(),
-                ..projects::Settings::default()
-            })
-            .expect("settings");
-        let canon = store
-            .db
-            .query_row(
-                "SELECT COUNT(*) FROM canon_entities WHERE project_id=? AND ref_kind='environment'",
-                params!["proj-a"],
-                |row| row.get::<_, i64>(0),
-            )
-            .expect("canon count");
-        assert_eq!(canon, 2, "both environments are projected into Canon");
-
-        store.delete_environment("local", "proj-a").expect("delete");
-        let defaults: Vec<String> = store
-            .list_environments("proj-a")
-            .expect("environments")
-            .into_iter()
-            .filter(|env| env.is_default)
-            .map(|env| env.id)
-            .collect();
-        assert_eq!(defaults, vec!["staging".to_string()]);
-        let settings = store.get_project_settings("proj-a").expect("settings");
-        assert_eq!(settings.default_environment_id, "staging");
-
-        let err = store
-            .delete_environment("staging", "proj-a")
-            .expect_err("last environment");
-        assert_eq!(err.to_string(), "cannot delete the last environment");
-        let canon = store
-            .db
-            .query_row(
-                "SELECT COUNT(*) FROM canon_entities WHERE project_id=? AND ref_kind='environment'",
-                params!["proj-a"],
-                |row| row.get::<_, i64>(0),
-            )
-            .expect("canon count");
-        assert_eq!(canon, 1, "the deleted environment left Canon");
-    }
-
     fn project_save(store: &Store, at: OffsetDateTime) {
         save_project(store, "proj-a", at);
     }
@@ -738,15 +505,6 @@ mod tests {
         let store = &holder.store;
         let at = now();
         project_save(store, at);
-        store
-            .save_environment(projects::Environment {
-                id: "local".to_string(),
-                project_id: "proj-a".to_string(),
-                name: "Local".to_string(),
-                kind: "local".to_string(),
-                ..projects::Environment::default()
-            })
-            .expect("environment");
         store.reset().expect("reset");
         let all = store.list_projects(true).expect("projects");
         assert!(all.is_empty(), "projects after reset: {all:?}");

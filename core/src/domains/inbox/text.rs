@@ -97,8 +97,7 @@ fn where_suffix(item: &Item) -> String {
 mod tests {
     use super::*;
     use crate::domains::inbox::{
-        ACTION_DEFER, ACTION_DELEGATE, Conflict, DeployLink, Disposition, KIND_DECISION, Question,
-        derive, failed_deploy_key, failed_deploys, unconnected_deploys,
+        ACTION_DEFER, ACTION_DELEGATE, Conflict, Disposition, KIND_DECISION, Question, derive,
     };
     use pretty_assertions::assert_eq;
     use time::macros::datetime;
@@ -136,40 +135,6 @@ mod tests {
                 ..Question::default()
             },
         ];
-        let links = vec![
-            DeployLink {
-                node_id: "n1".to_string(),
-                node_path: "app/web".to_string(),
-                environment_id: "env-prod".to_string(),
-                environment: "production".to_string(),
-                provider: "vercel".to_string(),
-                resource: "web".to_string(),
-                ..DeployLink::default()
-            },
-            DeployLink {
-                node_id: "n2".to_string(),
-                environment_id: "env-local".to_string(),
-                provider: "docker".to_string(),
-                resource: "api".to_string(),
-                ..DeployLink::default()
-            },
-        ];
-        let failed = DeployLink {
-            id: "link-1".to_string(),
-            node_id: "n3".to_string(),
-            node_path: "app/api".to_string(),
-            environment_id: "env-prod".to_string(),
-            environment: "production".to_string(),
-            provider: "netlify".to_string(),
-            resource: "api".to_string(),
-            state: "failed".to_string(),
-            summary: "Build failed".to_string(),
-            state_url: "https://app.netlify.com/sites/api/deploys/1".to_string(),
-            url: "https://app.netlify.com/sites/api".to_string(),
-            ..DeployLink::default()
-        };
-        let mut deploys = unconnected_deploys(&links, &[]);
-        deploys.extend(failed_deploys(std::slice::from_ref(&failed)));
         let t0 = datetime!(2026-09-28 12:00:00 UTC);
         let dispositions = vec![
             Disposition {
@@ -185,35 +150,25 @@ mod tests {
                 ..Disposition::default()
             },
         ];
-        let result = derive(
-            std::slice::from_ref(&conflict),
-            &questions,
-            &deploys,
-            &dispositions,
-        );
+        let result = derive(std::slice::from_ref(&conflict), &questions, &dispositions);
 
         assert_eq!(
             list(&result),
             "ic78c873a ! conflict  Drop the legacy columns (additive only | drop it)  schema-cleanup\n\
              i6df375dc ! decision  Now? (yes | no)  a\n\
-             i701dc844   deploy    Production deploy of app/api failed on Netlify  app/api\n\
-             ia4f0aa51   setup     Connect vercel for app/web in production  app/web\n\
-             i69c39ea4   setup     Connect docker for n2 in env-local  n2\n\
              deferred:\n\
              ic4c66dc4   decision  Later?  a\n"
         );
         assert_eq!(
             status_lines(&result),
-            "inbox: 5 open (2 blocking)\n\
+            "inbox: 2 open (2 blocking)\n\
              ! ic78c873a conflict Drop the legacy columns  schema-cleanup\n\
              ! i6df375dc decision Now?  a\n\
              delegated: Defaults?  a: choose a default and record it with `? Defaults? -> answer`\n"
         );
-        assert_eq!(result.open(), 5);
+        assert_eq!(result.open(), 2);
         assert_eq!(result.blocking(), 2);
         assert_eq!(result.routed.len(), 1);
-        assert_eq!(result.items[2].key, "deploy:link-1:i3a9347f5".to_string());
-        assert_eq!(failed_deploy_key(&failed), "deploy:link-1:i3a9347f5");
     }
 
     #[test]
@@ -235,7 +190,6 @@ mod tests {
                     ..Question::default()
                 },
             ],
-            &[],
             &[Disposition {
                 key: "decision:q2".to_string(),
                 action: ACTION_DELEGATE.to_string(),
@@ -268,7 +222,7 @@ mod tests {
                 ..Question::default()
             })
             .collect();
-        let result = derive(&[], &questions, &[], &[]);
+        let result = derive(&[], &questions, &[]);
         let lines = status_lines(&result);
         assert_eq!(lines.matches("! i").count(), STATUS_BLOCKING_LIMIT);
         assert!(lines.ends_with("! … more in polterware inbox\n"), "{lines}");
@@ -293,7 +247,6 @@ mod tests {
                     options: vec!["yes".to_string(), "no".to_string()],
                 },
             ],
-            &[],
             &[Disposition {
                 key: "decision:q1".to_string(),
                 action: "defer".to_string(),

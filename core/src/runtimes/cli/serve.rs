@@ -2,8 +2,8 @@
 //!
 //! `polterware serve` is the only process that opens the store (Decision 0007).
 //! It takes the per-database lock, listens on loopback, writes `core.json` with
-//! the endpoint, token, and build id the Desktop reads, starts the deploy
-//! watcher (`serve_connect`) and the AGENTS.md sync, and exits on a signal, on
+//! the endpoint, token, and build id the Desktop reads, starts the AGENTS.md
+//! sync, and exits on a signal, on
 //! `MaintenanceService.Shutdown`, or after `--idle` without clients.
 
 use std::sync::Arc;

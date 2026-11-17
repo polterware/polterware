@@ -1,6 +1,6 @@
-//! Projects, their environments, settings, and repositories.
+//! Projects, settings, and repositories.
 //!
-//! A project is a name and its environments, with no folder. Repositories are
+//! A project is a name with no folder. Repositories are
 //! Git clones Structure components link by name.
 
 use std::sync::LazyLock;
@@ -41,21 +41,9 @@ impl Default for Project {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Environment {
-    pub id: String,
-    pub project_id: String,
-    pub name: String,
-    pub kind: String,
-    pub protection: String,
-    pub is_default: bool,
-    pub description: String,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Settings {
     pub project_id: String,
     pub description: String,
-    pub default_environment_id: String,
     pub repository: String,
     /// Keeps the generated AGENTS.md block of each checkout current. It is set
     /// on its own, never by a settings save.
@@ -139,27 +127,6 @@ pub fn new_repository(
     })
 }
 
-pub fn new_environment(
-    id: &str,
-    project_id: &str,
-    name: &str,
-    kind: &str,
-) -> Result<Environment, ProjectError> {
-    if id.is_empty() || project_id.is_empty() || name.is_empty() {
-        return Err(ProjectError::Invalid);
-    }
-    let kind = if kind.is_empty() { "local" } else { kind };
-    Ok(Environment {
-        id: id.to_string(),
-        project_id: project_id.to_string(),
-        name: name.to_string(),
-        kind: kind.to_string(),
-        protection: "standard".to_string(),
-        is_default: false,
-        description: String::new(),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,16 +161,5 @@ mod tests {
         assert!(!valid_repo_name("polterware_ui"));
         assert!(!valid_repo_name(&"a".repeat(41)));
         assert!(valid_repo_name("polterware-ui-2"));
-    }
-
-    #[test]
-    fn environment_defaults() {
-        let environment = new_environment("e1", "p1", "Local", "").expect("valid environment");
-        assert_eq!(environment.kind, "local");
-        assert_eq!(environment.protection, "standard");
-        assert_eq!(
-            new_environment("e1", "p1", "", "local").unwrap_err(),
-            ProjectError::Invalid
-        );
     }
 }

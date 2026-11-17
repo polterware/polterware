@@ -249,6 +249,10 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0061_canvas_source.sql",
         include_str!("migrations/0061_canvas_source.sql"),
     ),
+    (
+        "0062_drop_environments_deploys_integrations.sql",
+        include_str!("migrations/0062_drop_environments_deploys_integrations.sql"),
+    ),
 ];
 
 const SCHEMA_MIGRATIONS: &str = "CREATE TABLE IF NOT EXISTS schema_migrations (\n\t\tversion INTEGER PRIMARY KEY,\n\t\tname TEXT NOT NULL,\n\t\tapplied_at TEXT NOT NULL\n\t)";

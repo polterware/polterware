@@ -1,6 +1,6 @@
 //! Structure's state (`StructureView`'s host in `App.tsx`, its writes in `workspace/persist.ts`):
 //! the project's Structure nodes and what a node's document shows besides them (the project's
-//! repositories, its cards, docs, and Rules, its platform connections, its environments, and
+//! repositories, its cards, docs, Rules, and
 //! its settings), read together when Structure opens; the node open beside
 //! the tree, kept in the route's `page` and moved without a step of history (`setSelectedNode`,
 //! `"silent"`); and the writes a node's document and its Composers make.
@@ -9,9 +9,7 @@
 //! (`structureNodeText`): its heading (`# path: Title`), its `level:` (and `under:` when it is
 //! created or moved), then the lines it changes. A card is linked by its `under:`; a Rule or
 //! a doc by its contexts (`SetScope`). The project's name and description go
-//! through `SaveProject` and `SaveProjectSettings` (`persistProjectSettings`). A component's
-//! deploys are checked against their platforms (`CheckDeploys`) when its document opens, and at
-//! once after they change.
+//! through `SaveProject` and `SaveProjectSettings` (`persistProjectSettings`).
 
 use gpui::{App, AppContext as _, Context};
 use polterware_ui::toast::ToastTone;
@@ -19,12 +17,10 @@ use polterware_ui::toast::ToastTone;
 use super::{AppState, BoardRoute, KnowledgeTab, Load, Route, Section, change};
 use crate::client::{Core, CoreError};
 use crate::contracts::{
-    ApplyPolterRequest, CheckDeploysRequest, DeployTarget, Environment, GetProjectSettingsRequest,
-    IntegrationConnection, KnowledgeItem, ListDeployTargetsRequest, ListEnvironmentsRequest,
-    ListIntegrationConnectionsRequest, ListKnowledgeRequest, ListProjectReposRequest,
-    ListRulesRequest, ListStructureRequest, ListWorkCardsRequest, Project, ProjectRepo,
-    ProjectSettings, Rule, SaveKnowledgeRequest, SaveProjectRequest, SaveProjectSettingsRequest,
-    SetScopeRequest, StructureNode, WorkCard,
+    ApplyPolterRequest, GetProjectSettingsRequest, KnowledgeItem, ListKnowledgeRequest,
+    ListProjectReposRequest, ListRulesRequest, ListStructureRequest, ListWorkCardsRequest, Project,
+    ProjectRepo, ProjectSettings, Rule, SaveKnowledgeRequest, SaveProjectRequest,
+    SaveProjectSettingsRequest, SetScopeRequest, StructureNode, WorkCard,
 };
 use crate::work::{polter_card, polter_value};
 
@@ -39,8 +35,6 @@ pub struct Structure {
     /// The docs.
     pub items: Vec<KnowledgeItem>,
     pub rules: Vec<Rule>,
-    pub integrations: Vec<IntegrationConnection>,
-    pub environments: Vec<Environment>,
     pub settings: ProjectSettings,
 }
 
@@ -57,16 +51,6 @@ pub struct NodePatch {
     pub folder: Option<String>,
     pub kind: Option<String>,
     pub tech: Option<String>,
-}
-
-/// A deploy as a component's document writes it (`StructureDeployInput`).
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DeployInput {
-    pub environment_id: String,
-    pub provider: String,
-    pub resource: String,
-    /// The platform's id for the resource; empty until linked.
-    pub target_id: String,
 }
 
 /// A new node: a domain under the project, or a component under a domain (`StructureDraft`).
@@ -91,15 +75,6 @@ pub enum RecordKind {
 
 impl RecordKind {
     pub const ALL: [RecordKind; 3] = [RecordKind::Rule, RecordKind::Card, RecordKind::Doc];
-}
-
-/// The deploy targets a platform lists for a node (`listDeployTargets`), read for the deploy
-/// Composer's Target.
-#[derive(Clone, Debug, PartialEq)]
-pub struct DeployTargets {
-    pub node_id: String,
-    pub provider: String,
-    pub targets: Load<(Vec<DeployTarget>, String)>,
 }
 
 /// `structureNodeText`: a node's heading and its `level:`, with `under:` when it is placed (an
@@ -161,34 +136,6 @@ pub fn polter_node_patch(node: &StructureNode, patch: &NodePatch) -> String {
         text.push_str(&format!("\n{intent}\n"));
     }
     text
-}
-
-/// `persistStructureUpdateDeploys`: the node's `deploys:` list
-/// (`environment=provider:resource[@target]`); an empty one clears it.
-pub fn polter_deploys(node: &StructureNode, deploys: &[DeployInput]) -> String {
-    let links: Vec<String> = deploys
-        .iter()
-        .map(|deploy| {
-            let target = if deploy.target_id.is_empty() {
-                String::new()
-            } else {
-                format!("@{}", deploy.target_id)
-            };
-            format!(
-                "{}={}:{}{target}",
-                deploy.environment_id, deploy.provider, deploy.resource
-            )
-        })
-        .collect();
-    let line = if links.is_empty() {
-        "deploys:\n".to_string()
-    } else {
-        format!("deploys: {}\n", links.join(", "))
-    };
-    format!(
-        "{}{line}",
-        polter_node(&node.path, &node.title, &node.level, None, "")
-    )
 }
 
 /// `uniqueStructureSlug`: the title as a slug no node's slug, path, or last path segment
@@ -317,16 +264,6 @@ impl AppState {
         std::mem::take(&mut self.add_node_request)
     }
 
-    /// A component's deploys are being checked.
-    pub fn deploys_checking(&self) -> bool {
-        self.deploys_checking
-    }
-
-    pub fn deploy_targets(&self) -> Option<&DeployTargets> {
-        self.deploy_targets.as_ref()
-    }
-
-    /// Reads the project's Structure and what its documents show.
     pub fn load_structure(&mut self, cx: &mut Context<Self>) {
         let (Some(core), Some(project)) = (self.ready_core(), self.project_id()) else {
             return;
@@ -568,142 +505,6 @@ impl AppState {
         );
     }
 
-    /// `onDeploysChange`: replaces a component's deploys, then checks them at once, so the
-    /// platform's page and the latest deploy show without waiting.
-    pub fn save_deploys(
-        &mut self,
-        id: &str,
-        deploys: Vec<DeployInput>,
-        done: impl FnOnce(bool, &mut App) + 'static,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(node) = self.structure_node_by_id(id) else {
-            done(false, cx);
-            return;
-        };
-        let text = polter_deploys(&node, &deploys);
-        let summary = format!("Update deploys for {}", node.title);
-        let this = cx.weak_entity();
-        let checked = node.id.clone();
-        self.write_structure(
-            text,
-            summary,
-            String::new(),
-            "Could not save structure.",
-            move |ok, cx| {
-                if ok {
-                    let _ = this.update(cx, |state, cx| state.check_deploys(checked, true, cx));
-                }
-                done(ok, cx);
-            },
-            cx,
-        );
-    }
-
-    /// `onCheckDeploys`: asks each platform's CLI for a component's latest deploys; the core
-    /// skips links checked in the last minute unless `force`. A failed check the person asked
-    /// for is a toast.
-    pub fn check_deploys(&mut self, id: String, force: bool, cx: &mut Context<Self>) {
-        let (Some(core), Some(project)) = (self.ready_core(), self.project_id()) else {
-            return;
-        };
-        let project = project.to_string();
-        self.deploys_checking = true;
-        cx.notify();
-        cx.spawn(async move |this, cx| {
-            let result = cx
-                .background_spawn(async move {
-                    core.integration().check_deploys(&CheckDeploysRequest {
-                        project_id: project,
-                        node_id: id,
-                        force,
-                    })
-                })
-                .await;
-            let _ = this.update(cx, |state, cx| {
-                state.deploys_checking = false;
-                match result {
-                    Ok(_) => state.load_structure(cx),
-                    Err(error) if force => {
-                        let message = error.to_string();
-                        state.toast(
-                            if message.is_empty() {
-                                "Could not check the deploys.".to_string()
-                            } else {
-                                message
-                            },
-                            true,
-                        );
-                    }
-                    Err(_) => {}
-                }
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    /// Lists what a deploy on `provider` can link to for node `id`: the targets its checkout
-    /// declares, then the account's. A failure is the list's message.
-    pub fn load_deploy_targets(&mut self, id: String, provider: String, cx: &mut Context<Self>) {
-        if self
-            .deploy_targets
-            .as_ref()
-            .is_some_and(|listed| listed.node_id == id && listed.provider == provider)
-        {
-            return;
-        }
-        let (Some(core), Some(project)) = (self.ready_core(), self.project_id()) else {
-            return;
-        };
-        let project = project.to_string();
-        self.deploy_targets = Some(DeployTargets {
-            node_id: id.clone(),
-            provider: provider.clone(),
-            targets: Load::Loading,
-        });
-        cx.notify();
-        cx.spawn(async move |this, cx| {
-            let (node, platform) = (id.clone(), provider.clone());
-            let result = cx
-                .background_spawn(async move {
-                    core.integration()
-                        .list_deploy_targets(&ListDeployTargetsRequest {
-                            project_id: project,
-                            provider: platform,
-                            node_id: node,
-                        })
-                })
-                .await;
-            let _ = this.update(cx, |state, cx| {
-                let Some(listed) = state.deploy_targets.as_mut() else {
-                    return;
-                };
-                if listed.node_id != id || listed.provider != provider {
-                    return;
-                }
-                listed.targets = Load::Ready(match result {
-                    Ok(response) => (response.targets, response.message),
-                    Err(error) => (Vec::new(), {
-                        let message = error.to_string();
-                        if message.is_empty() {
-                            "Could not list the platform's projects.".to_string()
-                        } else {
-                            message
-                        }
-                    }),
-                });
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    /// Forgets the targets read for the deploy Composer, as it closes.
-    pub fn clear_deploy_targets(&mut self) {
-        self.deploy_targets = None;
-    }
-
     /// `onLinkRecord`: a card moves under the node, or out of any component; a Rule or a doc
     /// gains or loses this node among its contexts and keeps the others.
     pub fn link_structure_record(
@@ -902,20 +703,6 @@ fn read_structure(core: &Core, project: &str) -> Result<Structure, CoreError> {
             ..ListRulesRequest::default()
         })?
         .rules;
-    // The platform connections only mark a deploy's CLI as not connected.
-    let integrations = core
-        .integration()
-        .list_integration_connections(&ListIntegrationConnectionsRequest {
-            project_id: project_id(),
-        })
-        .map(|response| response.connections)
-        .unwrap_or_default();
-    let environments = core
-        .project()
-        .list_environments(&ListEnvironmentsRequest {
-            project_id: project_id(),
-        })?
-        .environments;
     let settings = core
         .project()
         .get_project_settings(&GetProjectSettingsRequest {
@@ -929,8 +716,6 @@ fn read_structure(core: &Core, project: &str) -> Result<Structure, CoreError> {
         cards,
         items,
         rules,
-        integrations,
-        environments,
         settings,
     })
 }
@@ -979,25 +764,6 @@ mod tests {
             polter_node_patch(&invoices, &patch),
             "---\npolter: 1\n---\n\n# billing/invoices: Billing\nlevel: component\npath: services/invoices\ntech: Go, Postgres\n"
         );
-        let deploys = [
-            DeployInput {
-                environment_id: "prod".into(),
-                provider: "vercel".into(),
-                resource: "web".into(),
-                target_id: "prj_1".into(),
-            },
-            DeployInput {
-                environment_id: "staging".into(),
-                provider: "fly".into(),
-                resource: "api".into(),
-                target_id: String::new(),
-            },
-        ];
-        assert!(
-            polter_deploys(&invoices, &deploys)
-                .ends_with("level: component\ndeploys: prod=vercel:web@prj_1, staging=fly:api\n")
-        );
-        assert!(polter_deploys(&invoices, &[]).ends_with("level: component\ndeploys:\n"));
     }
 
     #[test]

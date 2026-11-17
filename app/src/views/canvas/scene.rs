@@ -405,20 +405,27 @@ fn semantic_card(
     zoom: f32,
     theme: &Theme,
 ) -> AnyElement {
-    let Some(outline) = silhouette(&node.kind) else {
-        return div().into_any_element();
-    };
-    let (w, h) = (node.width, node.height);
-    let inset = (outline.inset)(w, h);
     let linked = linked_facts(node, entities);
     let kind = linked
         .as_ref()
         .and_then(|facts| facts.kind.clone())
         .unwrap_or_else(|| node.kind.clone());
+    let Some(outline) = silhouette(&kind).or_else(|| silhouette(&node.kind)) else {
+        return div().into_any_element();
+    };
+    let (w, h) = (node.width, node.height);
+    let inset = (outline.inset)(w, h);
     let technology = linked
         .as_ref()
         .and_then(|facts| facts.tech.clone())
-        .unwrap_or_else(|| node.text("technology"));
+        .unwrap_or_else(|| {
+            let tech = node.text("technology");
+            if tech.is_empty() {
+                node.text("tech")
+            } else {
+                tech
+            }
+        });
     let icon = node_icon(&kind)
         .or_else(|| node_icon(&node.kind))
         .unwrap_or(Icon::Blockchain01Icon);
@@ -452,6 +459,11 @@ fn semantic_card(
     );
     let group = node.kind == "domain";
     let ink = fill_ink(&style.fill, theme);
+    let subtitle_ink = if matches!(style.fill.as_str(), "neutral" | "none") {
+        theme.color_text_muted
+    } else {
+        ink
+    };
     let mut tile = IconTile::new(icon)
         .size(28.0 * zoom, 16.0 * zoom)
         .tone(TileTone::Architecture);
@@ -509,7 +521,7 @@ fn semantic_card(
                         .max_w_full()
                         .text_size(px(11.0 * zoom))
                         .line_height(relative(1.3))
-                        .text_color(theme.color_text_muted)
+                        .text_color(subtitle_ink)
                         .truncate()
                         .child(subtitle),
                 ),
@@ -519,4 +531,60 @@ fn semantic_card(
         .child(shape_surface(paint, zoom))
         .child(card)
         .into_any_element()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::canvas::document::{Props, read_style, write_style};
+
+    fn test_node() -> Node {
+        Node {
+            id: "n1".into(),
+            name: "Local core server".into(),
+            kind: "service".into(),
+            x: 0.0,
+            y: 0.0,
+            width: 220.0,
+            height: 64.0,
+            z: 0,
+            props: Props::new(),
+            reference: None,
+        }
+    }
+
+    #[test]
+    fn default_component_surface_uses_lit_material_and_surface_face() {
+        let theme = Theme::dark();
+        let node = test_node();
+        let style = read_style(&node.props);
+        let paint = surface("M0 0H10V10H0Z".into(), &node, &style, false, false, None, &theme);
+        assert_eq!(paint.face, Some(theme.color_surface));
+        assert_eq!(
+            paint.line,
+            Line::Lit {
+                top: theme.material_rim_strong,
+                rest: theme.material_highlight_strong,
+            }
+        );
+        assert_eq!(paint.drop, Some(theme.material_drop));
+    }
+
+    #[test]
+    fn custom_fill_and_stroke_override_the_lit_surface() {
+        let theme = Theme::dark();
+        let mut node = test_node();
+        let mut style = read_style(&node.props);
+        style.fill = "blue".into();
+        write_style(&mut node.props, &style);
+        let custom_fill = surface("M0 0H10V10H0Z".into(), &node, &style, false, false, None, &theme);
+        assert_eq!(custom_fill.face, Some(theme.status_info.background));
+        assert!(matches!(custom_fill.line, Line::Lit { .. }));
+
+        style.stroke = "red".into();
+        let custom_stroke =
+            surface("M0 0H10V10H0Z".into(), &node, &style, false, false, None, &theme);
+        assert_eq!(custom_stroke.line, Line::Color(theme.color_danger));
+        assert_eq!(custom_stroke.drop, None);
+    }
 }

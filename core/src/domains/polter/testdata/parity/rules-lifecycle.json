@@ -1,19 +1,17 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n## plan diagnostics\n## plan\n+ rule core \"Use ULIDs everywhere.\"\n~ rule no-network \"Never call the outside network.\" scope: [core] → \"[core, core/api]\" statement: \"Never call the network.\" → \"Never call the outside network.\"\n+ rule api-v1 \"Version every route.\"\n- rule small-prs \"Keep changes small.\" status: active → removed\n+ rule documents \"Document every decision.\"\n## summary\n5 ops ()\n## brief\n# core/api: API\nlevel: component · kind: api · tech: Go · repo: api · path: cmd/api\n\nRules:\n- Never call the network. (from core)\n- Keep changes small. (whole project)\n- Retire me. (whole project)\n",
+  "expected": "## decode\n## plan diagnostics\n## plan\n+ rule core \"Use ULIDs everywhere.\"\n~ rule no-network \"Never call the outside network.\" scope: [core] \u2192 \"[core, core/api]\" statement: \"Never call the network.\" \u2192 \"Never call the outside network.\"\n+ rule api-v1 \"Version every route.\"\n- rule small-prs \"Keep changes small.\" status: active \u2192 removed\n+ rule documents \"Document every decision.\"\n## summary\n5 ops (5 rules)\n## brief\n# core/api: API\nlevel: component \u00b7 kind: api \u00b7 tech: Go \u00b7 repo: api \u00b7 path: cmd/api\n\nRules:\n- Never call the network. (from core)\n- Keep changes small. (whole project)\n- Retire me. (whole project)\n",
   "name": "rules-lifecycle",
   "snapshot": {
     "Cards": null,
     "Conflicts": null,
     "Decisions": null,
-    "Environments": null,
     "Facts": null,
     "Milestones": null,
     "Nodes": [
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-core",
         "Intent": "",
@@ -33,7 +31,6 @@
       },
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "cmd/api",
         "ID": "n-api",
         "Intent": "",

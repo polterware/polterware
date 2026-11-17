@@ -6,13 +6,10 @@ use crate::client::{Core, CoreError, ServerStream};
 use super::local_v1::{
     AdvanceFeatureRequest, AdvanceFeatureResponse, ApplyPolterRequest, ApplyPolterResponse,
     ArchiveMilestoneRequest, ArchiveMilestoneResponse, ArchiveProjectRequest,
-    ArchiveProjectResponse, BeginCliAuthRequest, BeginCliAuthResponse, CheckDeploysRequest,
-    CheckDeploysResponse, CheckRequest, CheckResponse, CloseTerminalSessionRequest,
-    CloseTerminalSessionResponse, CompileContextRequest, CompileContextResponse,
-    CompleteHostAgentRunRequest, CompleteHostAgentRunResponse, CreateCanvasRequest,
-    CreateCanvasResponse, CreateFeatureRequest, CreateFeatureResponse, CreateMilestoneRequest,
-    CreateMilestoneResponse, CreateTerminalSessionRequest, CreateTerminalSessionResponse,
-    DeleteCanvasRequest, DeleteCanvasResponse, DeleteEnvironmentRequest, DeleteEnvironmentResponse,
+    ArchiveProjectResponse, CheckRequest, CheckResponse, CompileContextRequest,
+    CompileContextResponse, CompleteHostAgentRunRequest, CompleteHostAgentRunResponse,
+    CreateCanvasRequest, CreateCanvasResponse, CreateFeatureRequest, CreateFeatureResponse,
+    CreateMilestoneRequest, CreateMilestoneResponse, DeleteCanvasRequest, DeleteCanvasResponse,
     DeleteKnowledgeLinkRequest, DeleteKnowledgeLinkResponse, DeleteKnowledgeRequest,
     DeleteKnowledgeResponse, DeleteSavedFilterRequest, DeleteSavedFilterResponse,
     EndSessionRequest, EndSessionResponse, ExportProjectionsRequest, ExportProjectionsResponse,
@@ -25,30 +22,21 @@ use super::local_v1::{
     ListAgentSessionsRequest, ListAgentSessionsResponse, ListAgentToolCallsRequest,
     ListAgentToolCallsResponse, ListCanvasTypesRequest, ListCanvasTypesResponse,
     ListCanvasesRequest, ListCanvasesResponse, ListCardCommitsRequest, ListCardCommitsResponse,
-    ListChangesRequest, ListChangesResponse, ListCliProvidersRequest, ListCliProvidersResponse,
-    ListDeployTargetsRequest, ListDeployTargetsResponse, ListEntitiesRequest, ListEntitiesResponse,
-    ListEnvironmentsRequest, ListEnvironmentsResponse, ListHookSwitchesRequest,
-    ListHookSwitchesResponse, ListHostCardsRequest, ListHostCardsResponse, ListHostProjectsRequest,
-    ListHostProjectsResponse, ListInboxRequest, ListInboxResponse,
-    ListIntegrationConnectionsRequest, ListIntegrationConnectionsResponse,
-    ListIntegrationResourcesRequest, ListIntegrationResourcesResponse,
-    ListIntegrationSyncRunsRequest, ListIntegrationSyncRunsResponse, ListKnowledgeLinksRequest,
-    ListKnowledgeLinksResponse, ListKnowledgeRequest, ListKnowledgeResponse,
-    ListMcpSessionsRequest, ListMcpSessionsResponse, ListMilestonesRequest, ListMilestonesResponse,
-    ListProjectReposRequest, ListProjectReposResponse, ListProjectsRequest, ListProjectsResponse,
-    ListRelationshipsRequest, ListRelationshipsResponse, ListRulesRequest, ListRulesResponse,
-    ListSavedFiltersRequest, ListSavedFiltersResponse, ListStructureHistoryRequest,
-    ListStructureHistoryResponse, ListStructureRequest, ListStructureResponse,
-    ListTerminalSessionsRequest, ListTerminalSessionsResponse, ListWorkCardsRequest,
-    ListWorkCardsResponse, ProbeCliProviderRequest, ProbeCliProviderResponse, QueryPolterRequest,
-    QueryPolterResponse, ReadTerminalOutputRequest, ReadTerminalOutputResponse,
-    ReorderMilestonesRequest, ReorderMilestonesResponse, ResetLocalStoreRequest,
-    ResetLocalStoreResponse, ResizeTerminalSessionRequest, ResizeTerminalSessionResponse,
-    ResolveHostProjectRequest, ResolveHostProjectResponse, ResolveInboxItemRequest,
-    ResolveInboxItemResponse, ResolveProjectRequest, ResolveProjectResponse, ResolveRunRequest,
-    ResolveRunResponse, ReviewFeatureRequest, ReviewFeatureResponse, SaveEnvironmentRequest,
-    SaveEnvironmentResponse, SaveIntegrationConnectionRequest, SaveIntegrationConnectionResponse,
-    SaveIntegrationSyncRunRequest, SaveIntegrationSyncRunResponse, SaveKnowledgeLinkRequest,
+    ListChangesRequest, ListChangesResponse, ListEntitiesRequest, ListEntitiesResponse,
+    ListHookSwitchesRequest, ListHookSwitchesResponse, ListHostCardsRequest, ListHostCardsResponse,
+    ListHostProjectsRequest, ListHostProjectsResponse, ListInboxRequest, ListInboxResponse,
+    ListKnowledgeLinksRequest, ListKnowledgeLinksResponse, ListKnowledgeRequest,
+    ListKnowledgeResponse, ListMcpSessionsRequest, ListMcpSessionsResponse, ListMilestonesRequest,
+    ListMilestonesResponse, ListProjectReposRequest, ListProjectReposResponse, ListProjectsRequest,
+    ListProjectsResponse, ListRelationshipsRequest, ListRelationshipsResponse, ListRulesRequest,
+    ListRulesResponse, ListSavedFiltersRequest, ListSavedFiltersResponse,
+    ListStructureHistoryRequest, ListStructureHistoryResponse, ListStructureRequest,
+    ListStructureResponse, ListWorkCardsRequest, ListWorkCardsResponse, QueryPolterRequest,
+    QueryPolterResponse, ReorderMilestonesRequest, ReorderMilestonesResponse,
+    ResetLocalStoreRequest, ResetLocalStoreResponse, ResolveHostProjectRequest,
+    ResolveHostProjectResponse, ResolveInboxItemRequest, ResolveInboxItemResponse,
+    ResolveProjectRequest, ResolveProjectResponse, ResolveRunRequest, ResolveRunResponse,
+    ReviewFeatureRequest, ReviewFeatureResponse, SaveKnowledgeLinkRequest,
     SaveKnowledgeLinkResponse, SaveKnowledgeRequest, SaveKnowledgeResponse, SaveProjectRequest,
     SaveProjectResponse, SaveProjectSettingsRequest, SaveProjectSettingsResponse,
     SaveSavedFilterRequest, SaveSavedFilterResponse, SearchKnowledgeRequest,
@@ -56,12 +44,10 @@ use super::local_v1::{
     SetCanvasArchivedResponse, SetHookSwitchRequest, SetHookSwitchResponse,
     SetKnowledgeArchivedRequest, SetKnowledgeArchivedResponse, SetScopeRequest, SetScopeResponse,
     ShutdownRequest, ShutdownResponse, StartHostAgentRunRequest, StartHostAgentRunResponse,
-    SyncIntegrationConnectionRequest, SyncIntegrationConnectionResponse, SyncProjectModelRequest,
-    SyncProjectModelResponse, UnlinkTaskCommitRequest, UnlinkTaskCommitResponse,
-    UpdateCanvasRequest, UpdateCanvasResponse, UpdateMilestoneRequest, UpdateMilestoneResponse,
-    VerifyFeatureRequest, VerifyFeatureResponse, WatchChangesRequest, WatchChangesResponse,
-    WriteHandoffRequest, WriteHandoffResponse, WriteRuleRequest, WriteRuleResponse,
-    WriteTerminalSessionRequest, WriteTerminalSessionResponse,
+    UnlinkTaskCommitRequest, UnlinkTaskCommitResponse, UpdateCanvasRequest, UpdateCanvasResponse,
+    UpdateMilestoneRequest, UpdateMilestoneResponse, VerifyFeatureRequest, VerifyFeatureResponse,
+    WatchChangesRequest, WatchChangesResponse, WriteHandoffRequest, WriteHandoffResponse,
+    WriteRuleRequest, WriteRuleResponse,
 };
 
 impl Core {
@@ -95,11 +81,6 @@ impl Core {
         HealthService(self)
     }
 
-    /// `polterware.local.v1.IntegrationService`.
-    pub fn integration(&self) -> IntegrationService<'_> {
-        IntegrationService(self)
-    }
-
     /// `polterware.local.v1.KnowledgeService`.
     pub fn knowledge(&self) -> KnowledgeService<'_> {
         KnowledgeService(self)
@@ -123,11 +104,6 @@ impl Core {
     /// `polterware.local.v1.SavedFilterService`.
     pub fn saved_filter(&self) -> SavedFilterService<'_> {
         SavedFilterService(self)
-    }
-
-    /// `polterware.local.v1.TerminalService`.
-    pub fn terminal(&self) -> TerminalService<'_> {
-        TerminalService(self)
     }
 
     /// `polterware.local.v1.WorkService`.
@@ -374,121 +350,6 @@ impl HealthService<'_> {
     }
 }
 
-/// `polterware.local.v1.IntegrationService`.
-pub struct IntegrationService<'a>(&'a Core);
-
-impl IntegrationService<'_> {
-    pub fn list_cli_providers(
-        &self,
-        request: &ListCliProvidersRequest,
-    ) -> Result<ListCliProvidersResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/ListCliProviders",
-            request,
-        )
-    }
-
-    pub fn list_integration_connections(
-        &self,
-        request: &ListIntegrationConnectionsRequest,
-    ) -> Result<ListIntegrationConnectionsResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/ListIntegrationConnections",
-            request,
-        )
-    }
-
-    pub fn save_integration_connection(
-        &self,
-        request: &SaveIntegrationConnectionRequest,
-    ) -> Result<SaveIntegrationConnectionResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/SaveIntegrationConnection",
-            request,
-        )
-    }
-
-    pub fn list_integration_resources(
-        &self,
-        request: &ListIntegrationResourcesRequest,
-    ) -> Result<ListIntegrationResourcesResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/ListIntegrationResources",
-            request,
-        )
-    }
-
-    pub fn list_integration_sync_runs(
-        &self,
-        request: &ListIntegrationSyncRunsRequest,
-    ) -> Result<ListIntegrationSyncRunsResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/ListIntegrationSyncRuns",
-            request,
-        )
-    }
-
-    pub fn save_integration_sync_run(
-        &self,
-        request: &SaveIntegrationSyncRunRequest,
-    ) -> Result<SaveIntegrationSyncRunResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/SaveIntegrationSyncRun",
-            request,
-        )
-    }
-
-    pub fn sync_integration_connection(
-        &self,
-        request: &SyncIntegrationConnectionRequest,
-    ) -> Result<SyncIntegrationConnectionResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/SyncIntegrationConnection",
-            request,
-        )
-    }
-
-    pub fn probe_cli_provider(
-        &self,
-        request: &ProbeCliProviderRequest,
-    ) -> Result<ProbeCliProviderResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/ProbeCliProvider",
-            request,
-        )
-    }
-
-    pub fn begin_cli_auth(
-        &self,
-        request: &BeginCliAuthRequest,
-    ) -> Result<BeginCliAuthResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/BeginCliAuth",
-            request,
-        )
-    }
-
-    pub fn list_deploy_targets(
-        &self,
-        request: &ListDeployTargetsRequest,
-    ) -> Result<ListDeployTargetsResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/ListDeployTargets",
-            request,
-        )
-    }
-
-    pub fn check_deploys(
-        &self,
-        request: &CheckDeploysRequest,
-    ) -> Result<CheckDeploysResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.IntegrationService/CheckDeploys",
-            request,
-        )
-    }
-}
-
 /// `polterware.local.v1.KnowledgeService`.
 pub struct KnowledgeService<'a>(&'a Core);
 
@@ -632,16 +493,6 @@ impl ProjectModelService<'_> {
         self.0
             .unary("polterware.local.v1.ProjectModelService/GetEntity", request)
     }
-
-    pub fn sync_project_model(
-        &self,
-        request: &SyncProjectModelRequest,
-    ) -> Result<SyncProjectModelResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.ProjectModelService/SyncProjectModel",
-            request,
-        )
-    }
 }
 
 /// `polterware.local.v1.ProjectService`.
@@ -686,36 +537,6 @@ impl ProjectService<'_> {
     ) -> Result<ArchiveProjectResponse, CoreError> {
         self.0
             .unary("polterware.local.v1.ProjectService/ArchiveProject", request)
-    }
-
-    pub fn list_environments(
-        &self,
-        request: &ListEnvironmentsRequest,
-    ) -> Result<ListEnvironmentsResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.ProjectService/ListEnvironments",
-            request,
-        )
-    }
-
-    pub fn save_environment(
-        &self,
-        request: &SaveEnvironmentRequest,
-    ) -> Result<SaveEnvironmentResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.ProjectService/SaveEnvironment",
-            request,
-        )
-    }
-
-    pub fn delete_environment(
-        &self,
-        request: &DeleteEnvironmentRequest,
-    ) -> Result<DeleteEnvironmentResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.ProjectService/DeleteEnvironment",
-            request,
-        )
     }
 
     pub fn get_project_settings(
@@ -779,71 +600,6 @@ impl SavedFilterService<'_> {
     ) -> Result<DeleteSavedFilterResponse, CoreError> {
         self.0.unary(
             "polterware.local.v1.SavedFilterService/DeleteSavedFilter",
-            request,
-        )
-    }
-}
-
-/// `polterware.local.v1.TerminalService`.
-pub struct TerminalService<'a>(&'a Core);
-
-impl TerminalService<'_> {
-    pub fn create_terminal_session(
-        &self,
-        request: &CreateTerminalSessionRequest,
-    ) -> Result<CreateTerminalSessionResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.TerminalService/CreateTerminalSession",
-            request,
-        )
-    }
-
-    pub fn write_terminal_session(
-        &self,
-        request: &WriteTerminalSessionRequest,
-    ) -> Result<WriteTerminalSessionResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.TerminalService/WriteTerminalSession",
-            request,
-        )
-    }
-
-    pub fn resize_terminal_session(
-        &self,
-        request: &ResizeTerminalSessionRequest,
-    ) -> Result<ResizeTerminalSessionResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.TerminalService/ResizeTerminalSession",
-            request,
-        )
-    }
-
-    pub fn close_terminal_session(
-        &self,
-        request: &CloseTerminalSessionRequest,
-    ) -> Result<CloseTerminalSessionResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.TerminalService/CloseTerminalSession",
-            request,
-        )
-    }
-
-    pub fn read_terminal_output(
-        &self,
-        request: &ReadTerminalOutputRequest,
-    ) -> Result<ReadTerminalOutputResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.TerminalService/ReadTerminalOutput",
-            request,
-        )
-    }
-
-    pub fn list_terminal_sessions(
-        &self,
-        request: &ListTerminalSessionsRequest,
-    ) -> Result<ListTerminalSessionsResponse, CoreError> {
-        self.0.unary(
-            "polterware.local.v1.TerminalService/ListTerminalSessions",
             request,
         )
     }

@@ -1,9 +1,9 @@
 //! App settings' own pages: the CLI reference (`CliReferenceSettings`: the usage, every
 //! command by group, the interactive keys, then each command's usage, options, and example,
 //! with Copy full reference as Markdown), Shortcuts (`ShortcutsPage`: each remappable command
-//! by group, recorded from the next key press), Appearance (App icon, Reduce transparency),
-//! Local core (`CoreCard`: its status and lifecycle, its idle timeout, start on open, and what
-//! quitting does), Privacy, and the app's Danger zone (Reset local store, after a confirmation).
+//! by group, recorded from the next key press), Appearance (App icon, Reduce transparency), Local core
+//! (`CoreCard`: its status and lifecycle, its idle timeout, start on open, and what quitting
+//! does), and the app's Danger zone (Reset local store, after a confirmation).
 
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -834,25 +834,6 @@ impl SettingsView {
                 settings_row("Start the core when Polterware opens").child(self.auto_start.clone()),
             )
             .child(settings_row("When quitting Polterware").child(quit_select))
-            .into_any_element()
-    }
-
-    pub(super) fn privacy_page(&mut self, cx: &mut Context<Self>) -> AnyElement {
-        let theme = *Theme::global(cx);
-        let paragraph = |text: &'static str| {
-            div()
-                .text_size(px(12.0))
-                .text_color(theme.color_text_muted)
-                .child(wrap_text(text))
-        };
-        settings_group("Privacy")
-            .description("Local-first project data and provider credential handling.")
-            .child(paragraph(
-                "Polterware runs as a local Desktop on your machine. There is no account sign-in and no hosted workspace for day-to-day use.",
-            ))
-            .child(paragraph(
-                "Project data stays on this device. Provider credentials used through Integrations remain in the OS or CLI credential store \u{2014} Polterware does not store provider tokens in the app database.",
-            ))
             .into_any_element()
     }
 

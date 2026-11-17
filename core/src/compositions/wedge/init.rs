@@ -1,6 +1,6 @@
-//! A new local project with its environments and first component.
+//! A new local project and its first component.
 //!
-//! A new local project: its name, its environments, and, when it starts from a
+//! A new local project: its name and, when it starts from a
 //! folder, its first component.
 
 use rand::RngCore;
@@ -67,21 +67,6 @@ pub fn init_project(store: &sqlite::Store, input: InitInput) -> InitResult<proje
             ..projects::Settings::default()
         })?;
     }
-    let envs = store.list_environments(&project.id)?;
-    if envs.is_empty() {
-        let env_id = format!("{}-local", project.id);
-        let mut env = projects::new_environment(&env_id, &project.id, "local", "local")
-            .map_err(|err| InitError::message(err.to_string()))?;
-        env.is_default = true;
-        env.protection = "relaxed".to_string();
-        env.description = "local environment".to_string();
-        store.save_environment(env)?;
-        store.save_project_settings(projects::Settings {
-            project_id: project.id.clone(),
-            default_environment_id: env_id,
-            ..projects::Settings::default()
-        })?;
-    }
     if !dir.is_empty() {
         link_initial_component(store, &project.id, &dir)?;
     }
@@ -145,31 +130,6 @@ mod tests {
         assert_eq!(err.to_string(), "name is required");
     }
 
-    #[test]
-    fn a_new_project_starts_with_a_local_environment() {
-        let holder = TempStore::new();
-        let project = init_project(
-            &holder.store,
-            InitInput {
-                name: "Demo".to_string(),
-                ..InitInput::default()
-            },
-        )
-        .expect("project");
-        assert_eq!(project.name, "Demo");
-        assert!(project.id.starts_with("proj-"), "id = {}", project.id);
-        let envs = holder.store.list_environments(&project.id).expect("envs");
-        assert_eq!(envs.len(), 1);
-        assert!(envs[0].is_default);
-        assert_eq!(envs[0].name, "local");
-        assert_eq!(envs[0].description, "local environment");
-        let settings = holder
-            .store
-            .get_project_settings(&project.id)
-            .expect("settings");
-        assert_eq!(settings.default_environment_id, envs[0].id);
-    }
-
     // The Go test (`TestInitScanContext`) also compiles the project's context;
     // that read belongs to `context.rs`, so this half covers InitProject alone.
     #[test]
@@ -208,11 +168,6 @@ mod tests {
         );
         assert_eq!(snapshot.nodes[0].level, "component");
         assert_eq!(snapshot.nodes[0].repo, repos[0].name);
-        let envs = holder.store.list_environments(&project.id).expect("envs");
-        assert!(
-            envs.len() == 1 && envs[0].is_default,
-            "expected default local env, got {envs:?}"
-        );
     }
 
     #[test]

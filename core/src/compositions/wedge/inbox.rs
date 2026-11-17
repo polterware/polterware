@@ -95,24 +95,11 @@ pub(super) fn list_inbox_for(
             });
         }
     }
-    let links = store.list_node_deploy_links(&snapshot.project_id)?;
-    let connections = store.list_connections(&snapshot.project_id)?;
-    let probes: Vec<inbox::ProviderConnection> = connections
-        .iter()
-        .map(|connection| inbox::ProviderConnection {
-            provider_id: connection.provider_id.clone(),
-            environment_id: connection.environment_id.clone(),
-            status: connection.status.clone(),
-        })
-        .collect();
     let dispositions = store.list_inbox_dispositions(&snapshot.project_id)?;
-    let mut deploys = inbox::failed_deploys(&links);
-    deploys.extend(inbox::unconnected_deploys(&links, &probes));
     let checklists = verify_checklists(store, snapshot)?;
     Ok(inbox::derive_with(
         &conflicts,
         &questions,
-        &deploys,
         &checklists,
         &dispositions,
     ))

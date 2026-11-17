@@ -8,7 +8,8 @@
 //! actor, its run's status, and the time. Nothing opens on its own; a click opens a change in
 //! the detail (its rationale, the audit chain of its run from `GetAgentRun` with the current
 //! step marked, and its properties) or a Dispatch entry (its run summary, with Open in
-//! Dispatch, and the event).
+//! Dispatch, and the event). The detail slides 16px in from the right and fades on the slow
+//! spring, and leaves on that tier's exit tween, still showing the record until it is gone.
 
 use std::rc::Rc;
 
@@ -26,14 +27,15 @@ use polterware_ui::filter_popover::{FilterField, FilterPopover, FiltersChanged};
 use polterware_ui::icon_button::icon_button;
 use polterware_ui::icons::{Icon, icon_colored};
 use polterware_ui::patterns::{
-    DETAIL_PANEL_INSET, DetailPanel, DetailPanelWidth, MascotMood, detail_properties,
-    detail_property, detail_section, detail_section_with_aside, detail_text, page_empty,
-    page_empty_with,
+    DETAIL_PANEL_INSET, DetailPanel, DetailPanelBody, DetailPanelPresence, DetailPanelWidth,
+    MascotMood, detail_properties, detail_property, detail_section, detail_section_with_aside,
+    detail_text, page_empty, page_empty_with,
 };
 use polterware_ui::skeleton::text_skeleton;
-use polterware_ui::tabs::Tabs;
+use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::{StatusTone, Theme, tw};
 use polterware_ui::window::window_drag::WindowDragRegion;
+use polterware_ui::{page_under, page_under_inset};
 
 use crate::contracts::{GetAgentRunResponse, ProjectChange};
 use crate::dispatch::{self, contracts::DispatchRunEvent};
@@ -137,7 +139,23 @@ fn merge_rows<'a>(
     rows.into_iter().map(|(_, row)| row).collect()
 }
 
-/// The filter fields: the tiers (the defaults, then those Dispatch named) and the agents.
+/// The rows whose summary, task, or agent holds `query`, in their order; all of them while it
+/// is blank.
+fn searched(rows: &[ProjectChange], query: &str) -> Vec<ProjectChange> {
+    let needle = query.trim().to_lowercase();
+    rows.iter()
+        .filter(|row| {
+            needle.is_empty()
+                || row.summary.to_lowercase().contains(&needle)
+                || row.run_task.to_lowercase().contains(&needle)
+                || row.agent_label.to_lowercase().contains(&needle)
+        })
+        .cloned()
+        .collect()
+}
+
+/// The filter fields: the actor (a person or an agent), the tiers (the defaults, then those
+/// Dispatch named), and the agents.
 fn filter_fields(tiers: &[String], agents: &[String]) -> Vec<FilterField> {
     let options = |values: &[String]| {
         values
@@ -147,6 +165,17 @@ fn filter_fields(tiers: &[String], agents: &[String]) -> Vec<FilterField> {
     };
     vec![
         FilterField::new(
+            FilterSpec::multi(
+                "actor",
+                "Actor",
+                vec![
+                    FilterOption::new("human", "Human"),
+                    FilterOption::new("agent", "Agent"),
+                ],
+            ),
+            Some(Icon::User),
+        ),
+        FilterField::new(
             FilterSpec::multi("tier", "Tier", options(tiers)),
             Some(Icon::Gauge),
         ),
@@ -155,6 +184,17 @@ fn filter_fields(tiers: &[String], agents: &[String]) -> Vec<FilterField> {
             Some(Icon::Bot),
         ),
     ]
+}
+
+/// The actor the history is read for (`ListChanges.actor_kind`), from the Actor clause:
+/// both kinds, or neither picked, read them all.
+fn actor_of(filters: &polterware_ui::filter::Filters) -> ActorFilter {
+    let keeps = |kind: &str| filters.matches(|field| (field == "actor").then(|| vec![kind]));
+    match (keeps("human"), keeps("agent")) {
+        (true, false) => ActorFilter::Human,
+        (false, true) => ActorFilter::Agent,
+        _ => ActorFilter::All,
+    }
 }
 
 /// `actorTone`.
@@ -182,10 +222,18 @@ fn run_status(change: &ProjectChange) -> &str {
     }
 }
 
+/// The first non-empty line shown in a table cell.
+fn first_line(text: &str) -> &str {
+    text.lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or("")
+}
+
 /// The run's second line under the summary (`Agent run (hard)`), when it says more.
 fn run_line(change: &ProjectChange) -> Option<String> {
-    (!change.run_task.is_empty() && change.run_task != change.summary)
-        .then(|| change.run_task.clone())
+    let line = first_line(&change.run_task);
+    (!line.is_empty() && change.run_task != change.summary).then(|| line.to_string())
 }
 
 /// The Actor column: the agent's label, else Human or Agent.
@@ -306,20 +354,38 @@ fn step_kind_label(kind: &str) -> String {
 
 pub struct ActivityView {
     state: Entity<AppState>,
+    search: Entity<TextInput>,
+    query: String,
     filters: Entity<FilterPopover>,
     /// The tiers and agents the filters offer, as last set.
     offered: (Vec<String>, Vec<String>),
     sort: Option<(usize, SortDirection)>,
     scope: ScopeFilter,
     detail_width: DetailPanelWidth,
+    detail: Entity<DetailPanelPresence>,
 }
+
+/// The Activity page, whose chrome the list runs under.
+const PAGE_ID: &str = "activity-page";
 
 impl ActivityView {
     pub fn new(state: Entity<AppState>, cx: &mut Context<Self>) -> Self {
+        let search = cx.new(|cx| TextInput::new(cx).placeholder("Search activity").pill());
+        cx.observe(&search, |this, input, cx| {
+            let text = input.read(cx).text().to_string();
+            if text != this.query {
+                this.query = text;
+                cx.notify();
+            }
+        })
+        .detach();
         let filters =
             cx.new(|cx| FilterPopover::new("activity-filters", "Activity filters", true, cx));
         cx.subscribe(&filters, |this, filters, _: &FiltersChanged, cx| {
             this.scope.push(&filters, &this.state, cx);
+            let actor = actor_of(filters.read(cx).filters());
+            this.state
+                .update(cx, |state, cx| state.set_activity_actor(actor, cx));
             cx.notify();
         })
         .detach();
@@ -329,13 +395,18 @@ impl ActivityView {
             cx.notify();
         })
         .detach();
+        let open = state.read(cx).activity_open().is_some();
+        let detail = cx.new(|_| DetailPanelPresence::new(open));
         let mut view = Self {
             state,
+            search,
+            query: String::new(),
             filters,
             offered: (Vec::new(), Vec::new()),
             sort: None,
-            scope: ScopeFilter::new(true),
+            scope: ScopeFilter::new(),
             detail_width: DetailPanelWidth::new(),
+            detail,
         };
         view.offer_known(cx);
         view
@@ -412,11 +483,18 @@ impl ActivityView {
 
     /// The detail's frame: `title` after `leading`, closed by its button or by a click outside
     /// it that opened no other row.
-    fn panel(&self, title: String, leading: AnyElement, cx: &mut Context<Self>) -> DetailPanel {
-        let close_state = self.state.clone();
+    fn panel(
+        state: &Entity<AppState>,
+        width: &DetailPanelWidth,
+        title: String,
+        leading: AnyElement,
+        cx: &mut App,
+    ) -> DetailPanel {
+        let close_state = state.clone();
         DetailPanel::new("activity-detail", title)
+            .title_section("Change", Icon::FileText)
             .leading(leading)
-            .width(self.detail_width.clone())
+            .width(width.clone())
             .on_close(Rc::new(move |_, cx: &mut App| {
                 close_state.update(cx, |state, cx| {
                     state.close_change();
@@ -425,7 +503,7 @@ impl ActivityView {
             }))
             .on_outside_click({
                 // A click on a row opened another change; any other click outside closes.
-                let state = self.state.clone();
+                let state = state.clone();
                 let presses = state.read(cx).activity_presses();
                 Rc::new(move |_, cx: &mut App| {
                     state.update(cx, |state, cx| {
@@ -441,14 +519,21 @@ impl ActivityView {
     /// `DispatchEventSummaryDetail`: a Dispatch entry's run summary (its status, tier, agent,
     /// and error), with Open in Dispatch, and the event (its kind, run id, and time) in the
     /// rail.
-    fn dispatch_detail(&self, event: &DispatchRunEvent, cx: &mut Context<Self>) -> DetailPanel {
+    fn dispatch_detail(
+        state: &Entity<AppState>,
+        width: &DetailPanelWidth,
+        event: &DispatchRunEvent,
+        cx: &mut App,
+    ) -> DetailPanel {
         let theme = *Theme::global(cx);
         let title = if event.text.is_empty() {
             format!("Dispatch {}", event.kind)
         } else {
             event.text.clone()
         };
-        let panel = self.panel(
+        let panel = Self::panel(
+            state,
+            width,
             title,
             icon_colored(Icon::Route, 16.0, theme.color_text_secondary),
             cx,
@@ -460,7 +545,7 @@ impl ActivityView {
                 value.to_string()
             })
         };
-        let kind_chip = |cx: &mut Context<Self>| {
+        let kind_chip = |cx: &mut App| {
             chip_rounded(
                 event.kind.clone(),
                 dispatch_tone(&event.kind),
@@ -508,11 +593,12 @@ impl ActivityView {
     }
 
     fn detail(
-        &self,
+        state: &Entity<AppState>,
+        width: &DetailPanelWidth,
         change: &ProjectChange,
         run: Option<&GetAgentRunResponse>,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) -> DetailPanel {
         let theme = *Theme::global(cx);
         let run = run.filter(|run| {
@@ -534,7 +620,7 @@ impl ActivityView {
             .find(|text| !text.is_empty())
             .cloned()
             .unwrap_or_else(|| "Change".into());
-        let mut panel = self.panel(title, actor_icon(change, 16.0, cx), cx);
+        let mut panel = Self::panel(state, width, title, actor_icon(change, 16.0, cx), cx);
 
         let rationale = envelope.rationale.trim();
         let rationale = if rationale.is_empty() {
@@ -694,7 +780,6 @@ impl Render for ActivityView {
             return div().size_full().child(page);
         }
         let app = self.state.read(cx);
-        let actor = app.activity_actor();
         let open = app.activity_open().map(str::to_string);
         let run = app.activity_run().cloned();
         // Dispatch's entries the Tier and Agent clauses keep (`matchClauses`).
@@ -704,6 +789,7 @@ impl Render for ActivityView {
             .iter()
             .filter(|event| {
                 filters.matches(|field| match field {
+                    "actor" => Some(vec!["agent"]),
                     "tier" => Some(vec![event.tier.as_str()]),
                     "agent" => Some(vec![event.agent.as_str()]),
                     _ => None,
@@ -731,27 +817,8 @@ impl Render for ActivityView {
             _ => None,
         };
 
-        let tab_state = self.state.clone();
-        let tabs = Tabs::new("activity-actor")
-            .tab("All")
-            .tab("Human")
-            .tab("Agent")
-            .selected(
-                ActorFilter::ALL
-                    .iter()
-                    .position(|a| *a == actor)
-                    .unwrap_or(0),
-            )
-            .on_select(move |index, _, cx| {
-                if let Some(actor) = ActorFilter::ALL.get(index).copied() {
-                    tab_state.update(cx, |state, cx| {
-                        state.set_activity_actor(actor, cx);
-                        cx.notify();
-                    });
-                }
-            });
-        // `PageToolbar` with the tabs leading: 44px, padded 8px 8px 4px, the empty bar
-        // dragging the window.
+        // `PageToolbar`: 44px, padded 8px 8px 4px, the empty bar dragging the window and the
+        // filters at the end, where the actor is picked too.
         let bar = div()
             .flex_none()
             .h(px(theme.page_header_height))
@@ -762,9 +829,16 @@ impl Render for ActivityView {
             .items_center()
             .justify_between()
             .gap(px(theme.space_3))
-            .child(tabs)
             .child(div().flex_1().h_full().window_drag_region())
-            .child(self.filters.clone());
+            .child(
+                div()
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.0))
+                    .child(div().w(px(200.0)).child(self.search.clone()))
+                    .child(self.filters.clone()),
+            );
         let filter_bar = FilterPopover::bar(&self.filters, window, cx).map(|bar| {
             div()
                 .flex_none()
@@ -776,7 +850,8 @@ impl Render for ActivityView {
         let merged = changes
             .as_deref()
             .map(|changes| merge_rows(changes, &events));
-        let (rows, groups) = merged
+        let searched = merged.as_deref().map(|rows| searched(rows, &self.query));
+        let (rows, groups) = searched
             .as_deref()
             .map(|rows| self.ordered(rows))
             .unwrap_or_default();
@@ -784,15 +859,26 @@ impl Render for ActivityView {
         let active = open
             .as_ref()
             .and_then(|id| rows.iter().find(|change| &change.step_id == id).cloned());
+        // The list runs up under the toolbar, which floats on its fade: at rest it keeps clear
+        // of the toolbar and the filter bar, and what scrolls up goes soft beneath them.
+        let inset = page_under_inset(PAGE_ID, filter_bar.is_some(), 0.0, window, cx);
         let list: AnyElement = match &merged {
             None => div()
                 .size_full()
+                .pt(px(inset))
                 .px(px(TABLE_INSET))
                 .child(text_skeleton(4, 12.0, window, cx))
                 .into_any_element(),
-            Some(rows) if rows.is_empty() => {
-                page_empty("No changes yet", MascotMood::Sleeping, cx).into_any_element()
-            }
+            Some(rows) if rows.is_empty() => div()
+                .size_full()
+                .pt(px(inset))
+                .child(page_empty("No changes yet", MascotMood::Sleeping, cx))
+                .into_any_element(),
+            Some(_) if searched.as_ref().is_some_and(Vec::is_empty) => div()
+                .size_full()
+                .pt(px(inset))
+                .child(page_empty("No matches", MascotMood::Lost, cx))
+                .into_any_element(),
             // The gutters sit inside the scroll, whose whole width the columns share out, and the
             // Widths measure every row, as the web table renders them all, and reflow when the
             // panel changes the scroll width.
@@ -801,45 +887,67 @@ impl Render for ActivityView {
                 .size_full()
                 .child(
                     activity_table(rows.clone(), groups, self, cx)
+                        .inset_top(inset)
+                        .fades(theme.color_surface)
                         .gutters(TABLE_INSET)
                         .measure_every_row(),
                 )
                 .into_any_element(),
         };
-        let detail = active.as_ref().map(|change| {
-            let event = change
-                .step_id
-                .strip_prefix(DISPATCH_ROW)
-                .and_then(|id| events.iter().find(|event| event.id == id));
-            match event {
-                Some(event) => self.dispatch_detail(event, cx).into_any_element(),
-                None => self
-                    .detail(change, run.as_ref(), window, cx)
+        let detail_body = active.map(|change| {
+            let state = self.state.clone();
+            let width = self.detail_width.clone();
+            let run = run.clone();
+            let events = events.clone();
+            Rc::new(move |window: &mut Window, cx: &mut App| {
+                let event = change
+                    .step_id
+                    .strip_prefix(DISPATCH_ROW)
+                    .and_then(|id| events.iter().find(|event| event.id == id));
+                match event {
+                    Some(event) => ActivityView::dispatch_detail(&state, &width, event, cx)
+                        .into_any_element(),
+                    None => ActivityView::detail(
+                        &state,
+                        &width,
+                        &change,
+                        run.as_ref(),
+                        window,
+                        cx,
+                    )
                     .into_any_element(),
-            }
+                }
+            }) as DetailPanelBody
         });
-        let has_detail = detail.is_some();
+        self.detail.update(cx, |presence, _| presence.set(detail_body));
+        let reserves = self.detail.read(cx).is_present();
+        let detail = self
+            .detail
+            .update(cx, |presence, cx| presence.element(window, cx));
         div()
             .relative()
             .size_full()
             .flex()
             .flex_col()
-            .child(bar)
-            .children(filter_bar)
-            .child(
+            .child(page_under(
+                PAGE_ID,
+                bar,
+                filter_bar.map(IntoElement::into_any_element),
+                0.0,
                 div()
-                    .flex_1()
-                    .min_h(px(0.0))
+                    .size_full()
                     .flex()
                     .child(div().flex_1().min_w(px(0.0)).h_full().child(list))
-                    .when(has_detail, |body| {
+                    .when(reserves, |body| {
                         body.child(
                             div()
                                 .flex_none()
                                 .w(px(self.detail_width.get() + DETAIL_PANEL_INSET)),
                         )
                     }),
-            )
+                window,
+                cx,
+            ))
             .children(detail.map(|detail| {
                 div()
                     .absolute()
@@ -879,10 +987,10 @@ fn activity_table(
         let theme = *Theme::global(cx);
         let change = &cells[row.index];
         let task = run_line(change);
-        let summary = if change.summary.is_empty() {
-            "\u{2014}".to_string()
+        let summary = if first_line(&change.summary).is_empty() {
+            "\u{2014}"
         } else {
-            change.summary.clone()
+            first_line(&change.summary)
         };
         let title = div()
             .w_full()
@@ -904,13 +1012,15 @@ fn activity_table(
                         div()
                             .text_size(px(12.5))
                             .line_height(px(SUMMARY_LINE))
-                            .child(summary),
+                            .text_ellipsis()
+                            .child(summary.to_string()),
                     )
                     .children(task.map(|task| {
                         div()
                             .text_size(px(11.5))
                             .line_height(px(TASK_LINE))
                             .text_color(theme.color_text_muted)
+                            .text_ellipsis()
                             .child(task)
                     })),
             )
@@ -945,8 +1055,9 @@ fn activity_table(
         let medium = sans(&theme, FontWeight::MEDIUM);
         let mut widest = [0.0_f32; 4];
         for change in measured.get(range).unwrap_or_default() {
-            let summary =
-                ACTOR_SIZE + tw(2.5) + text_width(&change.summary, normal.clone(), 12.5, window);
+            let summary = ACTOR_SIZE
+                + tw(2.5)
+                + text_width(first_line(&change.summary), normal.clone(), 12.5, window);
             let actor = text_width(&actor_label(change), normal.clone(), 12.5, window);
             // The chip: its 1px frame and 9px padding each side around 11px/500 text.
             let chip = 2.0 * 10.0 + text_width(run_status(change), medium.clone(), 11.0, window);
@@ -990,6 +1101,62 @@ fn activity_table(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn first_line_skips_blank_lines_and_trims() {
+        assert_eq!(
+            super::first_line(" \n  first line  \nsecond line"),
+            "first line"
+        );
+        assert_eq!(super::first_line(" \r\n\t"), "");
+        assert_eq!(super::first_line("  only line  "), "only line");
+    }
+
+    #[test]
+    fn the_search_keeps_rows_whose_summary_task_or_agent_holds_it() {
+        use super::{ProjectChange, searched};
+        let row = |summary: &str, task: &str, agent: &str| ProjectChange {
+            summary: summary.into(),
+            run_task: task.into(),
+            agent_label: agent.into(),
+            ..Default::default()
+        };
+        let rows = vec![
+            row("Update Electron Main", "", "Desktop"),
+            row("Reopen T1", "git-metadata-import", "Desktop"),
+            row("Move card", "", "Codex"),
+        ];
+        assert_eq!(searched(&rows, "  ").len(), 3);
+        assert_eq!(
+            searched(&rows, "electron")[0].summary,
+            "Update Electron Main"
+        );
+        assert_eq!(searched(&rows, "METADATA")[0].summary, "Reopen T1");
+        assert_eq!(searched(&rows, "codex")[0].summary, "Move card");
+        assert!(searched(&rows, "nothing").is_empty());
+    }
+
+    #[test]
+    fn the_actor_clause_picks_whose_changes_are_read() {
+        use polterware_ui::filter::Filters;
+
+        use super::{ActorFilter, actor_of, filter_fields};
+        let spec = filter_fields(&[], &[])
+            .into_iter()
+            .find(|field| field.spec.id == "actor")
+            .expect("the filters offer the actor")
+            .spec;
+        assert_eq!(actor_of(&Filters::default()), ActorFilter::All);
+        let mut human = Filters::default();
+        human.add(&spec, &["human".to_string()]);
+        assert_eq!(actor_of(&human), ActorFilter::Human);
+        let mut agent = Filters::default();
+        agent.add(&spec, &["agent".to_string()]);
+        assert_eq!(actor_of(&agent), ActorFilter::Agent);
+        let mut both = Filters::default();
+        both.add(&spec, &["human".to_string(), "agent".to_string()]);
+        assert_eq!(actor_of(&both), ActorFilter::All);
+    }
+
     use super::*;
 
     fn event(id: &str, kind: &str, agent: &str, tier: &str, at: &str) -> DispatchRunEvent {

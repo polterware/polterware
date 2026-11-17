@@ -5,7 +5,7 @@ use super::{
     output::{CliError, CliResult},
 };
 use crate::{local_v1, platform::coreclient::CALL_TIMEOUT};
-const USAGE: &str = "usage: polterware scope <rule|item> <id> [<node path>...] [--project <id>]\n       (the nodes replace its contexts, separated by spaces or commas; none clears\n       them (the whole project); item is a derived Inbox item key)";
+const USAGE: &str = "usage: polterware scope <rule|knowledge|item> <id> [<node path>...] [--project <id>]\n       (the nodes replace its contexts, separated by spaces or commas; none clears\n       them (the whole project); knowledge is a doc id; item is a derived Inbox item key)";
 pub(crate) fn add_scope_flags(f: &mut FlagSet) {
     f.list_flag(
         "scope",

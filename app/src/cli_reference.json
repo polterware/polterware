@@ -34,7 +34,6 @@
     "query",
     "status",
     "inbox",
-    "deploys",
     "export"
    ]
   },
@@ -50,7 +49,9 @@
     "feature",
     "verify",
     "scope",
-    "conflict"
+    "conflict",
+    "milestone",
+    "doc"
    ]
   },
   {
@@ -213,8 +214,8 @@
   {
    "id": "canvas",
    "name": "polterware canvas",
-   "synopsis": "polterware canvas ls [--agents] [--scope <node>] [--exact] | show <id|name> [--format mermaid|json|dot] | share <id|name> on|off [--project <id>]",
-   "summary": "List canvases, print one as JSON, Mermaid, or DOT, or switch whether agents can read it. Agents only see canvases that are shared.",
+   "synopsis": "polterware canvas ls [--agents] [--scope <node>] [--exact] | show <id|name> [--format mermaid|json|dot] | save <id|name> --source <file|-> | share <id|name> on|off [--project <id>]",
+   "summary": "List canvases, print one as JSON, Mermaid, or DOT, write one from its Mermaid source (a new name creates it), or switch whether agents can read it. Agents only see canvases that are shared.",
    "flags": [
     {
      "name": "--agents",
@@ -238,6 +239,11 @@
      "name": "--project",
      "value": "id",
      "description": "Project id. Defaults to the project with a repository cloned at the current directory."
+    },
+    {
+     "name": "--source",
+     "value": "file|-",
+     "description": "save: the Mermaid source, or - for stdin."
     }
    ],
    "example": "polterware canvas show architecture"
@@ -327,8 +333,8 @@
   {
    "id": "query",
    "name": "polterware query",
-   "synopsis": "polterware query \"cards\" | \"card <slug>\" | \"status\" | \"inbox\" | \"handoff <slug>\" | \"brief <target>\" | \"search <terms>\" | \"show <id>\" | \"commits <slug>\" | \"conflicts\" | \"conflict <slug>\" | \"deploys [<path>]\" | \"structure [<path>] [at <point>]\" | \"structure history\" | \"rules [state]\" | \"feature <slug> [step]\" | \"verify <slug>\" | \"milestones\" | \"roadmap\" | \"canvas [<name|id>]\" [--scope <node>] [--exact] [--project <id>]",
-   "summary": "Read project state in Polter format: briefs, search, one record by id, a card's commits, Conflicts and one Conflict's answer, deploys, cards, one card, status, inbox, handoffs, Structure, Rules, feature steps, verification, milestones, the roadmap, or a shared canvas.",
+   "synopsis": "polterware query \"cards\" | \"card <slug>\" | \"status\" | \"inbox\" | \"handoff <slug>\" | \"brief <target>\" | \"search <terms>\" | \"show <id>\" | \"commits <slug>\" | \"conflicts\" | \"conflict <slug>\" | \"structure [<path>] [at <point>]\" | \"structure history\" | \"rules [state]\" | \"feature <slug> [step]\" | \"verify <slug>\" | \"milestones\" | \"roadmap\" | \"canvas [<name|id>]\" [--scope <node>] [--exact] [--project <id>]",
+   "summary": "Read project state in Polter format: briefs, search, one record by id, a card's commits, Conflicts and one Conflict's answer, cards, one card, status, inbox, handoffs, Structure, Rules, feature steps, verification, milestones, the roadmap, or a shared canvas.",
    "flags": [
     {
      "name": "--scope",
@@ -531,32 +537,85 @@
    "example": "polterware conflict raise use-floats \"Store prices as floats\" --rule money-in-cents --option \"Keep cents\" --option \"Allow floats\""
   },
   {
-   "id": "deploys",
-   "name": "polterware deploys",
-   "synopsis": "polterware deploys [<path>] | check [<path>] [--force] | targets <provider> [--node <path>] [--project <id>]",
-   "summary": "Where each component runs and how its latest deploy went, read through each platform's own CLI: the link to the platform's project (env=provider:resource@id), its dashboard page, and a failed deploy, which also raises a Deploys item in the Inbox.",
+   "id": "milestone",
+   "name": "polterware milestone",
+   "synopsis": "polterware milestone ls [--archived] | new \"<name>\" | set <slug|id> [--name ...] [--goal ...] [--exit ...]... [--target YYYY-MM-DD] [--state planned|active|done] | archive|restore <slug|id> | order <slug|id>... [--project <id>]",
+   "summary": "Create, change, archive, restore, and order milestones. A card joins one with milestone: <slug> in polterware apply.",
    "flags": [
     {
-     "name": "--force",
-     "description": "check: check links checked in the last minute too."
+     "name": "--goal",
+     "value": "text",
+     "description": "What the milestone is for."
     },
     {
-     "name": "--node",
-     "value": "path",
-     "description": "targets: read this component's checkout for targets it declares."
+     "name": "--exit",
+     "value": "text",
+     "description": "An exit criterion; repeat for each. On set, the list replaces the old one."
+    },
+    {
+     "name": "--target",
+     "value": "YYYY-MM-DD",
+     "description": "The target date."
+    },
+    {
+     "name": "--state",
+     "value": "planned|active|done",
+     "description": "The state; new milestones are planned."
+    },
+    {
+     "name": "--archived",
+     "description": "ls: list only archived milestones."
     },
     {
      "name": "--project",
      "value": "id",
-     "description": "Project id. Defaults to the project with a repository cloned at the current directory."
+     "description": "Project id. Defaults to the project containing the current directory."
     }
    ],
-   "example": "polterware deploys targets vercel --node product/web"
+   "example": "polterware milestone new \"Public beta\" --goal \"First outside users\" --target 2027-02-01"
+  },
+  {
+   "id": "doc",
+   "name": "polterware doc",
+   "synopsis": "polterware doc ls [--archived] [--scope <node>] | show <id|title> | new \"<title>\" --body <file|-> | save <id|title> [--title ...] [--body <file|->] [--summary ...] [--tag <tag>]... [--scope <node>] | archive|restore|rm <id|title> [--project <id>]",
+   "summary": "Write the project's Knowledge docs: the body is Markdown, and --scope names the Structure nodes a doc is about. rm deletes only an archived doc.",
+   "flags": [
+    {
+     "name": "--body",
+     "value": "file|-",
+     "description": "The Markdown body, or - for stdin."
+    },
+    {
+     "name": "--summary",
+     "value": "text",
+     "description": "One line on what the doc says."
+    },
+    {
+     "name": "--tag",
+     "value": "tag",
+     "description": "A tag; repeat or separate with commas. On save, the list replaces the old one."
+    },
+    {
+     "name": "--scope",
+     "value": "node",
+     "description": "Structure node path, slug, or id; repeat or separate with commas. None is the whole project."
+    },
+    {
+     "name": "--archived",
+     "description": "ls: list only archived docs."
+    },
+    {
+     "name": "--project",
+     "value": "id",
+     "description": "Project id. Defaults to the project containing the current directory."
+    }
+   ],
+   "example": "polterware doc new \"Local core\" --body docs/local-core.md --scope core/server"
   },
   {
    "id": "scope",
    "name": "polterware scope",
-   "synopsis": "polterware scope <rule|item> <id> [<node path>...] [--project <id>]",
+   "synopsis": "polterware scope <rule|knowledge|item> <id> [<node path>...] [--project <id>]",
    "summary": "Set the contexts of a Rule or a derived Inbox item: the Structure nodes it is about. Name several to give it several; leave them out to clear its contexts (the whole project).",
    "flags": [
     {

@@ -1,7 +1,7 @@
 //! The scope filter in a page's filters (`createPageFilters`' `scope`, `scopeFilterFields`,
 //! `scopeTokensToClauses`, `clausesToScopeTokens`): the scope's levels lead the page's
 //! FilterPopover as fields of their own section (Domain with the `Boxes` mark, Component with
-//! `Blockchain01Icon`, and Environment with `Cloud` where the page allows it), each one pill
+//! `Blockchain01Icon`), each one pill
 //! of picked values with no `is not`. Their pills are the shared selection: picking one on a
 //! page sets it for every scoped page, and a page shows what another one picked when it next
 //! draws. The page's own clauses match its rows; the scope's narrow what the pages read.
@@ -29,36 +29,20 @@ fn icon(key: ScopeKey) -> Icon {
     match key {
         ScopeKey::Domain => Icon::Boxes,
         ScopeKey::Component => Icon::Blockchain01Icon,
-        ScopeKey::Env => Icon::Cloud,
     }
 }
 
-fn keys(allow_env: bool) -> impl Iterator<Item = ScopeKey> {
+/// The domains and components available in the shared scope.
+pub fn scope_fields(catalog: &ScopeCatalog) -> Vec<FilterField> {
     ScopeKey::ALL
         .into_iter()
-        .filter(move |key| allow_env || *key != ScopeKey::Env)
-}
-
-/// `scopeFilterFields`: the domains, the components, and, where the page allows it, the
-/// project's environments.
-pub fn scope_fields(catalog: &ScopeCatalog, allow_env: bool) -> Vec<FilterField> {
-    keys(allow_env)
         .map(|key| {
-            let options = match key {
-                ScopeKey::Env => catalog
-                    .environments
-                    .iter()
-                    .map(|environment| {
-                        FilterOption::new(environment.id.clone(), environment.name.clone())
-                    })
-                    .collect(),
-                level => catalog
-                    .nodes
-                    .iter()
-                    .filter(|node| node.level == level.id())
-                    .map(|node| FilterOption::new(node.id.clone(), node.title.clone()))
-                    .collect(),
-            };
+            let options = catalog
+                .nodes
+                .iter()
+                .filter(|node| node.level == key.id())
+                .map(|node| FilterOption::new(node.id.clone(), node.title.clone()))
+                .collect();
             let mut spec = FilterSpec::multi(field_id(key), key.label(), options);
             spec.negatable = false;
             spec.repeatable = false;
@@ -121,20 +105,15 @@ pub fn clear_page(popover: &Entity<FilterPopover>, cx: &mut App) {
 }
 
 /// A page's link to the shared selection.
+#[derive(Default)]
 pub struct ScopeFilter {
-    allow_env: bool,
     catalog_seen: Option<u64>,
     scope_seen: Option<u64>,
 }
 
 impl ScopeFilter {
-    /// `allow_env`: the page offers Environment too (`scopeFilterAllowsEnv`).
-    pub fn new(allow_env: bool) -> Self {
-        Self {
-            allow_env,
-            catalog_seen: None,
-            scope_seen: None,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Before the page draws, after it set its own fields: puts the scope's fields first when
@@ -158,17 +137,15 @@ impl ScopeFilter {
             .fields()
             .iter()
             .any(|field| is_scope_field(&field.spec.id));
-        let fields =
-            (self.catalog_seen != Some(catalog_generation) || (catalog.is_some() && !shown)).then(
-                || catalog.map_or_else(Vec::new, |catalog| scope_fields(catalog, self.allow_env)),
-            );
+        let fields = (self.catalog_seen != Some(catalog_generation)
+            || (catalog.is_some() && !shown))
+            .then(|| catalog.map_or_else(Vec::new, scope_fields));
         let tokens = (self.scope_seen != Some(scope_generation)).then(|| app.scope().to_vec());
         self.catalog_seen = Some(catalog_generation);
         self.scope_seen = Some(scope_generation);
         if fields.is_none() && tokens.is_none() {
             return;
         }
-        let allow_env = self.allow_env;
         popover.update(cx, |popover, cx| {
             if let Some(fields) = fields {
                 let own: Vec<FilterField> = popover
@@ -182,7 +159,7 @@ impl ScopeFilter {
             let Some(tokens) = tokens else {
                 return;
             };
-            for key in keys(allow_env) {
+            for key in ScopeKey::ALL {
                 let field = field_id(key);
                 let picked: Vec<String> = tokens
                     .iter()
@@ -203,15 +180,14 @@ impl ScopeFilter {
         });
     }
 
-    /// After the page's clauses changed: the shared selection takes its scope pills, keeping
-    /// the environments a page without them cannot show.
+    /// After the page's clauses change, the shared selection takes its scope pills.
     pub fn push(&self, popover: &Entity<FilterPopover>, state: &Entity<AppState>, cx: &mut App) {
         let app = state.read(cx);
         // A page that has not drawn the latest selection yet holds stale pills.
         if self.scope_seen != Some(app.scope_generation()) {
             return;
         }
-        let mut tokens: Vec<ScopeToken> = popover
+        let tokens: Vec<ScopeToken> = popover
             .read(cx)
             .filters()
             .clauses
@@ -225,14 +201,6 @@ impl ScopeFilter {
             })
             .flatten()
             .collect();
-        if !self.allow_env {
-            tokens.extend(
-                app.scope()
-                    .iter()
-                    .filter(|token| token.key == ScopeKey::Env)
-                    .cloned(),
-            );
-        }
         let mut next = tokens.clone();
         next.sort();
         next.dedup();
@@ -247,10 +215,10 @@ impl ScopeFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contracts::{Environment, StructureNode};
+    use crate::contracts::StructureNode;
 
     #[test]
-    fn the_scope_leads_with_its_levels_and_environments_only_where_allowed() {
+    fn the_scope_leads_with_its_levels() {
         let node = |id: &str, level: &str, title: &str| StructureNode {
             id: id.into(),
             level: level.into(),
@@ -262,14 +230,9 @@ mod tests {
                 node("billing", "domain", "Billing"),
                 node("invoices", "component", "Invoices"),
             ],
-            environments: vec![Environment {
-                id: "prod".into(),
-                name: "Production".into(),
-                ..Environment::default()
-            }],
             milestones: Vec::new(),
         };
-        let fields = scope_fields(&catalog, false);
+        let fields = scope_fields(&catalog);
         let ids: Vec<&str> = fields.iter().map(|field| field.spec.id.as_str()).collect();
         assert_eq!(ids, ["scope-domain", "scope-component"]);
         assert!(fields.iter().all(|field| {
@@ -279,8 +242,5 @@ mod tests {
         }));
         assert_eq!(fields[0].spec.options[0].label, "Billing");
         assert_eq!(fields[1].spec.options[0].id, "invoices");
-        let with_env = scope_fields(&catalog, true);
-        assert_eq!(with_env[2].spec.id, "scope-env");
-        assert_eq!(with_env[2].spec.options[0].label, "Production");
     }
 }

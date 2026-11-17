@@ -1232,15 +1232,11 @@ impl Decoder {
                         }
                     }
                 }
-                "deploys" => match super::deploy_spec::parse_deploys(&value) {
-                    Err(err) => self.errorf(n, err),
-                    Ok(specs) => value = super::deploy_spec::format_deploys(&specs),
-                },
                 "under" | "rules" | "decisions" => {}
                 "uses" => {
                     self.errorf(
                         n,
-                        "uses: is retired: draw how nodes relate on a canvas (Structure › Draw as canvas)"
+                        "uses: is retired: draw how nodes relate on a canvas"
                             .to_string(),
                     );
                     append = false;

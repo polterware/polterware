@@ -1,7 +1,7 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n## plan diagnostics\n## plan\n~ conflict use-redis \"Add a Redis cache\" answer: \"\" \u2192 \"Keep local - for now\" state: open \u2192 decided\n+ conflict use-postgres \"Move to Postgres\"\n- conflict old-conflict \"An old request\" state: open \u2192 withdrawn\n## summary\n3 ops ()\n## brief\n# core: Core\nlevel: domain\n\nRules:\n- Decision 0002: Import\n- Never call the network. (whole project)\n",
+  "expected": "## decode\n## plan diagnostics\n## plan\n~ conflict use-redis \"Add a Redis cache\" answer: \"\" \u2192 \"Keep local - for now\" state: open \u2192 decided\n+ conflict use-postgres \"Move to Postgres\"\n- conflict old-conflict \"An old request\" state: open \u2192 withdrawn\n## summary\n3 ops (3 conflicts)\n## brief\n# core: Core\nlevel: domain\n\nRules:\n- Decision 0002: Import\n- Never call the network. (whole project)\n",
   "name": "conflicts-lifecycle",
   "snapshot": {
     "Cards": null,
@@ -34,13 +34,11 @@
       }
     ],
     "Decisions": null,
-    "Environments": null,
     "Facts": null,
     "Milestones": null,
     "Nodes": [
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-core",
         "Intent": "",
@@ -60,7 +58,6 @@
       },
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "cmd/api",
         "ID": "n-api",
         "Intent": "",

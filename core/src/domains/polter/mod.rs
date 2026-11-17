@@ -7,7 +7,7 @@
 //! This module holds the whole codec: decode, encode, structure encode, the
 //! format spec, the graph checks, scopes, coordination, lint, hints, commit
 //! references, and the planners (`Plan`, `Brief`, the feature flow, milestones,
-//! rules and the retired blocks that point at them, conflicts, deploys, handoff
+//! rules and the retired blocks that point at them, conflicts, handoff
 //! notes), which read the
 //! shared types from [`model`].
 
@@ -16,8 +16,6 @@ mod commitref;
 mod conflicts;
 mod coord;
 mod decode;
-mod deploy_spec;
-mod deploys;
 mod encode;
 mod feature;
 mod format;
@@ -43,8 +41,6 @@ pub use commitref::*;
 pub use conflicts::*;
 pub use coord::*;
 pub use decode::*;
-pub use deploy_spec::*;
-pub use deploys::*;
 pub use encode::*;
 pub use feature::*;
 pub use format::*;

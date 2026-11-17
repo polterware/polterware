@@ -33,15 +33,6 @@ fn defaults_creates_polter_and_empty_projects() {
             panic!("project {id:?} missing: {err}");
         }
     }
-    let envs = store
-        .list_environments(PROJECT_ID)
-        .expect("list environments");
-    assert!(!envs.is_empty(), "seeded project needs environments");
-    let defaults = envs.iter().filter(|env| env.is_default).count();
-    assert_eq!(
-        defaults, 1,
-        "want exactly one default environment, got {defaults}"
-    );
 }
 
 #[test]
@@ -50,7 +41,6 @@ fn defaults_is_idempotent() {
     let store = &holder.store;
     let tables = [
         "projects",
-        "environments",
         "knowledge_items",
         "work_cards",
         "work_tasks",

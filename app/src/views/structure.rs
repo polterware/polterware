@@ -20,17 +20,14 @@
 //! secondary, edited in place). A component then shows its head lines, in groups set apart by
 //! a rule (a 104px muted label column, then the values): Domain (a picker that moves it),
 //! Kind and Technology as tokens (a typed technology adds one); Repository (a picker of the
-//! project's checkouts and Choose folder…, with the GitHub button) and Folder; and Deploys as
-//! tokens that open the deploy Composer, lead to the platform, and show the latest check, with
-//! Check deploys, a danger chip per failed deploy, and a warning per platform whose CLI is not
-//! connected. Then the record sections (Rules, Cards, Docs; a 16px heading whose
+//! project's checkouts and Choose folder…, with the GitHub button) and Folder. Then the
+//! record sections (Rules, Cards, Docs; a 16px heading whose
 //! `+` links one more), each row opening its record and a direct link's × unlinking it, and the
 //! node's Activity. With no node yet, the project's document is followed by the agent prompts.
 //!
 //! N, the tree's `+`, and Commander's Add structure node open the node Composer: a domain under
 //! the project, or a component under the selected domain (or the selected component's), with
-//! its Domain pill. Opening a component asks its platforms for the latest deploys. Every write
-//! goes through the app's state.
+//! its Domain pill. Every write goes through the app's state.
 
 mod records;
 
@@ -44,7 +41,6 @@ use gpui::{
 };
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
 use polterware_ui::card::card;
-use polterware_ui::chip::chip_rounded;
 use polterware_ui::data_table::{Column, DataTable, primary_cell, sans};
 use polterware_ui::filter::{FilterOption, FilterSpec, Filters};
 use polterware_ui::filter_popover::{FilterField, FilterPopover, FiltersChanged};
@@ -55,20 +51,16 @@ use polterware_ui::motion::{SpringTier, Tween};
 use polterware_ui::patterns::{
     AnchorSlot, CollapsibleSection, Composer, ComposerEvent, ComposerSpec, MascotMood, PromptCard,
     Property, PropertyOption, PropertyPicker, PropertyPickerEvent, PropertyPills,
-    PropertyPillsEvent, PropertyTokenEvent, TreeNode, page_empty_with, prompt_card_grid, tree_view,
-    window_anchor,
+    PropertyPillsEvent, TreeNode, page_empty_with, prompt_card_grid, tree_view, window_anchor,
 };
-use polterware_ui::service_mark::option_mark;
 use polterware_ui::skeleton::text_skeleton;
 use polterware_ui::text_input::TextInput;
-use polterware_ui::theme::{StatusTone, Theme};
+use polterware_ui::theme::Theme;
 use polterware_ui::toast::ToastTone;
 use polterware_ui::window::window_drag::WindowDragRegion;
 
-use crate::contracts::{KnowledgeItem, NodeDeployment, ProjectRepo, Rule, StructureNode, WorkCard};
-use crate::state::{
-    AppState, DeployInput, Load, NodeDraft, NodePatch, RecordKind, Structure, list_values,
-};
+use crate::contracts::{KnowledgeItem, ProjectRepo, Rule, StructureNode, WorkCard};
+use crate::state::{AppState, Load, NodeDraft, NodePatch, RecordKind, Structure, list_values};
 use crate::views::knowledge_page::document_activity;
 
 /// The project's own row and document (`PROJECT_ID`).
@@ -80,30 +72,10 @@ const TREE_INSET: f32 = 8.0;
 const TREE_SLIDE: f32 = 16.0;
 /// The head lines' label column.
 const LABEL_COLUMN: f32 = 104.0;
-/// The StatusChip's radius on the web.
-const CHIP_RADIUS: f32 = 6.0;
 /// The Repository picker's Choose folder… (`CHOOSE_FOLDER`).
 const CHOOSE_FOLDER: &str = "\u{0}choose-folder";
 /// The reason's placeholder.
 const WHY: &str = "Optional. Recorded in Activity";
-
-/// The integrations catalog's providers (`CATALOG_PROVIDERS`).
-const PROVIDERS: [(&str, &str); 14] = [
-    ("github", "GitHub"),
-    ("gitlab", "GitLab"),
-    ("aws", "AWS"),
-    ("google-cloud", "Google Cloud"),
-    ("azure", "Azure"),
-    ("vercel", "Vercel"),
-    ("supabase", "Supabase"),
-    ("terraform", "Terraform"),
-    ("docker", "Docker"),
-    ("netlify", "Netlify"),
-    ("cloudflare", "Cloudflare"),
-    ("fly", "Fly.io"),
-    ("railway", "Railway"),
-    ("render", "Render"),
-];
 
 /// The canvas's component kinds, their palette labels, and their icons (`COMPONENTS`,
 /// `componentIcons`).
@@ -158,22 +130,13 @@ const CLOSING: &str = "Write it as Polter text with a clear summary and rational
 
 /// `STRUCTURE_AGENT_PROMPTS`: the title, the description, the tile, the level its icon shows,
 /// and the request between the preamble and the closing.
-const PROMPTS: [(&str, &str, TileTone, &str, &str); 2] = [
-    (
-        "Map the project",
-        "Propose domains and components from the repo.",
-        TileTone::Architecture,
-        "domain",
-        "Read this repository and propose its Structure: the domains under the project and the components that make them up (`# path: Title` with `level:` and `under:`; a domain has no `under:`). Link each component to this clone with `dir:` and point its `path:` at the folder that holds it, and add a one-line intent. Check `polterware query structure` first and do not repeat a node that exists.",
-    ),
-    (
-        "Register deploys",
-        "Link components to where they run per environment.",
-        TileTone::Infrastructure,
-        "component",
-        "Read the deployment config of this project (CI workflows, Dockerfiles, platform config files) and the existing Structure. For each component that is deployed, set `deploys:` as `env=provider:resource` using the project's environments. Leave components without a deploy target alone.",
-    ),
-];
+const PROMPTS: [(&str, &str, TileTone, &str, &str); 1] = [(
+    "Map the project",
+    "Propose domains and components from the repo.",
+    TileTone::Architecture,
+    "domain",
+    "Read this repository and propose its Structure: the domains under the project and the components that make them up (`# path: Title` with `level:` and `under:`; a domain has no `under:`). Link each component to this clone with `dir:` and point its `path:` at the folder that holds it, and add a one-line intent. Check `polterware query structure` first and do not repeat a node that exists.",
+)];
 
 /// `KindIcon`: the project's house, a domain's boxes, a component's block.
 fn kind_icon(level: &str) -> Icon {
@@ -193,41 +156,12 @@ fn capitalize(text: &str) -> String {
     }
 }
 
-/// `componentKindLabel`: the palette label, or the kind as written.
+/// The palette label for a component kind.
 fn component_label(kind: &str) -> String {
     COMPONENT_KINDS
         .iter()
         .find(|(id, ..)| *id == kind)
         .map_or_else(|| kind.to_string(), |(_, label, _)| label.to_string())
-}
-
-fn provider_name(id: &str) -> String {
-    PROVIDERS
-        .iter()
-        .find(|(provider, _)| *provider == id)
-        .map_or_else(|| id.to_string(), |(_, name)| name.to_string())
-}
-
-/// `deployLabel`: the platform, then the environment.
-fn deploy_label(deploy: &NodeDeployment) -> String {
-    let environment = if deploy.environment.is_empty() {
-        &deploy.environment_id
-    } else {
-        &deploy.environment
-    };
-    format!("{} · {environment}", provider_name(&deploy.provider))
-}
-
-/// `DEPLOY_STATES`: a deploy's latest check in plain words.
-fn deploy_state(state: &str) -> String {
-    match state {
-        "ok" => "Live".into(),
-        "building" => "Building".into(),
-        "failed" => "Failed".into(),
-        "stopped" => "Stopped".into(),
-        "unknown" => "Unknown".into(),
-        other => other.to_string(),
-    }
 }
 
 /// `repositoryLabel`: owner/repo for a GitHub remote, else its name.
@@ -505,18 +439,6 @@ enum Pick {
     Link(RecordKind),
 }
 
-/// The deploy open in its Composer: an index into the component's deploys, or none for a new
-/// one.
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct DeployDraft {
-    node_id: String,
-    index: Option<usize>,
-    environment_id: String,
-    provider: String,
-    resource: String,
-    target_id: String,
-}
-
 /// A head field edited in place.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Field {
@@ -546,7 +468,6 @@ pub struct StructureView {
     shown: HashMap<&'static str, String>,
     kinds: Entity<PropertyPills>,
     techs: Entity<PropertyPills>,
-    deploys: Entity<PropertyPills>,
     /// What the head tokens were set from.
     pills_for: Option<String>,
     picker: Entity<PropertyPicker>,
@@ -560,12 +481,8 @@ pub struct StructureView {
     record_contexts: Vec<String>,
     /// The node a new one goes under: the project takes a domain, a domain a component.
     create_under: String,
-    deploy_composer: Entity<Composer>,
-    deploy: Option<DeployDraft>,
-    /// The selection the ancestors were opened for, and the component whose deploys were
-    /// checked when it opened.
+    /// The selection the ancestors were opened for.
     followed: Option<String>,
-    checked: Option<String>,
 }
 
 impl StructureView {
@@ -648,9 +565,7 @@ impl StructureView {
             cx.subscribe(&pills, Self::token_changed).detach();
             pills
         };
-        let (kinds, techs, deploys) = (pills(cx), pills(cx), pills(cx));
-        cx.subscribe_in(&deploys, window, Self::token_asked)
-            .detach();
+        let (kinds, techs) = (pills(cx), pills(cx));
         let picker = cx.new(PropertyPicker::new);
         cx.observe(&picker, |_, _, cx| cx.notify()).detach();
         cx.subscribe_in(&picker, window, Self::picked).detach();
@@ -673,11 +588,6 @@ impl StructureView {
         let record_editor = cx.new(Composer::new);
         cx.observe(&record_editor, |_, _, cx| cx.notify()).detach();
         cx.subscribe(&record_editor, Self::record_composed).detach();
-        let deploy_composer = cx.new(Composer::new);
-        cx.observe(&deploy_composer, |_, _, cx| cx.notify())
-            .detach();
-        cx.subscribe(&deploy_composer, Self::deploy_composed)
-            .detach();
         cx.observe_in(&state, window, |this, state, window, cx| {
             if state.update(cx, |state, _| state.take_add_node_request()) {
                 this.open_create(window, cx);
@@ -703,7 +613,6 @@ impl StructureView {
             shown: HashMap::new(),
             kinds,
             techs,
-            deploys,
             pills_for: None,
             picker,
             picking: None,
@@ -715,10 +624,7 @@ impl StructureView {
             record_card: Default::default(),
             record_contexts: Vec::new(),
             create_under: PROJECT.into(),
-            deploy_composer,
-            deploy: None,
             followed: None,
-            checked: None,
         }
     }
 
@@ -905,12 +811,7 @@ impl StructureView {
                     self.create_under = value.to_string();
                 }
                 let properties = self.create_properties(cx);
-                let allowed = self
-                    .deploy
-                    .as_ref()
-                    .is_some_and(|d| !d.environment_id.is_empty() && !d.provider.is_empty());
                 composer.update(cx, |composer, cx| {
-                    composer.set_can_submit(allowed, cx);
                     composer.set_properties(properties, cx);
                 });
             }
@@ -918,306 +819,10 @@ impl StructureView {
         }
     }
 
-    /// What the deploy's Composer's pills hold: the environment, the platform, and the target
-    /// (None, the targets the checkout declares, the account's, and a linked one the list no
-    /// longer shows).
-    fn deploy_properties(&self, cx: &App) -> Vec<Property> {
-        let Some(draft) = &self.deploy else {
-            return Vec::new();
-        };
-        let environments = self
-            .structure(cx)
-            .map(|structure| {
-                structure
-                    .environments
-                    .iter()
-                    .map(|environment| {
-                        PropertyOption::new(environment.id.clone(), environment.name.clone())
-                            .icon(Icon::Layers)
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        let providers = PROVIDERS
-            .iter()
-            .map(|(id, name)| {
-                PropertyOption::new(*id, *name).mark(move |size, _, cx| option_mark(id, size, cx))
-            })
-            .collect();
-        let listed = self
-            .state
-            .read(cx)
-            .deploy_targets()
-            .filter(|listed| listed.node_id == draft.node_id && listed.provider == draft.provider)
-            .map(|listed| listed.targets.clone());
-        let (targets, hint) = match &listed {
-            Some(Load::Ready((targets, message))) => (targets.clone(), message.clone()),
-            _ => (Vec::new(), "Loading the platform's projects…".to_string()),
-        };
-        let mut none = PropertyOption::new("", "None").icon(Icon::XIcon);
-        if !hint.is_empty() {
-            none = none.hint(hint);
-        }
-        let mut options = vec![none];
-        for target in &targets {
-            let key = if target.id.is_empty() {
-                format!("name:{}", target.name)
-            } else {
-                target.id.clone()
-            };
-            let mut option = PropertyOption::new(key, target.name.clone())
-                .mark({
-                    let provider = draft.provider.clone();
-                    move |size, _, cx| option_mark(&provider, size, cx)
-                })
-                .group(if target.detected {
-                    "In this repository"
-                } else {
-                    "Account"
-                });
-            if !target.kind.is_empty() {
-                option = option.hint(target.kind.clone());
-            }
-            options.push(option);
-        }
-        if !draft.target_id.is_empty() && !targets.iter().any(|target| target.id == draft.target_id)
-        {
-            let label = if draft.resource.is_empty() {
-                draft.target_id.clone()
-            } else {
-                draft.resource.clone()
-            };
-            options.push(
-                PropertyOption::new(draft.target_id.clone(), label)
-                    .mark({
-                        let provider = draft.provider.clone();
-                        move |size, _, cx| option_mark(&provider, size, cx)
-                    })
-                    .group("Linked")
-                    .hint(draft.target_id.clone()),
-            );
-        }
-        vec![
-            Property::single(
-                "environment",
-                "Environment",
-                environments,
-                draft.environment_id.clone(),
-            )
-            .icon(Icon::Layers),
-            Property::single("provider", "Platform", providers, draft.provider.clone())
-                .icon(Icon::Cloud),
-            Property::single("target", "Target", options, draft.target_id.clone())
-                .icon(Icon::Cloud)
-                .creatable()
-                .picker_width(320.0),
-        ]
-    }
-
-    /// `openDeploy`: a deploy in its Composer, or a new one on the first environment and the
-    /// platform the component already uses.
-    fn open_deploy(&mut self, index: Option<usize>, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(node) = self.selected(cx) else {
-            return;
-        };
-        let deploy = index.and_then(|index| node.deploys.get(index));
-        let draft = match deploy {
-            Some(deploy) => DeployDraft {
-                node_id: node.id.clone(),
-                index,
-                environment_id: deploy.environment_id.clone(),
-                provider: deploy.provider.clone(),
-                resource: deploy.resource.clone(),
-                target_id: deploy.target_id.clone(),
-            },
-            None => DeployDraft {
-                node_id: node.id.clone(),
-                index: None,
-                environment_id: self
-                    .structure(cx)
-                    .and_then(|structure| structure.environments.first())
-                    .map(|environment| environment.id.clone())
-                    .unwrap_or_default(),
-                provider: node.deploys.first().map_or_else(
-                    || PROVIDERS[0].0.to_string(),
-                    |deploy| deploy.provider.clone(),
-                ),
-                resource: String::new(),
-                target_id: String::new(),
-            },
-        };
-        let mut spec = ComposerSpec::new(
-            "Resource name",
-            if draft.index.is_none() {
-                "Add deploy"
-            } else {
-                "Save"
-            },
-        )
-        .crumbs([
-            node.title.clone(),
-            if draft.index.is_none() {
-                "New deploy"
-            } else {
-                "Deploy"
-            }
-            .into(),
-        ])
-        .can_submit(!draft.environment_id.is_empty() && !draft.provider.is_empty())
-        .initial(polterware_ui::patterns::ComposerDraft {
-            title: draft.resource.clone(),
-            ..Default::default()
-        });
-        if draft.index.is_some() {
-            spec = spec.edit();
-        }
-        let (node_id, provider) = (draft.node_id.clone(), draft.provider.clone());
-        self.deploy = Some(draft);
-        self.state.update(cx, |state, cx| {
-            state.load_deploy_targets(node_id, provider, cx)
-        });
-        let properties = self.deploy_properties(cx);
-        self.deploy_composer.update(cx, |composer, cx| {
-            composer.open(spec, properties, window, cx)
-        });
-    }
-
-    /// The component's deploys as the document writes them.
-    fn deploys_of(node: &StructureNode) -> Vec<DeployInput> {
-        node.deploys
-            .iter()
-            .map(|deploy| DeployInput {
-                environment_id: deploy.environment_id.clone(),
-                provider: deploy.provider.clone(),
-                resource: deploy.resource.clone(),
-                target_id: deploy.target_id.clone(),
-            })
-            .collect()
-    }
-
-    fn deploy_composed(
-        &mut self,
-        composer: Entity<Composer>,
-        event: &ComposerEvent,
-        cx: &mut Context<Self>,
-    ) {
-        match event {
-            ComposerEvent::Submit(form) => {
-                let Some(draft) = self.deploy.clone() else {
-                    composer.update(cx, |composer, cx| composer.finish(false, cx));
-                    return;
-                };
-                if draft.environment_id.is_empty() || draft.provider.is_empty() {
-                    self.state.update(cx, |state, _| {
-                        state.toast("Pick an environment and a platform.", true)
-                    });
-                    composer.update(cx, |composer, cx| composer.finish(false, cx));
-                    return;
-                }
-                let Some(node) = self
-                    .structure(cx)
-                    .and_then(|structure| {
-                        structure.nodes.iter().find(|node| node.id == draft.node_id)
-                    })
-                    .cloned()
-                else {
-                    composer.update(cx, |composer, cx| composer.finish(false, cx));
-                    return;
-                };
-                let deploy = DeployInput {
-                    environment_id: draft.environment_id.clone(),
-                    provider: draft.provider.clone(),
-                    resource: form.title.trim().to_string(),
-                    target_id: draft.target_id.clone(),
-                };
-                let mut deploys = Self::deploys_of(&node);
-                match draft.index {
-                    Some(index) if index < deploys.len() => deploys[index] = deploy,
-                    _ => deploys.push(deploy),
-                }
-                let composer = composer.downgrade();
-                self.state.update(cx, |state, cx| {
-                    state.save_deploys(
-                        &node.id,
-                        deploys,
-                        move |written, cx| {
-                            let _ =
-                                composer.update(cx, |composer, cx| composer.finish(written, cx));
-                        },
-                        cx,
-                    )
-                });
-            }
-            ComposerEvent::Property { id, values } => {
-                let value = values
-                    .first()
-                    .map(|value| value.to_string())
-                    .unwrap_or_default();
-                let targets = self
-                    .state
-                    .read(cx)
-                    .deploy_targets()
-                    .and_then(|listed| match &listed.targets {
-                        Load::Ready((targets, _)) => Some(targets.clone()),
-                        _ => None,
-                    })
-                    .unwrap_or_default();
-                let Some(draft) = self.deploy.as_mut() else {
-                    return;
-                };
-                match id.as_ref() {
-                    "environment" => draft.environment_id = value,
-                    "provider" => {
-                        if draft.provider != value {
-                            draft.target_id.clear();
-                        }
-                        draft.provider = value;
-                        let (node, provider) = (draft.node_id.clone(), draft.provider.clone());
-                        self.state.update(cx, |state, cx| {
-                            state.load_deploy_targets(node, provider, cx)
-                        });
-                    }
-                    "target" => {
-                        // `pickTarget`: a listed target links its id and name; a typed name or
-                        // a target with no id is a resource name alone.
-                        let target = targets.iter().find(|target| {
-                            (!target.id.is_empty() && target.id == value)
-                                || format!("name:{}", target.name) == value
-                        });
-                        match target {
-                            Some(target) => {
-                                draft.target_id = target.id.clone();
-                                draft.resource = target.name.clone();
-                            }
-                            None if value.is_empty() => draft.target_id.clear(),
-                            None => {
-                                let linked = draft.target_id == value;
-                                if !linked {
-                                    draft.target_id.clear();
-                                    draft.resource =
-                                        value.strip_prefix("name:").unwrap_or(&value).to_string();
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-                let properties = self.deploy_properties(cx);
-                composer.update(cx, |composer, cx| composer.set_properties(properties, cx));
-            }
-            ComposerEvent::Closed => {
-                self.deploy = None;
-                self.state
-                    .update(cx, |state, _| state.clear_deploy_targets());
-            }
-            ComposerEvent::Action => {}
-        }
-    }
-
-    /// A head token list changed: Kind, Technology, or a removed deploy.
+    /// A head token list changed: Kind or Technology.
     fn token_changed(
         &mut self,
-        pills: Entity<PropertyPills>,
+        _: Entity<PropertyPills>,
         event: &PropertyPillsEvent,
         cx: &mut Context<Self>,
     ) {
@@ -1247,55 +852,7 @@ impl StructureView {
                 },
                 cx,
             ),
-            "deploys" if pills == self.deploys => {
-                let kept: Vec<String> = values.iter().map(|value| value.to_string()).collect();
-                if let Some(removed) =
-                    (0..node.deploys.len()).find(|index| !kept.contains(&index.to_string()))
-                {
-                    let mut deploys = Self::deploys_of(&node);
-                    deploys.remove(removed);
-                    self.state.update(cx, |state, cx| {
-                        state.save_deploys(&node.id, deploys, |_, _| {}, cx)
-                    });
-                }
-            }
             _ => {}
-        }
-    }
-
-    /// A deploy token asked to be edited, opened on its platform, or added.
-    fn token_asked(
-        &mut self,
-        _: &Entity<PropertyPills>,
-        event: &PropertyTokenEvent,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(node) = self.selected(cx) else {
-            return;
-        };
-        match event {
-            PropertyTokenEvent::Edit { value, .. } => {
-                let index = value.parse().ok();
-                self.open_deploy(index, window, cx);
-            }
-            PropertyTokenEvent::Add { .. } => self.open_deploy(None, window, cx),
-            PropertyTokenEvent::Open { value, .. } => {
-                let deploy = value
-                    .parse::<usize>()
-                    .ok()
-                    .and_then(|index| node.deploys.get(index));
-                if let Some(deploy) = deploy {
-                    let url = if deploy.state == "failed" && !deploy.state_url.is_empty() {
-                        &deploy.state_url
-                    } else {
-                        &deploy.url
-                    };
-                    if !url.is_empty() {
-                        cx.open_url(url);
-                    }
-                }
-            }
         }
     }
 
@@ -1441,11 +998,10 @@ impl StructureView {
             techs
         };
         let key = format!(
-            "{}\u{0}{}\u{0}{}\u{0}{:?}\u{0}{}",
+            "{}\u{0}{}\u{0}{}\u{0}{}",
             node.id,
             node.kind,
             node.tech,
-            node.deploys,
             suggestions.join(",")
         );
         if self.pills_for.as_deref() == Some(key.as_str()) {
@@ -1479,44 +1035,10 @@ impl StructureView {
         .loose()
         .creatable()
         .icon(Icon::Cpu);
-        let options = node
-            .deploys
-            .iter()
-            .enumerate()
-            .map(|(index, deploy)| {
-                let mut option =
-                    PropertyOption::new(index.to_string(), deploy_label(deploy)).mark({
-                        let provider = deploy.provider.clone();
-                        move |size, _, cx| option_mark(&provider, size, cx)
-                    });
-                if !deploy.state.is_empty() {
-                    option = option.hint(deploy_state(&deploy.state));
-                }
-                let url = if deploy.state == "failed" && !deploy.state_url.is_empty() {
-                    &deploy.state_url
-                } else {
-                    &deploy.url
-                };
-                if !url.is_empty() {
-                    option = option.opens(format!("Open in {}", provider_name(&deploy.provider)));
-                }
-                option
-            })
-            .collect();
-        let values = (0..node.deploys.len())
-            .map(|index| SharedString::from(index.to_string()))
-            .collect();
-        let deploys = Property::tokens("deploys", "Deploys", options, values, "Where it runs")
-            .loose()
-            .editable()
-            .adds()
-            .icon(Icon::Cloud);
         self.kinds
             .update(cx, |pills, cx| pills.set_properties(vec![kind], cx));
         self.techs
             .update(cx, |pills, cx| pills.set_properties(vec![tech], cx));
-        self.deploys
-            .update(cx, |pills, cx| pills.set_properties(vec![deploys], cx));
     }
 
     /// The Level picker's options, where the node may switch: right under the project, with
@@ -1810,10 +1332,11 @@ impl StructureView {
     }
 }
 
-/// `HeadRow`: a muted label column, then the values inline, wrapping 4px by 20px apart.
+/// `HeadRow`: a muted label column, then the values inline, wrapping 4px by 20px apart. The
+/// head's blocks take the column's width by stretching, never `w_full`: a percentage width in
+/// the document came out as the block's own content, wrapping a short list a token a line.
 fn head_row(label: &str, values: Vec<AnyElement>, theme: &Theme) -> AnyElement {
     div()
-        .w_full()
         .min_h(px(28.0))
         .flex()
         .items_start()
@@ -1846,7 +1369,6 @@ fn head_row(label: &str, values: Vec<AnyElement>, theme: &Theme) -> AnyElement {
 /// `pw-structure__head-group`: lines 10px apart, set 20px under a rule after the first.
 fn head_group(first: bool, rows: Vec<AnyElement>, theme: &Theme) -> AnyElement {
     div()
-        .w_full()
         .flex()
         .flex_col()
         .gap(px(10.0))
@@ -1947,8 +1469,7 @@ impl Render for StructureView {
             .structure_node()
             .map(str::to_string)
             .unwrap_or_else(|| PROJECT.to_string());
-        // The selected row stays in view: its ancestors open when the selection moves. Opening
-        // a component asks its platforms for the latest deploys.
+        // The selected row stays in view: its ancestors open when the selection moves.
         if self.followed.as_deref() != Some(selected_id.as_str()) && structure.is_some() {
             self.followed = Some(selected_id.clone());
             if let (Some(structure), Some(node)) = (&structure, &selected) {
@@ -1974,21 +1495,6 @@ impl Render for StructureView {
                     state.update(cx, |state, cx| state.load_document_activity(subject, cx))
                 });
             }
-        }
-        let check = selected
-            .as_ref()
-            .filter(|node| node.level == "component" && !node.deploys.is_empty())
-            .map(|node| node.id.clone());
-        if check.is_some() && self.checked != check {
-            self.checked = check.clone();
-            if let Some(id) = check {
-                let state = self.state.clone();
-                cx.defer(move |cx| {
-                    state.update(cx, |state, cx| state.check_deploys(id, false, cx))
-                });
-            }
-        } else if check.is_none() {
-            self.checked = None;
         }
         if structure.is_some() {
             self.sync_fields(window, cx);
@@ -2031,7 +1537,7 @@ impl Render for StructureView {
             .then(|| self.picking.and_then(|pick| self.anchors.get(&pick)?.get()))
             .flatten()
             .map(|anchor| window_anchor(anchor, self.picker.clone()));
-        let pills_overlay = [&self.kinds, &self.techs, &self.deploys]
+        let pills_overlay = [&self.kinds, &self.techs]
             .into_iter()
             .filter_map(|pills| pills.read(cx).overlay(cx))
             .collect::<Vec<_>>();
@@ -2047,7 +1553,6 @@ impl Render for StructureView {
             .children(overlay)
             .children(pills_overlay)
             .child(self.composer.clone())
-            .child(self.deploy_composer.clone())
             .child(self.record_editor.clone())
     }
 }
@@ -2074,23 +1579,6 @@ impl StructureView {
             .on_click(move |_, cx| {
                 let _ = view.update(cx, |this, cx| this.toggle_tree(cx));
             });
-        // Draws the tree on the project's Structure canvas, which Canvas then opens on.
-        let state = self.state.clone();
-        let draw = Button::new("structure-draw-canvas", ButtonKind::Secondary)
-            .size(ButtonSize::Icon)
-            .icon(Icon::SchemeIcon)
-            .tooltip("Draw as canvas")
-            .disabled(self.state.read(cx).drawing_structure())
-            .on_click(move |_, cx| {
-                state.update(cx, |state, cx| {
-                    let nodes = match state.structure() {
-                        Load::Ready(structure) => structure.nodes.clone(),
-                        _ => Vec::new(),
-                    };
-                    state.draw_structure_canvas(nodes, cx);
-                    cx.notify();
-                });
-            });
         let bar = div()
             .flex_none()
             .h(px(theme.page_header_height))
@@ -2101,8 +1589,7 @@ impl StructureView {
             .items_center()
             .gap(px(theme.space_3))
             .child(toggle)
-            .child(div().flex_1().h_full().window_drag_region())
-            .child(draw);
+            .child(div().flex_1().h_full().window_drag_region());
         let clauses = FilterPopover::bar(&self.filters, window, cx).map(|bar| {
             div()
                 .flex_none()
@@ -2474,91 +1961,13 @@ impl StructureView {
             ],
             &theme,
         );
-        let mut deploy_values = vec![
-            div()
-                .flex()
-                .flex_wrap()
-                .items_center()
-                .gap(px(6.0))
-                .child(self.deploys.clone())
-                .when(!node.deploys.is_empty(), |deploys| {
-                    let state = self.state.clone();
-                    let id = node.id.clone();
-                    deploys.child(
-                        Button::new("structure-check-deploys", ButtonKind::Ghost)
-                            .size(ButtonSize::Icon)
-                            .icon(Icon::RefreshCw)
-                            .tooltip("Check deploys")
-                            .disabled(self.state.read(cx).deploys_checking())
-                            .on_click(move |_, cx| {
-                                let id = id.clone();
-                                state.update(cx, |state, cx| state.check_deploys(id, true, cx));
-                            }),
-                    )
-                })
-                .into_any_element(),
-        ];
-        for deploy in node
-            .deploys
-            .iter()
-            .filter(|deploy| deploy.state == "failed")
-        {
-            let environment = if deploy.environment.is_empty() {
-                &deploy.environment_id
-            } else {
-                &deploy.environment
-            };
-            let summary = if deploy.state_summary.is_empty() {
-                String::new()
-            } else {
-                format!(": {}", deploy.state_summary)
-            };
-            deploy_values.push(
-                chip_rounded(
-                    format!("{environment} failed{summary}"),
-                    StatusTone::Danger,
-                    CHIP_RADIUS,
-                    cx,
-                )
-                .into_any_element(),
-            );
-        }
-        let mut providers: Vec<&str> = Vec::new();
-        for deploy in &node.deploys {
-            if !providers.contains(&deploy.provider.as_str()) {
-                providers.push(&deploy.provider);
-            }
-        }
-        for provider in providers {
-            let connected = structure.integrations.iter().any(|connection| {
-                connection.provider_id == provider && connection.status == "connected"
-            });
-            if !connected {
-                deploy_values.push(
-                    chip_rounded(
-                        format!("{} CLI not connected", provider_name(provider)),
-                        StatusTone::Warn,
-                        CHIP_RADIUS,
-                        cx,
-                    )
-                    .into_any_element(),
-                );
-            }
-        }
-        let runs = head_group(
-            false,
-            vec![head_row("Deploys", deploy_values, &theme)],
-            &theme,
-        );
         div()
-            .w_full()
             .flex()
             .flex_col()
             .gap(px(20.0))
             .mb(px(56.0))
             .child(what)
             .child(code)
-            .child(runs)
             .into_any_element()
     }
 
@@ -2674,9 +2083,13 @@ impl StructureView {
                 section.set_body(body);
                 section.set_actions(actions);
             });
+            // Stretched by the column, not `w_full`: a percentage width here came out as the
+            // section's own content once it folded, and a table unfolding in it then had no
+            // width to lay its rows out in.
             out.push(
                 div()
-                    .w_full()
+                    .flex()
+                    .flex_col()
                     .mb(px(28.0))
                     .child(section)
                     .into_any_element(),

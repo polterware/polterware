@@ -1,7 +1,7 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n## plan diagnostics\n5:error:node \"app/web\" still has cards: move their under: first\n12:error:cannot remove unknown card \"never-was\": check the slug\n## plan\n- card gone status: active → removed\n## summary\n1 op (1 card)\n## brief\n# app/web: Web\nlevel: component\n\n- web-card  build  \"Web card\"\n",
+  "expected": "## decode\n## plan diagnostics\n5:error:node \"app/web\" still has cards: move their under: first\n12:error:cannot remove unknown card \"never-was\": check the slug\n## plan\n- card gone status: active \u2192 removed\n## summary\n1 op (1 card)\n## brief\n# app/web: Web\nlevel: component\n\n- web-card  build  \"Web card\"\n",
   "name": "structure-remove",
   "snapshot": {
     "Cards": [
@@ -52,13 +52,11 @@
     ],
     "Conflicts": null,
     "Decisions": null,
-    "Environments": null,
     "Facts": null,
     "Milestones": null,
     "Nodes": [
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-app",
         "Intent": "",
@@ -78,7 +76,6 @@
       },
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-web",
         "Intent": "",

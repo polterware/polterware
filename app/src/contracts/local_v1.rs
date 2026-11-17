@@ -325,20 +325,6 @@ pub struct GetEntityResponse {
     pub entity: Option<CanonEntity>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SyncProjectModelRequest {
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SyncProjectModelResponse {
-    #[serde(rename = "entityCount")]
-    pub entity_count: i32,
-}
-
 // polterware/local/v1/canvas.proto
 
 /// CanvasRef cites another project entity.
@@ -597,8 +583,8 @@ pub struct WatchChangesResponse {
     /// or unknown, so clients refresh the current project.
     #[serde(rename = "projectIds")]
     pub project_ids: Vec<String>,
-    /// kinds: projects, environments, work, knowledge, canon, agent_runs,
-    /// architecture, integrations, settings.
+    /// kinds: projects, work, knowledge, canon, agent_runs,
+    /// architecture, settings.
     pub kinds: Vec<String>,
     /// resync asks the client to reload everything (missed events).
     pub resync: bool,
@@ -904,255 +890,6 @@ pub struct CheckResponse {
     pub pid: i32,
 }
 
-// polterware/local/v1/integration.proto
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct CliProvider {
-    pub id: String,
-    pub name: String,
-    pub binary: String,
-    #[serde(rename = "authCommands")]
-    pub auth_commands: Vec<String>,
-    pub description: String,
-    pub category: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct IntegrationConnection {
-    pub id: String,
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-    #[serde(rename = "providerId")]
-    pub provider_id: String,
-    pub status: String,
-    pub label: String,
-    #[serde(rename = "environmentId")]
-    pub environment_id: String,
-    #[serde(rename = "lastSyncAt")]
-    pub last_sync_at: String,
-    pub summary: String,
-    #[serde(rename = "cliCommand")]
-    pub cli_command: String,
-    #[serde(rename = "syncInterval")]
-    pub sync_interval: String,
-    pub freshness: String,
-    #[serde(rename = "errorMessage")]
-    pub error_message: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct IntegrationResource {
-    pub id: String,
-    #[serde(rename = "connectionId")]
-    pub connection_id: String,
-    pub name: String,
-    pub kind: String,
-    #[serde(rename = "externalId")]
-    pub external_id: String,
-    #[serde(rename = "environmentId")]
-    pub environment_id: String,
-    pub status: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct IntegrationSyncRun {
-    pub id: String,
-    #[serde(rename = "connectionId")]
-    pub connection_id: String,
-    #[serde(rename = "startedAt")]
-    pub started_at: String,
-    #[serde(rename = "finishedAt")]
-    pub finished_at: String,
-    pub result: String,
-    pub imported: i32,
-    pub changed: i32,
-    pub message: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListCliProvidersRequest {}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListCliProvidersResponse {
-    pub providers: Vec<CliProvider>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListIntegrationConnectionsRequest {
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListIntegrationConnectionsResponse {
-    pub connections: Vec<IntegrationConnection>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SaveIntegrationConnectionRequest {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub connection: Option<IntegrationConnection>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SaveIntegrationConnectionResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub connection: Option<IntegrationConnection>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListIntegrationResourcesRequest {
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListIntegrationResourcesResponse {
-    pub resources: Vec<IntegrationResource>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListIntegrationSyncRunsRequest {
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListIntegrationSyncRunsResponse {
-    pub runs: Vec<IntegrationSyncRun>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SaveIntegrationSyncRunRequest {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub run: Option<IntegrationSyncRun>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SaveIntegrationSyncRunResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub run: Option<IntegrationSyncRun>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ProbeCliProviderRequest {
-    #[serde(rename = "providerId")]
-    pub provider_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ProbeCliProviderResponse {
-    #[serde(rename = "providerId")]
-    pub provider_id: String,
-    pub available: bool,
-    #[serde(rename = "binaryPath")]
-    pub binary_path: String,
-    pub status: String,
-    #[serde(rename = "accountLabel")]
-    pub account_label: String,
-    pub message: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct BeginCliAuthRequest {
-    #[serde(rename = "providerId")]
-    pub provider_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct BeginCliAuthResponse {
-    #[serde(rename = "providerId")]
-    pub provider_id: String,
-    #[serde(rename = "authCommand")]
-    pub auth_command: String,
-    #[serde(rename = "docsUrl")]
-    pub docs_url: String,
-    pub message: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SyncIntegrationConnectionRequest {
-    #[serde(rename = "connectionId")]
-    pub connection_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SyncIntegrationConnectionResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub run: Option<IntegrationSyncRun>,
-}
-
-/// DeployTarget is a project, app, site, or service on a platform that a
-/// deploy can link to. detected is true when the node's checkout declares it.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct DeployTarget {
-    pub name: String,
-    pub id: String,
-    pub kind: String,
-    pub url: String,
-    pub detected: bool,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListDeployTargetsRequest {
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-    pub provider: String,
-    /// node_id picks the checkout whose files are read; empty reads none.
-    #[serde(rename = "nodeId")]
-    pub node_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListDeployTargetsResponse {
-    pub targets: Vec<DeployTarget>,
-    /// message says why the list is short, such as a CLI that is not installed.
-    pub message: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct CheckDeploysRequest {
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-    /// node_id limits the check to one node; empty checks the project.
-    #[serde(rename = "nodeId")]
-    pub node_id: String,
-    /// force checks links checked in the last minute too.
-    pub force: bool,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct CheckDeploysResponse {
-    pub checked: i32,
-}
-
 // polterware/local/v1/knowledge.proto
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1391,7 +1128,7 @@ pub struct ShutdownResponse {}
 
 // polterware/local/v1/project.proto
 
-/// Project is a name plus its environments; it has no folder of its own.
+/// Project is a name; it has no folder of its own.
 /// Repositories belong to its Structure components.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -1409,26 +1146,10 @@ pub struct Project {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct Environment {
-    pub id: String,
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-    pub name: String,
-    pub kind: String,
-    pub protection: String,
-    #[serde(rename = "isDefault")]
-    pub is_default: bool,
-    pub description: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
 pub struct ProjectSettings {
     #[serde(rename = "projectId")]
     pub project_id: String,
     pub description: String,
-    #[serde(rename = "defaultEnvironmentId")]
-    pub default_environment_id: String,
     pub repository: String,
     /// agents_sync is read-only here: SaveProjectSettings ignores it and
     /// WorkService.SetAgentsSync changes it.
@@ -1478,45 +1199,6 @@ pub struct ArchiveProjectResponse {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
-pub struct ListEnvironmentsRequest {
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListEnvironmentsResponse {
-    pub environments: Vec<Environment>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SaveEnvironmentRequest {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub environment: Option<Environment>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SaveEnvironmentResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub environment: Option<Environment>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct DeleteEnvironmentRequest {
-    pub id: String,
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct DeleteEnvironmentResponse {}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
 pub struct GetProjectSettingsRequest {
     #[serde(rename = "projectId")]
     pub project_id: String,
@@ -1559,7 +1241,7 @@ pub struct ResolveProjectResponse {
     pub project: Option<Project>,
 }
 
-/// InitProject registers a project with an empty layout and a "local" environment.
+/// InitProject registers a project with an empty layout.
 /// dir is optional: a local clone the project's first component links.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -1603,116 +1285,6 @@ pub struct ListProjectReposRequest {
 #[serde(default)]
 pub struct ListProjectReposResponse {
     pub repos: Vec<ProjectRepo>,
-}
-
-// polterware/local/v1/terminal.proto
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct TerminalSession {
-    pub id: String,
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-    #[serde(rename = "targetId")]
-    pub target_id: String,
-    pub status: String,
-    pub shell: String,
-    pub cwd: String,
-    #[serde(rename = "startedAt")]
-    pub started_at: String,
-    pub cols: i32,
-    pub rows: i32,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct CreateTerminalSessionRequest {
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-    #[serde(rename = "targetId")]
-    pub target_id: String,
-    pub shell: String,
-    pub cwd: String,
-    pub cols: i32,
-    pub rows: i32,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct CreateTerminalSessionResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub session: Option<TerminalSession>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct WriteTerminalSessionRequest {
-    pub id: String,
-    #[serde(with = "crate::proto_json::bytes")]
-    pub data: Vec<u8>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct WriteTerminalSessionResponse {}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ResizeTerminalSessionRequest {
-    pub id: String,
-    pub cols: i32,
-    pub rows: i32,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ResizeTerminalSessionResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub session: Option<TerminalSession>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct CloseTerminalSessionRequest {
-    pub id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct CloseTerminalSessionResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub session: Option<TerminalSession>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ReadTerminalOutputRequest {
-    pub id: String,
-    #[serde(with = "crate::proto_json::int64")]
-    pub offset: i64,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ReadTerminalOutputResponse {
-    #[serde(with = "crate::proto_json::bytes")]
-    pub data: Vec<u8>,
-    #[serde(rename = "nextOffset", with = "crate::proto_json::int64")]
-    pub next_offset: i64,
-    pub closed: bool,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListTerminalSessionsRequest {
-    #[serde(rename = "projectId")]
-    pub project_id: String,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct ListTerminalSessionsResponse {
-    pub sessions: Vec<TerminalSession>,
 }
 
 // polterware/local/v1/work.proto
@@ -1947,20 +1519,19 @@ pub struct EndSessionResponse {
     pub completed_runs: i32,
 }
 
-/// InboxItem is one derived item that needs a person: a Question (open
-/// question) or Setup (a deploy whose provider CLI is not connected).
+/// InboxItem is one derived item that needs a person.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct InboxItem {
     /// id is the short id people type; it is stable while the item is the same.
     pub id: String,
-    /// kind is "conflict", "decision", or "setup".
+    /// kind is "conflict", "decision", or "confirm".
     pub kind: String,
     pub blocking: bool,
     pub title: String,
     pub detail: String,
     pub options: Vec<String>,
-    /// where is the card slug and task, or the deploy.
+    /// where is the card slug and task.
     pub r#where: String,
     pub source: String,
     /// state is "open" or "deferred".
@@ -2058,36 +1629,6 @@ pub struct ResolveInboxItemResponse {
     pub diagnostics: Vec<PolterDiagnostic>,
 }
 
-/// NodeDeployment is where one Structure node is deployed in one environment.
-/// provider is a catalog id. resource names the remote target. Credentials
-/// are never stored.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct NodeDeployment {
-    pub id: String,
-    #[serde(rename = "environmentId")]
-    pub environment_id: String,
-    /// environment is the environment name, for display.
-    pub environment: String,
-    pub provider: String,
-    pub resource: String,
-    /// target_id is the platform's own id for the resource, empty until linked.
-    #[serde(rename = "targetId")]
-    pub target_id: String,
-    /// url is the resource's page on the platform's dashboard.
-    pub url: String,
-    /// state is the latest check: ok, building, failed, stopped, or unknown;
-    /// empty when never checked.
-    pub state: String,
-    #[serde(rename = "stateSummary")]
-    pub state_summary: String,
-    /// state_url opens the latest deploy (a deployment, run, or pipeline page).
-    #[serde(rename = "stateUrl")]
-    pub state_url: String,
-    #[serde(rename = "checkedAt")]
-    pub checked_at: String,
-}
-
 /// StructureNode is a system, domain, or component. status is derived:
 /// proposed, in_progress, or delivered.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -2120,8 +1661,6 @@ pub struct StructureNode {
     pub migration_from: String,
     #[serde(rename = "migrationTo")]
     pub migration_to: String,
-    /// deploys lists this node's links, one per environment.
-    pub deploys: Vec<NodeDeployment>,
     /// kind is what a component is (a canvas component kind); empty on other levels.
     pub kind: String,
     /// tech is the free-text technology, such as Go or Postgres.

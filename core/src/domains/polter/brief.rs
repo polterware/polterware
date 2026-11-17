@@ -184,10 +184,6 @@ impl BriefBuilder<'_> {
             if !line.is_empty() {
                 lines.push(line);
             }
-            let line = deploys_brief_line(self.focus);
-            if !line.is_empty() {
-                lines.push(line);
-            }
             if !card.intent.is_empty() {
                 lines.push(card.intent.clone());
             }
@@ -198,10 +194,6 @@ impl BriefBuilder<'_> {
         };
         lines.push(format!("# {}: {}", node.path, node.title));
         lines.push(node_meta(Some(node), true));
-        let line = deploys_brief_line(Some(node));
-        if !line.is_empty() {
-            lines.push(line);
-        }
         if !node.intent.is_empty() {
             lines.push(node.intent.clone());
         }
@@ -291,6 +283,25 @@ impl BriefBuilder<'_> {
         }
         for rule in &project {
             lines.push(format!("- {} (whole project)", rule.statement));
+        }
+        // A Rule the card cites by `rules:` binds it even outside its chain.
+        if let Some(card) = self.card {
+            let shown: Vec<&str> = own
+                .iter()
+                .flatten()
+                .chain(project.iter())
+                .map(|rule| rule.id.as_str())
+                .collect();
+            for rule in &self.input.snapshot.rules {
+                if !rule.binding() || shown.contains(&rule.id.as_str()) {
+                    continue;
+                }
+                if card.decisions.iter().any(|reference| {
+                    super::lint::cites_decision(reference, &rule.id, &rule.slug, &rule.statement)
+                }) {
+                    lines.push(format!("- {} (cited)", rule.statement));
+                }
+            }
         }
         if lines.is_empty() {
             return Vec::new();
@@ -454,47 +465,6 @@ fn node_meta(node: Option<&structure::Node>, with_level: bool) -> String {
         }
     }
     parts.join(" · ")
-}
-
-/// Where the node runs and how its latest deploy went:
-/// `deploys: production=vercel:web (failed: error · <deploy url>), local=docker:api (ok)`.
-/// A failed deploy carries its page; the dashboard links stay in
-/// `polterware deploys`.
-fn deploys_brief_line(node: Option<&structure::Node>) -> String {
-    let Some(node) = node else {
-        return String::new();
-    };
-    if node.deploys.is_empty() {
-        return String::new();
-    }
-    let mut parts: Vec<String> = Vec::with_capacity(node.deploys.len());
-    for deploy in &node.deploys {
-        let env = if deploy.environment.is_empty() {
-            deploy.environment_id.as_str()
-        } else {
-            deploy.environment.as_str()
-        };
-        let mut part = format!("{env}={}:{}", deploy.provider, deploy.resource);
-        if let Some(check) = &deploy.check {
-            let state = if check.state == "failed" {
-                non_empty(&[format!("failed: {}", check.summary), check.url.clone()]).join(" · ")
-            } else {
-                check.state.clone()
-            };
-            part.push_str(&format!(" ({state})"));
-        }
-        parts.push(part);
-    }
-    format!("deploys: {}", parts.join(", "))
-}
-
-/// The values that are not blank, unchanged.
-fn non_empty(values: &[String]) -> Vec<String> {
-    values
-        .iter()
-        .filter(|value| !value.trim().is_empty())
-        .cloned()
-        .collect()
 }
 
 /// The first open task's claim: `holder`, or `holder (scope)`.
@@ -1026,48 +996,6 @@ Docs:
     }
 
     #[test]
-    fn brief_names_where_a_node_runs_and_how_it_went() {
-        let node = structure::Node {
-            deploys: vec![
-                structure::Deployment {
-                    environment: "production".into(),
-                    provider: "vercel".into(),
-                    resource: "web".into(),
-                    check: Some(structure::DeployCheck {
-                        state: "failed".into(),
-                        summary: "error".into(),
-                        url: "https://web-1.vercel.app".into(),
-                        ..structure::DeployCheck::default()
-                    }),
-                    ..structure::Deployment::default()
-                },
-                structure::Deployment {
-                    environment: "local".into(),
-                    provider: "docker".into(),
-                    resource: "api".into(),
-                    check: Some(structure::DeployCheck {
-                        state: "ok".into(),
-                        ..structure::DeployCheck::default()
-                    }),
-                    ..structure::Deployment::default()
-                },
-                structure::Deployment {
-                    environment: "staging".into(),
-                    provider: "fly".into(),
-                    resource: "api-staging".into(),
-                    ..structure::Deployment::default()
-                },
-            ],
-            ..structure::Node::default()
-        };
-        assert_eq!(
-            deploys_brief_line(Some(&node)),
-            "deploys: production=vercel:web (failed: error · https://web-1.vercel.app), local=docker:api (ok), staging=fly:api-staging"
-        );
-        assert_eq!(deploys_brief_line(None), "", "no node, no line");
-    }
-
-    #[test]
     fn brief_budget_cuts_from_the_end() {
         let system = structure::Node {
             id: "s".into(),
@@ -1147,5 +1075,21 @@ Docs:
                 && tight.contains("lines cut to fit budget:30"),
             "a tight budget keeps the heading and the Rules and cuts the rest: {tight}"
         );
+    }
+
+    #[test]
+    fn brief_card_shows_a_cited_rule_outside_its_chain() {
+        let mut input = brief_fixture();
+        input.snapshot.rules.push(work::Rule {
+            id: "rule-far".into(),
+            slug: "far-away".into(),
+            statement: "Keep the far rule.".into(),
+            scopes: vec!["somewhere/else".into()],
+            ..work::Rule::default()
+        });
+        let slug = input.snapshot.cards[0].slug.clone();
+        input.snapshot.cards[0].decisions.push("far-away".into());
+        let text = brief(&input, &slug, 0).expect("brief");
+        assert!(text.contains("- Keep the far rule. (cited)\n"), "{text}");
     }
 }

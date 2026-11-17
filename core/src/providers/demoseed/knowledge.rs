@@ -1,16 +1,14 @@
 //! The demo project's docs and Rules.
 //!
-//! The demo docs and Rules, and their links to the environment entities the
-//! project model syncs.
+//! The demo docs and Rules.
 
 use serde_json::{Value, json};
 use time::{Duration, Month};
 
-use crate::domains::canon;
 use crate::domains::knowledge;
 use crate::providers::sqlite::{self, Store};
 
-use super::seed::{ENV_PRODUCTION_ID, PROJECT_ID, fixed_utc};
+use super::seed::{PROJECT_ID, fixed_utc};
 
 pub(super) fn seed_knowledge(store: &Store) -> sqlite::Result<()> {
     let docs_updated = fixed_utc(2026, Month::September, 17, 22, 0, 0);
@@ -31,7 +29,6 @@ pub(super) fn seed_knowledge(store: &Store) -> sqlite::Result<()> {
                 "author": "Project maintainer",
                 "componentIds": ["n-gw", "n-pg"],
                 "componentNames": ["API Gateway", "PostgreSQL"],
-                "environment": "All",
             })),
             created_at: docs_updated,
             updated_at: docs_updated,
@@ -52,7 +49,6 @@ pub(super) fn seed_knowledge(store: &Store) -> sqlite::Result<()> {
                 "author": "Project maintainer",
                 "componentIds": ["n-pg"],
                 "componentNames": ["PostgreSQL"],
-                "environment": "All",
             })),
             created_at: docs_updated - Duration::hours(72),
             updated_at: docs_updated - Duration::hours(72),
@@ -64,7 +60,7 @@ pub(super) fn seed_knowledge(store: &Store) -> sqlite::Result<()> {
             title: "Service recovery".to_string(),
             kind: "doc".to_string(),
             doc_type: "doc".to_string(),
-            body: "## Objective\n\nRestore a local service after a failed health check.\n\n## Prerequisites\n\n- Confirm the affected environment\n- Open a visual terminal session\n\n## Steps\n\n1. Inspect the process record\n2. Review the restart command\n3. Record the expected result\n\n## Commands\n\n```bash\nsystemctl status example-api\nsystemctl restart example-api\n```\n\n## Rollback\n\nRestore the previous service version if the health check remains degraded.".to_string(),
+            body: "## Objective\n\nRestore a local service after a failed health check.\n\n## Prerequisites\n\n- Confirm the affected service\n- Open a visual terminal session\n\n## Steps\n\n1. Inspect the process record\n2. Review the restart command\n3. Record the expected result\n\n## Commands\n\n```bash\nsystemctl status example-api\nsystemctl restart example-api\n```\n\n## Rollback\n\nRestore the previous service version if the health check remains degraded.".to_string(),
             tags: vec![
                 "runbook".to_string(),
                 "api".to_string(),
@@ -78,7 +74,7 @@ pub(super) fn seed_knowledge(store: &Store) -> sqlite::Result<()> {
                 "componentId": "n-gw",
                 "componentName": "API Gateway",
                 "lastValidated": "2026-09-14T12:00:00Z",
-                "prerequisites": ["Confirm the affected environment", "Open a visual terminal session"],
+                "prerequisites": ["Confirm the affected service", "Open a visual terminal session"],
                 "rollback": "Restore the previous service version if the health check remains degraded.",
                 "service": "API",
                 "severity": "high",
@@ -195,54 +191,6 @@ fn seed_rules(store: &Store) -> sqlite::Result<()> {
         })
         .collect();
     store.apply_work_ops(PROJECT_ID, "", "seed-rules", &ops)?;
-    Ok(())
-}
-
-pub(super) fn seed_knowledge_links(store: &Store) -> sqlite::Result<()> {
-    struct LinkSpec {
-        knowledge_id: &'static str,
-        ref_kind: &'static str,
-        ref_id: &'static str,
-        predicate: &'static str,
-    }
-    // Links to environment entities (which are synced by SyncProjectModel)
-    let specs = [
-        LinkSpec {
-            knowledge_id: "doc-database",
-            ref_kind: canon::REF_ENVIRONMENT,
-            ref_id: ENV_PRODUCTION_ID,
-            predicate: canon::PRED_DOCUMENTS,
-        },
-        LinkSpec {
-            knowledge_id: "rb-service",
-            ref_kind: canon::REF_ENVIRONMENT,
-            ref_id: ENV_PRODUCTION_ID,
-            predicate: canon::PRED_OPERATES,
-        },
-        LinkSpec {
-            knowledge_id: "rb-database",
-            ref_kind: canon::REF_ENVIRONMENT,
-            ref_id: ENV_PRODUCTION_ID,
-            predicate: canon::PRED_OPERATES,
-        },
-    ];
-    for spec in specs {
-        let Ok(entity) = store.get_canon_entity_by_ref(PROJECT_ID, spec.ref_kind, spec.ref_id)
-        else {
-            continue;
-        };
-        let link = knowledge::new_entity_link(
-            PROJECT_ID,
-            spec.knowledge_id,
-            &entity.id,
-            spec.predicate,
-            canon::TRUTH_DECLARED,
-            "seed",
-            "system",
-        )
-        .map_err(|err| sqlite::Error::message(err.to_string()))?;
-        store.save_knowledge_link(&link)?;
-    }
     Ok(())
 }
 

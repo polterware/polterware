@@ -27,28 +27,30 @@
 //! older answer never replaces local state. Leaving saves first; a refusal stays on the page
 //! with Retry save. An editor closed from outside saves what it holds.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use gpui::{
     AnyElement, App, AppContext as _, Context, Entity, FocusHandle, Focusable, IntoElement,
-    KeyDownEvent, MouseButton, MouseDownEvent, Render, SharedString, Task, Window, div, point,
-    prelude::*, px,
+    KeyDownEvent, MouseButton, MouseDownEvent, Render, SharedString, Task, Window, canvas, div,
+    point, prelude::*, px,
 };
 use polterware_mermaid::scene::{Rect, Scene};
 use polterware_ui::button::{Button, ButtonKind, ButtonSize};
 use polterware_ui::canvas::{
-    Capture, History, arrange_horizontally, canvas_dock, dock_group, dock_separator, zoom_level,
+    Capture, History, Viewport, arrange_horizontally, canvas_dock, dock_group, dock_separator,
+    zoom_level,
 };
 use polterware_ui::card::card;
 use polterware_ui::icons::Icon;
 use polterware_ui::mermaid::{MermaidEvent, MermaidView, SceneMeasure, SceneViewport};
-use polterware_ui::patterns::{AnchorSlot, PanelSide, ResizablePanel};
+use polterware_ui::patterns::{AnchorSlot, PanelSide, ResizablePanel, trailing_toolbar};
 use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::Theme;
 use polterware_ui::window::window_drag::WindowDragRegion;
 
 use super::mermaid as source;
+use super::scene::{NodeDecor, node_view};
 use super::source_edit;
 use crate::app::CloseOverlay;
 use crate::canvas::catalog::{
@@ -165,10 +167,18 @@ pub struct CanvasEditor {
     pub(super) layout: String,
     /// The canvas node each diagram id stands for, read from the source's `@{ }` blocks.
     node_ids: HashMap<String, String>,
+    /// The diagram id each canvas node id stands for when the two differ.
+    canvas_to_mermaid: HashMap<String, String>,
+    /// Mermaid node ids drawn as lit GPUI component cards rather than vector shapes.
+    card_ids: HashSet<String>,
+    /// An in-flight node drag (`canvas_id`, cumulative scene delta).
+    dragging: Option<(String, (f32, f32))>,
     /// The box each diagram node's drawing covered on the last render, by Mermaid id.
     boxes: HashMap<String, (f32, f32, f32, f32)>,
     /// The colors the diagram was last drawn with.
     colors: source::Palette,
+    /// The diagram viewport used to position component cards during the last `well` render.
+    rendered_viewport: Option<SceneViewport>,
     /// The selected node wants to be panned into view.
     reveal: bool,
     /// How many frames the reveal may still run for: the inspector's panel slides over the
@@ -308,25 +318,33 @@ impl CanvasEditor {
             }
         })
         .detach();
-        let view = cx.new(|_| {
+        let view = cx.new(|cx| {
             // Transparent: the main surface under it paints the rounded face, as GPUI clips a
             // child's own fill to a rectangle and a painted backdrop would square the corners.
-            MermaidView::new(Scene::default()).background(gpui::Rgba {
-                r: 0.0,
-                g: 0.0,
-                b: 0.0,
-                a: 0.0,
-            })
+            // The dotted well (`.pw-canvas-surface`) keeps its dots off those corners too.
+            let corner = Theme::global(cx).radius_surface;
+            MermaidView::new(Scene::default())
+                .background(gpui::Rgba {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.0,
+                })
+                .dot_grid(corner)
         });
         cx.subscribe(&view, |this, _, event: &MermaidEvent, cx| match event {
             MermaidEvent::Selected(hit) => this.select(hit.as_ref(), cx),
+            MermaidEvent::NodeDragged { id, delta } => this.drag_node(id, *delta, cx),
             MermaidEvent::NodeDropped { id, position } => this.drop_node(id, *position, cx),
             _ => {}
         })
         .detach();
+        cx.observe(&view, |_, _, cx| cx.notify()).detach();
         let layout = open.canvas.layout_json.clone();
         let opened_viewport = source::viewport(&layout);
         let doc = source_edit::document(&text, &layout, &HashMap::new());
+        let node_ids = source::node_ids(&text);
+        let canvas_to_mermaid = invert_node_ids(&node_ids);
         Self {
             state,
             agent_visible: open.canvas.agent_visible,
@@ -336,9 +354,13 @@ impl CanvasEditor {
             groups,
             doc,
             selection: Selection::default(),
-            node_ids: source::node_ids(&text),
+            node_ids,
+            canvas_to_mermaid,
+            card_ids: HashSet::new(),
+            dragging: None,
             boxes: HashMap::new(),
             colors: source::palette(Theme::global(cx)),
+            rendered_viewport: None,
             reveal: false,
             reveal_waits: 0,
             source: text,
@@ -393,11 +415,15 @@ impl CanvasEditor {
             theme.font_sans,
             theme.font_mono,
         );
-        let drawn = source::render(&self.source, &self.layout, &measure, &palette);
+        let entities = self.entities(cx);
+        let drawn = source::render(&self.source, &self.layout, &entities, &measure, &palette);
         self.node_ids = source::node_ids(&self.source);
+        self.canvas_to_mermaid = invert_node_ids(&self.node_ids);
         match drawn {
-            Ok(scene) => {
+            Ok(source::Rendered { scene, cards }) => {
                 self.boxes = source::node_boxes(&scene);
+                self.card_ids = cards;
+                self.dragging = None;
                 self.doc = source_edit::document(&self.source, &self.layout, &self.boxes);
                 self.colors = palette;
                 let first = self.view.read(cx).viewport().is_none();
@@ -477,11 +503,13 @@ impl CanvasEditor {
         self.opened_viewport = Some(target);
     }
 
+    /// The room the panels, the dock, and the toolbar leave the diagram, from each edge of the
+    /// well: the well runs up under the toolbar, which floats over it on its fade.
     fn free_area_insets(&self, cx: &App) -> (f32, f32, f32, f32) {
         (
             self.open_panel_width(PanelSide::Left, cx),
             self.open_panel_width(PanelSide::Right, cx),
-            PANEL_INSET,
+            Theme::global(cx).page_header_height + PANEL_INSET,
             PANEL_INSET + DOCK_HEIGHT,
         )
     }
@@ -663,6 +691,7 @@ impl CanvasEditor {
             }
             _ => Selection::default(),
         };
+        self.dragging = None;
         if selection == self.selection {
             return;
         }
@@ -697,6 +726,27 @@ impl CanvasEditor {
             .update(cx, |view, cx| view.select_id(id.as_deref(), cx));
     }
 
+    /// Follows an active node drag so overlaid component cards move in step with the scene.
+    fn drag_node(
+        &mut self,
+        id: &str,
+        delta: polterware_mermaid::scene::Point,
+        cx: &mut Context<Self>,
+    ) {
+        let dx = delta.x as f32;
+        let dy = delta.y as f32;
+        if !dx.is_finite() || !dy.is_finite() {
+            return;
+        }
+        let canvas = self
+            .node_ids
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| id.to_string());
+        self.dragging = Some((canvas, (dx, dy)));
+        cx.notify();
+    }
+
     /// Pins the dropped node where the drawing left it, so the next render keeps it there.
     fn drop_node(
         &mut self,
@@ -704,9 +754,11 @@ impl CanvasEditor {
         position: polterware_mermaid::scene::Point,
         cx: &mut Context<Self>,
     ) {
+        self.dragging = None;
         let x = position.x as f32;
         let y = position.y as f32;
         if !x.is_finite() || !y.is_finite() {
+            cx.notify();
             return;
         }
         self.layout = source_edit::with_pin(&self.layout, id, x, y);
@@ -1020,6 +1072,7 @@ impl CanvasEditor {
             }
         });
         self.render_due = true;
+        self.dragging = None;
         self.selection = Selection::default();
         self.show_selection(cx);
         self.schedule(cx);
@@ -1044,6 +1097,7 @@ impl CanvasEditor {
         }
         self.layout = layout;
         self.apply_source(source, Capture::Immediately, cx);
+        self.dragging = None;
         self.selection = Selection::default();
         self.show_selection(cx);
         self.connect_from = None;
@@ -1601,10 +1655,80 @@ impl CanvasEditor {
                         .child("The source stays editable in the pane."),
                 )
                 .into_any_element(),
-            None => div()
-                .size_full()
-                .child(self.view.clone())
-                .into_any_element(),
+            None => {
+                let viewport = self.view.read(cx).viewport();
+                self.rendered_viewport = viewport;
+                let cards: Vec<AnyElement> = viewport.map_or_else(Vec::new, |view| {
+                    let viewport = Viewport {
+                        x: view.x,
+                        y: view.y,
+                        zoom: view.zoom,
+                    };
+                    let entities = self.entities(cx);
+                    self.doc
+                        .nodes
+                        .iter()
+                        .filter(|node| {
+                            let mermaid = self
+                                .canvas_to_mermaid
+                                .get(&node.id)
+                                .unwrap_or(&node.id);
+                            self.card_ids.contains(mermaid)
+                        })
+                        .map(|node| {
+                            let mut card = node.clone();
+                            if let Some((dragging_id, (dx, dy))) = &self.dragging
+                                && *dragging_id == card.id
+                            {
+                                card.x += *dx;
+                                card.y += *dy;
+                            }
+                            node_view(
+                                &card,
+                                &entities,
+                                viewport,
+                                NodeDecor {
+                                    selected: false,
+                                    decorations: false,
+                                    editing: None,
+                                },
+                                &theme,
+                            )
+                        })
+                        .collect()
+                });
+                let editor = cx.entity().downgrade();
+                let view_handle = self.view.clone();
+                let rendered_viewport = self.rendered_viewport;
+                let probe = canvas(
+                    |_, _, _| (),
+                    move |_, (), window, cx| {
+                        let actual = view_handle.read(cx).viewport();
+                        if actual != rendered_viewport {
+                            let editor = editor.clone();
+                            window.on_next_frame(move |window, cx| {
+                                let _ = editor.update(cx, |_, cx| cx.notify());
+                                window.refresh();
+                            });
+                        }
+                    },
+                )
+                .absolute()
+                .size_0();
+                div()
+                    .relative()
+                    .size_full()
+                    .child(self.view.clone())
+                    .child(
+                        div()
+                            .absolute()
+                            .inset_0()
+                            .overflow_hidden()
+                            .children(cards),
+                    )
+                    .child(probe)
+                    .into_any_element()
+            }
         };
         div()
             .id("canvas-well")
@@ -1793,11 +1917,14 @@ impl Render for CanvasEditor {
                 cx,
             )
         });
+        // The panels, the dock, and the hints sit under the toolbar, where they always have;
+        // only the drawing runs up beneath it.
         let mut layer = div()
-            .relative()
-            .flex_1()
-            .min_h_0()
-            .child(well)
+            .absolute()
+            .top(px(theme.page_header_height))
+            .left_0()
+            .right_0()
+            .bottom_0()
             .child(self.tools_dock(cx))
             .children(hint)
             .child(overlays)
@@ -1850,10 +1977,21 @@ impl Render for CanvasEditor {
         div()
             .relative()
             .size_full()
-            .flex()
-            .flex_col()
-            .child(self.toolbar(cx))
+            .child(div().absolute().inset_0().child(well))
             .child(layer)
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .right_0()
+                    .child(trailing_toolbar(
+                        self.toolbar(cx),
+                        theme.color_surface,
+                        theme.page_header_height,
+                        theme.radius_surface,
+                    )),
+            )
             .children(alert.map(|alert| div().absolute().top(px(48.0)).left(px(12.0)).child(alert)))
             .children(self.inspector.layers(cx))
     }
@@ -1878,6 +2016,13 @@ fn panel_frame(id: &'static str, content: AnyElement, _side: PanelSide, cx: &App
         .p(px(PANEL_INSET))
         .child(frame)
         .into_any_element()
+}
+
+fn invert_node_ids(node_ids: &HashMap<String, String>) -> HashMap<String, String> {
+    node_ids
+        .iter()
+        .map(|(mermaid, canvas)| (canvas.clone(), mermaid.clone()))
+        .collect()
 }
 
 #[cfg(test)]

@@ -8,7 +8,6 @@ use std::collections::HashSet;
 
 use rusqlite::types::{ToSql, Value};
 use rusqlite::{Row, params, params_from_iter};
-use time::OffsetDateTime;
 
 use crate::domains::canon;
 use crate::domains::knowledge;
@@ -243,33 +242,6 @@ impl super::Store {
         }
         self.db.execute(&query, params_from_iter(args))?;
         Ok(())
-    }
-
-    /// Projects environments into Canon.
-    pub fn sync_project_model(&self, project_id: &str) -> Result<usize> {
-        let now = OffsetDateTime::now_utc();
-        let mut count = 0;
-        let envs = self.list_environments(project_id)?;
-        let mut keep_envs = Vec::with_capacity(envs.len());
-        for env in &envs {
-            let mut entity = canon::new_entity(
-                project_id,
-                canon::KIND_ENVIRONMENT,
-                canon::REF_ENVIRONMENT,
-                &env.id,
-                &env.name,
-                canon::TRUTH_DECLARED,
-                "environments",
-                "system",
-            )?;
-            entity.observed_at = now;
-            entity.updated_at = now;
-            self.upsert_canon_entity(&entity)?;
-            keep_envs.push(env.id.clone());
-            count += 1;
-        }
-        self.delete_canon_entities_missing_refs(project_id, canon::REF_ENVIRONMENT, &keep_envs)?;
-        Ok(count)
     }
 
     pub fn save_knowledge_link(&self, link: &knowledge::EntityLink) -> Result<()> {
@@ -526,7 +498,6 @@ fn sanitize_fts_query(query: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use rusqlite::params;
     use time::OffsetDateTime;
 
     use crate::domains::canon;
@@ -555,14 +526,6 @@ mod tests {
             observed_at: at,
             created_at: at,
             updated_at: at,
-        }
-    }
-
-    fn environment_entity(id: &str, project_id: &str, at: OffsetDateTime) -> canon::Entity {
-        canon::Entity {
-            kind: canon::KIND_ENVIRONMENT.to_string(),
-            ref_kind: canon::REF_ENVIRONMENT.to_string(),
-            ..entity(id, project_id, id, at)
         }
     }
 
@@ -603,27 +566,12 @@ mod tests {
         let listed = store.list_canon_entities("p", "").expect("entities");
         let titles: Vec<&str> = listed.iter().map(|item| item.title.as_str()).collect();
         assert_eq!(titles, vec!["Alpha", "Zeta"], "entities are in title order");
-        assert!(
-            store
-                .list_canon_entities("p", canon::KIND_ENVIRONMENT)
-                .expect("environments")
-                .is_empty(),
-            "a kind filter must drop the components"
-        );
-
         let got = store.get_canon_entity("e1").expect("by id");
         assert_eq!(got.title, "Zeta");
         let got = store
             .get_canon_entity_by_ref("p", canon::REF_ARCHITECTURE_NODE, "ref-e1")
             .expect("by ref");
         assert_eq!(got.id, "e1");
-        assert!(
-            store
-                .get_canon_entity_by_ref("p", canon::REF_ENVIRONMENT, "ref-e1")
-                .expect_err("no environment ref")
-                .is_no_rows()
-        );
-
         // The same ref upserts: the title changes, the row count stays.
         let mut changed = entity("e1", "p", "Omega", at);
         changed.updated_at = at + time::Duration::seconds(1);
@@ -900,7 +848,7 @@ mod tests {
         let store = &holder.store;
         let at = now();
         save_project(store, "p", at);
-        let item = doc("doc-1", "p", "Deploys", "The deploy target", at);
+        let item = doc("doc-1", "p", "Service", "The service target", at);
         let title = item.title.clone();
         store.save_knowledge(item).expect("doc");
         assert_eq!(
@@ -922,70 +870,9 @@ mod tests {
     }
 
     #[test]
-    fn sync_project_model_projects_environments() {
-        let holder = TempStore::new();
-        let store = &holder.store;
-        let at = now();
-        save_project(store, "p", at);
-        for (id, name) in [("local", "Local"), ("staging", "Staging")] {
-            store
-                .save_environment(crate::domains::projects::Environment {
-                    id: id.to_string(),
-                    project_id: "p".to_string(),
-                    name: name.to_string(),
-                    kind: "local".to_string(),
-                    ..crate::domains::projects::Environment::default()
-                })
-                .expect("environment");
-        }
-        let count = store.sync_project_model("p").expect("sync");
-        assert_eq!(count, 2);
-        let envs = store
-            .list_canon_entities("p", canon::KIND_ENVIRONMENT)
-            .expect("entities");
-        let titles: Vec<&str> = envs.iter().map(|entity| entity.title.as_str()).collect();
-        assert_eq!(titles, vec!["Local", "Staging"]);
-
-        store.delete_environment("local", "p").expect("delete");
-        let envs = store
-            .list_canon_entities("p", canon::KIND_ENVIRONMENT)
-            .expect("entities");
-        assert_eq!(envs.len(), 1, "the deleted environment left Canon");
-        assert_eq!(envs[0].ref_id, "staging");
-        assert_eq!(
-            store
-                .db
-                .query_row(
-                    "SELECT COUNT(*) FROM canon_entities WHERE project_id=?",
-                    params!["p"],
-                    |row| row.get::<_, i64>(0)
-                )
-                .expect("count"),
-            1,
-            "a project with no environment keeps no environment entity"
-        );
-    }
-
-    #[test]
     fn sanitize_fts_query_keeps_words_and_wildcards() {
         assert_eq!(sanitize_fts_query("Go modules"), "Go* modules*");
         assert_eq!(sanitize_fts_query("  a-b_c.d  "), "a-b_cd*");
         assert_eq!(sanitize_fts_query("!!!"), "");
-    }
-
-    #[test]
-    fn an_environment_entity_lists_by_its_kind() {
-        let holder = TempStore::new();
-        let store = &holder.store;
-        let at = now();
-        save_project(store, "p", at);
-        store
-            .upsert_canon_entity(&environment_entity("e1", "p", at))
-            .expect("environment entity");
-        let listed = store
-            .list_canon_entities("p", canon::KIND_ENVIRONMENT)
-            .expect("entities");
-        assert_eq!(listed.len(), 1);
-        assert_eq!(listed[0].ref_kind, canon::REF_ENVIRONMENT);
     }
 }

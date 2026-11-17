@@ -2,12 +2,10 @@
 
 The active Protobuf contracts describe the reduced local core:
 
-- Project and Environment
+- Project
 - Architecture
 - Knowledge
 - Project Model (Canon), Context, and AgentRun
-- Integrations
-- Terminal (Connect auth PTY only)
 - Health and Maintenance
 
 Generation targets Rust messages and clients under `app/src/contracts`, shared by the Desktop and core (`tooling/gen-contracts`, from `buf build`); `bash tooling/generate.sh` generates them.

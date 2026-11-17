@@ -1,28 +1,17 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n## plan diagnostics\n## plan\n+ node app \"App\" [domain]\n+ node app/web \"Web\" [component]\n+ rule app/web \"Never call the network.\"\n+ rule app/web \"Log every write\"\n## summary\n4 ops (2 nodes)\n## brief\n# core/api: API\nlevel: component · kind: api · tech: Go · repo: api · path: cmd/api\n",
+  "expected": "## decode\n## plan diagnostics\n## plan\n+ node app \"App\" [domain]\n+ node app/web \"Web\" [component]\n+ rule app/web \"Never call the network.\"\n+ rule app/web \"Log every write\"\n## summary\n4 ops (2 nodes, 2 rules)\n## brief\n# core/api: API\nlevel: component \u00b7 kind: api \u00b7 tech: Go \u00b7 repo: api \u00b7 path: cmd/api\n",
   "name": "structure-create",
   "snapshot": {
     "Cards": null,
     "Conflicts": null,
     "Decisions": null,
-    "Environments": [
-      {
-        "ID": "env-local",
-        "Name": "local"
-      },
-      {
-        "ID": "env-prod",
-        "Name": "production"
-      }
-    ],
     "Facts": null,
     "Milestones": null,
     "Nodes": [
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-core",
         "Intent": "",
@@ -42,7 +31,6 @@
       },
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "cmd/api",
         "ID": "n-api",
         "Intent": "",
@@ -68,5 +56,5 @@
     "Rules": null
   },
   "target": "core/api",
-  "text": "---\npolter: 1\n---\n\n# app: App\nlevel: domain\n\n# app/web: Web\nlevel: component\nunder: app\nkind: frontend, cli\ntech: Rust, WASM\nrepo: api\npath: web\ndeploys: production=vercel:web@prj_1, local=docker:web\n\n! Never call the network.\n! Log every write\n"
+  "text": "---\npolter: 1\n---\n\n# app: App\nlevel: domain\n\n# app/web: Web\nlevel: component\nunder: app\nkind: frontend, cli\ntech: Rust, WASM\nrepo: api\npath: web\n\n! Never call the network.\n! Log every write\n"
 }

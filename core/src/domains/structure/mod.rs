@@ -4,13 +4,11 @@
 //! under it and components under a domain or loose. Features stay cards. Status
 //! is derived when the graph is read.
 
-mod deploy;
 mod history;
 mod kinds;
 mod node;
 mod scope;
 
-pub use deploy::*;
 pub use history::*;
 pub use kinds::*;
 pub use node::*;

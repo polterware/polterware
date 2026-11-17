@@ -45,6 +45,7 @@ use polterware_ui::skeleton::{SkeletonLayout, page_skeleton};
 use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::Theme;
 use polterware_ui::window::window_drag::WindowDragRegion;
+use polterware_ui::{page_under, page_under_inset};
 
 use crate::contracts::Canvas;
 use crate::format::archive_date;
@@ -70,6 +71,8 @@ enum Dialog {
 
 pub struct CanvasView {
     state: Entity<AppState>,
+    /// How far the page's content keeps clear of the toolbar it runs under, this frame.
+    inset: f32,
     search: Entity<TextInput>,
     query: String,
     show_archived: bool,
@@ -88,6 +91,9 @@ pub struct CanvasView {
     editor: Option<(u64, Entity<CanvasEditor>)>,
 }
 
+/// The Canvas page, whose toolbar the cards run under.
+const PAGE_ID: &str = "canvas-page";
+
 impl CanvasView {
     pub fn new(state: Entity<AppState>, cx: &mut Context<Self>) -> Self {
         let search = cx.new(|cx| TextInput::new(cx).placeholder("Search canvases").pill());
@@ -104,6 +110,7 @@ impl CanvasView {
         cx.observe(&menu, |_, _, cx| cx.notify()).detach();
         cx.observe(&state, |_, _, cx| cx.notify()).detach();
         Self {
+            inset: 0.0,
             state,
             search,
             query: String::new(),
@@ -349,6 +356,15 @@ impl CanvasView {
             .into_any_element()
     }
 
+    /// `element` kept clear of the toolbar the page runs under, as an empty page or a skeleton.
+    fn clear(&self, element: impl IntoElement) -> AnyElement {
+        div()
+            .size_full()
+            .pt(px(self.inset))
+            .child(element)
+            .into_any_element()
+    }
+
     fn archived_page(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         match self.state.read(cx).archived_canvases().clone() {
             Load::Ready(canvases) => {
@@ -362,7 +378,9 @@ impl CanvasView {
                     })
                     .collect();
                 let busy = self.state.read(cx).canvas_busy();
+                let inset = self.inset;
                 self.archived.update(cx, |list, cx| {
+                    list.set_inset_top(inset, cx);
                     list.set_items(items, cx);
                     list.set_busy(busy, cx);
                 });
@@ -372,12 +390,10 @@ impl CanvasView {
                     .child(self.archived.clone())
                     .into_any_element()
             }
-            Load::Failed(error) => page_empty(&error, MascotMood::Sad, cx).into_any_element(),
+            Load::Failed(error) => self.clear(page_empty(&error, MascotMood::Sad, cx)),
             _ => {
                 let _ = window;
-                page_skeleton(SkeletonLayout::Table)
-                    .without_toolbar()
-                    .into_any_element()
+                self.clear(page_skeleton(SkeletonLayout::Table).without_toolbar())
             }
         }
     }
@@ -427,6 +443,7 @@ impl CanvasView {
                     .w_full()
                     .max_w(px(GRID_MAX))
                     .p(px(GRID_PAD))
+                    .pt(px(GRID_PAD + self.inset))
                     .flex()
                     .flex_col()
                     .gap(px(GRID_GAP))
@@ -738,12 +755,15 @@ impl Render for CanvasView {
             return div().size_full().child(editor.clone()).into_any_element();
         }
         let toolbar = self.toolbar(cx);
+        // The cards run up under the toolbar, which floats on its fade: at rest they keep
+        // clear of it, and what scrolls up goes soft beneath it.
+        self.inset = page_under_inset(PAGE_ID, false, 0.0, window, cx);
         let body = if self.show_archived {
             self.archived_page(window, cx)
         } else {
             match self.state.read(cx).canvas_list().clone() {
                 Load::Ready(list) if list.types.is_empty() => {
-                    page_empty("Canvas is unavailable", MascotMood::Sad, cx).into_any_element()
+                    self.clear(page_empty("Canvas is unavailable", MascotMood::Sad, cx))
                 }
                 Load::Ready(list) => {
                     let needle = self.query.trim().to_lowercase();
@@ -757,7 +777,7 @@ impl Render for CanvasView {
                     if visible.is_empty() {
                         if needle.is_empty() {
                             let view = cx.entity().downgrade();
-                            page_empty_action(
+                            self.clear(page_empty_action(
                                 Some("No canvases yet"),
                                 MascotMood::Sleeping,
                                 Button::new("canvas-empty-new", ButtonKind::Secondary)
@@ -770,19 +790,16 @@ impl Render for CanvasView {
                                     })
                                     .into_any_element(),
                                 cx,
-                            )
-                            .into_any_element()
+                            ))
                         } else {
-                            page_empty("No matches", MascotMood::Lost, cx).into_any_element()
+                            self.clear(page_empty("No matches", MascotMood::Lost, cx))
                         }
                     } else {
                         self.grid(visible, cx)
                     }
                 }
-                Load::Failed(error) => page_empty(&error, MascotMood::Sad, cx).into_any_element(),
-                _ => page_skeleton(SkeletonLayout::Table)
-                    .without_toolbar()
-                    .into_any_element(),
+                Load::Failed(error) => self.clear(page_empty(&error, MascotMood::Sad, cx)),
+                _ => self.clear(page_skeleton(SkeletonLayout::Table).without_toolbar()),
             }
         };
         let confirm = self.delete_confirm(window, cx);
@@ -791,8 +808,7 @@ impl Render for CanvasView {
             .size_full()
             .flex()
             .flex_col()
-            .child(toolbar)
-            .child(body)
+            .child(page_under(PAGE_ID, toolbar, None, 0.0, body, window, cx))
             .child(self.composer.clone())
             .child(self.menu.clone())
             .children(confirm)

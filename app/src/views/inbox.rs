@@ -1,11 +1,12 @@
 //! Inbox (`inbox-page.tsx`, `inbox-item-detail.tsx`): items that need a person, from
 //! `WorkService.ListInbox`. The toolbar holds Search inbox and the Type and Status filters;
-//! the table groups the items by kind in triage order (Conflicts, Deploys, Questions,
-//! Confirmations, Setup),
+//! the table groups the items by kind in triage order (Conflicts, Questions, Confirmations),
 //! open before Later within each, with the selection column and the active item, whose
 //! detail floats on the right. The first item starts active; a click, Enter, or J and K open
 //! another. H moves the selection, or the active item, to Later and D dismisses it; the
-//! detail's footer runs each of the item's actions through its confirm.
+//! detail's footer runs each of the item's actions through its confirm. The detail slides
+//! 16px in from the right and fades on the slow spring, and leaves on that tier's exit
+//! tween, still showing the item until it is gone.
 
 use std::rc::Rc;
 
@@ -22,17 +23,18 @@ use polterware_ui::data_table::{
 use polterware_ui::filter::{FilterOption, FilterSpec};
 use polterware_ui::filter_popover::{FilterField, FilterPopover, FiltersChanged};
 use polterware_ui::icon_tile::{IconTile, TileTone};
-use polterware_ui::icons::{Icon, icon_colored};
+use polterware_ui::icons::Icon;
 use polterware_ui::menu::MenuItem;
 use polterware_ui::patterns::{
-    ContextMenu, DETAIL_PANEL_INSET, DetailPanel, DetailPanelWidth, MascotMood, Morph, MorphAlign,
-    detail_numbered_list, detail_properties, detail_property, detail_section, detail_text,
-    page_empty, page_empty_with, selection_toolbar,
+    ContextMenu, DETAIL_PANEL_INSET, DetailPanel, DetailPanelBody, DetailPanelPresence,
+    DetailPanelWidth, MascotMood, Morph, MorphAlign, detail_numbered_list, detail_properties,
+    detail_property, detail_section, detail_text, page_empty, page_empty_with, selection_toolbar,
 };
 use polterware_ui::radio_group::{RadioOption, radio_group};
 use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::{StatusTone, Theme, tw};
 use polterware_ui::window::window_drag::WindowDragRegion;
+use polterware_ui::{page_under, page_under_inset};
 
 use crate::contracts::InboxItem;
 use crate::format::{ago, now_seconds};
@@ -57,7 +59,7 @@ fn kind_entry(kind: &str) -> (&'static str, &'static str, &'static str, Icon) {
         .iter()
         .copied()
         .find(|(id, ..)| *id == kind)
-        .unwrap_or(("setup", "Setup", "Setup", Icon::ShieldCheck))
+        .unwrap_or(("unknown", "Other", "Item", Icon::Inbox))
 }
 
 pub fn kind_label(kind: &str) -> &'static str {
@@ -172,7 +174,7 @@ fn item_actor(item: &InboxItem) -> Option<&str> {
             return Some(val.as_str());
         }
     }
-    if item.kind != "deploy" && item.kind != "setup" && !item.source.is_empty() {
+    if !item.source.is_empty() {
         return Some(item.source.as_str());
     }
     None
@@ -231,7 +233,11 @@ pub struct InboxView {
     fields_key: String,
     scope: ScopeFilter,
     detail_width: DetailPanelWidth,
+    detail: Entity<DetailPanelPresence>,
 }
+
+/// The Inbox page, whose chrome the list runs under.
+const PAGE_ID: &str = "inbox-page";
 
 impl InboxView {
     pub fn new(state: Entity<AppState>, cx: &mut Context<Self>) -> Self {
@@ -260,6 +266,8 @@ impl InboxView {
                 .radius(FIELD_RADIUS)
         });
         cx.observe(&answer, |_, _, cx| cx.notify()).detach();
+        let open = state.read(cx).inbox_detail_open();
+        let detail = cx.new(|_| DetailPanelPresence::new(open));
         Self {
             state,
             search,
@@ -270,8 +278,9 @@ impl InboxView {
             query: String::new(),
             sort: None,
             fields_key: String::new(),
-            scope: ScopeFilter::new(false),
+            scope: ScopeFilter::new(),
             detail_width: DetailPanelWidth::new(),
+            detail,
         }
     }
 
@@ -603,16 +612,28 @@ impl Render for InboxView {
         let confirm = state.inbox_confirm().map(str::to_string);
         let shows_detail = state.inbox_detail_open();
 
+        // The list runs up under the toolbar, which floats on its fade: at rest it keeps clear
+        // of the toolbar and the filter bar, and what scrolls up goes soft beneath them.
+        let inset = page_under_inset(PAGE_ID, filter_bar.is_some(), 0.0, window, cx);
+        let clear = |element: AnyElement| {
+            div()
+                .size_full()
+                .pt(px(inset))
+                .child(element)
+                .into_any_element()
+        };
         let list: AnyElement = match &inbox {
             None => div().into_any_element(),
             Some(inbox) if inbox.items.is_empty() => {
-                page_empty("All quiet", MascotMood::Sleeping, cx).into_any_element()
+                clear(page_empty("All quiet", MascotMood::Sleeping, cx).into_any_element())
             }
             Some(_) if visible.is_empty() => {
-                page_empty("No matches", MascotMood::Lost, cx).into_any_element()
+                clear(page_empty("No matches", MascotMood::Lost, cx).into_any_element())
             }
             Some(_) => {
-                let table = inbox_table(visible.clone(), &active, &selected, self, cx);
+                let table = inbox_table(visible.clone(), &active, &selected, self, cx)
+                    .inset_top(inset)
+                    .fades(theme.color_surface);
                 // The gutters sit inside the scroll, whose whole width the columns share out, and the
                 // Widths measure every row, as the web table renders them all, and reflow when
                 // the panel changes the scroll width.
@@ -627,11 +648,34 @@ impl Render for InboxView {
             }
         };
 
-        let detail = active.as_ref().filter(|_| shows_detail).map(|item| {
-            self.detail(item, confirm.as_deref(), pending, window, cx)
+        let detail_body = active.filter(|_| shows_detail).map(|item| {
+            let view = cx.entity();
+            let state = self.state.clone();
+            let width = self.detail_width.clone();
+            let answer = self.answer.clone();
+            let picked = self.picked.clone();
+            let confirm = confirm.clone();
+            Rc::new(move |_: &mut Window, cx: &mut App| {
+                InboxView::detail(
+                    &view,
+                    &state,
+                    &width,
+                    &answer,
+                    &picked,
+                    &item,
+                    confirm.as_deref(),
+                    pending,
+                    cx,
+                )
                 .into_any_element()
+            }) as DetailPanelBody
         });
-        let has_detail = detail.is_some();
+        self.detail
+            .update(cx, |presence, _| presence.set(detail_body));
+        let reserves = self.detail.read(cx).is_present();
+        let detail = self
+            .detail
+            .update(cx, |presence, cx| presence.element(window, cx));
 
         let keys_visible = visible.clone();
         div()
@@ -657,22 +701,25 @@ impl Render for InboxView {
                     cx.stop_propagation();
                 }
             }))
-            .child(bar)
-            .children(filter_bar)
-            .child(
+            .child(page_under(
+                PAGE_ID,
+                bar,
+                filter_bar.map(IntoElement::into_any_element),
+                0.0,
                 div()
-                    .flex_1()
-                    .min_h(px(0.0))
+                    .size_full()
                     .flex()
                     .child(div().flex_1().min_w(px(0.0)).h_full().child(list))
-                    .when(has_detail, |body| {
+                    .when(reserves, |body| {
                         body.child(
                             div()
                                 .flex_none()
                                 .w(px(self.detail_width.get() + DETAIL_PANEL_INSET)),
                         )
                     }),
-            )
+                window,
+                cx,
+            ))
             .children(detail.map(|detail| {
                 div()
                     .absolute()
@@ -746,21 +793,25 @@ impl InboxView {
     }
 
     /// `InboxItemDetail`: what the item is, where it came from, and its actions.
+    #[allow(clippy::too_many_arguments)]
     fn detail(
-        &self,
+        view: &Entity<InboxView>,
+        state: &Entity<AppState>,
+        width: &DetailPanelWidth,
+        answer: &Entity<TextInput>,
+        picked: &Option<String>,
         item: &InboxItem,
         confirm: Option<&str>,
         pending: bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) -> DetailPanel {
         let theme = *Theme::global(cx);
         let (status, tone) = status_of(item);
-        let close_state = self.state.clone();
-        let (_, _, _, item_icon) = kind_entry(&item.kind);
+        let close_state = state.clone();
+        let (_, _, item_label, item_icon) = kind_entry(&item.kind);
         let mut panel = DetailPanel::new("inbox-detail", item.title.clone())
-            .leading(icon_colored(item_icon, 16.0, theme.color_text_secondary))
-            .width(self.detail_width.clone())
+            .title_section(item_label, item_icon)
+            .width(width.clone())
             .on_close(Rc::new(move |_, cx: &mut App| {
                 close_state.update(cx, |state, cx| {
                     state.close_inbox_detail();
@@ -768,7 +819,7 @@ impl InboxView {
                 });
             }))
             .on_outside_click({
-                let state = self.state.clone();
+                let state = state.clone();
                 let presses = state.read(cx).inbox_row_presses();
                 Rc::new(move |_, cx: &mut App| {
                     state.update(cx, |state, cx| {
@@ -821,43 +872,16 @@ impl InboxView {
             ));
         }
 
-        if item.kind == "deploy" && (detail("url").is_some() || detail("dashboard").is_some()) {
-            let mut links = div().flex().flex_wrap().gap(px(8.0));
-            if let Some(url) = detail("url") {
-                links = links.child(
-                    Button::new("inbox-deploy-open", ButtonKind::Secondary)
-                        .size(ButtonSize::Sm)
-                        .icon(Icon::ArrowUpRight01Icon)
-                        .label("Open the failed deploy")
-                        .on_click(move |_, cx| cx.open_url(&url)),
-                );
-            }
-            if let Some(url) = detail("dashboard") {
-                let platform = detail("platform")
-                    .or_else(|| detail("provider"))
-                    .unwrap_or_else(|| "the platform".into());
-                links = links.child(
-                    Button::new("inbox-deploy-dashboard", ButtonKind::Ghost)
-                        .size(ButtonSize::Sm)
-                        .icon(Icon::ArrowUpRight01Icon)
-                        .label(format!("Open in {platform}"))
-                        .on_click(move |_, cx| cx.open_url(&url)),
-                );
-            }
-            panel = panel.section(detail_section("Deploy", Icon::Cloud, links, cx));
-        }
-
         let mut confirmed_list = false;
         if item.kind == "confirm" {
-            let checks = self
-                .state
+            let checks = state
                 .read(cx)
                 .confirm_state(&item.r#where)
                 .filter(|checks| checks.is_open())
                 .cloned();
             if let Some(checks) = checks {
                 confirmed_list = true;
-                let state = self.state.clone();
+                let state = state.clone();
                 let slug = item.r#where.clone();
                 let rows: Vec<AnyElement> = checks
                     .open
@@ -965,9 +989,18 @@ impl InboxView {
                 .justify_end()
                 .gap(px(6.0));
             for (index, action) in item.actions.iter().enumerate() {
-                footer = footer.child(
-                    self.action_morph(item, action, index, count, confirm, pending, window, cx),
-                );
+                footer = footer.child(Self::action_morph(
+                    view,
+                    answer,
+                    picked,
+                    item,
+                    action,
+                    index,
+                    count,
+                    confirm,
+                    pending,
+                    cx,
+                ));
             }
             panel = panel.footer(footer);
         }
@@ -976,15 +1009,16 @@ impl InboxView {
 
     #[allow(clippy::too_many_arguments)]
     fn action_morph(
-        &self,
+        view: &Entity<InboxView>,
+        answer: &Entity<TextInput>,
+        picked: &Option<String>,
         item: &InboxItem,
         action: &str,
         index: usize,
         count: usize,
         confirm: Option<&str>,
         pending: bool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) -> Morph {
         let theme = *Theme::global(cx);
         let trigger = Button::new(
@@ -1000,7 +1034,7 @@ impl InboxView {
         .label(action_label(action))
         .tooltip(action_hint(action, &item.kind))
         .disabled(pending);
-        let entity = cx.entity();
+        let entity = view.clone();
         let open_action = action.to_string();
         let align = if count < 2 || index == 0 {
             MorphAlign::Start
@@ -1027,19 +1061,19 @@ impl InboxView {
             entity.update(cx, |view, cx| view.open_confirm(action, cx));
         });
         let id = item.id.clone();
-        let run_entity = cx.entity();
+        let run_entity = view.clone();
         let run_action = action.to_string();
         let run = Rc::new(move |_: &mut Window, cx: &mut App| {
             let (id, action) = (id.clone(), run_action.clone());
             run_entity.update(cx, |view, cx| view.run(vec![id], &action, cx));
         });
         if action == ACTION_DECIDE {
-            let picked = self.picked.clone();
-            let typed = self.answer.read(cx).text().trim().to_string();
+            let picked = picked.clone();
+            let typed = answer.read(cx).text().trim().to_string();
             let answer_ready = !typed.is_empty() || picked.is_some();
             let mut body = div().flex().flex_col();
             if item.options.is_empty() {
-                body = body.child(self.answer.clone());
+                body = body.child(answer.clone());
             } else {
                 let options: Vec<RadioOption> = item
                     .options
@@ -1053,16 +1087,16 @@ impl InboxView {
                     .filter(|_| typed.is_empty())
                     .and_then(|picked| item.options.iter().position(|option| option == picked))
                     .unwrap_or(usize::MAX);
-                let pick_entity = cx.entity();
+                let pick_entity = view.clone();
                 let choices = item.options.clone();
-                let answer = self.answer.clone();
+                let clear_answer = answer.clone();
                 body = body.child(radio_group(
                     "inbox-decide",
                     &options,
                     selected,
                     Rc::new(move |index, _, cx: &mut App| {
                         let choice = choices.get(index).cloned();
-                        answer.update(cx, |input, cx| input.set_text("", cx));
+                        clear_answer.update(cx, |input, cx| input.set_text("", cx));
                         pick_entity.update(cx, |view, cx| {
                             view.picked = choice;
                             cx.notify();
@@ -1071,15 +1105,14 @@ impl InboxView {
                     cx,
                 ));
                 if item.kind == "conflict" {
-                    self.answer
+                    answer
                         .update(cx, |input, _| input.set_placeholder("Another answer"));
                     // `mt-2` on the 13px root.
-                    body = body.child(div().mt(px(tw(2.0))).child(self.answer.clone()));
+                    body = body.child(div().mt(px(tw(2.0))).child(answer.clone()));
                 }
             }
             if item.options.is_empty() {
-                self.answer
-                    .update(cx, |input, _| input.set_placeholder("Your answer"));
+                answer.update(cx, |input, _| input.set_placeholder("Your answer"));
             }
             let record = run.clone();
             morph = morph
@@ -1423,10 +1456,6 @@ mod tests {
         let mut item_with_source = sample_item("conflict", "");
         item_with_source.source = "agent-codex".to_string();
         assert_eq!(item_actor(&item_with_source), Some("agent-codex"));
-
-        let mut deploy_item = sample_item("deploy", "");
-        deploy_item.source = "production".to_string();
-        assert_eq!(item_actor(&deploy_item), None);
     }
 
     #[test]

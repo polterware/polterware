@@ -161,29 +161,6 @@ fn parse_card(value: &Value) -> work::Card {
     }
 }
 
-fn parse_deploy_check(value: &Value) -> Option<structure::DeployCheck> {
-    let check = value.get("check").filter(|check| !check.is_null())?;
-    Some(structure::DeployCheck {
-        state: text(check, "state"),
-        summary: text(check, "summary"),
-        url: text(check, "url"),
-        checked_at: text(check, "checked_at"),
-    })
-}
-
-fn parse_deployment(value: &Value) -> structure::Deployment {
-    structure::Deployment {
-        id: text(value, "id"),
-        environment_id: text(value, "environment_id"),
-        environment: text(value, "environment"),
-        provider: text(value, "provider"),
-        resource: text(value, "resource"),
-        target_id: text(value, "target_id"),
-        url: text(value, "url"),
-        check: parse_deploy_check(value),
-    }
-}
-
 fn parse_node(value: &Value) -> structure::Node {
     structure::Node {
         id: text(value, "ID"),
@@ -196,10 +173,6 @@ fn parse_node(value: &Value) -> structure::Node {
         intent: text(value, "Intent"),
         status: text(value, "Status"),
         decisions: strings(value, "Decisions"),
-        deploys: objects(value, "Deploys")
-            .iter()
-            .map(parse_deployment)
-            .collect(),
         position: number(value, "Position"),
         repo: text(value, "Repo"),
         folder: text(value, "Folder"),
@@ -255,23 +228,12 @@ fn parse_milestone(value: &Value) -> work::Milestone {
     }
 }
 
-fn parse_environment(value: &Value) -> work::NamedEnvironment {
-    work::NamedEnvironment {
-        id: text(value, "ID"),
-        name: text(value, "Name"),
-    }
-}
-
 fn parse_snapshot(value: &Value) -> work::Snapshot {
     work::Snapshot {
         project_id: text(value, "ProjectID"),
         cards: objects(value, "Cards").iter().map(parse_card).collect(),
         nodes: objects(value, "Nodes").iter().map(parse_node).collect(),
         repos: strings(value, "Repos"),
-        environments: objects(value, "Environments")
-            .iter()
-            .map(parse_environment)
-            .collect(),
         rules: objects(value, "Rules").iter().map(parse_rule).collect(),
         conflicts: objects(value, "Conflicts")
             .iter()

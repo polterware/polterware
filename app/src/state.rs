@@ -12,12 +12,11 @@ use polterware_ui::toast::{Toast, ToastTone};
 
 use crate::client::{self, Core, CoreError};
 use crate::contracts::{
-    ApplyPolterRequest, ChangeEnvelope, DeleteKnowledgeRequest, Environment, GetAgentRunRequest,
+    ApplyPolterRequest, ChangeEnvelope, DeleteKnowledgeRequest, GetAgentRunRequest,
     GetAgentRunResponse, GetProjectSettingsRequest, InboxItem, KnowledgeItem, ListChangesRequest,
-    ListEnvironmentsRequest, ListInboxRequest, ListInboxResponse, ListKnowledgeRequest,
-    ListProjectsRequest, ListRulesRequest, ListStructureRequest, Project, ProjectChange,
-    ProjectSettings, ResolveInboxItemRequest, Rule, SaveEnvironmentRequest, SaveKnowledgeRequest,
-    SaveProjectRequest, SaveProjectSettingsRequest, SetKnowledgeArchivedRequest, SetScopeRequest,
+    ListInboxRequest, ListInboxResponse, ListKnowledgeRequest, ListProjectsRequest,
+    ListRulesRequest, ListStructureRequest, Project, ProjectChange, ResolveInboxItemRequest, Rule,
+    SaveKnowledgeRequest, SaveProjectRequest, SetKnowledgeArchivedRequest, SetScopeRequest,
     StructureNode, VerifyFeatureRequest, WatchChangesRequest, WatchChangesResponse,
 };
 use crate::dispatch::{
@@ -39,12 +38,8 @@ pub use canvas::{CanvasList, CanvasPatch, OpenCanvas};
 pub use compose::ComposeRequest;
 pub use milestones::{BoardRoute, BoardTab, CardReads, CardSpec, MilestoneAction, Work};
 pub use scope::{ScopeCatalog, ScopeKey, ScopeToken};
-pub use settings::{
-    CoreRun, Platforms, ProjectSettingsData, SettingsScope, SettingsTab, default_protection,
-};
-pub use structure::{
-    DeployInput, DeployTargets, NodeDraft, NodePatch, RecordKind, Structure, list_values,
-};
+pub use settings::{CoreRun, ProjectSettingsData, SettingsScope, SettingsTab};
+pub use structure::{NodeDraft, NodePatch, RecordKind, Structure, list_values};
 
 /// How long a burst of change events waits before the reads they ask for.
 const CHANGE_DEBOUNCE: Duration = Duration::from_millis(300);
@@ -180,7 +175,7 @@ pub enum CoreState {
     Failed(String),
 }
 
-/// A project as the Projects screen lists it (`mapProjects`): its default environment's
+/// A project as the Projects screen lists it (`mapProjects`): its
 /// name, the description from its settings, and when it last changed, formatted.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProjectRow {
@@ -189,8 +184,6 @@ pub struct ProjectRow {
     /// "active", "paused", or "archived"; a project without one is active.
     pub status: String,
     pub description: String,
-    /// The production environment's name, else the first one's, else "No environments".
-    pub environments: String,
     /// `updatedAt` as the Electron Desktop prints it.
     pub updated: String,
     /// `updatedAt` itself, which sorts.
@@ -243,17 +236,13 @@ pub struct AppState {
     scope_generation: u64,
     /// Bumped when the scope's node ids change, so a read sent under the old ones is dropped.
     scope_reads: u64,
-    /// The open project's Structure nodes, environments, and milestones.
+    /// The open project's Structure nodes and milestones.
     catalog: Load<ScopeCatalog>,
     catalog_generation: u64,
     /// A milestone or card write is on its way.
     work_pending: bool,
     /// Structure's nodes and what their documents show, read when it opens.
     structure: Load<Structure>,
-    /// A component's deploys are being checked.
-    deploys_checking: bool,
-    /// The targets the deploy Composer's platform lists.
-    deploy_targets: Option<DeployTargets>,
     /// Commander asked Structure to open its node Composer.
     add_node_request: bool,
     /// Commander asked Knowledge to open its Rule Composer.
@@ -326,8 +315,6 @@ impl AppState {
             catalog_generation: 0,
             work_pending: false,
             structure: Load::Idle,
-            deploys_checking: false,
-            deploy_targets: None,
             add_node_request: false,
             rule_compose_request: false,
             card_reads: CardReads::default(),
@@ -1654,7 +1641,6 @@ impl AppState {
             self.work = Load::Idle;
             self.card_reads = CardReads::default();
             self.structure = Load::Idle;
-            self.deploy_targets = None;
             self.forget_project_settings();
             self.forget_canvases();
             self.clear_scope();
@@ -1788,24 +1774,17 @@ impl AppState {
         }
     }
 
-    /// Creates the project named `name` with `environments` (kinds, the first the default),
+    /// Creates the project named `name`,
     /// as `persistCreatedProject` does, then enters it with a toast. A failure stays on a
     /// toast and the Composer stays open to retry.
-    pub fn create_project(
-        &mut self,
-        name: String,
-        environments: Vec<String>,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn create_project(&mut self, name: String, cx: &mut Context<Self>) {
         let Some(core) = self.ready_core() else {
             return;
         };
         cx.spawn(async move |this, cx| {
             let written = name.clone();
             let result = cx
-                .background_spawn(
-                    async move { persist_created_project(&core, &written, &environments) },
-                )
+                .background_spawn(async move { persist_created_project(&core, &written) })
                 .await;
             let _ = this.update(cx, |state, cx| {
                 match result {
@@ -2036,12 +2015,10 @@ impl ActorFilter {
 
 /// The Inbox's sections in triage order (`KIND_GROUPS`): the kind, its section's label, its
 /// row's label, and its icon.
-pub const INBOX_KINDS: [(&str, &str, &str, Icon); 5] = [
+pub const INBOX_KINDS: [(&str, &str, &str, Icon); 3] = [
     ("conflict", "Conflicts", "Conflict", Icon::AlertDiamond),
-    ("deploy", "Deploys", "Deploy", Icon::Cloud),
     ("decision", "Questions", "Question", Icon::Scale),
     ("confirm", "Confirmations", "Confirmation", Icon::ListChecks),
-    ("setup", "Setup", "Setup", Icon::ShieldCheck),
 ];
 
 /// The Inbox in display order: grouped by kind in triage order, open before deferred within
@@ -2060,16 +2037,8 @@ pub fn inbox_order(items: &[InboxItem]) -> Vec<&InboxItem> {
     ordered
 }
 
-/// Every project with its default environment and its settings' description, as
-/// `loadProjectMetadata` reads them.
-/// `persistCreatedProject`: the project (`proj-` and 8 hex digits), an environment per kind
-/// (`{project}-{kind}`, production named main, protection by kind, the first the default),
-/// and the settings pointing at that default. Returns the project's id.
-fn persist_created_project(
-    core: &Core,
-    name: &str,
-    environments: &[String],
-) -> Result<String, CoreError> {
+/// Creates a project and returns its id.
+fn persist_created_project(core: &Core, name: &str) -> Result<String, CoreError> {
     let project_id = format!("proj-{}", short_id());
     core.project().save_project(&SaveProjectRequest {
         project: Some(Project {
@@ -2078,39 +2047,6 @@ fn persist_created_project(
             ..Project::default()
         }),
     })?;
-    let mut default_environment = None;
-    for (index, kind) in environments.iter().enumerate() {
-        let environment_id = format!("{project_id}-{kind}");
-        core.project().save_environment(&SaveEnvironmentRequest {
-            environment: Some(Environment {
-                id: environment_id.clone(),
-                project_id: project_id.clone(),
-                name: if kind == "production" {
-                    "main".into()
-                } else {
-                    kind.clone()
-                },
-                kind: kind.clone(),
-                protection: match kind.as_str() {
-                    "production" => "strict",
-                    "staging" => "standard",
-                    _ => "relaxed",
-                }
-                .into(),
-                is_default: index == 0,
-                description: format!("{kind} environment"),
-            }),
-        })?;
-        default_environment.get_or_insert(environment_id);
-    }
-    core.project()
-        .save_project_settings(&SaveProjectSettingsRequest {
-            settings: Some(ProjectSettings {
-                project_id: project_id.clone(),
-                default_environment_id: default_environment.unwrap_or_default(),
-                ..ProjectSettings::default()
-            }),
-        })?;
     Ok(project_id)
 }
 
@@ -2133,19 +2069,6 @@ fn read_projects(core: &Core) -> Result<Vec<ProjectRow>, CoreError> {
         .projects;
     let mut rows = Vec::with_capacity(projects.len());
     for project in projects {
-        let environments = core
-            .project()
-            .list_environments(&ListEnvironmentsRequest {
-                project_id: project.id.clone(),
-            })
-            .map(|response| response.environments)
-            .unwrap_or_default();
-        let summary = environments
-            .iter()
-            .find(|environment| environment.kind == "production")
-            .or(environments.first())
-            .map(|environment| environment.name.clone())
-            .unwrap_or_else(|| "No environments".into());
         let description = core
             .project()
             .get_project_settings(&GetProjectSettingsRequest {
@@ -2167,7 +2090,6 @@ fn read_projects(core: &Core) -> Result<Vec<ProjectRow>, CoreError> {
                 project.status.clone()
             },
             description,
-            environments: summary,
             updated: format_instant(&project.updated_at),
             updated_at: project.updated_at,
             id: project.id,
@@ -2227,13 +2149,12 @@ mod tests {
             item("q1", "decision", "deferred"),
             item("c1", "conflict", "open"),
             item("q2", "decision", "open"),
-            item("s1", "setup", "open"),
         ];
         let order: Vec<&str> = inbox_order(&items)
             .iter()
             .map(|item| item.id.as_str())
             .collect();
-        assert_eq!(order, ["c1", "q2", "q1", "s1"]);
+        assert_eq!(order, ["c1", "q2", "q1"]);
     }
 
     #[test]

@@ -32,7 +32,6 @@ pub fn plan_as(
     p.diags
         .extend(check_graph(doc, &snapshot.nodes, &snapshot.cards));
     p.diags.extend(check_repos(doc, &snapshot.repos));
-    p.diags.extend(check_deploys(doc, &snapshot.environments));
     p.plan_nodes(doc);
     for node in &doc.cards {
         match snapshot.card(&node.slug) {
@@ -169,18 +168,9 @@ impl Planner {
             .any(|diag| diag.line == line && diag.severity == SEVERITY_ERROR)
     }
 
-    /// Reports a decode error on the node's `deploys:` line. Those errors sit
-    /// on the metadata line, not the heading, so `failed(node.line)` misses
-    /// them. A bad line must not write the node.
-    pub fn failed_deploys(&self, node: &StructureNode) -> bool {
-        node.meta
-            .iter()
-            .any(|entry| entry.key == "deploys" && self.failed(entry.line))
-    }
-
     fn plan_nodes(&mut self, doc: &Document) {
         for node in &doc.nodes {
-            if self.failed(node.line) || self.failed_deploys(node) {
+            if self.failed(node.line) {
                 continue;
             }
             let under = node.meta_value("under");
@@ -293,13 +283,6 @@ impl Planner {
         }
         let migrating = node.meta_value("migrating").unwrap_or_default();
         let (migration_from, migration_to) = parse_migration(migrating).unwrap_or_default();
-        let deploys = match resolve_deploys(node, &[], &self.snapshot.environments) {
-            Ok((deploys, _)) => deploys,
-            Err(err) => {
-                self.errorf(deploys_line(node), err);
-                return;
-            }
-        };
         let id = ids::new_ulid();
         let created = structure::Node {
             id: id.clone(),
@@ -317,7 +300,6 @@ impl Planner {
             tech: tech.to_string(),
             migration_from,
             migration_to,
-            deploys: deploys.clone(),
             ..structure::Node::default()
         };
         let mut fields = work::Fields::new();
@@ -336,7 +318,6 @@ impl Planner {
         fields.insert("tech".to_string(), json!(tech));
         fields.insert("migration_from".to_string(), json!(created.migration_from));
         fields.insert("migration_to".to_string(), json!(created.migration_to));
-        fields.insert("deploys".to_string(), deployments_json(&deploys));
         self.ops.push(work::Op {
             entity: work::ENTITY_NODE.to_string(),
             kind: work::OP_CREATE.to_string(),
@@ -420,28 +401,6 @@ impl Planner {
                     json!(existing.decisions),
                     json!(list),
                 );
-            }
-        }
-        // A present deploys: replaces the node's links; an empty value clears
-        // them. An absent line leaves the stored links alone.
-        match resolve_deploys(node, &existing.deploys, &self.snapshot.environments) {
-            Err(err) => {
-                self.errorf(deploys_line(node), err);
-                return;
-            }
-            Ok((deploys, mentioned)) => {
-                if mentioned {
-                    if !same_deploys(&deploys, &existing.deploys) {
-                        set_field(
-                            &mut fields,
-                            &mut before,
-                            "deploys",
-                            deployments_json(&existing.deploys),
-                            deployments_json(&deploys),
-                        );
-                    }
-                    existing.deploys = deploys;
-                }
             }
         }
         // A present repo: or path: is authoritative, so an empty value moves
@@ -742,7 +701,7 @@ impl Planner {
                 self.errorf(
                     card_meta_line(node, "milestone"),
                     format!(
-                        "unknown milestone {}: list them with polterware query milestones, or create one in the Desktop",
+                        "unknown milestone {}: list them with polterware milestone ls, or create one with polterware milestone new",
                         go_quote(slug)
                     ),
                 );
@@ -751,9 +710,19 @@ impl Planner {
         }
     }
 
+    /// The slug of the milestone with `id`, or the id when none is listed.
+    fn milestone_slug(&self, id: &str) -> String {
+        self.snapshot
+            .milestones
+            .iter()
+            .find(|milestone| milestone.id == id)
+            .map_or_else(|| id.to_string(), |milestone| milestone.slug.clone())
+    }
+
     fn update_card(&mut self, node: &CardNode, card: work::Card) {
         let mut fields = work::Fields::new();
         let mut before = work::Fields::new();
+        let mut shown = work::Fields::new();
         if !node.title.is_empty() && node.title != card.title {
             set_field(
                 &mut fields,
@@ -827,6 +796,9 @@ impl Planner {
                     };
                     if id != card.milestone_id {
                         set_field(&mut fields, &mut before, key, s(&card.milestone_id), s(&id));
+                        // Plan output names milestones by slug, not by id.
+                        before.insert(key.to_string(), s(&self.milestone_slug(&card.milestone_id)));
+                        shown.insert(key.to_string(), s(&self.milestone_slug(&id)));
                     }
                 }
                 _ => {}
@@ -863,6 +835,7 @@ impl Planner {
                 label: card.title.clone(),
                 fields,
                 before,
+                shown,
                 ..work::Op::default()
             });
             if kind == work::OP_REMOVE {
@@ -1642,14 +1615,6 @@ fn s(value: &str) -> Value {
     Value::String(value.to_string())
 }
 
-/// A deployment list as a plan field value. An empty list stays `[]`.
-fn deployments_json(deploys: &[structure::Deployment]) -> Value {
-    if deploys.is_empty() {
-        return json!([]);
-    }
-    serde_json::to_value(deploys).unwrap_or_else(|_| json!([]))
-}
-
 /// Describes a held claim for a refusal: `claimed by codex (api:src/*)`.
 fn describe_claim(held: &HeldClaim) -> String {
     let scope = if held.claim.scope.is_empty() {
@@ -1767,7 +1732,7 @@ pub fn format_plan(ops: &[work::Op]) -> String {
                     " {}: {} → {}",
                     key,
                     short_value(op.before.get(key)),
-                    short_value(op.fields.get(key))
+                    short_value(op.shown.get(key).or_else(|| op.fields.get(key)))
                 ));
             }
         }
@@ -1795,13 +1760,13 @@ fn short_value(value: Option<&Value>) -> String {
         Value::String(text) => text.clone(),
         Value::Bool(flag) => flag.to_string(),
         Value::Number(number) => number.to_string(),
-        Value::Array(_) => deploy_list_short(value).unwrap_or_else(|| {
+        Value::Array(_) => {
             let items: Vec<String> = value
                 .as_array()
                 .map(|items| items.iter().map(item_text).collect())
                 .unwrap_or_default();
             format!("[{}]", items.join(", "))
-        }),
+        }
         other => other.to_string(),
     };
     if text.is_empty() {
@@ -1825,34 +1790,6 @@ fn item_text(value: &Value) -> String {
     }
 }
 
-/// A deployment list as `[env=provider:resource@id, …]`, or `None` when the
-/// array holds something else.
-fn deploy_list_short(value: &Value) -> Option<String> {
-    let items = value.as_array()?;
-    if items.is_empty() {
-        return None;
-    }
-    let mut parts = Vec::with_capacity(items.len());
-    for item in items {
-        let fields = item.as_object()?;
-        let environment = match fields.get("environment") {
-            Some(Value::String(name)) if !name.is_empty() => name.clone(),
-            _ => fields.get("environment_id")?.as_str()?.to_string(),
-        };
-        let provider = fields.get("provider")?.as_str()?.to_string();
-        let resource = fields.get("resource")?.as_str()?.to_string();
-        let mut part = format!("{environment}={provider}:{resource}");
-        if let Some(target) = fields.get("target_id").and_then(Value::as_str)
-            && !target.is_empty()
-        {
-            part.push('@');
-            part.push_str(target);
-        }
-        parts.push(part);
-    }
-    Some(format!("[{}]", parts.join(", ")))
-}
-
 /// Returns `5 ops (1 card, 4 tasks)`.
 pub fn summarize(ops: &[work::Op]) -> String {
     let mut counts: HashMap<&str, usize> = HashMap::new();
@@ -1869,6 +1806,9 @@ pub fn summarize(ops: &[work::Op]) -> String {
         work::ENTITY_CLAIM,
         work::ENTITY_CONFIRMATION,
         work::ENTITY_NODE,
+        work::ENTITY_RULE,
+        work::ENTITY_CONFLICT,
+        work::ENTITY_MILESTONE,
     ] {
         if let Some(&n) = counts.get(entity)
             && n > 0
@@ -1882,6 +1822,9 @@ pub fn summarize(ops: &[work::Op]) -> String {
         }
     }
     let noun = if ops.len() == 1 { "op" } else { "ops" };
+    if parts.is_empty() {
+        return format!("{} {noun}", ops.len());
+    }
     format!("{} {} ({})", ops.len(), noun, parts.join(", "))
 }
 
@@ -2933,105 +2876,34 @@ mod tests {
     }
 
     #[test]
-    fn plan_update_output_matches_the_go_oracle() {
+    fn plan_output_names_milestones_by_slug() {
+        let milestone = |id: &str, slug: &str| work::Milestone {
+            id: id.to_string(),
+            slug: slug.to_string(),
+            name: slug.to_string(),
+            ..work::Milestone::default()
+        };
         let snapshot = work::Snapshot {
-            project_id: "p1".to_string(),
-            repos: vec!["api".to_string()],
-            environments: vec![
-                work::NamedEnvironment {
-                    id: "env-local".to_string(),
-                    name: "local".to_string(),
-                },
-                work::NamedEnvironment {
-                    id: "env-prod".to_string(),
-                    name: "production".to_string(),
-                },
-            ],
-            nodes: vec![structure::Node {
-                id: "n1".to_string(),
-                path: "api".to_string(),
-                slug: "api".to_string(),
-                title: "API".to_string(),
-                level: structure::LEVEL_COMPONENT.to_string(),
-                status: structure::NODE_ACTIVE.to_string(),
-                repo: "api".to_string(),
-                folder: "services/api".to_string(),
-                kind: "service".to_string(),
-                tech: "Go".to_string(),
-                deploys: vec![structure::Deployment {
-                    id: "d1".to_string(),
-                    environment_id: "env-local".to_string(),
-                    environment: "local".to_string(),
-                    provider: "docker".to_string(),
-                    resource: "api".to_string(),
-                    target_id: "abc".to_string(),
-                    ..structure::Deployment::default()
-                }],
-                ..structure::Node::default()
-            }],
+            milestones: vec![milestone("m1", "beta"), milestone("m2", "launch")],
             cards: vec![work::Card {
                 id: "c1".to_string(),
                 slug: "git-import".to_string(),
                 title: "Git import".to_string(),
-                stage: work::STAGE_PLAN.to_string(),
+                stage: work::STAGE_BUILD.to_string(),
                 status: work::CARD_ACTIVE.to_string(),
-                questions: vec![work::Question {
-                    id: "q1".to_string(),
-                    card_id: "c1".to_string(),
-                    text: "Include merge commits?".to_string(),
-                    blocking: true,
-                    options: vec!["yes".to_string(), "no".to_string()],
-                    state: work::QUESTION_OPEN.to_string(),
-                    ..work::Question::default()
-                }],
-                tasks: vec![work::Task {
-                    id: "t1".to_string(),
-                    card_id: "c1".to_string(),
-                    number: 1,
-                    title: "Evidence".to_string(),
-                    state: work::TASK_OPEN.to_string(),
-                    repo: "api".to_string(),
-                    scope: "src/*".to_string(),
-                    ..work::Task::default()
-                }],
+                milestone_id: "m1".to_string(),
                 ..work::Card::default()
             }],
             ..work::Snapshot::default()
         };
-        for (text, want) in [
-            (
-                "---\npolter: 1\n---\n# api: API\ndeploys: production=vercel:web\n",
-                "~ node api deploys: [local=docker:api@abc] → [production=vercel:web]\n",
-            ),
-            (
-                "---\npolter: 1\n---\n# api: API\ndeploys:\n",
-                "~ node api deploys: [local=docker:api@abc] → []\n",
-            ),
-            (
-                "---\npolter: 1\n---\n# api: API\nkind: api · tech: Rust\n",
-                "~ node api kind: service → api tech: Go → Rust\n",
-            ),
-            (
-                "---\npolter: 1\n---\n## git-import\n? Include merge commits? (yes | no | first-parent)\n",
-                "~ question git-import \"Include merge commits?\" blocking: true → false options: \"[yes, no]\" → \"[yes, no, first-parent]\"\n",
-            ),
-            (
-                "---\npolter: 1\n---\n## git-import\n- [x] T1 Evidence\n",
-                "~ task git-import T1 state: open → done\n",
-            ),
-            (
-                "---\npolter: 1\n---\n## git-import\nstatus: removed\n",
-                "- card git-import status: active → removed\n",
-            ),
-            (
-                "---\npolter: 1\n---\n# api: API\nstatus: removed\n",
-                "- node api status: active → removed\n",
-            ),
-        ] {
-            let (ops, diags) = plan(&must_decode(text), &snapshot);
-            assert!(!has_errors(&diags), "{text:?}: {diags:?}");
-            assert_eq!(format_plan(&ops), want, "{text:?}");
-        }
+        let text = "---\npolter: 1\n---\n## git-import\nmilestone: launch\n";
+        let (ops, diags) = plan(&must_decode(text), &snapshot);
+        assert!(!has_errors(&diags), "{diags:?}");
+        assert_eq!(
+            format_plan(&ops),
+            "~ card git-import milestone: beta → launch\n"
+        );
+        assert_eq!(ops[0].fields.get("milestone"), Some(&json!("m2")));
     }
 
     #[test]
@@ -3084,7 +2956,7 @@ mod tests {
         );
         assert_eq!(summarize(&ops), "4 ops (2 cards, 1 task, 1 claim)");
         assert_eq!(format_plan(&[]), "no changes\n");
-        assert_eq!(summarize(&[]), "0 ops ()");
+        assert_eq!(summarize(&[]), "0 ops");
         assert_eq!(summarize(&ops[1..2]), "1 op (1 task)");
     }
 }

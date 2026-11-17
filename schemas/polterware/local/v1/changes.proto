@@ -13,8 +13,8 @@ message WatchChangesResponse {
   // project_ids lists the projects touched; empty means not project-scoped
   // or unknown, so clients refresh the current project.
   repeated string project_ids = 2;
-  // kinds: projects, environments, work, knowledge, canon, agent_runs,
-  // architecture, integrations, settings.
+  // kinds: projects, work, knowledge, canon, agent_runs,
+  // architecture, settings.
   repeated string kinds = 3;
   // resync asks the client to reload everything (missed events).
   bool resync = 4;

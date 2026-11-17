@@ -8,7 +8,6 @@ use std::collections::{HashMap, HashSet};
 
 use crate::domains::{structure, work};
 
-use super::deploy_spec::check_deploys;
 use super::graph::check_graph;
 use super::hints::{check_hints, find_card};
 use super::model::*;
@@ -27,8 +26,6 @@ pub struct References {
     /// The project's registered checkouts. Node `repo:` and task `[repo: …]`
     /// must name one; empty is the project root.
     pub repos: Vec<String>,
-    /// The project's environments. `deploys:` names one by id or by name.
-    pub environments: Vec<work::NamedEnvironment>,
     /// The local repository view used to hint on handoff mismatches. `None`
     /// skips that check.
     pub git: Option<GitView>,
@@ -37,6 +34,8 @@ pub struct References {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DecisionRef {
     pub id: String,
+    /// The Rule's slug, which a card's `rules:` may cite.
+    pub slug: String,
     pub title: String,
     /// The Rule status (proposed, active, under_review, …).
     pub status: String,
@@ -61,7 +60,6 @@ pub fn lint(text: &str, references: Option<&References>) -> (Document, Vec<Diagn
         diags.extend(check_references(&doc, references));
         diags.extend(check_graph(&doc, &references.nodes, &references.cards));
         diags.extend(check_repos(&doc, &references.repos));
-        diags.extend(check_deploys(&doc, &references.environments));
         diags.extend(check_hints(&doc, &references.cards));
         diags.extend(stage_hints(&doc, &references.cards));
         diags.extend(architecture_hints(
@@ -81,6 +79,9 @@ fn check_references(doc: &Document, references: &References) -> Vec<Diagnostic> 
     let mut numbers: HashSet<i64> = HashSet::new();
     for reference in &references.decisions {
         known.insert(reference.id.to_lowercase());
+        if !reference.slug.is_empty() {
+            known.insert(reference.slug.to_lowercase());
+        }
         if let Some(number) = parse_decision_number(&reference.title) {
             numbers.insert(number);
         }
@@ -88,7 +89,7 @@ fn check_references(doc: &Document, references: &References) -> Vec<Diagnostic> 
     // `stale` hints at a cited Rule that no longer settles the question.
     let stale = |line: i32, reference: &str| -> Vec<Diagnostic> {
         for entry in &references.decisions {
-            if !cites_decision(reference, &entry.id, &entry.title)
+            if !cites_decision(reference, &entry.id, &entry.slug, &entry.title)
                 || work::binding_rule_status(&entry.status)
             {
                 continue;
@@ -123,7 +124,7 @@ fn check_references(doc: &Document, references: &References) -> Vec<Diagnostic> 
                     line: entry.line,
                     severity: SEVERITY_ERROR.to_string(),
                     message: format!(
-                        "unknown rule {}: no Rule with that number or id in this project",
+                        "unknown rule {}: no Rule with that slug, number, or id in this project",
                         go_quote(&reference)
                     ),
                 });
@@ -185,10 +186,12 @@ pub fn parse_decision_number(value: &str) -> Option<i64> {
 }
 
 /// Reports whether a `rules:` entry (or the retired `decisions:` key) names the
-/// Rule with `id` and `title`, by id or by a migrated number.
-pub fn cites_decision(reference: &str, id: &str, title: &str) -> bool {
+/// Rule with `id`, `slug`, and `title`, by id, by slug, or by a migrated number.
+pub fn cites_decision(reference: &str, id: &str, slug: &str, title: &str) -> bool {
     let reference = reference.trim();
-    if reference.to_lowercase() == id.to_lowercase() {
+    if reference.eq_ignore_ascii_case(id)
+        || (!slug.is_empty() && reference.eq_ignore_ascii_case(slug))
+    {
         return true;
     }
     let Some(number) = parse_decision_number(reference) else {
@@ -431,6 +434,7 @@ mod tests {
                 id: "decision-x".into(),
                 title: "Decision 0007: Deterministic import".into(),
                 status: work::RULE_REPLACED.into(),
+                ..DecisionRef::default()
             }],
             ..References::default()
         };
@@ -613,18 +617,53 @@ mod tests {
 
     #[test]
     fn cites_by_id_or_number() {
-        assert!(cites_decision("decision-x", "decision-x", "x"));
+        assert!(cites_decision("decision-x", "decision-x", "", "x"));
         assert!(cites_decision(
             "Decision-0007",
             "decision-x",
+            "",
             "Decision 0007: T"
         ));
-        assert!(cites_decision("ADR-7", "decision-x", "Decision 0007: T"));
+        assert!(cites_decision(
+            "ADR-7",
+            "decision-x",
+            "",
+            "Decision 0007: T"
+        ));
         assert!(!cites_decision(
             "Decision-0008",
             "decision-x",
+            "",
             "Decision 0007: T"
         ));
-        assert!(!cites_decision("nope", "decision-x", "Decision 0007: T"));
+        assert!(!cites_decision(
+            "nope",
+            "decision-x",
+            "",
+            "Decision 0007: T"
+        ));
+        assert!(cites_decision(
+            "Toolbar-Fade",
+            "rule-1",
+            "toolbar-fade",
+            "Fade."
+        ));
+        assert!(!cites_decision("", "rule-1", "", "Fade."));
+    }
+
+    #[test]
+    fn a_card_cites_a_rule_by_its_slug() {
+        let text = "---\npolter: 1\nsummary: s\nrationale: r\n---\n\n## fade: Fade\nstage: shape \u{b7} rules: toolbar-fade\n\nIntent: fade.\n";
+        let references = References {
+            decisions: vec![DecisionRef {
+                id: "rule-1".into(),
+                slug: "toolbar-fade".into(),
+                title: "Page toolbars float on the fade.".into(),
+                status: "active".into(),
+            }],
+            ..References::default()
+        };
+        let (_, diags) = lint(text, Some(&references));
+        assert!(!has_errors(&diags), "{diags:?}");
     }
 }

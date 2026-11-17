@@ -879,3 +879,36 @@ fn open_registers_the_change_hooks() {
         "a rolled back write was recorded: {seen:?}"
     );
 }
+
+#[test]
+fn removed_platform_data_migration_keeps_projects_and_repositories() {
+    let mut db = Connection::open_in_memory().expect("open");
+    db.execute_batch("PRAGMA foreign_keys=ON")
+        .expect("foreign keys");
+    migrate_before(&mut db, "0062_");
+    db.execute_batch("INSERT INTO projects(id,name,created_at,updated_at) VALUES('p','Project','2026','2026');
+        INSERT INTO environments(id,project_id,name,kind) VALUES('e','p','Local','local');
+        INSERT INTO project_settings(project_id,description,default_environment_id,repository) VALUES('p','kept','e','repo');
+        INSERT INTO repositories(id,project_id,name,local_path,created_at,updated_at) VALUES('r','p','main','/repo','2026','2026');")
+        .expect("seed old data");
+    apply_migration(&mut db, "0062_drop_environments_deploys_integrations.sql");
+    assert_eq!(
+        count(&db, "SELECT count(*) FROM repositories WHERE id='r'"),
+        1
+    );
+    assert_eq!(
+        count(
+            &db,
+            "SELECT count(*) FROM project_settings WHERE project_id='p' AND description='kept'"
+        ),
+        1
+    );
+    assert_eq!(
+        count(
+            &db,
+            "SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('environments','node_deployments','deploy_checks','integration_connections','integration_resources','integration_sync_runs')"
+        ),
+        0
+    );
+    assert_no_foreign_key_violations(&db);
+}

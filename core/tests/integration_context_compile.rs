@@ -6,7 +6,6 @@ fn test_compile_context_includes_rules_with_reasons() {
     let dir = tempfile::tempdir().unwrap();
     let store = Store::new(dir.path().join("context-compile.db")).unwrap();
     demoseed::defaults(&store).unwrap();
-    store.sync_project_model(demoseed::PROJECT_ID).unwrap();
 
     let rule_id = "decision-principle-local-first";
     let sample = store

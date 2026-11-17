@@ -64,6 +64,7 @@ use crate::views::knowledge::{chips, chips_width, context_labels, muted_cell, ti
 use crate::views::scope::{ScopeFilter, clear_page};
 use crate::work::{self, Grouping, Ordering, Property as ListProperty, Stage};
 use polterware_ui::window::window_drag::WindowDragRegion;
+use polterware_ui::{page_under, page_under_inset};
 
 /// `.pw-data-table-scroll`'s padding-inline.
 const TABLE_INSET: f32 = 12.0;
@@ -143,6 +144,8 @@ struct RoadmapRow {
 
 pub struct MilestonesView {
     state: Entity<AppState>,
+    /// How far the page's content keeps clear of the chrome it runs under, this frame.
+    inset: f32,
     search: Entity<TextInput>,
     query: String,
     card_search: Entity<TextInput>,
@@ -175,6 +178,9 @@ pub struct MilestonesView {
     page: Entity<CardPage>,
     scope: ScopeFilter,
 }
+
+/// The Milestones page, whose chrome its lists and board run under.
+const PAGE_ID: &str = "milestones-page";
 
 impl MilestonesView {
     /// The card filters, which F opens.
@@ -273,6 +279,7 @@ impl MilestonesView {
         let page = cx.new(|cx| CardPage::new(state.clone(), host, cx));
         Self {
             state,
+            inset: 0.0,
             search,
             query: String::new(),
             card_search,
@@ -298,7 +305,7 @@ impl MilestonesView {
             task_pending: false,
             view: None,
             page,
-            scope: ScopeFilter::new(false),
+            scope: ScopeFilter::new(),
         }
     }
 
@@ -799,7 +806,7 @@ impl MilestonesView {
         let rows = self.roadmap_rows(work);
         if rows.is_empty() {
             let theme = Theme::global(cx);
-            return page_empty_with(
+            return self.clear(page_empty_with(
                 Some("No board matches"),
                 MascotMood::Lost,
                 Some(
@@ -810,8 +817,7 @@ impl MilestonesView {
                         .into_any_element(),
                 ),
                 cx,
-            )
-            .into_any_element();
+            ));
         }
         let rows = Rc::new(rows);
         let marked = self
@@ -990,7 +996,14 @@ impl MilestonesView {
         div()
             .relative()
             .size_full()
-            .child(table.gutters(TABLE_INSET).measure_every_row().freeze_once())
+            .child(
+                table
+                    .inset_top(self.inset)
+                    .fades(Theme::global(cx).color_surface)
+                    .gutters(TABLE_INSET)
+                    .measure_every_row()
+                    .freeze_once(),
+            )
             .into_any_element()
     }
 
@@ -1067,7 +1080,7 @@ impl MilestonesView {
         tab: BoardTab,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) -> AnyElement {
+    ) -> (AnyElement, Option<AnyElement>) {
         self.filters.update(cx, |filters, cx| {
             filters.set_display(
                 (tab == BoardTab::List).then(|| self.display_options.clone()),
@@ -1155,13 +1168,17 @@ impl MilestonesView {
                 .px(px(theme.space_2))
                 .pb(px(theme.space_2))
                 .child(bar)
+                .into_any_element()
         });
+        (bar.into_any_element(), filter_bar)
+    }
+
+    /// `element` kept clear of the chrome the page runs under, as an empty page or a skeleton.
+    fn clear(&self, element: impl IntoElement) -> AnyElement {
         div()
-            .flex_none()
-            .flex()
-            .flex_col()
-            .child(bar)
-            .children(filter_bar)
+            .size_full()
+            .pt(px(self.inset))
+            .child(element)
             .into_any_element()
     }
 
@@ -1373,6 +1390,7 @@ impl MilestonesView {
         }
         let view = cx.entity().downgrade();
         let columns = built
+            .inset_top(self.inset)
             .on_move(Rc::new(move |change: BoardMove, _, cx: &mut App| {
                 let Some(stage) = Stage::parse(&change.column) else {
                     change.settle(false, cx);
@@ -1409,7 +1427,7 @@ impl MilestonesView {
 
     fn list(&self, work: &Work, cards: &[&WorkCard], cx: &mut Context<Self>) -> AnyElement {
         if cards.is_empty() {
-            return page_empty("No cards", MascotMood::Sleeping, cx).into_any_element();
+            return self.clear(page_empty("No cards", MascotMood::Sleeping, cx));
         }
         let display = self.display.clone();
         let ordered = work::order_cards(cards, display.ordering, display.descending);
@@ -1637,7 +1655,12 @@ impl MilestonesView {
                 let _ = peek_view.update(cx, |this, cx| this.open_peek(slug, window, cx));
             }
         });
-        table = table.gutters(TABLE_INSET).measure_every_row().freeze_once();
+        table = table
+            .inset_top(self.inset)
+            .fades(Theme::global(cx).color_surface)
+            .gutters(TABLE_INSET)
+            .measure_every_row()
+            .freeze_once();
         let mut list = div()
             .relative()
             .size_full()
@@ -2189,48 +2212,46 @@ impl Render for MilestonesView {
                 .children(ask)
                 .child(self.menu.clone());
         }
-        let body = match (&view, &work) {
-            (_, None) => div()
-                .size_full()
-                .flex()
-                .flex_col()
-                .child(match &view {
-                    None => self.roadmap_toolbar(cx),
-                    Some(_) => self.board_toolbar("", tab, window, cx),
-                })
-                .child(
-                    div()
-                        .px(px(TABLE_INSET))
-                        .child(text_skeleton(4, 12.0, window, cx)),
-                )
-                .into_any_element(),
+        // The page's content runs up under its toolbar, which floats on its fade: at rest it
+        // keeps clear of the toolbar and the filter bar, and what scrolls up goes soft beneath.
+        let (toolbar, filter_bar) = match &view {
+            None => (self.roadmap_toolbar(cx), None),
+            Some(view) => {
+                let name = work
+                    .as_ref()
+                    .map(|work| work.board_name(view))
+                    .unwrap_or_default();
+                self.board_toolbar(&name, tab, window, cx)
+            }
+        };
+        self.inset = page_under_inset(PAGE_ID, filter_bar.is_some(), 0.0, window, cx);
+        let content = match (&view, &work) {
+            (_, None) => self.clear(
+                div()
+                    .px(px(TABLE_INSET))
+                    .child(text_skeleton(4, 12.0, window, cx)),
+            ),
             (None, Some(work)) => {
                 self.follow_view(None, cx);
-                div()
-                    .size_full()
-                    .flex()
-                    .flex_col()
-                    .child(self.roadmap_toolbar(cx))
-                    .child(div().flex_1().min_h(px(0.0)).child(self.roadmap(work, cx)))
-                    .into_any_element()
+                self.roadmap(work, cx)
             }
             (Some(view), Some(work)) => {
                 self.follow_view(Some(view), cx);
-                let name = work.board_name(view);
                 let cards = self.visible_cards(work, view, cx);
-                let content = match tab {
+                match tab {
                     BoardTab::Board => self.board(work, &cards, window, cx),
                     BoardTab::List => self.list(work, &cards, cx),
-                };
-                div()
-                    .size_full()
-                    .flex()
-                    .flex_col()
-                    .child(self.board_toolbar(&name, tab, window, cx))
-                    .child(div().flex_1().min_h(px(0.0)).child(content))
-                    .into_any_element()
+                }
             }
         };
+        let body = div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .child(page_under(
+                PAGE_ID, toolbar, filter_bar, 0.0, content, window, cx,
+            ))
+            .into_any_element();
         let peek = work
             .as_ref()
             .and_then(|work| self.peek_layer(work, window, cx));

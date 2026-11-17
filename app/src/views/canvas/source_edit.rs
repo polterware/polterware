@@ -14,12 +14,16 @@ use std::collections::{HashMap, HashSet};
 
 use polterware_mermaid::Diagram;
 use polterware_ui::canvas::Viewport;
+use polterware_ui::theme::Theme;
 use serde_json::{Map, Value, json};
 
-use crate::canvas::document::{Doc, Edge, Node, Props};
+use crate::canvas::document::{
+    COLOR_TAGS, Doc, Edge, Node, Props, read_style, write_style,
+};
 use crate::contracts::CanvasRef;
 
-use super::mermaid::{blocks, node_ids, viewport};
+use super::mermaid::{blocks, css, node_ids, viewport};
+use super::scene::{fill_color, stroke_color};
 
 /// A node's box on screen: left, top, width, and height.
 pub type Box4 = (f32, f32, f32, f32);
@@ -28,6 +32,7 @@ pub type Box4 = (f32, f32, f32, f32);
 pub(super) fn document(source: &str, layout_json: &str, boxes: &HashMap<String, Box4>) -> Doc {
     let positions = layout_positions(layout_json);
     let metadata = blocks(source);
+    let inline_styles = inline_node_styles(source);
     let mut nodes: Vec<Node> = Vec::new();
     let mut ids: HashMap<String, String> = HashMap::new();
     let place = |mermaid: &str| {
@@ -56,6 +61,12 @@ pub(super) fn document(source: &str, layout_json: &str, boxes: &HashMap<String, 
                 .and_then(|meta| meta.get("kind").cloned())
                 .unwrap_or_else(|| shape_kind(vertex.type_name.as_deref()));
             let (x, y, width, height) = place(&vertex.id);
+            let mut props = metadata_props(meta);
+            if !props.contains_key("style")
+                && let Some(style) = inline_styles.get(&vertex.id)
+            {
+                write_style(&mut props, style);
+            }
             nodes.push(Node {
                 id: canvas,
                 name: label,
@@ -65,7 +76,7 @@ pub(super) fn document(source: &str, layout_json: &str, boxes: &HashMap<String, 
                 width,
                 height,
                 z: nodes.len() as i32,
-                props: metadata_props(meta),
+                props,
                 reference: metadata_ref(meta),
             });
         }
@@ -824,10 +835,96 @@ fn canvas_viewport(layout_json: &str) -> Viewport {
 }
 
 fn metadata_props(meta: Option<&HashMap<String, String>>) -> Props {
-    meta.and_then(|meta| meta.get("props"))
+    let mut props = meta
+        .and_then(|meta| meta.get("props"))
         .and_then(|props| serde_json::from_str::<Value>(props).ok())
         .and_then(|props| props.as_object().cloned())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    if !props.contains_key("technology")
+        && let Some(tech) = meta
+            .and_then(|meta| meta.get("technology").or_else(|| meta.get("tech")))
+            .filter(|tech| !tech.is_empty())
+    {
+        props.insert("technology".into(), Value::String(tech.clone()));
+    }
+    props
+}
+
+/// Reads explicit `style <id> ...` lines into semantic `ShapeStyle`s when non-default.
+fn inline_node_styles(source: &str) -> HashMap<String, crate::canvas::document::ShapeStyle> {
+    let theme = Theme::dark();
+    let default = read_style(&Props::new());
+    let match_fill = |raw: &str| -> Option<String> {
+        let lower = raw.trim().to_ascii_lowercase();
+        if lower == "none" || lower == "transparent" {
+            return Some("none".into());
+        }
+        if lower == css(theme.color_surface) || lower == css(theme.color_surface_subtle) {
+            return Some("neutral".into());
+        }
+        COLOR_TAGS.iter().find_map(|tag| {
+            fill_color(tag, &theme)
+                .filter(|color| css(*color) == lower)
+                .map(|_| (*tag).to_string())
+        })
+    };
+    let match_stroke = |raw: &str| -> Option<String> {
+        let lower = raw.trim().to_ascii_lowercase();
+        if lower == "none" || lower == "transparent" {
+            return Some("none".into());
+        }
+        if lower == css(theme.tone_neutral.rim) || lower == css(theme.color_text_muted) {
+            return Some("neutral".into());
+        }
+        COLOR_TAGS.iter().find_map(|tag| {
+            stroke_color(tag, &theme)
+                .filter(|color| css(*color) == lower)
+                .map(|_| (*tag).to_string())
+        })
+    };
+    let mut out = HashMap::new();
+    for line in source.lines() {
+        let Some(rest) = line.trim().strip_prefix("style ") else {
+            continue;
+        };
+        let mut parts = rest.splitn(2, char::is_whitespace);
+        let (Some(id), Some(body)) = (parts.next(), parts.next()) else {
+            continue;
+        };
+        let mut style = default.clone();
+        for decl in body.split(',') {
+            let Some((key, value)) = decl.split_once(':') else {
+                continue;
+            };
+            match key.trim() {
+                "fill" => {
+                    if let Some(tag) = match_fill(value) {
+                        style.fill = tag;
+                    }
+                }
+                "stroke" => {
+                    if let Some(tag) = match_stroke(value) {
+                        style.stroke = tag;
+                    }
+                }
+                "stroke-width" => {
+                    if let Ok(width) = value.trim().trim_end_matches("px").trim().parse::<u8>()
+                        && (1..=3).contains(&width)
+                    {
+                        style.stroke_width = width;
+                    }
+                }
+                "stroke-dasharray" => {
+                    style.dashed = !value.trim().is_empty() && value.trim() != "none";
+                }
+                _ => {}
+            }
+        }
+        if style != default {
+            out.insert(id.to_string(), style);
+        }
+    }
+    out
 }
 
 fn metadata_ref(meta: Option<&HashMap<String, String>>) -> Option<CanvasRef> {
@@ -1138,5 +1235,23 @@ mod tests {
         let doc = document(SOURCE, layout, &HashMap::new());
         let node = doc.node("01HORDERS").expect("the node");
         assert_eq!((node.x, node.y), (40.0, 30.0));
+    }
+
+    #[test]
+    fn metadata_technology_and_inline_style_lines_are_read_into_node_props() {
+        let theme = Theme::dark();
+        let blue = css(fill_color("blue", &theme).unwrap());
+        let red = css(stroke_color("red", &theme).unwrap());
+        let source = format!(
+            "flowchart LR\n  a[\"DB\"]@{{ kind: database, technology: Postgres }}\n  style a fill:{blue},stroke:{red},stroke-width:2px,stroke-dasharray:4 4\n"
+        );
+        let doc = document(&source, "{}", &HashMap::new());
+        let node = doc.node("a").expect("the node");
+        assert_eq!(node.text("technology"), "Postgres");
+        let style = read_style(&node.props);
+        assert_eq!(style.fill, "blue");
+        assert_eq!(style.stroke, "red");
+        assert_eq!(style.stroke_width, 2);
+        assert!(style.dashed);
     }
 }

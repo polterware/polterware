@@ -5,7 +5,6 @@ pub mod canvas;
 pub mod context;
 pub mod filters;
 pub mod inbox;
-pub mod integrations;
 pub mod knowledge;
 pub mod logs;
 pub mod polter;

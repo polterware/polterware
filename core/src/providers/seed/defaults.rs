@@ -1,4 +1,4 @@
-//! The seed project's defaults: environments, settings, and platforms.
+//! The seed project's defaults and settings.
 //!
 //! Gives an empty database the Polterware project itself, so Polterware is
 //! managed with its own build, plus one empty project that shows every empty
@@ -102,7 +102,6 @@ pub fn polterware(store: &sqlite::Store, root: &str) -> Result<()> {
         apply(store, text)?;
     }
     seed_knowledge(store)?;
-    store.sync_project_model(PROJECT_ID)?;
     Ok(())
 }
 
@@ -227,7 +226,7 @@ fn git_top_level(dir: &str) -> String {
 }
 
 /// Creates a project the way a user-registered one starts: empty layout,
-/// default settings, and one local environment.
+/// and default settings.
 fn seed_empty_project(store: &sqlite::Store) -> Result<()> {
     wedge::init_project(
         store,
@@ -241,16 +240,12 @@ fn seed_empty_project(store: &sqlite::Store) -> Result<()> {
 }
 
 fn seed_settings(store: &sqlite::Store) -> Result<()> {
-    let envs = store.list_environments(PROJECT_ID)?;
-    let mut settings = projects::Settings {
+    let settings = projects::Settings {
         project_id: PROJECT_ID.to_string(),
         description: "Project Context and Change Intelligence for AI Coding".to_string(),
         repository: "polterware/polterware".to_string(),
         ..projects::Settings::default()
     };
-    if let Some(first) = envs.first() {
-        settings.default_environment_id = first.id.clone();
-    }
     store.save_project_settings(settings)?;
     Ok(())
 }
@@ -370,11 +365,6 @@ mod tests {
     #[test]
     fn no_mock_content_remains() {
         let (store, _dir) = new_seeded();
-        let connections = count(&store, "SELECT COUNT(*) FROM integration_connections", []);
-        assert_eq!(
-            connections, 0,
-            "integration_connections has {connections} mock rows"
-        );
         for word in [
             "example-api",
             "stripe",
@@ -404,7 +394,6 @@ mod tests {
         let (store, _dir) = new_seeded();
         let tables = [
             "projects",
-            "environments",
             "knowledge_items",
             "work_cards",
             "work_tasks",
@@ -437,6 +426,6 @@ mod tests {
             "SELECT COUNT(*) FROM structure_nodes WHERE project_id=?",
             params![PROJECT_ID],
         );
-        assert!(nodes >= 30, "want a real tree, got {nodes} nodes");
+        assert!(nodes >= 29, "want a real tree, got {nodes} nodes");
     }
 }

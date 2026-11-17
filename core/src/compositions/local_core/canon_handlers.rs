@@ -35,10 +35,6 @@ pub fn routes() -> Vec<Route> {
             get_entity,
         ),
         Route::unary(
-            "/polterware.local.v1.ProjectModelService/SyncProjectModel",
-            sync_project_model,
-        ),
-        Route::unary(
             "/polterware.local.v1.ContextService/CompileContext",
             compile_context,
         ),
@@ -119,23 +115,6 @@ pub fn get_entity(
     };
     Ok(local_v1::GetEntityResponse {
         entity: Some(canon_entity_proto(&item)),
-    })
-}
-
-pub fn sync_project_model(
-    core: Arc<Core>,
-    request: ConnectRequest<local_v1::SyncProjectModelRequest>,
-) -> Result<local_v1::SyncProjectModelResponse, ConnectError> {
-    let msg = request.message;
-    if msg.project_id.is_empty() {
-        return Err(invalid("project id is required"));
-    }
-    let count = core
-        .store()
-        .sync_project_model(&msg.project_id)
-        .map_err(internal)?;
-    Ok(local_v1::SyncProjectModelResponse {
-        entity_count: count as i32,
     })
 }
 
@@ -471,28 +450,6 @@ mod tests {
         let core = Arc::clone(&harness.core);
         let project_id = seed::PROJECT_ID.to_string();
 
-        let entities = list_entities(
-            Arc::clone(&core),
-            request(local_v1::ListEntitiesRequest {
-                project_id: project_id.clone(),
-                ..local_v1::ListEntitiesRequest::default()
-            }),
-        )
-        .expect("entities");
-        assert!(
-            !entities.entities.is_empty(),
-            "the seeded project has canon"
-        );
-
-        let sync = sync_project_model(
-            Arc::clone(&core),
-            request(local_v1::SyncProjectModelRequest {
-                project_id: project_id.clone(),
-            }),
-        )
-        .expect("sync");
-        assert!(sync.entity_count > 0);
-
         let compiled = compile_context(
             Arc::clone(&core),
             request(local_v1::CompileContextRequest {
@@ -520,6 +477,20 @@ mod tests {
         let harness = crate::compositions::local_core::test_support::Harness::start();
         let core = Arc::clone(&harness.core);
         let project_id = seed::PROJECT_ID.to_string();
+        let component = canon::new_entity(
+            &project_id,
+            canon::KIND_COMPONENT,
+            canon::REF_ARCHITECTURE_NODE,
+            "node-api",
+            "API",
+            canon::TRUTH_DECLARED,
+            "structure",
+            "system",
+        )
+        .expect("component");
+        core.store()
+            .upsert_canon_entity(&component)
+            .expect("save component");
         let entity = list_entities(
             Arc::clone(&core),
             request(local_v1::ListEntitiesRequest {

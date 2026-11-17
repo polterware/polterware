@@ -108,19 +108,12 @@ Rule states, replacement, and the scope each one holds for.
 # core/inbox: Inbox derivation
 level: component · under: core · path: backend/domains/inbox · kind: service · tech: Go · repo: main
 
-Question, Conflict, and Setup items derived on every read.
+Question and Conflict items derived on every read.
 
 # core/events: Change events
 level: component · under: core · path: backend/platform/events · kind: stream · tech: Go · repo: main
 
 The bus that tells every attached client the store changed.
-
-# core/integrations: Integration probes
-level: component · under: core · path: backend/domains/integrations · kind: service · tech: Go · repo: main
-
-Detects provider CLIs and probes connection status; credentials stay in the OS or CLI store.
-
-! Never persist provider credentials in SQLite
 
 # core/mcp: MCP server and bridge
 level: component · under: core · path: backend/providers/mcp · kind: mcp · tech: Go · repo: main
@@ -279,12 +272,12 @@ Two agents never claim overlapping scopes.
 ## inbox: Inbox with real items
 stage: verify · under: core/work
 
-Question, Conflict, and Setup items derived on every read.
+Question and Conflict items derived on every read.
 
 - [x] Derived items and blocking flag §backend/domains/inbox/*§
 - [x] Decide, delegate, defer, and verify actions
 - [x] Sidebar count, status, and polterware inbox
-! The Inbox has only Question, Conflict, and Setup items
+! The Inbox has only Question and Conflict items
 
 ## structure-hierarchy-oracle: Structure hierarchy and Oracle
 stage: verify · under: core/context

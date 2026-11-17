@@ -22,15 +22,18 @@ use polterware_mermaid::measure::{Font, TextMeasure, plain_text_block};
 use polterware_mermaid::render::edges::{EdgeData, insert_edge_label};
 use polterware_mermaid::render::markers::marker_placement;
 use polterware_mermaid::scene::{
-    Color, EllipseShape, Group, ImageRef, Item, MarkerDef, MarkerUnits, NORMAL_WEIGHT, Path,
-    PathCommand, PathShape, PathStyle, Point, Rect, RectShape, Scene, SourceKind, SourceRef,
-    TextAnchor, TextBaseline, TextRun, Transform,
+    Color, Group, Item, MarkerDef, MarkerUnits, NORMAL_WEIGHT, Path, PathCommand, PathShape,
+    PathStyle, Point, Rect, RectShape, Scene, SourceKind, SourceRef, TextBaseline, TextRun,
+    Transform,
 };
 use polterware_mermaid::theme::Theme as MermaidTheme;
 use polterware_ui::mermaid::SceneViewport;
 use polterware_ui::theme::Theme;
 
-use crate::canvas::catalog::{component_of, node_icon, silhouette};
+use crate::canvas::catalog::{component_of, kind_label, silhouette, structure_kind};
+use crate::canvas::document::{Node, Props};
+use crate::canvas::references::{StoreEntity, linked_facts, reference_state};
+use crate::contracts::CanvasRef;
 
 /// How near an edge end has to be to a node's box to be read as that node's.
 const END_TOLERANCE: f64 = 0.75;
@@ -73,12 +76,6 @@ pub(super) struct Palette {
     pub cluster_fill: String,
     pub cluster_stroke: String,
     pub label_background: String,
-    pub muted: String,
-    /// A component card's icon badge: its face, its rim, and the mark's color (`IconTile`'s
-    /// Architecture tone).
-    pub badge_face: String,
-    pub badge_rim: String,
-    pub badge_mark: String,
     /// The app's UI font, the family every label is measured and painted in.
     pub font_family: String,
 }
@@ -222,10 +219,6 @@ pub(super) fn palette(theme: &Theme) -> Palette {
         cluster_fill: pick("clusterBkg", css(theme.color_surface)),
         cluster_stroke: pick("clusterBorder", css(theme.color_text_muted)),
         label_background: pick("edgeLabelBackground", css(theme.color_surface_raised)),
-        muted: css(theme.color_text_muted),
-        badge_face: css(theme.material_face_top),
-        badge_rim: css(theme.material_highlight_strong),
-        badge_mark: css(theme.chart_blue),
         font_family: theme.font_sans.to_string(),
     }
 }
@@ -530,54 +523,88 @@ struct ComponentCard {
     kind: String,
     title: String,
     subtitle: String,
-    /// The badge's mark, an icon asset path.
-    icon: String,
+    domain: bool,
 }
 
-/// Reads the visible label, kind, and technology for component nodes.
-fn component_cards(source: &str) -> HashMap<String, ComponentCard> {
+/// Reads the visible label, kind, and technology for semantic component and Structure nodes.
+fn component_cards(source: &str, entities: &[StoreEntity]) -> HashMap<String, ComponentCard> {
     let mut cards = HashMap::new();
     for line in source.split_inclusive('\n') {
         let Some((id, open, close)) = node_block(line) else {
             continue;
         };
         let metadata = &line[open + 1..close];
-        let Some(kind) = field(metadata, "kind").filter(|kind| component_of(kind).is_some()) else {
-            continue;
-        };
-        // A node the library inserts carries its name only in `label`, with no bracket.
-        let Some(title) = bracket_label(line, open)
-            .or_else(|| field(metadata, "label"))
-            .filter(|title| !title.is_empty())
+        let Some(raw_kind) =
+            field(metadata, "kind").filter(|kind| component_of(kind).is_some() || structure_kind(kind))
         else {
             continue;
         };
-        let Some(component) = component_of(&kind) else {
-            continue;
-        };
-        let technology = field(metadata, "technology")
-            .or_else(|| field(metadata, "tech"))
-            .or_else(|| {
-                field(metadata, "props")
-                    .and_then(|props| serde_json::from_str::<serde_json::Value>(&props).ok())
-                    .and_then(|props| props.get("technology")?.as_str().map(str::to_string))
+        let reference = field(metadata, "ref").and_then(|raw| {
+            let (kind, ref_id) = raw.split_once('/')?;
+            (!kind.trim().is_empty() && !ref_id.trim().is_empty()).then(|| CanvasRef {
+                kind: kind.trim().to_string(),
+                id: ref_id.trim().to_string(),
             })
-            .filter(|technology| !technology.is_empty());
-        let type_label = component.label;
-        let subtitle = technology.map_or_else(
-            || type_label.to_string(),
-            |technology| format!("{type_label} / {technology}"),
-        );
+        });
+        let title = if let Some(reference) = &reference {
+            reference_state(Some(reference), entities).title
+        } else {
+            let Some(title) = bracket_label(line, open)
+                .or_else(|| field(metadata, "label"))
+                .filter(|title| !title.is_empty())
+            else {
+                continue;
+            };
+            title
+        };
+        let probe = Node {
+            id: id.clone(),
+            name: title.clone(),
+            kind: raw_kind.clone(),
+            x: 0.0,
+            y: 0.0,
+            width: 0.0,
+            height: 0.0,
+            z: 0,
+            props: Props::new(),
+            reference,
+        };
+        let linked = linked_facts(&probe, entities);
+        let kind = linked
+            .as_ref()
+            .and_then(|facts| facts.kind.clone())
+            .unwrap_or_else(|| raw_kind.clone());
+        let technology = linked
+            .and_then(|facts| facts.tech)
+            .or_else(|| {
+                field(metadata, "technology")
+                    .or_else(|| field(metadata, "tech"))
+                    .or_else(|| {
+                        field(metadata, "props")
+                            .and_then(|props| serde_json::from_str::<serde_json::Value>(&props).ok())
+                            .and_then(|props| {
+                                props
+                                    .get("technology")
+                                    .or_else(|| props.get("tech"))?
+                                    .as_str()
+                                    .map(str::to_string)
+                            })
+                    })
+                    .filter(|technology| !technology.is_empty())
+            });
+        let type_label = component_of(&kind)
+            .map(|item| item.label.to_string())
+            .unwrap_or_else(|| kind_label(&raw_kind));
+        let subtitle = technology.map_or(type_label.clone(), |technology| {
+            format!("{type_label} / {technology}")
+        });
         cards.insert(
             id,
             ComponentCard {
-                icon: node_icon(&kind)
-                    .unwrap_or(polterware_ui::Icon::Blockchain01Icon)
-                    .asset_path_stroked(2.5)
-                    .to_string(),
                 kind,
                 title,
                 subtitle,
+                domain: raw_kind == "domain",
             },
         );
     }
@@ -628,15 +655,17 @@ fn resize_component_nodes(
         let Some(current) = node_shape_bounds(items, id) else {
             continue;
         };
+        let min_height = if card.domain {
+            DOMAIN_MIN_HEIGHT
+        } else {
+            CARD_MIN_HEIGHT
+        };
         let content = measure
             .width(&card.title, &title_font)
             .max(measure.width(&card.subtitle, &subtitle_font));
-        let inset = card_inset(
-            &card.kind,
-            current.width,
-            CARD_MIN_HEIGHT.max(current.height),
-        );
+        let inset = card_inset(&card.kind, current.width, min_height.max(current.height));
         let width = (content
+            + 2.0
             + CARD_PAD_LEFT
             + BADGE_SIZE
             + CARD_GAP
@@ -644,8 +673,7 @@ fn resize_component_nodes(
             + f64::from(inset.left)
             + f64::from(inset.right))
         .max(current.width);
-        let height =
-            (CARD_MIN_HEIGHT + f64::from(inset.top) + f64::from(inset.bottom)).max(current.height);
+        let height = (min_height + f64::from(inset.top) + f64::from(inset.bottom)).max(current.height);
         if width > current.width || height > current.height {
             resize_node(items, id, Some(width), Some(height));
             // The resize grows about the center; the box keeps its top-left, where a pin put it.
@@ -665,10 +693,10 @@ fn resize_component_nodes(
 
 /// A card's two text lines and its icon badge fit inside this height.
 const CARD_MIN_HEIGHT: f64 = 52.0;
-/// The library card's spacing (`scene.rs`'s semantic card): the badge, its mark, the padding
+const DOMAIN_MIN_HEIGHT: f64 = 64.0;
+/// The library card's spacing (`scene.rs`'s semantic card): the badge, the padding
 /// before it and after the text, and the gap between them.
 const BADGE_SIZE: f64 = 28.0;
-const BADGE_MARK: f64 = 16.0;
 const CARD_PAD_LEFT: f64 = 10.0;
 const CARD_PAD_RIGHT: f64 = 12.0;
 const CARD_GAP: f64 = 10.0;
@@ -677,26 +705,6 @@ const CARD_GAP: f64 = 10.0;
 fn card_inset(kind: &str, width: f64, height: f64) -> polterware_ui::canvas::shapes::Inset {
     silhouette(kind)
         .map(|family| (family.inset)(width as f32, height as f32))
-        .unwrap_or_default()
-}
-
-/// The dash a node's painted shape wears, from its kind or its class.
-fn shape_dash(items: &[Item]) -> Vec<f64> {
-    items
-        .iter()
-        .find_map(|item| {
-            let style = match item {
-                Item::Path(path) => &path.style,
-                Item::Rect(rect) => &rect.style,
-                Item::Ellipse(ellipse) => &ellipse.style,
-                Item::Group(group) if !is_label_group(item) => {
-                    let dash = shape_dash(&group.items);
-                    return (!dash.is_empty()).then_some(dash);
-                }
-                _ => return None,
-            };
-            (!style.dash.is_empty()).then(|| style.dash.clone())
-        })
         .unwrap_or_default()
 }
 
@@ -717,13 +725,13 @@ fn node_shape_bounds(items: &[Item], id: &str) -> Option<Rect> {
     })
 }
 
-/// Replaces component-node labels and fills with the same compact semantic-card hierarchy as
-/// the library's `node_sample`: family silhouette, an icon badge, title, and muted type line.
+/// Replaces component-node visuals with an unpainted hit-target box at their laid-out bounds:
+/// the editor draws semantic cards via `scene::node_view` so they wear the exact lit material
+/// of the shape library.
 fn paint_component_cards(
     items: &mut [Item],
     cards: &HashMap<String, ComponentCard>,
-    measure: &dyn TextMeasure,
-    palette: &Palette,
+    rendered_cards: &mut HashSet<String>,
 ) {
     for item in items {
         let Item::Group(group) = item else {
@@ -733,13 +741,10 @@ fn paint_component_cards(
             .source
             .as_ref()
             .filter(|source| source.kind == SourceKind::Node)
-            && let Some(card) = cards.get(&source.id)
+            && cards.contains_key(&source.id)
             && let Some(bounds) = shape_bounds(&group.items)
         {
-            let dash = shape_dash(&group.items);
             group.items.clear();
-            // An unpainted frame at the card's box: the silhouette's arcs bulge past the points
-            // a path's bounds count, and the box is what pins, hits, and edges measure.
             group.items.push(Item::Rect(
                 RectShape::new(
                     bounds,
@@ -751,184 +756,28 @@ fn paint_component_cards(
                 )
                 .with_source(SourceRef::node(source.id.clone())),
             ));
-            if let Some(family) = silhouette(&card.kind) {
-                // Inset by half the 1px stroke, so the line stays inside the card's box.
-                let shape_path = canvas_path((family.path)(
-                    (bounds.width - 1.0) as f32,
-                    (bounds.height - 1.0) as f32,
-                ));
-                let mut outline = PathShape::new(
-                    transformed_path(
-                        &shape_path,
-                        Transform::translate(bounds.x + 0.5, bounds.y + 0.5),
-                    ),
-                    PathStyle {
-                        fill: Some(Color::new(palette.node_fill.clone())),
-                        stroke: Some(Color::new(palette.node_stroke.clone())),
-                        stroke_width: 1.0,
-                        dash: if dash.is_empty() && family.dashed {
-                            vec![4.0, 4.0]
-                        } else {
-                            dash.clone()
-                        },
-                        ..PathStyle::default()
-                    },
-                );
-                outline.source = Some(SourceRef::node(source.id.clone()));
-                group.items.push(Item::Path(outline));
-                if let Some(marks) = family.marks {
-                    let mark_path = canvas_path(marks(bounds.width as f32, bounds.height as f32));
-                    let mark_path =
-                        transformed_path(&mark_path, Transform::translate(bounds.x, bounds.y));
-                    let mut mark = PathShape::new(
-                        mark_path,
-                        PathStyle::filled(Color::new(palette.node_stroke.clone())),
-                    );
-                    mark.source = Some(SourceRef::node(source.id.clone()));
-                    group.items.push(Item::Path(mark));
-                }
-            }
-            // The content centers in the part the silhouette leaves clear (a cylinder's cap).
-            let inset = card_inset(&card.kind, bounds.width, bounds.height);
-            let left = bounds.x + f64::from(inset.left);
-            let center_y = bounds.y
-                + f64::from(inset.top)
-                + (bounds.height - f64::from(inset.top) - f64::from(inset.bottom)) / 2.0;
-            let badge_center = Point::new(left + CARD_PAD_LEFT + BADGE_SIZE / 2.0, center_y);
-            // `IconTile`: a 28px round face with a hairline rim and a 16px mark.
-            group.items.push(Item::Ellipse(EllipseShape::new(
-                badge_center,
-                BADGE_SIZE / 2.0,
-                BADGE_SIZE / 2.0,
-                PathStyle::filled(Color::new(palette.badge_face.clone()))
-                    .with_stroke(Color::new(palette.badge_rim.clone()), 0.5),
-            )));
-            group.items.push(Item::Image(
-                ImageRef::new(
-                    card.icon.clone(),
-                    Rect::new(
-                        badge_center.x - BADGE_MARK / 2.0,
-                        badge_center.y - BADGE_MARK / 2.0,
-                        BADGE_MARK,
-                        BADGE_MARK,
-                    ),
-                )
-                .tinted(Color::new(palette.badge_mark.clone()))
-                .with_source(SourceRef::node(source.id.clone())),
-            ));
-            let text_x = badge_center.x + BADGE_SIZE / 2.0 + CARD_GAP;
-            group.items.push(Item::Text(card_text(
-                &card.title,
-                Point::new(text_x, center_y - 7.0),
-                13.0,
-                500,
-                TextAnchor::Start,
-                TextBaseline::Middle,
-                Color::new(palette.text.clone()),
-                measure,
-                palette,
-            )));
-            group.items.push(Item::Text(card_text(
-                &card.subtitle,
-                Point::new(text_x, center_y + 9.0),
-                11.0,
-                NORMAL_WEIGHT,
-                TextAnchor::Start,
-                TextBaseline::Middle,
-                Color::new(palette.muted.clone()),
-                measure,
-                palette,
-            )));
+            rendered_cards.insert(source.id.clone());
         }
-        paint_component_cards(&mut group.items, cards, measure, palette);
+        paint_component_cards(&mut group.items, cards, rendered_cards);
     }
 }
 
-fn canvas_path(data: String) -> Path {
-    let mut path = Path::new();
-    for segment in polterware_ui::canvas::path::parse(&data) {
-        use polterware_ui::canvas::path::Segment;
-        match segment {
-            Segment::Move(x, y) => {
-                path.move_to(Point::new(f64::from(x), f64::from(y)));
-            }
-            Segment::Line(x, y) => {
-                path.line_to(Point::new(f64::from(x), f64::from(y)));
-            }
-            Segment::Quad { ctrl, to } => {
-                path.quad_to(
-                    Point::new(f64::from(ctrl.0), f64::from(ctrl.1)),
-                    Point::new(f64::from(to.0), f64::from(to.1)),
-                );
-            }
-            Segment::Cubic { a, b, to } => {
-                path.cubic_to(
-                    Point::new(f64::from(a.0), f64::from(a.1)),
-                    Point::new(f64::from(b.0), f64::from(b.1)),
-                    Point::new(f64::from(to.0), f64::from(to.1)),
-                );
-            }
-            Segment::Arc {
-                radii,
-                rotation,
-                large,
-                sweep,
-                to,
-            } => {
-                path.arc_to(
-                    f64::from(radii.0),
-                    f64::from(radii.1),
-                    f64::from(rotation),
-                    large,
-                    sweep,
-                    Point::new(f64::from(to.0), f64::from(to.1)),
-                );
-            }
-            Segment::Close => {
-                path.close();
-            }
-        }
-    }
-    path
-}
-
-#[allow(clippy::too_many_arguments)]
-fn card_text(
-    value: &str,
-    position: Point,
-    size: f64,
-    weight: u16,
-    anchor: TextAnchor,
-    baseline: TextBaseline,
-    color: Color,
-    measure: &dyn TextMeasure,
-    palette: &Palette,
-) -> TextRun {
-    let font = Font {
-        family: palette.font_family.clone(),
-        size,
-        weight,
-        italic: false,
-    };
-    let mut text = TextRun::new(
-        position,
-        font.clone(),
-        plain_text_block(value, &font, measure),
-    );
-    text.anchor = anchor;
-    text.baseline = baseline;
-    text.fill = Some(color);
-    text
+/// The laid-out Mermaid scene and the node ids drawn as semantic cards over it.
+#[derive(Debug)]
+pub(super) struct Rendered {
+    pub scene: Scene,
+    pub cards: HashSet<String>,
 }
 
 /// Renders `source` with the layout's pinned positions applied, in the app's colors.
 pub(super) fn render(
     source: &str,
     layout_json: &str,
+    entities: &[StoreEntity],
     measure: &dyn TextMeasure,
     palette: &Palette,
-) -> Result<Scene, RenderError> {
-    let components = component_cards(source);
+) -> Result<Rendered, RenderError> {
+    let components = component_cards(source, entities);
     let styled = styled_source(source);
     let measure = UiFontMeasure {
         inner: measure,
@@ -939,14 +788,15 @@ pub(super) fn render(
     center_labels(&mut scene.items);
     apply_pins(&mut scene, &pins_for(&styled, layout_json));
     let resized = resize_component_nodes(&mut scene.items, &components, &measure, palette);
-    paint_component_cards(&mut scene.items, &components, &measure, palette);
+    let mut cards = HashSet::new();
+    paint_component_cards(&mut scene.items, &components, &mut cards);
     if !resized.is_empty() {
         let mut boxes = HashMap::new();
         collect_node_boxes(&scene.items, Transform::IDENTITY, &mut boxes);
         reroute_edges(&mut scene.items, &boxes, &HashMap::new(), &resized);
     }
     paint_arrow_heads(&mut scene, &edges, palette);
-    Ok(scene)
+    Ok(Rendered { scene, cards })
 }
 
 /// Renders `source` for a preview: no pins, in the app's colors.
@@ -2370,6 +2220,10 @@ mod tests {
         palette(&Theme::dark())
     }
 
+    fn render_scene(source: &str, layout: &str, palette: &Palette) -> Rendered {
+        render(source, layout, &[], &FallbackMeasure, palette).expect("a scene")
+    }
+
     #[test]
     fn fit_centers_the_drawing_inside_the_free_area() {
         let view_box = Rect::new(20.0, 30.0, 400.0, 200.0);
@@ -2415,11 +2269,11 @@ mod tests {
     #[test]
     fn a_flowchart_draws_and_a_pin_moves_its_node() {
         let source = "flowchart LR\n  a[Start] --> b[End]\n";
-        let scene = render(source, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
+        let scene = render_scene(source, "{}", &test_palette()).scene;
         assert!(!scene.is_empty());
 
         let layout = r#"{"nodes":{"a":{"x":-40,"y":-30,"pinned":true}}}"#;
-        let pinned = render(source, layout, &FallbackMeasure, &test_palette()).expect("a scene");
+        let pinned = render_scene(source, layout, &test_palette()).scene;
         let mut boxes = HashMap::new();
         collect_node_boxes(&pinned.items, Transform::IDENTITY, &mut boxes);
         let start = boxes.get("a").expect("the pinned node");
@@ -2428,122 +2282,67 @@ mod tests {
     }
 
     #[test]
-    fn component_nodes_paint_as_cards_with_title_subtitle_and_badge() {
+    fn component_nodes_resize_and_hand_off_to_card_view() {
         let source = "flowchart LR\n  db[\"Orders DB\"]@{ kind: database, technology: Postgres }\n";
-        let scene = render(source, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
-        let node = find_node_group(&scene.items, "db").expect("component node");
-        let texts: Vec<String> = node
-            .items
-            .iter()
-            .filter_map(|item| match item {
-                Item::Text(text) => Some(text.lines.iter().map(|line| line.text()).collect()),
-                _ => None,
-            })
-            .collect();
-        assert!(
-            node.items
-                .iter()
-                .any(|item| matches!(item, Item::Ellipse(_)))
-        );
-        assert!(texts.iter().any(|text| text == "Orders DB"));
-        assert!(texts.iter().any(|text| text == "Database / Postgres"));
+        let rendered = render_scene(source, "{}", &test_palette());
+        assert!(rendered.cards.contains("db"));
+        let node = find_node_group(&rendered.scene.items, "db").expect("component node");
         assert!(!node.items.iter().any(|item| matches!(
             item,
             Item::Group(group)
                 if group.class.as_deref().is_some_and(|classes| classes.split_whitespace().any(|class| class == "label"))
         )));
-        let bounds = shape_bounds(&node.items).expect("visible card silhouette");
-        let title = node
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Text(text) if text.lines.iter().any(|line| line.text() == "Orders DB") => {
-                    Some(text)
-                }
-                _ => None,
-            })
-            .expect("title");
+        let bounds = shape_bounds(&node.items).expect("hit box");
+        let title_font = Font {
+            family: test_palette().font_family,
+            size: 13.0,
+            weight: 500,
+            italic: false,
+        };
+        let subtitle_font = Font::new(test_palette().font_family, 11.0);
+        let text_width = FallbackMeasure
+            .width("Orders DB", &title_font)
+            .max(FallbackMeasure.width("Database / Postgres", &subtitle_font));
         assert!(
-            title.bounds().right() <= bounds.right(),
-            "title overflows the node box"
-        );
-        let subtitle = node
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Text(text)
-                    if text
-                        .lines
-                        .iter()
-                        .any(|line| line.text() == "Database / Postgres") =>
-                {
-                    Some(text)
-                }
-                _ => None,
-            })
-            .expect("subtitle");
-        assert!(
-            subtitle.bounds().right() <= bounds.right(),
-            "subtitle right {} overflows shape x {} right {} (width {}), text x {} width {}",
-            subtitle.bounds().right(),
-            bounds.x,
-            bounds.right(),
+            bounds.width >= text_width + CARD_PAD_LEFT + BADGE_SIZE + CARD_GAP + CARD_PAD_RIGHT,
+            "card width {} too narrow for text {}",
             bounds.width,
-            subtitle.position.x,
-            subtitle.size.width
+            text_width
         );
+        assert!(bounds.height >= CARD_MIN_HEIGHT);
     }
 
     #[test]
-    fn a_library_inserted_node_paints_as_a_card_with_its_icon() {
+    fn a_library_inserted_node_and_linked_structure_node_are_marked_as_cards() {
         // The library writes the name only in `label`, and the technology in `props`.
-        let source = "flowchart LR\n  n1@{ id: \"n1-service\", label: \"Compute\", kind: service, shape: rounded, props: \"{\\\"technology\\\":\\\"Go\\\"}\" }\n";
-        let scene = render(source, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
-        let node = find_node_group(&scene.items, "n1").expect("the inserted node");
-        let texts: Vec<String> = node
-            .items
-            .iter()
-            .filter_map(|item| match item {
-                Item::Text(text) => Some(text.lines.iter().map(|line| line.text()).collect()),
-                _ => None,
-            })
-            .collect();
-        assert!(
-            texts.iter().any(|text| text == "Compute"),
-            "texts: {texts:?}"
-        );
-        assert!(
-            texts.iter().any(|text| text == "Service / Go"),
-            "texts: {texts:?}"
-        );
-        let mark = node
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Image(image) => Some(image),
-                _ => None,
-            })
-            .expect("the badge's icon");
-        assert!(mark.name.starts_with("icons/"), "mark: {}", mark.name);
-        assert!(mark.tint.is_some());
+        let source = "flowchart LR\n  n1@{ id: \"n1-service\", label: \"Compute\", kind: service, shape: rounded, props: \"{\\\"technology\\\":\\\"Go\\\"}\" }\n  n2@{ kind: component, ref: node/core }\n";
+        let entities = vec![StoreEntity {
+            kind: "node".into(),
+            id: "core".into(),
+            title: "Local core server".into(),
+            slug: "core".into(),
+            level: "component".into(),
+            component_kind: "service".into(),
+            tech: "Rust".into(),
+        }];
+        let rendered = render(source, "{}", &entities, &FallbackMeasure, &test_palette())
+            .expect("a scene");
+        assert!(rendered.cards.contains("n1"));
+        assert!(rendered.cards.contains("n2"));
+        let n2 = find_node_group(&rendered.scene.items, "n2").expect("linked component");
+        let bounds = shape_bounds(&n2.items).expect("hit box");
+        assert!(bounds.height >= CARD_MIN_HEIGHT);
     }
 
     #[test]
     fn non_component_mermaid_nodes_keep_the_plain_shape_and_label() {
-        let scene = render(
+        let rendered = render_scene(
             "flowchart LR\n  box[\"Plain node\"]@{ shape: rect }\n",
             "{}",
-            &FallbackMeasure,
             &test_palette(),
-        )
-        .expect("a scene");
-        let node = find_node_group(&scene.items, "box").expect("plain node");
-        assert!(
-            !node
-                .items
-                .iter()
-                .any(|item| matches!(item, Item::Ellipse(_)))
         );
+        assert!(!rendered.cards.contains("box"));
+        let node = find_node_group(&rendered.scene.items, "box").expect("plain node");
         assert!(node.items.iter().any(|item| matches!(item, Item::Group(group)
             if group.class.as_deref().is_some_and(|classes| classes.split_whitespace().any(|class| class == "label")))));
     }
@@ -2607,13 +2406,12 @@ mod tests {
         assert_eq!(style.stroke.as_deref(), Some("#00ff00"));
         assert_eq!(style.width, Some(2.0));
         assert_eq!(style.dash.as_deref(), Some("4 2"));
-        let scene = render(
+        let scene = render_scene(
             "flowchart LR\n  a[\"A\"]\n  style a fill:#ff0000,stroke-width:2px\n",
             "{}",
-            &FallbackMeasure,
             &test_palette(),
         )
-        .expect("a scene");
+        .scene;
         assert_eq!(
             first_rect_fill(&scene.items).as_deref(),
             Some("#ff0000"),
@@ -2623,13 +2421,7 @@ mod tests {
 
     #[test]
     fn the_theme_replaces_mermaids_default_fill_and_stroke() {
-        let scene = render(
-            "flowchart LR\n  a[Start]\n",
-            "{}",
-            &FallbackMeasure,
-            &test_palette(),
-        )
-        .expect("a scene");
+        let scene = render_scene("flowchart LR\n  a[Start]\n", "{}", &test_palette()).scene;
         let fill = first_rect_fill(&scene.items).expect("a node fill");
         assert_ne!(
             fill, MERMAID_FILL,
@@ -2647,13 +2439,7 @@ mod tests {
             palette.cluster_fill, palette.node_fill,
             "a cluster and a node would read the same"
         );
-        let scene = render(
-            "flowchart LR\n  a[Start]\n",
-            "{}",
-            &FallbackMeasure,
-            &palette,
-        )
-        .expect("a scene");
+        let scene = render_scene("flowchart LR\n  a[Start]\n", "{}", &palette).scene;
         assert_eq!(
             first_rect_fill(&scene.items).as_deref(),
             Some(palette.node_fill.as_str()),
@@ -2666,13 +2452,7 @@ mod tests {
         let theme = Theme::dark();
         let palette = palette(&theme);
         assert_eq!(palette.font_family, theme.font_sans.to_string());
-        let scene = render(
-            "flowchart LR\n  a[Start] --> b[End]\n",
-            "{}",
-            &FallbackMeasure,
-            &palette,
-        )
-        .expect("a scene");
+        let scene = render_scene("flowchart LR\n  a[Start] --> b[End]\n", "{}", &palette).scene;
         let families = text_families(&scene.items);
         assert!(!families.is_empty(), "the diagram has no label");
         assert!(
@@ -2696,11 +2476,11 @@ mod tests {
     #[test]
     fn a_pinned_node_keeps_its_label_centered_on_its_shape() {
         let source = "flowchart LR\n  a[\"Storage\"]\n";
-        let unpinned = render(source, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
+        let unpinned = render_scene(source, "{}", &test_palette()).scene;
         assert_centered(&unpinned, "a");
 
         let layout = r#"{"nodes":{"a":{"x":40,"y":30,"width":220,"height":90,"pinned":true}}}"#;
-        let pinned = render(source, layout, &FallbackMeasure, &test_palette()).expect("a scene");
+        let pinned = render_scene(source, layout, &test_palette()).scene;
         let box_ = node_box(&pinned, "a");
         assert!((box_.0 - 40.0).abs() < 0.5, "x: {}", box_.0);
         assert!((box_.1 - 30.0).abs() < 0.5, "y: {}", box_.1);
@@ -2711,15 +2491,12 @@ mod tests {
 
     #[test]
     fn the_reported_unverified_canvas_keeps_component_cards_and_dashed_outlines() {
-        let source = "flowchart LR\n  a[\"Storage\"]@{ kind: database }\n  b[\"AI\"]@{ kind: llm }\n  c[\"Storage\"]@{ kind: storage }\n  class a,b,c unverified\n";
+        let source = "flowchart LR\n  a[\"Storage\"]@{ kind: database }\n  b[\"AI\"]@{ kind: llm }\n  c[\"Storage\"]@{ kind: storage }\n  d[\"Plain\"]@{ shape: rect }\n  class a,b,c,d unverified\n";
         let layout = r#"{"nodes":{"a":{"x":0,"y":0,"width":160,"height":64,"pinned":true},"b":{"x":200,"y":0,"width":160,"height":64,"pinned":true},"c":{"x":400,"y":0,"width":160,"height":64,"pinned":true}}}"#;
-        let scene = render(source, layout, &FallbackMeasure, &test_palette()).expect("a scene");
-        for (id, kind_label) in [
-            ("a", "Database"),
-            ("b", "AI model"),
-            ("c", "Object storage"),
-        ] {
-            let group = node_group(&scene.items, id).expect("the node group");
+        let rendered = render_scene(source, layout, &test_palette());
+        for id in ["a", "b", "c"] {
+            assert!(rendered.cards.contains(id));
+            let group = node_group(&rendered.scene.items, id).expect("the node group");
             assert!(
                 !group.items.iter().any(|item| matches!(
                     item,
@@ -2732,18 +2509,12 @@ mod tests {
                 group
                     .items
                     .iter()
-                    .any(|item| matches!(item, Item::Ellipse(_)))
-            );
-            assert!(
-                group
-                    .items
-                    .iter()
-                    .any(|item| matches!(item, Item::Text(text)
-                if text.lines.iter().any(|line| line.text() == kind_label)))
+                    .all(|item| matches!(item, Item::Rect(rect) if rect.style.fill.is_none())),
+                "component node {id} retained painted shape items underneath card view"
             );
         }
-        // The class line draws its dash even before the export writes a classDef.
-        let group = node_group(&scene.items, "a").expect("the node");
+        // The class line draws its dash on non-card Mermaid shapes even without a classDef.
+        let group = node_group(&rendered.scene.items, "d").expect("the plain node");
         assert!(
             has_dashed_shape(&group.items),
             "the unverified class did not draw a dashed outline"
@@ -2753,6 +2524,7 @@ mod tests {
     fn has_dashed_shape(items: &[Item]) -> bool {
         items.iter().any(|item| match item {
             Item::Path(path) => !path.style.dash.is_empty(),
+            Item::Rect(rect) => !rect.style.dash.is_empty(),
             Item::Group(group) => has_dashed_shape(&group.items),
             _ => false,
         })
@@ -2876,7 +2648,7 @@ mod tests {
     #[test]
     fn a_reported_canvas_paints_its_edge_line_arrow_and_label() {
         let palette = test_palette();
-        let scene = render(REPORTED, "{}", &FallbackMeasure, &palette).expect("a scene");
+        let scene = render_scene(REPORTED, "{}", &palette).scene;
         let path = first_edge(&scene).expect("an edge path");
         let stroke = path.style.stroke.as_ref().expect("the edge has no stroke");
         assert_ne!(stroke.0, "none", "the edge paints nothing");
@@ -2935,9 +2707,9 @@ mod tests {
     #[test]
     fn a_pinned_node_takes_its_edge_and_its_label_with_it() {
         let palette = test_palette();
-        let unpinned = render(REPORTED, "{}", &FallbackMeasure, &palette).expect("a scene");
+        let unpinned = render_scene(REPORTED, "{}", &palette).scene;
         let layout = r#"{"nodes":{"db":{"x":400,"y":120,"pinned":true}}}"#;
-        let scene = render(REPORTED, layout, &FallbackMeasure, &palette).expect("a scene");
+        let scene = render_scene(REPORTED, layout, &palette).scene;
 
         let db = node_rect(&scene, "db");
         assert!((db.x - 400.0).abs() < 0.5, "the node did not pin: {db:?}");
@@ -2967,7 +2739,7 @@ mod tests {
     #[test]
     fn an_edge_label_text_is_centered_in_its_background_box() {
         let layout = r#"{"nodes":{"api":{"x":-40,"y":260,"pinned":true}}}"#;
-        let scene = render(REPORTED, layout, &FallbackMeasure, &test_palette()).expect("a scene");
+        let scene = render_scene(REPORTED, layout, &test_palette()).scene;
         let group = edge_label_group(&scene.items, "writes").expect("the label group");
         let background = group
             .items
@@ -3003,7 +2775,7 @@ mod tests {
     #[test]
     fn a_pinned_endpoint_reroutes_its_edge_as_a_clipped_straight_line() {
         let layout = r#"{"nodes":{"api":{"x":-40,"y":260,"pinned":true}}}"#;
-        let scene = render(REPORTED, layout, &FallbackMeasure, &test_palette()).expect("a scene");
+        let scene = render_scene(REPORTED, layout, &test_palette()).scene;
         let path = first_edge(&scene).expect("an edge path");
         let points: Vec<Point> = path.path.commands.iter().filter_map(command_end).collect();
         assert_eq!(
@@ -3028,7 +2800,7 @@ mod tests {
     #[test]
     fn a_fitting_diagram_is_fitted_again_when_the_room_narrows() {
         let source = "flowchart LR\n  api[\"Orders API\"]@{ kind: service }\n  db[\"Orders DB\"]@{ kind: database }\n  ui[\"Storefront\"]@{ kind: frontend }\n";
-        let scene = render(source, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
+        let scene = render_scene(source, "{}", &test_palette()).scene;
         let view_box = scene.view_box;
         let wide = (
             view_box.width as f32 + 400.0,
@@ -3057,7 +2829,7 @@ mod tests {
     /// than the window, and the two nodes still fit in it.
     #[test]
     fn the_room_beside_the_inspector_refits_the_whole_canvas() {
-        let scene = render(REPORTED, "{}", &FallbackMeasure, &test_palette()).expect("a scene");
+        let scene = render_scene(REPORTED, "{}", &test_palette()).scene;
         let view_box = scene.view_box;
         // The 640px the report had, less the inspector's panel and its insets: the drawing
         // fits, with the reveal margin around it and nothing more.
@@ -3261,6 +3033,7 @@ mod tests {
         let error = render(
             "flowchart LR\n  a@{ shape: nonsense }\n",
             "{}",
+            &[],
             &FallbackMeasure,
             &test_palette(),
         )
@@ -3276,6 +3049,7 @@ mod tests {
         let error = render(
             "stateDiagram-v2\n  A --> B\n",
             "{}",
+            &[],
             &FallbackMeasure,
             &test_palette(),
         )
@@ -3285,8 +3059,15 @@ mod tests {
 
     #[test]
     fn an_empty_canvas_draws_nothing_rather_than_failing() {
-        let scene = render("flowchart LR\n", "{}", &FallbackMeasure, &test_palette())
-            .expect("an empty scene");
+        let scene = render(
+            "flowchart LR\n",
+            "{}",
+            &[],
+            &FallbackMeasure,
+            &test_palette(),
+        )
+        .expect("an empty scene")
+        .scene;
         assert!(scene.is_empty());
     }
 

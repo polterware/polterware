@@ -1,19 +1,17 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n## plan diagnostics\n5:error:cannot remove unknown rule \"ghost\": check the slug\n7:error:unknown rule \"no-statement\": add a statement (#### rule no-statement: Statement)\n9:error:unknown scope \"nowhere\": use a Structure node path\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n# core: Core\nlevel: domain\n",
+  "expected": "## decode\n## plan diagnostics\n5:error:cannot remove unknown rule \"ghost\": check the slug\n7:error:unknown rule \"no-statement\": add a statement (#### rule no-statement: Statement)\n9:error:unknown scope \"nowhere\": use a Structure node path\n## plan\nno changes\n## summary\n0 ops\n## brief\n# core: Core\nlevel: domain\n",
   "name": "rules-errors",
   "snapshot": {
     "Cards": null,
     "Conflicts": null,
     "Decisions": null,
-    "Environments": null,
     "Facts": null,
     "Milestones": null,
     "Nodes": [
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-core",
         "Intent": "",
@@ -33,7 +31,6 @@
       },
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "cmd/api",
         "ID": "n-api",
         "Intent": "",

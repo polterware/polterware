@@ -289,9 +289,6 @@ pub struct Snapshot {
     pub nodes: Vec<structure::Node>,
     /// The project's repositories, which components link by name.
     pub repos: Vec<String>,
-    /// The project's environments. A `deploys:` line names one by id or by
-    /// name.
-    pub environments: Vec<NamedEnvironment>,
     /// Every Rule of the project, in position order.
     pub rules: Vec<Rule>,
     /// Every Conflict of the project, newest first.
@@ -639,13 +636,6 @@ impl Rule {
     }
 }
 
-/// A project environment a `deploys:` line can name.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct NamedEnvironment {
-    pub id: String,
-    pub name: String,
-}
-
 /// One acceptance criterion (`invariant`) or Rule (`rule`) a person or an agent
 /// confirmed for a card. `target_id` is the invariant's or the Rule's id.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -710,6 +700,9 @@ pub struct Op {
     pub fields: Fields,
     /// Previous values of changed fields, for plan output only.
     pub before: Fields,
+    /// How plan output shows a new value when `fields` holds an id (a
+    /// milestone's slug for its id); never written.
+    pub shown: Fields,
 }
 
 #[cfg(test)]

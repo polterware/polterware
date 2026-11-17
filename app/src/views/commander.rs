@@ -88,14 +88,6 @@ const ITEMS: &[Item] = &[
         None,
     ),
     item(
-        "nav.platforms",
-        "Open Project settings > Platforms",
-        "Navigation",
-        Icon::ShieldCheck,
-        TileTone::Integration,
-        None,
-    ),
-    item(
         "nav.cli-reference",
         "Open App settings > CLI reference",
         "Navigation",
@@ -142,14 +134,6 @@ const ITEMS: &[Item] = &[
         Icon::Plus,
         TileTone::Architecture,
         Some("structure.add_node"),
-    ),
-    item(
-        "action.connect-integration",
-        "Connect integration",
-        "Actions",
-        Icon::Plug,
-        TileTone::Integration,
-        None,
     ),
     item(
         "action.show-shortcuts",
@@ -397,8 +381,6 @@ impl CommanderView {
                 "nav.activity" => state.go_section(Section::Activity, cx),
                 "nav.settings" => state.open_settings(SettingsTab::General, cx),
                 "nav.app-settings" => state.open_settings(SettingsTab::AgentsMcp, cx),
-                "nav.platforms" => state.open_settings(SettingsTab::Platforms, cx),
-                "action.connect-integration" => state.open_connect_integration(cx),
                 "nav.cli-reference" => state.open_settings(SettingsTab::CliReference, cx),
                 "action.open-sync" => state.open_settings(SettingsTab::LocalCore, cx),
                 "action.show-shortcuts" => state.open_settings(SettingsTab::Shortcuts, cx),
@@ -501,7 +483,11 @@ mod tests {
             hint_text(&ITEMS[0], &overrides).as_deref(),
             Some("G then I")
         );
-        assert_eq!(hint_text(&ITEMS[11], &overrides).as_deref(), Some("⇧C"));
+        let create = ITEMS
+            .iter()
+            .find(|item| item.id == "action.create-card")
+            .unwrap();
+        assert_eq!(hint_text(create, &overrides).as_deref(), Some("⇧C"));
     }
     #[test]
     fn send_card_prompt_matches_electron() {

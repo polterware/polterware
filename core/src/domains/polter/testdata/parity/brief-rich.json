@@ -18,7 +18,7 @@
       "Body": "Unrelated."
     }
   ],
-  "expected": "## decode\n## plan diagnostics\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n## rich-card: Rich card\nstage: build \u00b7 under: core/api \u00b7 milestone: beta\nkind: api \u00b7 tech: Go \u00b7 repo: api \u00b7 path: cmd/api\ndeploys: production=vercel:api (failed: error \u00b7 https://api-1.vercel.app), local=docker:api (ok)\nEverything a brief reads.\n\nAcceptance:\n! Keep the API stable\n\n- [ ] T1 First task [repo: api] `src/*`\n? Ship it? [blocking] (yes | no)\nhandoff codex on feat/rich: next: T2\n\nRules:\n- Version the API. (from core/api)\n- Never call the network. (from core)\n- Keep changes small. (whole project)\n\nmilestone beta: Public beta \u00b7 active \u00b7 target 2026-12-01\ngoal: Ship the beta.\nexit: No P0 bugs\n\nDocs:\n- Local core\n",
+  "expected": "## decode\n## plan diagnostics\n## plan\nno changes\n## summary\n0 ops\n## brief\n## rich-card: Rich card\nstage: build \u00b7 under: core/api \u00b7 milestone: beta\nkind: api \u00b7 tech: Go \u00b7 repo: api \u00b7 path: cmd/api\nEverything a brief reads.\n\nAcceptance:\n! Keep the API stable\n\n- [ ] T1 First task [repo: api] `src/*`\n? Ship it? [blocking] (yes | no)\nhandoff codex on feat/rich: next: T2\n\nRules:\n- Version the API. (from core/api)\n- Never call the network. (from core)\n- Keep changes small. (whole project)\n\nmilestone beta: Public beta \u00b7 active \u00b7 target 2026-12-01\ngoal: Ship the beta.\nexit: No P0 bugs\n\nDocs:\n- Local core\n",
   "name": "brief-rich",
   "snapshot": {
     "Cards": [
@@ -159,16 +159,6 @@
         "supersededBy": "a2"
       }
     ],
-    "Environments": [
-      {
-        "ID": "env-local",
-        "Name": "local"
-      },
-      {
-        "ID": "env-prod",
-        "Name": "production"
-      }
-    ],
     "Facts": [
       {
         "Actor": "",
@@ -208,7 +198,6 @@
     "Nodes": [
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-core",
         "Intent": "The domain layer.",
@@ -228,35 +217,6 @@
       },
       {
         "Decisions": null,
-        "Deploys": [
-          {
-            "check": {
-              "checked_at": "",
-              "state": "failed",
-              "summary": "error",
-              "url": "https://api-1.vercel.app"
-            },
-            "environment": "production",
-            "environment_id": "env-prod",
-            "id": "d1",
-            "provider": "vercel",
-            "resource": "api",
-            "target_id": "prj_1"
-          },
-          {
-            "check": {
-              "checked_at": "",
-              "state": "ok",
-              "summary": "",
-              "url": ""
-            },
-            "environment": "local",
-            "environment_id": "env-local",
-            "id": "d2",
-            "provider": "docker",
-            "resource": "api"
-          }
-        ],
         "Folder": "cmd/api",
         "ID": "n-api",
         "Intent": "The HTTP edge.",

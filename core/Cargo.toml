@@ -17,7 +17,6 @@ anyhow = "1.0"
 axum = "0.8"
 base64 = "0.22"
 hex = "0.4"
-portable-pty = "0.9"
 rand = "0.9"
 regex = "1.11"
 rusqlite = { version = "0.37", features = ["bundled", "hooks", "preupdate_hook"] }

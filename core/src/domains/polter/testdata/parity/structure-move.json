@@ -7,13 +7,11 @@
     "Cards": null,
     "Conflicts": null,
     "Decisions": null,
-    "Environments": null,
     "Facts": null,
     "Milestones": null,
     "Nodes": [
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-app",
         "Intent": "",
@@ -33,7 +31,6 @@
       },
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "web",
         "ID": "n-web",
         "Intent": "",
@@ -53,7 +50,6 @@
       },
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-ui",
         "Intent": "",

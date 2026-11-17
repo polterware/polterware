@@ -364,11 +364,9 @@ pub fn nodes_citing_rule(nodes: &[structure::Node], rule: &work::Rule) -> Vec<St
         if node.status == structure::NODE_REMOVED {
             continue;
         }
-        if node
-            .decisions
-            .iter()
-            .any(|reference| super::lint::cites_decision(reference, &rule.id, &rule.statement))
-        {
+        if node.decisions.iter().any(|reference| {
+            super::lint::cites_decision(reference, &rule.id, &rule.slug, &rule.statement)
+        }) {
             paths.push(node.path.clone());
         }
     }

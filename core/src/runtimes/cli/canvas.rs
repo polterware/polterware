@@ -10,9 +10,10 @@ use crate::{domains::canvas as domain, local_v1};
 use std::io::Read;
 use std::time::Duration;
 
-const USAGE: &str = "usage: polterware canvas ls [--agents] [--scope <node>[,<node>]] [--exact] [--project <id>]\n       polterware canvas show <id|name> [--format mermaid|json|dot] [--project <id>]\n       polterware canvas save <id|name> --source <file|-> [--project <id>]\n       polterware canvas share <id|name> on|off [--project <id>]";
+const USAGE: &str = "usage: polterware canvas ls [--agents] [--scope <node>[,<node>]] [--exact] [--project <id>]\n       polterware canvas show <id|name> [--format mermaid|json|dot] [--project <id>]\n       polterware canvas save <id|name> --source <file|-> [--project <id>]   (a new name creates the canvas)\n       polterware canvas share <id|name> on|off [--project <id>]";
 const LIST: &str = "/polterware.local.v1.CanvasService/ListCanvases";
 const UPDATE: &str = "/polterware.local.v1.CanvasService/UpdateCanvas";
+const CREATE: &str = "/polterware.local.v1.CanvasService/CreateCanvas";
 
 #[derive(Debug, PartialEq, Eq)]
 struct CanvasListArgs {
@@ -300,32 +301,58 @@ fn save(db: &str, args: &[String]) -> CliResult {
     let c = dial(db)?;
     let p = resolve_project(&c, &parsed.project)?
         .ok_or_else(|| CliError::message("no project found"))?;
-    let item = resolve_canvas(&c, &p.id, &parsed.reference)?;
+    let items = get_canvases(&c, &p.id, "", false)?;
     let change = local_v1::ChangeEnvelope {
         summary: "Save canvas source".to_string(),
         rationale: "Mermaid source written from the CLI".to_string(),
         ..Default::default()
     };
-    let response: local_v1::UpdateCanvasResponse = c.unary(
-        UPDATE,
-        &local_v1::UpdateCanvasRequest {
-            project_id: p.id,
-            id: item.id,
-            source: Some(source),
-            change: Some(change),
-            ..Default::default()
-        },
-        Duration::from_secs(10),
-    )?;
-    let updated = response
-        .canvas
-        .ok_or_else(|| CliError::message("canvas update returned no canvas"))?;
-    println!("{}: source saved", updated.name);
+    // An unknown name creates the canvas, as `polter.apply` does over MCP.
+    let saved = match find_canvas(&items, &parsed.reference) {
+        Ok(item) => {
+            let response: local_v1::UpdateCanvasResponse = c.unary(
+                UPDATE,
+                &local_v1::UpdateCanvasRequest {
+                    project_id: p.id,
+                    id: item.id,
+                    source: Some(source),
+                    change: Some(change),
+                    ..Default::default()
+                },
+                Duration::from_secs(10),
+            )?;
+            response.canvas
+        }
+        Err(err) if creates_canvas(&err) => {
+            let response: local_v1::CreateCanvasResponse = c.unary(
+                CREATE,
+                &local_v1::CreateCanvasRequest {
+                    project_id: p.id,
+                    name: parsed.reference.trim().to_string(),
+                    r#type: domain::TYPE_CANVAS.to_string(),
+                    source,
+                    change: Some(change),
+                    ..Default::default()
+                },
+                Duration::from_secs(10),
+            )?;
+            response.canvas
+        }
+        Err(err) => return Err(err),
+    }
+    .ok_or_else(|| CliError::message("canvas save returned no canvas"))?;
+    println!("{}: source saved", saved.name);
     Ok(())
 }
 
+/// Reports whether a failed lookup means no canvas has that name, so `save`
+/// creates one; an ambiguous name stays an error.
+fn creates_canvas(err: &CliError) -> bool {
+    matches!(err, CliError::Message(message) if message.starts_with("unknown canvas"))
+}
+
 /// Reads the Mermaid source from a file, or from stdin when the path is `-`.
-fn read_source(path: &str) -> Result<String, CliError> {
+pub(crate) fn read_source(path: &str) -> Result<String, CliError> {
     if path == "-" {
         let mut text = String::new();
         std::io::stdin().read_to_string(&mut text)?;

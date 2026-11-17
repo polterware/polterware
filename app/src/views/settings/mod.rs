@@ -1,9 +1,9 @@
 //! Settings (`SettingsView` in `@polterware/feature-settings`): the one settings dialog over
 //! the page, polterware-ui's [`settings_dialog`], titled by its scope. Project settings (the
-//! sidebar's footer) has General, Environments, Platforms, and Danger zone under the Project
+//! sidebar's footer) has General and Danger zone under the Project
 //! group; App settings (the title bar's gear, beside Commander) has the Agents group (MCP
 //! server, Agent setup, Hooks, AI skill, CLI reference) and the App group (Shortcuts,
-//! Appearance, Local core, Privacy, Danger zone). The panel's heading is `Group / Label`, the
+//! Appearance, Local core, Danger zone). The panel's heading is `Group / Label`, the
 //! App group's only its label. The rail's search finds the settings of the open scope, the
 //! shortcuts, and the CLI's commands, and a result opens its page.
 //!
@@ -14,7 +14,6 @@
 
 mod agents;
 mod app_pages;
-mod platforms;
 mod project;
 
 use std::collections::BTreeMap;
@@ -26,7 +25,7 @@ use gpui::{
     SharedString, Subscription, Window, div, prelude::*, px,
 };
 use polterware_ui::patterns::{
-    Composer, ConfirmDialog, DialogPresence, SettingsNavItem, SettingsSearchEntry, modal_layer,
+    ConfirmDialog, DialogPresence, SettingsNavItem, SettingsSearchEntry, modal_layer,
     settings_dialog, settings_group_gap, window_layer,
 };
 use polterware_ui::switch::Switch;
@@ -37,8 +36,6 @@ use super::picker::Picker;
 use crate::cli_reference;
 use crate::shortcuts;
 use crate::state::{AppState, SettingsScope, SettingsTab};
-
-use platforms::Connect;
 
 /// A question the dialog asks before a destructive action.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,16 +53,9 @@ pub struct SettingsView {
     // General.
     name: Entity<TextInput>,
     description: Entity<TextInput>,
-    default_environment: String,
     /// The project and settings General's fields were filled from.
-    general_for: Option<(String, String, String, String)>,
-    environment_picker: Picker,
+    general_for: Option<(String, String, String)>,
     agents_sync: Entity<Switch>,
-    // Environments.
-    expanded_environment: Option<String>,
-    environment_composer: Entity<Composer>,
-    environment_kind: String,
-    environment_protection: String,
     // Danger zones.
     ask: Option<Ask>,
     /// The confirmation's motion, and what it asked while it leaves.
@@ -73,17 +63,6 @@ pub struct SettingsView {
     ask_shown: Option<Ask>,
     ask_focus: FocusHandle,
     ask_focus_due: bool,
-    // Platforms.
-    platform_search: Entity<TextInput>,
-    /// `Platform filters`: Category, CLI, and Status over the table's distinct values.
-    platform_filters: Entity<polterware_ui::filter_popover::FilterPopover>,
-    /// The values the filter fields were last built from.
-    platform_fields_key: String,
-    platform_detail: Option<String>,
-    connect: Option<Connect>,
-    /// The sign-in's motion, and the closed one drawn while it leaves.
-    connect_presence: DialogPresence,
-    connect_leaving: Option<Connect>,
     // Agents.
     hooks: BTreeMap<String, Entity<Switch>>,
     // App.
@@ -120,29 +99,6 @@ impl SettingsView {
                 });
             })
         });
-        let environment_composer = cx.new(Composer::new);
-        cx.observe(&environment_composer, |_, _, cx| cx.notify())
-            .detach();
-        cx.subscribe(&environment_composer, Self::environment_composed)
-            .detach();
-        let platform_search = cx.new(|cx| {
-            TextInput::new(cx)
-                .placeholder("Search platforms\u{2026}")
-                .size(FieldSize::Sm)
-                .pill()
-        });
-        cx.observe(&platform_search, |_, _, cx| cx.notify())
-            .detach();
-        let platform_filters = cx.new(|cx| {
-            polterware_ui::filter_popover::FilterPopover::new(
-                "settings-platform-filters",
-                "Platform filters",
-                false,
-                cx,
-            )
-        });
-        cx.observe(&platform_filters, |_, _, cx| cx.notify())
-            .detach();
         let app = state.read(cx);
         let (reduce, auto) = (app.reduce_transparency(), app.core_prefs().auto_start);
         let transparency_state = state.clone();
@@ -172,26 +128,13 @@ impl SettingsView {
             search,
             name,
             description,
-            default_environment: String::new(),
             general_for: None,
-            environment_picker: Picker::new(cx),
             agents_sync,
-            expanded_environment: None,
-            environment_composer,
-            environment_kind: "development".into(),
-            environment_protection: "relaxed".into(),
             ask: None,
             ask_presence: DialogPresence::new(),
             ask_shown: None,
             ask_focus: cx.focus_handle(),
             ask_focus_due: false,
-            platform_search,
-            platform_filters,
-            platform_fields_key: String::new(),
-            platform_detail: None,
-            connect: None,
-            connect_presence: DialogPresence::new(),
-            connect_leaving: None,
             hooks: BTreeMap::new(),
             transparency,
             auto_start,
@@ -234,16 +177,10 @@ impl SettingsView {
 
     /// What a page leaves behind when another one opens: its menus, its recording, its peek.
     fn leave_page(&mut self, cx: &mut Context<Self>) {
-        for picker in [
-            &self.environment_picker,
-            &self.idle_picker,
-            &self.quit_picker,
-        ] {
+        for picker in [&self.idle_picker, &self.quit_picker] {
             picker.close(cx);
         }
         self.recording = None;
-        self.platform_detail = None;
-        self.expanded_environment = None;
     }
 
     fn select(&mut self, tab: SettingsTab, cx: &mut Context<Self>) {
@@ -287,18 +224,12 @@ impl SettingsView {
         };
         let mut entries = vec![
             entry(SettingsTab::General, "Project", "Project")
-                .keywords("name description default environment project id"),
-            entry(SettingsTab::General, "AGENTS.md", "AGENTS.md sync").keywords(
-                "agents md sync generated block rules structure export",
-            ),
-            entry(SettingsTab::Environments, "Environments", "Environments")
-                .keywords("add environment default delete"),
+                .keywords("name description project id"),
+            entry(SettingsTab::General, "AGENTS.md", "AGENTS.md sync")
+                .keywords("agents md sync generated block rules structure export"),
             entry(SettingsTab::ProjectDanger, "Danger zone", "Archive project")
                 .description("Hide this project from the switcher. Local data stays in SQLite.")
                 .keywords("project archive"),
-            entry(SettingsTab::Privacy, "Privacy", "Privacy")
-                .description("Local-first data and credential handling.")
-                .keywords("credentials tokens account"),
             entry(SettingsTab::AgentsMcp, "MCP server", "MCP helper")
                 .description("Start or stop the local MCP server agents connect to.")
                 .keywords("agents server cursor claude"),
@@ -311,13 +242,6 @@ impl SettingsView {
             entry(SettingsTab::AgentsSkill, "AI skill", "AI skill")
                 .description("Copy or download the Polterware instructions for coding agents.")
                 .keywords("markdown download copy instructions"),
-            entry(SettingsTab::Platforms, "Platforms", "Platforms")
-                .description(
-                    "Platform CLIs: installed here, connected to this project, and their last refresh.",
-                )
-                .keywords(
-                    "integrations providers vercel github aws sync refresh connect install login catalog connected",
-                ),
             entry(SettingsTab::CliReference, "CLI reference", "CLI reference")
                 .description("Every polterware command, its options, and the interactive keys.")
                 .keywords("command line terminal flags markdown"),
@@ -357,8 +281,6 @@ impl SettingsView {
     fn page(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         match self.shown {
             SettingsTab::General => self.general_page(window, cx),
-            SettingsTab::Environments => self.environments_page(window, cx),
-            SettingsTab::Platforms => self.platforms_page(window, cx),
             SettingsTab::ProjectDanger => self.project_danger_page(cx),
             SettingsTab::AgentsMcp => self.mcp_page(cx),
             SettingsTab::AgentsSetup => self.setup_page(window, cx),
@@ -368,7 +290,6 @@ impl SettingsView {
             SettingsTab::Shortcuts => self.shortcuts_page(cx),
             SettingsTab::Appearance => self.appearance_page(window, cx),
             SettingsTab::LocalCore => self.core_page(window, cx),
-            SettingsTab::Privacy => self.privacy_page(cx),
             SettingsTab::AppDanger => self.app_danger_page(cx),
         }
     }
@@ -497,11 +418,7 @@ impl Render for SettingsView {
                     .text_size(px(12.5))
                     .child(polterware_ui::patterns::settings_anchor(tab.label(), page)),
             );
-        for picker in [
-            &self.environment_picker,
-            &self.idle_picker,
-            &self.quit_picker,
-        ] {
+        for picker in [&self.idle_picker, &self.quit_picker] {
             if let Some(overlay) = picker.overlay(cx) {
                 dialog = dialog.overlay(overlay);
             }
@@ -518,8 +435,6 @@ impl Render for SettingsView {
                 dialog,
                 &theme,
             ))
-            .child(self.environment_composer.clone())
-            .children(self.connect_dialog(window, cx))
             .children(self.ask_dialog(window, cx))
             .into_any_element()
     }

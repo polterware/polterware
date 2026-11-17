@@ -162,12 +162,6 @@ impl super::Store {
             project_id: project_id.to_string(),
             ..work::Snapshot::default()
         };
-        for env in self.list_environments(project_id)? {
-            snapshot.environments.push(work::NamedEnvironment {
-                id: env.id,
-                name: env.name,
-            });
-        }
         let mut index: HashMap<String, usize> = HashMap::new();
         {
             let mut stmt = self.db.prepare(

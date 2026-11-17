@@ -12,13 +12,11 @@ use time::OffsetDateTime;
 
 /// Kinds a change event can carry. Clients map them to the slices they reload.
 pub const KIND_PROJECTS: &str = "projects";
-pub const KIND_ENVIRONMENTS: &str = "environments";
 pub const KIND_SETTINGS: &str = "settings";
 pub const KIND_WORK: &str = "work";
 pub const KIND_KNOWLEDGE: &str = "knowledge";
 pub const KIND_CANON: &str = "canon";
 pub const KIND_AGENT_RUNS: &str = "agent_runs";
-pub const KIND_INTEGRATIONS: &str = "integrations";
 pub const KIND_CANVAS: &str = "canvas";
 
 /// Returns the event kind for a table, or `""` for tables clients do not show
@@ -26,7 +24,6 @@ pub const KIND_CANVAS: &str = "canvas";
 pub fn kind_for_table(table: &str) -> &'static str {
     match table {
         "projects" => KIND_PROJECTS,
-        "environments" => KIND_ENVIRONMENTS,
         "project_settings" => KIND_SETTINGS,
         "project_repos" => KIND_SETTINGS,
         "work_cards" => KIND_WORK,
@@ -40,8 +37,6 @@ pub fn kind_for_table(table: &str) -> &'static str {
         "inbox_dispositions" => KIND_WORK,
         "structure_nodes" => KIND_WORK,
         "rules" => KIND_WORK,
-        "node_deployments" => KIND_WORK,
-        "deploy_checks" => KIND_WORK,
         "change_ops" => KIND_WORK,
         "knowledge_items" => KIND_KNOWLEDGE,
         "knowledge_entity_links" => KIND_KNOWLEDGE,
@@ -51,9 +46,6 @@ pub fn kind_for_table(table: &str) -> &'static str {
         "agent_runs" => KIND_AGENT_RUNS,
         "agent_run_steps" => KIND_AGENT_RUNS,
         "agent_tool_calls" => KIND_AGENT_RUNS,
-        "integration_connections" => KIND_INTEGRATIONS,
-        "integration_resources" => KIND_INTEGRATIONS,
-        "integration_sync_runs" => KIND_INTEGRATIONS,
         "canvases" => KIND_CANVAS,
         _ => "",
     }

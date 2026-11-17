@@ -9,7 +9,7 @@ use super::canvas;
 use super::conflict;
 use super::context;
 use super::db::{abs, default_db};
-use super::deploys;
+use super::doc;
 use super::export;
 use super::feature;
 use super::flags::{FlagError, FlagSet, go_quote};
@@ -17,6 +17,7 @@ use super::hook;
 use super::inbox;
 use super::init;
 use super::mcpbridge;
+use super::milestone;
 use super::moved::{moved_command, run_legacy_dispatch, run_moved};
 use super::output::{CliResult, fail, usage, usage_text};
 use super::polter;
@@ -66,6 +67,8 @@ pub fn run(argv: &[String]) -> i32 {
         "search" | "context" => context::run_search(&db_path, rest),
         "structure" => structure::run_structure(&db_path, rest),
         "canvas" => canvas::run_canvas(&db_path, rest),
+        "milestone" => milestone::run_milestone(&db_path, rest),
+        "doc" => doc::run_doc(&db_path, rest),
         "export" => export::run_export(&db_path, rest),
         "apply" => polter::run_apply(&db_path, rest),
         "lint" => polter::run_lint(&db_path, rest),
@@ -78,7 +81,6 @@ pub fn run(argv: &[String]) -> i32 {
         "verify" => feature::run_verify(&db_path, rest),
         "inbox" => inbox::run_inbox(&db_path, rest),
         "conflict" => conflict::run_conflict(&db_path, rest),
-        "deploys" => deploys::run_deploys(&db_path, rest),
         "scope" => scope::run_scope(&db_path, rest),
         "setup" => setup::run_setup(&db_path, rest),
         "hooks" => setup::run_hooks(&db_path, rest),
@@ -111,8 +113,8 @@ mod tests {
 
     #[test]
     fn the_usage_is_ten_thousand_bytes_of_go_text() {
-        assert_eq!(usage_text().len(), 3890);
-        assert_eq!(usage_text().matches('\n').count(), 33);
+        assert_eq!(usage_text().len(), 4181);
+        assert_eq!(usage_text().matches('\n').count(), 34);
     }
 
     #[test]

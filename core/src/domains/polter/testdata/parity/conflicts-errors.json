@@ -1,7 +1,7 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n## plan diagnostics\n5:error:conflict \"lonely\" needs the rule: or decision: it goes against\n6:error:unknown rule \"nowhere\": use a Rule slug or id (polterware query rules)\n8:error:unknown conflict \"ghost\": add the request (#### conflict ghost: Request)\n## plan\nno changes\n## summary\n0 ops ()\n## brief\n# core: Core\nlevel: domain\n\nRules:\n- Never call the network. (whole project)\n",
+  "expected": "## decode\n## plan diagnostics\n5:error:conflict \"lonely\" needs the rule: or decision: it goes against\n6:error:unknown rule \"nowhere\": use a Rule slug or id (polterware query rules)\n8:error:unknown conflict \"ghost\": add the request (#### conflict ghost: Request)\n## plan\nno changes\n## summary\n0 ops\n## brief\n# core: Core\nlevel: domain\n\nRules:\n- Never call the network. (whole project)\n",
   "name": "conflicts-errors",
   "snapshot": {
     "Cards": null,
@@ -21,13 +21,11 @@
       }
     ],
     "Decisions": null,
-    "Environments": null,
     "Facts": null,
     "Milestones": null,
     "Nodes": [
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-core",
         "Intent": "",
@@ -47,7 +45,6 @@
       },
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "cmd/api",
         "ID": "n-api",
         "Intent": "",

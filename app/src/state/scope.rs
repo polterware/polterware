@@ -1,39 +1,33 @@
 //! The scope filter's state (`scopeTokens`, `applyScopeTokens`, and `setActiveScope` in
-//! `App.tsx` and `workspace/load.ts`): one selection of domains, components, and environments
+//! `App.tsx` and `workspace/load.ts`): one selection of domains and components
 //! that every scoped page's filters share, cleared when another project opens, and the catalog
-//! they pick from (the project's Structure nodes and environments, and its milestones, which
+//! they pick from (the project's Structure nodes and milestones, which
 //! the shared Composer offers).
 //!
 //! A domain or component token reads under that node and every node below it: the Inbox, the
 //! changes Activity lists, Knowledge's records and Rules, and Milestones' cards are read with
-//! those `scope_nodes` again whenever the selection changes. An environment token narrows
-//! nothing the pages read (only Structure would); Activity and Docs show it.
+//! those `scope_nodes` again whenever the selection changes.
 
 use gpui::{AppContext as _, Context};
 
 use super::{AppState, Load, Section};
 use crate::client::{Core, CoreError};
-use crate::contracts::{
-    Environment, ListEnvironmentsRequest, ListMilestonesRequest, ListStructureRequest, Milestone,
-    StructureNode,
-};
+use crate::contracts::{ListMilestonesRequest, ListStructureRequest, Milestone, StructureNode};
 
 /// A scope level (`ScopeFilterKey`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ScopeKey {
     Domain,
     Component,
-    Env,
 }
 
 impl ScopeKey {
-    pub const ALL: [ScopeKey; 3] = [ScopeKey::Domain, ScopeKey::Component, ScopeKey::Env];
+    pub const ALL: [ScopeKey; 2] = [ScopeKey::Domain, ScopeKey::Component];
 
     pub fn id(self) -> &'static str {
         match self {
             ScopeKey::Domain => "domain",
             ScopeKey::Component => "component",
-            ScopeKey::Env => "env",
         }
     }
 
@@ -42,7 +36,6 @@ impl ScopeKey {
         match self {
             ScopeKey::Domain => "Domain",
             ScopeKey::Component => "Component",
-            ScopeKey::Env => "Environment",
         }
     }
 
@@ -51,7 +44,7 @@ impl ScopeKey {
     }
 }
 
-/// One picked node or environment (`ScopeFilterToken`).
+/// One picked node (`ScopeFilterToken`).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ScopeToken {
     pub key: ScopeKey,
@@ -62,7 +55,6 @@ pub struct ScopeToken {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ScopeCatalog {
     pub nodes: Vec<StructureNode>,
-    pub environments: Vec<Environment>,
     pub milestones: Vec<Milestone>,
 }
 
@@ -90,7 +82,7 @@ pub fn node_ids(tokens: &[ScopeToken], nodes: &[StructureNode]) -> Vec<String> {
             walk(&child.id, nodes, out);
         }
     }
-    for token in tokens.iter().filter(|token| token.key != ScopeKey::Env) {
+    for token in tokens {
         walk(&token.id, nodes, &mut out);
     }
     out
@@ -127,11 +119,7 @@ impl AppState {
     /// The picked domains and components, which a new doc starts with as its
     /// Context (`defaultContexts`).
     pub fn scope_contexts(&self) -> Vec<String> {
-        self.scope
-            .iter()
-            .filter(|token| token.key != ScopeKey::Env)
-            .map(|token| token.id.clone())
-            .collect()
+        self.scope.iter().map(|token| token.id.clone()).collect()
     }
 
     /// `applyScopeTokens`: takes `tokens` as the selection and reads the scoped pages again;
@@ -146,7 +134,6 @@ impl AppState {
         self.scope_generation += 1;
         cx.notify();
         if self.scope_node_ids() == nodes_before {
-            // Only an environment moved: nothing the pages read changes.
             return;
         }
         self.scope_reads += 1;
@@ -179,7 +166,7 @@ impl AppState {
         self.catalog_generation += 1;
     }
 
-    /// Reads the open project's Structure nodes, environments, and milestones.
+    /// Reads the open project's Structure nodes and milestones.
     pub fn load_catalog(&mut self, cx: &mut Context<Self>) {
         let (Some(core), Some(project)) = (self.ready_core(), self.project_id()) else {
             return;
@@ -221,23 +208,13 @@ fn read_catalog(core: &Core, project: &str) -> Result<ScopeCatalog, CoreError> {
             ..ListStructureRequest::default()
         })?
         .nodes;
-    let environments = core
-        .project()
-        .list_environments(&ListEnvironmentsRequest {
-            project_id: project.to_string(),
-        })?
-        .environments;
     let milestones = core
         .work()
         .list_milestones(&ListMilestonesRequest {
             project_id: project.to_string(),
         })?
         .milestones;
-    Ok(ScopeCatalog {
-        nodes,
-        environments,
-        milestones,
-    })
+    Ok(ScopeCatalog { nodes, milestones })
 }
 
 #[cfg(test)]
@@ -268,14 +245,12 @@ mod tests {
         let tokens = vec![
             token(ScopeKey::Domain, "billing"),
             token(ScopeKey::Component, "invoices"),
-            token(ScopeKey::Env, "prod"),
             token(ScopeKey::Domain, "gone"),
         ];
         assert_eq!(
             node_ids(&tokens, &nodes),
             vec!["billing", "invoices", "payouts"]
         );
-        assert!(node_ids(&[token(ScopeKey::Env, "prod")], &nodes).is_empty());
     }
 
     #[test]

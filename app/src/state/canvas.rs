@@ -17,13 +17,12 @@ use super::{AppState, Load, Section, change};
 use crate::canvas::references::{
     PromotionKind, StoreEntity, created_rule_slug, promotion_rationale, promotion_text,
 };
-use crate::canvas::structure::{NAME as STRUCTURE_NAME, draw_structure, is_structure_canvas};
 use crate::client::{Core, CoreError};
 use crate::contracts::{
     ApplyPolterRequest, Canvas, CanvasGraph, CanvasTypeDefinition, CreateCanvasRequest,
     DeleteCanvasRequest, GetCanvasRequest, ListCanvasTypesRequest, ListCanvasesRequest,
     ListRulesRequest, ListStructureRequest, ListWorkCardsRequest, SetCanvasArchivedRequest,
-    StructureNode, UpdateCanvasRequest,
+    UpdateCanvasRequest,
 };
 
 /// The canvases and the types, read together.
@@ -64,8 +63,6 @@ pub struct CanvasState {
     /// Whether the remembered canvas was tried since the list was read.
     restored: bool,
     busy: bool,
-    /// Structure's Draw as canvas is writing.
-    drawing: bool,
 }
 
 impl Default for CanvasState {
@@ -82,7 +79,6 @@ impl Default for CanvasState {
                 .collect(),
             restored: false,
             busy: false,
-            drawing: false,
         }
     }
 }
@@ -193,11 +189,6 @@ impl AppState {
 
     pub fn canvas_busy(&self) -> bool {
         self.canvas.busy
-    }
-
-    /// Whether Structure's Draw as canvas is writing.
-    pub fn drawing_structure(&self) -> bool {
-        self.canvas.drawing
     }
 
     /// The open canvas's name, for the breadcrumb after Canvas.
@@ -788,116 +779,5 @@ impl AppState {
         {
             entities.push(entity);
         }
-    }
-
-    /// Structure's Draw as canvas: draws the tree on the project's Structure canvas, creating
-    /// it the first time, agent-visible, and remembers it as the one Canvas opens on.
-    pub fn draw_structure_canvas(&mut self, nodes: Vec<StructureNode>, cx: &mut Context<Self>) {
-        let (Some(core), Some(project)) = (self.ready_core(), self.project_id()) else {
-            return;
-        };
-        let project = project.to_string();
-        if self.canvas.drawing {
-            return;
-        }
-        self.canvas.drawing = true;
-        cx.spawn(async move |this, cx| {
-            let wanted = project.clone();
-            let result = cx
-                .background_spawn(async move {
-                    let listed = core
-                        .canvas()
-                        .list_canvases(&ListCanvasesRequest {
-                            project_id: project.clone(),
-                            ..ListCanvasesRequest::default()
-                        })?
-                        .canvases
-                        .into_iter()
-                        .find(is_structure_canvas);
-                    let canvas = match listed {
-                        Some(listed) => core
-                            .canvas()
-                            .get_canvas(&GetCanvasRequest {
-                                project_id: project.clone(),
-                                id: listed.id,
-                            })?
-                            .canvas
-                            .unwrap_or_default(),
-                        None => core
-                            .canvas()
-                            .create_canvas(&CreateCanvasRequest {
-                                project_id: project.clone(),
-                                name: STRUCTURE_NAME.into(),
-                                r#type: "canvas".into(),
-                                agent_visible: false,
-                                graph: Some(CanvasGraph::default()),
-                                layout_json: "{}".into(),
-                                change: Some(change(
-                                    &format!("Create canvas: {STRUCTURE_NAME}"),
-                                    "Start a local canvas for visual exploration.",
-                                )),
-                                ..CreateCanvasRequest::default()
-                            })?
-                            .canvas
-                            .unwrap_or_default(),
-                    };
-                    let (graph, layout_json) = draw_structure(&nodes, Some(&canvas));
-                    core.canvas().update_canvas(&update_request(
-                        &project,
-                        &canvas.id,
-                        CanvasPatch {
-                            agent_visible: Some(true),
-                            graph: Some(graph),
-                            layout_json: Some(layout_json),
-                            ..CanvasPatch::default()
-                        },
-                    ))?;
-                    Ok::<_, CoreError>(canvas.id)
-                })
-                .await;
-            let _ = this.update(cx, |state, cx| {
-                state.canvas.drawing = false;
-                match result {
-                    Ok(id) => {
-                        if state.project_id() == Some(wanted.as_str()) {
-                            state.canvas.list = Load::Idle;
-                        }
-                        // Open canvas remembers the drawn canvas and goes to it.
-                        let weak = cx.entity().downgrade();
-                        state.push_action_toast(
-                            "Structure drawn on its canvas.",
-                            ToastTone::Success,
-                            "Open canvas",
-                            std::rc::Rc::new(move |_, cx| {
-                                let (wanted, id) = (wanted.clone(), id.clone());
-                                let _ = weak.update(cx, |state, cx| {
-                                    if state.project_id() != Some(wanted.as_str()) {
-                                        return;
-                                    }
-                                    state.remember_canvas(wanted, Some(id));
-                                    state.canvas.restored = false;
-                                    state.go_section(Section::Canvas, cx);
-                                    cx.notify();
-                                });
-                            }),
-                            cx,
-                        );
-                    }
-                    Err(error) => {
-                        let message = state.lost(error, cx);
-                        state.toast(
-                            if message.is_empty() {
-                                "Could not draw the canvas.".to_string()
-                            } else {
-                                message
-                            },
-                            true,
-                        );
-                    }
-                }
-                cx.notify();
-            });
-        })
-        .detach();
     }
 }

@@ -33,9 +33,7 @@ pub fn query_show(
         return Ok(polter::encode_card(card));
     }
     if let Some(rule) = snapshot.rules.iter().find(|rule| {
-        rule.id == id
-            || (!rule.slug.is_empty() && rule.slug == id)
-            || polter::cites_decision(id, &rule.id, &rule.statement)
+        rule.id == id || polter::cites_decision(id, &rule.id, &rule.slug, &rule.statement)
     }) {
         return Ok(polter::encode_rule(
             rule,

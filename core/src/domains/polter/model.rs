@@ -267,7 +267,7 @@ pub const CARD_SECTION_KEYS: [&str; 3] = ["behavior", "edge-cases", "plan"];
 /// (empty is the project root); `path:` is a folder inside it. `kind:` is what
 /// a component is and `tech:` its technology. `rules:` lists the Rules that
 /// hold for the node; the retired `decisions:` key is read as the same list.
-pub const NODE_META_KEYS: [&str; 11] = [
+pub const NODE_META_KEYS: [&str; 10] = [
     "level",
     "kind",
     "tech",
@@ -276,7 +276,6 @@ pub const NODE_META_KEYS: [&str; 11] = [
     "dir",
     "path",
     "rules",
-    "deploys",
     "status",
     "migrating",
 ];

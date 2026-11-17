@@ -2,7 +2,7 @@
 //!
 //! The [`Core`] the services read and write through, the token and listener it
 //! starts with, the router that mounts every service route, and the project,
-//! environment, knowledge, connection, and maintenance handlers.
+//! knowledge and maintenance handlers.
 //!
 //! The one open store of this database lives inside the MCP session table
 //! (`providers::mcp::Sessions` owns it); every handler borrows it through
@@ -18,7 +18,6 @@ use tokio::sync::{oneshot, watch};
 
 use crate::compositions::wedge;
 use crate::domains::agentrun;
-use crate::domains::integrations;
 use crate::domains::knowledge;
 use crate::domains::projects;
 use crate::local_v1;
@@ -176,7 +175,7 @@ impl Server {
     }
 }
 
-/// Serves every route on `listener`, and starts the background deploy check.
+/// Serves every route on `listener`.
 /// Runs on the caller's tokio runtime.
 pub fn serve_connect(listener: std::net::TcpListener, core: Arc<Core>) -> Server {
     serve_routes(listener, core, super::routes())
@@ -189,7 +188,6 @@ pub fn serve_routes(
     core: Arc<Core>,
     routes: Vec<Route>,
 ) -> Server {
-    super::deploy_checks::watch_deploys(&core);
     listener
         .set_nonblocking(true)
         .expect("the core listener turns non-blocking");
@@ -267,18 +265,6 @@ pub fn routes() -> Vec<Route> {
             archive_project,
         ),
         Route::unary(
-            "/polterware.local.v1.ProjectService/ListEnvironments",
-            list_environments,
-        ),
-        Route::unary(
-            "/polterware.local.v1.ProjectService/SaveEnvironment",
-            save_environment,
-        ),
-        Route::unary(
-            "/polterware.local.v1.ProjectService/DeleteEnvironment",
-            delete_environment,
-        ),
-        Route::unary(
             "/polterware.local.v1.KnowledgeService/SaveKnowledge",
             save_knowledge,
         ),
@@ -289,18 +275,6 @@ pub fn routes() -> Vec<Route> {
         Route::unary(
             "/polterware.local.v1.KnowledgeService/DeleteKnowledge",
             delete_knowledge,
-        ),
-        Route::unary(
-            "/polterware.local.v1.IntegrationService/ListCliProviders",
-            list_cli_providers,
-        ),
-        Route::unary(
-            "/polterware.local.v1.IntegrationService/ListIntegrationConnections",
-            list_integration_connections,
-        ),
-        Route::unary(
-            "/polterware.local.v1.IntegrationService/SaveIntegrationConnection",
-            save_integration_connection,
         ),
         Route::unary(
             "/polterware.local.v1.MaintenanceService/ResetLocalStore",
@@ -376,53 +350,6 @@ pub fn archive_project(
     Ok(local_v1::ArchiveProjectResponse {
         project: Some(project_proto(&project)),
     })
-}
-
-pub fn list_environments(
-    core: Arc<Core>,
-    request: ConnectRequest<local_v1::ListEnvironmentsRequest>,
-) -> Result<local_v1::ListEnvironmentsResponse, ConnectError> {
-    let items = core
-        .store()
-        .list_environments(&request.message.project_id)
-        .map_err(internal)?;
-    Ok(local_v1::ListEnvironmentsResponse {
-        environments: items.iter().map(environment_proto).collect(),
-    })
-}
-
-pub fn save_environment(
-    core: Arc<Core>,
-    request: ConnectRequest<local_v1::SaveEnvironmentRequest>,
-) -> Result<local_v1::SaveEnvironmentResponse, ConnectError> {
-    let Some(item) = request.message.environment else {
-        return Err(invalid("environment is required"));
-    };
-    let mut environment =
-        projects::new_environment(&item.id, &item.project_id, &item.name, &item.kind)
-            .map_err(|err| invalid(err.to_string()))?;
-    environment.protection = item.protection;
-    environment.is_default = item.is_default;
-    environment.description = item.description;
-    core.store()
-        .save_environment(environment.clone())
-        .map_err(internal)?;
-    Ok(local_v1::SaveEnvironmentResponse {
-        environment: Some(environment_proto(&environment)),
-    })
-}
-
-pub fn delete_environment(
-    core: Arc<Core>,
-    request: ConnectRequest<local_v1::DeleteEnvironmentRequest>,
-) -> Result<local_v1::DeleteEnvironmentResponse, ConnectError> {
-    if request.message.id.is_empty() || request.message.project_id.is_empty() {
-        return Err(invalid("environment id and project id are required"));
-    }
-    core.store()
-        .delete_environment(&request.message.id, &request.message.project_id)
-        .map_err(|err| invalid(err.to_string()))?;
-    Ok(local_v1::DeleteEnvironmentResponse {})
 }
 
 pub fn save_knowledge(
@@ -566,79 +493,6 @@ pub fn delete_knowledge(
     Ok(local_v1::DeleteKnowledgeResponse {})
 }
 
-pub fn list_cli_providers(
-    _core: Arc<Core>,
-    _request: ConnectRequest<local_v1::ListCliProvidersRequest>,
-) -> Result<local_v1::ListCliProvidersResponse, ConnectError> {
-    Ok(local_v1::ListCliProvidersResponse {
-        providers: integrations::CLI_PROVIDERS
-            .iter()
-            .map(|item| local_v1::CliProvider {
-                id: item.id.to_string(),
-                name: item.name.to_string(),
-                binary: item.binary.to_string(),
-                auth_commands: item
-                    .auth_commands
-                    .iter()
-                    .map(|command| command.to_string())
-                    .collect(),
-                description: item.description.to_string(),
-                category: item.category.to_string(),
-            })
-            .collect(),
-    })
-}
-
-pub fn list_integration_connections(
-    core: Arc<Core>,
-    request: ConnectRequest<local_v1::ListIntegrationConnectionsRequest>,
-) -> Result<local_v1::ListIntegrationConnectionsResponse, ConnectError> {
-    let items = core
-        .store()
-        .list_connections(&request.message.project_id)
-        .map_err(internal)?;
-    Ok(local_v1::ListIntegrationConnectionsResponse {
-        connections: items.iter().map(connection_proto).collect(),
-    })
-}
-
-pub fn save_integration_connection(
-    core: Arc<Core>,
-    request: ConnectRequest<local_v1::SaveIntegrationConnectionRequest>,
-) -> Result<local_v1::SaveIntegrationConnectionResponse, ConnectError> {
-    let Some(item) = request.message.connection else {
-        return Err(invalid("connection is required"));
-    };
-    let connection = integrations::Connection {
-        id: item.id.clone(),
-        project_id: item.project_id.clone(),
-        provider_id: item.provider_id.clone(),
-        status: item.status.clone(),
-        label: item.label.clone(),
-        environment_id: item.environment_id.clone(),
-        last_sync_at: item.last_sync_at.clone(),
-        summary: item.summary.clone(),
-        cli_command: item.cli_command.clone(),
-        sync_interval: item.sync_interval.clone(),
-        freshness: item.freshness.clone(),
-        error_message: item.error_message.clone(),
-    };
-    if connection.id.is_empty()
-        || connection.project_id.is_empty()
-        || connection.provider_id.is_empty()
-    {
-        return Err(invalid(
-            "connection id, project id, and provider id are required",
-        ));
-    }
-    core.store()
-        .save_connection(connection.clone())
-        .map_err(internal)?;
-    Ok(local_v1::SaveIntegrationConnectionResponse {
-        connection: Some(connection_proto(&connection)),
-    })
-}
-
 pub fn reset_local_store(
     core: Arc<Core>,
     _request: ConnectRequest<local_v1::ResetLocalStoreRequest>,
@@ -682,18 +536,6 @@ pub fn project_proto(item: &projects::Project) -> local_v1::Project {
     }
 }
 
-pub fn environment_proto(item: &projects::Environment) -> local_v1::Environment {
-    local_v1::Environment {
-        id: item.id.clone(),
-        project_id: item.project_id.clone(),
-        name: item.name.clone(),
-        kind: item.kind.clone(),
-        protection: item.protection.clone(),
-        is_default: item.is_default,
-        description: item.description.clone(),
-    }
-}
-
 pub fn knowledge_proto(item: &knowledge::Item) -> local_v1::KnowledgeItem {
     local_v1::KnowledgeItem {
         id: item.id.clone(),
@@ -711,23 +553,6 @@ pub fn knowledge_proto(item: &knowledge::Item) -> local_v1::KnowledgeItem {
         updated_at: format_rfc3339_zone(item.updated_at),
         archived_at: archived_stamp(item.archived_at),
         scope_node_ids: Vec::new(),
-    }
-}
-
-pub fn connection_proto(item: &integrations::Connection) -> local_v1::IntegrationConnection {
-    local_v1::IntegrationConnection {
-        id: item.id.clone(),
-        project_id: item.project_id.clone(),
-        provider_id: item.provider_id.clone(),
-        status: item.status.clone(),
-        label: item.label.clone(),
-        environment_id: item.environment_id.clone(),
-        last_sync_at: item.last_sync_at.clone(),
-        summary: item.summary.clone(),
-        cli_command: item.cli_command.clone(),
-        sync_interval: item.sync_interval.clone(),
-        freshness: item.freshness.clone(),
-        error_message: item.error_message.clone(),
     }
 }
 

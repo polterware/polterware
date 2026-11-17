@@ -266,7 +266,6 @@ mod tests {
     use crate::domains::canon;
     use crate::domains::context;
     use crate::domains::knowledge;
-    use crate::domains::projects;
     use crate::providers::sqlite::format_rfc3339;
     use crate::providers::sqlite::test_support::{TempStore, save_project};
 
@@ -278,16 +277,19 @@ mod tests {
             .expect("second precision")
     }
 
-    fn save_environment(store: &super::super::Store, id: &str, name: &str) {
-        store
-            .save_environment(projects::Environment {
-                id: id.to_string(),
-                project_id: "p".to_string(),
-                name: name.to_string(),
-                kind: "local".to_string(),
-                ..projects::Environment::default()
-            })
-            .expect("environment");
+    fn save_component(store: &super::super::Store, id: &str, name: &str) {
+        let entity = canon::new_entity(
+            "p",
+            canon::KIND_COMPONENT,
+            canon::REF_ARCHITECTURE_NODE,
+            id,
+            name,
+            canon::TRUTH_DECLARED,
+            "structure",
+            "system",
+        )
+        .expect("entity");
+        store.upsert_canon_entity(&entity).expect("save entity");
     }
 
     fn item(id: &str, title: &str, body: &str, at: OffsetDateTime) -> knowledge::Item {
@@ -316,11 +318,7 @@ mod tests {
         let store = &holder.store;
         let at = now();
         save_project(store, "p", at);
-        save_environment(store, "local", "Local");
-        assert!(
-            store.sync_project_model("p").expect("sync") > 0,
-            "the project must project its environments"
-        );
+        save_component(store, "local", "Local");
         seed_rule(
             store,
             "rule-1",
@@ -388,8 +386,7 @@ mod tests {
         let store = &holder.store;
         let at = now();
         save_project(store, "p", at);
-        save_environment(store, "local", "Local");
-        assert!(store.sync_project_model("p").expect("sync") > 0);
+        save_component(store, "local", "Local");
         store
             .save_knowledge(item(
                 "doc-database",
@@ -399,7 +396,7 @@ mod tests {
             ))
             .expect("doc");
         let entity = store
-            .list_canon_entities("p", canon::KIND_ENVIRONMENT)
+            .list_canon_entities("p", canon::KIND_COMPONENT)
             .expect("entities")
             .remove(0);
         let link = knowledge::new_entity_link(
@@ -447,8 +444,7 @@ mod tests {
         let store = &holder.store;
         let at = now();
         save_project(store, "p", at);
-        save_environment(store, "local", "Local");
-        store.sync_project_model("p").expect("sync");
+        save_component(store, "local", "Local");
         let stamp = format_rfc3339(at);
         store
             .db
@@ -535,8 +531,7 @@ mod tests {
         let store = &holder.store;
         let at = now();
         save_project(store, "p", at);
-        save_environment(store, "staging", "Gateway staging");
-        store.sync_project_model("p").expect("sync");
+        save_component(store, "staging", "Gateway staging");
         let pkg = store
             .compile_context(&context::Request {
                 project_id: "p".to_string(),
@@ -554,7 +549,7 @@ mod tests {
             entity.reasons,
             vec![context::REASON_TITLE_MATCH.to_string()]
         );
-        assert_eq!(entity.excerpt, "environment · staging");
+        assert_eq!(entity.excerpt, "component · staging");
     }
 
     #[test]
@@ -639,10 +634,9 @@ mod tests {
         let store = &holder.store;
         let at = now();
         save_project(store, "p", at);
-        save_environment(store, "local", "Local");
-        store.sync_project_model("p").expect("sync");
+        save_component(store, "local", "Local");
         let entity = store
-            .list_canon_entities("p", canon::KIND_ENVIRONMENT)
+            .list_canon_entities("p", canon::KIND_COMPONENT)
             .expect("entities")
             .remove(0);
         let pkg = store

@@ -62,7 +62,7 @@ pub fn plan_conflicts(p: &mut Planner, doc: &Document) {
                 rule.id == reference
                     || rule.slug == reference
                     || rule.statement == reference
-                    || super::lint::cites_decision(reference, &rule.id, &rule.statement)
+                    || super::lint::cites_decision(reference, &rule.id, &rule.slug, &rule.statement)
             }) else {
                 p.errorf(
                     node.line,

@@ -564,7 +564,7 @@ fn review_rules(
             ..ReviewRule::default()
         };
         for candidate in rules {
-            if cites_decision(reference, &candidate.id, &candidate.title) {
+            if cites_decision(reference, &candidate.id, &candidate.slug, &candidate.title) {
                 item.id = candidate.id.clone();
                 item.title = candidate.title.clone();
                 item.status = candidate.status.clone();
@@ -1043,11 +1043,13 @@ mod tests {
                 id: "decision-7".into(),
                 title: "Decision 0007: Deterministic import only".into(),
                 status: "active".into(),
+                ..DecisionRef::default()
             },
             DecisionRef {
                 id: "decision-9".into(),
                 title: "Decision 0009: Checkouts".into(),
                 status: "proposed".into(),
+                ..DecisionRef::default()
             },
         ]
     }

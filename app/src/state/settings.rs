@@ -4,9 +4,8 @@
 //! (from the sidebar's footer) or App settings (beside Commander in the title bar), and what
 //! its pages read and write.
 //!
-//! A project's General and Environments read its settings and environments; Platforms reads
-//! the platform CLIs, the project's connections, their imported resources, and their sync
-//! runs; Agent setup and Hooks read the setup doctor. The MCP helper is a process this app
+//! General reads project settings; Agent setup and Hooks read the setup doctor. The MCP helper
+//! is a process this app
 //! starts ([`crate::mcp`]); the local core is the one [`AppState`] connects to, stopped through
 //! `MaintenanceService.Shutdown`; this computer's preferences live in the files the Electron
 //! Desktop keeps ([`crate::prefs`]).
@@ -19,17 +18,12 @@ use polterware_ui::icons::Icon;
 use polterware_ui::toast::ToastTone;
 use polterware_ui::window::app_icon;
 
-use super::{AppState, CoreState, Load, Route, Section, short_id};
+use super::{AppState, CoreState, Load, Route, Section};
 use crate::client::{self, Core, CoreError};
 use crate::contracts::{
-    AgentSetup, ArchiveProjectRequest, CliProvider, DeleteEnvironmentRequest, Environment,
-    GetAgentSetupRequest, GetProjectSettingsRequest, IntegrationConnection, IntegrationResource,
-    IntegrationSyncRun, ListCliProvidersRequest, ListEnvironmentsRequest,
-    ListIntegrationConnectionsRequest, ListIntegrationResourcesRequest,
-    ListIntegrationSyncRunsRequest, Project, ProjectSettings, ResetLocalStoreRequest,
-    SaveEnvironmentRequest, SaveIntegrationConnectionRequest, SaveProjectRequest,
-    SaveProjectSettingsRequest, SetAgentsSyncRequest, SetHookSwitchRequest,
-    SyncIntegrationConnectionRequest,
+    AgentSetup, ArchiveProjectRequest, GetAgentSetupRequest, GetProjectSettingsRequest, Project,
+    ProjectSettings, ResetLocalStoreRequest, SaveProjectRequest, SaveProjectSettingsRequest,
+    SetAgentsSyncRequest, SetHookSwitchRequest,
 };
 use crate::mcp::{self, McpClient, McpStatus};
 use crate::prefs::{self, AppIcon, AppearancePrefs, CorePrefs, Idle, QuitMode};
@@ -49,8 +43,6 @@ pub enum SettingsScope {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SettingsTab {
     General,
-    Environments,
-    Platforms,
     ProjectDanger,
     AgentsMcp,
     AgentsSetup,
@@ -60,15 +52,12 @@ pub enum SettingsTab {
     Shortcuts,
     Appearance,
     LocalCore,
-    Privacy,
     AppDanger,
 }
 
 impl SettingsTab {
-    pub const ALL: [SettingsTab; 14] = [
+    pub const ALL: [SettingsTab; 11] = [
         SettingsTab::General,
-        SettingsTab::Environments,
-        SettingsTab::Platforms,
         SettingsTab::ProjectDanger,
         SettingsTab::AgentsMcp,
         SettingsTab::AgentsSetup,
@@ -78,15 +67,12 @@ impl SettingsTab {
         SettingsTab::Shortcuts,
         SettingsTab::Appearance,
         SettingsTab::LocalCore,
-        SettingsTab::Privacy,
         SettingsTab::AppDanger,
     ];
 
     pub fn id(self) -> &'static str {
         match self {
             SettingsTab::General => "general",
-            SettingsTab::Environments => "environments",
-            SettingsTab::Platforms => "platforms",
             SettingsTab::ProjectDanger => "project-danger",
             SettingsTab::AgentsMcp => "agents-mcp",
             SettingsTab::AgentsSetup => "agents-setup",
@@ -96,7 +82,6 @@ impl SettingsTab {
             SettingsTab::Shortcuts => "shortcuts",
             SettingsTab::Appearance => "appearance",
             SettingsTab::LocalCore => "local-core",
-            SettingsTab::Privacy => "privacy",
             SettingsTab::AppDanger => "app-danger",
         }
     }
@@ -108,8 +93,6 @@ impl SettingsTab {
     pub fn label(self) -> &'static str {
         match self {
             SettingsTab::General => "General",
-            SettingsTab::Environments => "Environments",
-            SettingsTab::Platforms => "Platforms",
             SettingsTab::ProjectDanger | SettingsTab::AppDanger => "Danger zone",
             SettingsTab::AgentsMcp => "MCP server",
             SettingsTab::AgentsSetup => "Agent setup",
@@ -119,16 +102,12 @@ impl SettingsTab {
             SettingsTab::Shortcuts => "Shortcuts",
             SettingsTab::Appearance => "Appearance",
             SettingsTab::LocalCore => "Local core",
-            SettingsTab::Privacy => "Privacy",
         }
     }
 
     pub fn group(self) -> &'static str {
         match self {
-            SettingsTab::General
-            | SettingsTab::Environments
-            | SettingsTab::Platforms
-            | SettingsTab::ProjectDanger => "Project",
+            SettingsTab::General | SettingsTab::ProjectDanger => "Project",
             SettingsTab::AgentsMcp
             | SettingsTab::AgentsSetup
             | SettingsTab::AgentsHooks
@@ -141,8 +120,6 @@ impl SettingsTab {
     pub fn icon(self) -> Icon {
         match self {
             SettingsTab::General => Icon::Folder,
-            SettingsTab::Environments => Icon::Globe,
-            SettingsTab::Platforms => Icon::ShieldCheck,
             SettingsTab::ProjectDanger => Icon::Archive,
             SettingsTab::AgentsMcp => Icon::Plug,
             SettingsTab::AgentsSetup => Icon::Bot,
@@ -152,7 +129,6 @@ impl SettingsTab {
             SettingsTab::Shortcuts => Icon::Zap,
             SettingsTab::Appearance => Icon::Sun,
             SettingsTab::LocalCore => Icon::Cpu,
-            SettingsTab::Privacy => Icon::Shield,
             SettingsTab::AppDanger => Icon::Database,
         }
     }
@@ -183,22 +159,10 @@ impl SettingsTab {
     }
 }
 
-/// General's and Environments' reads.
+/// General's reads.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ProjectSettingsData {
     pub settings: ProjectSettings,
-    pub environments: Vec<Environment>,
-}
-
-/// Platforms' reads (`workspace().providers`, `integrations`, `integrationResources`,
-/// `syncRuns`), with the environments their connections name.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Platforms {
-    pub providers: Vec<CliProvider>,
-    pub connections: Vec<IntegrationConnection>,
-    pub resources: Vec<IntegrationResource>,
-    pub sync_runs: Vec<IntegrationSyncRun>,
-    pub environments: Vec<Environment>,
 }
 
 /// The local core as Local core shows it (`CoreState` in `core-card.tsx`).
@@ -226,10 +190,7 @@ impl CoreRun {
 /// Everything settings keeps on [`AppState`].
 pub struct SettingsState {
     tab: Option<SettingsTab>,
-    /// Commander's Connect integration: Platforms opens with its connect dialog.
-    connect_requested: bool,
     project: Load<ProjectSettingsData>,
-    platforms: Load<Platforms>,
     setup: Load<AgentSetup>,
     agents_sync_busy: bool,
     mcp_child: Option<Child>,
@@ -255,9 +216,7 @@ impl SettingsState {
         let core_prefs = prefs::core_prefs(&user_data);
         Self {
             tab: None,
-            connect_requested: false,
             project: Load::Idle,
-            platforms: Load::Idle,
             setup: Load::Idle,
             agents_sync_busy: false,
             mcp_child: None,
@@ -313,18 +272,6 @@ impl AppState {
 
     pub fn close_settings(&mut self) {
         self.settings.tab = None;
-        self.settings.connect_requested = false;
-    }
-
-    /// `action.connect-integration`: Platforms, then its connect dialog once it has read.
-    pub fn open_connect_integration(&mut self, cx: &mut Context<Self>) {
-        self.settings.connect_requested = true;
-        self.open_settings(SettingsTab::Platforms, cx);
-    }
-
-    /// Whether a connect dialog was asked for, which the Settings view answers once.
-    pub fn take_connect_request(&mut self) -> bool {
-        std::mem::take(&mut self.settings.connect_requested)
     }
 
     /// The Projects screen's Project settings: the project, then its settings.
@@ -335,8 +282,7 @@ impl AppState {
 
     fn load_settings_tab(&mut self, tab: SettingsTab, cx: &mut Context<Self>) {
         match tab {
-            SettingsTab::General | SettingsTab::Environments => self.load_project_settings(cx),
-            SettingsTab::Platforms => self.load_platforms(cx),
+            SettingsTab::General => self.load_project_settings(cx),
             SettingsTab::AgentsSetup | SettingsTab::AgentsHooks => self.load_agent_setup(cx),
             SettingsTab::AgentsMcp => self.refresh_mcp(cx),
             _ => {}
@@ -355,16 +301,11 @@ impl AppState {
     /// Another project opened: what the last one read is dropped.
     pub(super) fn forget_project_settings(&mut self) {
         self.settings.project = Load::Idle;
-        self.settings.platforms = Load::Idle;
         self.settings.setup = Load::Idle;
     }
 
     pub fn project_settings(&self) -> &Load<ProjectSettingsData> {
         &self.settings.project
-    }
-
-    pub fn platforms(&self) -> &Load<Platforms> {
-        &self.settings.platforms
     }
 
     pub fn agent_setup(&self) -> &Load<AgentSetup> {
@@ -397,32 +338,6 @@ impl AppState {
                 }
                 state.settings.project = match result {
                     Ok(data) => Load::Ready(data),
-                    Err(error) => Load::Failed(state.lost(error, cx)),
-                };
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    fn load_platforms(&mut self, cx: &mut Context<Self>) {
-        let (Some(core), Some(project)) = (self.ready_core(), self.open_project_id()) else {
-            return;
-        };
-        if !matches!(self.settings.platforms, Load::Ready(_)) {
-            self.settings.platforms = Load::Loading;
-        }
-        let wanted = project.clone();
-        cx.spawn(async move |this, cx| {
-            let result = cx
-                .background_spawn(async move { read_platforms(&core, &project) })
-                .await;
-            let _ = this.update(cx, |state, cx| {
-                if state.project_id() != Some(wanted.as_str()) {
-                    return;
-                }
-                state.settings.platforms = match result {
-                    Ok(platforms) => Load::Ready(platforms),
                     Err(error) => Load::Failed(state.lost(error, cx)),
                 };
                 cx.notify();
@@ -491,13 +406,11 @@ impl AppState {
         .detach();
     }
 
-    /// Writes General (`persistProjectSettings`): the name, then the description and default
-    /// environment, then each environment's default flag.
+    /// Writes the project name and description.
     pub fn save_project_general(
         &mut self,
         name: String,
         description: String,
-        default_environment: String,
         cx: &mut Context<Self>,
     ) {
         let (Some(core), Some(project), Load::Ready(data)) = (
@@ -518,14 +431,7 @@ impl AppState {
                             ..Project::default()
                         }),
                     })?;
-                    save_settings(
-                        &core,
-                        &project,
-                        &current.settings,
-                        &description,
-                        &default_environment,
-                    )?;
-                    sync_default_flags(&core, &project, &current.environments, &default_environment)
+                    save_settings(&core, &project, &current.settings, &description)
                 })
                 .await;
             let _ = this.update(cx, |state, cx| {
@@ -577,146 +483,6 @@ impl AppState {
         .detach();
     }
 
-    /// Adds an environment (`persistEnvironment`); the first one becomes the default.
-    pub fn create_environment(
-        &mut self,
-        name: String,
-        kind: String,
-        protection: String,
-        cx: &mut Context<Self>,
-    ) {
-        let (Some(core), Some(project), Load::Ready(data)) = (
-            self.ready_core(),
-            self.open_project_id(),
-            &self.settings.project,
-        ) else {
-            return;
-        };
-        let current = data.clone();
-        let label = name.clone();
-        cx.spawn(async move |this, cx| {
-            let result = cx
-                .background_spawn(async move {
-                    let id = format!("env-{}", short_id());
-                    let is_default = current.environments.is_empty();
-                    core.project().save_environment(&SaveEnvironmentRequest {
-                        environment: Some(Environment {
-                            id: id.clone(),
-                            project_id: project.clone(),
-                            name,
-                            description: format!("{kind} environment"),
-                            kind,
-                            protection,
-                            is_default,
-                        }),
-                    })?;
-                    if is_default {
-                        let settings = &current.settings;
-                        save_settings(&core, &project, settings, &settings.description, &id)?;
-                    }
-                    Ok::<(), CoreError>(())
-                })
-                .await;
-            let _ = this.update(cx, |state, cx| {
-                match result {
-                    Ok(()) => state.push_toast(
-                        format!("Environment \"{label}\" saved locally."),
-                        ToastTone::Success,
-                    ),
-                    Err(error) => state.toast(message(&error, "Could not save environment."), true),
-                }
-                state.settings_written(cx);
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    /// Makes `id` the default (`persistEnvironmentDefault`).
-    pub fn set_default_environment(&mut self, id: String, cx: &mut Context<Self>) {
-        let (Some(core), Some(project), Load::Ready(data)) = (
-            self.ready_core(),
-            self.open_project_id(),
-            &self.settings.project,
-        ) else {
-            return;
-        };
-        let Some(name) = data
-            .environments
-            .iter()
-            .find(|environment| environment.id == id)
-            .map(|environment| environment.name.clone())
-        else {
-            return;
-        };
-        let current = data.clone();
-        cx.spawn(async move |this, cx| {
-            let result = cx
-                .background_spawn(async move {
-                    sync_default_flags(&core, &project, &current.environments, &id)?;
-                    let settings = &current.settings;
-                    save_settings(&core, &project, settings, &settings.description, &id)
-                })
-                .await;
-            let _ = this.update(cx, |state, cx| {
-                match result {
-                    Ok(()) => state.push_toast(
-                        format!("{name} is now the default environment."),
-                        ToastTone::Success,
-                    ),
-                    Err(error) => state.toast(
-                        message(&error, "Could not update default environment."),
-                        true,
-                    ),
-                }
-                state.settings_written(cx);
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    pub fn delete_environment(&mut self, id: String, cx: &mut Context<Self>) {
-        let (Some(core), Some(project_id)) = (self.ready_core(), self.open_project_id()) else {
-            return;
-        };
-        let name = match &self.settings.project {
-            Load::Ready(data) => data
-                .environments
-                .iter()
-                .find(|environment| environment.id == id)
-                .map(|environment| environment.name.clone()),
-            _ => None,
-        };
-        cx.spawn(async move |this, cx| {
-            let result = cx
-                .background_spawn(async move {
-                    core.project()
-                        .delete_environment(&DeleteEnvironmentRequest { id, project_id })
-                })
-                .await;
-            let _ = this.update(cx, |state, cx| {
-                match result {
-                    Ok(_) => state.push_toast(
-                        match name {
-                            Some(name) => format!("Environment \"{name}\" deleted."),
-                            None => "Environment deleted.".into(),
-                        },
-                        ToastTone::Success,
-                    ),
-                    Err(error) => {
-                        state.toast(message(&error, "Could not delete environment."), true)
-                    }
-                }
-                state.settings_written(cx);
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    /// Hides the project from the switcher, then opens another one, or the Projects screen
-    /// and New project when none is left.
     pub fn archive_open_project(&mut self, cx: &mut Context<Self>) {
         let (Some(core), Some(id)) = (self.ready_core(), self.open_project_id()) else {
             return;
@@ -797,101 +563,6 @@ impl AppState {
         .detach();
     }
 
-    /// Saves this project's connection to `provider` once its CLI session is found
-    /// (`persistIntegrationConnection`).
-    pub fn connect_platform(
-        &mut self,
-        provider: CliProvider,
-        label: String,
-        cx: &mut Context<Self>,
-    ) {
-        let (Some(core), Some(project_id)) = (self.ready_core(), self.open_project_id()) else {
-            return;
-        };
-        cx.spawn(async move |this, cx| {
-            let result = cx
-                .background_spawn(async move {
-                    core.integration().save_integration_connection(
-                        &SaveIntegrationConnectionRequest {
-                            connection: Some(IntegrationConnection {
-                                id: format!("int-{}", short_id()),
-                                project_id,
-                                provider_id: provider.id.clone(),
-                                status: "connected".into(),
-                                label: if label.is_empty() {
-                                    provider.name.clone()
-                                } else {
-                                    label
-                                },
-                                summary: format!("Local {} connection", provider.name),
-                                cli_command: provider.binary.clone(),
-                                freshness: "unknown".into(),
-                                ..IntegrationConnection::default()
-                            }),
-                        },
-                    )
-                })
-                .await;
-            let _ = this.update(cx, |state, cx| {
-                if let Err(error) = result {
-                    state.toast(message(&error, "Could not save connection."), true);
-                }
-                state.settings_written(cx);
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    /// Refreshes a connection's metadata through its CLI (`persistIntegrationSync`).
-    pub fn sync_platform(&mut self, connection_id: String, cx: &mut Context<Self>) {
-        let Some(core) = self.ready_core() else {
-            return;
-        };
-        cx.spawn(async move |this, cx| {
-            let result = cx
-                .background_spawn(async move {
-                    core.integration().sync_integration_connection(
-                        &SyncIntegrationConnectionRequest { connection_id },
-                    )
-                })
-                .await;
-            let _ = this.update(cx, |state, cx| {
-                match result {
-                    Ok(response) => {
-                        let run = response.run.unwrap_or_default();
-                        let ok = run.result == "success";
-                        let text = if run.message.is_empty() {
-                            if ok {
-                                "Integration inventory synced.".to_string()
-                            } else {
-                                "Integration inventory sync failed.".to_string()
-                            }
-                        } else {
-                            run.message
-                        };
-                        state.push_toast(
-                            text,
-                            if ok {
-                                ToastTone::Success
-                            } else {
-                                ToastTone::Danger
-                            },
-                        );
-                    }
-                    Err(error) => state.toast(
-                        message(&error, "Could not refresh integration metadata."),
-                        true,
-                    ),
-                }
-                state.settings_written(cx);
-                cx.notify();
-            });
-        })
-        .detach();
-    }
-
-    /// After a settings write: the open tab, the projects, and the scope's catalog again.
     fn settings_written(&mut self, cx: &mut Context<Self>) {
         self.reload_settings(cx);
         self.load_projects(cx);
@@ -1236,58 +907,7 @@ fn read_project_settings(core: &Core, project_id: &str) -> Result<ProjectSetting
         })?
         .settings
         .unwrap_or_default();
-    let environments = core
-        .project()
-        .list_environments(&ListEnvironmentsRequest {
-            project_id: project_id.to_string(),
-        })?
-        .environments;
-    Ok(ProjectSettingsData {
-        settings,
-        environments,
-    })
-}
-
-fn read_platforms(core: &Core, project_id: &str) -> Result<Platforms, CoreError> {
-    let providers = core
-        .integration()
-        .list_cli_providers(&ListCliProvidersRequest::default())?
-        .providers;
-    let connections = core
-        .integration()
-        .list_integration_connections(&ListIntegrationConnectionsRequest {
-            project_id: project_id.to_string(),
-        })?
-        .connections;
-    // The inventory and its history are extra: a failed read shows none.
-    let resources = core
-        .integration()
-        .list_integration_resources(&ListIntegrationResourcesRequest {
-            project_id: project_id.to_string(),
-        })
-        .map(|response| response.resources)
-        .unwrap_or_default();
-    let sync_runs = core
-        .integration()
-        .list_integration_sync_runs(&ListIntegrationSyncRunsRequest {
-            project_id: project_id.to_string(),
-        })
-        .map(|response| response.runs)
-        .unwrap_or_default();
-    let environments = core
-        .project()
-        .list_environments(&ListEnvironmentsRequest {
-            project_id: project_id.to_string(),
-        })
-        .map(|response| response.environments)
-        .unwrap_or_default();
-    Ok(Platforms {
-        providers,
-        connections,
-        resources,
-        sync_runs,
-        environments,
-    })
+    Ok(ProjectSettingsData { settings })
 }
 
 /// `saveSettings` with the project's repository kept as it is.
@@ -1296,54 +916,16 @@ fn save_settings(
     project_id: &str,
     current: &ProjectSettings,
     description: &str,
-    default_environment: &str,
 ) -> Result<(), CoreError> {
     core.project()
         .save_project_settings(&SaveProjectSettingsRequest {
             settings: Some(ProjectSettings {
                 project_id: project_id.to_string(),
                 description: description.to_string(),
-                default_environment_id: default_environment.to_string(),
-                repository: current.repository.clone(),
-                ..ProjectSettings::default()
+                ..current.clone()
             }),
         })
         .map(|_| ())
-}
-
-/// `syncEnvironmentDefaultFlags`: only `default` is the default.
-fn sync_default_flags(
-    core: &Core,
-    project_id: &str,
-    environments: &[Environment],
-    default: &str,
-) -> Result<(), CoreError> {
-    if default.is_empty() {
-        return Ok(());
-    }
-    for environment in environments {
-        let is_default = environment.id == default;
-        if environment.is_default == is_default {
-            continue;
-        }
-        core.project().save_environment(&SaveEnvironmentRequest {
-            environment: Some(Environment {
-                project_id: project_id.to_string(),
-                is_default,
-                ..environment.clone()
-            }),
-        })?;
-    }
-    Ok(())
-}
-
-/// `defaultProtectionForKind`.
-pub fn default_protection(kind: &str) -> &'static str {
-    match kind {
-        "production" => "strict",
-        "staging" => "standard",
-        _ => "relaxed",
-    }
 }
 
 #[cfg(test)]
@@ -1355,12 +937,8 @@ mod tests {
         let project: Vec<&str> = SettingsTab::of(SettingsScope::Project)
             .map(SettingsTab::id)
             .collect();
-        assert_eq!(
-            project,
-            ["general", "environments", "platforms", "project-danger"]
-        );
-        assert_eq!(SettingsTab::of(SettingsScope::App).count(), 10);
-        assert_eq!(SettingsTab::Platforms.heading(), "Project / Platforms");
+        assert_eq!(project, ["general", "project-danger"]);
+        assert_eq!(SettingsTab::of(SettingsScope::App).count(), 9);
         assert_eq!(SettingsTab::LocalCore.heading(), "Local core");
         for tab in SettingsTab::ALL {
             assert_eq!(SettingsTab::from_id(tab.id()), Some(tab));

@@ -909,7 +909,7 @@ pub(super) fn plan_lines(ops: &[work::Op]) -> Vec<String> {
 
 fn structure_node_proto(row: &structure::Row) -> local_v1::StructureNode {
     let node = &row.node;
-    let mut out = local_v1::StructureNode {
+    local_v1::StructureNode {
         id: node.id.clone(),
         parent_id: node.parent_id.clone(),
         level: node.level.clone(),
@@ -928,28 +928,7 @@ fn structure_node_proto(row: &structure::Row) -> local_v1::StructureNode {
         tech: node.tech.clone(),
         migration_from: node.migration_from.clone(),
         migration_to: node.migration_to.clone(),
-        deploys: Vec::new(),
-    };
-    for deploy in &node.deploys {
-        let mut item = local_v1::NodeDeployment {
-            id: deploy.id.clone(),
-            environment_id: deploy.environment_id.clone(),
-            environment: deploy.environment.clone(),
-            provider: deploy.provider.clone(),
-            resource: deploy.resource.clone(),
-            target_id: deploy.target_id.clone(),
-            url: deploy.url.clone(),
-            ..local_v1::NodeDeployment::default()
-        };
-        if let Some(check) = &deploy.check {
-            item.state = check.state.clone();
-            item.state_summary = check.summary.clone();
-            item.state_url = check.url.clone();
-            item.checked_at = check.checked_at.clone();
-        }
-        out.deploys.push(item);
     }
-    out
 }
 
 pub(super) fn work_card_proto(card: &work::Card) -> local_v1::WorkCard {

@@ -2,8 +2,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::Deployment;
-
 pub const LEVEL_DOMAIN: &str = "domain";
 pub const LEVEL_COMPONENT: &str = "component";
 
@@ -54,10 +52,6 @@ pub struct Node {
     pub intent: String,
     pub status: String,
     pub decisions: Vec<String>,
-    /// Where this node is deployed, one link per environment. `provider` is a
-    /// catalog id and `resource` names the remote target. Credentials are never
-    /// stored.
-    pub deploys: Vec<Deployment>,
     pub position: i32,
     /// A `project_repos` name; empty is the project root checkout.
     pub repo: String,

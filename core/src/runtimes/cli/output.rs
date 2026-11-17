@@ -82,8 +82,10 @@ pub fn usage_text() -> &'static str {
   polterware [-db path] structure history [--project <id>]
   polterware [-db path] canvas ls [--agents] [--scope <node>[,<node>]] [--exact] [--project <id>]
   polterware [-db path] canvas show <id|name> [--format mermaid|json|dot] [--project <id>]
-  polterware [-db path] canvas save <id|name> --source <file|-> [--project <id>]
+  polterware [-db path] canvas save <id|name> --source <file|-> [--project <id>]   (a new name creates the canvas)
   polterware [-db path] canvas share <id|name> on|off [--project <id>]
+  polterware [-db path] milestone ls [--archived] | new "<name>" | set <slug> [--goal ...] [--exit ...]... [--target YYYY-MM-DD] [--state planned|active|done] | archive|restore <slug> | order <slug>... [--project <id>]
+  polterware [-db path] doc ls [--archived] | show <id|title> | new "<title>" --body <file|-> | save <id|title> [--body <file|->] [--summary ...] [--tag ...] [--scope <node>] | archive|restore|rm <id|title> [--project <id>]
   polterware [-db path] export [--dry-run] [--sync on|off] [--json] [--project <id>]
   polterware [-db path] apply <file|-> [--dry-run] [--project <id>] [--summary ...] [--rationale ...] [--agent-run-id ...]
   polterware [-db path] lint <file|dir|-> [--project <id>]   (silent on success)
@@ -97,8 +99,7 @@ pub fn usage_text() -> &'static str {
   polterware [-db path] verify <slug|slug#T2> [--project <id>]   (exit 1 when a check fails)
   polterware [-db path] inbox [<id> decide "<answer>" | delegate | defer | ignore] [--agent name] [--scope <node>[,<node>]] [--exact] [--project <id>]
   polterware [-db path] conflict raise <slug> "<request>" --rule <slug> [--card <slug>] [--option "<text>"]... | decide <slug> "<answer>" | wait <slug> [--timeout 30m] | withdraw <slug> | list [--project <id>]
-  polterware [-db path] deploys [<path>] | check [<path>] [--force] | targets <provider> [--node <path>] [--project <id>]   (deploy links, the platform's latest deploy, what a deploy can link to)
-  polterware [-db path] scope <rule|item> <id> [<node path>...] [--project <id>]   (the nodes replace its contexts; none clears them)
+  polterware [-db path] scope <rule|knowledge|item> <id> [<node path>...] [--project <id>]   (the nodes replace its contexts; none clears them)
   polterware [-db path] setup [doctor] | claude [--uninstall | --enable | --disable | --skill-only] | codex [--uninstall] [--project <id>]
   polterware [-db path] setup mcp [list] [--json] | add <claude|codex|cursor|all> | remove <claude|codex|cursor|all>   (register the MCP server with each client)
   polterware [-db path] hooks [list] | enable|disable <status|stop|lint|context|session|all>
@@ -382,7 +383,7 @@ mod tests {
         let text = usage_text();
         assert!(text.starts_with("Usage:\n  polterware [-db path] init"));
         assert!(text.ends_with("(MCP server over stdio for coding agents)\n"));
-        assert_eq!(text.lines().count(), 33);
+        assert_eq!(text.lines().count(), 34);
     }
 
     #[test]

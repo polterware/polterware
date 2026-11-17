@@ -142,12 +142,12 @@ fn polter_references_from_snapshot(
         cards: snapshot.cards.clone(),
         nodes: snapshot.nodes.clone(),
         repos: snapshot.repos.clone(),
-        environments: snapshot.environments.clone(),
         ..polter::References::default()
     };
     for rule in &snapshot.rules {
         refs.decisions.push(polter::DecisionRef {
             id: rule.id.clone(),
+            slug: rule.slug.clone(),
             title: rule.statement.clone(),
             status: rule.status.clone(),
         });
@@ -331,10 +331,6 @@ pub fn query_polter_scoped(
             query_commits(store, project_id, &query.slug).map_err(message_error)
         }
         polter::QUERY_CONFLICTS => Ok(polter::encode_conflicts(&snapshot)),
-        polter::QUERY_DEPLOYS => {
-            deploys_text(store, project_id, &query.slug, OffsetDateTime::now_utc())
-                .map_err(message_error)
-        }
         polter::QUERY_CONFLICT => {
             let Some(conflict) = snapshot.conflict(&query.slug) else {
                 return Err(Error::Message(format!(
@@ -590,7 +586,7 @@ Import HEAD, branch and recent commits as evidence.
 "#;
 
     /// The project `InitProject` registers for a name and no folder: a project
-    /// row, its settings, and its default local environment.
+    /// row and its settings.
     pub(crate) fn init_test_project(store: &Store, name: &str) -> projects::Project {
         super::init::init_project(
             store,

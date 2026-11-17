@@ -8,7 +8,7 @@ use time::{
     macros::format_description,
 };
 
-use super::{Error, NODE_ACTIVE, Node, Result, Row, decorate, deployments_from};
+use super::{Error, NODE_ACTIVE, Node, Result, Row, decorate};
 
 /// One `change_ops` JSON object: a diff of the columns an op changed.
 pub type Fields = Map<String, Value>;
@@ -201,11 +201,6 @@ fn apply_node_fields(node: &mut Node, fields: &Fields) {
                 }
             }
             "decisions" => node.decisions = string_list(value),
-            "deploys" => {
-                if let Some(deploys) = deployments_from(value) {
-                    node.deploys = deploys;
-                }
-            }
             _ => {}
         }
     }

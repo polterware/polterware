@@ -1,17 +1,17 @@
 //! The inspector (`canvas-inspector.tsx`, `inspector.tsx`): what the selection is and how to
 //! change it, in the right panel.
 //!
-//! - One shape: its title and kind over the tabs Style (drawing shapes and components only),
-//!   Text, Arrange, and Data. Style picks the family and type, the fill and line swatches, the
-//!   line width, and its pattern; Text the note color, the label (unless a reference names
-//!   it), a note's body, and the type size, alignment, and weight; Arrange the box in
-//!   steppers, the stacking, and Snap to grid; Data a component's technology and description,
-//!   the project reference, and Promote.
-//! - One connection: `Edge: Kind`, its ends, its kind, and its label.
+//! - One shape: its title and kind over collapsible sections Style (drawing shapes and
+//!   components only), Text, Arrange, and Data. Style picks the family and type, the fill and
+//!   line swatches, the line width, and its pattern; Text the note color, the label (unless a
+//!   reference names it), and a note's body; Arrange the box in steppers, the stacking, and
+//!   Snap to grid; Data a component's technology and description, the project reference, and
+//!   Promote.
+//! - One connection: `Edge: Kind`, its ends, and its kind.
 //! - Several shapes: how many, and the six alignments.
 //!
-//! The panel follows the selection by id, so an edit keeps the open tab and the focused field;
-//! another shape starts on its first tab. Typed edits coalesce into one undo step.
+//! The panel follows the selection by id, so an edit keeps the section open state and the
+//! focused field. Typed edits coalesce into one undo step.
 
 use std::rc::Rc;
 
@@ -39,7 +39,7 @@ use crate::canvas::catalog::{
     COMPONENTS, component_of, edge_palette, family_for, kind_label, structure_kind,
 };
 use crate::canvas::document::{
-    COLOR_TAGS, Node, ShapeStyle, property_text, read_style, write_style,
+    COLOR_TAGS, Node, Props, ShapeStyle, property_text, read_style, write_style,
 };
 use crate::canvas::references::{
     PromotionKind, StoreEntity, build_ref, can_promote, derive_slug, linked_facts, ref_label,
@@ -47,14 +47,6 @@ use crate::canvas::references::{
 };
 use crate::contracts::CanvasRef;
 use crate::views::picker::Picker;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Tab {
-    Style,
-    Text,
-    Arrange,
-    Data,
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Geometry {
@@ -86,7 +78,6 @@ const ALIGNMENTS: [(Align, &str, &str); 6] = [
 pub(super) struct InspectorState {
     /// The shape or connection the panel was filled from.
     shown: Option<String>,
-    tab: Tab,
     label: Entity<TextInput>,
     body: Entity<TextInput>,
     technology: Entity<TextInput>,
@@ -97,6 +88,10 @@ pub(super) struct InspectorState {
     family: Picker,
     kind: Picker,
     edge_kind: Picker,
+    style: Entity<CollapsibleSection>,
+    text: Entity<CollapsibleSection>,
+    arrange: Entity<CollapsibleSection>,
+    data: Entity<CollapsibleSection>,
     component: Entity<CollapsibleSection>,
     reference: Entity<CollapsibleSection>,
     promote: Entity<CollapsibleSection>,
@@ -110,6 +105,19 @@ pub(super) struct InspectorState {
     reference_sort: Rc<std::cell::Cell<Option<(usize, polterware_ui::sort::SortDirection)>>>,
     /// Why the core refused the promotion, under the Composer's title.
     promotion_error: std::rc::Rc<std::cell::RefCell<Option<String>>>,
+}
+
+fn plain_section(
+    title: &'static str,
+    cx: &mut Context<CanvasEditor>,
+) -> Entity<CollapsibleSection> {
+    let section = cx.new(|cx| {
+        let mut section = CollapsibleSection::new(title, cx);
+        section.set_compact(true);
+        section
+    });
+    cx.observe(&section, |_, _, cx| cx.notify()).detach();
+    section
 }
 
 fn section(
@@ -243,7 +251,6 @@ impl InspectorState {
             .detach();
         Self {
             shown: None,
-            tab: Tab::Text,
             label,
             body,
             technology,
@@ -254,6 +261,10 @@ impl InspectorState {
             family: Picker::new(cx),
             kind: Picker::new(cx),
             edge_kind: Picker::new(cx),
+            style: plain_section("Style", cx),
+            text: plain_section("Text", cx),
+            arrange: plain_section("Arrange", cx),
+            data: plain_section("Data", cx),
             component: section("Component", Icon::Server, cx),
             reference: section("Project reference", Icon::Link2, cx),
             promote: section("Promote", Icon::ArrowUp, cx),
@@ -562,12 +573,19 @@ impl CanvasEditor {
         };
         let mut style = read_style(&after.props);
         change(&mut style);
-        write_style(&mut after.props, &style);
+        let default_style = read_style(&Props::new());
+        let line = if style == default_style {
+            after.props.remove("style");
+            String::new()
+        } else {
+            write_style(&mut after.props, &style);
+            style_line(&style, theme)
+        };
         let Some(mermaid) = self.mermaid(&id) else {
             return;
         };
-        let source =
-            super::source_edit::set_style_line(&self.source, &mermaid, &style_line(&style, theme));
+        let source = super::source_edit::set_props(&self.source, &mermaid, &after.props);
+        let source = super::source_edit::set_style_line(&source, &mermaid, &line);
         self.doc = crate::canvas::document::update_node(&self.doc, &id, |node| *node = after);
         self.apply_source(source, Capture::Immediately, cx);
     }
@@ -862,18 +880,12 @@ impl CanvasEditor {
         }
     }
 
-    /// Fills the fields from what is selected, and starts another shape on its first tab.
+    /// Fills the fields from what is selected, and clears search and menus when another item is
+    /// selected.
     fn sync_inspector(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let shown = self.selected_node().or_else(|| self.selected_edge());
         if shown != self.inspector.shown {
             self.inspector.shown = shown.clone();
-            let library = shown
-                .as_deref()
-                .and_then(|id| self.doc.node(id))
-                .is_some_and(|node| {
-                    shape_of(&node.kind).is_some() || component_of(&node.kind).is_some()
-                });
-            self.inspector.tab = if library { Tab::Style } else { Tab::Text };
             self.inspector.query.clear();
             let search = self.inspector.search.clone();
             search.update(cx, |search, cx| search.set_text("", cx));
@@ -993,58 +1005,87 @@ impl CanvasEditor {
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join(" / ");
-        let mut tabs: Vec<(Tab, &str)> = Vec::new();
+        let mut sections: Vec<AnyElement> = Vec::new();
         if library {
-            tabs.push((Tab::Style, "Style"));
-        }
-        tabs.extend([
-            (Tab::Text, "Text"),
-            (Tab::Arrange, "Arrange"),
-            (Tab::Data, "Data"),
-        ]);
-        let tab = if tabs.iter().any(|(item, _)| *item == self.inspector.tab) {
-            self.inspector.tab
-        } else {
-            Tab::Text
-        };
-        let selected = tabs.iter().position(|(item, _)| *item == tab).unwrap_or(0);
-        let ids: Vec<Tab> = tabs.iter().map(|(item, _)| *item).collect();
-        let bar = SegmentedControl::new("canvas-inspector-tabs")
-            .options(tabs.iter().map(|(_, label)| *label))
-            .selected(selected)
-            .on_select({
-                let editor = editor.clone();
-                move |index, _, cx| {
-                    let Some(tab) = ids.get(index).copied() else {
-                        return;
-                    };
-                    let _ = editor.update(cx, |this, cx| {
-                        this.inspector.tab = tab;
-                        cx.notify();
-                    });
-                }
+            let section_node = node.clone();
+            let section_style = style.clone();
+            let section_editor = editor.clone();
+            let section_body: SectionBody = Rc::new(move |_: &mut Window, cx: &mut App| {
+                let Some(this) = section_editor.upgrade() else {
+                    return div().into_any_element();
+                };
+                let theme = *Theme::global(cx);
+                this.read(cx).style_tab(
+                    &section_node,
+                    &section_style,
+                    width,
+                    &section_editor,
+                    &theme,
+                    cx,
+                )
             });
-        let page = match tab {
-            Tab::Style => self.style_tab(node, &style, width, editor, theme, cx),
-            Tab::Text => self.text_tab(node, is_note, editor, theme),
-            Tab::Arrange => self.arrange_tab(editor, theme),
-            Tab::Data => self.data_tab(
+            self.inspector
+                .style
+                .update(cx, |section, _| section.set_body(section_body));
+            sections.push(self.inspector.style.clone().into_any_element());
+        }
+        {
+            let section_node = node.clone();
+            let section_editor = editor.clone();
+            let section_body: SectionBody = Rc::new(move |_: &mut Window, cx: &mut App| {
+                let Some(this) = section_editor.upgrade() else {
+                    return div().into_any_element();
+                };
+                let theme = *Theme::global(cx);
+                this.read(cx)
+                    .text_tab(&section_node, is_note, &section_editor, &theme)
+            });
+            self.inspector
+                .text
+                .update(cx, |section, _| section.set_body(section_body));
+            sections.push(self.inspector.text.clone().into_any_element());
+        }
+        {
+            let section_editor = editor.clone();
+            let section_body: SectionBody = Rc::new(move |_: &mut Window, cx: &mut App| {
+                let Some(this) = section_editor.upgrade() else {
+                    return div().into_any_element();
+                };
+                let theme = *Theme::global(cx);
+                this.read(cx).arrange_tab(&section_editor, &theme)
+            });
+            self.inspector
+                .arrange
+                .update(cx, |section, _| section.set_body(section_body));
+            sections.push(self.inspector.arrange.clone().into_any_element());
+        }
+        {
+            let section_body = self.data_tab(
                 node,
                 &entities,
                 linked.and_then(|facts| facts.tech),
                 editor,
                 theme,
                 cx,
-            ),
-        };
+            );
+            self.inspector
+                .data
+                .update(cx, |section, _| section.set_body(section_body));
+            sections.push(self.inspector.data.clone().into_any_element());
+        }
+        let stack = div()
+            .w_full()
+            .flex()
+            .flex_col()
+            .gap(px(12.0))
+            .children(sections);
         div()
             .size_full()
             .min_h_0()
             .flex()
             .flex_col()
             .child(heading(title, Some(detail), theme))
-            .child(div().px(px(12.0)).pb(px(4.0)).child(bar))
-            .child(body("canvas-inspector-body", page))
+            .child(body("canvas-inspector-body", stack))
             .into_any_element()
     }
 
@@ -1055,9 +1096,9 @@ impl CanvasEditor {
         width: f32,
         editor: &WeakEntity<Self>,
         theme: &Theme,
-        cx: &mut Context<Self>,
+        cx: &App,
     ) -> AnyElement {
-        let mut out = form(12.0);
+        let mut out = form(0.0);
         if let Some(current) = family_for(&node.kind) {
             let families: Vec<MenuItem> = FAMILIES
                 .iter()
@@ -1172,7 +1213,7 @@ impl CanvasEditor {
         editor: &WeakEntity<Self>,
         theme: &Theme,
     ) -> AnyElement {
-        let mut out = form(12.0);
+        let mut out = form(0.0);
         let theme_value = *theme;
         if is_note {
             let color = property_text(&node.props, "color");
@@ -1243,7 +1284,7 @@ impl CanvasEditor {
                 .child(div().flex_1().min_w_0().child(a))
                 .child(div().flex_1().min_w_0().child(b))
         };
-        form(12.0)
+        form(0.0)
             .child(
                 div()
                     .flex()
@@ -1298,8 +1339,8 @@ impl CanvasEditor {
         editor: &WeakEntity<Self>,
         theme: &Theme,
         cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let mut out = div().w_full().flex().flex_col().pt(px(12.0));
+    ) -> SectionBody {
+        let mut sections: Vec<Entity<CollapsibleSection>> = Vec::new();
         if let Some(component) = component_of(&node.kind) {
             let current = property_text(&node.props, "technology");
             let suggestions: Vec<&'static str> = component
@@ -1369,9 +1410,9 @@ impl CanvasEditor {
             self.inspector
                 .component
                 .update(cx, |section, _| section.set_body(body));
-            out = out.child(self.inspector.component.clone());
+            sections.push(self.inspector.component.clone());
         }
-        out = out.child(self.reference_section(node, entities, editor, cx));
+        sections.push(self.reference_section(node, entities, editor, cx));
         if can_promote(node) {
             let editor = editor.clone();
             let body: SectionBody = Rc::new(move |_: &mut Window, cx: &mut App| {
@@ -1401,10 +1442,17 @@ impl CanvasEditor {
             self.inspector
                 .promote
                 .update(cx, |section, _| section.set_body(body));
-            out = out.child(self.inspector.promote.clone());
+            sections.push(self.inspector.promote.clone());
         }
         let _ = theme;
-        out.into_any_element()
+        Rc::new(move |_: &mut Window, _: &mut App| {
+            div()
+                .w_full()
+                .flex()
+                .flex_col()
+                .children(sections.iter().cloned())
+                .into_any_element()
+        })
     }
 
     fn reference_section(
@@ -1413,7 +1461,7 @@ impl CanvasEditor {
         entities: &[StoreEntity],
         editor: &WeakEntity<Self>,
         cx: &mut Context<Self>,
-    ) -> AnyElement {
+    ) -> Entity<CollapsibleSection> {
         let required = structure_kind(&node.kind);
         let reference = node.reference.clone();
         let state = reference_state(reference.as_ref(), entities);
@@ -1587,7 +1635,7 @@ impl CanvasEditor {
         self.inspector
             .reference
             .update(cx, |section, _| section.set_body(body));
-        self.inspector.reference.clone().into_any_element()
+        self.inspector.reference.clone()
     }
 
     fn edge_panel(

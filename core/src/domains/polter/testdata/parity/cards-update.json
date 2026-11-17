@@ -1,7 +1,7 @@
 {
   "budget": 700,
   "docs": null,
-  "expected": "## decode\n## plan diagnostics\n12:hint:answer \"first-parent\" is not one of the options (yes | no)\n## plan\n~ card git-import decisions: [] \u2192 [Decision-0002] intent: \"Import commits.\" \u2192 \"Import HEAD and tags.\" milestone: \"\" \u2192 m1 owner: erick \u2192 ana stage: shape \u2192 build title: \"Git import\" \u2192 \"Git metadata import\"\n~ task git-import T1 scope: backend/* \u2192 backend/domains/canon/*\n+ task git-import T3 \"Stamp branches\"\n~ question git-import \"Include merge commits?\" answer: \"\" \u2192 first-parent blocking: true \u2192 false state: open \u2192 answered\n+ question git-import \"Add tags?\" [blocking]\n- invariant git-import \"No network calls during scan\" state: active \u2192 removed\n+ invariant git-import \"Log every write\"\n+ handoff git-import \"feat/git-import\"\n## summary\n8 ops (1 card, 2 tasks, 2 questions, 2 invariants, 1 handoff)\n## brief\n## git-import: Git import\nstage: shape \u00b7 under: core/api\nkind: api \u00b7 tech: Go \u00b7 repo: api \u00b7 path: cmd/api\nImport commits.\n\nAcceptance:\n! No network calls during scan\n\n- [ ] T1 Commit evidence upsert `backend/*`\n? Include merge commits? [blocking] (yes | no)\nhandoff codex on feat/git-import: next: Tests \u00b7 in progress: T1\n",
+  "expected": "## decode\n## plan diagnostics\n12:hint:answer \"first-parent\" is not one of the options (yes | no)\n## plan\n~ card git-import decisions: [] \u2192 [Decision-0002] intent: \"Import commits.\" \u2192 \"Import HEAD and tags.\" milestone: \"\" \u2192 beta owner: erick \u2192 ana stage: shape \u2192 build title: \"Git import\" \u2192 \"Git metadata import\"\n~ task git-import T1 scope: backend/* \u2192 backend/domains/canon/*\n+ task git-import T3 \"Stamp branches\"\n~ question git-import \"Include merge commits?\" answer: \"\" \u2192 first-parent blocking: true \u2192 false state: open \u2192 answered\n+ question git-import \"Add tags?\" [blocking]\n- invariant git-import \"No network calls during scan\" state: active \u2192 removed\n+ invariant git-import \"Log every write\"\n+ handoff git-import \"feat/git-import\"\n## summary\n8 ops (1 card, 2 tasks, 2 questions, 2 invariants, 1 handoff)\n## brief\n## git-import: Git import\nstage: shape \u00b7 under: core/api\nkind: api \u00b7 tech: Go \u00b7 repo: api \u00b7 path: cmd/api\nImport commits.\n\nAcceptance:\n! No network calls during scan\n\n- [ ] T1 Commit evidence upsert `backend/*`\n? Include merge commits? [blocking] (yes | no)\nhandoff codex on feat/git-import: next: Tests \u00b7 in progress: T1\n",
   "name": "cards-update",
   "snapshot": {
     "Cards": [
@@ -123,7 +123,6 @@
         "supersededBy": "a2"
       }
     ],
-    "Environments": null,
     "Facts": null,
     "Milestones": [
       {
@@ -144,7 +143,6 @@
     "Nodes": [
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "",
         "ID": "n-core",
         "Intent": "",
@@ -164,7 +162,6 @@
       },
       {
         "Decisions": null,
-        "Deploys": null,
         "Folder": "cmd/api",
         "ID": "n-api",
         "Intent": "",

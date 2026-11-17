@@ -1,6 +1,6 @@
 //! The Projects screen (`projects-screen.tsx`), reached through Home: a 44px header with the
 //! title, Search projects, the Status filter, and New project; then every local project in
-//! one table, Name (the project's tile, its name, and its description), Status, Environments,
+//! one table, Name (the project's tile, its name, and its description), Status,
 //! and Updated, each sorting, and the row's actions under the pointer. A row enters the
 //! project on its Inbox.
 
@@ -24,12 +24,13 @@ use polterware_ui::status_dot::status_dot_label;
 use polterware_ui::text_input::TextInput;
 use polterware_ui::theme::{StatusTone, Theme};
 use polterware_ui::window::window_drag::WindowDragRegion;
+use polterware_ui::{page_under, page_under_inset};
 
 use crate::state::{AppState, Load, ProjectRow};
 use crate::views::core_status::core_status;
 
-const COLUMNS: [&str; 5] = ["Name", "Status", "Environments", "Updated", ""];
-const SORTABLE: [bool; 5] = [true, true, true, true, false];
+const COLUMNS: [&str; 4] = ["Name", "Status", "Updated", ""];
+const SORTABLE: [bool; 4] = [true, true, true, false];
 /// `STATUS_FILTERS`: each status, its label, and its dot's tone.
 const STATUSES: [(&str, &str, StatusTone); 3] = [
     ("active", "Active", StatusTone::Ok),
@@ -54,6 +55,9 @@ pub struct ProjectsView {
     sort: Option<(usize, SortDirection)>,
     fields_key: String,
 }
+
+/// The Projects page, whose header the table runs under.
+const PAGE_ID: &str = "projects-page";
 
 impl ProjectsView {
     pub fn new(state: Entity<AppState>, cx: &mut Context<Self>) -> Self {
@@ -132,8 +136,7 @@ impl ProjectsView {
                 let order = match column {
                     0 => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
                     1 => status_of(a).1.cmp(status_of(b).1),
-                    2 => a.environments.cmp(&b.environments),
-                    3 => a.updated_at.cmp(&b.updated_at),
+                    2 => a.updated_at.cmp(&b.updated_at),
                     _ => Ordering::Equal,
                 };
                 match direction {
@@ -227,15 +230,7 @@ impl Render for ProjectsView {
             .gap(px(8.0))
             .pl(px(24.0))
             .pr(px(12.0))
-            .child(
-                div()
-                    .flex_none()
-                    .text_size(px(13.0))
-                    .font_weight(FontWeight::MEDIUM)
-                    .text_color(theme.color_text_primary)
-                    .whitespace_nowrap()
-                    .child("Projects"),
-            )
+            // No title: the title bar's breadcrumb already names the page.
             .child(div().flex_1().h(px(44.0)).window_drag_region())
             .child(actions);
         let bar = FilterPopover::bar(&self.filters, window, cx).map(|bar| {
@@ -247,30 +242,42 @@ impl Render for ProjectsView {
                 .child(bar)
         });
 
+        // The table runs up under the header, which floats on its fade: at rest it keeps clear
+        // of the header and the filter bar, and what scrolls up goes soft beneath them.
+        let inset = page_under_inset(PAGE_ID, bar.is_some(), 0.0, window, cx);
+        let clear = |element: AnyElement| {
+            div()
+                .size_full()
+                .pt(px(inset))
+                .child(element)
+                .into_any_element()
+        };
         let content: AnyElement = match &projects {
             None => match self.state.read(cx).projects() {
-                Load::Failed(message) => page_empty_with(
-                    Some("Could not read the projects"),
-                    MascotMood::Sad,
-                    Some(
-                        div()
-                            .text_size(px(theme.font_size_sm))
-                            .text_color(theme.color_text_muted)
-                            .child(SharedString::from(message.clone()))
-                            .into_any_element(),
-                    ),
-                    cx,
-                )
-                .into_any_element(),
+                Load::Failed(message) => clear(
+                    page_empty_with(
+                        Some("Could not read the projects"),
+                        MascotMood::Sad,
+                        Some(
+                            div()
+                                .text_size(px(theme.font_size_sm))
+                                .text_color(theme.color_text_muted)
+                                .child(SharedString::from(message.clone()))
+                                .into_any_element(),
+                        ),
+                        cx,
+                    )
+                    .into_any_element(),
+                ),
                 _ => div().into_any_element(),
             },
             Some(projects) if projects.is_empty() => {
-                page_empty("No projects yet", MascotMood::Sleeping, cx).into_any_element()
+                clear(page_empty("No projects yet", MascotMood::Sleeping, cx).into_any_element())
             }
             Some(projects) => {
                 let visible = self.visible(projects, cx);
                 if visible.is_empty() {
-                    page_empty("No matches", MascotMood::Lost, cx).into_any_element()
+                    clear(page_empty("No matches", MascotMood::Lost, cx).into_any_element())
                 } else {
                     // `.pw-data-table-scroll`'s 12px inline padding sits inside the scroll,
                     // whose width the spare room is shared from.
@@ -278,6 +285,8 @@ impl Render for ProjectsView {
                         .size_full()
                         .child(
                             projects_table(Rc::new(visible), self, cx)
+                                .inset_top(inset)
+                                .fades(theme.color_surface)
                                 .gutters(12.0)
                                 .measure_every_row()
                                 .freeze_once(),
@@ -291,16 +300,15 @@ impl Render for ProjectsView {
             .size_full()
             .flex()
             .flex_col()
-            .child(header)
-            .children(bar)
-            .child(
-                div()
-                    .flex_1()
-                    .min_h(px(0.0))
-                    .flex()
-                    .flex_col()
-                    .child(content),
-            )
+            .child(page_under(
+                PAGE_ID,
+                header,
+                bar.map(IntoElement::into_any_element),
+                0.0,
+                content,
+                window,
+                cx,
+            ))
             .child(self.menu.clone())
     }
 }
@@ -332,7 +340,7 @@ fn projects_table(
                 column.max_width = 960.0;
                 column = column.shrinks();
             }
-            if index == 4 {
+            if index == 3 {
                 column = column.width(44.0).end();
                 column.resizable = false;
             }
@@ -406,7 +414,6 @@ fn projects_table(
         vec![
             name,
             status_dot_label(tone, label, cx).into_any_element(),
-            muted_cell(project.environments.clone(), &theme),
             muted_cell(project.updated.clone(), &theme),
             more,
         ]
@@ -415,7 +422,7 @@ fn projects_table(
         let theme = *Theme::global(cx);
         let medium = sans(&theme, FontWeight::MEDIUM);
         let normal = sans(&theme, FontWeight::NORMAL);
-        let mut widest = [0.0_f32; 5];
+        let mut widest = [0.0_f32; 4];
         for project in measured.get(range).unwrap_or_default() {
             let description = project.description.trim();
             let name = 24.0
@@ -429,12 +436,8 @@ fn projects_table(
             let (_, label, _) = status_of(project);
             // The dot and its gap, `h-1.5` and `gap-1.5` on the 13px root, then `text-xs`.
             let status = 2.0 * 4.875 + text_width(label, normal.clone(), 9.75, window);
-            let environments = text_width(&project.environments, medium.clone(), 12.0, window);
             let updated = text_width(&project.updated, medium.clone(), 12.0, window);
-            for (slot, width) in widest
-                .iter_mut()
-                .zip([name, status, environments, updated, 0.0])
-            {
+            for (slot, width) in widest.iter_mut().zip([name, status, updated, 0.0]) {
                 *slot = slot.max(width);
             }
         }
